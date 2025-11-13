@@ -2006,7 +2006,7 @@ function getZipcodePolygon(z) {
     .then(response => response.json())
     .then(response => {
       let polygons = parseZipcodeResult(response);
-      if (polygons !== []) {
+      if (polygons.length > 0) {
         currentMap.resetBoundaries();
         for (let polygon of polygons) {
           currentMap.addBoundary(new PolygonBoundary(polygon[0]));
