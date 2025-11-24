@@ -21,3 +21,4 @@ yolov5/*
 hosting/connect-tc.sh
 .DS_Store
 apikey.txt
+.github/*
