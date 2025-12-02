@@ -22,3 +22,9 @@ hosting/connect-tc.sh
 .DS_Store
 apikey.txt
 .github/*
+
+# Environment variables (contains secrets)
+.env
+webapp/.env
+*.env
+!.env.example

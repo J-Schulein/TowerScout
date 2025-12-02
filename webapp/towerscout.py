@@ -29,6 +29,10 @@ import zipfile
 import ssl
 import asyncio
 import time
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if it exists
+load_dotenv()
 import tempfile
 from PIL import Image, ImageDraw
 import torch
@@ -104,9 +108,36 @@ providers = {
     'bing': {'id': 'bing', 'name': 'Bing Maps'},
 }
 
+# Load API keys from environment variables
+def load_api_keys():
+    """Load and validate API keys from environment variables."""
+    google_key = os.getenv('GOOGLE_API_KEY')
+    bing_key = os.getenv('BING_API_KEY')
+    
+    if not google_key:
+        raise EnvironmentError(
+            "GOOGLE_API_KEY environment variable is required. "
+            "Please copy .env.example to .env and configure your API keys."
+        )
+    
+    if not bing_key:
+        print("Warning: BING_API_KEY not configured. Bing Maps provider will be unavailable.")
+        bing_key = ""
+    
+    return google_key, bing_key
+
+# Load API keys
+try:
+    google_api_key, bing_api_key = load_api_keys()
+except EnvironmentError as e:
+    print(f"Configuration Error: {e}")
+    print("\nTo fix this:")
+    print("1. Copy .env.example to .env")
+    print("2. Edit .env and add your Google Maps API key")
+    print("3. Restart the application")
+    exit(1)
+
 # other global variables
-google_api_key = ""
-bing_api_key = ""
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
@@ -138,9 +169,20 @@ def start_zipcodes():
 
 # Flask boilerplate stuff
 app = Flask(__name__)
-# session = Session()
+
+# Configure Flask from environment variables
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
+if not app.config['SECRET_KEY']:
+    raise EnvironmentError(
+        "FLASK_SECRET_KEY environment variable is required for secure sessions. "
+        "Please copy .env.example to .env and configure your secret key."
+    )
+
 app.config['UPLOAD_FOLDER'] = "uploads"
-# configure server-sise session
+app.config['FLASK_ENV'] = os.getenv('FLASK_ENV', 'development')
+app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+
+# Configure server-side session
 SESSION_TYPE = 'filesystem'
 SESSION_PERMANENT = False
 app.config.from_object(__name__)
@@ -926,13 +968,7 @@ def adapt_tiles(tiles, tmpdirname, old_stem, new_stem):
 
 
 if __name__ == '__main__':
-    # read maps api key (not in source code due to security reasons)
-    # has to be an api key with access to maps, staticmaps and places
-    # todo: deploy CDC-owned key in final version
-    with open('apikey.txt') as f:
-        google_api_key = f.readline().split()[0]
-        bing_api_key = f.readline().split()[0]
-        f.close
+    # API keys are now loaded from environment variables at module level
     # app.run(debug = True)
     # app.secret_key = 'super secret key'
     # app.config['SESSION_TYPE'] = 'filesystem'
