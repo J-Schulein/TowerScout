@@ -18,10 +18,14 @@ from ts_gmaps import GoogleMap
 from ts_zipcode import Zipcode_Provider
 from ts_events import ExitEvents
 import ts_maps
-from flask import Flask, render_template, send_from_directory, request, session, Response
+from flask import Flask, render_template, send_from_directory, request, session, Response, jsonify
 from flask_session import Session
 from waitress import serve
 import json
+from ts_validation import (
+    TowerScoutValidator, ValidationError, rate_limiter,
+    validate_detection_request, validate_zipcode_request
+)
 import torch
 import os
 from shutil import rmtree
@@ -314,7 +318,16 @@ def get_providers():
 @app.route('/getzipcode')
 def get_zipcode():
     global zipcode_provider
-    zipcode = request.args.get("zipcode")
+    
+    # Input validation
+    try:
+        validated_data = validate_zipcode_request(request.args.to_dict())
+        zipcode = validated_data['zipcode']
+    except ValidationError as e:
+        return jsonify({'error': f'Validation error: {e.message}'}), 400
+    except Exception as e:
+        return jsonify({'error': 'Invalid zipcode format'}), 400
+        
     print("zipcode requested:", zipcode)
     with zipcode_lock:
         if zipcode_provider is None:
@@ -345,27 +358,38 @@ def get_objects():
     if session['tiles'] > MAX_TILES_SESSION:
         return "-1"
 
-    # start time, get params
+    # start time
     start = time.time()
-    bounds = request.form.get("bounds")
-    engine = request.form.get("engine")
-    provider = request.form.get("provider")
-    polygons = request.form.get("polygons")
+    
+    # Rate limiting
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    if not rate_limiter.is_allowed(client_ip, max_requests=30, window_seconds=60):
+        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
+    
+    # Input validation
+    try:
+        validated_data = validate_detection_request(request.form.to_dict())
+        bounds_dict = validated_data['bounds']
+        bounds = f"{bounds_dict['lat1']},{bounds_dict['lng1']},{bounds_dict['lat2']},{bounds_dict['lng2']}"
+        engine = validated_data['engine']
+        provider = validated_data['provider']
+        polygons = validated_data['polygons']
+        estimate = validated_data.get('estimate')
+    except ValidationError as e:
+        return jsonify({'error': f'Validation error: {e.message}'}), 400
+    except Exception as e:
+        return jsonify({'error': 'Invalid request data'}), 400
     
     print("incoming detection request:")
     print(" bounds:", bounds)
     print(" engine:", engine)
     print(" map provider:", provider)
-    # print(" polygons:", polygons)
+    print(" polygons count:", len(polygons))
     
     # cropping
     crop_tiles = True
-
-    # make the polygons
-    polygons = json.loads(polygons)
-    # print(" parsed polygons:", polygons)
-    polygons = [ts_imgutil.make_boundary(p) for p in polygons]
-    # print(" Shapely polygons:", polygons)
+    
+    # Note: polygons are already validated Shapely Polygon objects
 
     # get the proper detector
     det = get_engine(engine)
@@ -395,7 +419,7 @@ def get_objects():
         tile['id'] = i
     print(" tiles left after viewport and polygon filter:", len(tiles))
 
-    if request.form.get("estimate") == "yes":
+    if estimate == "yes":
         # reset abort flag
         exit_events.alloc(id(session))  # todo: might leak some of these
         print(" returning number of tiles")
@@ -547,28 +571,28 @@ def allowed_extension(filename):
 @ app.route('/getobjectscustom', methods=['POST'])
 def get_objects_custom():
     start = time.time()
-    engine = request.form.get("engine")
+    
+    # Rate limiting
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    if not rate_limiter.is_allowed(client_ip, max_requests=10, window_seconds=60):
+        return jsonify({'error': 'Rate limit exceeded for image uploads'}), 429
+    
+    # Input validation
+    try:
+        engine = TowerScoutValidator.validate_engine(request.form.get('engine'))
+        
+        if 'image' not in request.files:
+            raise ValidationError("No image file provided")
+            
+        file = TowerScoutValidator.validate_image_file(request.files['image'])
+    except ValidationError as e:
+        return jsonify({'error': f'Validation error: {e.message}'}), 400
+    except Exception as e:
+        return jsonify({'error': 'Invalid request data'}), 400
+        
     print("incoming custom image detection request:")
     print(" engine:", engine)
-
-    # upload the file
-    if request.method != 'POST':
-        print(" --- POST requests only please")
-        return None
-
-    # check if the post request has the file part
-    if 'image' not in request.files:
-        print(" --- no file part in request")
-        return None
-
-    file = request.files['image']
-    if file.filename == '':
-        print(' --- no selected image file')
-        return None
-
-    if not file or not allowed_extension(file.filename):
-        print(" --- invalid file or extension:", file.filename)
-        return None
+    print(" file:", file.filename)
 
     # get the proper detector
     det = get_engine(engine)
@@ -621,18 +645,23 @@ def drawResult(r, im):
 @ app.route('/uploadmodel', methods=['POST'])
 def upload_model():
     print("uploading model:")
+    
+    # Rate limiting (stricter for model uploads)
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    if not rate_limiter.is_allowed(client_ip, max_requests=5, window_seconds=300):
+        return jsonify({'error': 'Rate limit exceeded for model uploads'}), 429
+    
+    # Input validation
+    try:
+        if 'model' not in request.files:
+            raise ValidationError("No model file provided")
+            
+        file = TowerScoutValidator.validate_model_file(request.files['model'])
+    except ValidationError as e:
+        return jsonify({'error': f'Validation error: {e.message}'}), 400
+    except Exception as e:
+        return jsonify({'error': 'Invalid request data'}), 400
 
-    # upload the file
-    if request.method != 'POST':
-        print(" --- POST requests only please")
-        return None
-
-    # check if the post request has the file part
-    if 'model' not in request.files:
-        print(" --- no file part in request")
-        return None
-
-    file = request.files['model']
     if file.filename == '':
         print(' --- no selected model file')
         return None
@@ -658,8 +687,12 @@ def upload_model():
 def send_dataset():
     print("Dataset requested")
 
-    include = json.loads(request.form.get("include"))
-    additions = json.loads(request.form.get("additions"))
+    # Validate JSON fields
+    try:
+        include = TowerScoutValidator.validate_json_field(request.form.get("include"), "include")
+        additions = TowerScoutValidator.validate_json_field(request.form.get("additions"), "additions")
+    except ValidationError as e:
+        return jsonify({'error': f'Validation error: {e.message}'}), 400
     tiles = session['detections']
     meta = session['metadata']
 
@@ -864,6 +897,22 @@ def write_contents_file(tmpdirname, tiles, keep_ids, additions, meta):
 @app.route('/uploaddataset', methods=['POST'])
 def upload_dataset():
     print("Dataset upload")
+    
+    # Rate limiting (stricter for dataset uploads)
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    if not rate_limiter.is_allowed(client_ip, max_requests=3, window_seconds=300):
+        return jsonify({'error': 'Rate limit exceeded for dataset uploads'}), 429
+    
+    # Input validation
+    try:
+        if 'dataset' not in request.files:
+            raise ValidationError("No dataset file provided")
+            
+        file = TowerScoutValidator.validate_dataset_file(request.files['dataset'])
+    except ValidationError as e:
+        return jsonify({'error': f'Validation error: {e.message}'}), 400
+    except Exception as e:
+        return jsonify({'error': 'Invalid request data'}), 400
 
     # make a temp dir as usual
     # first, clean out the old tempdir
@@ -876,20 +925,6 @@ def upload_dataset():
     tmpdirname = tempfile.mkdtemp()
     print(" creating tmp dir", tmpdirname)
     session['tmpdirname'] = tmpdirname
-
-    # check if the post request has the file part
-    if 'dataset' not in request.files:
-        print(" --- no file part in request")
-        return None
-
-    file = request.files['dataset']
-    if file.filename == '':
-        print(' --- no selected dataset file')
-        return None
-
-    if not file or not file.filename.endswith(".zip"):
-        print(" --- invalid file or extension:", file.filename)
-        return None
 
     filename = tmpdirname + "/" + file.filename
     file.save(filename)
