@@ -1280,14 +1280,29 @@ function getObjects(estimate) {
   formData.append('estimate', "yes");
 
   fetch("/getobjects",  { method: "POST", body: formData, })
-    .then(result => result.text()) 
     .then(result => {
-      if (Number(result) === -1) {
+      // Check if result is JSON error instead of tile count
+      const contentType = result.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return result.json().then(errorData => {
+          throw new Error(errorData.error || 'Server error');
+        });
+      }
+      return result.text();
+    })
+    .then(result => {
+      // Validate result is a number
+      const tileCount = Number(result);
+      if (isNaN(tileCount)) {
+        throw new Error(`Invalid tile count response: ${result}`);
+      }
+      
+      if (tileCount === -1) {
         fatalError("Tile limit for this session exceeded. Please close browser to continue.")
         return;
       }
-      console.log("Number of tiles: " + result + ", estimated time: "
-        + (Math.round(Number(result) * secsPerTile * 10) / 10) + " s");
+      console.log("Number of tiles: " + tileCount + ", estimated time: "
+        + (Math.round(tileCount * secsPerTile * 10) / 10) + " s");
       // let nt = estimateNumTiles(currentMap.getZoom());
       // console.log("  Estimated tiles:" + nt);
       if (estimate) {
@@ -1295,7 +1310,7 @@ function getObjects(estimate) {
       }
 
       // actual retrieval process starts here
-      let nt = Number(result);
+      let nt = tileCount;
       enableProgress(nt);
       setProgress(0);
       let startTime = performance.now();
@@ -1312,6 +1327,10 @@ function getObjects(estimate) {
         .catch(e => {
           console.log(e + ": "); disableProgress(0, 0);
         });
+    })
+    .catch(error => {
+      console.error("Validation error:", error.message);
+      fatalError("Error: " + error.message);
     });
 }
 

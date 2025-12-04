@@ -29,7 +29,7 @@ class TowerScoutValidator:
     # Constants
     MAX_POLYGON_POINTS = 1000
     MIN_POLYGON_POINTS = 3
-    MAX_COORDINATE_PRECISION = 10  # decimal places
+    MAX_COORDINATE_PRECISION = 15  # decimal places
     MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
     ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'tiff', 'tif'}
     ALLOWED_DATASET_EXTENSIONS = {'zip'}
