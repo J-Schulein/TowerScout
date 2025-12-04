@@ -967,7 +967,8 @@ class Detection extends PlaceRect {
     this.idInTile = idInTile;
     this.selected = selected;
     this.address = "";
-    this.maxConf = conf; // minimum confidence across same address towers, only recorded in first
+    this.maxConf = conf; // maximum confidence across same address towers, only recorded in first
+    this.maxSecondary = secondary; // maximum secondary confidence across same address towers, only recorded in first
     this.firstDet = null; // first of block of same address towers
     this.tile = tile; // id of detection tile
     this.secondary = secondary;
@@ -1024,8 +1025,8 @@ class Detection extends PlaceRect {
         firstDet = det;
       }
       boxes += det.generateCheckBox();
-      firstDet.maxConf = Math.max(det.conf, firstDet.maxConf); // record min conf in block header
-      firstDet.maxP2 = Math.max(det.p2, firstDet.maxP2)
+      firstDet.maxConf = Math.max(det.conf, firstDet.maxConf); // record max conf in block header
+      firstDet.maxSecondary = Math.max(det.secondary, firstDet.maxSecondary || 0)
       det.firstDet = firstDet; // record block header
       det.indexInList = count;
       det.update();
@@ -1154,8 +1155,13 @@ class Detection extends PlaceRect {
     super.update(newMap)
 
     let meetsInside = reviewCheckBox.checked || this.inside;
-    // then update by confidence
-    this.map.updateMapRect(this, this.selected && this.conf >= Detection_minConfidence && meetsInside);
+    
+    // FIX: Use secondary classifier threshold for visibility instead of primary confidence
+    // Backend selects detections based on secondary >= 0.35, so frontend should too
+    let meetsConfidence = this.conf >= Detection_minConfidence || this.secondary >= 0.35;
+    
+    // then update by confidence - show if selected and meets either confidence threshold
+    this.map.updateMapRect(this, this.selected && meetsConfidence && meetsInside);
   }
 
   // navigation for review pane
@@ -1558,8 +1564,8 @@ function adjustConfidence() {
   Detection_minConfidence = confSlider.value / 100;
   for (let det of Detection_detections) {
     let meetsInside = reviewCheckBox.checked || det.inside;
-    let meetsConf = det.conf >= Detection_minConfidence || det.p2 >= Detection_minConfidence;
-    let meetsAddrConf = det.firstDet.maxConf >= Detection_minConfidence || det.firstDet.maxP2 >= Detection_minConfidence;
+    let meetsConf = det.conf >= Detection_minConfidence || det.secondary >= 0.35;
+    let meetsAddrConf = det.firstDet.maxConf >= Detection_minConfidence || det.firstDet.maxSecondary >= 0.35;
     det.firstDet.showAddr(meetsAddrConf && meetsInside);
     det.show(meetsConf && meetsInside);
     det.update();
