@@ -4,9 +4,19 @@
 
 This document provides a detailed, trackable implementation plan for TowerScout improvements following component-by-component security-first approach. Tasks are organized by component and priority, with clear dependencies and validation criteria.
 
-**Implementation Strategy**: Component-by-component (Flask Core → Map Providers → Image Processing → Session Management)  
-**Timeline**: 8-12 weeks total across 4 phases  
+**Implementation Strategy**: Component-by-component (Flask Core → Azure Maps Migration → Image Processing → Session Management)  
+**Timeline**: 10-14 weeks total across 4 phases (**5 of 26 tasks completed - 19% progress**)  
 **Validation**: Testing at each component completion before moving to next
+
+**CRITICAL UPDATE**: **Azure Maps Migration** - Migrating from Bing Maps to Azure Maps with dual authentication (standard keys + Azure Key Vault) while maintaining Google Maps as user option
+
+**Current Status**: ✅ **Security Foundation Complete** - Core validation system implemented, frontend detection working, ready for **Azure Maps Migration** (Phase 2 Focus)
+
+**⚠️ MIGRATION PRIORITY**: **Bing Maps → Azure Maps** migration is now the critical path to maintain testing capabilities during development. This includes:
+- **Azure Maps Provider**: Complete API restructure (coordinate order, URL format, authentication)
+- **Azure Key Vault Integration**: Support both standard API keys and enterprise Key Vault authentication
+- **Multi-Provider Support**: Maintain Google Maps as user option alongside Azure Maps
+- **ML Model Validation**: Ensure detection accuracy preserved across all providers
 
 ---
 
@@ -312,141 +322,271 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ---
 
-## 🗺️ PHASE 2: MAP PROVIDER SYSTEM (2-3 weeks)
+## 🗺️ PHASE 2: MAP PROVIDER SYSTEM (3-4 weeks)
 
-### Component: Map Provider Security
+### Component: Azure Maps Migration
 
-#### TASK-008: Map Provider API Security 🔴
+#### TASK-008: Azure Maps Provider Implementation 🔴
 **Status**: ⏳ NOT_STARTED  
 **Priority**: CRITICAL  
 **Type**: C  
-**Estimated Effort**: 1-2 days  
+**Estimated Effort**: 3-4 days  
 
-**Description**: Secure map provider API key handling and add validation
+**Description**: Create Azure Maps provider to replace Bing Maps with coordinate system validation
 
 **Implementation Steps**:
-1. Update `ts_gmaps.py` and `ts_bmaps.py` for environment variables
-2. Add API key validation methods
-3. Implement usage monitoring and limits
-4. Add error handling for API failures
-5. Create API key testing functionality
-6. Update map provider selection logic
+1. Create `ts_azure_maps.py` with Azure Maps Static API integration
+2. Implement coordinate order transformation (lng,lat vs lat,lng)
+3. Add query-based URL construction vs Bing's path-based approach
+4. Implement header-based authentication with subscription keys
+5. Handle lack of metadata endpoint (remove vintage date features)
+6. Add comprehensive coordinate accuracy validation tests
+7. Create side-by-side comparison with existing providers
 
 **Acceptance Criteria**:
-- [ ] Map providers load API keys from environment
-- [ ] API key validation prevents invalid configurations
-- [ ] Usage monitoring tracks API consumption
-- [ ] Graceful handling of API failures
-- [ ] API key testing in configuration interface
+- [ ] Azure Maps provider implements Map interface correctly
+- [ ] Coordinate transformations maintain geographic accuracy
+- [ ] URL construction matches Azure Maps Static API requirements
+- [ ] Authentication works with subscription keys
+- [ ] Coordinate validation tests pass for known locations
+- [ ] No metadata dependencies remain in application
+- [ ] Side-by-side testing shows equivalent imagery coverage
 
 **Dependencies**: TASK-006  
-**Blocks**: TASK-009
+**Blocks**: TASK-009, TASK-010
 
 **Files Modified**:
-- `webapp/ts_gmaps.py`
-- `webapp/ts_bmaps.py`
+- `webapp/ts_azure_maps.py` (new file)
 - `webapp/ts_maps.py` (enhanced base class)
+- `tests/unit/test_azure_maps.py` (new file)
+- `tests/integration/test_coordinate_validation.py` (new file)
 
 ---
 
-#### TASK-009: Map Provider Error Handling 🟡
+#### TASK-009: Azure Key Vault Integration 🔴
+**Status**: ⏳ NOT_STARTED  
+**Priority**: CRITICAL  
+**Type**: C  
+**Estimated Effort**: 3-4 days  
+
+**Description**: Implement dual authentication supporting both standard API keys and Azure Key Vault enterprise integration
+
+**Implementation Steps**:
+1. Add Azure SDK dependencies (`azure-keyvault-secrets`, `azure-identity`)
+2. Create `AzureKeyVaultConfig` class with DefaultAzureCredential
+3. Implement fallback authentication chain (Key Vault → Environment → Error)
+4. Add comprehensive error handling for authentication failures
+5. Create authentication testing and validation endpoints
+6. Update environment configuration for both auth methods
+7. Add container deployment support with Managed Identity
+
+**Acceptance Criteria**:
+- [ ] Key Vault authentication works with DefaultAzureCredential
+- [ ] Environment variable fallback functions correctly
+- [ ] Authentication errors provide clear guidance
+- [ ] Testing endpoints validate both auth methods
+- [ ] Container deployment with Managed Identity supported
+- [ ] Local development works with Azure CLI authentication
+- [ ] Production deployment uses Key Vault for secret management
+
+**Dependencies**: TASK-008  
+**Blocks**: TASK-011
+
+**Files Modified**:
+- `webapp/ts_azure_maps.py` (Key Vault integration)
+- `requirements.txt` (Azure SDK dependencies)
+- `.env.example` (Azure configuration variables)
+- `webapp/towerscout.py` (authentication initialization)
+- `docs/azure-deployment.md` (new file)
+
+---
+
+### Component: Map Provider Security
+
+#### TASK-010: Multi-Provider Security Enhancement 🔴
+**Status**: ⏳ NOT_STARTED  
+**Priority**: CRITICAL  
+**Type**: C  
+**Estimated Effort**: 2-3 days  
+
+**Description**: Secure all map providers (Google, Azure, legacy Bing) with enhanced error handling
+
+**Implementation Steps**:
+1. Update `ts_gmaps.py` for environment variable loading
+2. Implement provider-specific error handling and retry logic
+3. Add API key validation methods for all providers
+4. Create usage monitoring and rate limiting
+5. Implement circuit breaker pattern for failed services
+6. Add comprehensive logging for API health monitoring
+7. Create provider testing and validation framework
+
+**Acceptance Criteria**:
+- [ ] All providers load API keys securely from environment
+- [ ] Provider-specific error handling with retry logic
+- [ ] API key validation prevents invalid configurations
+- [ ] Usage monitoring tracks API consumption per provider
+- [ ] Circuit breaker prevents cascade failures
+- [ ] Comprehensive logging for troubleshooting
+- [ ] Provider health testing validates functionality
+
+**Dependencies**: TASK-009  
+**Blocks**: TASK-012
+
+**Files Modified**:
+- `webapp/ts_gmaps.py` (environment variables, error handling)
+- `webapp/ts_azure_maps.py` (error handling, retry logic)
+- `webapp/ts_maps.py` (enhanced base class with circuit breaker)
+- `webapp/ts_errors.py` (map provider exceptions)
+
+---
+
+#### TASK-011: Provider Migration and Fallback System 🟡
 **Status**: ⏳ NOT_STARTED  
 **Priority**: HIGH  
 **Type**: C  
 **Estimated Effort**: 2-3 days  
 
-**Description**: Add comprehensive error handling to map provider operations
+**Description**: Implement phased migration from Bing to Azure Maps with fallback capabilities
 
 **Implementation Steps**:
-1. Add try/catch blocks around all API calls
-2. Implement retry logic with exponential backoff
-3. Add fallback providers for redundancy
-4. Create detailed error logging for API issues
-5. Implement circuit breaker pattern for failed services
-6. Add monitoring for API health status
+1. Create provider priority system (Azure → Google → Legacy Bing)
+2. Implement automatic provider fallback on failures
+3. Add migration configuration for gradual rollout
+4. Create A/B testing framework for provider comparison
+5. Implement provider switching without session loss
+6. Add migration monitoring and success metrics
+7. Create legacy Bing Maps deprecation timeline
 
 **Acceptance Criteria**:
-- [ ] All map API calls properly handle failures
-- [ ] Retry logic prevents temporary failure issues
-- [ ] Fallback providers ensure service continuity
-- [ ] Detailed logging for troubleshooting API issues
-- [ ] Circuit breaker prevents cascade failures
+- [ ] Provider fallback system prevents service interruption
+- [ ] Migration configuration allows gradual rollout
+- [ ] A/B testing compares detection accuracy between providers
+- [ ] Provider switching maintains user session state
+- [ ] Migration metrics track success and issues
+- [ ] Legacy Bing Maps marked for deprecation
+- [ ] Provider selection persists user preferences
 
-**Dependencies**: TASK-008  
-**Blocks**: TASK-010
+**Dependencies**: TASK-010  
+**Blocks**: None
 
 **Files Modified**:
-- `webapp/ts_gmaps.py` (error handling)
-- `webapp/ts_bmaps.py` (error handling)
-- `webapp/ts_maps.py` (retry logic, circuit breaker)
+- `webapp/towerscout.py` (provider priority and fallback)
+- `webapp/templates/towerscout.html` (provider selection UI)
+- `webapp/js/towerscout.js` (provider switching logic)
+- `webapp/ts_config.py` (migration settings)
 
 ---
 
 ### Component: Map Provider User Experience
 
-#### TASK-010: Map Provider Selection Interface 🟢
+#### TASK-012: Map Provider Selection Interface 🟢
 **Status**: ⏳ NOT_STARTED  
 **Priority**: MEDIUM  
 **Type**: B  
 **Estimated Effort**: 2-3 days  
 
-**Description**: Create user interface for map provider selection and management
+**Description**: Create user interface for multi-provider selection and management (Google, Azure, Legacy Bing)
 
 **Implementation Steps**:
-1. Add provider selection dropdown to main interface
+1. Add provider selection dropdown to main interface (Google/Azure Maps)
 2. Create provider configuration page in admin panel
-3. Add provider testing and validation UI
+3. Add provider testing and validation UI for all providers
 4. Implement provider usage statistics display
-5. Add provider-specific settings management
+5. Add provider-specific settings management (API keys, preferences)
 6. Create provider comparison and recommendation system
+7. Add migration status display for Bing→Azure transition
 
 **Acceptance Criteria**:
-- [ ] Users can select preferred map provider
-- [ ] Admin interface for provider configuration
-- [ ] Provider testing validates functionality
+- [ ] Users can select between Google Maps and Azure Maps
+- [ ] Admin interface manages all provider configurations
+- [ ] Provider testing validates functionality for each provider
 - [ ] Usage statistics help with provider management
-- [ ] Provider-specific settings accessible
+- [ ] Provider-specific settings accessible per provider
+- [ ] Migration progress visible to administrators
+- [ ] Legacy Bing Maps marked as deprecated in UI
 
-**Dependencies**: TASK-009  
+**Dependencies**: TASK-011  
 **Blocks**: None
 
 **Files Modified**:
 - `webapp/templates/towerscout.html` (provider selection)
 - `webapp/templates/admin/providers.html` (new file)
 - `webapp/js/towerscout.js` (provider switching)
+- `webapp/css/ts_styles.css` (provider UI styling)
 
 ---
 
-#### TASK-011: Map Provider Testing Framework 🟡
+#### TASK-013: ML Model Accuracy Validation 🔴
+**Status**: ⏳ NOT_STARTED  
+**Priority**: CRITICAL  
+**Type**: C  
+**Estimated Effort**: 3-4 days  
+
+**Description**: Validate YOLOv5 and EfficientNet detection accuracy across different map providers
+
+**Implementation Steps**:
+1. Create test dataset with known cooling tower locations
+2. Run detection pipeline on identical coordinates across all providers
+3. Compare detection accuracy, confidence scores, and false positives
+4. Analyze imagery differences between providers (color, resolution, source)
+5. Evaluate coordinate transformation precision across providers
+6. Document any accuracy differences and recommended adjustments
+7. Create automated regression testing for provider changes
+
+**Acceptance Criteria**:
+- [ ] Detection accuracy comparison across Google/Azure/Bing providers
+- [ ] Coordinate precision validated for all providers
+- [ ] Confidence score analysis shows consistent performance
+- [ ] Imagery quality differences documented and assessed
+- [ ] Regression testing prevents future accuracy degradation
+- [ ] Recommendations provided for any necessary model adjustments
+- [ ] Automated testing pipeline for provider validation
+
+**Dependencies**: TASK-011  
+**Blocks**: TASK-015
+
+**Files Modified**:
+- `tests/ml_validation/` (new directory)
+- `tests/ml_validation/test_provider_accuracy.py` (new file)
+- `tests/data/validation_towers.json` (new file)
+- `Model/provider_validation_analysis.ipynb` (new file)
+
+---
+
+#### TASK-014: Map Provider Testing Framework 🟡
 **Status**: ⏳ NOT_STARTED  
 **Priority**: HIGH  
 **Type**: B  
-**Estimated Effort**: 2 days  
+**Estimated Effort**: 2-3 days  
 
-**Description**: Create testing framework for map provider functionality
+**Description**: Create comprehensive testing framework for all map providers including Azure Maps
 
 **Implementation Steps**:
-1. Create unit tests for each map provider
-2. Add integration tests for provider switching
-3. Create mock objects for external API testing
+1. Create unit tests for Google Maps, Azure Maps providers
+2. Add integration tests for provider switching and fallback
+3. Create mock objects for external API testing without consumption
 4. Add performance tests for provider comparison
 5. Implement automated API key validation testing
-6. Add test data for different geographic regions
+6. Add test data for different geographic regions and edge cases
+7. Create coordinate transformation accuracy tests
 
 **Acceptance Criteria**:
-- [ ] Unit tests cover all provider functionality
-- [ ] Integration tests validate provider switching
+- [ ] Unit tests cover all provider functionality (Google, Azure)
+- [ ] Integration tests validate provider switching and fallback
 - [ ] Mock objects enable testing without API consumption
 - [ ] Performance tests compare provider efficiency
 - [ ] Automated validation tests prevent configuration errors
+- [ ] Geographic edge cases tested (poles, dateline, etc.)
+- [ ] Coordinate transformation accuracy validated
 
 **Dependencies**: TASK-005  
 **Blocks**: None
 
 **Files Modified**:
-- `tests/unit/test_map_providers.py` (new file)
+- `tests/unit/test_map_providers.py` (enhanced for Azure Maps)
 - `tests/integration/test_provider_switching.py` (new file)
 - `tests/mocks/` (new directory)
+- `tests/unit/test_coordinate_transformation.py` (new file)
 
 ---
 
@@ -456,7 +596,7 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ### Component: Image Processing Enhancement
 
-#### TASK-012: Image Processing Error Handling 🟡
+#### TASK-015: Image Processing Error Handling 🟡
 **Status**: ⏳ NOT_STARTED  
 **Priority**: HIGH  
 **Type**: C  
@@ -480,7 +620,7 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 - [ ] Progress tracking for user feedback
 
 **Dependencies**: TASK-003  
-**Blocks**: TASK-013
+**Blocks**: TASK-016
 
 **Files Modified**:
 - `webapp/ts_imgutil.py` (error handling)
@@ -488,7 +628,7 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ---
 
-#### TASK-013: CPU Performance Optimization 🟡
+#### TASK-016: CPU Performance Optimization 🟡
 **Status**: ⏳ NOT_STARTED  
 **Priority**: HIGH  
 **Type**: B  
@@ -511,7 +651,7 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 - [ ] Performance metrics for monitoring
 - [ ] Memory usage optimized for CPU processing
 
-**Dependencies**: TASK-012  
+**Dependencies**: TASK-015  
 **Blocks**: None
 
 **Files Modified**:
@@ -521,7 +661,7 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ---
 
-#### TASK-014: Image Processing Testing 🟡
+#### TASK-017: Image Processing Testing 🟡
 **Status**: ⏳ NOT_STARTED  
 **Priority**: HIGH  
 **Type**: B  
@@ -559,7 +699,7 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ### Component: Session Security and Management
 
-#### TASK-015: Secure Session Management 🔴
+#### TASK-018: Secure Session Management 🔴
 **Status**: ⏳ NOT_STARTED  
 **Priority**: CRITICAL  
 **Type**: C  
@@ -583,7 +723,7 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 - [ ] Complete session cleanup on logout
 
 **Dependencies**: TASK-004  
-**Blocks**: TASK-016
+**Blocks**: TASK-019
 
 **Files Modified**:
 - `webapp/towerscout.py` (session configuration)
@@ -591,7 +731,7 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ---
 
-#### TASK-016: Session Cleanup Automation 🟡
+#### TASK-019: Session Cleanup Automation 🟡
 **Status**: ⏳ NOT_STARTED  
 **Priority**: HIGH  
 **Type**: C  
@@ -614,7 +754,7 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 - [ ] Manual cleanup available for admins
 - [ ] Storage space monitored and alerts
 
-**Dependencies**: TASK-015  
+**Dependencies**: TASK-018  
 **Blocks**: None
 
 **Files Modified**:
@@ -623,7 +763,7 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ---
 
-#### TASK-017: Session Management Testing 🟢
+#### TASK-020: Session Management Testing 🟢
 **Status**: ⏳ NOT_STARTED  
 **Priority**: MEDIUM  
 **Type**: B  
@@ -661,103 +801,117 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ### Component: Production Deployment
 
-#### TASK-018: Docker Containerization 🟢
+#### TASK-021: Docker Containerization 🟢
 **Status**: ⏳ NOT_STARTED  
 **Priority**: MEDIUM  
 **Type**: C  
 **Estimated Effort**: 2-3 days  
 
-**Description**: Create Docker containers for simplified deployment
+**Description**: Create Docker containers for simplified deployment with Azure Maps support
 
 **Implementation Steps**:
-1. Create production Dockerfile
-2. Add docker-compose configuration
-3. Implement health check endpoints
-4. Create container build scripts
+1. Create production Dockerfile with Azure SDK support
+2. Add docker-compose configuration with Azure Key Vault integration
+3. Implement health check endpoints for all providers
+4. Create container build scripts with multi-stage builds
 5. Add volume mounting for model parameters
-6. Document container deployment process
+6. Configure Azure Managed Identity for container deployment
+7. Document Azure Maps and Key Vault container deployment
 
 **Acceptance Criteria**:
-- [ ] Production-ready Docker image
-- [ ] Docker-compose for full stack deployment
-- [ ] Health checks validate container status
+- [ ] Production-ready Docker image with Azure SDK
+- [ ] Docker-compose supports Azure Key Vault integration
+- [ ] Health checks validate all provider status
 - [ ] Model weights mounted as volumes
-- [ ] Complete deployment documentation
+- [ ] Azure Managed Identity configured for containers
+- [ ] Multi-provider support in containerized deployment
+- [ ] Complete Azure deployment documentation
 
 **Dependencies**: All previous tasks  
 **Blocks**: None
 
 **Files Modified**:
-- `Dockerfile` (new file)
-- `docker-compose.yml` (new file)
-- `scripts/build.sh` (new file)
-- `docs/deployment.md` (new file)
+- `Dockerfile` (enhanced with Azure SDK)
+- `docker-compose.yml` (Azure integration)
+- `scripts/build.sh` (multi-stage build)
+- `docs/azure-container-deployment.md` (new file)
+- `kubernetes/` (new directory with manifests)
 
 ---
 
-#### TASK-019: Documentation and Migration Guide 🟢
+#### TASK-022: Documentation and Migration Guide 🟢
 **Status**: ⏳ NOT_STARTED  
 **Priority**: MEDIUM  
 **Type**: B  
-**Estimated Effort**: 2-3 days  
+**Estimated Effort**: 3-4 days  
 
-**Description**: Create comprehensive documentation for deployment and migration
+**Description**: Create comprehensive documentation for deployment and Bing→Azure migration
 
 **Implementation Steps**:
-1. Update README with new setup instructions
-2. Create migration guide from old version
-3. Document all configuration options
-4. Add troubleshooting guide
-5. Create API documentation
-6. Add security best practices guide
+1. Update README with Azure Maps setup instructions
+2. Create Bing→Azure migration guide for existing deployments
+3. Document all configuration options (Google, Azure, Key Vault)
+4. Add troubleshooting guide for provider and authentication issues
+5. Create comprehensive API documentation
+6. Add Azure security best practices guide
+7. Document Key Vault setup and Managed Identity configuration
 
 **Acceptance Criteria**:
-- [ ] Complete setup documentation for new users
-- [ ] Migration guide for existing deployments
-- [ ] All configuration options documented
-- [ ] Troubleshooting guide for common issues
-- [ ] Security best practices clearly explained
+- [ ] Complete setup documentation for Azure Maps integration
+- [ ] Step-by-step Bing→Azure migration guide
+- [ ] All provider configuration options documented
+- [ ] Troubleshooting guide covers provider and auth issues
+- [ ] API documentation includes all provider endpoints
+- [ ] Azure security best practices clearly explained
+- [ ] Key Vault and Managed Identity setup documented
 
-**Dependencies**: TASK-018  
+**Dependencies**: TASK-021  
 **Blocks**: None
 
 **Files Modified**:
-- `README.md` (major update)
-- `docs/` (new directory with guides)
-- `SECURITY.md` (new file)
+- `README.md` (major update with Azure Maps)
+- `docs/bing-to-azure-migration.md` (new file)
+- `docs/azure-key-vault-setup.md` (new file)
+- `docs/provider-configuration.md` (new file)
+- `docs/troubleshooting.md` (enhanced)
+- `SECURITY.md` (Azure security practices)
 
 ---
 
-#### TASK-020: Final Integration Testing 🔴
+#### TASK-023: Final Integration Testing 🔴
 **Status**: ⏳ NOT_STARTED  
 **Priority**: CRITICAL  
 **Type**: C  
-**Estimated Effort**: 2-3 days  
+**Estimated Effort**: 3-4 days  
 
-**Description**: Comprehensive end-to-end testing of complete system
+**Description**: Comprehensive end-to-end testing including Azure Maps and provider migration
 
 **Implementation Steps**:
-1. Run full test suite across all components
-2. Perform security penetration testing
-3. Load test with multiple concurrent users
-4. Validate ML detection accuracy unchanged
-5. Test deployment process completely
-6. Performance benchmark against baseline
+1. Run full test suite across all components and providers
+2. Perform security penetration testing including Azure authentication
+3. Load test with multiple concurrent users and provider fallback
+4. Validate ML detection accuracy unchanged across all providers
+5. Test Azure Key Vault authentication in multiple environments
+6. Test provider migration and fallback scenarios
+7. Performance benchmark against baseline with all providers
 
 **Acceptance Criteria**:
-- [ ] All automated tests pass
-- [ ] Security testing shows no vulnerabilities
-- [ ] Load testing validates concurrent user support
-- [ ] ML detection accuracy matches baseline
-- [ ] Deployment process works end-to-end
-- [ ] Performance meets or exceeds baseline
+- [ ] All automated tests pass including Azure Maps integration
+- [ ] Security testing validates Azure authentication security
+- [ ] Load testing works with provider fallback systems
+- [ ] ML detection accuracy maintained across Google/Azure providers
+- [ ] Azure Key Vault authentication works in all environments
+- [ ] Provider migration scenarios test successfully
+- [ ] Performance meets baseline with enhanced provider system
 
 **Dependencies**: All previous tasks  
 **Blocks**: None
 
 **Files Modified**:
-- `tests/e2e/` (new end-to-end tests)
-- `benchmarks/` (new performance tests)
+- `tests/e2e/` (enhanced end-to-end tests)
+- `tests/e2e/test_provider_migration.py` (new file)
+- `tests/e2e/test_azure_integration.py` (new file)
+- `benchmarks/` (enhanced performance tests)
 
 ---
 
@@ -766,26 +920,30 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 ## 📊 TASK DEPENDENCIES
 
 ```
-TASK-001 (API Keys) 
+TASK-001 (API Keys) ✅
     ↓
-TASK-002 (Input Validation) → TASK-004 (Authentication)
+TASK-002 (Input Validation) ✅ → TASK-004 (Authentication)
     ↓                              ↓
-TASK-003 (Error Handling) → TASK-006 (Configuration) → TASK-008 (Map Security)
+TASK-003 (Error Handling) → TASK-006 (Configuration) → TASK-008 (Azure Maps Provider) 🔴
     ↓                              ↓                        ↓
-TASK-005 (Testing) → TASK-007 (Error Messages) → TASK-009 (Map Errors) → TASK-010 (Map UI)
+TASK-005 (Testing) → TASK-007 (Error Messages) → TASK-009 (Azure Key Vault) 🔴 → TASK-011 (Migration System)
+                                                      ↓                              ↓
+                                              TASK-010 (Multi-Provider Security) → TASK-012 (Provider UI)
+                                                      ↓                              ↓
+                                              TASK-013 (ML Accuracy Validation) 🔴 → TASK-014 (Provider Testing)
                                                       ↓
-                                              TASK-011 (Map Testing)
-                                                      ↓
-TASK-012 (Image Errors) → TASK-013 (CPU Optimization) → TASK-015 (Session Security)
+TASK-015 (Image Errors) → TASK-016 (CPU Optimization) → TASK-018 (Session Security)
     ↓                                                         ↓
-TASK-014 (Image Testing)                              TASK-016 (Session Cleanup)
+TASK-017 (Image Testing)                              TASK-019 (Session Cleanup)
                                                              ↓
-                                                     TASK-017 (Session Testing)
+                                                     TASK-020 (Session Testing)
                                                              ↓
-                                                     TASK-018 (Docker) → TASK-019 (Docs)
-                                                                               ↓
-                                                                       TASK-020 (Integration)
+                                                     TASK-021 (Docker + Azure) → TASK-022 (Migration Docs)
+                                                                                       ↓
+                                                                               TASK-023 (Integration + Azure)
 ```
+
+**Legend**: ✅ Completed | 🔴 Critical Azure Migration Tasks | ⏳ Remaining Tasks
 
 ---
 

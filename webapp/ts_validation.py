@@ -42,8 +42,43 @@ class TowerScoutValidator:
     MAX_LONGITUDE = 180.0
     
     # Engine and provider validation
-    VALID_ENGINES = {'yolo', 'efficientnet', 'both'}
+    VALID_ENGINES = {'yolo', 'efficientnet', 'both'}  # Legacy abstract types
     VALID_PROVIDERS = {'google', 'bing'}
+    
+    @staticmethod
+    def get_available_engines():
+        """Get list of available YOLOv5 model engines from filesystem"""
+        engines = set()
+        
+        # Add abstract engine types for backwards compatibility
+        engines.update(TowerScoutValidator.VALID_ENGINES)
+        
+        # Add dynamic model files from yolov5 directory
+        model_dir = os.path.join(os.path.dirname(__file__), 'model_params', 'yolov5')
+        if os.path.exists(model_dir):
+            for filename in os.listdir(model_dir):
+                if filename.endswith('.pt'):
+                    # Remove .pt extension to get engine ID (case-sensitive as stored)
+                    engine_id = filename[:-3]
+                    engines.add(engine_id)
+        
+        return engines
+    
+    @staticmethod
+    def normalize_engine_name(engine: str, available_engines: set) -> str:
+        """Normalize engine name for case-insensitive matching"""
+        # First try exact match
+        if engine in available_engines:
+            return engine
+            
+        # Try case-insensitive match
+        engine_lower = engine.lower()
+        for available in available_engines:
+            if available.lower() == engine_lower:
+                return available
+                
+        # No match found
+        return None
     
     @staticmethod
     def sanitize_string(value: str, max_length: int = 255) -> str:
@@ -220,12 +255,18 @@ class TowerScoutValidator:
         if not engine:
             raise ValidationError("Engine selection is required")
         
-        engine = TowerScoutValidator.sanitize_string(engine).lower()
+        engine = TowerScoutValidator.sanitize_string(engine)
         
-        if engine not in TowerScoutValidator.VALID_ENGINES:
-            raise ValidationError(f"Invalid engine '{engine}'. Valid options: {', '.join(TowerScoutValidator.VALID_ENGINES)}")
+        # Get available engines (includes both abstract types and model files)
+        available_engines = TowerScoutValidator.get_available_engines()
         
-        return engine
+        # Normalize engine name for case-insensitive matching
+        normalized_engine = TowerScoutValidator.normalize_engine_name(engine, available_engines)
+        
+        if normalized_engine is None:
+            raise ValidationError(f"Invalid engine '{engine}'. Valid options: {', '.join(sorted(available_engines))}")
+        
+        return normalized_engine
     
     @staticmethod
     def validate_provider(provider: str) -> str:

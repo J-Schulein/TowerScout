@@ -17,9 +17,10 @@ This document specifies requirements for transforming TowerScout from a student 
 **EARS**: WHEN the application starts, THE SYSTEM SHALL load API keys from environment variables instead of plain text files  
 **Acceptance Criteria**:
 - Remove `apikey.txt` from repository
-- Implement environment variable loading (`GOOGLE_API_KEY`, `BING_API_KEY`)
+- Implement environment variable loading (`GOOGLE_API_KEY`, `AZURE_MAPS_SUBSCRIPTION_KEY`)
 - Add validation for missing API keys with clear error messages
 - Update deployment documentation
+- Support Azure Key Vault integration for enterprise deployments
 
 ### SEC-002: Input Validation
 **Priority**: HIGH  
@@ -40,6 +41,19 @@ This document specifies requirements for transforming TowerScout from a student 
 - Add session management with secure cookies
 - Create admin interface for user management
 - Add logout functionality
+
+### SEC-004: Azure Maps Migration
+**Priority**: CRITICAL  
+**Type**: C  
+**EARS**: WHEN the application accesses map services, THE SYSTEM SHALL use Azure Maps instead of Bing Maps with proper coordinate system handling  
+**Acceptance Criteria**:
+- Replace Bing Maps provider with Azure Maps implementation
+- Handle coordinate order transformation (lng,lat vs lat,lng)
+- Implement Azure Key Vault authentication for enterprise deployments
+- Maintain Google Maps as alternative provider option
+- Validate coordinate accuracy across all providers
+- Remove metadata dependencies (vintage date features)
+- Implement provider fallback mechanisms
 
 ---
 
@@ -84,20 +98,23 @@ This document specifies requirements for transforming TowerScout from a student 
 **Type**: B  
 **EARS**: WHEN new users install TowerScout, THE SYSTEM SHALL provide a streamlined setup process requiring minimal technical knowledge  
 **Acceptance Criteria**:
-- Create Docker containerization for one-command deployment
+- Create Docker containerization for one-command deployment with Azure SDK support
 - Auto-download required model weights on first run
-- Provide setup wizard for initial configuration
+- Provide setup wizard for initial configuration including Azure Maps
 - Add comprehensive documentation with screenshots
+- Support both standard API keys and Azure Key Vault configuration
 
 ### UX-002: In-App Configuration
 **Priority**: MEDIUM  
 **Type**: B  
 **EARS**: WHEN users need to configure the application, THE SYSTEM SHALL provide a web-based interface for settings management  
 **Acceptance Criteria**:
-- Create settings page for API key management
-- Add map provider selection interface
-- Implement configuration validation and testing
+- Create settings page for API key management (Google Maps, Azure Maps)
+- Add map provider selection interface (Google Maps, Azure Maps)
+- Implement configuration validation and testing for all providers
 - Add export/import of configuration settings
+- Support Azure Key Vault configuration for enterprise users
+- Provide migration assistance from legacy Bing Maps configurations
 
 ### UX-003: Improved Error Feedback
 **Priority**: MEDIUM  
@@ -231,9 +248,11 @@ This document specifies requirements for transforming TowerScout from a student 
 
 ### External Dependencies
 - Google Maps API availability and pricing
-- Bing Maps API availability and pricing
+- Azure Maps API availability and pricing
+- Azure Key Vault service availability (enterprise deployments)
 - Census TIGER data accessibility
 - PyTorch framework compatibility
+- Azure SDK for Python compatibility
 
 ### Resource Constraints
 - Development primarily solo with occasional collaboration

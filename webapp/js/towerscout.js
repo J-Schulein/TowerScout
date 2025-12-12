@@ -1260,6 +1260,14 @@ function getObjects(estimate) {
   }
 
   let boundaries = googleMap.getBoundariesStr();
+  
+  // Auto-create viewport boundary if no polygons are drawn
+  if (boundaries === "[]") {
+    console.log("No boundary selected, automatically using current viewport as detection area");
+    googleMap.addBoundary(new SimpleBoundary(googleMap.getBounds()));
+    bingMap.addBoundary(new SimpleBoundary(googleMap.getBounds()));
+    boundaries = googleMap.getBoundariesStr();
+  }
   let kinds = ["None", "Polygon", "Multiple polygons"]
   if (estimate) {
     console.log("Estimate request in progress");

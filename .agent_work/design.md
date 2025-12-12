@@ -6,6 +6,8 @@ This document outlines the technical architecture and implementation strategy fo
 
 **Architecture Philosophy**: Incremental improvement with security-first, component-by-component implementation following industry best practices.
 
+**Critical Migration**: Bing Maps → Azure Maps migration with coordinate system validation and Azure Key Vault integration for enterprise deployments.
+
 ---
 
 ## 🏗️ SYSTEM ARCHITECTURE
@@ -15,7 +17,7 @@ This document outlines the technical architecture and implementation strategy fo
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Flask Web     │    │   Map Providers  │    │   ML Detection  │
-│   Application   │◄──►│  (Google/Bing)   │    │   Pipeline      │
+│   Application   │◄──►│ (Google/Azure)   │    │   Pipeline      │
 │   (towerscout.py)│    │                  │    │ (YOLOv5/EfficNet)│
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                        │                        │
@@ -89,14 +91,32 @@ class SecurityService:
 ### API Key Management
 
 ```python
-# Environment-based Configuration
+# Environment-based Configuration with Azure Key Vault Support
 class ConfigurationService:
     def __init__(self):
         self.google_api_key = os.getenv('GOOGLE_API_KEY')
-        self.bing_api_key = os.getenv('BING_API_KEY')
+        self.azure_maps_key = self._get_azure_maps_key()
         
-        if not self.google_api_key:
-            raise ConfigurationError("GOOGLE_API_KEY not configured")
+        if not self.google_api_key and not self.azure_maps_key:
+            raise ConfigurationError("No map provider API keys configured")
+    
+    def _get_azure_maps_key(self) -> str:
+        # Try Azure Key Vault first, fallback to environment variable
+        try:
+            from azure.keyvault.secrets import SecretClient
+            from azure.identity import DefaultAzureCredential
+            
+            vault_url = os.getenv('AZURE_KEY_VAULT_URL')
+            if vault_url:
+                credential = DefaultAzureCredential()
+                client = SecretClient(vault_url=vault_url, credential=credential)
+                secret = client.get_secret('azure-maps-subscription-key')
+                return secret.value
+        except Exception:
+            pass
+        
+        # Fallback to environment variable
+        return os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY')
 ```
 
 ### Input Validation
@@ -139,7 +159,53 @@ class MapProvider(ABC):
     @abstractmethod
     def get_usage_limits(self) -> UsageLimits:
         pass
+    
+    @abstractmethod
+    def transform_coordinates(self, lat: float, lng: float) -> Tuple[float, float]:
+        """Handle provider-specific coordinate transformations"""
+        pass
+
+# Azure Maps Implementation
+class AzureMapsProvider(MapProvider):
+    def __init__(self, subscription_key: str):
+        self.subscription_key = subscription_key
+        self.base_url = "https://atlas.microsoft.com/map/static"
+    
+    def get_tile_url(self, tile: TileInfo) -> str:
+        # Azure Maps uses lng,lat order (GeoJSON standard)
+        return f"{self.base_url}?api-version=2024-04-01&tilesetId=microsoft.imagery&zoom={tile.zoom}&center={tile.lng},{tile.lat}&width=640&height=640&subscription-key={self.subscription_key}"
+    
+    def transform_coordinates(self, lat: float, lng: float) -> Tuple[float, float]:
+        # Azure Maps uses lng,lat order - return as (lng, lat)
+        return (lng, lat)
 ```
+
+### Coordinate System Handling
+
+```python
+# Coordinate Transformation Service
+class CoordinateTransformService:
+    @staticmethod
+    def validate_coordinates(lat: float, lng: float) -> bool:
+        """Validate coordinate ranges"""
+        return -90 <= lat <= 90 and -180 <= lng <= 180
+    
+    @staticmethod
+    def transform_for_provider(provider: str, lat: float, lng: float) -> Tuple[float, float]:
+        """Transform coordinates based on provider requirements"""
+        if provider == "azure":
+            return (lng, lat)  # Azure Maps uses lng,lat order
+        elif provider == "google":
+            return (lat, lng)  # Google Maps uses lat,lng order
+        else:
+            raise ValueError(f"Unknown provider: {provider}")
+    
+    @staticmethod
+    def validate_polygon_accuracy(polygon_coords: List[Tuple[float, float]], 
+                                provider_results: Dict[str, Any]) -> ValidationResult:
+        """Validate that polygon coordinates produce consistent results across providers"""
+        # Implementation for cross-provider validation
+        pass
 
 ### Error Handling System
 
@@ -307,10 +373,31 @@ class Configuration:
     
     def load_environment_config(self):
         self.google_api_key = os.getenv('GOOGLE_API_KEY')
-        self.bing_api_key = os.getenv('BING_API_KEY')
+        self.azure_maps_key = self._get_azure_maps_key()
+        self.azure_key_vault_url = os.getenv('AZURE_KEY_VAULT_URL')
         self.flask_secret_key = os.getenv('FLASK_SECRET_KEY')
         self.log_level = os.getenv('LOG_LEVEL', 'INFO')
         self.max_tiles = int(os.getenv('MAX_TILES', '100000'))
+    
+    def _get_azure_maps_key(self) -> str:
+        """Get Azure Maps key from Key Vault or environment"""
+        # Try Key Vault first if configured
+        if os.getenv('AZURE_KEY_VAULT_URL'):
+            try:
+                from azure.keyvault.secrets import SecretClient
+                from azure.identity import DefaultAzureCredential
+                
+                credential = DefaultAzureCredential()
+                client = SecretClient(
+                    vault_url=os.getenv('AZURE_KEY_VAULT_URL'),
+                    credential=credential
+                )
+                secret = client.get_secret('azure-maps-subscription-key')
+                return secret.value
+            except Exception as e:
+                print(f"Key Vault unavailable, falling back to environment: {e}")
+        
+        return os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY')
     
     def validate_configuration(self):
         required_configs = ['GOOGLE_API_KEY', 'FLASK_SECRET_KEY']
@@ -433,7 +520,7 @@ def test_configuration():
     """Test configuration with safe defaults"""
     return Configuration(
         google_api_key='test_key',
-        bing_api_key='test_key',
+        azure_maps_key='test_azure_key',
         flask_secret_key='test_secret',
         max_tiles=100
     )
