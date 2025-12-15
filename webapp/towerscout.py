@@ -26,6 +26,14 @@ from ts_validation import (
     TowerScoutValidator, ValidationError, rate_limiter,
     validate_detection_request, validate_zipcode_request
 )
+from ts_errors import (
+    TowerScoutError, ConfigurationError, ModelLoadError, MapProviderError,
+    ProcessingError, SessionError, NetworkError, ResourceError, create_error_response
+)
+from ts_logging import (
+    TowerScoutLogger, get_main_logger, get_maps_logger, get_ml_logger, 
+    get_api_logger, log_startup_info, log_shutdown_info
+)
 import torch
 import os
 from shutil import rmtree
@@ -38,6 +46,12 @@ from dotenv import load_dotenv
 # Load environment variables from .env file if it exists
 load_dotenv()
 import tempfile
+
+# Initialize logging system early
+logger = get_main_logger()
+api_logger = get_api_logger()
+ml_logger = get_ml_logger()
+maps_logger = get_maps_logger()
 from PIL import Image, ImageDraw
 import torch
 import threading
@@ -72,7 +86,7 @@ def get_engine(e):
         gc.collect(generation=2)
 
         if engines[e]['engine'] is None:
-            print(" loading model:", engines[e]['name'])
+            ml_logger.info(f"Loading model: {engines[e]['name']}")
             engines[e]['engine'] = YOLOv5_Detector(
                 'model_params/yolov5/'+engines[e]['file'])
 
@@ -119,26 +133,27 @@ def load_api_keys():
     bing_key = os.getenv('BING_API_KEY')
     
     if not google_key:
-        raise EnvironmentError(
-            "GOOGLE_API_KEY environment variable is required. "
-            "Please copy .env.example to .env and configure your API keys."
+        raise ConfigurationError(
+            "GOOGLE_API_KEY environment variable is required",
+            missing_config="GOOGLE_API_KEY",
+            user_message="Google Maps API key is required. Please check your configuration."
         )
     
     if not bing_key:
-        print("Warning: BING_API_KEY not configured. Bing Maps provider will be unavailable.")
+        logger.warning("BING_API_KEY not configured. Bing Maps provider will be unavailable.")
         bing_key = ""
     
     return google_key, bing_key
 
-# Load API keys
+# Load API keys with proper error handling
 try:
     google_api_key, bing_api_key = load_api_keys()
-except EnvironmentError as e:
-    print(f"Configuration Error: {e}")
-    print("\nTo fix this:")
-    print("1. Copy .env.example to .env")
-    print("2. Edit .env and add your Google Maps API key")
-    print("3. Restart the application")
+except ConfigurationError as e:
+    logger.error(f"Configuration Error: {e.message}")
+    logger.info("To fix this:")
+    logger.info("1. Copy .env.example to .env")
+    logger.info("2. Edit .env and add your Google Maps API key")
+    logger.info("3. Restart the application")
     exit(1)
 
 # other global variables
@@ -151,7 +166,7 @@ if not os.path.isdir("./uploads"):
 for f in os.listdir("./uploads"):
     os.remove(os.path.join("./uploads", f))
 
-print("Torch cuda:", "is" if torch.cuda.is_available() else "is not", "available")
+ml_logger.info(f"Torch CUDA: {'available' if torch.cuda.is_available() else 'not available'}")
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
@@ -167,7 +182,7 @@ zipcode_provider = None
 def start_zipcodes():
     global zipcode_provider
     with zipcode_lock:
-        print("instantiating zipcode frame, could take 10 seconds ...")
+        logger.info("Loading zipcode data, this may take up to 10 seconds...")
         zipcode_provider = Zipcode_Provider()
 
 
@@ -191,6 +206,69 @@ SESSION_TYPE = 'filesystem'
 SESSION_PERMANENT = False
 app.config.from_object(__name__)
 Session(app)
+
+# Flask Error Handlers
+@app.errorhandler(TowerScoutError)
+def handle_towerscout_error(error):
+    """Handle all TowerScout custom exceptions with structured responses."""
+    api_logger.error(f"TowerScout error: {error.message}", exc_info=True)
+    response = jsonify(error.to_dict())
+    response.status_code = 400 if isinstance(error, ValidationError) else 500
+    return response
+
+@app.errorhandler(ValidationError)
+def handle_validation_error(error):
+    """Handle validation errors with 400 status code."""
+    api_logger.warning(f"Validation error: {error.message}")
+    if hasattr(error, 'to_dict'):
+        response = jsonify(error.to_dict())
+    else:
+        # Handle legacy ValidationError format
+        response = jsonify({
+            "error": True,
+            "type": "ValidationError",
+            "message": str(error),
+            "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+        })
+    response.status_code = 400
+    return response
+
+@app.errorhandler(500)
+def handle_internal_error(error):
+    """Handle internal server errors with structured response."""
+    api_logger.error(f"Internal server error: {error}", exc_info=True)
+    response = jsonify({
+        "error": True,
+        "type": "InternalServerError",
+        "message": "An internal error occurred. Please try again or contact support.",
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+    })
+    response.status_code = 500
+    return response
+
+@app.errorhandler(404)
+def handle_not_found(error):
+    """Handle 404 errors with structured response."""
+    api_logger.warning(f"404 error: {request.url}")
+    response = jsonify({
+        "error": True,
+        "type": "NotFoundError", 
+        "message": "The requested resource was not found.",
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+    })
+    response.status_code = 404
+    return response
+
+@app.before_request
+def log_request_info():
+    """Log incoming request information."""
+    api_logger.debug(f"Request: {request.method} {request.url} from {request.remote_addr}")
+
+@app.after_request
+def log_response_info(response):
+    """Log outgoing response information."""
+    api_logger.debug(f"Response: {response.status_code} for {request.url}")
+    return response
 
 # route for js code
 
@@ -226,7 +304,7 @@ def send_upload(path):
 @app.route('/rm/uploads/<path:path>')
 def remove_upload(path):
     os.remove('uploads/'+path)
-    print(" upload deleted")
+    logger.debug("Upload file deleted")
     return "ok"
 
 # route for js code
@@ -267,8 +345,8 @@ def map_func():
 
     # check for compatible browser
     offset = datetime.timezone(datetime.timedelta(hours=-5))  # Atlanta / CDC
-    print("Main page loaded:", datetime.datetime.now(offset), "EST")
-    print("Browser:", request.user_agent.string)
+    api_logger.info(f"Main page loaded at {datetime.datetime.now(offset)} EST")
+    api_logger.debug(f"Browser: {request.user_agent.string}")
     # if not request.user_agent.browser in ['chrome','firefox']:
     #     return render_template('incompatible.html')
 
@@ -296,7 +374,7 @@ def add_header(response):
 
 @app.route('/getengines')
 def get_engines():
-    print("engines requested")
+    api_logger.debug("Engines API endpoint requested")
     sorted_engines = sorted(engines.items(),key=lambda x:-x[1]['ts'])
     result = json.dumps([{'id': k, 'name': v['name']} for (k, v) in sorted_engines ])
     return result
@@ -306,7 +384,7 @@ def get_engines():
 
 @app.route('/getproviders')
 def get_providers():
-    print("map providers requested")
+    api_logger.debug("Map providers API endpoint requested")
     result = json.dumps([{'id': k, 'name': v['name']}
                          for (k, v) in providers.items()])
     # print(result)
@@ -328,19 +406,19 @@ def get_zipcode():
     except Exception as e:
         return jsonify({'error': 'Invalid zipcode format'}), 400
         
-    print("zipcode requested:", zipcode)
+    api_logger.debug(f"Zipcode requested: {zipcode}")
     with zipcode_lock:
         if zipcode_provider is None:
-            print("instantiating zipcode frame, could take 10 seconds ...")
+            logger.info("Loading zipcode data, this may take up to 10 seconds...")
             zipcode_provider = Zipcode_Provider()
-        print("looking up zipcode ...")
+        api_logger.debug("Looking up zipcode...")
         return zipcode_provider.zipcode_polygon(zipcode)
 
 # abort route
 
 @app.route('/abort', methods=['get'])
 def abort():
-    print(" aborting", id(session))
+    api_logger.info(f"Aborting session {id(session)}")
     exit_events.signal(id(session))
     return "ok"
 
@@ -348,7 +426,7 @@ def abort():
 
 @app.route('/getobjects', methods=['POST'])
 def get_objects():
-    print(" session:", id(session))
+    api_logger.debug(f"Processing session {id(session)}")
 
     # check whether this session is over its limit
     if 'tiles' not in session:

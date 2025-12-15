@@ -60,8 +60,14 @@ This document outlines the technical architecture and implementation strategy fo
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Infrastructure Layer                        │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   Logging       │  │   Monitoring    │  │   Configuration │  │
-│  │   System        │  │   & Health      │  │   Management    │  │
+│  │   Error         │  │   Logging       │  │   Configuration │  │
+│  │   Management    │  │   System        │  │   Management    │  │
+│  │   (NEW)         │  │   (Enhanced)    │  │   (Enhanced)    │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │   Monitoring    │  │   Retry Logic   │  │   Health        │  │
+│  │   & Health      │  │   & Circuit     │  │   Checks        │  │
+│  │   (Planned)     │  │   Breaker (NEW) │  │   (Planned)     │  │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -133,6 +139,86 @@ class InputValidator:
     def validate_file_upload(file: FileStorage) -> ValidationResult:
         # Validate file type, size, and content
         pass
+```
+
+---
+
+## ⚠️ ERROR HANDLING ARCHITECTURE
+
+### Overview
+TowerScout implements a comprehensive error handling system providing structured error responses, robust logging, and graceful degradation for all external operations.
+
+### Exception Hierarchy
+
+```python
+# Base Exception with Structured Details
+class TowerScoutError(Exception):
+    def __init__(self, message: str, error_code: str = None, 
+                 details: Dict[str, Any] = None, user_message: str = None):
+        self.message = message
+        self.error_code = error_code or self.__class__.__name__
+        self.details = details or {}
+        self.user_message = user_message or "An error occurred."
+        self.timestamp = datetime.utcnow().isoformat() + "Z"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "error": True,
+            "type": self.__class__.__name__,
+            "message": self.user_message,
+            "technical_message": self.message,
+            "timestamp": self.timestamp,
+            "details": self.details
+        }
+
+# Specialized Exception Classes
+ConfigurationError    # Missing API keys, invalid settings
+ModelLoadError       # ML model loading failures, GPU issues  
+MapProviderError     # Rate limits, authentication, network issues
+ProcessingError      # Image processing, detection failures
+NetworkError         # Connection timeouts, DNS failures
+ResourceError        # Disk space, memory limitations
+SessionError         # Session management issues
+```
+
+### Logging Architecture
+
+```python
+# Multi-Level Structured Logging
+class TowerScoutLogger:
+    # Application logs (10MB, 5 backups)
+    # Error logs (10MB, 10 backups) 
+    # Performance logs (5MB, 3 backups, JSON format)
+    
+    # Component-Specific Loggers:
+    get_main_logger()    # General application events
+    get_api_logger()     # Flask routes and API calls  
+    get_ml_logger()      # Model loading and inference
+    get_maps_logger()    # Map provider operations
+```
+
+### Network Resilience
+
+```python
+# Retry Logic with Exponential Backoff
+- Rate Limit Handling: Respect Retry-After headers
+- Server Error Recovery: Exponential backoff for 5xx errors
+- Circuit Breaker: Prevent cascade failures
+- Graceful Degradation: Continue processing when possible
+```
+
+### Flask Error Middleware
+
+```python
+# Standardized JSON Error Responses
+@app.errorhandler(TowerScoutError)
+def handle_towerscout_error(error):
+    response = jsonify(error.to_dict())
+    response.status_code = 400 if isinstance(error, ValidationError) else 500
+    return response
+
+# Request/Response Logging for Audit Trail
+@app.before_request / @app.after_request
 ```
 
 ---
