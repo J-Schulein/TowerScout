@@ -15,6 +15,7 @@ from ts_en import EN_Classifier
 import ts_imgutil
 from ts_bmaps import BingMap
 from ts_gmaps import GoogleMap
+from ts_azure_maps import AzureMaps
 from ts_zipcode import Zipcode_Provider
 from ts_events import ExitEvents
 import ts_maps
@@ -124,6 +125,7 @@ def add_model(m):
 providers = {
     'google': {'id': 'google', 'name': 'Google Maps'},
     'bing': {'id': 'bing', 'name': 'Bing Maps'},
+    'azure': {'id': 'azure', 'name': 'Azure Maps'},
 }
 
 # Load API keys from environment variables
@@ -131,23 +133,33 @@ def load_api_keys():
     """Load and validate API keys from environment variables."""
     google_key = os.getenv('GOOGLE_API_KEY')
     bing_key = os.getenv('BING_API_KEY')
+    azure_key = os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY')
+    
+    # At least one provider must be configured
+    if not google_key and not bing_key and not azure_key:
+        raise ConfigurationError(
+            "At least one map provider API key is required",
+            missing_config="GOOGLE_API_KEY or AZURE_MAPS_SUBSCRIPTION_KEY",
+            user_message="Map provider API keys are required. Please configure Google Maps or Azure Maps."
+        )
     
     if not google_key:
-        raise ConfigurationError(
-            "GOOGLE_API_KEY environment variable is required",
-            missing_config="GOOGLE_API_KEY",
-            user_message="Google Maps API key is required. Please check your configuration."
-        )
+        logger.warning("GOOGLE_API_KEY not configured. Google Maps provider will be unavailable.")
+        google_key = ""
     
     if not bing_key:
         logger.warning("BING_API_KEY not configured. Bing Maps provider will be unavailable.")
         bing_key = ""
+        
+    if not azure_key:
+        logger.warning("AZURE_MAPS_SUBSCRIPTION_KEY not configured. Azure Maps provider will be unavailable.")
+        azure_key = ""
     
-    return google_key, bing_key
+    return google_key, bing_key, azure_key
 
 # Load API keys with proper error handling
 try:
-    google_api_key, bing_api_key = load_api_keys()
+    google_api_key, bing_api_key, azure_api_key = load_api_keys()
 except ConfigurationError as e:
     logger.error(f"Configuration Error: {e.message}")
     logger.info("To fix this:")
@@ -355,9 +367,21 @@ def map_func():
         rmtree(session['tmpdirname'], ignore_errors=True, onerror=None)
         del session['tmpdirname']
 
-    # now render the map.html template, inserting the key
+    # now render the map.html template, inserting the keys and available providers
+    available_providers = []
+    if google_api_key:
+        available_providers.append('google')
+    if bing_api_key:
+        available_providers.append('bing')
+    if azure_api_key:
+        available_providers.append('azure')
+    
     return render_template('towerscout.html',
-                           google_map_key=google_api_key, bing_map_key=bing_api_key, dev=dev)
+                           google_map_key=google_api_key, 
+                           bing_map_key=bing_api_key,
+                           azure_map_key=azure_api_key,
+                           available_providers=available_providers,
+                           dev=dev)
 
 
 # cache control
@@ -385,9 +409,17 @@ def get_engines():
 @app.route('/getproviders')
 def get_providers():
     api_logger.debug("Map providers API endpoint requested")
-    result = json.dumps([{'id': k, 'name': v['name']}
-                         for (k, v) in providers.items()])
-    # print(result)
+    
+    # Only return providers that are actually configured
+    available_providers = []
+    if google_api_key:
+        available_providers.append({'id': 'google', 'name': 'Google Maps'})
+    if bing_api_key:
+        available_providers.append({'id': 'bing', 'name': 'Bing Maps'})
+    if azure_api_key:
+        available_providers.append({'id': 'azure', 'name': 'Azure Maps'})
+    
+    result = json.dumps(available_providers)
     return result
 
 # zipcode boundary lookup
@@ -477,12 +509,28 @@ def get_objects():
 
     # create a map provider object
     map = None
-    if provider == "bing":
-        map = BingMap(bing_api_key)
-    elif provider == "google":
-        map = GoogleMap(google_api_key)
-    if map is None:
-        print(" could not instantiate map provider:", provider)
+    try:
+        if provider == "bing" and bing_api_key:
+            map = BingMap(bing_api_key)
+        elif provider == "google" and google_api_key:
+            map = GoogleMap(google_api_key)
+        elif provider == "azure" and azure_api_key:
+            map = AzureMaps(azure_api_key)
+        
+        if map is None:
+            raise MapProviderError(
+                f"Map provider '{provider}' not available or not configured",
+                error_code="MAP_PROVIDER_UNAVAILABLE",
+                user_message=f"The {provider} map service is not available. Please try a different provider."
+            )
+            
+    except Exception as e:
+        api_logger.error(f"Failed to create map provider '{provider}': {e}")
+        raise MapProviderError(
+            f"Failed to initialize {provider} map provider: {str(e)}",
+            error_code="MAP_PROVIDER_INIT_FAILED",
+            user_message="Map service initialization failed. Please try again or contact support."
+        ) from e
 
     # divide the map into 640x640 parts
     tiles, nx, ny, meters, h, w = map.make_tiles(bounds, crop_tiles=crop_tiles)
