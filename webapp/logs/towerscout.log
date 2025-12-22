@@ -1,0 +1,18 @@
+2025-12-15 12:25:59 - towerscout.main - INFO - Error handling system test successful
+2025-12-15 12:32:01 - towerscout.main - INFO - Logger test successful
+2025-12-15 12:33:55 - towerscout.main - INFO - Test info message
+2025-12-15 12:33:55 - towerscout.main - WARNING - Test warning message
+2025-12-15 12:33:55 - towerscout.main - ERROR - Test error message
+2025-12-15 12:36:19 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-15 12:36:19 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-15 12:36:19 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-15 12:36:20 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-15 12:36:20 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-15 12:36:20 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-15 12:37:31 - towerscout.ml - INFO - Loading model: newest
+2025-12-15 12:37:31 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-15 12:37:50 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-15 12:37:50 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-15 12:38:09 - towerscout.api - INFO - Main page loaded at 2025-12-15 12:38:09.521296-05:00 EST
+2025-12-15 12:38:14 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2025-12-15 12:39:08 - towerscout.api - INFO - Main page loaded at 2025-12-15 12:39:08.911506-05:00 EST

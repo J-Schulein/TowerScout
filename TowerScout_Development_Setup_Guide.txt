@@ -152,24 +152,28 @@ STEP 4: ENVIRONMENT CONFIGURATION
 
 4.1 Create Environment Variables File
 ------------------------------------
-Create .env file in project root:
+Create .env file by copying the example template:
 
-# Create .env file
-touch .env  # Linux/macOS
-# OR manually create .env file on Windows
+# Copy the template (recommended)
+cp webapp/.env.example webapp/.env  # Linux/macOS
+copy webapp\.env.example webapp\.env  # Windows
 
-Add the following content to .env:
+# OR manually create .env file in webapp/ directory
+# touch webapp/.env  # Linux/macOS
 
-# API Keys (obtain from cloud providers)
+Edit webapp/.env with your actual values:
+
+# Required API Keys (get from cloud providers)
 GOOGLE_API_KEY=your_google_maps_api_key_here
-BING_API_KEY=your_bing_maps_api_key_here
+AZURE_MAPS_SUBSCRIPTION_KEY=your_azure_maps_subscription_key_here
+BING_API_KEY=your_bing_maps_api_key_here  # Legacy provider
 
-# Flask Configuration
+# Required Flask Configuration
+FLASK_SECRET_KEY=your_flask_secret_key_here  # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
 FLASK_ENV=development
-FLASK_DEBUG=True
-SECRET_KEY=your_secret_key_for_sessions_here
+FLASK_DEBUG=true
 
-# Application Settings
+# Application Settings (optional, defaults provided)
 MAX_TILES=100000
 MAX_TILES_SESSION=100000
 UPLOAD_FOLDER=uploads
@@ -183,11 +187,19 @@ Google Maps API:
 4. Create API key in Credentials section
 5. Add key to .env file as GOOGLE_API_KEY
 
-Bing Maps API:
+Azure Maps API (Recommended):
+1. Go to https://portal.azure.com/
+2. Create Azure Maps Account resource
+3. Navigate to Keys and Endpoint
+4. Copy Primary Key
+5. Add key to .env file as AZURE_MAPS_SUBSCRIPTION_KEY
+
+Bing Maps API (Legacy - being deprecated):
 1. Go to https://www.bingmapsportal.com/
 2. Sign in with Microsoft account
 3. Create new key for development use
 4. Add key to .env file as BING_API_KEY
+5. NOTE: Bing Maps is being replaced by Azure Maps
 
 4.3 Generate Secret Key
 ----------------------
@@ -244,16 +256,22 @@ python towerscout.py dev
 # Open browser to http://127.0.0.1:5000
 # Should see TowerScout interface
 
-6.3 Test Model Loading
----------------------
-# In Python console, test model imports
+6.3 Test Core Components
+-----------------------
+# Test model imports and core systems
+cd webapp
 python -c "
 from ts_yolov5 import TSYolov5
 from ts_en import TSEfficientNet
-print('Models import successfully')
+from ts_azure_maps import AzureMaps
+from ts_errors import TowerScoutError
+from ts_logging import setup_logging
+from ts_validation import validate_polygon
+print('All core systems import successfully')
 "
 
 # Should complete without errors
+# If Azure Maps key not configured, that component will show a warning but won't fail
 
 STEP 7: IDE CONFIGURATION
 ========================
@@ -332,22 +350,29 @@ git log --oneline -10
 
 8.2 Review Completed Tasks
 -------------------------
-# Check what's been completed (as of December 9, 2025):
+# Check what's been completed (as of December 18, 2025):
 # ✅ TASK-001: API Key Security Migration
-# ✅ TASK-002: Input Validation System  
-# ✅ TASK-021: Frontend Detection Display Debugging
+# ✅ TASK-002: Input Validation System
+# ✅ TASK-021: Frontend Detection Display Debugging  
+# ✅ TASK-006: Azure Maps Provider Implementation
+# ✅ TASK-007: Error Handling Infrastructure
+# ✅ TASK-008: Logging System Implementation
 
 # Verify these components work:
-# 1. Environment variable loading (no apikey.txt file)
-# 2. Input validation (ts_validation.py exists)
-# 3. Detection display (cooling towers show on map)
+# 1. Environment variable loading (webapp/.env file required)
+# 2. Input validation (ts_validation.py with comprehensive validation)
+# 3. Detection display (cooling towers show on map with multiple providers)
+# 4. Azure Maps integration (ts_azure_maps.py operational)
+# 5. Error handling (ts_errors.py with custom exceptions)
+# 6. Logging system (ts_logging.py with structured logging)
 
 8.3 Identify Next Tasks
 ----------------------
-# Current priorities (refer to tasks.md):
-# 🔄 TASK-003: Error Handling Infrastructure (NEXT)
-# ⏳ TASK-005: Testing Framework Setup
+# Current priorities (refer to .agent_work/tasks.md):
+# 🔄 TASK-009: Azure Key Vault Integration (NEXT - Enterprise deployment)
+# ⏳ TASK-010: Multi-Provider UI Enhancement
 # ⏳ TASK-004: Basic Authentication System
+# ⏳ TASK-005: Testing Framework Enhancement (unit/integration tests expanded)
 
 STEP 9: TROUBLESHOOTING COMMON ISSUES
 =====================================
@@ -377,10 +402,16 @@ Solution: Reinstall PyTorch with correct CUDA version for your GPU
 9.3 API Key Issues
 -----------------
 Issue: "API key not loaded"
-Solution: Verify .env file exists and contains correct keys
+Solution: Verify webapp/.env file exists and contains correct keys
 
 Issue: "Maps not loading"
 Solution: Check API key validity and quota limits in cloud console
+
+Issue: "Azure Maps authentication failed"
+Solution: Verify AZURE_MAPS_SUBSCRIPTION_KEY in .env file, check Azure portal for key status
+
+Issue: "No map providers available"
+Solution: At least one API key (Google, Azure, or Bing) must be configured
 
 9.4 Flask Application Issues
 ---------------------------
@@ -453,11 +484,13 @@ Based on tasks.md, the immediate next priorities are:
 11.2 Files to Focus On
 ---------------------
 Priority files for immediate work:
-- webapp/towerscout.py (main Flask app - needs error handling)
-- webapp/ts_yolov5.py (model wrapper - needs error handling)
-- webapp/ts_en.py (classifier - needs error handling)  
-- webapp/ts_gmaps.py & ts_bmaps.py (map providers - need error handling)
-- tests/ directory (needs expansion)
+- webapp/towerscout.py (main Flask app - enhanced with error handling)
+- webapp/ts_azure_maps.py (Azure Maps provider - newly implemented)
+- webapp/ts_errors.py (error handling system - newly implemented)
+- webapp/ts_logging.py (logging system - newly implemented)
+- webapp/ts_validation.py (input validation - comprehensive system)
+- tests/unit/ & tests/integration/ directories (expanded test structure)
+- .agent_work/ directory (detailed specifications and progress tracking)
 
 11.3 Development Commands
 ------------------------
@@ -473,7 +506,10 @@ python -c "
 import sys
 sys.path.append('webapp')
 from ts_validation import validate_polygon
-print('Validation working')
+from ts_azure_maps import AzureMaps
+from ts_errors import TowerScoutError
+from ts_logging import setup_logging
+print('Core systems operational')
 "
 
 STEP 12: ADDITIONAL RESOURCES
@@ -543,5 +579,5 @@ Data Backup:
 
 This guide should get you fully set up and ready to continue TowerScout development from exactly where you left off. The key is ensuring all dependencies are installed correctly and the environment variables are configured properly.
 
-Last Updated: December 9, 2025
-Setup Guide Version: 1.0
+Last Updated: December 18, 2025
+Setup Guide Version: 1.1 - Updated for Azure Maps integration and current project state
