@@ -10,7 +10,7 @@ import os
 import sys
 
 # Add webapp directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'webapp'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'webapp'))
 
 from ts_azure_maps import AzureMaps, create_azure_maps_provider
 from ts_errors import MapProviderError, ConfigurationError
