@@ -9,9 +9,9 @@ import os
 from werkzeug.datastructures import FileStorage
 from io import BytesIO
 
-# Add parent directory to path for imports
+# Add webapp directory to path for imports
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'webapp'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'webapp'))
 
 from ts_validation import (
     TowerScoutValidator, ValidationError, RateLimiter,
@@ -112,7 +112,7 @@ class TestTowerScoutValidator(unittest.TestCase):
 
     def test_validate_bounds_valid(self):
         """Test valid bounds validation"""
-        bounds = "37.7,−122.5,37.8,−122.4"
+        bounds = "37.7,-122.5,37.8,-122.4"
         result = TowerScoutValidator.validate_bounds(bounds)
         self.assertIn('lat1', result)
         self.assertIn('lng1', result)
