@@ -5,7 +5,7 @@
 This document provides a detailed, trackable implementation plan for TowerScout improvements following component-by-component security-first approach. Tasks are organized by component and priority, with clear dependencies and validation criteria.
 
 **Implementation Strategy**: Component-by-component (Flask Core → Azure Maps Migration → Image Processing → Session Management)  
-**Timeline**: 10-14 weeks total across 4 phases (**7 of 26 tasks completed - 27% progress**)  
+**Timeline**: 10-14 weeks total across 4 phases (**7 of 27 tasks completed - 26% progress**)  
 **Validation**: Testing at each component completion before moving to next
 
 **CRITICAL UPDATE**: **Azure Maps Migration** - Migrating from Bing Maps to Azure Maps with dual authentication (standard keys + Azure Key Vault) while maintaining Google Maps as user option
@@ -527,6 +527,50 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ### Component: Map Provider User Experience
 
+#### TASK-024: Azure Maps Frontend UI Implementation 🔴
+**Status**: ⏳ NOT_STARTED  
+**Priority**: CRITICAL  
+**Type**: C  
+**Estimated Effort**: 5-7 days  
+
+**Description**: Replace Bing Maps frontend radio button with Azure Maps Web SDK integration
+
+**Implementation Steps**:
+1. Add Azure Maps Web SDK CSS and JavaScript loading to HTML template
+2. Create `AzureMap` JavaScript class extending `TSMap` with full method implementation
+3. Implement Azure Maps drawing manager for polygon/rectangle drawing tools
+4. Add Azure Maps search box integration for location search functionality
+5. Update `setMap()` function to handle "azure" radio button selection
+6. Replace Bing Maps template context with Azure Maps authentication
+7. Implement coordinate transformation compatibility between frontend and backend
+8. Add Azure Maps event handling for map interactions and view changes
+9. Update CSS styling for Azure Maps interface consistency
+10. Remove all Bing Maps frontend references and cleanup
+
+**Acceptance Criteria**:
+- [ ] Azure Maps Web SDK loads correctly with authentication
+- [ ] AzureMap JavaScript class implements all TSMap methods (getBounds, setCenter, addBoundary, etc.)
+- [ ] Drawing manager works for polygon and rectangle creation
+- [ ] Location search integrates with Azure Maps Search API
+- [ ] Radio button switching works smoothly between Google Maps and Azure Maps
+- [ ] Coordinate transformations maintain accuracy between frontend display and backend
+- [ ] Detection overlays position correctly on Azure Maps
+- [ ] Cross-browser compatibility maintained (Chrome, Firefox, Safari, Edge)
+- [ ] Mobile responsiveness works with Azure Maps interface
+- [ ] All Bing Maps frontend code removed and cleaned up
+
+**Dependencies**: TASK-008 (✅ COMPLETED)  
+**Blocks**: TASK-012
+
+**Files Modified**:
+- `webapp/templates/towerscout.html` (Azure Maps SDK loading, radio button, div structure)
+- `webapp/js/towerscout.js` (new AzureMap class, setMap function, event handlers)
+- `webapp/towerscout.py` (template context for Azure Maps authentication)
+- `webapp/css/ts_styles.css` (Azure Maps styling adjustments)
+- `webapp/css/ts_styles_mobile.css` (mobile Azure Maps styling)
+
+---
+
 #### TASK-012: Map Provider Selection Interface 🟢
 **Status**: ⏳ NOT_STARTED  
 **Priority**: MEDIUM  
@@ -553,13 +597,13 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 - [ ] Migration progress visible to administrators
 - [ ] Legacy Bing Maps marked as deprecated in UI
 
-**Dependencies**: TASK-011  
+**Dependencies**: TASK-024  
 **Blocks**: None
 
 **Files Modified**:
-- `webapp/templates/towerscout.html` (provider selection)
+- `webapp/templates/towerscout.html` (provider selection enhancement)
 - `webapp/templates/admin/providers.html` (new file)
-- `webapp/js/towerscout.js` (provider switching)
+- `webapp/js/towerscout.js` (provider switching logic)
 - `webapp/css/ts_styles.css` (provider UI styling)
 
 ---
@@ -605,27 +649,33 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 **Status**: ⏳ NOT_STARTED  
 **Priority**: HIGH  
 **Type**: B  
-**Estimated Effort**: 2-3 days  
+**Estimated Effort**: 3-4 days  
 
-**Description**: Create comprehensive testing framework for all map providers including Azure Maps
+**Description**: Create comprehensive testing framework for all map providers including Azure Maps frontend and backend
 
 **Implementation Steps**:
-1. Create unit tests for Google Maps, Azure Maps providers
+1. Create unit tests for Google Maps, Azure Maps providers (backend and frontend)
 2. Add integration tests for provider switching and fallback
 3. Create mock objects for external API testing without consumption
 4. Add performance tests for provider comparison
 5. Implement automated API key validation testing
 6. Add test data for different geographic regions and edge cases
 7. Create coordinate transformation accuracy tests
+8. Add frontend Azure Maps Web SDK testing with mock DOM
+9. Test drawing manager and search functionality for Azure Maps
+10. Add cross-browser compatibility testing for Azure Maps frontend
 
 **Acceptance Criteria**:
-- [ ] Unit tests cover all provider functionality (Google, Azure)
+- [ ] Unit tests cover all provider functionality (Google, Azure backend and frontend)
 - [ ] Integration tests validate provider switching and fallback
 - [ ] Mock objects enable testing without API consumption
 - [ ] Performance tests compare provider efficiency
 - [ ] Automated validation tests prevent configuration errors
 - [ ] Geographic edge cases tested (poles, dateline, etc.)
 - [ ] Coordinate transformation accuracy validated
+- [ ] Frontend Azure Maps Web SDK functionality tested
+- [ ] Drawing and search tools validated for Azure Maps
+- [ ] Cross-browser compatibility verified
 
 **Dependencies**: TASK-005 (✅ COMPLETED)  
 **Blocks**: None
@@ -976,9 +1026,11 @@ TASK-003 (Error Handling) → TASK-006 (Configuration) → TASK-008 (Azure Maps 
     ↓                              ↓                        ↓
 TASK-005 (Testing) → TASK-007 (Error Messages) → TASK-009 (Azure Key Vault) 🔴 → TASK-011 (Migration System)
                                                       ↓                              ↓
-                                              TASK-010 (Multi-Provider Security) → TASK-012 (Provider UI)
+                                              TASK-010 (Multi-Provider Security) → TASK-024 (Azure Frontend UI) 🔴
                                                       ↓                              ↓
-                                              TASK-013 (ML Accuracy Validation) 🔴 → TASK-014 (Provider Testing)
+                                              TASK-013 (ML Accuracy Validation) 🔴 → TASK-012 (Provider UI)
+                                                                                       ↓
+                                                                               TASK-014 (Provider Testing)
                                                       ↓
 TASK-015 (Image Errors) → TASK-016 (CPU Optimization) → TASK-018 (Session Security)
     ↓                                                         ↓
@@ -991,7 +1043,7 @@ TASK-017 (Image Testing)                              TASK-019 (Session Cleanup)
                                                                                TASK-023 (Integration + Azure)
 ```
 
-**Legend**: ✅ Completed | 🔴 Critical Azure Migration Tasks | ⏳ Remaining Tasks
+**Legend**: ✅ Completed | 🔴 Critical Azure Migration Tasks (including TASK-024 Frontend UI) | ⏳ Remaining Tasks
 
 ---
 

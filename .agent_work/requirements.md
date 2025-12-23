@@ -69,6 +69,24 @@ This document specifies requirements for transforming TowerScout from a student 
 
 ---
 
+## 🗺️ MAP PROVIDER REQUIREMENTS (Type C)
+
+### MAP-001: Azure Maps Frontend UI Implementation
+**Priority**: CRITICAL  
+**Type**: C  
+**EARS**: WHEN users interact with the map interface, THE SYSTEM SHALL provide Azure Maps Web SDK instead of Bing Maps with full functionality  
+**Acceptance Criteria**:
+- Replace Bing Maps frontend radio button with Azure Maps option
+- Implement Azure Maps Web SDK integration with complete JavaScript API
+- Add drawing manager for polygon/rectangle creation tools
+- Integrate Azure Maps Search API for location search functionality
+- Maintain coordinate transformation compatibility between frontend and backend
+- Support detection overlay positioning on Azure Maps
+- Ensure cross-browser compatibility and mobile responsiveness
+- Remove all Bing Maps frontend dependencies and references
+
+---
+
 ## 🏗️ INFRASTRUCTURE REQUIREMENTS (Type C)
 
 ### INF-001: Error Handling System
