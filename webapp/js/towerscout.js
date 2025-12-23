@@ -708,7 +708,7 @@ class GoogleMap extends TSMap {
     b.index = this.boundaries.length;
 
     // now make GoogleMap objects and link to them
-    let points = b.points.map(p => ({lng: p[0], lat: p[1] }));
+    let points = b.points.map(p => ({ lng: p[0], lat: p[1] }));
     const poly = new google.maps.Polygon({
       paths: points,
       strokeColor: "#0000FF",
@@ -1155,11 +1155,11 @@ class Detection extends PlaceRect {
     super.update(newMap)
 
     let meetsInside = reviewCheckBox.checked || this.inside;
-    
+
     // FIX: Use secondary classifier threshold for visibility instead of primary confidence
     // Backend selects detections based on secondary >= 0.35, so frontend should too
     let meetsConfidence = this.conf >= Detection_minConfidence || this.secondary >= 0.35;
-    
+
     // then update by confidence - show if selected and meets either confidence threshold
     this.map.updateMapRect(this, this.selected && meetsConfidence && meetsInside);
   }
@@ -1260,7 +1260,7 @@ function getObjects(estimate) {
   }
 
   let boundaries = googleMap.getBoundariesStr();
-  
+
   // Auto-create viewport boundary if no polygons are drawn
   if (boundaries === "[]") {
     console.log("No boundary selected, automatically using current viewport as detection area");
@@ -1282,12 +1282,12 @@ function getObjects(estimate) {
   // first, play the request, but get an estimate of the number of tiles
   const formData = new FormData();
   formData.append('bounds', bounds);
-  formData.append('engine',engine);
-  formData.append('provider',provider );
+  formData.append('engine', engine);
+  formData.append('provider', provider);
   formData.append('polygons', boundaries);
   formData.append('estimate', "yes");
 
-  fetch("/getobjects",  { method: "POST", body: formData, })
+  fetch("/getobjects", { method: "POST", body: formData, })
     .then(result => {
       // Check if result is JSON error instead of tile count
       const contentType = result.headers.get('content-type');
@@ -1304,7 +1304,7 @@ function getObjects(estimate) {
       if (isNaN(tileCount)) {
         throw new Error(`Invalid tile count response: ${result}`);
       }
-      
+
       if (tileCount === -1) {
         fatalError("Tile limit for this session exceeded. Please close browser to continue.")
         return;
@@ -1881,12 +1881,12 @@ function drawCustomImage(url) {
   if (img.complete) {
     removeCustomImage(url)
   } else {
-    img.addEventListener('load', () => {removeCustomImage(url);}, {once:true});
+    img.addEventListener('load', () => { removeCustomImage(url); }, { once: true });
   }
 }
 
 function removeCustomImage(url) {
-  fetch('/rm'+url, { method: "GET"});
+  fetch('/rm' + url, { method: "GET" });
 }
 
 
@@ -2061,7 +2061,7 @@ function parseZipcodeResult(result) {
   let f = features[0];
   let geom = f['geometry']
   let coords = geom['coordinates'];
-  return geom['type'] === 'Polygon' ? [coords]:coords;
+  return geom['type'] === 'Polygon' ? [coords] : coords;
 }
 
 // init actions
