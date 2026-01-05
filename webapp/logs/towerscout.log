@@ -16,3 +16,257 @@
 2025-12-15 12:38:09 - towerscout.api - INFO - Main page loaded at 2025-12-15 12:38:09.521296-05:00 EST
 2025-12-15 12:38:14 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
 2025-12-15 12:39:08 - towerscout.api - INFO - Main page loaded at 2025-12-15 12:39:08.911506-05:00 EST
+2025-12-23 10:37:47 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 10:37:47 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 10:37:47 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 10:37:47 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 10:37:47 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 10:37:47 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 10:38:18 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 10:38:18 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 10:38:22 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 10:38:22 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 10:38:49 - towerscout.api - INFO - Main page loaded at 2025-12-23 10:38:49.107062-05:00 EST
+2025-12-23 10:38:50 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2025-12-23 10:41:20 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2025-12-23 10:50:49 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 10:50:49 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 10:50:50 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 10:50:50 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 10:50:50 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 10:50:50 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 10:51:20 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 10:51:20 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 10:51:23 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 10:51:23 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 10:51:32 - towerscout.api - INFO - Main page loaded at 2025-12-23 10:51:32.858528-05:00 EST
+2025-12-23 10:51:33 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2025-12-23 10:52:02 - towerscout.api - INFO - Main page loaded at 2025-12-23 10:52:02.057737-05:00 EST
+2025-12-23 11:06:50 - towerscout.api - INFO - Main page loaded at 2025-12-23 11:06:50.664570-05:00 EST
+2025-12-23 11:07:10 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 11:07:10 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 11:07:11 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 11:07:11 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 11:07:11 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 11:07:11 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 11:07:41 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 11:07:41 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 11:07:44 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 11:07:44 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 11:08:04 - towerscout.api - INFO - Main page loaded at 2025-12-23 11:08:04.462627-05:00 EST
+2025-12-23 11:08:05 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2025-12-23 11:12:28 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 11:12:28 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 11:12:28 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 11:12:28 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 11:12:28 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 11:12:28 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 11:12:58 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 11:12:58 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 11:13:01 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 11:13:01 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 11:13:20 - towerscout.api - INFO - Main page loaded at 2025-12-23 11:13:20.632160-05:00 EST
+2025-12-23 11:13:21 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2025-12-23 13:09:50 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:09:50 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:09:50 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:09:50 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:09:50 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:09:50 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 13:10:26 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 13:10:26 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 13:10:30 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 13:10:30 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 13:13:04 - towerscout.api - INFO - Main page loaded at 2025-12-23 13:13:04.008321-05:00 EST
+2025-12-23 13:13:04 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2025-12-23 13:19:46 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-23 13:20:48 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:20:48 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:20:48 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:20:49 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:20:49 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:22:14 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:22:14 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:22:14 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:22:14 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:22:14 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:22:14 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-23 13:23:49 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:23:49 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:23:49 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:23:49 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:23:49 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:27:17 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:27:17 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:27:17 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:27:17 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:27:17 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:29:55 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:29:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:29:55 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:29:55 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:29:55 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:31:26 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:31:26 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:31:26 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:31:26 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:31:26 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:31:26 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 13:32:24 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:32:24 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:32:25 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:32:25 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:32:25 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:35:02 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-23 13:37:55 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:37:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:37:55 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:37:55 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:37:55 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:37:55 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 13:38:26 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 13:38:26 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 13:38:31 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 13:38:31 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 13:38:39 - towerscout.api - INFO - Main page loaded at 2025-12-23 13:38:39.346096-05:00 EST
+2025-12-23 13:47:29 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:47:29 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:47:30 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:47:30 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:47:30 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:48:50 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:48:50 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:48:50 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:48:51 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:48:51 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:48:51 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 13:49:23 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 13:49:23 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 13:49:26 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 13:49:26 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 13:49:46 - towerscout.api - INFO - Main page loaded at 2025-12-23 13:49:46.395264-05:00 EST
+2025-12-23 13:52:52 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:52:52 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:52:53 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:52:53 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:52:53 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:53:19 - towerscout.api - INFO - Main page loaded at 2025-12-23 13:53:19.045376-05:00 EST
+2025-12-23 13:54:41 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:54:41 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:54:41 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:54:41 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:54:41 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 13:54:41 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 13:55:56 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:55:56 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:55:57 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 13:55:57 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 13:55:57 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 14:07:56 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:07:56 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:07:56 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 14:07:57 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 14:07:57 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 14:07:57 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 14:08:28 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 14:08:28 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 14:08:31 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 14:08:31 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 14:08:53 - towerscout.api - INFO - Main page loaded at 2025-12-23 14:08:53.487144-05:00 EST
+2025-12-23 14:47:12 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:47:12 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:47:12 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 14:47:12 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 14:47:12 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 14:47:12 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 14:47:45 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 14:47:45 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 14:47:47 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 14:47:47 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 14:48:01 - towerscout.api - INFO - Main page loaded at 2025-12-23 14:48:01.200485-05:00 EST
+2025-12-23 15:23:05 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:23:05 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:23:05 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 15:23:05 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 15:23:05 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 15:23:05 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 15:23:37 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 15:23:37 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 15:23:40 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 15:23:40 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 15:25:29 - towerscout.api - INFO - Main page loaded at 2025-12-23 15:25:29.291288-05:00 EST
+2025-12-23 15:29:56 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:29:56 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:29:56 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 15:29:56 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 15:29:56 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 15:29:56 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 15:30:29 - towerscout.ml - INFO - Loading model: newest
+2025-12-23 15:30:29 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2025-12-23 15:30:32 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2025-12-23 15:30:32 - towerscout.ml - INFO - CUDA not available, using CPU
+2025-12-23 15:30:41 - towerscout.api - INFO - Main page loaded at 2025-12-23 15:30:41.493549-05:00 EST
+2025-12-23 15:32:13 - towerscout.api - INFO - Main page loaded at 2025-12-23 15:32:13.761212-05:00 EST
+2025-12-23 15:35:39 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:35:39 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:35:39 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 15:35:39 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 15:35:39 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 15:35:39 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 15:36:15 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:36:15 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:36:15 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 15:36:15 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 15:36:15 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 15:36:15 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2025-12-23 15:42:52 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:42:52 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:42:52 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 15:42:52 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 15:42:52 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 15:44:04 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:44:04 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:44:04 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 15:44:04 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 15:44:04 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2025-12-23 15:45:23 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:45:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:45:23 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2025-12-23 15:45:23 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2025-12-23 15:45:23 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-05 10:54:55 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-05 10:54:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-05 10:54:55 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-05 10:54:55 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-05 10:54:55 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-05 10:54:55 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-05 10:55:34 - towerscout.ml - INFO - Loading model: newest
+2026-01-05 10:55:34 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-05 10:55:40 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-05 10:55:40 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-05 10:55:49 - towerscout.api - INFO - Main page loaded at 2026-01-05 10:55:49.774106-05:00 EST
+2026-01-05 10:57:24 - towerscout.api - INFO - Main page loaded at 2026-01-05 10:57:24.471238-05:00 EST
+2026-01-05 10:58:36 - towerscout.api - INFO - Main page loaded at 2026-01-05 10:58:36.283174-05:00 EST
+2026-01-05 10:58:56 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-05 10:58:56 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-05 10:58:56 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-05 10:58:57 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-05 10:58:57 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-05 10:58:57 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-05 10:59:28 - towerscout.ml - INFO - Loading model: newest
+2026-01-05 10:59:28 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-05 10:59:31 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-05 10:59:31 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-05 10:59:38 - towerscout.api - INFO - Main page loaded at 2026-01-05 10:59:38.752460-05:00 EST
+2026-01-05 11:01:09 - towerscout.api - INFO - Main page loaded at 2026-01-05 11:01:09.868264-05:00 EST
+2026-01-05 13:22:08 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-05 13:22:08 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-05 13:22:08 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-05 13:22:09 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-05 13:22:09 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-05 13:22:09 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-05 13:22:56 - towerscout.ml - INFO - Loading model: newest
+2026-01-05 13:22:56 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-05 13:23:02 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-05 13:23:02 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-05 13:25:06 - towerscout.api - INFO - Main page loaded at 2026-01-05 13:25:06.489712-05:00 EST
