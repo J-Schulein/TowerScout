@@ -1,14 +1,16 @@
-# TowerScout Technical Design Document
+# TowerScout Local Deployment Technical Design
 
 ## Executive Summary
 
-This document outlines the technical architecture and implementation strategy for transforming TowerScout from a student prototype into a production-ready application. The design follows component-by-component security-first improvements while maintaining ML model integrity.
+This document outlines the technical architecture and implementation strategy for transforming TowerScout from a student prototype into a **locally-deployable, user-friendly application**. The design follows simplified architecture patterns optimized for single-user deployment on individual devices.
 
-**Architecture Philosophy**: Incremental improvement with security-first, component-by-component implementation following industry best practices.
+**Architecture Philosophy**: Local deployment optimization with user experience focus, eliminating enterprise complexity while maintaining ML model integrity.
 
-**IMPLEMENTATION STATUS**: Security foundation complete (7 of 27 tasks), Azure Maps migration completed with 32% performance improvement and coordinate accuracy validation. **TASK-024: Azure Maps Frontend UI Implementation** identified as critical priority for completing Bing Maps deprecation.
+**DEPLOYMENT MODEL UPDATE**: **LOCAL DEPLOYMENT** - TowerScout deployed on individual user devices (epidemiologists, researchers, health departments) rather than hosted service. This fundamentally changes architecture priorities from enterprise security and scalability to installation simplicity and broad hardware compatibility.
 
-**Current Architecture**: Multi-provider map system (Google/Azure), comprehensive error handling infrastructure, and production-ready validation framework.
+**IMPLEMENTATION STATUS**: Security foundation complete (7 of 27 original tasks), Azure Maps migration completed. **NEW**: 5 local deployment tasks (TASK-025 through TASK-029) added for user-friendly local deployment.
+
+**Current Architecture**: Multi-provider map system (Google/Azure), comprehensive error handling infrastructure, and production-ready validation framework **SIMPLIFIED** for local deployment.
 
 ---
 
@@ -31,116 +33,166 @@ This document outlines the technical architecture and implementation strategy fo
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-### Target Architecture
+### Local Deployment Target Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Application Layer                            │
+│                     Local User Interface Layer                      │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   Web Interface │  │   API Endpoints │  │   Admin Panel   │  │
-│  │   (Enhanced)    │  │   (Secured)     │  │   (New)         │  │
+│  │   Web Interface   │  │   Setup Wizard   │  │   Settings Page  │  │
+│  │   (Enhanced UX)   │  │   (NEW - API     │  │   (NEW - Config  │  │
+│  │                 │  │   Key Setup)     │  │   Management)    │  │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
                                 │
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Service Layer                               │
+│                 Local Application Service Layer                  │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   Security      │  │   Configuration │  │   Error         │  │
-│  │   Service       │  │   Service       │  │   Handling      │  │
+│  │   Basic Config   │  │   User-Friendly  │  │   Hardware      │  │
+│  │   Service        │  │   Error          │  │   Detection     │  │
+│  │   (SIMPLIFIED)   │  │   Handling       │  │   (NEW)         │  │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
                                 │
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Core Layer (Protected)                      │
+│               Core Layer (Protected - Unchanged)                │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   Map Provider  │  │   ML Detection  │  │   Image         │  │
-│  │   Abstraction   │  │   Pipeline      │  │   Processing    │  │
-│  │   (Enhanced)    │  │   (Unchanged)   │  │   (Enhanced)    │  │
+│  │   Map Provider   │  │   ML Detection   │  │   Image         │  │
+│  │   Abstraction    │  │   Pipeline       │  │   Processing    │  │
+│  │   (Google/Azure) │  │   (UNCHANGED)    │  │   (Enhanced)    │  │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
                                 │
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Infrastructure Layer                        │
+│             Local Infrastructure Layer (Simplified)             │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   Error         │  │   Logging       │  │   Configuration │  │
-│  │   Management    │  │   System        │  │   Management    │  │
-│  │   (NEW)         │  │   (Enhanced)    │  │   (Enhanced)    │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   Monitoring    │  │   Retry Logic   │  │   Health        │  │
-│  │   & Health      │  │   & Circuit     │  │   Checks        │  │
-│  │   (Planned)     │  │   Breaker (NEW) │  │   (Planned)     │  │
+│  │   Basic Error    │  │   Simple         │  │   File-based     │  │
+│  │   Management     │  │   Logging        │  │   Configuration  │  │
+│  │   (Completed)    │  │   (Simplified)   │  │   (.env files)   │  │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**Key Differences from Enterprise Architecture**:
+- **Authentication removed**: Physical access control sufficient for local deployment
+- **Configuration simplified**: File-based `.env` configuration instead of enterprise key management
+- **User interface enhanced**: Setup wizard and settings management for non-technical users
+- **Hardware detection added**: CPU/GPU/MPS detection for diverse local hardware
+- **Error handling user-focused**: Non-technical error messages replace technical diagnostics
 
 ---
 
-## 🔐 SECURITY ARCHITECTURE
+## �️ LOCAL DEPLOYMENT ARCHITECTURE
 
-### Authentication & Authorization
+### Setup Wizard Integration
 
 ```python
-# New Security Service Pattern
-class SecurityService:
+# Simple Configuration Service for Local Deployment
+class LocalConfigurationService:
     def __init__(self):
-        self.auth_provider = SimpleAuthProvider()
-        self.session_manager = SecureSessionManager()
+        self.config_file = '.env'
+        
+    def setup_wizard_flow(self) -> Dict[str, str]:
+        """Guide users through API key setup"""
+        return {
+            'google_maps': self.validate_google_key(),
+            'azure_maps': self.validate_azure_key(),
+            'flask_secret': self.generate_secret_key()
+        }
     
-    def authenticate_user(self, username: str, password: str) -> AuthResult:
-        # Implement secure authentication
+    def save_configuration(self, config: Dict[str, str]) -> bool:
+        """Write configuration to .env file with proper permissions"""
         pass
     
-    def authorize_request(self, request: Request, required_permission: str) -> bool:
-        # Implement authorization checks
+    def test_provider_connectivity(self, provider: str, api_key: str) -> ValidationResult:
+        """Real-time API key validation for setup wizard"""
         pass
 ```
 
-### API Key Management
+### Hardware Detection Service
 
 ```python
-# Environment-based Configuration with Azure Key Vault Support
-class ConfigurationService:
+# Hardware Compatibility Detection
+class HardwareDetectionService:
     def __init__(self):
-        self.google_api_key = os.getenv('GOOGLE_API_KEY')
-        self.azure_maps_key = self._get_azure_maps_key()
-        
-        if not self.google_api_key and not self.azure_maps_key:
-            raise ConfigurationError("No map provider API keys configured")
+        self.platform = self._detect_platform()
+        self.capabilities = self._detect_capabilities()
     
-    def _get_azure_maps_key(self) -> str:
-        # Try Azure Key Vault first, fallback to environment variable
-        try:
-            from azure.keyvault.secrets import SecretClient
-            from azure.identity import DefaultAzureCredential
-            
-            vault_url = os.getenv('AZURE_KEY_VAULT_URL')
-            if vault_url:
-                credential = DefaultAzureCredential()
-                client = SecretClient(vault_url=vault_url, credential=credential)
-                secret = client.get_secret('azure-maps-subscription-key')
-                return secret.value
-        except Exception:
-            pass
+    def _detect_platform(self) -> Platform:
+        """Detect AMD64, ARM64, Apple Silicon"""
+        if platform.machine() == 'arm64' and sys.platform == 'darwin':
+            return Platform.APPLE_SILICON
+        elif platform.machine() in ['aarch64', 'arm64']:
+            return Platform.ARM64
+        else:
+            return Platform.AMD64
+    
+    def _detect_capabilities(self) -> HardwareCapabilities:
+        """Detect GPU, MPS, memory constraints"""
+        capabilities = HardwareCapabilities()
         
-        # Fallback to environment variable
-        return os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY')
+        # GPU detection
+        if torch.cuda.is_available():
+            capabilities.gpu = True
+            capabilities.gpu_memory = torch.cuda.get_device_properties(0).total_memory
+        
+        # Apple Silicon MPS detection
+        if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            capabilities.mps = True
+        
+        # Memory detection
+        capabilities.system_memory = psutil.virtual_memory().total
+        
+        return capabilities
+    
+    def get_optimal_batch_size(self) -> int:
+        """Platform-specific batch size optimization"""
+        if self.capabilities.gpu and self.capabilities.gpu_memory > 8 * 1024**3:
+            return 16  # High-end GPU
+        elif self.capabilities.gpu:
+            return 8   # Standard GPU
+        elif self.capabilities.mps:
+            return 6   # Apple Silicon MPS
+        elif self.platform == Platform.ARM64:
+            return 4   # ARM64 CPU
+        else:
+            return 4   # AMD64 CPU
 ```
 
-### Input Validation
+### User-Friendly Error Service
 
 ```python
-# Centralized Validation
-class InputValidator:
-    @staticmethod
-    def validate_polygon(coordinates: List[Tuple[float, float]]) -> ValidationResult:
-        # Validate coordinate ranges, format, and polygon validity
-        pass
+# Simplified Error Handling for End Users
+class UserFriendlyErrorService:
+    def __init__(self):
+        self.error_templates = self._load_error_templates()
+        self.troubleshooting_guide = self._load_troubleshooting_guide()
     
-    @staticmethod
-    def validate_file_upload(file: FileStorage) -> ValidationResult:
-        # Validate file type, size, and content
-        pass
+    def transform_technical_error(self, error: Exception) -> UserFriendlyError:
+        """Convert technical errors to actionable user guidance"""
+        if isinstance(error, ConnectionError):
+            return UserFriendlyError(
+                title="Network Connection Issue",
+                description="TowerScout can't connect to map services",
+                solutions=[
+                    "Check your internet connection",
+                    "Verify your API keys in Settings",
+                    "Try a different map provider (Google vs Azure)"
+                ],
+                test_action="Test Configuration"
+            )
+        elif isinstance(error, AuthenticationError):
+            return UserFriendlyError(
+                title="API Key Problem",
+                description="Your map provider API key isn't working",
+                solutions=[
+                    "Check if you copied the API key correctly",
+                    "Verify the key has proper permissions",
+                    "Make sure billing is enabled for your account"
+                ],
+                test_action="Test API Key"
+            )
+        # ... more error patterns
 ```
 
 ---

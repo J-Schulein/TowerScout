@@ -1,11 +1,19 @@
-# TowerScout Improvement Requirements
+# TowerScout Local Deployment Requirements
 
 ## Executive Summary
 
-This document specifies requirements for transforming TowerScout from a student prototype into a production-ready, publicly accessible tool for cooling tower detection. Requirements are organized using EARS notation and prioritized by Type (A=Quick Fixes, B=Feature Development, C=Architecture Changes).
+This document specifies requirements for transforming TowerScout from a student prototype into a **locally-deployable, user-friendly tool** for cooling tower detection. Requirements are organized using EARS notation and prioritized by Type (A=Quick Fixes, B=Feature Development, C=Architecture Changes).
+
+**DEPLOYMENT MODEL**: **LOCAL DEPLOYMENT** - TowerScout will be deployed on individual user devices (epidemiologists, researchers, health departments) rather than as a hosted service.
 
 **Current State**: Student prototype requiring technical setup  
-**Target State**: Production-ready, publicly accessible tool with containerization
+**Target State**: User-friendly, locally-deployable tool with Docker containerization and cross-platform support
+
+**Key Implications**:
+- **Authentication eliminated**: Physical access control sufficient for local deployment
+- **Enterprise features simplified**: Focus on ease of installation over complex multi-tenant features
+- **Hardware compatibility critical**: Must work across diverse local hardware (AMD64, ARM64, CPU-only systems)
+- **User experience paramount**: No IT support means excellent error messages and setup guidance essential
 
 ---
 
@@ -45,27 +53,25 @@ This document specifies requirements for transforming TowerScout from a student 
 - ✅ Add development validation system for dependency-free testing
 
 ### SEC-004: Authentication System
-**Priority**: MEDIUM  
+**Status**: ❌ **OBSOLETE FOR LOCAL DEPLOYMENT**  
+**Priority**: ~~MEDIUM~~ **ELIMINATED**  
 **Type**: C  
-**EARS**: WHEN users access the application, THE SYSTEM SHALL provide basic authentication to control access  
-**Acceptance Criteria**:
-- Implement simple username/password authentication
-- Add session management with secure cookies
-- Create admin interface for user management
-- Add logout functionality
+**EARS**: ~~WHEN users access the application, THE SYSTEM SHALL provide basic authentication to control access~~ **OBSOLETE**: Local deployment uses physical access control. Authentication adds unnecessary complexity for single-user scenarios.  
+**Rationale**: Users run TowerScout on their own devices, eliminating need for user management, login/logout, and admin interfaces.
 
 ### SEC-005: Azure Maps Migration
 **Priority**: CRITICAL  
 **Type**: C  
-**EARS**: WHEN the application accesses map services, THE SYSTEM SHALL use Azure Maps instead of Bing Maps with proper coordinate system handling  
+**Status**: ✅ **COMPLETED - SIMPLIFIED FOR LOCAL DEPLOYMENT**
+**EARS**: WHEN the application accesses map services, THE SYSTEM SHALL use Azure Maps instead of Bing Maps with basic API key authentication  
 **Acceptance Criteria**:
-- Replace Bing Maps provider with Azure Maps implementation
-- Handle coordinate order transformation (lng,lat vs lat,lng)
-- Implement Azure Key Vault authentication for enterprise deployments
-- Maintain Google Maps as alternative provider option
-- Validate coordinate accuracy across all providers
-- Remove metadata dependencies (vintage date features)
-- Implement provider fallback mechanisms
+- ✅ Replace Bing Maps provider with Azure Maps implementation
+- ✅ Handle coordinate order transformation (lng,lat vs lat,lng)  
+- ~~Implement Azure Key Vault authentication for enterprise deployments~~ **REMOVED**: Over-engineered for local deployment
+- ✅ Maintain Google Maps as alternative provider option
+- ✅ Validate coordinate accuracy across all providers
+- ✅ Remove metadata dependencies (vintage date features)
+- ~~Implement provider fallback mechanisms~~ **SIMPLIFIED**: Basic provider selection sufficient for local deployment
 
 ---
 
@@ -124,27 +130,129 @@ This document specifies requirements for transforming TowerScout from a student 
 ## 🎨 USER EXPERIENCE REQUIREMENTS (Type B)
 
 ### UX-001: Simplified Setup Process
+**Status**: 🔄 **UPDATED FOR LOCAL DEPLOYMENT**  
 **Priority**: HIGH  
 **Type**: B  
 **EARS**: WHEN new users install TowerScout, THE SYSTEM SHALL provide a streamlined setup process requiring minimal technical knowledge  
 **Acceptance Criteria**:
-- Create Docker containerization for one-command deployment with Azure SDK support
-- Auto-download required model weights on first run
-- Provide setup wizard for initial configuration including Azure Maps
-- Add comprehensive documentation with screenshots
-- Support both standard API keys and Azure Key Vault configuration
+- ✅ Create Docker containerization for one-command deployment (**UPDATED**: Multi-architecture with embedded models)
+- ~~Auto-download required model weights on first run~~ **CHANGED**: Embed models in container (~1.2GB)
+- ✅ Provide setup wizard for initial configuration (**UPDATED**: Integrated into main interface, not separate)
+- ✅ Add comprehensive documentation with screenshots
+- ~~Support both standard API keys and Azure Key Vault configuration~~ **SIMPLIFIED**: Standard API keys only for local deployment
 
 ### UX-002: In-App Configuration
+**Status**: 🔄 **UPDATED FOR LOCAL DEPLOYMENT**
 **Priority**: MEDIUM  
 **Type**: B  
 **EARS**: WHEN users need to configure the application, THE SYSTEM SHALL provide a web-based interface for settings management  
 **Acceptance Criteria**:
-- Create settings page for API key management (Google Maps, Azure Maps)
-- Add map provider selection interface (Google Maps, Azure Maps)
-- Implement configuration validation and testing for all providers
-- Add export/import of configuration settings
-- Support Azure Key Vault configuration for enterprise users
-- Provide migration assistance from legacy Bing Maps configurations
+- ✅ Create settings page for API key management (Google Maps, Azure Maps)
+- ✅ Add map provider selection interface (Google Maps, Azure Maps)
+- ✅ Implement configuration validation and testing for all providers
+- ~~Add export/import of configuration settings~~ **REMOVED**: Unnecessary for local single-user deployment
+- ~~Support Azure Key Vault configuration for enterprise users~~ **REMOVED**: Over-engineered for local deployment
+- ~~Provide migration assistance from legacy Bing Maps configurations~~ **REMOVED**: Not relevant for new local deployments
+
+---
+
+## 🏠 LOCAL DEPLOYMENT REQUIREMENTS (NEW)
+
+### LOC-001: Setup Wizard Integration
+**Priority**: CRITICAL  
+**Type**: B  
+**EARS**: WHEN users first run TowerScout, THE SYSTEM SHALL provide an integrated setup wizard for API key configuration  
+**Acceptance Criteria**:
+- Implement web-based setup wizard accessible from main interface
+- Enable real-time API key validation and testing
+- Auto-generate Flask secret key during setup
+- Write configuration directly to `.env` file with proper permissions
+- Provide clear guidance for obtaining API keys from Google/Azure
+- Include provider selection and recommendation
+- Support configuration updates through settings interface
+
+### LOC-002: Multi-Architecture Docker Distribution
+**Priority**: CRITICAL  
+**Type**: C  
+**EARS**: WHEN users deploy TowerScout, THE SYSTEM SHALL support both AMD64 and ARM64 architectures through Docker Hub  
+**Acceptance Criteria**:
+- Create Docker container supporting AMD64 and ARM64 platforms
+- Embed ML model weights (~1.2GB total) in container for offline operation
+- Enable one-command deployment: `docker run -p 5000:5000 towerscout:latest`
+- Startup time under 15 seconds including PyTorch hub downloads
+- Automatic GitHub Actions builds pushing to Docker Hub
+- Handle platform-specific dependencies (GDAL/Fiona compilation)
+- Support Apple Silicon MPS acceleration when available
+- Provide container health checks for monitoring
+
+### LOC-003: CPU Performance Optimization
+**Priority**: HIGH  
+**Type**: B  
+**EARS**: WHEN TowerScout runs on CPU-only systems, THE SYSTEM SHALL provide reasonable performance with clear expectations  
+**Acceptance Criteria**:
+- Automatic hardware detection (GPU/CPU/Apple Silicon MPS)
+- Platform-specific batch size optimization (AMD64: 8-16, ARM64: 4-8, CPU: 4)
+- Memory usage optimization for 8GB RAM constraint
+- Progress indicators for CPU processing (expected 30-60 seconds)
+- Performance documentation visible to users during setup
+- Graceful degradation from GPU → MPS → CPU
+- Memory cleanup and monitoring to prevent OOM errors
+
+### LOC-004: End-User Error Guidance
+**Priority**: HIGH  
+**Type**: B  
+**EARS**: WHEN errors occur, THE SYSTEM SHALL provide actionable guidance for non-technical users  
+**Acceptance Criteria**:
+- Replace technical stack traces with user-friendly error messages
+- Provide "Test Configuration" functionality in setup wizard
+- Include troubleshooting steps for common configuration issues
+- Add copy-paste solutions for network connectivity problems
+- Document platform-specific performance expectations clearly
+- Implement configuration validation with helpful error recovery
+- Create installation verification checklist
+
+### LOC-005: Optional Model Management
+**Priority**: MEDIUM  
+**Type**: B  
+**EARS**: WHERE advanced users want custom models, THE SYSTEM SHALL support optional volume-based model updates  
+**Acceptance Criteria**:
+- Default deployment uses embedded models (no user action required)
+- Advanced users can optionally mount `/app/model_params` volume
+- Model validation prevents incompatible models from loading
+- Rollback capability if custom models fail
+- Clear documentation separating basic vs advanced usage
+- Model versioning and compatibility checking
+- No interference with normal embedded model operation
+
+---
+
+## 🖥️ HARDWARE COMPATIBILITY REQUIREMENTS (NEW)
+
+### HW-001: Cross-Platform Support
+**Priority**: CRITICAL  
+**Type**: B  
+**EARS**: WHEN TowerScout is deployed, THE SYSTEM SHALL work reliably across Intel x86_64, AMD64, and ARM64 architectures  
+**Acceptance Criteria**:
+- Support Windows, macOS, and Linux operating systems
+- Handle architecture-specific PyTorch wheel installation
+- Manage platform-specific dependency compilation (GDAL, OpenCV)
+- Optimize for Apple Silicon with MPS acceleration
+- Provide consistent user experience across platforms
+- Document platform-specific installation notes
+- Test deployment on representative hardware configurations
+
+### HW-002: Memory Constraint Handling
+**Priority**: HIGH  
+**Type**: B  
+**EARS**: WHEN TowerScout runs on memory-constrained systems, THE SYSTEM SHALL operate reliably within 8GB RAM  
+**Acceptance Criteria**:
+- Monitor memory usage during ML model loading and inference
+- Implement batch size reduction for memory-constrained systems
+- Clean up model weights between processing sessions
+- Provide memory usage feedback to users
+- Handle out-of-memory conditions gracefully
+- Document minimum and recommended memory requirements
+- Test on representative low-memory configurations
 
 ### UX-003: Improved Error Feedback
 **Priority**: MEDIUM  
@@ -303,3 +411,90 @@ Each requirement will be validated through:
 5. **User Acceptance Tests**: Real-world usage scenarios
 
 Success criteria must be met before moving to the next phase of development.
+
+---
+
+## 🔙 LEGACY FEATURE REQUIREMENTS (Type B)
+
+### LEG-001: Address Lookup for Detections
+**Priority**: CRITICAL  
+**Type**: B  
+**EARS**: WHEN a cooling tower is detected, THE SYSTEM SHALL automatically retrieve the building address for each detection  
+**Additional Requirements**:
+- WHEN geocoding fails, THE SYSTEM SHALL provide fallback error handling and retry mechanisms  
+- WHEN processing multiple detections, THE SYSTEM SHALL batch geocoding requests to optimize API usage
+- WHEN addresses are cached, THE SYSTEM SHALL use cached results to reduce API quota consumption
+- WHEN displaying addresses, THE SYSTEM SHALL show fallback text for failed geocoding attempts
+
+**Acceptance Criteria**:
+- Addresses automatically retrieved for all detected cooling towers
+- Multi-provider fallback (Azure Maps Search → Google Geocoding) with error handling
+- Caching system reduces API calls by 60-80% through spatial clustering and Redis/file cache
+- Performance improved 3-4x over current client-side approach
+- Rate limiting prevents API quota exhaustion
+- Integration maintains existing detection workflow without UI disruption
+
+**Dependencies**: Environment variables (GOOGLE_API_KEY, AZURE_MAPS_SUBSCRIPTION_KEY), Redis optional  
+**Reference**: [TASK-030](tasks.md#task-030-address-lookup-for-detections-), [legacy-features.md](legacy-features.md#req-legacy-001-address-lookup-for-detections)
+
+### LEG-002: Interactive Highlighting System
+**Priority**: HIGH  
+**Type**: B  
+**EARS**: WHEN a user clicks on a detection address, THE SYSTEM SHALL highlight the corresponding tower on the map, AND WHEN a user clicks on a map detection, THE SYSTEM SHALL highlight the corresponding address in the results list  
+**Additional Requirements**:
+- WHEN highlighting occurs, THE SYSTEM SHALL provide visual feedback with distinct styling
+- WHEN selections change, THE SYSTEM SHALL clear previous highlights automatically
+- WHEN using keyboard navigation, THE SYSTEM SHALL support accessibility requirements
+
+**Acceptance Criteria**:
+- Bidirectional selection between detection list and map markers
+- Visual feedback clearly indicates selected detection with CSS highlighting
+- Selection state properly managed with automatic clearing of previous highlights
+- Keyboard navigation supports accessibility (Tab, Enter, Arrow keys)
+- Performance maintained with large detection sets (>1000 detections)
+- Integration works across all map providers (Google, Azure, Upload)
+
+**Dependencies**: LEG-001 (Address Lookup) for address display integration  
+**Reference**: [TASK-031](tasks.md#task-031-interactive-highlighting-system-), [legacy-features.md](legacy-features.md#req-legacy-002-interactive-highlighting-system)
+
+### LEG-003: Enhanced Details Panel
+**Priority**: HIGH  
+**Type**: B  
+**EARS**: WHEN viewing detection results, THE SYSTEM SHALL display a right-hand panel with tower-specific information including address, confidence level, and image date if available  
+**Additional Requirements**:
+- WHEN the panel is displayed, THE SYSTEM SHALL maintain responsive design for mobile devices
+- WHEN no detection is selected, THE SYSTEM SHALL show helpful guidance in the panel
+- WHEN panel content is extensive, THE SYSTEM SHALL provide scrollable content with proper layout
+
+**Acceptance Criteria**:
+- Right-hand panel displays detection details clearly with structured layout
+- Panel shows address, confidence, coordinates, tile info, and metadata
+- Responsive design maintains usability on mobile devices (collapsible on small screens)
+- Panel integrates smoothly with existing UI layout without breaking current functionality
+- Panel updates automatically when detection selection changes
+- Loading states handled gracefully during address lookup
+
+**Dependencies**: LEG-001 (Address Lookup) for address data, LEG-002 (Interactive Highlighting) for selection integration  
+**Reference**: [TASK-032](tasks.md#task-032-enhanced-details-panel-), [legacy-features.md](legacy-features.md#req-legacy-003-enhanced-details-panel)
+
+### LEG-004: False Positive Review Mode
+**Priority**: MEDIUM  
+**Type**: B  
+**EARS**: WHEN reviewing detections, THE SYSTEM SHALL provide a dedicated mode for systematic false positive identification  
+**Additional Requirements**:
+- WHEN in review mode, THE SYSTEM SHALL guide users through detection validation workflow
+- WHEN false positives are identified, THE SYSTEM SHALL provide easy flagging and removal mechanisms
+- WHEN review is complete, THE SYSTEM SHALL provide summary statistics of flagged detections
+- WHEN review sessions are interrupted, THE SYSTEM SHALL persist progress for later completion
+
+**Acceptance Criteria**:
+- Dedicated review mode with clear workflow guidance and progress indicators
+- Keyboard shortcuts enable efficient review (A/R/S for Accept/Reject/Skip)
+- Review progress tracking shows completion status and remaining detections
+- Batch operations support efficient large-scale review (select multiple, bulk actions)
+- Review sessions persist across page reloads and browser sessions
+- Summary statistics show false positive removal impact and accuracy improvements
+- Integration maintains existing checkbox functionality for backward compatibility
+
+**Dependencies**: LEG-002 (Interactive Highlighting) for selection system, LEG-003 (Details Panel) for detection information display  
+**Reference**: [TASK-033](tasks.md#task-033-false-positive-review-mode-), [legacy-features.md](legacy-features.md#req-legacy-004-false-positive-review-mode)
