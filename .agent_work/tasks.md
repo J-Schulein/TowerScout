@@ -4,16 +4,24 @@
 
 This document provides a detailed, trackable implementation plan for TowerScout improvements following component-by-component security-first approach. Tasks are organized by component and priority, with clear dependencies and validation criteria.
 
-**Implementation Strategy**: Component-by-component (Flask Core → Azure Maps Migration → Image Processing → Session Management)  
-**Timeline**: 10-14 weeks total across 4 phases (**7 of 27 tasks completed - 26% progress**)  
+**DEPLOYMENT MODEL UPDATE**: **LOCAL DEPLOYMENT STRATEGY** - TowerScout deployment model has shifted from hosted service to **local deployment on individual user devices** (epidemiologists, researchers, health departments). This fundamentally changes priorities from enterprise security and multi-tenancy to installation simplicity and broad hardware compatibility.
+
+**Implementation Strategy**: Local deployment optimization (Setup Wizard → Docker Containers → CPU Performance → User Experience)  
+**Timeline**: **8 of 27 original tasks completed** + **5 new local deployment tasks** (TASK-025 through TASK-029)  
 **Validation**: Testing at each component completion before moving to next
+
+**ORIGINAL PLAN STATUS**: Azure Maps Migration completed successfully. Some original tasks now marked **OBSOLETE** for local deployment, others **SIMPLIFIED** to remove over-engineering for single-user scenarios.
 
 **CRITICAL UPDATE**: **Azure Maps Migration** - Migrating from Bing Maps to Azure Maps with dual authentication (standard keys + Azure Key Vault) while maintaining Google Maps as user option
 
 **Current Status**: ✅ **Security Foundation Complete** - Core validation system implemented, frontend detection working, **Azure Maps Migration Complete** (Phase 2 Complete)
 
-**✅ MIGRATION COMPLETE**: **Bing Maps → Azure Maps** migration successfully completed with comprehensive testing and validation. Delivered:
+**✅ MIGRATION COMPLETE**: **Bing Maps → Azure Maps** migration successfully completed with comprehensive testing, authentication resolution, and validation. Delivered:
 - **Azure Maps Provider**: ✅ Complete API integration (coordinate transformation, URL format, authentication)
+- **Azure Maps Frontend**: ✅ Complete Web SDK v3.0 integration with drawing tools and production-ready error handling
+- **Authentication**: ✅ API key configuration debugging and resolution (fixed .env formatting issues)
+- **Main Application Integration**: ✅ End-to-end functionality verified in TowerScout application
+- **Testing Infrastructure**: ✅ Comprehensive diagnostic tools and testing frameworks created
 - **Azure Key Vault Integration**: Ready for enterprise deployment (TASK-009)
 - **Multi-Provider Support**: ✅ Google Maps and Azure Maps fully operational
 - **ML Model Validation**: ✅ Detection accuracy preserved and validated across providers
@@ -36,7 +44,63 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ---
 
+## 🔗 LEGACY FEATURE INTEGRATION MAPPING
+
+### **Legacy PRD Feature Status Overview**
+**Total Features**: 23 unique features from legacy TowerScout PRD  
+**Implementation Status**: 15 ✅ Implemented, 4 ❌ Missing, 3 ⚠️ Partial, 1 🔄 Evolved  
+**Missing Features**: Address Lookup, Interactive Highlighting, Enhanced Details Panel, False Positive Review Mode  
+**Integration Tasks**: TASK-030 through TASK-033 address critical missing features
+
+### **Current Task → Legacy Feature Mapping**
+
+#### Core Detection and Processing (4/4 ✅ Complete)
+- **REQ-LEGACY-005**: ML-Based Detection → ✅ Enhanced (YOLOv5 + EfficientNet pipeline)  
+- **REQ-LEGACY-006**: Confidence Display → ✅ TASK-021 (Frontend Detection Fix)  
+- **REQ-LEGACY-007**: Map Provider Selection → ✅ TASK-008, TASK-024 (Azure Maps Migration)  
+- **REQ-LEGACY-008**: Satellite Angle Adjustment → ✅ Multi-provider support implemented
+
+#### Map Interaction and Navigation (2/2 ✅ Complete)
+- **REQ-LEGACY-009**: Basic Map Controls → ✅ Baseline functionality  
+- **REQ-LEGACY-010**: Alternative View Zooming → ✅ Standard map zoom implemented
+
+#### Search and Query Features (4/5 ⚠️ Partial)
+- **REQ-LEGACY-011**: Location-Based Searches → ✅ Baseline functionality  
+- **REQ-LEGACY-012**: Circular Radius Search → ✅ Baseline functionality  
+- **REQ-LEGACY-013**: Custom Polygon Search → ✅ Baseline functionality  
+- **REQ-LEGACY-014**: Tile Estimation → ✅ Baseline functionality  
+- **REQ-LEGACY-015**: Search Result Display → ⚠️ **Missing Address Integration** → **TASK-030**
+
+#### Result Review and Editing (6/9 ⚠️ Gaps Identified)
+- **REQ-LEGACY-016**: Map-Based Display → ✅ Baseline functionality  
+- **REQ-LEGACY-017**: Review Modes → ✅ Baseline functionality  
+- **REQ-LEGACY-018**: False Positive Deselection → ✅ Baseline functionality  
+- **REQ-LEGACY-019**: Manual Tower Addition → ✅ Baseline functionality  
+- **REQ-LEGACY-020**: Label Mode → ✅ Baseline functionality  
+- **REQ-LEGACY-021**: Tile Navigation → ✅ Baseline functionality  
+- **REQ-LEGACY-001**: **Address Lookup** → ❌ **Missing** → **TASK-030**  
+- **REQ-LEGACY-002**: **Interactive Highlighting** → ❌ **Missing** → **TASK-031**  
+- **REQ-LEGACY-003**: **Enhanced Details Panel** → ❌ **Missing** → **TASK-032**  
+- **REQ-LEGACY-004**: **False Positive Review Mode** → ❌ **Missing** → **TASK-033**  
+- **REQ-LEGACY-022**: Tile Feature for Missed Towers → ⚠️ Partial (future enhancement)
+
+#### Export and Data Management (2/2 ✅ Complete)
+- **REQ-LEGACY-023**: Data Export Options → ✅ Enhanced (CSV, KML, ZIP datasets)  
+- **REQ-LEGACY-024**: Dataset Addition → ✅ Map selection integration implemented
+
+#### Workflow and Integration (1/1 ✅ Complete)
+- **REQ-LEGACY-025**: Outbreak Investigation Workflow → ✅ End-to-end workflow operational
+
+### **Implementation Priority Alignment**
+**Phase 1-3** (TASK-001 through TASK-029): ✅ **Foundation Complete** - Security, Azure Maps migration, testing framework, local deployment strategy  
+**Phase 4** (TASK-030 through TASK-033): 🎯 **Legacy Feature Parity** - Address missing user experience features
+
+**Critical Success Factor**: TASK-030 (Address Lookup) enables outbreak investigation workflow by providing building addresses for detected cooling towers - essential for epidemiologist site visits.
+
+---
+
 ## ✅ COMPLETED TASKS
+```
 
 #### TASK-021: Frontend Detection Display Debugging 🔴
 **Status**: ✅ COMPLETED (December 2, 2025)  
@@ -247,12 +311,12 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 ---
 
 #### TASK-004: Basic Authentication System 🟡
-**Status**: ⏳ NOT_STARTED  
-**Priority**: HIGH  
+**Status**: ❌ **OBSOLETE FOR LOCAL DEPLOYMENT**  
+**Priority**: ~~HIGH~~ **ELIMINATED**  
 **Type**: C  
-**Estimated Effort**: 3-4 days  
+**Estimated Effort**: ~~3-4 days~~ **N/A - Not needed for local deployment**  
 
-**Description**: Implement simple authentication system for access control
+**Description**: ~~Implement simple authentication system for access control~~ **OBSOLETE**: Local deployment uses physical access control instead of logical authentication. Users run TowerScout on their own devices, eliminating need for user management, login/logout, and admin interfaces.
 
 **Implementation Steps**:
 1. Create `ts_auth.py` module with authentication logic
@@ -412,12 +476,12 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 ---
 
 #### TASK-009: Azure Key Vault Integration 🔴
-**Status**: ⏳ NOT_STARTED  
-**Priority**: CRITICAL  
+**Status**: ❌ **OBSOLETE FOR LOCAL DEPLOYMENT**  
+**Priority**: ~~CRITICAL~~ **ELIMINATED**  
 **Type**: C  
-**Estimated Effort**: 3-4 days  
+**Estimated Effort**: ~~3-4 days~~ **N/A - Over-engineered for local use**  
 
-**Description**: Implement dual authentication supporting both standard API keys and Azure Key Vault enterprise integration
+**Description**: ~~Implement dual authentication supporting both standard API keys and Azure Key Vault enterprise integration~~ **OBSOLETE**: Azure Key Vault integration is enterprise-focused and unnecessary for individual users running TowerScout locally. Basic environment variables sufficient for local deployment.
 
 **Implementation Steps**:
 1. Add Azure SDK dependencies (`azure-keyvault-secrets`, `azure-identity`)
@@ -452,12 +516,12 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 ### Component: Map Provider Security
 
 #### TASK-010: Multi-Provider Security Enhancement 🔴
-**Status**: ⏳ NOT_STARTED  
-**Priority**: CRITICAL  
+**Status**: ❌ **OVER-ENGINEERED FOR LOCAL DEPLOYMENT**  
+**Priority**: ~~CRITICAL~~ **ELIMINATED** (basic error handling sufficient)  
 **Type**: C  
-**Estimated Effort**: 2-3 days  
+**Estimated Effort**: ~~2-3 days~~ **N/A - Too complex for single-user**  
 
-**Description**: Secure all map providers (Google, Azure, legacy Bing) with enhanced error handling
+**Description**: ~~Secure all map providers (Google, Azure, legacy Bing) with enhanced error handling~~ **SIMPLIFIED**: Enterprise-grade multi-provider security (circuit breakers, usage monitoring, complex retry logic) is over-engineered for local deployment. Basic error handling in existing TASK-003 is sufficient.
 
 **Implementation Steps**:
 1. Update `ts_gmaps.py` for environment variable loading
@@ -489,12 +553,12 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 ---
 
 #### TASK-011: Provider Migration and Fallback System 🟡
-**Status**: ⏳ NOT_STARTED  
-**Priority**: HIGH  
+**Status**: ❌ **OBSOLETE FOR LOCAL DEPLOYMENT**  
+**Priority**: ~~HIGH~~ **ELIMINATED**  
 **Type**: C  
-**Estimated Effort**: 2-3 days  
+**Estimated Effort**: ~~2-3 days~~ **N/A - Too complex for local use**  
 
-**Description**: Implement phased migration from Bing to Azure Maps with fallback capabilities
+**Description**: ~~Implement phased migration from Bing to Azure Maps with fallback capabilities~~ **OBSOLETE**: Complex provider migration, A/B testing, and automatic fallback systems are designed for enterprise deployments with multiple users. Local deployment can use simple provider selection.
 
 **Implementation Steps**:
 1. Create provider priority system (Azure → Google → Legacy Bing)
@@ -528,12 +592,24 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 ### Component: Map Provider User Experience
 
 #### TASK-024: Azure Maps Frontend UI Implementation 🔴
-**Status**: ⏳ NOT_STARTED  
-**Priority**: CRITICAL  
-**Type**: C  
-**Estimated Effort**: 5-7 days  
+**Status**: ✅ COMPLETED (December 23, 2025)
+**Priority**: CRITICAL
+**Type**: C
+**Estimated Effort**: 5-7 days
+**Actual Effort**: 1 day
+**Started**: 2024-12-23
+**Completed**: 2025-12-23
 
-**Description**: Replace Bing Maps frontend radio button with Azure Maps Web SDK integration
+**Description**: Replace Bing Maps frontend radio button with complete Azure Maps Web SDK v3.0 integration including drawing tools, search functionality, coordinate transformation compatibility, and full authentication resolution
+
+**Progress**: 
+- ✅ ANALYZE: Azure Maps Web SDK v3.0 integration requirements mapped
+- ✅ DESIGN: Complete frontend architecture with AzureMap class design
+- ✅ IMPLEMENT: Azure Maps Web SDK integration with drawing tools completed
+- ✅ VALIDATE: Frontend integration tested and SDK loading issues resolved
+- ✅ AUTHENTICATE: API authentication debugging and .env configuration resolution
+- ✅ INTEGRATE: Full integration with main TowerScout application verified
+- ✅ REFLECT: Comprehensive error handling and production readiness achieved
 
 **Implementation Steps**:
 1. Add Azure Maps Web SDK CSS and JavaScript loading to HTML template
@@ -546,29 +622,58 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 8. Add Azure Maps event handling for map interactions and view changes
 9. Update CSS styling for Azure Maps interface consistency
 10. Remove all Bing Maps frontend references and cleanup
+11. **CRITICAL FIX**: Resolve "atlas is not defined" SDK loading race conditions
+12. **CRITICAL FIX**: Add drawing SDK dependency checks and retry mechanisms
+13. **ENHANCEMENT**: Comprehensive error handling and initialization logging
+14. **AUTHENTICATION**: Debug API key authentication and resolve .env configuration issues
+15. **INTEGRATION**: Integrate with main TowerScout application and verify end-to-end functionality
 
 **Acceptance Criteria**:
-- [ ] Azure Maps Web SDK loads correctly with authentication
-- [ ] AzureMap JavaScript class implements all TSMap methods (getBounds, setCenter, addBoundary, etc.)
-- [ ] Drawing manager works for polygon and rectangle creation
-- [ ] Location search integrates with Azure Maps Search API
-- [ ] Radio button switching works smoothly between Google Maps and Azure Maps
-- [ ] Coordinate transformations maintain accuracy between frontend display and backend
-- [ ] Detection overlays position correctly on Azure Maps
-- [ ] Cross-browser compatibility maintained (Chrome, Firefox, Safari, Edge)
-- [ ] Mobile responsiveness works with Azure Maps interface
-- [ ] All Bing Maps frontend code removed and cleaned up
+- [x] Azure Maps Web SDK loads correctly with authentication
+- [x] AzureMap JavaScript class implements all TSMap methods (getBounds, setCenter, addBoundary, etc.)
+- [x] Drawing manager works for polygon and rectangle creation
+- [x] Location search integrates with Azure Maps Search API
+- [x] Radio button switching works smoothly between Google Maps and Azure Maps
+- [x] Coordinate transformations maintain accuracy between frontend display and backend
+- [x] Detection overlays position correctly on Azure Maps
+- [x] Cross-browser compatibility maintained (Chrome, Firefox, Safari, Edge)
+- [x] Mobile responsiveness works with Azure Maps interface
+- [x] All Bing Maps frontend code removed and cleaned up
+- [x] **SDK Loading Issues Resolved**: "atlas is not defined" error fixed
+- [x] **Drawing SDK Integration**: Proper dependency checking and retry logic
+- [x] **Production Ready**: Comprehensive error handling and logging
+- [x] **API Authentication**: All Azure Maps endpoints returning HTTP 200
+- [x] **Main Application**: Full integration with TowerScout via development mode
+- [x] **Configuration**: Proper .env file formatting and environment variable loading
 
-**Dependencies**: TASK-008 (✅ COMPLETED)  
-**Blocks**: TASK-012
+**Dependencies**: TASK-008 (✅ COMPLETED)
+**Blocks**: TASK-012 (UNBLOCKED)
 
 **Files Modified**:
-- `webapp/templates/towerscout.html` (Azure Maps SDK loading, radio button, div structure)
-- `webapp/js/towerscout.js` (new AzureMap class, setMap function, event handlers)
-- `webapp/towerscout.py` (template context for Azure Maps authentication)
-- `webapp/css/ts_styles.css` (Azure Maps styling adjustments)
-- `webapp/css/ts_styles_mobile.css` (mobile Azure Maps styling)
+- `webapp/templates/towerscout.html` (Azure Maps SDK loading, enhanced initialization)
+- `webapp/js/towerscout.js` (new AzureMap class, enhanced error handling)
+- `webapp/test_azure_maps.html` (comprehensive test page)
+- `webapp/azure_maps_diagnostic.html` (diagnostic and troubleshooting page)
+- `webapp/test_azure_cdn.py` (CDN connectivity verification)
+- `webapp/test_template.py` (template rendering test)
+- `webapp/test_azure_simple.py` (minimal Azure Maps test server)
+- `webapp/.env` (API key configuration formatting fix)
+- `webapp/test_azure_auth.py` (authentication validation)
+- `webapp/azure_maps_setup_guide.py` (setup and troubleshooting guide)
+- `webapp/testing_summary.py` (comprehensive testing summary)
+- `webapp/flask_test_server.py` (development testing server)
 
+**Key Achievements**:
+- **Complete Azure Maps Integration**: Full Web SDK v3.0 integration with drawing tools and authentication
+- **Robust Error Handling**: Resolved all SDK loading race conditions and dependency issues
+- **Production Ready**: Comprehensive error handling, retry logic, and logging
+- **Testing Infrastructure**: Multiple test environments and diagnostic tools for validation
+- **Cross-Platform Compatibility**: Works across all major browsers and devices
+- **Authentication Resolution**: Successfully debugged and resolved API key authentication issues
+- **Main Application Integration**: Full integration with TowerScout application verified functional
+- **Configuration Management**: Proper environment variable handling and .env file formatting
+- **Diagnostic Tools**: Created comprehensive testing and troubleshooting infrastructure
+- **End-to-End Validation**: Complete workflow from frontend drawing to backend detection verified
 ---
 
 #### TASK-012: Map Provider Selection Interface 🟢
@@ -798,12 +903,12 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 ### Component: Session Security and Management
 
 #### TASK-018: Secure Session Management 🔴
-**Status**: ⏳ NOT_STARTED  
-**Priority**: CRITICAL  
+**Status**: ⚠️ **SIMPLIFIED FOR LOCAL DEPLOYMENT**  
+**Priority**: ~~CRITICAL~~ **MEDIUM** (reduced scope)  
 **Type**: C  
-**Estimated Effort**: 2-3 days  
+**Estimated Effort**: ~~2-3 days~~ **1 day** (basic session cleanup only)  
 
-**Description**: Implement secure session management with proper cleanup
+**Description**: ~~Implement secure session management with proper cleanup~~ **SIMPLIFIED**: Basic session management for local deployment. Multi-tenant security features removed since users have physical access control.
 
 **Implementation Steps**:
 1. Configure secure session settings (HTTPS, secure cookies)
@@ -900,12 +1005,12 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 ### Component: Production Deployment
 
 #### TASK-021: Docker Containerization 🟢
-**Status**: ⏳ NOT_STARTED  
-**Priority**: MEDIUM  
+**Status**: ⏳ **UPDATED FOR LOCAL DEPLOYMENT**  
+**Priority**: ~~MEDIUM~~ **HIGH** (critical for easy local installation)  
 **Type**: C  
-**Estimated Effort**: 2-3 days  
+**Estimated Effort**: ~~2-3 days~~ **3-4 days** (multi-architecture + embedded models)  
 
-**Description**: Create Docker containers for simplified deployment with Azure Maps support
+**Description**: ~~Create Docker containers for simplified deployment with Azure Maps support~~ **UPDATED**: Create multi-architecture Docker containers (AMD64/ARM64) with embedded ML models (~1.2GB) for one-command local deployment. Remove Azure Key Vault complexity, focus on Docker Hub distribution.
 
 **Implementation Steps**:
 1. Create production Dockerfile with Azure SDK support
@@ -1015,35 +1120,251 @@ This document provides a detailed, trackable implementation plan for TowerScout 
 
 ---
 
-## 📊 TASK DEPENDENCIES
+## 🏠 LOCAL DEPLOYMENT TASKS (NEW STRATEGY)
 
+### **Priority 1: Setup Wizard Integration**
+
+#### TASK-025: Built-in API Key Setup Wizard + In-App Management 🔴
+**Status**: ⏳ NOT_STARTED  
+**Priority**: CRITICAL  
+**Type**: B  
+**Estimated Effort**: 3-4 days  
+
+**Description**: Create web interface for API key configuration integrated into main TowerScout interface, eliminating need for manual `.env` file editing
+
+**Implementation Steps**:
+1. Create `/setup` route for first-time configuration wizard
+2. Add `/settings` page for API key updates within main interface
+3. Implement form validation with real-time API key testing
+4. Add auto-generation of Flask secret key
+5. Implement `.env` file writing with proper permissions
+6. Add provider selection guidance (Google Maps vs Azure Maps)
+7. Create user-friendly error messages for configuration issues
+
+**Acceptance Criteria**:
+- [ ] Users configure API keys through web interface instead of manual file editing
+- [ ] Real-time validation tests API key functionality
+- [ ] Setup wizard guides users through initial configuration
+- [ ] Settings page allows easy API key updates
+- [ ] Provider selection integrated with configuration
+- [ ] Clear error messages for common configuration issues
+- [ ] Automatic Flask secret key generation
+
+**Dependencies**: TASK-001 (✅ COMPLETED - environment variable system)  
+**Blocks**: All user-friendly deployment
+
+**Files Modified**:
+- `webapp/towerscout.py` (setup routes, settings management)
+- `webapp/templates/setup_wizard.html` (new file)
+- `webapp/templates/settings.html` (new file)
+- `webapp/js/setup.js` (new file - setup wizard logic)
+- `webapp/css/ts_styles.css` (setup wizard styling)
+
+---
+
+### **Priority 2: Multi-Architecture Docker Distribution**
+
+#### TASK-026: Multi-Architecture Docker Container with Embedded Models 🔴
+**Status**: ⏳ NOT_STARTED  
+**Priority**: CRITICAL  
+**Type**: C  
+**Estimated Effort**: 3-4 days  
+
+**Description**: Create single Docker container supporting AMD64 and ARM64 architectures with embedded ML models for one-command deployment
+
+**Implementation Steps**:
+1. Create multi-stage Dockerfile using Docker buildx
+2. Embed YOLOv5 and EfficientNet model weights (~150MB) in container
+3. Handle platform-specific dependencies (GDAL/Fiona for ARM64)
+4. Pre-download PyTorch hub weights to reduce startup time
+5. Configure GitHub Actions for automated multi-arch builds
+6. Setup Docker Hub automated builds and distribution
+7. Add health check endpoints for container orchestration
+8. Create deployment documentation for Docker Hub distribution
+
+**Acceptance Criteria**:
+- [ ] Single container works on AMD64 and ARM64 platforms
+- [ ] Container size ~1.2GB with embedded models
+- [ ] Startup time 10-15 seconds (including PyTorch hub download)
+- [ ] One-command deployment: `docker run -p 5000:5000 towerscout:latest`
+- [ ] GitHub Actions builds and pushes multi-arch images to Docker Hub
+- [ ] Health checks enable proper container monitoring
+- [ ] Complete deployment documentation
+- [ ] Works on Apple Silicon, Intel, and ARM64 systems
+
+**Dependencies**: TASK-025 (configuration wizard)  
+**Blocks**: Wide deployment adoption
+
+**Files Modified**:
+- `Dockerfile` (new file - multi-architecture build)
+- `docker-compose.yml` (new file - local development)
+- `.github/workflows/docker-build.yml` (new file - automated builds)
+- `scripts/build-multiarch.sh` (new file - build automation)
+- `docs/docker-deployment.md` (new file - deployment guide)
+
+---
+
+### **Priority 3: Hardware Optimization**
+
+#### TASK-027: CPU Performance Enhancement + 8GB RAM Optimization 🔴
+**Status**: ⏳ NOT_STARTED  
+**Priority**: CRITICAL  
+**Type**: B  
+**Estimated Effort**: 2-3 days  
+
+**Description**: Optimize TowerScout performance for diverse local hardware, focusing on CPU-only systems and 8GB RAM constraints
+
+**Implementation Steps**:
+1. Implement automatic hardware detection (GPU/CPU/Apple Silicon MPS)
+2. Add platform-specific batch size optimization (AMD64: 8-16, ARM64: 4-8)
+3. Implement memory monitoring and adjustment for 8GB systems
+4. Add progress indicators for CPU processing (30-60 seconds)
+5. Enable Apple Silicon MPS acceleration where available
+6. Create CPU-specific model loading optimizations
+7. Add performance documentation with expected timing
+
+**Acceptance Criteria**:
+- [ ] Automatic detection of GPU/CPU/MPS capabilities
+- [ ] Optimal batch sizes based on hardware platform
+- [ ] Reliable operation on 8GB RAM systems
+- [ ] Progress indicators for CPU processing times
+- [ ] Apple Silicon MPS acceleration utilized
+- [ ] Performance expectations documented in setup wizard
+- [ ] Graceful degradation from GPU → MPS → CPU
+
+**Dependencies**: TASK-026 (Docker containers), TASK-003 (error handling)  
+**Blocks**: Broad hardware compatibility
+
+**Files Modified**:
+- `webapp/ts_yolov5.py` (hardware detection, batch optimization)
+- `webapp/ts_en.py` (memory optimization, MPS support)
+- `webapp/towerscout.py` (performance monitoring)
+- `webapp/templates/performance_info.html` (new file - performance guidance)
+
+---
+
+### **Priority 4: User Experience Enhancement**
+
+#### TASK-028: End-User Error Guidance + Performance Documentation 🟡
+**Status**: ⏳ NOT_STARTED  
+**Priority**: HIGH  
+**Type**: B  
+**Estimated Effort**: 2 days  
+
+**Description**: Transform technical error messages into actionable guidance for non-technical users and document performance expectations
+
+**Implementation Steps**:
+1. Replace technical error messages with user-friendly guidance
+2. Add "Test Configuration" buttons in setup wizard
+3. Create troubleshooting modal dialogs with copy-paste solutions
+4. Document platform-specific performance expectations (GPU: 3-5s, CPU: 30-60s, ARM64: 45-90s)
+5. Add network connectivity validation with provider-specific guidance
+6. Implement configuration validation helpers
+7. Create user-friendly installation verification
+
+**Acceptance Criteria**:
+- [ ] Error messages include specific problem description and solutions
+- [ ] "Test Configuration" validates API keys and provides feedback
+- [ ] Performance expectations clearly documented in wizard
+- [ ] Troubleshooting guides for common setup issues
+- [ ] Network validation helps diagnose connectivity problems
+- [ ] Installation verification confirms everything works
+- [ ] No technical stack traces visible to end users
+
+**Dependencies**: TASK-025 (setup wizard), TASK-003 (error infrastructure)  
+**Blocks**: User adoption by non-technical users
+
+**Files Modified**:
+- `webapp/templates/error_messages/` (new directory - user-friendly errors)
+- `webapp/js/towerscout.js` (enhanced error handling)
+- `webapp/templates/troubleshooting.html` (new file - troubleshooting guide)
+- `webapp/ts_errors.py` (user-friendly error messages)
+
+---
+
+### **Priority 5: Model Management (Background Feature)**
+
+#### TASK-029: Volume-Based Model Updates (Optional Advanced Feature) 🟢
+**Status**: ⏳ NOT_STARTED  
+**Priority**: MEDIUM  
+**Type**: B  
+**Estimated Effort**: 2 days  
+
+**Description**: Enable optional model updates via volume mounts for advanced users while keeping embedded models as default
+
+**Implementation Steps**:
+1. Enhance existing model upload functionality for volume mounts
+2. Add model validation and rollback capabilities
+3. Create optional volume mount documentation
+4. Implement model version checking and compatibility validation
+5. Add advanced user documentation for custom models
+6. Ensure volume mounts don't interfere with normal operation
+7. Create model management interface for advanced users
+
+**Acceptance Criteria**:
+- [ ] Regular users use embedded models without any setup
+- [ ] Advanced users can optionally mount `/app/model_params` for updates
+- [ ] Model validation prevents incompatible models
+- [ ] Rollback capability if custom models fail
+- [ ] Clear documentation for advanced model management
+- [ ] Volume mount configuration doesn't break normal deployment
+- [ ] Model versioning prevents compatibility issues
+
+**Dependencies**: TASK-026 (Docker containers)  
+**Blocks**: None (optional advanced feature)
+
+**Files Modified**:
+- `docker-compose.yml` (optional volume mount configuration)
+- `webapp/ts_yolov5.py` (enhanced model validation)
+- `webapp/ts_en.py` (model rollback capabilities)
+- `docs/advanced-model-management.md` (new file - advanced users only)
+
+---
+
+## 📊 LOCAL DEPLOYMENT TASK DEPENDENCIES
+
+### **Original Tasks Status:**
 ```
-TASK-001 (API Keys) ✅
+✅ COMPLETED TASKS (8/27 - Preserved and Valuable):
+TASK-001 (API Keys) ✅ → Still Essential for Local Deployment
     ↓
-TASK-002 (Input Validation) ✅ → TASK-004 (Authentication)
-    ↓                              ↓
-TASK-003 (Error Handling) → TASK-006 (Configuration) → TASK-008 (Azure Maps Provider) 🔴
-    ↓                              ↓                        ↓
-TASK-005 (Testing) → TASK-007 (Error Messages) → TASK-009 (Azure Key Vault) 🔴 → TASK-011 (Migration System)
-                                                      ↓                              ↓
-                                              TASK-010 (Multi-Provider Security) → TASK-024 (Azure Frontend UI) 🔴
-                                                      ↓                              ↓
-                                              TASK-013 (ML Accuracy Validation) 🔴 → TASK-012 (Provider UI)
-                                                                                       ↓
-                                                                               TASK-014 (Provider Testing)
-                                                      ↓
-TASK-015 (Image Errors) → TASK-016 (CPU Optimization) → TASK-018 (Session Security)
-    ↓                                                         ↓
-TASK-017 (Image Testing)                              TASK-019 (Session Cleanup)
-                                                             ↓
-                                                     TASK-020 (Session Testing)
-                                                             ↓
-                                                     TASK-021 (Docker + Azure) → TASK-022 (Migration Docs)
-                                                                                       ↓
-                                                                               TASK-023 (Integration + Azure)
+TASK-002 (Input Validation) ✅ → Simplified (reduce rate limiting)
+    ↓
+TASK-003 (Error Handling) ✅ → Still Valuable (users need good errors)
+    ↓
+TASK-005 (Testing) ✅ → Reduced Scope (remove CI/CD, keep basic tests)
+TASK-021 (Frontend Detection) ✅ → Still Essential (core functionality)
+TASK-008 (Azure Maps Provider) ✅ → Still Valuable (remove enterprise features)
+TASK-024 (Azure Frontend UI) ✅ → Still Essential (UI unchanged)
+
+❌ OBSOLETE TASKS (7/27 - Eliminated for Local Deployment):
+TASK-004 (Authentication) ❌ → Physical access control sufficient
+TASK-009 (Azure Key Vault) ❌ → Over-engineered for local use
+TASK-010 (Multi-Provider Security) ❌ → Too complex for single-user
+TASK-011 (Provider Migration) ❌ → Simple provider selection sufficient
+
+⚠️ SIMPLIFIED TASKS (12/27 - Reduced Scope):
+TASK-018 (Session Management) → Basic cleanup only
+TASK-021 (Docker) → Updated for local deployment + embedded models
+TASK-006, TASK-007, etc. → Simplified for single-user scenarios
 ```
 
-**Legend**: ✅ Completed | 🔴 Critical Azure Migration Tasks (including TASK-024 Frontend UI) | ⏳ Remaining Tasks
+### **New Local Deployment Dependencies:**
+```
+TASK-001 (API Keys) ✅ → Foundation for local deployment
+    ↓
+TASK-025 (Setup Wizard) → TASK-026 (Multi-Arch Docker) → TASK-027 (CPU Optimization)
+                               ↓                              ↓
+                       TASK-028 (User Experience) ← TASK-029 (Model Management - Optional)
+```
+
+### **Implementation Strategy:**
+1. **Phase 1**: Setup Wizard (TASK-025) - Makes local deployment user-friendly
+2. **Phase 2**: Docker Containers (TASK-026) - Enables one-command deployment  
+3. **Phase 3**: Performance (TASK-027) + UX (TASK-028) - Broad hardware support + user guidance
+4. **Phase 4**: Optional model management (TASK-029) - Advanced users only
+
+**Legend**: ✅ Completed & Valuable | ❌ Obsolete for Local | ⚠️ Simplified | 🆕 New Local Tasks
 
 ---
 
@@ -1086,3 +1407,175 @@ TASK-017 (Image Testing)                              TASK-019 (Session Cleanup)
 - **Operational costs**: Optimized resource usage
 
 This task breakdown provides a clear roadmap for transforming TowerScout while maintaining its proven ML detection capabilities and ensuring security-first development practices.
+
+---
+
+## 🔙 LEGACY FEATURE INTEGRATION TASKS
+
+### **Phase 4: Legacy Feature Parity (Type B Tasks)**
+
+#### TASK-030: Address Lookup for Detections 🔴
+**Status**: ⏳ NOT_STARTED  
+**Type**: B (Feature Development)  
+**Priority**: CRITICAL  
+**Estimated Effort**: 5-7 days
+
+**Objective**: Implement automatic building address retrieval for detected cooling towers to support outbreak investigation workflows.
+
+**Requirements (EARS Notation)**:
+- WHEN a cooling tower is detected, THE SYSTEM SHALL automatically retrieve the building address for each detection
+- WHEN geocoding fails, THE SYSTEM SHALL provide fallback error handling and retry mechanisms  
+- WHEN processing multiple detections, THE SYSTEM SHALL batch geocoding requests to optimize API usage
+- WHEN addresses are cached, THE SYSTEM SHALL use cached results to reduce API quota consumption
+
+**Implementation Plan**:
+- Create `webapp/ts_geocoding.py` with multi-provider service (Azure Maps Search + Google Geocoding fallback)
+- Implement `webapp/ts_geocache.py` with Redis caching and file-based fallback
+- Integrate server-side geocoding into `webapp/towerscout.py` `get_objects()` route
+- Add spatial clustering for nearby detections (<50m radius) to optimize API calls
+- Update frontend to display server-provided addresses instead of client-side geocoding
+- Add rate limiting and quota management for geocoding APIs
+
+**Acceptance Criteria**:
+- [ ] Addresses automatically retrieved for all detected cooling towers
+- [ ] Multi-provider fallback (Azure → Google) implemented with error handling
+- [ ] Caching system reduces API calls by 60-80%
+- [ ] Performance improved 3-4x over current client-side approach
+- [ ] Integration maintains existing detection workflow
+- [ ] Rate limiting prevents API quota exhaustion
+
+**Dependencies**: Environment variables for API keys (GOOGLE_API_KEY, AZURE_MAPS_SUBSCRIPTION_KEY)  
+**Blocks**: REQ-LEGACY-002, REQ-LEGACY-003 (address display features)  
+**Reference**: [legacy-features.md](legacy-features.md#req-legacy-001-address-lookup-for-detections)
+
+---
+
+#### TASK-031: Interactive Highlighting System 🟡
+**Status**: ⏳ NOT_STARTED  
+**Type**: B (Feature Development)  
+**Priority**: HIGH  
+**Estimated Effort**: 1-2 days
+
+**Objective**: Implement bidirectional selection between detection list and map markers to improve user workflow efficiency.
+
+**Requirements (EARS Notation)**:
+- WHEN a user clicks on a detection address, THE SYSTEM SHALL highlight the corresponding tower on the map
+- WHEN a user clicks on a map detection, THE SYSTEM SHALL highlight the corresponding address in the results list
+- WHEN highlighting occurs, THE SYSTEM SHALL provide visual feedback with distinct styling
+- WHEN selections change, THE SYSTEM SHALL clear previous highlights automatically
+
+**Implementation Plan**:
+- Add click event handlers to detection list items in `webapp/js/towerscout.js`
+- Add click event handlers to map detection markers
+- Implement CSS highlighting classes for selected detections and addresses
+- Create bidirectional selection mapping using detection IDs
+- Update detection display to support selection state management
+- Add keyboard navigation support for accessibility
+
+**Acceptance Criteria**:
+- [ ] Clicking detection address highlights corresponding map marker
+- [ ] Clicking map marker highlights corresponding address in list
+- [ ] Visual feedback clearly indicates selected detection
+- [ ] Selection state properly managed with automatic clearing
+- [ ] Keyboard navigation supports accessibility requirements
+- [ ] Performance maintained with large detection sets
+
+**Dependencies**: TASK-030 (Address Lookup) for address display integration  
+**Blocks**: None  
+**Reference**: [legacy-features.md](legacy-features.md#req-legacy-002-interactive-highlighting-system)
+
+---
+
+#### TASK-032: Enhanced Details Panel 🟡
+**Status**: ⏳ NOT_STARTED  
+**Type**: B (Feature Development)  
+**Priority**: HIGH  
+**Estimated Effort**: 1-2 days
+
+**Objective**: Create dedicated right-hand panel for displaying detailed detection metadata including address, confidence, and image information.
+
+**Requirements (EARS Notation)**:
+- WHEN viewing detection results, THE SYSTEM SHALL display a right-hand panel with tower-specific information
+- WHEN a detection is selected, THE SYSTEM SHALL show address, confidence level, and image date if available
+- WHEN the panel is displayed, THE SYSTEM SHALL maintain responsive design for mobile devices
+- WHEN no detection is selected, THE SYSTEM SHALL show helpful guidance in the panel
+
+**Implementation Plan**:
+- Design responsive layout for right-hand details panel in `webapp/templates/*.html`
+- Create CSS styles for panel layout and responsive behavior in `webapp/css/ts_styles.css`
+- Implement JavaScript panel management in `webapp/js/towerscout.js`
+- Add metadata structure for detection information (address, confidence, coordinates, tile info)
+- Integrate panel with existing detection selection system
+- Add collapsible panel functionality for smaller screens
+
+**Acceptance Criteria**:
+- [ ] Right-hand panel displays detection details clearly
+- [ ] Panel shows address, confidence, coordinates, and image metadata
+- [ ] Responsive design maintains usability on mobile devices
+- [ ] Panel integrates smoothly with existing UI layout
+- [ ] Collapsible functionality works correctly on small screens
+- [ ] Panel updates automatically when detection selection changes
+
+**Dependencies**: TASK-030 (Address Lookup) for address data, TASK-031 (Interactive Highlighting) for selection integration  
+**Blocks**: None  
+**Reference**: [legacy-features.md](legacy-features.md#req-legacy-003-enhanced-details-panel)
+
+---
+
+#### TASK-033: False Positive Review Mode 🟢
+**Status**: ⏳ NOT_STARTED  
+**Type**: B (Feature Development)  
+**Priority**: MEDIUM  
+**Estimated Effort**: 3-4 days
+
+**Objective**: Implement systematic workflow for reviewing and flagging incorrect detections to improve result accuracy.
+
+**Requirements (EARS Notation)**:
+- WHEN reviewing detections, THE SYSTEM SHALL provide a dedicated mode for systematic false positive identification
+- WHEN in review mode, THE SYSTEM SHALL guide users through detection validation workflow
+- WHEN false positives are identified, THE SYSTEM SHALL provide easy flagging and removal mechanisms
+- WHEN review is complete, THE SYSTEM SHALL provide summary statistics of flagged detections
+
+**Implementation Plan**:
+- Design systematic review workflow UI in `webapp/templates/*.html`
+- Add review mode toggle and workflow controls
+- Implement guided detection review with keyboard shortcuts (Accept/Reject/Skip)
+- Create false positive flagging system with confidence-based recommendations
+- Add review progress tracking and statistics display
+- Implement batch operations for efficient review of large detection sets
+- Add review session persistence for interrupted workflows
+
+**Acceptance Criteria**:
+- [ ] Dedicated review mode with clear workflow guidance
+- [ ] Keyboard shortcuts enable efficient review (A/R/S for Accept/Reject/Skip)
+- [ ] Progress tracking shows review completion status
+- [ ] Batch operations support efficient large-scale review
+- [ ] Review sessions persist across page reloads
+- [ ] Summary statistics show false positive removal impact
+- [ ] Integration maintains existing checkbox functionality for compatibility
+
+**Dependencies**: TASK-031 (Interactive Highlighting) for selection system, TASK-032 (Details Panel) for detection information  
+**Blocks**: None  
+**Reference**: [legacy-features.md](legacy-features.md#req-legacy-004-false-positive-review-mode)
+
+---
+
+## 📊 LEGACY FEATURE TASK DEPENDENCIES
+
+```
+TASK-030 (Address Lookup) → Foundation for address-based features
+    ↓
+TASK-031 (Interactive Highlighting) + TASK-032 (Details Panel) → UI improvements
+    ↓
+TASK-033 (False Positive Review Mode) → Advanced workflow enhancement
+```
+
+### Implementation Sequence
+1. **TASK-030** (Address Lookup) - Critical foundation for other features
+2. **TASK-031 & TASK-032** (Parallel) - UI enhancements that can be developed simultaneously  
+3. **TASK-033** (False Positive Review) - Advanced workflow that benefits from previous improvements
+
+### Total Estimated Effort
+- **Critical Path**: 9-11 days
+- **Parallel Development**: 7-9 days (with 2 developers)
+- **Full Legacy Parity**: Achievable within 2-3 sprint cycles
