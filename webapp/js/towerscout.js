@@ -16,6 +16,7 @@ const nyc = [-74.00820558171071, 40.71083794970947];
 // main state
 let bingMap = null;
 let googleMap = null;
+let azureMap = null;
 let currentMap;
 let engines = {};
 let currentProvider = null;
@@ -93,6 +94,10 @@ function initGoogleMap() {
 
   // the Google Map is also the default map
   currentMap = googleMap;
+}
+
+function initAzureMap() {
+  azureMap = new AzureMap();
 }
 
 //
@@ -386,6 +391,410 @@ class BingMap extends TSMap {
 
 }
 
+
+//
+// Azure Maps
+//
+
+class AzureMap extends TSMap {
+  constructor() {
+    super();
+    // Check if Azure Maps SDK is available
+    if (typeof atlas === 'undefined') {
+      throw new Error('Azure Maps SDK not loaded. Please ensure the Azure Maps scripts are loaded before initializing the map.');
+    }
+
+    if (typeof atlas.Map === 'undefined') {
+      throw new Error('Azure Maps Map class not available. Please check Azure Maps SDK loading.');
+    }
+
+    if (!aak) {
+      throw new Error('Azure Maps API key not configured. Please check your environment variables.');
+    }
+
+    console.log('Creating Azure Maps instance with API key:', aak ? 'configured' : 'missing');
+
+    // Set global authentication before creating map instance
+    if (typeof atlas.setAuthenticationOptions === 'function') {
+      atlas.setAuthenticationOptions({
+        authType: 'subscriptionKey',
+        subscriptionKey: aak
+      });
+      console.log('Global Azure Maps authentication configured');
+    }
+
+    // Initialize Azure Maps with error handling
+    try {
+      this.map = new atlas.Map('azureMap', {
+        center: [nyc[0], nyc[1]], // Azure Maps uses [longitude, latitude] order
+        zoom: 19,
+        maxZoom: 21,
+        style: 'road', // Start with 'road' style to avoid service permission issues
+        authOptions: {
+          authType: 'subscriptionKey',
+          subscriptionKey: aak
+        },
+        // Disable traffic to prevent authentication errors
+        traffic: false
+      });
+
+      console.log('Azure Maps instance created successfully');
+    } catch (error) {
+      throw new Error('Failed to create Azure Maps instance: ' + error.message);
+    }
+
+    this.boundaries = [];
+    this.newShapes = [];
+    this.drawingManager = null;
+    this.searchDataSource = null;
+
+    // Add error event handling
+    this.map.events.add('error', (e) => {
+      console.error('Azure Maps error:', e);
+      const errorMsg = e.error ? e.error.message : 'Unknown error';
+      console.error('Error details:', errorMsg);
+
+      // Provide helpful error messages for common issues
+      if (errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
+        console.error('Authentication Error: Invalid or missing Azure Maps subscription key');
+        console.error('Current key:', aak ? aak.substring(0, 8) + '...' : 'not configured');
+      } else if (errorMsg.includes('403') || errorMsg.includes('Forbidden')) {
+        console.error('Permission Error: Subscription key may not have access to requested service');
+      } else if (errorMsg.includes('traffic') || errorMsg.includes('tileset')) {
+        console.warn('Service Access Error: Trying fallback configuration...');
+        // Could implement fallback logic here
+      }
+    });
+
+    // Wait for Azure Maps to be ready before initializing drawing tools
+    this.map.events.add('ready', () => {
+      console.log('Azure Maps ready event fired');
+
+      // Switch to satellite style after successful initialization
+      try {
+        this.map.setStyle({ style: 'satellite' });
+        console.log('Switched to satellite style successfully');
+      } catch (error) {
+        console.warn('Could not switch to satellite style, staying with road style:', error.message);
+      }
+
+      this.initializeDrawingTools();
+      this.initializeSearchBox();
+    });
+
+    // Add view change event to bias search results
+    this.map.events.add('moveend', () => {
+      if (typeof googleMap !== 'undefined' && googleMap.biasSearchBox) {
+        googleMap.biasSearchBox();
+      }
+    });
+  }
+
+  initializeDrawingTools() {
+    // Check if drawing SDK is available
+    if (typeof atlas.drawing === 'undefined') {
+      console.warn('Azure Maps Drawing SDK not loaded yet, retrying in 500ms...');
+      setTimeout(() => this.initializeDrawingTools(), 500);
+      return;
+    }
+
+    if (typeof atlas.drawing.DrawingManager === 'undefined' || typeof atlas.control.DrawingToolbar === 'undefined') {
+      console.warn('Azure Maps DrawingManager or DrawingToolbar not available, retrying in 500ms...');
+      setTimeout(() => this.initializeDrawingTools(), 500);
+      return;
+    }
+
+    console.log('Initializing Azure Maps drawing tools...');
+
+    // Create drawing manager with polygon and rectangle tools
+    this.drawingManager = new atlas.drawing.DrawingManager(this.map, {
+      toolbar: new atlas.control.DrawingToolbar({
+        position: 'top-right',
+        style: 'light',
+        buttons: ['draw-polygon', 'draw-rectangle']
+      })
+    });
+
+    // Listen for drawing completion events
+    this.map.events.add('drawingcomplete', this.drawingManager, (drawingCompleteEvent) => {
+      let shape = drawingCompleteEvent.data;
+      this.newShapes.push(shape);
+      console.log('New Azure Maps shape drawn:', shape.getType());
+    });
+  }
+
+  initializeSearchBox() {
+    // Create data source for search results
+    this.searchDataSource = new atlas.source.DataSource();
+    this.map.sources.add(this.searchDataSource);
+
+    // Add layer for search result markers
+    this.map.layers.add(new atlas.layer.BubbleLayer(this.searchDataSource, null, {
+      strokeColor: 'blue',
+      strokeWidth: 2,
+      fillColor: 'transparent'
+    }));
+  }
+
+  getBounds() {
+    let bounds = this.map.getCamera().bounds;
+    return [
+      bounds[0], // west
+      bounds[3], // north  
+      bounds[2], // east
+      bounds[1]  // south
+    ];
+  }
+
+  fitBounds(b) {
+    // Convert bounds to Azure Maps format [west, south, east, north]
+    this.map.setCamera({
+      bounds: [b[0], b[3], b[2], b[1]],
+      padding: 50
+    });
+  }
+
+  setCenter(c) {
+    this.map.setCamera({
+      center: [c[0], c[1]] // Azure Maps uses [lng, lat]
+    });
+  }
+
+  getZoom() {
+    return this.map.getCamera().zoom;
+  }
+
+  setZoom(z) {
+    this.map.setCamera({
+      zoom: z
+    });
+  }
+
+  fitCenter() {
+    this.fitBounds(this.getBounds());
+  }
+
+  search(place) {
+    // Implement search using Azure Maps Search API
+    console.log('Azure Maps search for:', place);
+    // This would integrate with Azure Maps Search API
+    // For now, we'll use the existing search box integration
+  }
+
+  biasSearchBox() {
+    // Set search bias based on current map bounds
+    if (typeof googleMap !== 'undefined' && googleMap.searchBox) {
+      googleMap.searchBox.setBounds(new google.maps.LatLngBounds(
+        new google.maps.LatLng(this.getBounds()[3], this.getBounds()[0]),
+        new google.maps.LatLng(this.getBounds()[1], this.getBounds()[2])
+      ));
+    }
+  }
+
+  makeMapRect(o, listener) {
+    // Create a rectangle overlay for detection results
+    let rectangle = new atlas.data.Polygon([[[o.x1, o.y1], [o.x1, o.y2], [o.x2, o.y2], [o.x2, o.y1], [o.x1, o.y1]]]);
+
+    let feature = new atlas.data.Feature(rectangle, {
+      type: 'detection',
+      confidence: o.confidence || 0
+    });
+
+    // Store reference for later updates
+    o.azureFeature = feature;
+
+    return feature;
+  }
+
+  updateMapRect(o) {
+    // Update rectangle color based on confidence or state
+    if (o.azureFeature) {
+      o.azureFeature.properties.confidence = o.confidence || 0;
+      // Color updates would be handled by the layer styling
+    }
+  }
+
+  colorMapRect(o, color) {
+    // Update rectangle color
+    if (o.azureFeature) {
+      o.azureFeature.properties.color = color;
+      // Implementation would update the layer styling
+    }
+  }
+
+  resetBoundaries() {
+    for (let b of this.boundaries) {
+      if (b.azureObject) {
+        // Remove from data source if it was added
+        this.searchDataSource.remove(b.azureObject);
+      }
+    }
+    this.boundaries = [];
+  }
+
+  addBoundary(b) {
+    // Add boundary polygon to the map
+    let coordinates;
+
+    if (b.type === 'simple') {
+      // Rectangle boundary: [x1, y1, x2, y2]
+      coordinates = [[[b.x1, b.y1], [b.x1, b.y2], [b.x2, b.y2], [b.x2, b.y1], [b.x1, b.y1]]];
+    } else {
+      // Polygon boundary: array of [lng, lat] pairs
+      coordinates = [b.boundary.concat([b.boundary[0]])]; // Close the polygon
+    }
+
+    let polygon = new atlas.data.Polygon(coordinates);
+    let feature = new atlas.data.Feature(polygon, {
+      type: 'boundary'
+    });
+
+    b.azureObject = feature;
+    this.searchDataSource.add(feature);
+    this.boundaries.push(b);
+  }
+
+  showBoundaries() {
+    // Fit map to show all boundaries
+    if (this.boundaries.length > 0) {
+      let allCoordinates = [];
+      for (let b of this.boundaries) {
+        if (b.azureObject && b.azureObject.geometry) {
+          let coords = b.azureObject.geometry.coordinates[0];
+          allCoordinates = allCoordinates.concat(coords);
+        }
+      }
+
+      if (allCoordinates.length > 0) {
+        let bounds = atlas.data.BoundingBox.fromData(allCoordinates);
+        this.map.setCamera({
+          bounds: bounds,
+          padding: 100
+        });
+      }
+    }
+  }
+
+  retrieveDrawnBoundaries() {
+    let polys = [];
+
+    for (let shape of this.newShapes) {
+      let geometry = shape.toJson().geometry;
+
+      if (geometry.type === 'Polygon') {
+        let coordinates = geometry.coordinates[0];
+        let poly = [];
+        for (let coord of coordinates) {
+          poly.push([coord[0], coord[1]]); // [lng, lat]
+        }
+        polys.push(new PolygonBoundary(poly));
+      } else if (geometry.type === 'Rectangle') {
+        // Handle rectangle if Azure Maps provides this type
+        let coords = geometry.coordinates[0];
+        let minLng = Math.min(...coords.map(c => c[0]));
+        let maxLng = Math.max(...coords.map(c => c[0]));
+        let minLat = Math.min(...coords.map(c => c[1]));
+        let maxLat = Math.max(...coords.map(c => c[1]));
+        polys.push(new SimpleBoundary([minLng, maxLat, maxLng, minLat]));
+      }
+    }
+
+    this.clearShapes();
+    return polys;
+  }
+
+  hasShapes() {
+    return this.newShapes.length !== 0;
+  }
+
+  addShapes() {
+    // Process drawn shapes and add as detections
+    let bounds;
+
+    for (let shape of this.newShapes) {
+      let geometry = shape.toJson().geometry;
+
+      // Calculate bounds for the shape
+      let coordinates = geometry.coordinates[0];
+      let lngs = coordinates.map(c => c[0]);
+      let lats = coordinates.map(c => c[1]);
+
+      let x1 = Math.min(...lngs);
+      let x2 = Math.max(...lngs);
+      let y1 = Math.max(...lats);
+      let y2 = Math.min(...lats);
+
+      let tileIds = Tile.getTileIds(x1, y1, x2, y2);
+      for (let tileId of tileIds) {
+        let tile = Tile_tiles[tileId];
+        x1 = Math.max(x1, tile.x1);
+        x1 = Math.min(x1, tile.x2);
+        x2 = Math.max(x2, tile.x1);
+        x2 = Math.min(x2, tile.x2);
+        y1 = Math.max(y1, tile.y2);
+        y1 = Math.min(y1, tile.y1);
+        y2 = Math.max(y2, tile.y2);
+        y2 = Math.min(y2, tile.y1);
+
+        let det = new Detection(x1, y1, x2, y2,
+          'added', 1.0, tileId, -1 /*id_in_tile*/, true, true);
+        det.update();
+      }
+    }
+
+    this.newShapes = [];
+
+    // Turn off drawing mode
+    if (this.drawingManager) {
+      this.drawingManager.setOptions({ mode: 'idle' });
+    }
+
+    augmentDetections();
+  }
+
+  clearShapes() {
+    // Clear all drawn shapes
+    for (let shape of this.newShapes) {
+      this.drawingManager.getSource().remove(shape);
+    }
+    this.newShapes = [];
+
+    // Turn off drawing mode
+    if (this.drawingManager) {
+      this.drawingManager.setOptions({ mode: 'idle' });
+    }
+  }
+
+  clearAll() {
+    this.clearShapes();
+    // Remove manually added detections (confidence = 1.0)
+    let dets = [];
+    for (let det of Detection_detections) {
+      if (det.conf !== 1.0) {
+        det.id = dets.length;
+        dets.push(det);
+      }
+    }
+    Detection_detections = dets;
+    Detection.generateList();
+  }
+
+  getBoundsPolygon(query, place) {
+    // Integration with existing boundary polygon logic
+    this.resetBoundaries();
+    if (typeof bingMap !== 'undefined') {
+      bingMap.resetBoundaries();
+    }
+
+    console.log("Azure Maps querying place outline for: " + query);
+
+    // Use existing OpenStreetMap integration
+    // The existing logic in the GoogleMap class can be reused
+    if (typeof googleMap !== 'undefined') {
+      googleMap.getBoundsPolygon(query, place);
+    }
+  }
+}
 
 //
 // Google Maps
@@ -1570,6 +1979,18 @@ function setMap(newMap) {
     let bs = bingMap.boundaries;
     bingMap.resetBoundaries();
     bs.map(b => bingMap.addBoundary(b));
+  } else if (currentUI.value === "azure") {
+    document.getElementById("uploadsearchui").style.display = "none";
+    document.getElementById("mapsearchui").style.display = null;
+    document.getElementById("fdetect").style.display = null;
+    document.getElementById("ftowers").style.display = null;
+    document.getElementById("fsave").style.display = null;
+    document.getElementById("freview").style.display = null;
+    document.getElementById("fadd").style.display = null;
+    currentMap = azureMap;
+    let azBs = azureMap.boundaries;
+    azureMap.resetBoundaries();
+    azBs.map(b => azureMap.addBoundary(b));
   }
 
   // set center and zoom
