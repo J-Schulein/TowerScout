@@ -108,8 +108,8 @@ Licensed under CC-BY-NC-SA-4.0
       <form id="uis" name="uis">
         <input type="radio" id="google" name="uis" value="google" checked>
         <label for="google">Google Maps</label><br>
-        <input type="radio" id="bing" name="uis" value="bing">
-        <label for="bing">Bing Maps</label><br>
+        <input type="radio" id="azure" name="uis" value="azure">
+        <label for="azure">Azure Maps</label><br>
         <input type="radio" id="upload" name="uis" value="upload">
         <label for="upload">Image upload</label><br>
       </form>
@@ -136,7 +136,7 @@ Licensed under CC-BY-NC-SA-4.0
     <!--The div element for the map -->
     <div class="fmap" style="overflow-y:hidden;white-space: nowrap; overflow-x: hidden;">
       <div id="googleMap" style="display:block"></div>
-      <div id="bingMap" style="display:none"></div>
+      <div id="azureMap" style="display:none"></div>
       <div id="uploadMap" style="display:none; overflow-y:scroll">
         <img id="canvas" style="width:100%;">
       </div>
@@ -207,16 +207,49 @@ Licensed under CC-BY-NC-SA-4.0
   </div>
 
   <script src="/js/jquery-3.5.1.min.js"></script>
+  <!-- Azure Maps Web SDK v3.0 -->
+  <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3.0/atlas.min.css"
+    type="text/css" />
+  <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/drawing/1.0/atlas-drawing.min.css"
+    type="text/css" />
+  <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3.0/atlas.min.js"
+    onload="console.log('Azure Maps main SDK loaded')"></script>
+  <script src="https://atlas.microsoft.com/sdk/javascript/drawing/1.0/atlas-drawing.min.js"
+    onload="console.log('Azure Maps drawing SDK loaded')"></script>
+
   <script async
     src="https://maps.googleapis.com/maps/api/js?key={{google_map_key}}&v=3.55.1&loading=async&callback=initGoogleMap&libraries=places,drawing">
     </script>
-  <script async type='text/javascript'
-    src='http://www.bing.com/api/maps/mapcontrol?callback=initBingMap&key={{bing_map_key}}'>
-    </script>
   <script>
     let gak = "{{google_map_key}}";
-    let bak = "{{bing_map_key}}";
+    let aak = "{{azure_map_key}}";
     let dev = {{ dev }};
+
+    // Check if Azure Maps SDK is loaded
+    function checkAzureMapsLoaded() {
+      return typeof atlas !== 'undefined' && typeof atlas.Map !== 'undefined';
+    }
+
+    // Initialize Azure Maps when SDK is ready
+    function initAzureMaps() {
+      if (checkAzureMapsLoaded() && aak) {
+        console.log('Azure Maps SDK loaded, initializing...');
+        initAzureMap();
+      } else if (!aak) {
+        console.warn('Azure Maps API key missing');
+      } else {
+        console.warn('Azure Maps SDK not loaded yet, retrying in 500ms...');
+        setTimeout(initAzureMaps, 500);
+      }
+    }
+
+    // Initialize Azure Maps after the page loads
+    document.addEventListener('DOMContentLoaded', function () {
+      // Wait a moment for scripts to load, then check periodically
+      setTimeout(function () {
+        initAzureMaps();
+      }, 100);
+    });
   </script>
   <script src="/js/towerscout.js"></script>
 </body>
