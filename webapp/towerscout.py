@@ -9,11 +9,12 @@
 # (see LICENSE.TXT in the root of the repository for details)
 #
 
+print("🚀 TowerScout starting...")
+
 # import basic functionality
 from ts_yolov5 import YOLOv5_Detector
 from ts_en import EN_Classifier
 import ts_imgutil
-from ts_bmaps import BingMap
 from ts_gmaps import GoogleMap
 from ts_azure_maps import AzureMaps
 from ts_zipcode import Zipcode_Provider
@@ -23,6 +24,8 @@ from flask import Flask, render_template, send_from_directory, request, session,
 from flask_session import Session
 from waitress import serve
 import json
+import time
+import os
 from ts_validation import (
     TowerScoutValidator, ValidationError, rate_limiter,
     validate_detection_request, validate_zipcode_request
@@ -43,16 +46,75 @@ import ssl
 import asyncio
 import time
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Load environment variables from .env file if it exists
-load_dotenv()
+script_dir = Path(__file__).parent
+env_path = script_dir / '.env'
+
+print("=" * 60)
+print("TOWERSCOUT ENVIRONMENT DEBUG")
+print("=" * 60)
+print(f"Current working directory: {os.getcwd()}")
+print(f"Script directory: {script_dir}")
+print(f".env file path: {env_path}")
+print(f".env file exists: {env_path.exists()}")
+
+if env_path.exists():
+    print(f"Loading .env from: {env_path}")
+    load_dotenv(env_path)
+else:
+    print("Using default load_dotenv() behavior")
+    load_dotenv()
+
+# Debug: Check if keys are loaded
+google_key = os.getenv('GOOGLE_API_KEY', '')
+azure_key = os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY', '')
+bing_key = os.getenv('BING_API_KEY', '')
+
+print(f"\nEnvironment Variables Status:")
+print(f"GOOGLE_API_KEY: {'✓ Loaded' if google_key else '✗ Missing'}")
+if google_key:
+    print(f"  - Starts with: {google_key[:15]}...")
+    print(f"  - Length: {len(google_key)} characters")
+
+print(f"AZURE_MAPS_SUBSCRIPTION_KEY: {'✓ Loaded' if azure_key else '✗ Missing'}")
+if azure_key:
+    print(f"  - Starts with: {azure_key[:15]}...")
+    print(f"  - Length: {len(azure_key)} characters")
+
+print(f"BING_API_KEY: {'✓ Loaded' if bing_key else '✗ Missing'}")
+if bing_key:
+    print(f"  - Starts with: {bing_key[:15]}...")
+    print(f"  - Length: {len(bing_key)} characters")
+
+print("=" * 60)
+
 import tempfile
+from ts_geocoding import create_geocoding_service, GeocodingError, RateLimitError
+from ts_geocache import create_geocoding_cache
 
 # Initialize logging system early
 logger = get_main_logger()
 api_logger = get_api_logger()
 ml_logger = get_ml_logger()
 maps_logger = get_maps_logger()
+
+# Map proxy configuration
+MAP_PROXY_CONFIG = {
+    'google': {
+        'tiles': {'rate_limit': (1000, 3600), 'cache_ttl': 86400},  # 1000/hour, 24hr cache
+        'static': {'rate_limit': (500, 3600), 'cache_ttl': 43200}   # 500/hour, 12hr cache
+    },
+    'azure': {
+        'search': {'rate_limit': (100, 3600), 'cache_ttl': 3600},   # 100/hour, 1hr cache  
+        'tiles': {'rate_limit': (1000, 3600), 'cache_ttl': 86400}   # 1000/hour, 24hr cache
+    }
+}
+
+# Create cache directory
+MAP_CACHE_DIR = os.path.join(os.getcwd(), 'cache', 'maps')
+os.makedirs(MAP_CACHE_DIR, exist_ok=True)
 from PIL import Image, ImageDraw
 import torch
 import threading
@@ -131,29 +193,51 @@ providers = {
 # Load API keys from environment variables
 def load_api_keys():
     """Load and validate API keys from environment variables."""
-    google_key = os.getenv('GOOGLE_API_KEY')
-    bing_key = os.getenv('BING_API_KEY')
-    azure_key = os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY')
+    google_key = os.getenv('GOOGLE_API_KEY', '')
+    bing_key = os.getenv('BING_API_KEY', '')
+    azure_key = os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY', '')
     
-    # At least one provider must be configured
+    # Check for placeholder text and treat as missing
+    placeholder_patterns = [
+        'your_google_maps_api_key_here',
+        'your_bing_maps_api_key_here', 
+        'your_azure_maps_subscription_key_here',
+        'your_google_api_key',
+        'your_bing_maps_',
+        'your_azure_maps_'
+    ]
+    
+    # Validate Google API key
+    if google_key and not any(placeholder in google_key.lower() for placeholder in placeholder_patterns):
+        # Valid Google key
+        pass
+    else:
+        logger.warning("GOOGLE_API_KEY not configured or contains placeholder text. Google Maps provider will be unavailable.")
+        google_key = ""
+    
+    # Validate Bing API key  
+    if bing_key and not any(placeholder in bing_key.lower() for placeholder in placeholder_patterns):
+        # Valid Bing key
+        pass
+    else:
+        logger.warning("BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.")
+        bing_key = ""
+        
+    # Validate Azure API key
+    if azure_key and not any(placeholder in azure_key.lower() for placeholder in placeholder_patterns):
+        # Valid Azure key
+        pass
+    else:
+        logger.warning("AZURE_MAPS_SUBSCRIPTION_KEY not configured or contains placeholder text. Azure Maps provider will be unavailable.")
+        azure_key = ""
+    
+    # At least one provider must be configured with a valid key
     if not google_key and not bing_key and not azure_key:
         raise ConfigurationError(
             "At least one map provider API key is required",
             missing_config="GOOGLE_API_KEY or AZURE_MAPS_SUBSCRIPTION_KEY",
             user_message="Map provider API keys are required. Please configure Google Maps or Azure Maps."
         )
-    
-    if not google_key:
-        logger.warning("GOOGLE_API_KEY not configured. Google Maps provider will be unavailable.")
-        google_key = ""
-    
-    if not bing_key:
-        logger.warning("BING_API_KEY not configured. Bing Maps provider will be unavailable.")
-        bing_key = ""
-        
-    if not azure_key:
-        logger.warning("AZURE_MAPS_SUBSCRIPTION_KEY not configured. Azure Maps provider will be unavailable.")
-        azure_key = ""
     
     return google_key, bing_key, azure_key
 
@@ -377,9 +461,6 @@ def map_func():
         available_providers.append('azure')
     
     return render_template('towerscout.html',
-                           google_map_key=google_api_key, 
-                           bing_map_key=bing_api_key,
-                           azure_map_key=azure_api_key,
                            available_providers=available_providers,
                            dev=dev)
 
@@ -405,6 +486,22 @@ def get_engines():
 
 # retrieve available map providers
 
+@app.route('/getazurekey')
+def get_azure_key():
+    """Provide Azure Maps subscription key for frontend authentication"""
+    api_logger.debug("Azure Maps key API endpoint requested")
+    
+    if not azure_api_key:
+        response = jsonify({
+            "error": True,
+            "message": "Azure Maps API key not configured"
+        })
+        response.status_code = 400
+        return response
+    
+    return jsonify({
+        "subscriptionKey": azure_api_key
+    })
 
 @app.route('/getproviders')
 def get_providers():
@@ -414,13 +511,275 @@ def get_providers():
     available_providers = []
     if google_api_key:
         available_providers.append({'id': 'google', 'name': 'Google Maps'})
-    if bing_api_key:
-        available_providers.append({'id': 'bing', 'name': 'Bing Maps'})
     if azure_api_key:
         available_providers.append({'id': 'azure', 'name': 'Azure Maps'})
     
     result = json.dumps(available_providers)
     return result
+
+# Forward geocoding API for address search
+@app.route('/api/geocode/forward', methods=['POST'])
+def forward_geocode():
+    """Convert address to coordinates using available providers"""
+    try:
+        # Rate limiting check
+        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', '127.0.0.1'))
+        if not rate_limiter.is_allowed(client_ip, max_requests=30, window_seconds=600):  # 10 minutes
+            return jsonify({'error': 'Rate limit exceeded. Please wait before trying again.'}), 429
+            
+        data = request.get_json()
+        if not data or 'query' not in data:
+            return jsonify({'error': 'Missing query parameter'}), 400
+            
+        query = TowerScoutValidator.validate_search_query(data['query'])
+        preferred_provider = data.get('provider', 'auto')
+        
+        # Import geocoding service
+        from ts_geocoding import GeocodingService
+        
+        # Initialize geocoding with available API keys
+        geocoding = GeocodingService(
+            azure_key=azure_api_key,
+            google_key=google_api_key
+        )
+        
+        # Perform forward geocoding with provider preference
+        results = geocoding.forward_geocode_unified(query, preferred_provider)
+        
+        if not results:
+            return jsonify({'error': 'No results found for query'}), 404
+            
+        # Return standardized geocoding results
+        return jsonify({
+            'success': True,
+            'results': [result.to_dict() for result in results],
+            'provider_used': results[0].provider if results else None
+        })
+        
+    except ValidationError as e:
+        api_logger.warning(f"Geocoding validation error: {e}")
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        api_logger.error(f"Geocoding error: {e}")
+        return jsonify({'error': 'Internal geocoding error'}), 500
+
+# Unified map proxy endpoints
+@app.route('/api/maps/<provider>/<service>', methods=['GET'])
+def map_proxy(provider, service):
+    """Unified proxy for all map services to hide API keys from client"""
+    try:
+        # Validate provider and service
+        if provider not in MAP_PROXY_CONFIG:
+            return jsonify({'error': f'Unknown provider: {provider}'}), 400
+        if service not in MAP_PROXY_CONFIG[provider]:
+            return jsonify({'error': f'Unknown service {service} for provider {provider}'}), 400
+            
+        config = MAP_PROXY_CONFIG[provider][service]
+        
+        # Rate limiting check with service-specific limits
+        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', '127.0.0.1'))
+        max_requests, window_seconds = config['rate_limit']
+        if not rate_limiter.is_allowed(client_ip, max_requests=max_requests, window_seconds=window_seconds):
+            return jsonify({'error': f'Rate limit exceeded for {provider}/{service}. Please wait before trying again.'}), 429
+            
+        # Validate and sanitize request parameters
+        params = {}
+        for key, value in request.args.items():
+            if key in ['z', 'x', 'y', 'zoom', 'width', 'height', 'format', 'limit']:  # Numeric params
+                try:
+                    params[key] = int(value) if key in ['z', 'x', 'y', 'zoom', 'width', 'height', 'limit'] else value
+                except ValueError:
+                    return jsonify({'error': f'Invalid numeric parameter: {key}'}), 400
+            elif key in ['center', 'size', 'maptype', 'style', 'query', 'api-version', 'tilesetId', 'countrySet', 'lat', 'lon']:  # String params
+                if len(value) > 1000:  # Prevent excessively long parameters
+                    return jsonify({'error': f'Parameter {key} too long'}), 400
+                params[key] = str(value)
+            else:
+                return jsonify({'error': f'Unauthorized parameter: {key}'}), 400
+                
+        # Generate cache key
+        cache_key = f"{provider}_{service}_{hash(str(sorted(params.items())))}"
+        cache_file = os.path.join(MAP_CACHE_DIR, f"{cache_key}.cache")
+        
+        # Check cache
+        if os.path.exists(cache_file):
+            cache_age = time.time() - os.path.getmtime(cache_file)
+            if cache_age < config['cache_ttl']:
+                maps_logger.debug(f"Cache hit for {provider}/{service}")
+                with open(cache_file, 'rb') as f:
+                    cached_data = f.read()
+                return Response(cached_data, headers={'Content-Type': _get_content_type(service)})
+                
+        # Route to appropriate provider handler
+        if provider == 'google':
+            response_data = _handle_google_proxy(service, params)
+        elif provider == 'azure':
+            response_data = _handle_azure_proxy(service, params)
+        else:
+            return jsonify({'error': f'Provider {provider} not implemented'}), 500
+            
+        # Cache successful responses
+        if response_data:
+            try:
+                with open(cache_file, 'wb') as f:
+                    f.write(response_data)
+                maps_logger.debug(f"Cached response for {provider}/{service}")
+            except Exception as cache_error:
+                maps_logger.warning(f"Failed to cache response: {cache_error}")
+                
+        return Response(response_data, headers={'Content-Type': _get_content_type(service)})
+        
+    except ValidationError as e:
+        api_logger.warning(f"Map proxy validation error: {e}")
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        api_logger.error(f"Map proxy error for {provider}/{service}: {e}")
+        return jsonify({'error': f'Internal map proxy error for {provider}/{service}'}), 500
+
+
+def _get_content_type(service):
+    """Get appropriate content type for service response"""
+    if service in ['tiles', 'static']:
+        return 'image/png'
+    elif service == 'search':
+        return 'application/json'
+    else:
+        return 'application/octet-stream'
+
+
+def _handle_google_proxy(service, params):
+    """Handle Google Maps API proxying"""
+    import requests
+    
+    if not google_api_key:
+        raise Exception("Google API key not configured")
+        
+    # Log proxy request
+    maps_logger.info(f"Google Maps proxy request: service={service}, params={len(params)} parameters")
+        
+    if service == 'tiles':
+        # Google Maps tile service
+        url = f"https://maps.googleapis.com/maps/api/staticmap"
+        params['key'] = google_api_key
+        maps_logger.debug(f"Google tiles request: {url} with {len(params)} params")
+    elif service == 'static':
+        # Google static maps
+        url = f"https://maps.googleapis.com/maps/api/staticmap"
+        params['key'] = google_api_key
+        maps_logger.debug(f"Google static request: {url} with {len(params)} params")
+    else:
+        raise Exception(f"Unknown Google service: {service}")
+        
+    try:
+        response = requests.get(url, params=params, timeout=30)
+        maps_logger.info(f"Google API response: status={response.status_code}, size={len(response.content)} bytes")
+        
+        if response.status_code != 200:
+            maps_logger.error(f"Google API error: {response.status_code} - {response.text[:200]}...")
+            raise Exception(f"Google API returned status {response.status_code}: {response.text}")
+        
+        return response.content
+    except requests.RequestException as e:
+        maps_logger.error(f"Google API network error: {e}")
+        raise Exception(f"Google API network error: {e}")
+
+
+def _handle_azure_proxy(service, params):
+    """Handle Azure Maps API proxying with secure authentication and comprehensive error handling"""
+    import requests
+    
+    if not azure_api_key:
+        raise Exception("Azure Maps API key not configured")
+        
+    # Log proxy request
+    maps_logger.info(f"Azure Maps proxy request: service={service}, params={len(params)} parameters")
+        
+    if service == 'search':
+        # Azure Maps Search API - Use address search for better geocoding results
+        url = f"https://atlas.microsoft.com/search/address/json"
+        
+        # Build Azure Maps Search API parameters
+        search_params = {
+            'subscription-key': azure_api_key,
+            'api-version': '1.0',
+            'query': params.get('query', ''),
+            'limit': min(int(params.get('limit', 5)), 20),  # Cap at 20 results for performance
+            'countrySet': params.get('countrySet', 'US')  # Default to US
+        }
+        
+        # Add optional geospatial bias if provided
+        if 'lat' in params and 'lon' in params:
+            try:
+                lat = float(params['lat'])
+                lon = float(params['lon']) 
+                if -90 <= lat <= 90 and -180 <= lon <= 180:
+                    search_params['lat'] = lat
+                    search_params['lon'] = lon
+                else:
+                    maps_logger.warning(f"Invalid coordinates provided: lat={lat}, lon={lon}")
+            except (ValueError, TypeError):
+                maps_logger.warning(f"Invalid coordinate format: lat={params.get('lat')}, lon={params.get('lon')}")
+        
+        maps_logger.debug(f"Azure search request: {url} with query='{search_params['query']}', limit={search_params['limit']}")
+        
+    elif service == 'tiles':
+        # Azure Maps Raster Tile Service for satellite imagery
+        url = f"https://atlas.microsoft.com/map/tile"
+        
+        # Build Azure Maps tile parameters
+        search_params = {
+            'subscription-key': azure_api_key,
+            'api-version': '2.0',
+            'tilesetId': params.get('tilesetId', 'microsoft.imagery'),  # Satellite imagery
+            'zoom': max(1, min(int(params.get('zoom', 19)), 22)),  # Clamp zoom level
+            'x': int(params.get('x', 0)),
+            'y': int(params.get('y', 0))
+        }
+        
+        maps_logger.debug(f"Azure tiles request: {url} for tile z={search_params['zoom']}, x={search_params['x']}, y={search_params['y']}")
+        
+    else:
+        raise Exception(f"Unknown Azure service: {service}")
+        
+    try:
+        # Make API request with timeout and proper error handling
+        response = requests.get(url, params=search_params, timeout=30)
+        maps_logger.info(f"Azure API response: status={response.status_code}, size={len(response.content)} bytes")
+        
+        # Handle specific Azure API error codes
+        if response.status_code == 401:
+            maps_logger.error("Azure API authentication failed - check subscription key validity")
+            raise Exception("Azure Maps authentication failed: Invalid or expired subscription key")
+        elif response.status_code == 403:
+            maps_logger.error("Azure API forbidden - check subscription key permissions")
+            raise Exception("Azure Maps access denied: Subscription key lacks required permissions for this service")
+        elif response.status_code == 429:
+            maps_logger.error("Azure API rate limit exceeded")
+            raise Exception("Azure Maps rate limit exceeded: Please wait before making more requests")
+        elif response.status_code == 404 and service == 'tiles':
+            maps_logger.warning(f"Azure tile not found: zoom={search_params.get('zoom')}, x={search_params.get('x')}, y={search_params.get('y')}")
+            raise Exception("Requested map tile not available at this zoom level or location")
+        elif response.status_code != 200:
+            error_text = response.text[:200] if response.text else "Unknown error"
+            maps_logger.error(f"Azure API error {response.status_code}: {error_text}...")
+            raise Exception(f"Azure API returned status {response.status_code}: {error_text}")
+        
+        # Validate response content
+        if len(response.content) == 0:
+            maps_logger.warning(f"Azure API returned empty response for {service}")
+            raise Exception("Azure API returned empty response")
+            
+        return response.content
+        
+    except requests.Timeout:
+        maps_logger.error("Azure API request timeout")
+        raise Exception("Azure Maps request timeout: Service temporarily unavailable")
+    except requests.ConnectionError as e:
+        maps_logger.error(f"Azure API connection error: {e}")
+        raise Exception("Azure Maps connection failed: Please check internet connectivity")
+    except requests.RequestException as e:
+        maps_logger.error(f"Azure API network error: {e}")
+        raise Exception(f"Azure Maps network error: {e}")
 
 # zipcode boundary lookup
 
@@ -510,9 +869,7 @@ def get_objects():
     # create a map provider object
     map = None
     try:
-        if provider == "bing" and bing_api_key:
-            map = BingMap(bing_api_key)
-        elif provider == "google" and google_api_key:
+        if provider == "google" and google_api_key:
             map = GoogleMap(google_api_key)
         elif provider == "azure" and azure_api_key:
             map = AzureMaps(azure_api_key)
@@ -652,6 +1009,95 @@ def get_objects():
             else:
                 i += 1
     
+    # Add server-side address lookup for detections
+    if results:  # Only geocode if we have detections
+        print(f" starting address lookup for {len(results)} detections")
+        address_start_time = time.time()
+        
+        try:
+            # Get radius from request parameters (default 50m for clustering)
+            radius_param = request.form.get('radius', '50')
+            try:
+                clustering_radius = float(radius_param) if radius_param else 50.0
+            except ValueError:
+                clustering_radius = 50.0  # Fallback to default
+            
+            # Initialize geocoding service and cache
+            geocoding_service = create_geocoding_service()
+            geocoding_cache = create_geocoding_cache(clustering_radius_meters=clustering_radius)
+            
+            # Add address to each detection
+            for detection in results:
+                if detection.get('class') == 0:  # Only geocode actual detections, not tiles
+                    # Calculate center coordinates for geocoding
+                    center_lat = (detection['y1'] + detection['y2']) / 2
+                    center_lng = (detection['x1'] + detection['x2']) / 2
+                    
+                    try:
+                        # Try cache first
+                        cached_result = geocoding_cache.get(center_lat, center_lng)
+                        if cached_result:
+                            detection['address'] = cached_result.address
+                            detection['address_confidence'] = cached_result.confidence
+                            detection['address_provider'] = cached_result.provider.value
+                        else:
+                            # Geocode and cache result
+                            geocoding_result = geocoding_service.reverse_geocode(center_lat, center_lng)
+                            detection['address'] = geocoding_result.address
+                            detection['address_confidence'] = geocoding_result.confidence
+                            detection['address_provider'] = geocoding_result.provider.value
+                            
+                            # Cache the result
+                            geocoding_cache.put(center_lat, center_lng, geocoding_result)
+                            
+                    except (GeocodingError, RateLimitError) as e:
+                        # Graceful fallback to coordinates
+                        detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
+                        detection['address_confidence'] = 0.0
+                        detection['address_provider'] = "fallback"
+                        print(f" geocoding failed for {center_lat}, {center_lng}: {e}")
+                    except Exception as e:
+                        # Unexpected error - use coordinates as fallback
+                        detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
+                        detection['address_confidence'] = 0.0
+                        detection['address_provider'] = "error"
+                        print(f" unexpected geocoding error for {center_lat}, {center_lng}: {e}")
+                else:
+                    # For tile results (debugging), don't add address
+                    detection['address'] = ""
+                    detection['address_confidence'] = 0.0
+                    detection['address_provider'] = "none"
+            
+            # Store geocoding usage in session for frontend display
+            try:
+                usage = geocoding_service.get_session_usage()
+                session['geocoding_usage'] = {
+                    'google_requests': usage.google_requests,
+                    'azure_requests': usage.azure_requests,
+                    'total_requests': usage.total_requests,
+                    'successful_requests': usage.successful_requests,
+                    'failed_requests': usage.failed_requests
+                }
+            except Exception as e:
+                print(f" warning: could not store geocoding usage: {e}")
+            
+            address_time = time.time() - address_start_time
+            print(f" address lookup completed in {address_time:.2f} seconds")
+            
+        except Exception as e:
+            print(f" address lookup initialization failed: {e}")
+            # Add fallback address fields to all detections
+            for detection in results:
+                if detection.get('class') == 0:
+                    center_lat = (detection['y1'] + detection['y2']) / 2
+                    center_lng = (detection['x1'] + detection['x2']) / 2
+                    detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
+                    detection['address_confidence'] = 0.0
+                    detection['address_provider'] = "error"
+                else:
+                    detection['address'] = ""
+                    detection['address_confidence'] = 0.0
+                    detection['address_provider'] = "none"
 
     # prepend a pseudo-result for each tile, for debugging
     tile_results = []
@@ -694,7 +1140,27 @@ def allowed_extension(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg'}
 
 # detection route for provided images
-@ app.route('/getobjectscustom', methods=['POST'])
+@app.route('/api-usage', methods=['GET'])
+def get_api_usage():
+    """Return current session's API usage statistics for frontend display."""
+    try:
+        usage_data = {
+            'geocoding_usage': session.get('geocoding_usage', {
+                'google_requests': 0,
+                'azure_requests': 0,
+                'total_requests': 0,
+                'successful_requests': 0,
+                'failed_requests': 0
+            })
+        }
+        return jsonify(usage_data)
+    except Exception as e:
+        logger = get_api_logger()
+        logger.error(f"Failed to get API usage: {e}")
+        return jsonify({'error': 'Failed to retrieve API usage'}), 500
+
+
+@app.route('/getobjectscustom', methods=['POST'])
 def get_objects_custom():
     start = time.time()
     
