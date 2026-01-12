@@ -1,22 +1,21 @@
-# Azure Maps API Key Management Guide
+# Azure Maps Local Setup Guide
 
 ## Overview
 
-TowerScout's Azure Maps integration supports multiple authentication methods to accommodate both individual developers and enterprise deployments. This guide explains the different types of Azure API keys and how they're managed by the application.
+TowerScout's Azure Maps integration is designed for **local deployment only**, using simple subscription key authentication. This guide explains how to configure Azure Maps for individual users deploying TowerScout on their local devices.
 
 ---
 
-## 🔑 **Authentication Methods Supported**
+## 🔑 **Local Deployment Authentication**
 
-### 1. **Subscription Key Authentication** ⭐ **RECOMMENDED**
+### **Subscription Key Authentication** ⭐ **ONLY METHOD SUPPORTED**
 
-**Best for**: Individual developers, small teams, most production deployments
+**Best for**: Local deployment on individual user devices (epidemiologists, researchers, health departments)
 
 **Configuration**:
 ```bash
 # .env file
 AZURE_MAPS_SUBSCRIPTION_KEY=your_subscription_key_here
-AZURE_MAPS_AUTH_METHOD=subscription_key  # Default
 ```
 
 **How to obtain**:
@@ -33,72 +32,11 @@ AZURE_MAPS_AUTH_METHOD=subscription_key  # Default
 **Security Features**:
 - Keys can be regenerated without affecting the other key
 - Rate limiting and usage monitoring through Azure Portal
-- Works with Azure Key Vault for enterprise security
+- Stored securely in `.env` file (never committed to version control)
 
 ---
 
-### 2. **Azure Active Directory (AAD) Authentication** 🏢 **ENTERPRISE**
-
-**Best for**: Enterprise deployments, existing AAD infrastructure, role-based access control
-
-**Configuration**:
-```bash
-# .env file
-AZURE_MAPS_AUTH_METHOD=aad
-AZURE_CLIENT_ID=your_application_client_id
-AZURE_TENANT_ID=your_tenant_id
-AZURE_CLIENT_SECRET=your_client_secret  # Or use certificate
-```
-
-**How to set up**:
-1. Register application in Azure Active Directory
-2. Grant Azure Maps permissions to the application
-3. Configure service principal with appropriate roles
-4. Use application credentials for authentication
-
-**Enterprise Benefits**:
-- **Role-based access control**: Different permissions for different users/applications
-- **Audit trails**: Complete logging of who accessed what resources
-- **Conditional access**: MFA, device compliance, location restrictions
-- **Integration**: Works with existing enterprise identity systems
-
-**Code Example**:
-```python
-# Enterprise AAD authentication (future enhancement)
-from azure.identity import DefaultAzureCredential
-from azure.maps.authentication import AzureMapsCredential
-
-def get_aad_authenticated_client():
-    credential = DefaultAzureCredential()
-    maps_credential = AzureMapsCredential(
-        credential=credential,
-        client_id=os.getenv('AZURE_CLIENT_ID')
-    )
-    return maps_credential
-```
-
----
-
-### 3. **Shared Access Signature (SAS) Tokens** 🔒 **ADVANCED**
-
-**Best for**: Time-limited access, third-party integrations, fine-grained permissions
-
-**Configuration**:
-```bash
-# .env file
-AZURE_MAPS_AUTH_METHOD=sas
-AZURE_MAPS_SAS_TOKEN=sv=2022-11-02&ss=bfqt&srt=sco&sp=rwdlacupx&se=2024-01-01T00:00:00Z&st=2023-01-01T00:00:00Z&spr=https&sig=...
-```
-
-**Features**:
-- **Time-bound**: Automatic expiration
-- **Scoped permissions**: Limit access to specific operations
-- **Revocable**: Can be invalidated before expiration
-- **No long-term secrets**: Reduces security risk
-
----
-
-## 🏗️ **Current TowerScout Implementation**
+## 🏗️ **TowerScout Local Setup Implementation**
 
 ### **How Azure Maps Keys Are Accessed**
 

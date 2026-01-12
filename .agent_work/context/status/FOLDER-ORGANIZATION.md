@@ -6,7 +6,7 @@
 .agent_work/
 ├── 📄 PROGRESS-STATUS.md          # Current progress summary (NEW)
 ├── 📄 README.md                   # Updated overview with current status  
-├── 📄 tasks.md                    # Updated task tracking (7/27 complete, TASK-024 added)
+├── 📄 current-tasks.md           # Active sprint tasks (TASK-030 IN_PROGRESS)
 ├── 📄 design.md                   # Technical architecture (updated)
 ├── 📄 requirements.md             # EARS notation requirements
 ├── 📄 COMMIT_READY.md            # Updated for Azure Maps completion
@@ -68,7 +68,7 @@
 ### **Executive Level**
 - `PROGRESS-STATUS.md` - Quick status overview for stakeholders
 - `README.md` - Complete project overview and navigation
-- `tasks.md` - Detailed implementation tracking
+- `current-tasks.md` - Active sprint task management (primary source of truth)
 
 ### **Technical Level**  
 - `design.md` - Architecture and technical decisions
