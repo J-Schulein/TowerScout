@@ -43,7 +43,7 @@ class TowerScoutValidator:
     
     # Engine and provider validation
     VALID_ENGINES = {'yolo', 'efficientnet', 'both'}  # Legacy abstract types
-    VALID_PROVIDERS = {'google', 'bing'}
+    VALID_PROVIDERS = {'google', 'azure'}
     
     @staticmethod
     def get_available_engines():
@@ -328,6 +328,28 @@ class TowerScoutValidator:
                 raise ValidationError(f"File too large. Maximum size: {max_size / (1024*1024):.1f}MB")
         
         return file
+    
+    @staticmethod
+    def validate_search_query(query: str) -> str:
+        """Validate address search query input"""
+        if not query or not isinstance(query, str):
+            raise ValidationError("Search query is required and must be a string")
+        
+        # Length limits
+        if len(query) > 500:
+            raise ValidationError("Search query too long (max 500 characters)")
+        
+        if len(query.strip()) < 2:
+            raise ValidationError("Search query too short (min 2 characters)")
+        
+        # Sanitize potentially malicious characters
+        sanitized = re.sub(r'[<>"\']', '', query)
+        sanitized = sanitized.strip()
+        
+        if not sanitized:
+            raise ValidationError("Search query contains only invalid characters")
+        
+        return sanitized
     
     @staticmethod
     def validate_image_file(file: FileStorage) -> FileStorage:
