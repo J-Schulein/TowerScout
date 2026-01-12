@@ -1,10 +1,21 @@
 # Decision Record 008: Azure Key Vault Integration Architecture
 
 **Date**: December 10, 2025  
-**Status**: Approved  
+**Status**: ❌ **OBSOLETE FOR LOCAL DEPLOYMENT**  
 **Decision Maker**: Development Team  
+**Superseded By**: [Decision Record 010: Local Deployment Strategy](010-local-deployment-strategy.md)
 
-## Decision
+## ❌ OBSOLETE NOTICE
+
+This decision record is **OBSOLETE** as of January 7, 2026, following the adoption of a local deployment only strategy (Decision Record 010). Azure Key Vault integration is not required for local deployment scenarios where physical access control is sufficient.
+
+**Reason for Obsolescence**: TowerScout deployment model changed from hosted service to local deployment on individual user devices. Enterprise features including Azure Key Vault integration are unnecessary complexity for single-user local deployment scenarios.
+
+**Current Approach**: Standard environment variable configuration via `.env` files as documented in the local deployment strategy.
+
+---
+
+## Original Decision (Now Obsolete)
 
 Implement dual authentication architecture supporting both standard Azure Maps subscription keys via environment variables and enterprise Azure Key Vault integration using `DefaultAzureCredential` with comprehensive fallback mechanisms.
 

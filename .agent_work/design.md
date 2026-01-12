@@ -8,7 +8,15 @@ This document outlines the technical architecture and implementation strategy fo
 
 **DEPLOYMENT MODEL UPDATE**: **LOCAL DEPLOYMENT** - TowerScout deployed on individual user devices (epidemiologists, researchers, health departments) rather than hosted service. This fundamentally changes architecture priorities from enterprise security and scalability to installation simplicity and broad hardware compatibility.
 
-**IMPLEMENTATION STATUS**: Security foundation complete (7 of 27 original tasks), Azure Maps migration completed. **NEW**: 5 local deployment tasks (TASK-025 through TASK-029) added for user-friendly local deployment.
+**SECURITY MODEL CLARIFICATION**: **LOCAL DEPLOYMENT SECURITY** differs from enterprise models:
+- **Physical Access Control**: Primary security boundary is device physical access
+- **API Key Protection**: Keys stored in environment variables, but **client-side exposure remains a vulnerability**
+- **Network Security**: HTTPS recommended but not enforced for local deployment
+- **Authentication**: No user authentication required for single-user local deployment
+
+**CRITICAL SECURITY ISSUE**: Despite security-first claims, API keys are still exposed in client-side JavaScript, visible in browser developer tools. This requires immediate attention (TASK-034).
+
+**IMPLEMENTATION STATUS**: Security foundation complete (7 of 27 original tasks), Azure Maps migration partially complete. **NEW**: 5 local deployment tasks (TASK-025 through TASK-029) + 2 critical security/performance tasks (TASK-034, TASK-035) added for production readiness.
 
 **Current Architecture**: Multi-provider map system (Google/Azure), comprehensive error handling infrastructure, and production-ready validation framework **SIMPLIFIED** for local deployment.
 
@@ -463,9 +471,9 @@ class ProgressTracker {
 ### Request Processing Pipeline
 
 ```
-User Request → Input Validation → Authentication → Authorization → Processing → Response
-      ↓              ↓                ↓              ↓             ↓           ↓
-   Logging       Error Handler    Session Mgmt   Permission    Core Logic   Format
+User Request → Input Validation → Processing → Response
+      ↓              ↓              ↓           ↓
+   Logging       Error Handler  Core Logic   Format
 ```
 
 ### ML Detection Pipeline (Protected)
@@ -636,9 +644,8 @@ tests/
 │   ├── test_ml_pipeline.py
 │   └── test_user_workflows.py
 ├── security/
-│   ├── test_authentication.py
 │   ├── test_input_validation.py
-│   └── test_authorization.py
+│   └── test_configuration_security.py
 └── performance/
     ├── test_load_performance.py
     └── test_memory_usage.py
@@ -720,7 +727,7 @@ class ResourceManager:
 **Phase 1: Security Foundation**
 - Environment variable configuration
 - Input validation
-- Basic authentication
+- Configuration management
 - Error handling infrastructure
 
 **Phase 2: Infrastructure Enhancement**

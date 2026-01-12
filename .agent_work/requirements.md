@@ -435,7 +435,7 @@ Success criteria must be met before moving to the next phase of development.
 - Integration maintains existing detection workflow without UI disruption
 
 **Dependencies**: Environment variables (GOOGLE_API_KEY, AZURE_MAPS_SUBSCRIPTION_KEY), Redis optional  
-**Reference**: [TASK-030](tasks.md#task-030-address-lookup-for-detections-), [legacy-features.md](legacy-features.md#req-legacy-001-address-lookup-for-detections)
+**Reference**: [TASK-030](current-tasks.md#task-030-address-lookup-for-detections-), [legacy-features.md](legacy-features.md#req-legacy-001-address-lookup-for-detections)
 
 ### LEG-002: Interactive Highlighting System
 **Priority**: HIGH  
@@ -455,7 +455,7 @@ Success criteria must be met before moving to the next phase of development.
 - Integration works across all map providers (Google, Azure, Upload)
 
 **Dependencies**: LEG-001 (Address Lookup) for address display integration  
-**Reference**: [TASK-031](tasks.md#task-031-interactive-highlighting-system-), [legacy-features.md](legacy-features.md#req-legacy-002-interactive-highlighting-system)
+**Reference**: [TASK-031](current-tasks.md#task-031-interactive-highlighting-system-), [legacy-features.md](legacy-features.md#req-legacy-002-interactive-highlighting-system)
 
 ### LEG-003: Enhanced Details Panel
 **Priority**: HIGH  
@@ -475,7 +475,7 @@ Success criteria must be met before moving to the next phase of development.
 - Loading states handled gracefully during address lookup
 
 **Dependencies**: LEG-001 (Address Lookup) for address data, LEG-002 (Interactive Highlighting) for selection integration  
-**Reference**: [TASK-032](tasks.md#task-032-enhanced-details-panel-), [legacy-features.md](legacy-features.md#req-legacy-003-enhanced-details-panel)
+**Reference**: [TASK-032](current-tasks.md#task-032-enhanced-details-panel-), [legacy-features.md](legacy-features.md#req-legacy-003-enhanced-details-panel)
 
 ### LEG-004: False Positive Review Mode
 **Priority**: MEDIUM  
@@ -497,4 +497,4 @@ Success criteria must be met before moving to the next phase of development.
 - Integration maintains existing checkbox functionality for backward compatibility
 
 **Dependencies**: LEG-002 (Interactive Highlighting) for selection system, LEG-003 (Details Panel) for detection information display  
-**Reference**: [TASK-033](tasks.md#task-033-false-positive-review-mode-), [legacy-features.md](legacy-features.md#req-legacy-004-false-positive-review-mode)
+**Reference**: [TASK-033](task-backlog.md#task-033-manual-tower-addition-feature-), [legacy-features.md](legacy-features.md#req-legacy-004-false-positive-review-mode)

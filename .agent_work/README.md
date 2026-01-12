@@ -10,11 +10,13 @@ Complete spec-driven workflow documents created and actively implemented for tra
 
 ```
 .agent_work/
-├── requirements.md     # EARS notation requirements (22 requirements across 6 categories)
-├── design.md          # Technical architecture and implementation strategy  
-├── tasks.md           # Detailed implementation plan (27 tasks across 4 phases)
-├── README.md          # This overview document
-├── decisions/         # Architectural decision records (001-009)
+├── requirements.md        # EARS notation requirements (22 requirements across 6 categories)
+├── design.md             # Technical architecture and implementation strategy  
+├── current-tasks.md      # Active sprint tasks and immediate work (primary source for current work)
+├── task-backlog.md       # Future tasks organized by priority and dependencies
+├── completed-tasks.md    # Historical task completion record (last 4 weeks + archived)
+├── README.md             # This overview document
+├── decisions/            # Architectural decision records (001-009)
 │   ├── 001-implementation-strategy.md    # Component-by-component approach
 │   ├── 002-ml-model-protection.md       # ML model protection policy
 │   ├── 003-security-first-approach.md   # Security-first implementation
@@ -24,10 +26,16 @@ Complete spec-driven workflow documents created and actively implemented for tra
 │   ├── 007-coordinate-system-transformation.md # Coordinate handling
 │   ├── 008-azure-key-vault-integration.md # Key Vault architecture
 │   └── 009-error-handling-infrastructure.md # Error handling design
+├── context/              # Supporting documentation organized by purpose
+│   ├── guides/           # User-facing setup guides, deployment instructions
+│   ├── analysis/         # Technical reality checks, provider comparisons
+│   ├── status/           # Progress tracking, workflow documents
+│   └── archive/          # Archived context files organized by month
 ├── Azure-Maps-Authentication-Guide.md # Enterprise authentication
-└── tasks/            # Individual task documentation
-    ├── TASK-001-api-key-security.md     # ✅ COMPLETED
-    ├── TASK-002-input-validation.md     # ✅ COMPLETED  
+└── tasks/               # Individual task documentation
+    ├── active/          # Symlinks to current individual task files (for quick access)
+    ├── completed/       # Completed individual task files
+```  
     ├── TASK-003-error-handling-infrastructure.md # ✅ COMPLETED
     ├── TASK-005-testing-framework.md    # ✅ COMPLETED
     ├── TASK-008/                         # ✅ Azure Maps implementation

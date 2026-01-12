@@ -41,7 +41,9 @@ webapp/
 ├── Azure-Maps-Authentication-Guide.md [NEW]
 ├── PROGRESS-STATUS.md    [NEW] - Comprehensive progress summary
 ├── FOLDER-ORGANIZATION.md [NEW] - Documentation organization
-├── tasks.md              [UPDATED] - 7/27 tasks completed, TASK-024 added
+├── current-tasks.md        [NEW]     - Active sprint tasks (TASK-030 IN_PROGRESS)
+├── task-backlog.md       [NEW]     - Future tasks prioritization  
+├── completed-tasks.md    [NEW]     - Historical task completion record
 ├── README.md             [UPDATED] - Current status
 └── design.md             [UPDATED] - Architecture status
 ```
@@ -81,7 +83,9 @@ git add .agent_work/FOLDER-ORGANIZATION.md
 
 **Updated Documentation:**
 ```bash
-git add .agent_work/tasks.md
+git add .agent_work/current-tasks.md
+git add .agent_work/task-backlog.md  
+git add .agent_work/completed-tasks.md
 git add .agent_work/README.md
 git add .agent_work/design.md
 git add .agent_work/COMMIT_READY.md
@@ -101,7 +105,7 @@ git add .agent_work/tasks/TASK-008/ .agent_work/Azure-Maps-Authentication-Guide.
         .agent_work/PROGRESS-STATUS.md .agent_work/FOLDER-ORGANIZATION.md
 
 # Add updated documentation
-git add .agent_work/tasks.md .agent_work/README.md .agent_work/design.md .agent_work/COMMIT_READY.md
+git add .agent_work/current-tasks.md .agent_work/task-backlog.md .agent_work/completed-tasks.md .agent_work/README.md .agent_work/design.md .agent_work/COMMIT_READY.md
 
 # Commit with comprehensive message
 git commit -m "feat: complete Azure Maps provider with comprehensive infrastructure improvements
