@@ -1,0 +1,7 @@
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Failed to generate Azure Maps URL: Longitude 200.0 outside valid range [-180, 180]
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Failed to generate Azure Maps URL: 'lng'
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Azure Maps subscription key is missing
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Invalid size parameter '640,480,100': Invalid size format: 640,480,100
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Invalid size parameter 'abc,def': invalid literal for int() with base 10: 'abc'
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Invalid size parameter '50,50': Width 50 outside valid range [80, 2000]
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Invalid size parameter '3000,3000': Width 3000 outside valid range [80, 2000]

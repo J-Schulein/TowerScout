@@ -270,3 +270,1417 @@
 2026-01-05 13:23:02 - towerscout.ml - INFO - YOLOv5 model loaded successfully
 2026-01-05 13:23:02 - towerscout.ml - INFO - CUDA not available, using CPU
 2026-01-05 13:25:06 - towerscout.api - INFO - Main page loaded at 2026-01-05 13:25:06.489712-05:00 EST
+2026-01-06 09:48:59 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 09:48:59 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 09:48:59 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 09:48:59 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 09:48:59 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 09:48:59 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 09:49:32 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 09:49:32 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 09:49:35 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 09:49:35 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 09:49:41 - towerscout.api - INFO - Main page loaded at 2026-01-06 09:49:41.827694-05:00 EST
+2026-01-06 10:29:23 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 10:29:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 10:29:23 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 10:29:23 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 10:29:23 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 10:29:23 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 10:29:55 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 10:29:55 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 10:29:58 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 10:29:58 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 10:30:06 - towerscout.api - INFO - Main page loaded at 2026-01-06 10:30:06.611739-05:00 EST
+2026-01-06 10:30:46 - towerscout.api - INFO - Main page loaded at 2026-01-06 10:30:46.563714-05:00 EST
+2026-01-06 11:07:21 - towerscout.api - INFO - Main page loaded at 2026-01-06 11:07:21.327379-05:00 EST
+2026-01-06 11:08:00 - towerscout.api - INFO - Main page loaded at 2026-01-06 11:08:00.989932-05:00 EST
+2026-01-06 11:08:28 - towerscout.api - INFO - Main page loaded at 2026-01-06 11:08:28.768267-05:00 EST
+2026-01-06 11:09:13 - towerscout.api - INFO - Main page loaded at 2026-01-06 11:09:13.217230-05:00 EST
+2026-01-06 11:33:16 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 11:33:16 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 11:33:17 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 11:33:17 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 11:33:17 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 11:33:17 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 11:34:00 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 11:34:00 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 11:34:00 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 11:34:00 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 11:34:00 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 11:35:18 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 11:35:18 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 11:35:18 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 11:35:18 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 11:35:18 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 11:35:18 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 11:35:50 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 11:35:50 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 11:35:54 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 11:35:54 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 11:36:00 - towerscout.api - INFO - Main page loaded at 2026-01-06 11:36:00.109414-05:00 EST
+2026-01-06 11:36:47 - towerscout.api - INFO - Main page loaded at 2026-01-06 11:36:47.913047-05:00 EST
+2026-01-06 11:38:23 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 11:38:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 11:38:23 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 11:38:23 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 11:38:24 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 11:38:24 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 11:38:54 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 11:38:54 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 11:38:57 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 11:38:57 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 11:39:04 - towerscout.api - INFO - Main page loaded at 2026-01-06 11:39:04.552420-05:00 EST
+2026-01-06 11:42:39 - towerscout.api - INFO - Main page loaded at 2026-01-06 11:42:39.477197-05:00 EST
+2026-01-06 11:43:09 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 11:43:09 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 11:43:09 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 11:43:09 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 11:43:09 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 11:43:09 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 11:43:40 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 11:43:40 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 11:43:43 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 11:43:43 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 11:44:18 - towerscout.api - INFO - Main page loaded at 2026-01-06 11:44:18.348948-05:00 EST
+2026-01-06 11:45:17 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 11:45:17 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 11:45:17 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 11:45:17 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 11:45:17 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 11:45:17 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 11:45:49 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 11:45:49 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 11:45:52 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 11:45:52 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 11:45:56 - towerscout.api - INFO - Main page loaded at 2026-01-06 11:45:56.483951-05:00 EST
+2026-01-06 11:59:13 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 11:59:13 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 11:59:13 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 11:59:13 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 11:59:13 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 11:59:13 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 11:59:44 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 11:59:44 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 11:59:47 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 11:59:47 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 12:00:40 - towerscout.api - INFO - Main page loaded at 2026-01-06 12:00:40.885596-05:00 EST
+2026-01-06 12:39:03 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:39:03 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:39:04 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 12:39:04 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 12:39:04 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 12:41:37 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:41:37 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:41:37 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 12:41:37 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 12:41:37 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 12:41:37 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 12:42:08 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 12:42:08 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 12:42:11 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 12:42:11 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 12:42:17 - towerscout.api - INFO - Main page loaded at 2026-01-06 12:42:17.453506-05:00 EST
+2026-01-06 12:42:45 - towerscout.api - INFO - Main page loaded at 2026-01-06 12:42:45.768603-05:00 EST
+2026-01-06 12:43:22 - towerscout.api - INFO - Main page loaded at 2026-01-06 12:43:22.640432-05:00 EST
+2026-01-06 12:43:41 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:43:41 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:43:41 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 12:43:41 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 12:43:41 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 12:43:41 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 12:44:12 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 12:44:12 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 12:44:15 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 12:44:15 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 12:44:24 - towerscout.api - INFO - Main page loaded at 2026-01-06 12:44:24.287220-05:00 EST
+2026-01-06 12:45:38 - towerscout.api - INFO - Main page loaded at 2026-01-06 12:45:38.605930-05:00 EST
+2026-01-06 12:46:55 - towerscout.api - INFO - Main page loaded at 2026-01-06 12:46:55.839884-05:00 EST
+2026-01-06 12:48:46 - towerscout.api - INFO - Main page loaded at 2026-01-06 12:48:46.622881-05:00 EST
+2026-01-06 13:58:21 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 13:58:21 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 13:58:21 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 13:58:21 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 13:58:21 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 13:58:21 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 13:58:53 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 13:58:53 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 13:58:56 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 13:58:56 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 13:59:04 - towerscout.api - INFO - Main page loaded at 2026-01-06 13:59:04.039769-05:00 EST
+2026-01-06 13:59:34 - towerscout.api - INFO - Main page loaded at 2026-01-06 13:59:34.325904-05:00 EST
+2026-01-06 14:12:11 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 14:12:11 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 14:12:11 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-06 14:12:11 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-06 14:12:12 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-06 14:12:12 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-06 14:12:43 - towerscout.ml - INFO - Loading model: newest
+2026-01-06 14:12:43 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-06 14:12:46 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-06 14:12:46 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-06 14:12:58 - towerscout.api - INFO - Main page loaded at 2026-01-06 14:12:58.013720-05:00 EST
+2026-01-06 14:53:18 - towerscout.api - INFO - Main page loaded at 2026-01-06 14:53:18.485887-05:00 EST
+2026-01-06 15:05:13 - towerscout.api - INFO - Main page loaded at 2026-01-06 15:05:13.003000-05:00 EST
+2026-01-06 15:15:08 - towerscout.api - INFO - Main page loaded at 2026-01-06 15:15:08.371308-05:00 EST
+2026-01-06 15:20:17 - towerscout.api - INFO - Main page loaded at 2026-01-06 15:20:17.455695-05:00 EST
+2026-01-06 15:29:52 - towerscout.api - INFO - Main page loaded at 2026-01-06 15:29:52.354074-05:00 EST
+2026-01-07 11:18:23 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:18:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:18:23 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 11:18:24 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 11:18:24 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 11:18:24 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 11:18:57 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 11:18:57 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 11:19:01 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 11:19:01 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 11:19:17 - towerscout.api - INFO - Main page loaded at 2026-01-07 11:19:17.479486-05:00 EST
+2026-01-07 11:23:31 - towerscout.api - INFO - Main page loaded at 2026-01-07 11:23:31.108956-05:00 EST
+2026-01-07 11:25:03 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:25:03 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:25:04 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 11:25:04 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 11:25:04 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 11:25:04 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 11:25:36 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 11:25:36 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 11:25:40 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 11:25:40 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 11:25:46 - towerscout.api - INFO - Main page loaded at 2026-01-07 11:25:46.288030-05:00 EST
+2026-01-07 11:32:48 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:32:48 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:32:48 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 11:32:48 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 11:32:48 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 11:32:48 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 11:33:20 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 11:33:20 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 11:33:23 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 11:33:23 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 11:36:00 - towerscout.api - INFO - Main page loaded at 2026-01-07 11:36:00.721759-05:00 EST
+2026-01-07 11:37:00 - towerscout.api - INFO - Main page loaded at 2026-01-07 11:37:00.551921-05:00 EST
+2026-01-07 11:38:45 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:38:45 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:38:45 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 11:38:45 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 11:38:46 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 11:38:46 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 11:39:18 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 11:39:18 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 11:39:21 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 11:39:21 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 11:39:32 - towerscout.api - INFO - Main page loaded at 2026-01-07 11:39:32.178995-05:00 EST
+2026-01-07 11:42:25 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:42:25 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:42:25 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 11:42:25 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 11:42:25 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 11:42:25 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 11:42:56 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 11:42:56 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 11:42:59 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 11:42:59 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 11:43:53 - towerscout.api - INFO - Main page loaded at 2026-01-07 11:43:53.074604-05:00 EST
+2026-01-07 11:44:10 - towerscout.api - INFO - Main page loaded at 2026-01-07 11:44:10.844998-05:00 EST
+2026-01-07 11:44:12 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2026-01-07 11:47:28 - towerscout.api - INFO - Main page loaded at 2026-01-07 11:47:28.597869-05:00 EST
+2026-01-07 11:47:43 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:47:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:47:43 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 11:47:43 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 11:47:43 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 11:47:43 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 11:48:15 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 11:48:15 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 11:48:18 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 11:48:18 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 11:59:12 - towerscout.api - INFO - Main page loaded at 2026-01-07 11:59:12.351641-05:00 EST
+2026-01-07 12:10:09 - towerscout.api - INFO - Main page loaded at 2026-01-07 12:10:09.590229-05:00 EST
+2026-01-07 12:10:39 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 12:10:39 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 12:10:39 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 12:10:39 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 12:10:39 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 12:10:39 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 12:11:11 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 12:11:11 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 12:11:15 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 12:11:15 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 12:11:21 - towerscout.api - INFO - Main page loaded at 2026-01-07 12:11:21.981503-05:00 EST
+2026-01-07 12:17:42 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 12:17:42 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 12:17:42 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 12:17:42 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 12:17:42 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 12:17:42 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 12:17:42 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 12:18:15 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 12:18:15 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 12:18:18 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 12:18:18 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 12:18:34 - towerscout.api - INFO - Main page loaded at 2026-01-07 12:18:34.664955-05:00 EST
+2026-01-07 12:25:46 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 12:25:46 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 12:25:46 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 12:25:46 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 12:25:46 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 12:25:47 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 12:25:47 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 12:26:17 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 12:26:17 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 12:26:20 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 12:26:20 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 12:26:26 - towerscout.api - INFO - Main page loaded at 2026-01-07 12:26:26.025380-05:00 EST
+2026-01-07 12:28:01 - towerscout.api - INFO - Main page loaded at 2026-01-07 12:28:01.399451-05:00 EST
+2026-01-07 12:54:27 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 12:54:27 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 12:54:27 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 12:54:27 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 12:54:27 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 12:54:27 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 12:54:27 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 12:55:02 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 12:55:02 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 12:55:07 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 12:55:07 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 12:55:24 - towerscout.api - INFO - Main page loaded at 2026-01-07 12:55:24.097424-05:00 EST
+2026-01-07 13:25:08 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 13:25:08 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 13:25:08 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 13:25:08 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 13:25:08 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 13:25:08 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 13:25:08 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 13:25:42 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 13:25:42 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 13:27:47 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 13:27:47 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 13:27:47 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 13:27:47 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 13:27:48 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 13:27:48 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 13:27:48 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 13:28:22 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 13:28:22 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 13:28:37 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 13:28:37 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 13:29:18 - towerscout.api - INFO - Main page loaded at 2026-01-07 13:29:18.640402-05:00 EST
+2026-01-07 13:29:37 - towerscout.api - INFO - Main page loaded at 2026-01-07 13:29:37.986963-05:00 EST
+2026-01-07 13:57:31 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 13:57:32 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 13:57:32 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 13:57:32 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 13:57:32 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 13:57:32 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 13:57:32 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 13:58:06 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 13:58:06 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 13:58:10 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 13:58:10 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 13:58:55 - towerscout.api - INFO - Main page loaded at 2026-01-07 13:58:55.468941-05:00 EST
+2026-01-07 14:51:11 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 14:51:11 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 14:51:11 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 14:51:11 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 14:51:11 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 14:51:11 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 14:51:11 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 14:51:45 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 14:51:45 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 14:51:48 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 14:51:48 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 14:51:54 - towerscout.api - INFO - Main page loaded at 2026-01-07 14:51:54.309776-05:00 EST
+2026-01-07 16:29:57 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 16:29:57 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 16:29:57 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 16:29:58 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 16:29:58 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 16:29:58 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 16:29:58 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 16:30:27 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 16:30:27 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 16:30:27 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 16:30:27 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 16:30:28 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 16:30:28 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 16:30:28 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-07 16:30:28 - towerscout.maps - INFO - Azure API response: status=401, size=187 bytes
+2026-01-07 16:30:28 - towerscout.maps - ERROR - Azure API authentication failed - check subscription key validity
+2026-01-07 16:31:47 - towerscout.api - INFO - Main page loaded at 2026-01-07 16:31:47.994947-05:00 EST
+2026-01-07 16:33:16 - towerscout.api - INFO - Main page loaded at 2026-01-07 16:33:16.229909-05:00 EST
+2026-01-07 16:33:39 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 16:33:39 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 16:33:39 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 16:33:40 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 16:33:40 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 16:33:40 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 16:33:40 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 16:34:12 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 16:34:12 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 16:34:15 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 16:34:15 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 16:35:40 - towerscout.api - INFO - Main page loaded at 2026-01-07 16:35:40.233123-05:00 EST
+2026-01-07 16:40:26 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 16:40:26 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 16:40:26 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 16:40:26 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-07 16:40:26 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-07 16:40:26 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-07 16:40:26 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-07 16:40:58 - towerscout.ml - INFO - Loading model: newest
+2026-01-07 16:40:58 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-07 16:41:01 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-07 16:41:01 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-07 16:41:07 - towerscout.api - INFO - Main page loaded at 2026-01-07 16:41:07.532589-05:00 EST
+2026-01-08 11:11:55 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 11:11:55 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 11:11:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 11:11:55 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-08 11:11:55 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-08 11:11:55 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-08 11:11:55 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-08 11:12:26 - towerscout.ml - INFO - Loading model: newest
+2026-01-08 11:12:26 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-08 11:12:30 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-08 11:12:30 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-08 11:13:50 - towerscout.api - INFO - Main page loaded at 2026-01-08 11:13:50.352764-05:00 EST
+2026-01-08 11:51:29 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 11:51:29 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 11:51:29 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 11:51:29 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-08 11:51:29 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-08 11:51:29 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-08 11:51:29 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-08 11:52:00 - towerscout.ml - INFO - Loading model: newest
+2026-01-08 11:52:00 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-08 11:52:03 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-08 11:52:03 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-08 11:52:10 - towerscout.api - INFO - Main page loaded at 2026-01-08 11:52:10.116651-05:00 EST
+2026-01-08 11:52:19 - towerscout.api - INFO - Main page loaded at 2026-01-08 11:52:19.207243-05:00 EST
+2026-01-08 12:20:41 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 12:20:41 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 12:20:41 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 12:20:41 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-08 12:20:41 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-08 12:20:41 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-08 12:20:41 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-08 12:21:12 - towerscout.ml - INFO - Loading model: newest
+2026-01-08 12:21:12 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-08 12:21:15 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-08 12:21:15 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-08 12:21:24 - towerscout.api - INFO - Main page loaded at 2026-01-08 12:21:24.226584-05:00 EST
+2026-01-08 14:14:50 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 14:14:50 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 14:14:50 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 14:14:51 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-08 14:14:51 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-08 14:14:51 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-08 14:14:58 - towerscout.api - INFO - Main page loaded at 2026-01-08 14:14:58.384191-05:00 EST
+2026-01-08 14:17:22 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 14:17:22 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 14:17:22 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 14:17:23 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-08 14:17:23 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-08 14:17:23 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-08 14:17:38 - towerscout.api - INFO - Main page loaded at 2026-01-08 14:17:38.655895-05:00 EST
+2026-01-08 14:20:07 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 14:20:07 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 14:20:07 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 14:20:07 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-08 14:20:07 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-08 14:20:07 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-08 14:20:22 - towerscout.api - INFO - Main page loaded at 2026-01-08 14:20:22.273284-05:00 EST
+2026-01-08 14:24:02 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 14:24:02 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 14:24:02 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 14:24:02 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-08 14:24:02 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-08 14:24:02 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-08 14:24:02 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-08 14:24:33 - towerscout.ml - INFO - Loading model: newest
+2026-01-08 14:24:33 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-08 14:24:37 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-08 14:24:37 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-08 14:25:04 - towerscout.api - INFO - Main page loaded at 2026-01-08 14:25:04.827176-05:00 EST
+2026-01-08 14:36:53 - towerscout.api - INFO - Main page loaded at 2026-01-08 14:36:53.238325-05:00 EST
+2026-01-08 15:14:33 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 15:14:33 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 15:14:33 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 15:14:33 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-08 15:14:33 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-08 15:14:33 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-08 15:14:33 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-08 15:15:04 - towerscout.ml - INFO - Loading model: newest
+2026-01-08 15:15:04 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-08 15:15:07 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-08 15:15:07 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-08 15:15:13 - towerscout.api - INFO - Main page loaded at 2026-01-08 15:15:13.782944-05:00 EST
+2026-01-08 15:15:48 - towerscout.api - INFO - Main page loaded at 2026-01-08 15:15:48.614064-05:00 EST
+2026-01-13 11:40:35 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 11:40:35 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 11:40:35 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 11:40:35 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 11:40:35 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 11:40:35 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 11:40:35 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-13 11:41:06 - towerscout.ml - INFO - Loading model: newest
+2026-01-13 11:41:06 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-13 11:41:10 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-13 11:41:10 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-13 11:42:05 - towerscout.api - INFO - Main page loaded at 2026-01-13 11:42:05.361273-05:00 EST
+2026-01-13 11:42:22 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-13 11:42:23 - towerscout.maps - INFO - Azure API response: status=401, size=187 bytes
+2026-01-13 11:42:23 - towerscout.maps - ERROR - Azure API authentication failed - check subscription key validity
+2026-01-13 11:42:23 - towerscout.api - ERROR - Map proxy error for azure/search: Azure Maps authentication failed: Invalid or expired subscription key
+2026-01-13 11:42:23 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-13 11:42:23 - towerscout.maps - INFO - Azure API response: status=401, size=187 bytes
+2026-01-13 11:42:23 - towerscout.maps - ERROR - Azure API authentication failed - check subscription key validity
+2026-01-13 11:42:23 - towerscout.api - ERROR - Map proxy error for azure/search: Azure Maps authentication failed: Invalid or expired subscription key
+2026-01-13 12:03:47 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 12:03:47 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 12:03:47 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 12:03:47 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 12:03:47 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 12:03:48 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 12:07:30 - towerscout.api - INFO - Main page loaded at 2026-01-13 12:07:30.686633-05:00 EST
+2026-01-13 12:07:47 - towerscout.api - INFO - Main page loaded at 2026-01-13 12:07:47.043866-05:00 EST
+2026-01-13 12:11:10 - towerscout.api - INFO - Main page loaded at 2026-01-13 12:11:10.104417-05:00 EST
+2026-01-13 12:17:34 - towerscout.api - INFO - Main page loaded at 2026-01-13 12:17:34.507278-05:00 EST
+2026-01-13 12:22:35 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 12:22:35 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 12:22:35 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 12:22:35 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 12:22:35 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 12:22:35 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 12:23:41 - towerscout.api - INFO - Main page loaded at 2026-01-13 12:23:41.130432-05:00 EST
+2026-01-13 12:23:41 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 12:23:41 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 12:23:57 - towerscout.api - INFO - Main page loaded at 2026-01-13 12:23:57.432246-05:00 EST
+2026-01-13 12:23:58 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 12:23:58 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 12:25:58 - towerscout.api - INFO - Main page loaded at 2026-01-13 12:25:58.943628-05:00 EST
+2026-01-13 12:25:59 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 12:25:59 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 12:26:33 - towerscout.api - INFO - Main page loaded at 2026-01-13 12:26:33.628049-05:00 EST
+2026-01-13 12:26:33 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 12:26:33 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 12:27:17 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 12:27:17 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 12:30:07 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 12:30:07 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 12:30:07 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 12:30:07 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 12:30:07 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 12:30:07 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 12:34:53 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 12:34:53 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 12:38:53 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 12:38:53 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 13:01:40 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 13:01:40 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 13:16:55 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 13:16:55 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 13:37:06 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 13:37:06 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 13:37:28 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2026-01-13 13:37:32 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 13:37:32 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 13:37:44 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 13:55:00 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 13:55:03 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 13:55:03 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 13:57:16 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 13:57:33 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 13:57:33 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 13:57:49 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 13:57:52 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 13:57:52 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 13:58:34 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 13:58:40 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 13:58:40 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 13:58:51 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 13:58:51 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 13:59:24 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 13:59:27 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 13:59:27 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:01:53 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 14:02:01 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:02:01 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:07:46 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 14:07:46 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 14:07:46 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 14:07:47 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 14:07:47 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 14:07:47 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 14:07:53 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 14:08:01 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:08:01 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:10:48 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:10:48 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:11:18 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 14:11:18 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 14:11:18 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 14:11:18 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 14:11:18 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 14:11:18 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 14:11:18 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-13 14:12:05 - towerscout.ml - INFO - Loading model: newest
+2026-01-13 14:12:05 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-13 14:12:10 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-13 14:12:10 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-13 14:12:19 - towerscout.api - INFO - Main page loaded at 2026-01-13 14:12:19.315939-05:00 EST
+2026-01-13 14:12:20 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:12:20 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:12:34 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-13 14:12:34 - towerscout.maps - INFO - Azure API response: status=401, size=187 bytes
+2026-01-13 14:12:34 - towerscout.maps - ERROR - Azure API authentication failed - check subscription key validity
+2026-01-13 14:12:34 - towerscout.api - ERROR - Map proxy error for azure/search: Azure Maps authentication failed: Invalid or expired subscription key
+2026-01-13 14:12:34 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-13 14:12:35 - towerscout.maps - INFO - Azure API response: status=401, size=187 bytes
+2026-01-13 14:12:35 - towerscout.maps - ERROR - Azure API authentication failed - check subscription key validity
+2026-01-13 14:12:35 - towerscout.api - ERROR - Map proxy error for azure/search: Azure Maps authentication failed: Invalid or expired subscription key
+2026-01-13 14:13:01 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:13:01 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:17:03 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 14:17:03 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 14:17:03 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 14:17:03 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 14:17:03 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 14:17:03 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 14:19:39 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 14:19:53 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:19:53 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:25:48 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 14:25:51 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:25:51 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:44:39 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 14:46:31 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 14:46:31 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 14:46:31 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 14:46:31 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 14:46:31 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 14:46:31 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 14:46:58 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 14:47:06 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:47:06 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:47:54 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:47:54 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:49:13 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:49:13 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:49:51 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:49:51 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:50:51 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:50:51 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: 7G19RuHdV6FMXdG...)
+2026-01-13 14:55:35 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 14:55:35 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 14:55:35 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 14:55:35 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 14:55:36 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 14:55:36 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 14:56:17 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:56:17 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 14:56:23 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 14:56:29 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:56:29 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 14:57:19 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:57:19 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 14:57:22 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:57:22 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 14:58:12 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 14:58:12 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 14:58:12 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 14:58:12 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 14:58:12 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 14:58:12 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 14:58:12 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-13 14:58:44 - towerscout.ml - INFO - Loading model: newest
+2026-01-13 14:58:44 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-13 14:58:47 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-13 14:58:47 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-13 14:59:29 - towerscout.api - INFO - Main page loaded at 2026-01-13 14:59:29.974927-05:00 EST
+2026-01-13 14:59:30 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 14:59:30 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 14:59:47 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-13 14:59:48 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-13 15:05:32 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:05:32.724262-05:00 EST
+2026-01-13 15:05:33 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:05:33 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:05:33 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:06:02 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:06:02.972610-05:00 EST
+2026-01-13 15:06:05 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:06:05 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:06:12 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:06:36 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=2 parameters
+2026-01-13 15:06:37 - towerscout.maps - INFO - Azure API response: status=200, size=875 bytes
+2026-01-13 15:07:00 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-13 15:07:01 - towerscout.maps - INFO - Azure API response: status=200, size=3360 bytes
+2026-01-13 15:07:11 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:07:11.697926-05:00 EST
+2026-01-13 15:07:14 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:07:14 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:07:14 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:13:02 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 15:13:02 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 15:13:02 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 15:13:02 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 15:13:02 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 15:13:02 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 15:13:21 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:13:21.355825-05:00 EST
+2026-01-13 15:13:25 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:13:25 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:13:25 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:13:29 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:13:29.705181-05:00 EST
+2026-01-13 15:13:30 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:13:30 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:13:30 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:13:35 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:13:35.161936-05:00 EST
+2026-01-13 15:13:35 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:13:35 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:14:26 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:15:02 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-13 15:15:02 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-13 15:16:15 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=2 parameters
+2026-01-13 15:16:16 - towerscout.maps - INFO - Azure API response: status=200, size=875 bytes
+2026-01-13 15:16:25 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:16:25.177025-05:00 EST
+2026-01-13 15:16:25 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:16:25 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:16:25 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:16:28 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:16:28.085380-05:00 EST
+2026-01-13 15:16:28 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:16:28 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:16:28 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:16:30 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:16:30.108837-05:00 EST
+2026-01-13 15:16:30 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:16:30 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:16:30 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:16:33 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:16:33.816189-05:00 EST
+2026-01-13 15:16:34 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:16:34 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:16:41 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:17:09 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-13 15:17:09 - towerscout.maps - INFO - Azure API response: status=200, size=3360 bytes
+2026-01-13 15:19:37 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:19:37.735651-05:00 EST
+2026-01-13 15:19:38 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:19:38 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:19:38 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:19:41 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:19:41.271457-05:00 EST
+2026-01-13 15:19:41 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:19:41 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:21:04 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:26:56 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:26:56.897458-05:00 EST
+2026-01-13 15:26:59 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:26:59 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:26:59 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:27:03 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:27:03.423905-05:00 EST
+2026-01-13 15:27:04 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:27:04 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:28:03 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:28:57 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:28:57.809893-05:00 EST
+2026-01-13 15:28:58 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:28:58 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:29:05 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:29:05.614379-05:00 EST
+2026-01-13 15:29:06 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:29:06 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:29:07 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:29:07.402551-05:00 EST
+2026-01-13 15:29:08 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:29:08 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:38:03 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:38:03.385323-05:00 EST
+2026-01-13 15:38:03 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:38:03 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:38:06 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:38:06.176573-05:00 EST
+2026-01-13 15:38:06 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:38:06 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:40:15 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:44:51 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:44:51.756987-05:00 EST
+2026-01-13 15:44:52 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:44:52 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:44:52 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2026-01-13 15:44:55 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:44:55.517578-05:00 EST
+2026-01-13 15:44:55 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:44:55 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:46:03 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:49:17 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:49:17.521718-05:00 EST
+2026-01-13 15:49:18 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:49:18 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:49:18 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:49:18.989373-05:00 EST
+2026-01-13 15:49:19 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:49:19 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:51:16 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:51:16.155244-05:00 EST
+2026-01-13 15:51:16 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:51:16 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:51:16 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:51:18 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:51:18.129503-05:00 EST
+2026-01-13 15:51:18 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:51:18 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:51:18 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:51:19 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:51:19.361568-05:00 EST
+2026-01-13 15:51:19 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-13 15:51:20 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:51:20 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:51:23 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:51:23.322447-05:00 EST
+2026-01-13 15:51:24 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:51:24 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:53:19 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:53:19.286804-05:00 EST
+2026-01-13 15:53:19 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:53:19 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:55:35 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 15:55:35 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 15:55:35 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 15:55:35 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-13 15:55:35 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-13 15:55:35 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-13 15:55:58 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:55:58.300385-05:00 EST
+2026-01-13 15:55:58 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:55:58 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:56:00 - towerscout.api - INFO - Main page loaded at 2026-01-13 15:56:00.980703-05:00 EST
+2026-01-13 15:56:01 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-13 15:56:01 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-13 15:56:29 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-13 15:56:29 - towerscout.maps - INFO - Azure API response: status=200, size=4136 bytes
+2026-01-14 10:14:53 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-14 10:14:53 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-14 10:14:53 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-14 10:14:53 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-14 10:14:53 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-14 10:14:53 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-14 10:14:53 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-14 10:15:24 - towerscout.ml - INFO - Loading model: newest
+2026-01-14 10:15:24 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-14 10:15:28 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-14 10:15:28 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-14 10:15:48 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:15:48.517697-05:00 EST
+2026-01-14 10:15:49 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:15:49 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2026-01-14 10:15:49 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:15:54 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:15:54.183558-05:00 EST
+2026-01-14 10:15:54 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:15:54 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:31:11 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:31:11.411996-05:00 EST
+2026-01-14 10:31:12 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:31:12 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:31:12 - towerscout.api - WARNING - 404 error: http://127.0.0.1:5000/favicon.ico
+2026-01-14 10:31:22 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:31:22.621586-05:00 EST
+2026-01-14 10:31:23 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:31:23 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:31:25 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:31:25.223183-05:00 EST
+2026-01-14 10:31:25 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:31:25 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:31:52 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 10:31:52 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-14 10:55:09 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:55:09.089033-05:00 EST
+2026-01-14 10:55:09 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:55:09 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:55:10 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:55:10.591606-05:00 EST
+2026-01-14 10:55:10 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:55:10 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:57:48 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:57:48.121126-05:00 EST
+2026-01-14 10:57:48 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:57:48 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:57:51 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:57:51.741052-05:00 EST
+2026-01-14 10:57:51 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:57:51 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:59:17 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:59:17.956257-05:00 EST
+2026-01-14 10:59:18 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:59:18 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:59:19 - towerscout.api - INFO - Main page loaded at 2026-01-14 10:59:19.471992-05:00 EST
+2026-01-14 10:59:19 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 10:59:19 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 10:59:28 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 10:59:29 - towerscout.maps - INFO - Azure API response: status=200, size=3424 bytes
+2026-01-14 11:10:43 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-14 11:10:43 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-14 11:10:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-14 11:10:44 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-14 11:10:44 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-14 11:10:44 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-14 11:10:44 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-14 11:11:14 - towerscout.ml - INFO - Loading model: newest
+2026-01-14 11:11:14 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-14 11:11:17 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-14 11:11:17 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-14 11:13:51 - towerscout.api - INFO - Main page loaded at 2026-01-14 11:13:51.755656-05:00 EST
+2026-01-14 11:14:02 - towerscout.api - INFO - Main page loaded at 2026-01-14 11:14:02.687744-05:00 EST
+2026-01-14 11:15:58 - towerscout.api - INFO - Main page loaded at 2026-01-14 11:15:58.478225-05:00 EST
+2026-01-14 11:15:58 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 11:15:58 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 11:16:11 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 11:16:12 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-14 11:16:34 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 11:16:35 - towerscout.maps - INFO - Azure API response: status=200, size=4136 bytes
+2026-01-14 11:20:34 - towerscout.api - INFO - Main page loaded at 2026-01-14 11:20:34.857693-05:00 EST
+2026-01-14 11:20:35 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 11:20:35 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 11:32:16 - towerscout.api - INFO - Main page loaded at 2026-01-14 11:32:16.370797-05:00 EST
+2026-01-14 11:32:17 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 11:32:17 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 11:32:51 - towerscout.api - INFO - Main page loaded at 2026-01-14 11:32:51.545935-05:00 EST
+2026-01-14 11:32:51 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 11:32:51 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 11:38:30 - towerscout.api - INFO - Main page loaded at 2026-01-14 11:38:30.012552-05:00 EST
+2026-01-14 11:38:30 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 11:38:30 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 11:54:22 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-14 11:54:22 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-14 11:54:22 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-14 11:54:22 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-14 11:54:22 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-14 11:54:22 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-14 11:54:22 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-14 11:54:31 - towerscout.api - INFO - Main page loaded at 2026-01-14 11:54:31.390554-05:00 EST
+2026-01-14 11:54:31 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 11:54:31 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 11:54:57 - towerscout.ml - INFO - Loading model: newest
+2026-01-14 11:54:57 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-14 11:55:01 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-14 11:55:01 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-14 12:17:32 - towerscout.api - INFO - Main page loaded at 2026-01-14 12:17:32.804086-05:00 EST
+2026-01-14 12:17:33 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 12:17:33 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 12:17:43 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 12:17:44 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-14 12:18:03 - towerscout.api - INFO - Main page loaded at 2026-01-14 12:18:03.024635-05:00 EST
+2026-01-14 12:18:03 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 12:18:03 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 12:18:22 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 12:18:23 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-14 12:23:20 - towerscout.api - INFO - Main page loaded at 2026-01-14 12:23:20.109972-05:00 EST
+2026-01-14 12:23:20 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 12:23:20 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 12:23:30 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 12:23:31 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-14 12:28:32 - towerscout.api - INFO - Main page loaded at 2026-01-14 12:28:32.086134-05:00 EST
+2026-01-14 12:28:32 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 12:28:32 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 12:28:42 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 12:28:42 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-14 12:30:13 - towerscout.api - INFO - Main page loaded at 2026-01-14 12:30:13.378992-05:00 EST
+2026-01-14 12:30:14 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 12:30:14 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:12:43 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:12:43.071573-05:00 EST
+2026-01-14 13:12:43 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:12:43 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:21:51 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:21:51.332048-05:00 EST
+2026-01-14 13:21:51 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:21:51 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:33:17 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:33:17.747003-05:00 EST
+2026-01-14 13:33:18 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:33:18 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:33:35 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 13:33:36 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-14 13:41:25 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:41:25.017944-05:00 EST
+2026-01-14 13:41:25 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:41:25 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:41:46 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-14 13:45:12 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:45:12.722863-05:00 EST
+2026-01-14 13:45:13 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-14 13:45:13 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:45:13 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:45:49 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:45:49.298260-05:00 EST
+2026-01-14 13:45:49 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:45:49 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:45:59 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 13:45:59 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-14 13:46:12 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:46:12.609701-05:00 EST
+2026-01-14 13:46:13 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:46:13 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:47:08 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:47:08.106799-05:00 EST
+2026-01-14 13:47:08 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-14 13:47:08 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:47:08 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:47:14 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:47:14.780181-05:00 EST
+2026-01-14 13:47:15 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-14 13:47:15 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:47:15 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:49:38 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:49:38.335443-05:00 EST
+2026-01-14 13:49:38 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-14 13:49:38 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:49:38 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:50:26 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:50:26.324576-05:00 EST
+2026-01-14 13:50:26 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-14 13:50:26 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:50:26 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:50:56 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:50:56.094472-05:00 EST
+2026-01-14 13:50:56 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-14 13:50:56 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:50:56 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:53:55 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:53:55.643545-05:00 EST
+2026-01-14 13:53:56 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:53:56 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:58:31 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:58:31.413318-05:00 EST
+2026-01-14 13:58:31 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:58:31 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:58:48 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:58:48.563524-05:00 EST
+2026-01-14 13:58:48 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-14 13:58:48 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:58:48 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 13:59:18 - towerscout.api - INFO - Main page loaded at 2026-01-14 13:59:18.102471-05:00 EST
+2026-01-14 13:59:18 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 13:59:18 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 14:01:21 - towerscout.api - INFO - Main page loaded at 2026-01-14 14:01:21.272012-05:00 EST
+2026-01-14 14:01:21 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 14:01:21 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 14:08:15 - towerscout.api - INFO - Main page loaded at 2026-01-14 14:08:15.653185-05:00 EST
+2026-01-14 14:08:16 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 14:08:16 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 14:13:53 - towerscout.api - INFO - Main page loaded at 2026-01-14 14:13:53.123355-05:00 EST
+2026-01-14 14:13:53 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 14:13:53 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 14:34:57 - towerscout.api - INFO - Main page loaded at 2026-01-14 14:34:57.399301-05:00 EST
+2026-01-14 14:34:57 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 14:34:57 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 14:36:58 - towerscout.api - INFO - Main page loaded at 2026-01-14 14:36:58.029659-05:00 EST
+2026-01-14 14:36:58 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 14:36:58 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 14:38:20 - towerscout.api - INFO - Main page loaded at 2026-01-14 14:38:20.191636-05:00 EST
+2026-01-14 14:38:20 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 14:38:20 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 14:38:56 - towerscout.api - INFO - Main page loaded at 2026-01-14 14:38:56.720034-05:00 EST
+2026-01-14 14:38:57 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 14:38:57 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 14:40:48 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 14:40:49 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-14 14:41:18 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-14 14:41:18 - towerscout.maps - INFO - Azure API response: status=200, size=3849 bytes
+2026-01-14 15:02:18 - towerscout.api - INFO - Main page loaded at 2026-01-14 15:02:18.329359-05:00 EST
+2026-01-14 15:02:18 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 15:02:18 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 15:02:50 - towerscout.api - INFO - Main page loaded at 2026-01-14 15:02:50.888546-05:00 EST
+2026-01-14 15:02:51 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 15:02:51 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 15:03:14 - towerscout.api - INFO - Main page loaded at 2026-01-14 15:03:14.652568-05:00 EST
+2026-01-14 15:03:15 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 15:03:15 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-14 15:03:37 - towerscout.api - INFO - Main page loaded at 2026-01-14 15:03:37.106774-05:00 EST
+2026-01-14 15:03:37 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-14 15:03:37 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 10:51:50 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 10:51:50 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 10:51:50 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 10:51:50 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-15 10:51:50 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-15 10:51:50 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-15 10:51:50 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-15 10:52:22 - towerscout.ml - INFO - Loading model: newest
+2026-01-15 10:52:22 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-15 10:52:26 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-15 10:52:26 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-15 10:52:33 - towerscout.api - INFO - Main page loaded at 2026-01-15 10:52:33.572212-05:00 EST
+2026-01-15 10:52:34 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 10:52:34 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 11:14:06 - towerscout.api - INFO - Main page loaded at 2026-01-15 11:14:06.175577-05:00 EST
+2026-01-15 11:14:06 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 11:14:06 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 11:14:50 - towerscout.api - INFO - Main page loaded at 2026-01-15 11:14:50.892396-05:00 EST
+2026-01-15 11:14:51 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 11:14:51 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 11:51:13 - towerscout.api - INFO - Main page loaded at 2026-01-15 11:51:13.713159-05:00 EST
+2026-01-15 11:51:14 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 11:51:14 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 11:52:00 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-15 11:52:01 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-15 12:24:29 - towerscout.api - INFO - Main page loaded at 2026-01-15 12:24:29.880633-05:00 EST
+2026-01-15 12:24:30 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 12:24:30 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 12:25:29 - towerscout.api - INFO - Main page loaded at 2026-01-15 12:25:29.051978-05:00 EST
+2026-01-15 12:25:29 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 12:25:29 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 12:29:28 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 12:29:28 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 12:29:28 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 12:29:28 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-15 12:29:29 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-15 12:29:29 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-15 12:29:29 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-15 12:30:00 - towerscout.ml - INFO - Loading model: newest
+2026-01-15 12:30:00 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-15 12:30:04 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-15 12:30:04 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-15 12:44:32 - towerscout.api - INFO - Main page loaded at 2026-01-15 12:44:32.282524-05:00 EST
+2026-01-15 12:44:32 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 12:44:32 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 12:44:52 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-15 12:44:53 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-15 12:45:22 - towerscout.api - INFO - Main page loaded at 2026-01-15 12:45:22.911841-05:00 EST
+2026-01-15 12:45:23 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 12:45:23 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 12:49:04 - towerscout.api - INFO - Main page loaded at 2026-01-15 12:49:04.313206-05:00 EST
+2026-01-15 12:49:04 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2026-01-15 12:49:04 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 12:49:04 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 12:51:27 - towerscout.api - INFO - Main page loaded at 2026-01-15 12:51:27.236131-05:00 EST
+2026-01-15 12:51:27 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 12:51:27 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 12:52:13 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 12:52:29 - towerscout.api - INFO - Main page loaded at 2026-01-15 12:52:29.571933-05:00 EST
+2026-01-15 12:52:29 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 12:52:30 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 12:52:30 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 12:58:04 - towerscout.api - INFO - Main page loaded at 2026-01-15 12:58:04.076965-05:00 EST
+2026-01-15 12:58:04 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 12:58:04 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 12:58:04 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 12:58:32 - towerscout.api - INFO - Main page loaded at 2026-01-15 12:58:32.326608-05:00 EST
+2026-01-15 12:58:32 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 12:58:32 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 12:58:32 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 12:58:52 - towerscout.api - INFO - Main page loaded at 2026-01-15 12:58:52.721370-05:00 EST
+2026-01-15 12:58:53 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 12:58:53 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 12:58:53 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 12:59:17 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 12:59:17 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 12:59:17 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 12:59:17 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-15 12:59:18 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-15 12:59:18 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-15 12:59:18 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-15 13:00:03 - towerscout.ml - INFO - Loading model: newest
+2026-01-15 13:00:03 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-15 13:00:08 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-15 13:00:08 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-15 13:02:23 - towerscout.api - INFO - Main page loaded at 2026-01-15 13:02:23.902247-05:00 EST
+2026-01-15 13:02:24 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 13:02:24 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 13:02:24 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 13:05:02 - towerscout.api - INFO - Main page loaded at 2026-01-15 13:05:02.054786-05:00 EST
+2026-01-15 13:05:02 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 13:05:02 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 13:05:18 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-15 13:05:19 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-15 13:05:46 - towerscout.api - INFO - Main page loaded at 2026-01-15 13:05:46.070823-05:00 EST
+2026-01-15 13:05:46 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 13:05:46 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 13:51:37 - towerscout.api - INFO - Main page loaded at 2026-01-15 13:51:37.254337-05:00 EST
+2026-01-15 13:51:37 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 13:51:37 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 13:52:20 - towerscout.api - INFO - Main page loaded at 2026-01-15 13:52:20.989501-05:00 EST
+2026-01-15 13:52:21 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 13:52:21 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 13:53:00 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 13:53:00 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 13:53:00 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 13:53:00 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-15 13:53:01 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-15 13:53:01 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-15 13:53:01 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-15 13:53:35 - towerscout.ml - INFO - Loading model: newest
+2026-01-15 13:53:35 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-15 13:53:38 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-15 13:53:38 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-15 13:54:33 - towerscout.api - INFO - Main page loaded at 2026-01-15 13:54:33.042327-05:00 EST
+2026-01-15 13:54:33 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 13:54:33 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 13:57:10 - towerscout.api - INFO - Main page loaded at 2026-01-15 13:57:10.944968-05:00 EST
+2026-01-15 13:57:11 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 13:57:11 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 13:58:05 - towerscout.api - INFO - Main page loaded at 2026-01-15 13:58:05.380626-05:00 EST
+2026-01-15 13:58:05 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 13:58:05 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 13:59:50 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 14:00:41 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-15 14:00:42 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-15 14:01:18 - towerscout.api - INFO - Main page loaded at 2026-01-15 14:01:18.118381-05:00 EST
+2026-01-15 14:01:18 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 14:01:18 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 14:01:18 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 14:12:19 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 14:12:19 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 14:12:19 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 14:12:19 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-15 14:12:19 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-15 14:12:19 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-15 14:12:19 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-15 14:12:49 - towerscout.ml - INFO - Loading model: newest
+2026-01-15 14:12:49 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-15 14:12:52 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-15 14:12:52 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-15 14:12:56 - towerscout.api - INFO - Main page loaded at 2026-01-15 14:12:56.820659-05:00 EST
+2026-01-15 14:12:57 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 14:12:57 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 14:12:57 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 14:12:57 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-15 14:12:57 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-15 14:21:26 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 14:25:46 - towerscout.api - INFO - Main page loaded at 2026-01-15 14:25:46.858911-05:00 EST
+2026-01-15 14:25:55 - towerscout.api - INFO - Main page loaded at 2026-01-15 14:25:55.049488-05:00 EST
+2026-01-15 14:25:56 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 14:25:56 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 14:25:57 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-15 14:25:57 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-15 14:30:54 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 14:30:54 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 14:30:54 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 14:30:54 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-15 14:30:54 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-15 14:30:54 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-15 14:30:54 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-15 14:31:25 - towerscout.ml - INFO - Loading model: newest
+2026-01-15 14:31:25 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-15 14:31:28 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-15 14:31:28 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-15 14:31:36 - towerscout.api - INFO - Main page loaded at 2026-01-15 14:31:36.826561-05:00 EST
+2026-01-15 14:31:37 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 14:32:43 - towerscout.api - INFO - Main page loaded at 2026-01-15 14:32:43.847825-05:00 EST
+2026-01-15 14:32:44 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-15 15:12:27 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 15:12:27 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 15:12:27 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 15:12:27 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-15 15:12:27 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-15 15:12:27 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-15 15:12:43 - towerscout.api - INFO - Main page loaded at 2026-01-15 15:12:43.246509-05:00 EST
+2026-01-15 15:12:43 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-15 15:12:43 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-15 15:12:44 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-15 15:12:44 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-15 15:13:04 - towerscout.api - WARNING - 404 error: http://localhost:5000/phase1_test.html?id=665b87b6-7f80-4569-bb91-38ab90cc659d&vscodeBrowserReqId=1768507984945
+2026-01-15 15:59:17 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 15:59:17 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 15:59:17 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 15:59:17 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-15 15:59:17 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-15 15:59:17 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-15 15:59:17 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-15 15:59:52 - towerscout.ml - INFO - Loading model: newest
+2026-01-15 15:59:52 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-15 15:59:56 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-15 15:59:56 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-16 11:14:29 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-16 11:14:29 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-16 11:14:29 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-16 11:14:30 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-16 11:14:30 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-16 11:14:30 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-16 11:14:30 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-16 11:15:01 - towerscout.ml - INFO - Loading model: newest
+2026-01-16 11:15:01 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-16 11:15:05 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-16 11:15:05 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-16 11:18:49 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:18:49.282969-05:00 EST
+2026-01-16 11:19:11 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:19:11.700174-05:00 EST
+2026-01-16 11:19:12 - towerscout.api - WARNING - 404 error: http://localhost:5000/favicon.ico
+2026-01-16 11:20:21 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 11:24:22 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-16 11:24:22 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-16 11:24:22 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-16 11:24:22 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-16 11:24:22 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-16 11:24:22 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-16 11:24:22 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-16 11:25:03 - towerscout.ml - INFO - Loading model: newest
+2026-01-16 11:25:03 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-16 11:25:09 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-16 11:25:09 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-16 11:25:11 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:25:11.595862-05:00 EST
+2026-01-16 11:25:12 - towerscout.api - WARNING - 404 error: http://127.0.0.1:5000/favicon.ico
+2026-01-16 11:25:20 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:25:20.408279-05:00 EST
+2026-01-16 11:34:59 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-16 11:34:59 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-16 11:34:59 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-16 11:34:59 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-16 11:34:59 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-16 11:34:59 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-16 11:34:59 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-16 11:35:13 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:35:13.897584-05:00 EST
+2026-01-16 11:35:33 - towerscout.ml - INFO - Loading model: newest
+2026-01-16 11:35:33 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-16 11:35:36 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-16 11:35:36 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-16 11:36:03 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:36:03.501010-05:00 EST
+2026-01-16 11:36:08 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:36:08.084011-05:00 EST
+2026-01-16 11:36:16 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:36:16.233046-05:00 EST
+2026-01-16 11:36:19 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:36:19.006012-05:00 EST
+2026-01-16 11:36:19 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 11:37:55 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-16 11:37:55 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-16 11:37:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-16 11:37:55 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-16 11:37:55 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-16 11:37:55 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-16 11:37:55 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-16 11:38:00 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:38:00.744650-05:00 EST
+2026-01-16 11:38:13 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:38:13.150499-05:00 EST
+2026-01-16 11:38:13 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 11:38:35 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:38:35.553760-05:00 EST
+2026-01-16 11:38:44 - towerscout.ml - INFO - Loading model: newest
+2026-01-16 11:38:44 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-16 11:38:49 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-16 11:38:49 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-16 11:41:37 - towerscout.api - WARNING - 404 error: http://127.0.0.1:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 11:45:29 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-16 11:45:29 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-16 11:45:29 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-16 11:45:30 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-16 11:45:30 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-16 11:45:30 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-16 11:46:21 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:46:21.967569-05:00 EST
+2026-01-16 11:46:32 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:46:32.102910-05:00 EST
+2026-01-16 11:46:48 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:46:48.007670-05:00 EST
+2026-01-16 11:46:48 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 11:48:28 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:48:28.079226-05:00 EST
+2026-01-16 11:49:27 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:49:27.893901-05:00 EST
+2026-01-16 11:55:03 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-16 11:55:03 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-16 11:55:03 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-16 11:55:04 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-16 11:55:04 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-16 11:55:04 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-16 11:55:04 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-16 11:55:40 - towerscout.ml - INFO - Loading model: newest
+2026-01-16 11:55:40 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-16 11:55:46 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-16 11:55:46 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-16 11:56:28 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:56:28.001489-05:00 EST
+2026-01-16 11:56:34 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:56:34.607334-05:00 EST
+2026-01-16 11:56:34 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 11:56:45 - towerscout.api - INFO - Main page loaded at 2026-01-16 11:56:45.016433-05:00 EST
+2026-01-16 11:56:45 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:00:35 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-16 12:00:35 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-16 12:00:35 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-16 12:00:36 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-16 12:00:36 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-16 12:00:36 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-16 12:04:38 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:04:38.411118-05:00 EST
+2026-01-16 12:04:44 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:04:44.654363-05:00 EST
+2026-01-16 12:06:48 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:06:48.943646-05:00 EST
+2026-01-16 12:08:43 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:08:43.409513-05:00 EST
+2026-01-16 12:09:06 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:09:06.138344-05:00 EST
+2026-01-16 12:09:06 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:14:38 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:14:38.781639-05:00 EST
+2026-01-16 12:15:23 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:15:23.552910-05:00 EST
+2026-01-16 12:17:25 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:17:25.842025-05:00 EST
+2026-01-16 12:17:26 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:17:58 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:17:58.344382-05:00 EST
+2026-01-16 12:17:58 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:19:44 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:19:44.645870-05:00 EST
+2026-01-16 12:19:45 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:19:45 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:21:54 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-16 12:21:54 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-16 12:22:38 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:22:38.789774-05:00 EST
+2026-01-16 12:22:39 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:22:39 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:22:39 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:26:41 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:26:41.640111-05:00 EST
+2026-01-16 12:26:42 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:26:42 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:27:05 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:27:05.891276-05:00 EST
+2026-01-16 12:27:06 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:27:06 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:27:06 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:27:39 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:27:39.311433-05:00 EST
+2026-01-16 12:27:39 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:27:39 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:27:39 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:30:09 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:30:09.803772-05:00 EST
+2026-01-16 12:30:10 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:30:10 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:30:13 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-16 12:30:13 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-16 12:30:36 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-16 12:30:37 - towerscout.maps - INFO - Azure API response: status=200, size=919 bytes
+2026-01-16 12:31:10 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:31:10.240884-05:00 EST
+2026-01-16 12:31:10 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:31:10 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:31:10 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:31:13 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-16 12:31:13 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-16 12:34:48 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:34:48.094520-05:00 EST
+2026-01-16 12:34:48 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:34:48 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:35:06 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-16 12:35:06 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-16 12:35:06 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-16 12:35:06 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-16 12:35:06 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-16 12:35:06 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-16 12:35:06 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-16 12:35:45 - towerscout.ml - INFO - Loading model: newest
+2026-01-16 12:35:45 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-16 12:35:48 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-16 12:35:48 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-16 12:36:07 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:36:07.558707-05:00 EST
+2026-01-16 12:36:08 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:36:08 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:36:14 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-16 12:36:14 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-16 12:36:35 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-16 12:36:36 - towerscout.maps - INFO - Azure API response: status=200, size=919 bytes
+2026-01-16 12:37:11 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:37:11.926046-05:00 EST
+2026-01-16 12:37:12 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:37:12 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:37:30 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:37:30 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:37:45 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-16 12:37:45 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-16 12:38:41 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:38:41 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:38:46 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:38:46.454148-05:00 EST
+2026-01-16 12:38:47 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:38:47 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:40:13 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:40:13.514768-05:00 EST
+2026-01-16 12:40:14 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:40:14 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:40:23 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-16 12:40:23 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-16 12:40:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-16 12:40:23 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-16 12:40:24 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-16 12:40:24 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-16 12:40:24 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-16 12:40:57 - towerscout.ml - INFO - Loading model: newest
+2026-01-16 12:40:57 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-16 12:41:00 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-16 12:41:00 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-16 12:42:32 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:42:32.186114-05:00 EST
+2026-01-16 12:42:32 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:42:32 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:42:43 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-16 12:42:43 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-16 12:43:22 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:43:22.257995-05:00 EST
+2026-01-16 12:43:22 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:43:22 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:43:26 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-16 12:43:26 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-16 12:43:38 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-16 12:43:38 - towerscout.maps - INFO - Azure API response: status=200, size=3426 bytes
+2026-01-16 12:45:21 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:45:21.725879-05:00 EST
+2026-01-16 12:45:22 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:45:22 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:45:22 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:45:26 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-16 12:45:26 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-16 12:47:47 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-16 12:47:47 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-16 12:47:47 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-16 12:47:47 - towerscout.ml - INFO - EfficientNet base model loaded successfully
+2026-01-16 12:47:47 - towerscout.ml - INFO - EfficientNet loaded on CPU
+2026-01-16 12:47:47 - towerscout.ml - INFO - EfficientNet weights loaded and model set to eval mode
+2026-01-16 12:47:47 - towerscout.main - INFO - Loading zipcode data, this may take up to 10 seconds...
+2026-01-16 12:48:18 - towerscout.ml - INFO - Loading model: newest
+2026-01-16 12:48:18 - towerscout.ml - INFO - Initializing YOLOv5 detector with model: model_params/yolov5/newest.pt
+2026-01-16 12:48:21 - towerscout.ml - INFO - YOLOv5 model loaded successfully
+2026-01-16 12:48:21 - towerscout.ml - INFO - CUDA not available, using CPU
+2026-01-16 12:48:32 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:48:32.907636-05:00 EST
+2026-01-16 12:48:33 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:48:33 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:48:33 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:48:47 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-16 12:48:47 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-16 12:49:16 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-16 12:49:16 - towerscout.maps - INFO - Azure API response: status=200, size=923 bytes
+2026-01-16 12:50:31 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:50:31.225455-05:00 EST
+2026-01-16 12:50:31 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:50:31 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:50:31 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:50:34 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-16 12:50:34 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)
+2026-01-16 12:50:52 - towerscout.maps - INFO - Azure Maps proxy request: service=search, params=3 parameters
+2026-01-16 12:50:53 - towerscout.maps - INFO - Azure API response: status=200, size=4106 bytes
+2026-01-16 12:52:31 - towerscout.api - INFO - Main page loaded at 2026-01-16 12:52:31.191039-05:00 EST
+2026-01-16 12:52:31 - towerscout.api - WARNING - 404 error: http://localhost:5000/.well-known/appspecific/com.chrome.devtools.json
+2026-01-16 12:52:31 - towerscout.api - INFO - Azure Maps key API endpoint requested - Key available: True
+2026-01-16 12:52:31 - towerscout.api - INFO - Returning Azure subscription key to frontend (starts with: fWYVv27rtJo-Ok8...)
+2026-01-16 12:52:33 - towerscout.api - INFO - Google Maps key API endpoint requested - Key available: True
+2026-01-16 12:52:33 - towerscout.api - INFO - Returning Google API key to frontend (starts with: AIzaSyDVyhp0UqR...)

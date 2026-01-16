@@ -1,1 +1,10 @@
 2025-12-15 12:33:55 - towerscout.main - ERROR - Test error message
+2026-01-07 16:30:28 - towerscout.maps - ERROR - Azure API authentication failed - check subscription key validity
+2026-01-13 11:42:23 - towerscout.maps - ERROR - Azure API authentication failed - check subscription key validity
+2026-01-13 11:42:23 - towerscout.api - ERROR - Map proxy error for azure/search: Azure Maps authentication failed: Invalid or expired subscription key
+2026-01-13 11:42:23 - towerscout.maps - ERROR - Azure API authentication failed - check subscription key validity
+2026-01-13 11:42:23 - towerscout.api - ERROR - Map proxy error for azure/search: Azure Maps authentication failed: Invalid or expired subscription key
+2026-01-13 14:12:34 - towerscout.maps - ERROR - Azure API authentication failed - check subscription key validity
+2026-01-13 14:12:34 - towerscout.api - ERROR - Map proxy error for azure/search: Azure Maps authentication failed: Invalid or expired subscription key
+2026-01-13 14:12:35 - towerscout.maps - ERROR - Azure API authentication failed - check subscription key validity
+2026-01-13 14:12:35 - towerscout.api - ERROR - Map proxy error for azure/search: Azure Maps authentication failed: Invalid or expired subscription key

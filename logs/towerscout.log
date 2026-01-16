@@ -1,0 +1,393 @@
+2025-12-22 13:43:57 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:43:57 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:44:34 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:44:34 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:45:15 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:45:15 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:46:10 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:46:10 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:46:11 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:46:11 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:46:26 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:46:26 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:46:26 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:46:26 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Failed to generate Azure Maps URL: Longitude 200.0 outside valid range [-180, 180]
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - WARNING - Object missing required coordinates for cutoff check: 'y2'
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Failed to generate Azure Maps URL: 'lng'
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Azure Maps subscription key is missing
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Invalid size parameter '640,480,100': Invalid size format: 640,480,100
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Invalid size parameter 'abc,def': invalid literal for int() with base 10: 'abc'
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Invalid size parameter '50,50': Width 50 outside valid range [80, 2000]
+2025-12-22 13:46:30 - towerscout.maps - ERROR - Invalid size parameter '3000,3000': Width 3000 outside valid range [80, 2000]
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - WARNING - Zoom level clamped to valid range: 20
+2025-12-22 13:46:30 - towerscout.maps - WARNING - Zoom level clamped to valid range: 0
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:46:30 - towerscout.maps - INFO - Azure Maps provider initialized successfully
+2025-12-22 13:47:00 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:47:00 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:47:00 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:47:00 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:47:43 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:47:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:47:43 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:47:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:48:42 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:48:42 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 13:48:43 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 13:48:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 14:53:32 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 14:53:32 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-22 14:53:33 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-22 14:53:33 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 10:47:19 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 10:47:19 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 10:47:19 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 10:47:19 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 10:50:46 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 10:50:46 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 10:50:47 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 10:50:47 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 11:05:24 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 11:05:24 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 11:05:24 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 11:05:24 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 11:09:20 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 11:09:20 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 11:09:20 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 11:09:20 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 11:44:32 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 11:44:32 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 11:44:32 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 11:44:32 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:26:02 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:26:02 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:29:16 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:29:16 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:46:26 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:46:26 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:46:26 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:46:26 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:56:45 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:56:45 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 13:56:45 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 13:56:45 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:03:13 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:03:13 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:03:13 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:03:13 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:29:23 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:29:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:29:23 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:29:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:29:35 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:29:35 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:29:35 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:29:35 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:34:55 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:34:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:34:55 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:34:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:51:40 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:51:40 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:51:40 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:51:40 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:52:58 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:52:58 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:52:58 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:52:58 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:54:35 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:54:35 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:54:35 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:54:35 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:55:36 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:55:36 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:55:36 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:55:36 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:56:47 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:56:47 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:56:47 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:56:47 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:57:25 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:57:25 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:57:25 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:57:25 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:58:04 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:58:04 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 14:58:04 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 14:58:04 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:07:43 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:07:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:07:44 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:07:44 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:35:17 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:35:17 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:35:17 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:35:17 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:37:15 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:37:15 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:37:15 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:37:15 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:44:47 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:44:47 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:44:47 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:44:47 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:45:40 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:45:40 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:45:41 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:45:41 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:47:06 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:47:06 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:47:06 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:47:06 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:48:21 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:48:21 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:48:21 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:48:21 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:55:43 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:55:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2025-12-23 15:55:43 - towerscout.ml - INFO - Torch CUDA: not available
+2025-12-23 15:55:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 10:12:14 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 10:12:14 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 10:12:14 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 10:12:14 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 10:13:16 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 10:13:16 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 10:13:16 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 10:13:16 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 10:29:12 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 10:29:12 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 10:29:12 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 10:29:12 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 11:28:11 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 11:28:11 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 11:45:07 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 11:45:07 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 11:45:07 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 11:45:07 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:27:25 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:27:25 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:27:25 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:27:25 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:27:49 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:27:49 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:27:49 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:27:49 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:33:23 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:33:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:33:23 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:33:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:33:32 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:33:32 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:33:32 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:33:32 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:34:19 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:34:19 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:34:19 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:34:19 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:34:27 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:34:27 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:34:27 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:34:27 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:34:40 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:34:40 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:34:41 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:34:41 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:34:59 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:34:59 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:34:59 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:34:59 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:40:30 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:40:30 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:40:30 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:40:30 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:49:43 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:49:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-06 12:49:43 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-06 12:49:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 10:53:43 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 10:53:43 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 10:53:44 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 10:53:44 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 10:54:00 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 10:54:00 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 10:54:01 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 10:54:01 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 10:54:15 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 10:54:15 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 10:54:15 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 10:54:15 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 10:59:50 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 10:59:50 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 10:59:51 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 10:59:51 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:03:11 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:03:11 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:03:12 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:03:12 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:11:38 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:11:38 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:11:38 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:11:38 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:32:26 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:32:26 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:32:26 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:32:26 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:36:47 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:36:47 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:36:48 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:36:48 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:40:30 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:40:30 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 11:40:30 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 11:40:30 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 12:17:19 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 12:17:19 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 12:17:19 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 12:17:19 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 12:17:19 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 12:17:19 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 16:26:49 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 16:26:49 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 16:26:49 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 16:26:50 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 16:26:50 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 16:26:50 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 16:26:59 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 16:26:59 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 16:26:59 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-07 16:26:59 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-07 16:26:59 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-07 16:26:59 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 08:58:46 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 08:58:46 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 08:58:46 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 08:58:46 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 08:58:46 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 08:58:46 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 11:46:59 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 11:46:59 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 11:46:59 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 11:46:59 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 11:46:59 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 11:46:59 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 12:21:55 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 12:21:55 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 12:21:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 12:21:55 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 12:21:55 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 12:21:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 12:34:06 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 12:34:06 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 12:34:06 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-08 12:34:06 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-08 12:34:06 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-08 12:34:06 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-12 12:57:53 - towerscout.api - INFO - Azure Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Google Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding service initialized with 2 provider(s)
+2026-01-12 12:57:53 - towerscout.api - INFO - Azure Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Google Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding service initialized with 2 provider(s)
+2026-01-12 12:57:53 - towerscout.api - INFO - Azure Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Google Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding service initialized with 2 provider(s)
+2026-01-12 12:57:53 - towerscout.api - INFO - Azure Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Google Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding service initialized with 2 provider(s)
+2026-01-12 12:57:53 - towerscout.api - INFO - Azure Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Google Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding service initialized with 2 provider(s)
+2026-01-12 12:57:53 - towerscout.api - INFO - Azure Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Google Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding service initialized with 2 provider(s)
+2026-01-12 12:57:53 - towerscout.api - INFO - Azure Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Google Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding service initialized with 2 provider(s)
+2026-01-12 12:57:53 - towerscout.api - INFO - Azure Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Google Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding service initialized with 2 provider(s)
+2026-01-12 12:57:53 - towerscout.api - INFO - Azure Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Google Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding service initialized with 2 provider(s)
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding cache initialized with clustering radius 100.0m
+2026-01-12 12:57:53 - towerscout.api - INFO - Cache backend: File only
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding cache initialized with clustering radius 50.0m
+2026-01-12 12:57:53 - towerscout.api - INFO - Cache backend: File only
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding cache initialized with clustering radius 50.0m
+2026-01-12 12:57:53 - towerscout.api - INFO - Cache backend: File only
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding cache initialized with clustering radius 50.0m
+2026-01-12 12:57:53 - towerscout.api - INFO - Cache backend: File only
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding cache initialized with clustering radius 50.0m
+2026-01-12 12:57:53 - towerscout.api - INFO - Cache backend: File only
+2026-01-12 12:57:53 - towerscout.api - INFO - Loaded 1 entries from file cache
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding cache initialized with clustering radius 50.0m
+2026-01-12 12:57:53 - towerscout.api - INFO - Cache backend: File only
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding cache initialized with clustering radius 50.0m
+2026-01-12 12:57:53 - towerscout.api - INFO - Cache backend: File only
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding cache initialized with clustering radius 50.0m
+2026-01-12 12:57:53 - towerscout.api - INFO - Cache backend: File only
+2026-01-12 12:57:53 - towerscout.api - INFO - Azure Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Google Maps geocoding enabled
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding service initialized with 2 provider(s)
+2026-01-12 12:57:53 - towerscout.api - INFO - Geocoding cache initialized with clustering radius 100.0m
+2026-01-12 12:57:53 - towerscout.api - INFO - Cache backend: File only
+2026-01-13 12:18:55 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 12:18:55 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 12:18:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 12:18:55 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 12:18:55 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 12:18:55 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 15:00:57 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 15:00:57 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 15:00:57 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 15:00:57 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 15:00:57 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 15:00:57 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 15:12:23 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 15:12:23 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 15:12:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 15:12:23 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 15:12:23 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 15:12:23 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 15:56:51 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 15:56:51 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 15:56:51 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-13 15:56:51 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-13 15:56:51 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-13 15:56:51 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 14:08:13 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 14:08:13 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 14:08:13 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 14:08:13 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 14:08:13 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 14:08:13 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 15:07:31 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 15:07:31 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 15:07:31 - towerscout.ml - INFO - Initializing EfficientNet classifier
+2026-01-15 15:07:31 - towerscout.main - WARNING - BING_API_KEY not configured or contains placeholder text. Bing Maps provider will be unavailable.
+2026-01-15 15:07:31 - towerscout.ml - INFO - Torch CUDA: not available
+2026-01-15 15:07:31 - towerscout.ml - INFO - Initializing EfficientNet classifier
