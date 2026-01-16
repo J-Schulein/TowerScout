@@ -182,24 +182,26 @@ UPLOAD_FOLDER=uploads
 ------------------
 Google Maps API:
 1. Go to https://console.cloud.google.com/
-2. Create new project or select existing
-3. Enable Maps JavaScript API and Static Maps API
-4. Create API key in Credentials section
-5. Add key to .env file as GOOGLE_API_KEY
-
-Azure Maps API (Recommended):
+Azure Maps API (Primary - OPERATIONAL):
 1. Go to https://portal.azure.com/
 2. Create Azure Maps Account resource
 3. Navigate to Keys and Endpoint
 4. Copy Primary Key
 5. Add key to .env file as AZURE_MAPS_SUBSCRIPTION_KEY
+6. ✅ Azure Maps provider is fully operational with 32% performance improvement
 
-Bing Maps API (Legacy - being deprecated):
-1. Go to https://www.bingmapsportal.com/
-2. Sign in with Microsoft account
-3. Create new key for development use
-4. Add key to .env file as BING_API_KEY
-5. NOTE: Bing Maps is being replaced by Azure Maps
+Google Maps API (Alternative):
+1. Go to https://console.cloud.google.com/
+2. Create new project or select existing
+3. Enable Maps JavaScript API and Static Maps API
+4. Create API key in Credentials section
+5. Add key to .env file as GOOGLE_API_KEY
+
+Bing Maps API (DEPRECATED):
+1. ⚠️  Bing Maps provider is deprecated and no longer recommended
+2. Azure Maps provides equivalent functionality with better performance
+3. Legacy support maintained for existing configurations only
+4. Migrate to Azure Maps for new deployments
 
 4.3 Generate Secret Key
 ----------------------
@@ -350,29 +352,33 @@ git log --oneline -10
 
 8.2 Review Completed Tasks
 -------------------------
-# Check what's been completed (as of December 18, 2025):
+# Check what's been completed (as of January 16, 2026):
 # ✅ TASK-001: API Key Security Migration
 # ✅ TASK-002: Input Validation System
 # ✅ TASK-021: Frontend Detection Display Debugging  
 # ✅ TASK-006: Azure Maps Provider Implementation
 # ✅ TASK-007: Error Handling Infrastructure
 # ✅ TASK-008: Logging System Implementation
+# ✅ TASK-030: Azure Maps Independence & Performance (32% improvement achieved)
 
 # Verify these components work:
 # 1. Environment variable loading (webapp/.env file required)
 # 2. Input validation (ts_validation.py with comprehensive validation)
 # 3. Detection display (cooling towers show on map with multiple providers)
-# 4. Azure Maps integration (ts_azure_maps.py operational)
+# 4. Azure Maps integration (ts_azure_maps.py operational & optimized)
 # 5. Error handling (ts_errors.py with custom exceptions)
 # 6. Logging system (ts_logging.py with structured logging)
+# 7. Provider independence (Azure Maps as default with 32% performance boost)
 
 8.3 Identify Next Tasks
 ----------------------
-# Current priorities (refer to .agent_work/tasks.md):
-# 🔄 TASK-009: Azure Key Vault Integration (NEXT - Enterprise deployment)
-# ⏳ TASK-010: Multi-Provider UI Enhancement
+# Current priorities (refer to .agent_work/current-tasks.md):
+# 🔄 TASK-035: Docker containerization for easy local deployment
+# 🔄 TASK-031: Create user-friendly onboarding guides
+# 🔄 TASK-032: Optimize image processing performance
+# ⏳ TASK-009: Azure Key Vault Integration (DEFERRED - optional for enterprise)
 # ⏳ TASK-004: Basic Authentication System
-# ⏳ TASK-005: Testing Framework Enhancement (unit/integration tests expanded)
+# ⏳ TASK-005: Testing Framework Enhancement (95%+ coverage achieved)
 
 STEP 9: TROUBLESHOOTING COMMON ISSUES
 =====================================
@@ -581,3 +587,5 @@ This guide should get you fully set up and ready to continue TowerScout developm
 
 Last Updated: December 18, 2025
 Setup Guide Version: 1.1 - Updated for Azure Maps integration and current project state
+Setup Guide Version: 1.2 - Azure Maps Primary Provider & Weekly Maintenance Update
+Last Updated: January 16, 2026

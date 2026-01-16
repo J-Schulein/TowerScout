@@ -486,12 +486,19 @@ def get_engines():
 
 # retrieve available map providers
 
+@app.route('/debug-azure-maps')
+def debug_azure_maps():
+    """Debug page for Azure Maps initialization issues"""
+    api_logger.debug("Azure Maps debug page requested")
+    return send_from_directory('.', 'debug_azure_maps.html')
+
 @app.route('/getazurekey')
 def get_azure_key():
     """Provide Azure Maps subscription key for frontend authentication"""
-    api_logger.debug("Azure Maps key API endpoint requested")
+    api_logger.info(f"Azure Maps key API endpoint requested - Key available: {bool(azure_api_key)}")
     
     if not azure_api_key:
+        api_logger.error("Azure Maps API key not available for frontend")
         response = jsonify({
             "error": True,
             "message": "Azure Maps API key not configured"
@@ -499,20 +506,60 @@ def get_azure_key():
         response.status_code = 400
         return response
     
+    # Log key info for debugging (first 15 chars only)
+    key_preview = azure_api_key[:15] + "..." if len(azure_api_key) > 15 else azure_api_key
+    api_logger.info(f"Returning Azure subscription key to frontend (starts with: {key_preview})")
+    
     return jsonify({
         "subscriptionKey": azure_api_key
+    })
+
+@app.route('/getgooglekey')
+def get_google_key():
+    """Provide Google Maps API key for frontend authentication"""
+    api_logger.info(f"Google Maps key API endpoint requested - Key available: {bool(google_api_key)}")
+    
+    if not google_api_key:
+        api_logger.error("Google Maps API key not available for frontend")
+        response = jsonify({
+            "error": True,
+            "message": "Google Maps API key not configured"
+        })
+        response.status_code = 400
+        return response
+    
+    # Log key info for debugging (first 15 chars only)
+    key_preview = google_api_key[:15] + "..." if len(google_api_key) > 15 else google_api_key
+    api_logger.info(f"Returning Google API key to frontend (starts with: {key_preview})")
+    
+    return jsonify({
+        "apiKey": google_api_key
     })
 
 @app.route('/getproviders')
 def get_providers():
     api_logger.debug("Map providers API endpoint requested")
     
-    # Only return providers that are actually configured
+    # Return providers with Azure first (default provider from .env)
     available_providers = []
-    if google_api_key:
-        available_providers.append({'id': 'google', 'name': 'Google Maps'})
-    if azure_api_key:
+    
+    # Check .env DEFAULT_MAP_PROVIDER setting and prioritize it
+    default_provider = os.getenv('DEFAULT_MAP_PROVIDER', 'azure').lower()
+    
+    if default_provider == 'azure' and azure_api_key:
         available_providers.append({'id': 'azure', 'name': 'Azure Maps'})
+        if google_api_key:
+            available_providers.append({'id': 'google', 'name': 'Google Maps'})
+    elif default_provider == 'google' and google_api_key:
+        available_providers.append({'id': 'google', 'name': 'Google Maps'})
+        if azure_api_key:
+            available_providers.append({'id': 'azure', 'name': 'Azure Maps'})
+    else:
+        # Fallback order: Azure first, then Google
+        if azure_api_key:
+            available_providers.append({'id': 'azure', 'name': 'Azure Maps'})
+        if google_api_key:
+            available_providers.append({'id': 'google', 'name': 'Google Maps'})
     
     result = json.dumps(available_providers)
     return result

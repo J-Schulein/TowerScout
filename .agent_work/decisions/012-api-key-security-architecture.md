@@ -1,4 +1,4 @@
-# Decision Record 001: API Key Security Architecture
+# Decision Record 012: API Key Security Architecture
 
 ### Decision - January 7, 2026
 **Decision**: Implement unified proxy architecture with service-specific rate limiting and selective caching to eliminate client-side API key exposure
