@@ -2424,8 +2424,13 @@ class PlaceRect {
   centerInMap() {
     // this.map.setCenter([(this.x1 + this.x2) / 2, (this.y1 + this.y2) / 2]);
     // currentMap.setZoom(19);
-    googleMap.setCenter([(this.x1 + this.x2) / 2, (this.y1 + this.y2) / 2]);
-    googleMap.setZoom(19);
+    const targetMap = currentMap || this.map || googleMap;
+    if (targetMap && typeof targetMap.setCenter === 'function') {
+      targetMap.setCenter([(this.x1 + this.x2) / 2, (this.y1 + this.y2) / 2]);
+      if (typeof targetMap.setZoom === 'function') {
+        targetMap.setZoom(19);
+      }
+    }
   }
 
   getCenter() {
@@ -2821,6 +2826,20 @@ function createElementFromHTML(htmlString) {
 // retrieve satellite image and detect objects
 function getObjects(estimate) {
   //let center = currentMap.getCenterUrl();
+
+  if (!currentMap) {
+    const fallbackMap = providerManager.getMap();
+    if (fallbackMap) {
+      currentMap = fallbackMap;
+    }
+  }
+  if (!currentMap) {
+    TowerScoutErrorHandler.showUserNotification(
+      'Map is still initializing. Please wait a moment and try again.',
+      'warning'
+    );
+    return;
+  }
 
   if (Detection_detections.length > 0) {
     if (!window.confirm("This will erase current detections. Proceed?")) {
@@ -3580,10 +3599,11 @@ function updateApiUsageDisplay() {
         const usage = data.geocoding_usage;
         const usageElement = document.getElementById('apiUsage');
         if (usageElement) {
+          const limited = data.geocoding_limited ? " <span style='color:#f39c12'>(Geocoding rate limit reached)</span>" : "";
           usageElement.innerHTML = `
             <small>
               API Usage: Google ${usage.google_requests || 0}, Azure ${usage.azure_requests || 0}
-              (${usage.successful_requests || 0}/${usage.total_requests || 0} successful)
+              (${usage.successful_requests || 0}/${usage.total_requests || 0} successful)${limited}
             </small>
           `;
         }

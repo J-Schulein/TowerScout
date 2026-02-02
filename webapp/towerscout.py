@@ -1057,18 +1057,21 @@ def get_objects():
                 i += 1
     
     # Add server-side address lookup for detections
+    session['geocoding_limited'] = False
     if results:  # Only geocode if we have detections
         print(f" starting address lookup for {len(results)} detections")
         address_start_time = time.time()
         
         try:
-            # Get radius from request parameters (default 50m for clustering)
-            radius_param = request.form.get('radius', '50')
-            try:
-                clustering_radius = float(radius_param) if radius_param else 50.0
-            except ValueError:
-                clustering_radius = 50.0  # Fallback to default
-            
+            # Use dedicated geocoding clustering radius (do not reuse search radius)
+            clustering_radius = 50.0
+            env_radius = os.getenv('GEOCODING_CLUSTERING_RADIUS', '')
+            if env_radius:
+                try:
+                    clustering_radius = float(env_radius)
+                except ValueError:
+                    clustering_radius = 50.0  # Fallback to default
+
             # Initialize geocoding service and cache
             geocoding_service = create_geocoding_service()
             geocoding_cache = create_geocoding_cache(clustering_radius_meters=clustering_radius)
@@ -1097,7 +1100,14 @@ def get_objects():
                             # Cache the result
                             geocoding_cache.put(center_lat, center_lng, geocoding_result)
                             
-                    except (GeocodingError, RateLimitError) as e:
+                    except RateLimitError as e:
+                        session['geocoding_limited'] = True
+                        # Graceful fallback to coordinates
+                        detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
+                        detection['address_confidence'] = 0.0
+                        detection['address_provider'] = "rate_limited"
+                        print(f" geocoding rate limited for {center_lat}, {center_lng}: {e}")
+                    except GeocodingError as e:
                         # Graceful fallback to coordinates
                         detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
                         detection['address_confidence'] = 0.0
@@ -1198,7 +1208,8 @@ def get_api_usage():
                 'total_requests': 0,
                 'successful_requests': 0,
                 'failed_requests': 0
-            })
+            }),
+            'geocoding_limited': session.get('geocoding_limited', False)
         }
         return jsonify(usage_data)
     except Exception as e:
