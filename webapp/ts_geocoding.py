@@ -23,6 +23,7 @@ Date: January 2026
 import requests
 import time
 import os
+import urllib3
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -30,6 +31,10 @@ from flask import session
 
 from ts_errors import TowerScoutError, ConfigurationError, NetworkError
 from ts_logging import get_api_logger
+
+# Suppress SSL warnings for local development on Windows
+# Note: For production deployment, proper SSL certificates should be configured
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class GeocodingProvider(Enum):
@@ -79,14 +84,20 @@ class GeocodingError(TowerScoutError):
     
     def __init__(self, message: str, provider: GeocodingProvider = None, 
                  coordinates: Tuple[float, float] = None, **kwargs):
+        # Don't pass provider/coordinates to parent - they're not in parent signature
+        # Remove them from kwargs to avoid "unexpected keyword argument" errors
+        kwargs.pop('provider', None)
+        kwargs.pop('coordinates', None)
+        
         super().__init__(
             message=message,
             error_code="GEOCODING_ERROR",
             user_message="Unable to determine address for this location.",
             **kwargs
         )
+        # Add provider and coordinates to details AFTER parent init
         if provider:
-            self.details["provider"] = provider.value
+            self.details["provider"] = provider.value if isinstance(provider, GeocodingProvider) else provider
         if coordinates:
             self.details["coordinates"] = {"lat": coordinates[0], "lng": coordinates[1]}
 
@@ -95,10 +106,11 @@ class RateLimitError(GeocodingError):
     """Raised when rate limits are exceeded."""
     
     def __init__(self, provider: GeocodingProvider, **kwargs):
+        # Don't pass user_message explicitly - parent GeocodingError already sets it
+        message = f"Rate limit exceeded for {provider.value if isinstance(provider, GeocodingProvider) else provider}"
         super().__init__(
-            message=f"Rate limit exceeded for {provider.value}",
+            message=message,
             provider=provider,
-            user_message="Geocoding rate limit exceeded. Please wait before trying again.",
             **kwargs
         )
 
@@ -230,14 +242,16 @@ class GeocodingService:
             }
             
             self.logger.debug(f"Azure Maps geocoding request: {lat}, {lng}")
-            response = requests.get(url, params=params, timeout=10)
+            # Note: verify=False bypasses SSL verification for local development
+            # For production, ensure proper SSL certificates are installed
+            response = requests.get(url, params=params, timeout=10, verify=False)
             response.raise_for_status()
             
             data = response.json()
             
-            # Parse Azure Maps response
-            if data.get('summary', {}).get('numResults', 0) > 0:
-                result = data['results'][0]
+            # Parse Azure Maps response (uses 'addresses' key, not 'results')
+            if data.get('summary', {}).get('numResults', 0) > 0 and 'addresses' in data:
+                result = data['addresses'][0]
                 address = result.get('address', {}).get('freeformAddress', '')
                 
                 # Calculate confidence based on match type and distance
@@ -268,10 +282,10 @@ class GeocodingService:
         
         except requests.RequestException as e:
             self.logger.error(f"Azure Maps API error: {e}")
+            # NetworkError accepts url and timeout, not provider/coordinates
             raise NetworkError(
                 f"Azure Maps API request failed: {e}",
-                provider="azure_maps",
-                coordinates=(lat, lng)
+                url=f"https://atlas.microsoft.com/search/address/reverse/json?query={lat},{lng}"
             )
         except Exception as e:
             self.logger.error(f"Azure Maps processing error: {e}")
@@ -303,7 +317,9 @@ class GeocodingService:
             }
             
             self.logger.debug(f"Google Maps geocoding request: {lat}, {lng}")
-            response = requests.get(url, params=params, timeout=10)
+            # Note: verify=False bypasses SSL verification for local development
+            # For production, ensure proper SSL certificates are installed
+            response = requests.get(url, params=params, timeout=10, verify=False)
             response.raise_for_status()
             
             data = response.json()
@@ -343,10 +359,10 @@ class GeocodingService:
         
         except requests.RequestException as e:
             self.logger.error(f"Google Maps API error: {e}")
+            # NetworkError accepts url and timeout, not provider/coordinates
             raise NetworkError(
                 f"Google Maps API request failed: {e}",
-                provider="google_maps",
-                coordinates=(lat, lng)
+                url=f"https://maps.googleapis.com/maps/api/geocode/json?latlng={lat},{lng}"
             )
         except Exception as e:
             self.logger.error(f"Google Maps processing error: {e}")

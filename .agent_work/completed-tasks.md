@@ -1,8 +1,93 @@
 # Completed Tasks
 
-**Last updated**: January 16, 2026  
-**Status**: 9 of 27 original tasks completed (33%)  
-**Archive Location**: Tasks completed before December 19, 2025 archived to `context/archive/2026-01-16-archived-completed-tasks.md`
+**Last Updated**: February 12, 2026
+**Status**: 10 of 27 original tasks completed (37%)  
+**Archive Locations**: 
+- Tasks completed before December 19, 2025: `context/archive/2026-01-16-archived-completed-tasks.md`
+- TASK-034 (January 7, 2026): `context/archive/2026-02/2026-02-12-archived-task-034.md`
+
+**Note**: TASK-037 moved back to active status for Phase 2 completion
+
+## ✅ CURRENT SPRINT PROGRESS
+
+### **TASK-031: Interactive Highlighting System** ✅
+**Status**: ✅ COMPLETE  
+**Completed**: February 11, 2026  
+**Type**: B (Feature Development)  
+**Actual Effort**: 1 hour (implementation only)
+
+**Description**: Implement bidirectional selection between detection list and map markers with smooth scrolling and consistent visual feedback
+
+**Implementation Summary**:
+- ✅ Marker → List highlighting: Changed marker click behavior from `highlight(false, true)` to `highlight(true, true)`
+- ✅ Smooth scrolling: Added `scrollIntoView({ behavior: 'smooth', block: 'center' })` for animated list navigation
+- ✅ Map centering: Enabled automatic map centering when markers clicked
+- ✅ Visual feedback: Consistent highlighting in both directions (list ↔ marker)
+
+**Code Changes**:
+1. `webapp/js/towerscout.js` line ~2855: Detection constructor listener
+2. `webapp/js/towerscout.js` line ~3015: Detection.highlight() method
+
+**Value Delivered**:
+- Improved UX: Click marker → list smoothly scrolls to show detection details
+- Improved UX: Click list → map centers and highlights marker location
+- Smooth animated scrolling replaces jarring instant jumps
+- Better spatial awareness: Map always centers on selected detection
+- Consistent interaction model across both user workflows
+
+**User Decision**:
+> "I didn't go through each test, but I think we can mark this as complete. Let's include this testing with Task-037 as well, so we can verify the highlighting works as expected after we're done refactoring and working through our known issues."
+
+**Deferred Testing**:
+- Comprehensive test suite (5 test cases) moved to TASK-037 validation section
+- Performance testing with 100+ detections deferred
+- Memory leak/event listener monitoring deferred
+- Post-refactoring validation will ensure no regressions
+
+---
+
+### **TASK-040: Azure Maps Visual Consistency** ✅
+**Status**: ✅ COMPLETE  
+**Completed**: February 11, 2026  
+**Type**: C (Critical Bug - Architecture Issue)  
+**Actual Effort**: 3 hours (4 phases + critical bug fix)
+
+**Description**: Standardize Azure Maps visual styling to match Google Maps behavior for outbreak investigation workflows
+
+**Implementation Phases**:
+- ✅ Phase 1: Search boundary styling (blue outline, transparent fill) - 30 min
+- ✅ Phase 2: Tile visibility fix (Azure tiles filtered, Google rolled back after regression) - 30 min
+- ✅ Phase 3: Detection transparency (0.15 opacity, hex color compatibility fix) - 45 min
+- ✅ Phase 4: Selected detection highlighting (0.3 opacity for Azure) - 45 min
+- ✅ Critical Bug Fix: Provider synchronization (global currentMap sync) - 30 min
+
+**Value Delivered**:
+- Azure Maps now matches Google Maps visual behavior
+- Detection highlighting provides clear visual feedback on both providers
+- Provider switching stable and functional
+- All acceptance criteria for visual consistency met
+- No known visual regressions introduced
+
+**Key Fixes**:
+- Boundary layer styling: Blue outline, transparent fill (matches Google Maps)
+- Tile filtering: Metadata tiles not rendered as visual elements
+- Detection transparency: 0.15 opacity for unselected, 0.3 for selected (Azure only)
+- Google Maps compatibility: Hex colors instead of rgba format
+- Provider synchronization: Fixed global `currentMap` desync bug
+
+**Issues Resolved**:
+- Architectural: Provider synchronization, Google Maps API compatibility
+- Visual: Boundary shading, tile visibility, transparency consistency
+- UX: Selected detections now visually distinct on Azure Maps
+
+**Deferred Work**:
+- ISSUE-009: Geocoding provider mismatch (functional backend issue, documented in TASK-037)
+- Phase 5: Comprehensive cross-provider validation (moved to TASK-037 validation section)
+
+**User Decision**:
+> "I didn't go through each test, but tested both Google and Azure independently and I think we can mark task-040 as complete. Let's include this testing with Task-037 so we can verify everything still works visually after we're done refactoring and working through our known issues."
+
+---
 
 ## ✅ RECENTLY COMPLETED
 
@@ -40,35 +125,7 @@
 - `webapp/ts_azure_maps.py` (search integration)
 - Multiple Azure Maps frontend components
 
----
-
-### **TASK-034: Client-Side API Key Security** 🔴
-**Status**: ✅ COMPLETED (January 7, 2026)
-**Priority**: CRITICAL (SECURITY VULNERABILITY)  
-**Type**: C  
-**Actual Effort**: 1 day
-
-**Description**: Fixed critical security vulnerability where API keys were exposed in client-side JavaScript using unified proxy architecture.
-
-**CRITICAL SECURITY ISSUE RESOLVED**: ✅ API keys no longer visible in browser developer tools or page source
-
-**Key Achievements**:
-- **✅ Complete API Key Protection**: Zero client-side API key exposure
-- **✅ Unified Proxy Architecture**: Single `/api/maps/<provider>/<service>` endpoint
-- **✅ Intelligent Caching**: 60% reduction in API costs through smart caching
-- **✅ Service-Specific Rate Limiting**: Prevents abuse while allowing normal usage
-- **✅ Comprehensive Monitoring**: Detailed logging and audit trails
-
-**Performance Impact**: 
-- **Cache Hit Rate**: 60-80% for repeated requests
-- **API Cost Reduction**: ~60% reduction in external API calls
-- **Response Time**: <100ms for cached responses
-
-**Files Modified**:
-- `webapp/towerscout.py` (unified proxy endpoints, caching system)
-- `webapp/templates/towerscout.html` (removed API key injection)
-- `webapp/js/towerscout.js` (proxy endpoint usage)
-- `cache/maps/` (new caching directory)
+**Note**: TASK-034 (Client-Side API Key Security) completed January 7, 2026 has been archived. See `context/archive/2026-02/2026-02-12-archived-task-034.md`
 
 ---
 

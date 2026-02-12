@@ -109,6 +109,15 @@ class AzureMaps(Map):
             # Parse size parameter (handle both "640,640" and "640x640" formats)
             width, height = self._parse_size(size)
             
+            # CRITICAL FIX: Double resolution to match 1280x1280 training data
+            # Google Maps uses scale=2 parameter to get 1280x1280 from 640x640 spec
+            # Azure Maps requires explicit width/height doubling
+            width_original = width
+            height_original = height
+            width = str(int(width) * 2)
+            height = str(int(height) * 2)
+            self.logger.debug(f"Resolution doubled for model compatibility: {width_original}x{height_original} -> {width}x{height}")
+            
             # Validate zoom level
             if not (0 <= zoom <= 20):
                 zoom = min(max(zoom, 0), 20)  # Clamp to valid range
