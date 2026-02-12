@@ -23,6 +23,10 @@ import asyncio
 import aiohttp
 import aiofiles
 import ssl
+from ts_logging import get_maps_logger
+
+# Initialize logger for this module
+maps_logger = get_maps_logger()
 
 
 class Map:

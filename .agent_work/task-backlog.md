@@ -1,18 +1,69 @@
 # Task Backlog - Future Work Prioritization
 
-**Last Updated**: January 12, 2026  
-**Next Planning Session**: January 20, 2026  
+**Last Updated**: February 5, 2026  
+**Next Planning Session**: February 18, 2026  
 
 ---
 
 ## 🔥 HIGH PRIORITY - Next Sprint Ready
+
+### **TASK-038: Frontend Code Quality & Refactoring** 🟡
+**Status**: NOT_STARTED  
+**Type**: B (Technical Debt & Code Quality)  
+**Priority**: HIGH  
+**Estimated Effort**: 23 hours (spread across sprint)  
+**Target Sprint**: Sprint 3 (February 18 - March 4, 2026)
+
+**Objective**: Systematic refactoring of frontend codebase to improve maintainability, reduce technical debt, and establish better architecture
+
+**Context**: Discovered during TASK-037 comprehensive code review. Frontend (towerscout.js) is a 4,759-line monolithic file with duplicate code, inconsistent patterns, and architectural issues that impede future development.
+
+**Requirements**:
+- Split monolithic file into logical modules (~12 separate files)
+- Consolidate duplicate code (3x getBoundariesStr(), repeated null checks)
+- Standardize error handling (remove fatalError(), use TowerScoutErrorHandler)
+- Improve provider abstraction (TSMap base class functionality)
+- Move magic numbers to CONFIG object
+- Add comprehensive input validation
+- Improve memory management and cleanup
+- Remove debug code from production
+
+**Benefits**:
+- Easier to add new map providers (Mapbox, Leaflet)
+- Better testability (isolated modules)
+- Reduced bundle size (potential jQuery removal)
+- Improved code navigation and maintenance
+- Foundation for TypeScript migration
+
+**Dependencies**: 
+- TASK-037 (User Journey Verification) ✅ PHASE 1 COMPLETE - 8 issues identified and documented
+- ISSUE-006, ISSUE-007, ISSUE-008 ✅ FIXED - Critical path unblocked
+- ISSUE-001, ISSUE-003, ISSUE-004 deferred to this refactoring task
+
+**Issues to Resolve During Refactoring**:
+- ISSUE-001: Provider initialization timing (2-4 hours)
+- ISSUE-003: Multiple circles accumulate (1-2 hours)
+- ISSUE-004: Clear button non-functional (needs deeper investigation)
+
+**Detailed Plan**: See [FRONTEND-CODE-REVIEW.md](c:\\Users\\bg90\\TowerScout\\.agent_work\\context\\analysis\\FRONTEND-CODE-REVIEW.md)
+
+**Estimated Breakdown**:
+- Module splitting: 8 hours
+- Error handling standardization: 2 hours  
+- Remove jQuery dependency: 4 hours
+- Create TowerScoutApp class: 3 hours
+- Input validation: 2 hours
+- Provider abstraction: 4 hours
+- **Total**: 23 hours
+
+---
 
 ### **TASK-033: Manual Tower Addition Feature** 🟡
 **Status**: NOT_STARTED  
 **Type**: B (Feature Development)  
 **Priority**: HIGH  
 **Estimated Effort**: 3 days  
-**Target Sprint**: Sprint 2 (January 20 - February 2)
+**Target Sprint**: Sprint 3 (February 18 - March 4, 2026)
 
 **Objective**: Restore ability for users to manually add cooling tower locations using interactive polygon drawing
 
@@ -23,19 +74,22 @@
 - Export compatibility (KML, CSV, dataset formats)
 
 **Dependencies**: 
-- TASK-030 (Address Lookup) ✅ - Address system integration
-- TASK-031 (Interactive Highlighting) - Selection system integration
+- TASK-030 (Address Lookup) ✅ COMPLETED - Address system integration
+- TASK-031 (Interactive Highlighting) 🔄 IN CURRENT SPRINT - Selection system integration
+- TASK-032 (Enhanced Details Panel) 🔄 IN CURRENT SPRINT - UI integration
 
-**Blocked By**: Current sprint work completion
+**Ready Conditions**: Will be ready after current sprint completes
 
 ---
 
-### **TASK-034: Export System Restoration** 🟡
+### **TASK-036: Export System Restoration** 🟡
 **Status**: NOT_STARTED  
 **Type**: B (Feature Development)  
 **Priority**: HIGH  
 **Estimated Effort**: 2-3 days
-**Target Sprint**: Sprint 2 (January 20 - February 2)
+**Target Sprint**: Sprint 3 (February 18 - March 4, 2026)
+
+**Note**: Renumbered from TASK-034 to avoid confusion with completed TASK-034 (Client-Side API Key Security)
 
 **Objective**: Restore and enhance data export capabilities for outbreak investigation workflows
 
@@ -46,7 +100,7 @@
 - Batch export with filtering options
 
 **Dependencies**:
-- TASK-030 (Address Lookup) - Address data in exports
+- TASK-030 (Address Lookup) ✅ COMPLETED - Address data in exports
 - TASK-033 (Manual Addition) - Include manual additions in exports
 
 **Notes**: Critical for outbreak investigation teams

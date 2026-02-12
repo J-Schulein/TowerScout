@@ -26,6 +26,7 @@ from waitress import serve
 import json
 import time
 import os
+import math
 from ts_validation import (
     TowerScoutValidator, ValidationError, rate_limiter,
     validate_detection_request, validate_zipcode_request
@@ -884,6 +885,10 @@ def get_objects():
     
     # Input validation
     try:
+        print("\n🔍 DIAGNOSTIC: Validating detection request...")
+        print(f"   Form data keys: {list(request.form.keys())}")
+        print(f"   Polygons data (first 200 chars): {request.form.get('polygons', '')[:200]}...")
+        
         validated_data = validate_detection_request(request.form.to_dict())
         bounds_dict = validated_data['bounds']
         bounds = f"{bounds_dict['lat1']},{bounds_dict['lng1']},{bounds_dict['lat2']},{bounds_dict['lng2']}"
@@ -891,10 +896,18 @@ def get_objects():
         provider = validated_data['provider']
         polygons = validated_data['polygons']
         estimate = validated_data.get('estimate')
+        
+        print("✅ Validation passed")
     except ValidationError as e:
+        print(f"❌ ValidationError: {e.message}")
+        api_logger.error(f"Validation error: {e.message}")
         return jsonify({'error': f'Validation error: {e.message}'}), 400
     except Exception as e:
-        return jsonify({'error': 'Invalid request data'}), 400
+        print(f"❌ Unexpected validation error: {type(e).__name__}: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        api_logger.error(f"Invalid request data: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Invalid request data: {str(e)}'}), 400
     
     print("incoming detection request:")
     print(" bounds:", bounds)
@@ -916,28 +929,47 @@ def get_objects():
     # create a map provider object
     map = None
     try:
+        print(f"\n🗺️  DIAGNOSTIC: Initializing map provider '{provider}'...")
+        print(f"   Google API key available: {bool(google_api_key)}")
+        print(f"   Azure API key available: {bool(azure_api_key)}")
+        
         if provider == "google" and google_api_key:
             map = GoogleMap(google_api_key)
+            print("✅ Google Maps initialized")
         elif provider == "azure" and azure_api_key:
             map = AzureMaps(azure_api_key)
+            print("✅ Azure Maps initialized")
         
         if map is None:
+            print(f"❌ Map provider '{provider}' not available or not configured")
             raise MapProviderError(
                 f"Map provider '{provider}' not available or not configured",
                 error_code="MAP_PROVIDER_UNAVAILABLE",
                 user_message=f"The {provider} map service is not available. Please try a different provider."
             )
             
+    except MapProviderError:
+        raise
     except Exception as e:
-        api_logger.error(f"Failed to create map provider '{provider}': {e}")
-        raise MapProviderError(
-            f"Failed to initialize {provider} map provider: {str(e)}",
-            error_code="MAP_PROVIDER_INIT_FAILED",
-            user_message="Map service initialization failed. Please try again or contact support."
-        ) from e
+        print(f"❌ Map provider initialization failed: {type(e).__name__}: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        api_logger.error(f"Failed to create map provider '{provider}': {e}", exc_info=True)
+        return jsonify({'error': f'Map provider error: {str(e)}'}), 500
 
     # divide the map into 640x640 parts
-    tiles, nx, ny, meters, h, w = map.make_tiles(bounds, crop_tiles=crop_tiles)
+    try:
+        print(f"\n🔲 DIAGNOSTIC: Making tiles from bounds...")
+        print(f"   Bounds: {bounds}")
+        print(f"   Crop tiles: {crop_tiles}")
+        
+        tiles, nx, ny, meters, h, w = map.make_tiles(bounds, crop_tiles=crop_tiles)
+        print(f"✅ Created {len(tiles)} tiles ({nx} x {ny})")
+    except Exception as e:
+        print(f"❌ Tile creation failed: {type(e).__name__}: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': f'Tile creation error: {str(e)}'}), 500
     # print(f" {len(tiles)} tiles, {nx} x {ny}, {meters} x {meters} m")
     # print(" Tile centers:")
     # for c in tiles:
@@ -1020,20 +1052,70 @@ def get_objects():
 
     # post-process the results
     results = []
+    detection_count = 0
+    print(f"\n📊 DETECTION SUMMARY - Starting post-processing for {len(results_raw)} tiles")
+    
     for result, tile in zip(results_raw, tiles):
+        tile_detection_count = len(result)
+        detection_count += tile_detection_count
+        
+        if tile_detection_count > 0:
+            print(f"\n🎯 Tile {tile.get('id', '?')}: {tile_detection_count} detections")
+        
         # adjust xyxy normalized results to lat, long pairs
         for i, object in enumerate(result):
+            # Add diagnostic logging BEFORE transformation
+            print(f"\n🔍 Detection {i+1}/{tile_detection_count} transformation debug:")
+            print(f"  Tile: lng={tile['lng']:.6f}, lat={tile['lat']:.6f}, w={tile['w']:.6f}, h={tile['h']:.6f}")
+            print(f"  YOLO normalized: x1={object['x1']:.6f}, y1={object['y1']:.6f}, x2={object['x2']:.6f}, y2={object['y2']:.6f}")
+            print(f"  YOLO box size: width={(object['x2']-object['x1']):.6f}, height={(object['y2']-object['y1']):.6f}")
+            print(f"  YOLO confidence: {object.get('conf', 0):.3f}, Class: {object.get('class', '?')}")
+            
+            # Track if this went through EfficientNet (secondary classifier)
+            secondary_conf = object.get('secondary', None)
+            if secondary_conf is not None:
+                print(f"  EfficientNet: {secondary_conf:.3f} (YOLO was in intermediate range 0.25-0.65)")
+            elif object.get('conf', 0) < 0.25:
+                print(f"  EfficientNet: SKIPPED (YOLO < 0.25, auto-rejected)")
+            else:
+                print(f"  EfficientNet: SKIPPED (YOLO >= 0.65, auto-accepted)")
+            
             # object['conf'] *= map.checkCutOffs(object) # used to do this before we started cropping
             object['x1'] = tile['lng'] - 0.5*tile['w'] + object['x1']*tile['w']
             object['x2'] = tile['lng'] - 0.5*tile['w'] + object['x2']*tile['w']
             object['y1'] = tile['lat'] + 0.5*tile['h'] - object['y1']*tile['h']
             object['y2'] = tile['lat'] + 0.5*tile['h'] - object['y2']*tile['h']
+            
+            # Add diagnostic logging AFTER transformation
+            width_deg = abs(object['x2'] - object['x1'])
+            height_deg = abs(object['y1'] - object['y2'])
+            width_meters = width_deg * 111320 * math.cos(math.radians(object['y1']))
+            height_meters = height_deg * 110540
+            print(f"  Geographic: x1={object['x1']:.6f}, y1={object['y1']:.6f}, x2={object['x2']:.6f}, y2={object['y2']:.6f}")
+            print(f"  Final box size: {width_meters:.1f}m x {height_meters:.1f}m")
+            
+            # Detection size analysis  
+            if width_meters < 4 or height_meters < 4:
+                print(f"  WARNING: Extremely small detection (< 4m) - likely false positive or image resolution issue!")
+            elif width_meters < 10 or height_meters < 10:
+                print(f"  Small detection (< 10m) - may be individual tower component rather than full structure")
+            elif width_meters > 50 or height_meters > 50:
+                print(f"  Large detection (> 50m) - verify not detecting entire building")
+            else:
+                print(f"  Detection size in expected range (10-50m for cooling tower)")
+            
             object['tile'] = tile['id']
             object['id_in_tile'] = i
             object['selected'] = object['secondary'] >= 0.35
 
             # print(" output:",str(object))
         results += result
+
+    # Print detection summary
+    print(f"\n📊 DETECTION COMPLETE:")
+    print(f"   Total detections: {len(results)}")
+    print(f"   Tiles processed: {len(results_raw)}")
+    print(f"   Average detections per tile: {len(results)/len(results_raw):.2f}" if len(results_raw) > 0 else "   No tiles processed")
 
     # mark results out of bounds or polygon
     for o in results:
@@ -1156,7 +1238,9 @@ def get_objects():
                     detection['address_confidence'] = 0.0
                     detection['address_provider'] = "none"
 
-    # prepend a pseudo-result for each tile, for debugging
+    # Send tile metadata for JavaScript consumption (needed for metadata lookup)
+    # These tiles are NOT rendered as detection rectangles (opacity=0, class=1)
+    # JavaScript needs tile data for metadata, URLs, and coordinate references
     tile_results = []
     for tile in tiles:
         tile_results.append({
@@ -1164,7 +1248,7 @@ def get_objects():
             'y1': tile['lat'] + 0.5*tile['h'],
             'x2': tile['lng'] + 0.5*tile['w'],
             'y2': tile['lat'] - 0.5*tile['h'],
-            'class': 1,
+            'class': 1,  # Class 1 = Tile (not detection)
             'class_name': 'tile',
             'conf': 1,
             'metadata': tile['metadata'],
@@ -1175,7 +1259,7 @@ def get_objects():
     # all done
     selected = str(reduce(lambda a,e: a+(e['selected']),results, 0))
     print(" request complete," + str(len(results)) +" detections (" + selected +" selected), elapsed time: ", (time.time()-start))
-    results = tile_results+results
+    results = tile_results+results  # Prepend tiles for metadata lookup
     print()
 
     exit_events.free(id(session))

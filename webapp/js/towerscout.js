@@ -79,6 +79,18 @@ class ProviderStateManager {
     };
 
     try {
+      // ⭐ MEMORY MANAGEMENT: Cleanup previous provider BEFORE switching
+      if (this.currentMap && typeof this.currentMap.cleanup === 'function') {
+        console.log(`🧹 Cleaning up ${this.currentProvider} before switch...`);
+        try {
+          this.currentMap.cleanup();
+          console.log(`✅ ${this.currentProvider} cleanup successful`);
+        } catch (cleanupError) {
+          console.warn(`⚠️ ${this.currentProvider} cleanup had errors (continuing):`, cleanupError.message);
+          // Don't fail the switch due to cleanup errors - log and continue
+        }
+      }
+
       // Validate provider availability first
       if (!this.isProviderAvailable(targetProvider) && !mapInstance) {
         throw new Error(`${targetProvider} provider not available or not initialized`);
@@ -827,6 +839,20 @@ function about(aboutTotal) {
   addClickDismissHandler();
 
   aboutTimer = timerManager.setTimeout(aboutTimerFunc, aboutInterval, aboutTotal);
+
+  // FAILSAFE: Force dismiss after 10 seconds if something goes wrong
+  timerManager.setTimeout(() => {
+    const adiv = document.getElementById("about_div");
+    if (adiv && adiv.style.display !== "none") {
+      console.warn('⚠️ About screen failsafe triggered - forcing dismissal');
+      adiv.style.display = "none";
+      removeClickDismissHandler();
+      if (aboutTimer !== null) {
+        clearTimeout(aboutTimer);
+        aboutTimer = null;
+      }
+    }
+  }, 10000);
 }
 
 function aboutTimerFunc(aboutTotal) {
@@ -978,6 +1004,11 @@ class TSMap {
     return [b[3], b[0], b[1], b[2]].join(","); // assemble in google format w, s, e, n
   }
 
+  // Memory Management: Abstract cleanup method - must be implemented by subclasses
+  cleanup() {
+    throw new Error("cleanup() must be implemented by subclass")
+  }
+
   setCenter() {
     throw new Error("not implemented")
   }
@@ -1048,6 +1079,7 @@ class AzureMap extends TSMap {
     this.searchDataSource = null;
     this.subscriptionKey = null;
     this.map = null; // Will be initialized after getting API key
+    this.mapEventListeners = []; // Track map-specific event listeners for cleanup
     this.initializationPromise = this.initializeWithSubscriptionKey();
   }
 
@@ -1266,6 +1298,10 @@ class AzureMap extends TSMap {
     this.searchDataSource = new atlas.source.DataSource();
     this.map.sources.add(this.searchDataSource);
 
+    // Create data source for detection rectangles
+    this.detectionDataSource = new atlas.source.DataSource();
+    this.map.sources.add(this.detectionDataSource);
+
     // Add layer for search result markers (only for point features, not boundaries)
     this.map.layers.add(new atlas.layer.BubbleLayer(this.searchDataSource, null, {
       strokeColor: 'blue',
@@ -1274,19 +1310,47 @@ class AzureMap extends TSMap {
       filter: ['==', ['geometry-type'], 'Point']
     }));
 
-    // Add polygon layer for boundary visualization
+    // Add polygon layer for boundary visualization (transparent fill for clean map view)
     this.map.layers.add(new atlas.layer.PolygonLayer(this.searchDataSource, null, {
-      fillColor: 'rgba(255, 0, 0, 0.2)',
-      fillOpacity: 0.2,
+      fillColor: 'transparent',
+      fillOpacity: 0,
       filter: ['==', ['get', 'type'], 'boundary']
     }));
 
-    // Add line layer for boundary outlines
+    // Add line layer for boundary outlines (blue to match Google Maps styling)
     this.map.layers.add(new atlas.layer.LineLayer(this.searchDataSource, null, {
-      strokeColor: 'red',
+      strokeColor: 'blue',
       strokeWidth: 2,
       filter: ['==', ['get', 'type'], 'boundary']
     }));
+
+    // Add polygon layer for detection rectangles with dynamic styling
+    this.detectionPolygonLayer = new atlas.layer.PolygonLayer(this.detectionDataSource, null, {
+      fillColor: [
+        'case',
+        ['has', 'fillColor'], ['get', 'fillColor'],
+        'rgba(255, 0, 0, 0.2)' // default
+      ],
+      fillOpacity: [
+        'case',
+        ['has', 'opacity'], ['get', 'opacity'],
+        0.2 // default
+      ]
+    });
+    this.map.layers.add(this.detectionPolygonLayer);
+
+    // Add line layer for detection rectangle outlines with dynamic styling
+    this.detectionLineLayer = new atlas.layer.LineLayer(this.detectionDataSource, null, {
+      strokeColor: [
+        'case',
+        ['has', 'strokeColor'], ['get', 'strokeColor'],
+        'rgba(255, 0, 0, 1.0)' // default
+      ],
+      strokeWidth: 1
+    });
+    this.map.layers.add(this.detectionLineLayer);
+
+    console.log('✅ Azure Maps: Detection DataSource and layers initialized');
 
     // Initialize Azure-native search for this provider
     this.initializeAzureSearch();
@@ -1527,41 +1591,189 @@ class AzureMap extends TSMap {
 
   makeMapRect(o, listener) {
     // Create a rectangle overlay for detection results
-    let rectangle = new atlas.data.Polygon([[[o.x1, o.y1], [o.x1, o.y2], [o.x2, o.y2], [o.x2, o.y1], [o.x1, o.y1]]]);
+    // CRITICAL: Azure Maps Polygon expects [longitude, latitude] order
+    // TowerScout uses x=longitude, y=latitude, so [o.x1, o.y1] is correct
+    let rectangle = new atlas.data.Polygon([[
+      [o.x1, o.y1], // top-left: [lng, lat]
+      [o.x1, o.y2], // bottom-left: [lng, lat]
+      [o.x2, o.y2], // bottom-right: [lng, lat]
+      [o.x2, o.y1], // top-right: [lng, lat]
+      [o.x1, o.y1]  // close polygon
+    ]]);
+
+    // Handle detection ID - may be undefined if called before ID assignment
+    const detectionId = (o.id !== undefined) ? o.id : 'pending';
 
     let feature = new atlas.data.Feature(rectangle, {
       type: 'detection',
-      confidence: o.confidence || 0
+      confidence: o.confidence || 0,
+      strokeColor: o.color || '#FF0000',
+      fillColor: o.fillColor || '#FF0000',
+      opacity: o.opacity || 0.2,
+      detectionId: detectionId
     });
 
     // Store reference for later updates
     o.azureFeature = feature;
 
+    // Skip rendering for tiles - they're data objects only, not visual elements
+    const isTile = o.classname === 'tile';
+
+    // Add feature to detection data source for rendering (skip tiles)
+    if (this.detectionDataSource && !isTile) {
+      this.detectionDataSource.add(feature);
+
+      // Calculate box dimensions for debugging coordinate precision
+      const widthDeg = Math.abs(o.x2 - o.x1);
+      const heightDeg = Math.abs(o.y1 - o.y2);
+      const widthMeters = widthDeg * 111320 * Math.cos(o.y1 * Math.PI / 180); // approximate meters
+      const heightMeters = heightDeg * 110540; // approximate meters
+
+      console.log(`Added detection ${detectionId} to Azure Maps:`);
+      console.log(`  Coordinates: [${o.x1.toFixed(6)}, ${o.y1.toFixed(6)}] to [${o.x2.toFixed(6)}, ${o.y2.toFixed(6)}]`);
+      console.log(`  Box size: ${widthMeters.toFixed(1)}m x ${heightMeters.toFixed(1)}m`);
+
+      // Warn if detection is suspiciously small (< 10m)
+      if (widthMeters < 10 || heightMeters < 10) {
+        console.warn(`⚠️ Detection ${detectionId} is very small (${widthMeters.toFixed(1)}m x ${heightMeters.toFixed(1)}m) - possible coordinate transformation issue`);
+      }
+    } else if (isTile) {
+      console.log(`Tile ${detectionId} created for metadata (not rendered on map)`);
+    }
+
+    // Handle click listener if provided
+    if (listener) {
+      // Azure Maps requires event handling through layer events
+      // Store listener reference for future implementation
+      feature.properties.clickListener = listener;
+    }
+
     return feature;
   }
 
-  updateMapRect(o) {
-    // Update rectangle color based on confidence or state
-    if (o.azureFeature) {
-      o.azureFeature.properties.confidence = o.confidence || 0;
-      // Color updates would be handled by the layer styling
+  updateMapRect(o, onoff) {
+    // Show or hide detection rectangle
+    if (!o.azureFeature) return;
+
+    // Skip tiles - they're metadata only, not visual elements
+    const isTile = o.classname === 'tile';
+    if (isTile) return;
+
+    // Handle detection ID - may be undefined if called before ID assignment
+    const detectionId = (o.id !== undefined) ? o.id : 'pending';
+
+    if (onoff) {
+      // Add feature to data source if not already present
+      if (this.detectionDataSource) {
+        const shapes = this.detectionDataSource.getShapes();
+        const exists = shapes && shapes.some(s =>
+          s.properties && s.properties.detectionId === detectionId
+        );
+        if (!exists) {
+          this.detectionDataSource.add(o.azureFeature);
+          console.log(`Showing detection ${detectionId} on Azure Maps`);
+        }
+      }
+    } else {
+      // Remove feature from data source
+      if (this.detectionDataSource) {
+        this.detectionDataSource.remove(o.azureFeature);
+        console.log(`Hiding detection ${detectionId} from Azure Maps`);
+      }
     }
   }
 
   colorMapRect(o, color) {
     // Update rectangle color
-    if (o.azureFeature) {
-      o.azureFeature.properties.color = color;
-      // Implementation would update the layer styling
+    if (o.azureFeature && this.detectionDataSource) {
+      // Handle detection ID - may be undefined if called before ID assignment
+      const detectionId = (o.id !== undefined) ? o.id : 'pending';
+
+      // Determine if detection is selected (green) or unselected (red)
+      const isSelected = (color === 'green' ||
+        color === '#00FF00' ||
+        color.toLowerCase().includes('0, 255, 0') ||
+        color.toLowerCase().includes('0,255,0'));
+
+      // Update feature properties with appropriate opacity
+      o.azureFeature.properties.strokeColor = color;
+
+      // Selected detections: Higher opacity (0.3) for better visibility
+      // Unselected detections: Standard opacity (0.15) - matches constructor
+      if (isSelected) {
+        o.azureFeature.properties.fillColor = 'rgba(0, 255, 0, 0.3)';
+      } else {
+        // For unselected, maintain the transparent red fill
+        o.azureFeature.properties.fillColor = 'rgba(255, 0, 0, 0.15)';
+      }
+
+      // Remove and re-add feature to trigger visual update
+      this.detectionDataSource.remove(o.azureFeature);
+      this.detectionDataSource.add(o.azureFeature);
+
+      console.log(`Updated detection ${detectionId} color to ${color} (opacity: ${isSelected ? '0.3' : '0.15'})`);
     }
   }
 
   resetBoundaries() {
-    // Simple approach: clear all data and re-add non-boundary items
+    console.log('🧹 Azure Maps: Resetting boundaries...');
+
+    // Enhanced cleanup: Clear boundary objects from data source and release references
     if (this.searchDataSource) {
-      this.searchDataSource.clear();
+      try {
+        // Get all shapes and identify boundaries to remove
+        const features = this.searchDataSource.getShapes();
+        const boundariesToRemove = [];
+
+        if (features && Array.isArray(features)) {
+          features.forEach(feature => {
+            if (feature && feature.properties && feature.properties.type === 'boundary') {
+              boundariesToRemove.push(feature);
+            }
+          });
+
+          // Remove all boundary features
+          if (boundariesToRemove.length > 0) {
+            this.searchDataSource.remove(boundariesToRemove);
+            console.log(`✅ Removed ${boundariesToRemove.length} boundary features from data source`);
+          }
+        }
+
+        // Force a complete re-render by temporarily hiding and showing the layers
+        // This ensures Azure Maps actually updates the visual display
+        const layers = this.map.layers.getLayers();
+        layers.forEach(layer => {
+          if (layer.getSource && layer.getSource() === this.searchDataSource) {
+            const currentVisibility = layer.getOptions().visible;
+            if (currentVisibility !== false) {
+              layer.setOptions({ visible: false });
+              // Use setTimeout to ensure the visibility change is processed
+              setTimeout(() => {
+                layer.setOptions({ visible: true });
+              }, 10);
+            }
+          }
+        });
+
+      } catch (e) {
+        // Fallback to clearing all if selective removal fails
+        console.warn('⚠️ Selective boundary removal failed, clearing all:', e.message);
+        this.searchDataSource.clear();
+      }
+    }
+
+    // Clear boundary tracking and release references
+    if (this.boundaries && this.boundaries.length > 0) {
+      const boundaryCount = this.boundaries.length;
+      this.boundaries.forEach(b => {
+        if (b) {
+          b.azureObject = null; // Release reference to enable garbage collection
+        }
+      });
+      console.log(`✅ Cleared ${boundaryCount} boundary references`);
     }
     this.boundaries = [];
+    console.log('✅ Azure Maps boundaries reset complete');
   }
 
   addBoundary(b) {
@@ -1583,16 +1795,16 @@ class AzureMap extends TSMap {
         filter: ['==', ['geometry-type'], 'Point']
       }));
 
-      // Add polygon layer for boundary visualization
+      // Add polygon layer for boundary visualization (transparent fill for clean map view)
       this.map.layers.add(new atlas.layer.PolygonLayer(this.searchDataSource, null, {
-        fillColor: 'rgba(255, 0, 0, 0.2)',
-        fillOpacity: 0.2,
+        fillColor: 'transparent',
+        fillOpacity: 0,
         filter: ['==', ['get', 'type'], 'boundary']
       }));
 
-      // Add line layer for boundary outlines
+      // Add line layer for boundary outlines (blue to match Google Maps styling)
       this.map.layers.add(new atlas.layer.LineLayer(this.searchDataSource, null, {
-        strokeColor: 'red',
+        strokeColor: 'blue',
         strokeWidth: 2,
         filter: ['==', ['get', 'type'], 'boundary']
       }));
@@ -1788,28 +2000,11 @@ class AzureMap extends TSMap {
         // Clear any existing search markers and add new result marker
         const searchMarker = this.addSearchResultMarker(result);
 
-        // Create boundary around the search result
-        let boundary;
-        if (result.viewport) {
-          // Use viewport bounds if available - convert to our boundary format
-          const bounds = [
-            result.viewport.topLeftPoint.lon,  // west
-            result.viewport.topLeftPoint.lat,  // north
-            result.viewport.btmRightPoint.lon, // east
-            result.viewport.btmRightPoint.lat  // south
-          ];
-          boundary = new SimpleBoundary(bounds);
-        } else {
-          // Create circle boundary around the point with proper Azure coordinates
-          const radius = 1000; // 1km default radius
-          boundary = new CircleBoundary([lng, lat], radius);
-        }
-
-        this.addBoundary(boundary);
-
-        // IMPORTANT: Don't let boundary fitBounds override our search centering
-        console.log('🚧 Skipping showBoundaries() to preserve search centering');
-        // this.showBoundaries(); // Commented out to keep search result centered
+        // USER JOURNEY FIX: Do NOT auto-create boundary on search
+        // User should manually define search area using Circle or Polygon tools
+        // This matches Google Maps behavior (center only, no auto-boundary)
+        console.log('✅ Azure Maps search complete - map centered, no auto-boundary');
+        console.log('💡 User can now define search area using Circle or Polygon tools');
 
         // Final verification of map center using proper Azure Maps methods
         setTimeout(() => {
@@ -1894,6 +2089,135 @@ class AzureMap extends TSMap {
     }
   }
 
+  // Memory Management: Cleanup Methods
+
+  cleanupDrawingManager() {
+    if (this.drawingManager) {
+      console.log('🧹 Cleaning up Azure DrawingManager...');
+
+      // Remove event listeners
+      if (this.map && this.map.events) {
+        this.map.events.remove('drawingcomplete', this.drawingManager);
+      }
+
+      // Clear drawn shapes
+      try {
+        const source = this.drawingManager.getSource();
+        if (source) {
+          source.clear();
+        }
+      } catch (e) {
+        console.warn('⚠️ Error clearing drawing source:', e.message);
+      }
+
+      // Dispose drawing manager if method exists
+      if (typeof this.drawingManager.dispose === 'function') {
+        try {
+          this.drawingManager.dispose();
+        } catch (e) {
+          console.warn('⚠️ Error disposing drawing manager:', e.message);
+        }
+      }
+
+      this.drawingManager = null;
+      console.log('✅ Azure DrawingManager cleaned up');
+    }
+  }
+
+  cleanupMapListeners() {
+    if (this.map && this.map.events && this.mapEventListeners.length > 0) {
+      console.log(`🧹 Cleaning up ${this.mapEventListeners.length} Azure map listeners...`);
+
+      for (const listener of this.mapEventListeners) {
+        try {
+          this.map.events.remove(listener.eventType, listener.handler);
+        } catch (e) {
+          console.warn(`⚠️ Error removing listener ${listener.eventType}:`, e.message);
+        }
+      }
+
+      this.mapEventListeners = [];
+      console.log('✅ Azure map listeners cleaned up');
+    }
+  }
+
+  cleanupSearch() {
+    console.log('🧹 Cleaning up Azure search infrastructure...');
+
+    // Remove search result markers and boundaries
+    if (this.searchDataSource) {
+      try {
+        this.searchDataSource.clear();
+
+        // Remove layers that reference this data source
+        if (this.map && this.map.layers) {
+          const layers = this.map.layers.getLayers();
+          if (layers && Array.isArray(layers)) {
+            layers.forEach(layer => {
+              try {
+                if (layer && typeof layer.getSource === 'function') {
+                  const layerSource = layer.getSource();
+                  if (layerSource === this.searchDataSource) {
+                    this.map.layers.remove(layer);
+                  }
+                }
+              } catch (e) {
+                console.warn('⚠️ Error removing layer:', e.message);
+              }
+            });
+          }
+        }
+
+        // Remove data source
+        if (this.map && this.map.sources) {
+          try {
+            this.map.sources.remove(this.searchDataSource);
+          } catch (e) {
+            console.warn('⚠️ Error removing search data source:', e.message);
+          }
+        }
+
+        this.searchDataSource = null;
+      } catch (e) {
+        console.warn('⚠️ Error during search cleanup:', e.message);
+      }
+    }
+
+    // Clear SearchURL and reset initialization flag
+    this.searchURL = null;
+    this.searchInitialized = false;
+
+    console.log('✅ Azure search infrastructure cleaned up');
+  }
+
+  cleanup() {
+    console.log('🧹 Starting Azure Maps cleanup...');
+
+    try {
+      // 1. Cleanup drawing manager
+      this.cleanupDrawingManager();
+
+      // 2. Cleanup map event listeners
+      this.cleanupMapListeners();
+
+      // 3. Cleanup search infrastructure
+      this.cleanupSearch();
+
+      // 4. Reset boundaries
+      this.resetBoundaries();
+
+      // 5. Clear drawn shapes
+      if (this.newShapes && this.newShapes.length > 0) {
+        this.clearShapes();
+      }
+
+      console.log('✅ Azure Maps cleanup complete');
+    } catch (error) {
+      console.error('❌ Error during Azure Maps cleanup:', error);
+      // Don't throw - allow cleanup to complete partially
+    }
+  }
+
   getBoundariesStr() {
     let result = [];
     for (let b of this.boundaries) {
@@ -1944,6 +2268,7 @@ class GoogleMap extends TSMap {
       ]
     });
     this.boundaries = [];
+    this.mapEventListeners = []; // Track map-specific event listeners for cleanup
     this.drawingManager = new google.maps.drawing.DrawingManager({
       drawingMode: null
     });
@@ -2254,11 +2579,18 @@ class GoogleMap extends TSMap {
   }
 
   resetBoundaries() {
+    console.log('🧹 Google Maps: Resetting boundaries...');
+    const boundaryCount = this.boundaries.length;
+
     for (let b of this.boundaries) {
-      b.object.setMap(null);
-      b.object = null;
+      if (b && b.object) {
+        b.object.setMap(null); // Remove from map visually
+        b.object = null; // Release reference
+      }
     }
     this.boundaries = [];
+
+    console.log(`✅ Google Maps: Removed ${boundaryCount} boundaries from map`);
   }
 
   addBoundary(b) {
@@ -2317,6 +2649,101 @@ class GoogleMap extends TSMap {
     return "[" + result.join(",") + "]";
   }
 
+  // Memory Management: Cleanup Methods
+
+  cleanupDrawingManager() {
+    if (this.drawingManager) {
+      console.log('🧹 Cleaning up Google DrawingManager...');
+
+      // Remove all event listeners from drawing manager
+      try {
+        if (typeof google !== 'undefined' && google.maps && google.maps.event) {
+          google.maps.event.clearInstanceListeners(this.drawingManager);
+        }
+      } catch (e) {
+        console.warn('⚠️ Error clearing drawing manager listeners:', e.message);
+      }
+
+      // Remove from map
+      try {
+        this.drawingManager.setMap(null);
+      } catch (e) {
+        console.warn('⚠️ Error removing drawing manager from map:', e.message);
+      }
+
+      this.drawingManager = null;
+      console.log('✅ Google DrawingManager cleaned up');
+    }
+  }
+
+  cleanupMapListeners() {
+    if (this.mapEventListeners.length > 0) {
+      console.log(`🧹 Cleaning up ${this.mapEventListeners.length} Google map listeners...`);
+
+      for (const listener of this.mapEventListeners) {
+        try {
+          if (listener.listener && typeof google !== 'undefined' && google.maps && google.maps.event) {
+            google.maps.event.removeListener(listener.listener);
+          }
+        } catch (e) {
+          console.warn(`⚠️ Error removing listener ${listener.eventType}:`, e.message);
+        }
+      }
+
+      this.mapEventListeners = [];
+      console.log('✅ Google map listeners cleaned up');
+    }
+  }
+
+  cleanupSearch() {
+    console.log('🧹 Cleaning up Google search infrastructure...');
+
+    // Remove SearchBox listeners
+    if (this.searchBox) {
+      try {
+        if (typeof google !== 'undefined' && google.maps && google.maps.event) {
+          google.maps.event.clearInstanceListeners(this.searchBox);
+        }
+        this.searchBox = null;
+      } catch (e) {
+        console.warn('⚠️ Error cleaning up search box:', e.message);
+      }
+    }
+
+    // Clear places cache
+    this.places = null;
+
+    console.log('✅ Google search infrastructure cleaned up');
+  }
+
+  cleanup() {
+    console.log('🧹 Starting Google Maps cleanup...');
+
+    try {
+      // 1. Cleanup drawing manager
+      this.cleanupDrawingManager();
+
+      // 2. Cleanup map event listeners
+      this.cleanupMapListeners();
+
+      // 3. Cleanup search infrastructure
+      this.cleanupSearch();
+
+      // 4. Reset boundaries (already correct implementation)
+      this.resetBoundaries();
+
+      // 5. Clear drawn shapes
+      if (this.newShapes && this.newShapes.length > 0) {
+        this.clearShapes();
+      }
+
+      console.log('✅ Google Maps cleanup complete');
+    } catch (error) {
+      console.error('❌ Error during Google Maps cleanup:', error);
+      // Don't throw - allow cleanup to complete partially
+    }
+  }
+
 }
 
 
@@ -2341,7 +2768,7 @@ class PolygonBoundary extends Boundary {
   }
 
   toString() {
-    return '{"kind":"polygon","points":' + JSON.stringify(this.points) + '}';
+    return JSON.stringify(this.points);
   }
 }
 
@@ -2551,8 +2978,8 @@ class Detection extends PlaceRect {
   }
 
   constructor(x1, y1, x2, y2, classname, conf, tile, idInTile, inside, selected, secondary, address, addressConfidence, addressProvider) {
-    super(x1, y1, x2, y2, conf === 1.0 ? "blue" : "#FF0000", conf === 1.0 ? "blue" : "#FF0000", 0.2, classname, () => {
-      this.highlight(false, true);
+    super(x1, y1, x2, y2, conf === 1.0 ? "blue" : "#FF0000", conf === 1.0 ? "blue" : "#FF0000", 0.15, classname, () => {
+      this.highlight(true, true);
     })
     this.conf = conf;
     this.inside = inside;
@@ -2631,7 +3058,11 @@ class Detection extends PlaceRect {
   }
 
   generateCheckBox() {
-    let meta = Tile_tiles[this.tile].metadata;
+    // Defensive check for tile existence (prevents crash if tiles not loaded)
+    let meta = "";
+    if (Tile_tiles[this.tile] && Tile_tiles[this.tile].metadata) {
+      meta = Tile_tiles[this.tile].metadata;
+    }
     let p2 = (this.secondary > 0 && this.secondary < 1.0 ? ",&nbsp;P2(" + this.secondary.toFixed(2) + ")" : "")
     let box = "<li><div style='display:block' id='detdiv" + this.id + "'>";
     box += "<input type='checkbox' id='detcb" + this.id + "' name='detcb" + this.id + "'";
@@ -2713,7 +3144,7 @@ class Detection extends PlaceRect {
     // highlight the individual detection
     element = document.getElementById(this.labelId);
     if (scroll) {
-      currentAddrElement.scrollIntoView();
+      currentAddrElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     element.style.fontWeight = "bolder";
     element.style.textDecoration = "underline";
@@ -3123,6 +3554,25 @@ function cancelRequest() {
 }
 
 function circleBoundary() {
+  // Defensive null checks
+  if (!currentMap) {
+    console.error('❌ currentMap is not initialized');
+    TowerScoutErrorHandler.showUserNotification(
+      'Map is still initializing. Please wait a moment and try again.',
+      'warning'
+    );
+    return;
+  }
+
+  if (!googleMap || !azureMap) {
+    console.error('❌ Map providers not initialized:', { googleMap: !!googleMap, azureMap: !!azureMap });
+    TowerScoutErrorHandler.showUserNotification(
+      'Map providers are still initializing. Please wait a moment.',
+      'warning'
+    );
+    return;
+  }
+
   // radius? construct a circle
   let radius = document.getElementById("radius").value;
   if (radius !== "") {
@@ -3133,6 +3583,10 @@ function circleBoundary() {
 
     if (isNaN(radius) || radius <= 0) {
       console.warn('Invalid radius value:', radius);
+      TowerScoutErrorHandler.showUserNotification(
+        'Please enter a valid radius (positive number).',
+        'warning'
+      );
       return;
     }
 
@@ -3141,12 +3595,16 @@ function circleBoundary() {
     console.log('🎯 Circle center coordinates:', centerCoords);
 
     // DEBUG: Check boundaries before clearing
-    console.log('Before reset - Google boundaries:', googleMap.boundaries.length);
-    console.log('Before reset - Azure boundaries:', azureMap.boundaries.length);
+    console.log('Before reset - Google boundaries:', googleMap.boundaries ? googleMap.boundaries.length : 'undefined');
+    console.log('Before reset - Azure boundaries:', azureMap.boundaries ? azureMap.boundaries.length : 'undefined');
 
     // Clear existing boundaries before adding new circle
-    googleMap.resetBoundaries();
-    azureMap.resetBoundaries();
+    if (googleMap && typeof googleMap.resetBoundaries === 'function') {
+      googleMap.resetBoundaries();
+    }
+    if (azureMap && typeof azureMap.resetBoundaries === 'function') {
+      azureMap.resetBoundaries();
+    }
 
     // DEBUG: Check boundaries after clearing
     console.log('After reset - Google boundaries:', googleMap.boundaries.length);
@@ -3181,17 +3639,71 @@ function circleBoundary() {
 }
 
 function drawnBoundary() {
+  // Defensive null checks
+  if (!currentMap) {
+    console.error('❌ currentMap is not initialized');
+    TowerScoutErrorHandler.showUserNotification(
+      'Map is still initializing. Please wait a moment and try again.',
+      'warning'
+    );
+    return;
+  }
+
+  if (!googleMap || !azureMap) {
+    console.error('❌ Map providers not initialized:', { googleMap: !!googleMap, azureMap: !!azureMap });
+    TowerScoutErrorHandler.showUserNotification(
+      'Map providers are still initializing. Please wait a moment.',
+      'warning'
+    );
+    return;
+  }
+
   console.log("using custom boundary polygon(s)");
   let boundaries = currentMap.retrieveDrawnBoundaries();
-  for (let b of boundaries) {
-    googleMap.addBoundary(b);
-    azureMap.addBoundary(b);
+
+  if (!boundaries || boundaries.length === 0) {
+    console.warn('⚠️ No drawn boundaries found');
+    TowerScoutErrorHandler.showUserNotification(
+      'No custom shapes drawn. Please use the polygon tool to draw a boundary first.',
+      'info'
+    );
+    return;
   }
+
+  for (let b of boundaries) {
+    if (googleMap && typeof googleMap.addBoundary === 'function') {
+      googleMap.addBoundary(b);
+    }
+    if (azureMap && typeof azureMap.addBoundary === 'function') {
+      azureMap.addBoundary(b);
+    }
+  }
+
+  console.log(`✅ Added ${boundaries.length} custom boundary/boundaries`);
 }
 
 function clearBoundaries() {
-  googleMap.resetBoundaries();
-  azureMap.resetBoundaries();
+  // Defensive null checks
+  if (!googleMap || !azureMap) {
+    console.error('❌ Map providers not initialized:', { googleMap: !!googleMap, azureMap: !!azureMap });
+    TowerScoutErrorHandler.showUserNotification(
+      'Map providers are still initializing. Please wait a moment.',
+      'warning'
+    );
+    return;
+  }
+
+  console.log('🧹 Clearing all boundaries');
+
+  if (googleMap && typeof googleMap.resetBoundaries === 'function') {
+    googleMap.resetBoundaries();
+  }
+
+  if (azureMap && typeof azureMap.resetBoundaries === 'function') {
+    azureMap.resetBoundaries();
+  }
+
+  console.log('✅ Boundaries cleared');
 }
 
 
@@ -3462,6 +3974,7 @@ async function setMap(newMap) {
       try {
         console.log(`🔄 Attempting to switch to Google Maps (isInitializing: ${isInitializing})`);
         await providerManager.switchProvider('google', googleMap);
+        currentMap = googleMap;  // ✅ FIX: Sync global currentMap with providerManager
         console.log('🌍 Switched to Google Maps');
       } catch (error) {
         console.error('❌ Failed to switch to Google Maps:', error);
@@ -3505,6 +4018,7 @@ async function setMap(newMap) {
       try {
         console.log(`🔄 Attempting to switch to Azure Maps (isInitializing: ${isInitializing})`);
         await providerManager.switchProvider('azure');
+        currentMap = azureMap;  // ✅ FIX: Sync global currentMap with providerManager
         console.log('🗺️ Switched to Azure Maps');
 
         // Disable Google Places when switching to Azure
@@ -3763,7 +4277,9 @@ function download_kml() {
     if (det.conf >= Detection_minConfidence && det.selected && inside) {
       text += "    <Placemark>\n";
       text += '      <name>' + det.address + '</name>\n'
-      text += '      <description>P(' + det.conf.toFixed(2) + ') at ' + det.address + ' ' + Tile_tiles[det.tile].metadata + '</description>\n';
+      // Defensive check for tile metadata in KML export
+      let tileMeta = (Tile_tiles[det.tile] && Tile_tiles[det.tile].metadata) ? Tile_tiles[det.tile].metadata : '';
+      text += '      <description>P(' + det.conf.toFixed(2) + ') at ' + det.address + ' ' + tileMeta + '</description>\n';
       text += "      <styleUrl>#icon-1736-0F9D58</styleUrl>\n"
       text += '      <Point>\n';
       text += '        <altitudeMode>relativeToGround</altitudeMode>\n';
@@ -3909,8 +4425,27 @@ function enableProgress(tiles) {
   secsElapsed = 0;
 }
 function fatalError(msg) {
-  document.getElementById("fatal_div").style.display = "flex";
-  document.getElementById("fatal_div").innerHTML = "<center>" + msg + "</center>";
+  const div = document.getElementById("fatal_div");
+  div.style.display = "flex";
+  div.innerHTML = `
+    <div style="background: white; padding: 30px; border-radius: 8px; 
+                max-width: 500px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+      <p style="color: #d32f2f; font-weight: bold; font-size: 18px; margin-bottom: 15px;">
+        ⚠️ Error
+      </p>
+      <p style="color: #333; margin-bottom: 20px;">${msg}</p>
+      <button onclick="this.closest('#fatal_div').style.display='none'; location.reload();" 
+              style="background: #1976d2; color: white; border: none; padding: 10px 20px; 
+                     border-radius: 4px; cursor: pointer; margin-right: 10px;">
+        Refresh Application
+      </button>
+      <button onclick="this.closest('#fatal_div').style.display='none'" 
+              style="background: #757575; color: white; border: none; padding: 10px 20px; 
+                     border-radius: 4px; cursor: pointer;">
+        Dismiss
+      </button>
+    </div>
+  `;
 }
 
 function disableProgress(time, actualTiles) {
@@ -4166,6 +4701,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initialize provider management first (needed for backend sync)
     initializeProviderManagement();
 
+    // Show about screen immediately while initialization proceeds
+    console.log('📺 Showing about screen...');
+    if (typeof dev !== 'undefined' && dev === 0) {
+      about(6);
+    } else {
+      about(0); // Skip in dev mode
+    }
+
     // Sync UI with backend provider defaults (Phase 2 improvement)
     syncUIWithBackendProviders()
       .then(async () => {
@@ -4193,13 +4736,6 @@ document.addEventListener('DOMContentLoaded', function () {
             // Now provider switching will work since isInitializing = false
             await setMap(targetRadio);
           }
-        }
-
-        // Show about screen in dev mode
-        if (dev === 0) {
-          about(6);
-        } else {
-          about(0);
         }
 
         console.log("✅ TowerScout initialized successfully.");
