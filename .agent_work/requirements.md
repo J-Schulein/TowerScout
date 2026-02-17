@@ -78,52 +78,77 @@ This document specifies requirements for transforming TowerScout from a student 
 ## 🗺️ MAP PROVIDER REQUIREMENTS (Type C)
 
 ### MAP-001: Azure Maps Frontend UI Implementation
+**Status**: ✅ **COMPLETED** (TASK-030, January 16, 2026)  
 **Priority**: CRITICAL  
 **Type**: C  
 **EARS**: WHEN users interact with the map interface, THE SYSTEM SHALL provide Azure Maps Web SDK instead of Bing Maps with full functionality  
 **Acceptance Criteria**:
-- Replace Bing Maps frontend radio button with Azure Maps option
-- Implement Azure Maps Web SDK integration with complete JavaScript API
-- Add drawing manager for polygon/rectangle creation tools
-- Integrate Azure Maps Search API for location search functionality
-- Maintain coordinate transformation compatibility between frontend and backend
-- Support detection overlay positioning on Azure Maps
-- Ensure cross-browser compatibility and mobile responsiveness
-- Remove all Bing Maps frontend dependencies and references
+- ✅ Replace Bing Maps frontend radio button with Azure Maps option
+- ✅ Implement Azure Maps Web SDK integration with complete JavaScript API
+- ✅ Add drawing manager for polygon/rectangle creation tools
+- ✅ Integrate Azure Maps Search API for location search functionality
+- ✅ Maintain coordinate transformation compatibility between frontend and backend
+- ✅ Support detection overlay positioning on Azure Maps
+- ✅ Ensure cross-browser compatibility and mobile responsiveness
+- ✅ Remove all Bing Maps frontend dependencies and references
+
+**Validation**:
+- Cross-provider visual consistency achieved (TASK-040, February 11, 2026)
+- Geocoding functionality fully operational (TASK-039, February 11, 2026)
+- User journey verification completed (TASK-037, February 17, 2026)
 
 ---
 
 ## 🏗️ INFRASTRUCTURE REQUIREMENTS (Type C)
 
 ### INF-001: Error Handling System
+**Status**: ✅ **COMPLETED** (TASK-003, ts_errors.py + ts_validation.py)  
 **Priority**: HIGH  
 **Type**: C  
 **EARS**: WHEN errors occur, THE SYSTEM SHALL handle exceptions gracefully and provide meaningful feedback to users  
 **Acceptance Criteria**:
-- Add try/catch blocks around all external API calls
-- Implement structured error responses
-- Create error logging with different severity levels
-- Add user-friendly error messages
+- ✅ Add try/catch blocks around all external API calls
+- ✅ Implement structured error responses
+- ✅ Create error logging with different severity levels
+- ✅ Add user-friendly error messages
+
+**Validation**:
+- Comprehensive error handling system with custom exception hierarchy
+- Input validation utilities for all user inputs
+- Centralized error handling across all modules
 
 ### INF-002: Logging Infrastructure
+**Status**: ✅ **COMPLETED** (ts_logging.py)  
 **Priority**: HIGH  
 **Type**: C  
 **EARS**: THE SYSTEM SHALL implement structured logging for debugging, monitoring, and audit trails  
 **Acceptance Criteria**:
-- Replace all print statements with proper logging
-- Add log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-- Configure log rotation and retention
-- Add request/response logging for API calls
+- ✅ Replace all print statements with proper logging
+- ✅ Add log levels (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- ✅ Configure log rotation and retention
+- ✅ Add request/response logging for API calls
+
+**Validation**:
+- Structured logging system implemented across all modules
+- Log files written to webapp/logs/ directory
+- Configurable log levels and output formats
 
 ### INF-003: Testing Framework
+**Status**: ✅ **COMPLETED** (TASK-005)  
 **Priority**: HIGH  
 **Type**: B  
 **EARS**: THE SYSTEM SHALL include comprehensive unit tests to ensure reliability and prevent regressions  
 **Acceptance Criteria**:
-- Create `tests/` directory with pytest framework
-- Add unit tests for core modules (ts_maps, ts_imgutil, ts_events)
-- Implement integration tests for Flask routes
-- Add test coverage reporting
+- ✅ Create `tests/` directory with pytest framework
+- ✅ Add unit tests for core modules (ts_maps, ts_imgutil, ts_events)
+- ✅ Implement integration tests for Flask routes
+- ✅ Add test coverage reporting
+
+**Validation**:
+- Comprehensive test suite with unit and integration tests
+- Mock objects for external dependencies (API calls, file I/O)
+- Test coverage tools configured (pytest-cov)
+- Continuous testing workflow established
 
 ---
 
@@ -417,6 +442,7 @@ Success criteria must be met before moving to the next phase of development.
 ## 🔙 LEGACY FEATURE REQUIREMENTS (Type B)
 
 ### LEG-001: Address Lookup for Detections
+**Status**: ✅ **COMPLETED** (TASK-030 January 16, 2026; TASK-039 February 11, 2026)  
 **Priority**: CRITICAL  
 **Type**: B  
 **EARS**: WHEN a cooling tower is detected, THE SYSTEM SHALL automatically retrieve the building address for each detection  
@@ -427,17 +453,23 @@ Success criteria must be met before moving to the next phase of development.
 - WHEN displaying addresses, THE SYSTEM SHALL show fallback text for failed geocoding attempts
 
 **Acceptance Criteria**:
-- Addresses automatically retrieved for all detected cooling towers
-- Multi-provider fallback (Azure Maps Search → Google Geocoding) with error handling
-- Caching system reduces API calls by 60-80% through spatial clustering and Redis/file cache
-- Performance improved 3-4x over current client-side approach
-- Rate limiting prevents API quota exhaustion
-- Integration maintains existing detection workflow without UI disruption
+- ✅ Addresses automatically retrieved for all detected cooling towers
+- ✅ Multi-provider fallback (Azure Maps Search → Google Geocoding) with error handling
+- ✅ Caching system reduces API calls by 60-80% through spatial clustering and Redis/file cache
+- ✅ Performance improved 3-4x over current client-side approach
+- ✅ Rate limiting prevents API quota exhaustion
+- ✅ Integration maintains existing detection workflow without UI disruption
+
+**Validation**:
+- Full geocoding functionality restored with emergency fixes (TASK-039)
+- All detections show addresses correctly across providers
+- Cross-provider compatibility validated (Google Maps + Azure Maps)
 
 **Dependencies**: Environment variables (GOOGLE_API_KEY, AZURE_MAPS_SUBSCRIPTION_KEY), Redis optional  
-**Reference**: [TASK-030](current-tasks.md#task-030-address-lookup-for-detections-), [legacy-features.md](legacy-features.md#req-legacy-001-address-lookup-for-detections)
+**Reference**: [TASK-030](completed-tasks.md#sprint-01-feb-4-18-2026), [TASK-039](completed-tasks.md#sprint-01-feb-4-18-2026), [legacy-features.md](legacy-features.md#req-legacy-001-address-lookup-for-detections)
 
 ### LEG-002: Interactive Highlighting System
+**Status**: ✅ **COMPLETED** (TASK-031, February 11, 2026)  
 **Priority**: HIGH  
 **Type**: B  
 **EARS**: WHEN a user clicks on a detection address, THE SYSTEM SHALL highlight the corresponding tower on the map, AND WHEN a user clicks on a map detection, THE SYSTEM SHALL highlight the corresponding address in the results list  
@@ -447,17 +479,23 @@ Success criteria must be met before moving to the next phase of development.
 - WHEN using keyboard navigation, THE SYSTEM SHALL support accessibility requirements
 
 **Acceptance Criteria**:
-- Bidirectional selection between detection list and map markers
-- Visual feedback clearly indicates selected detection with CSS highlighting
-- Selection state properly managed with automatic clearing of previous highlights
-- Keyboard navigation supports accessibility (Tab, Enter, Arrow keys)
-- Performance maintained with large detection sets (>1000 detections)
-- Integration works across all map providers (Google, Azure, Upload)
+- ✅ Bidirectional selection between detection list and map markers
+- ✅ Visual feedback clearly indicates selected detection with CSS highlighting
+- ✅ Selection state properly managed with automatic clearing of previous highlights
+- ✅ Keyboard navigation supports accessibility (Tab, Enter, Arrow keys)
+- ✅ Performance maintained with large detection sets (>1000 detections)
+- ✅ Integration works across all map providers (Google, Azure, Upload)
 
-**Dependencies**: LEG-001 (Address Lookup) for address display integration  
-**Reference**: [TASK-031](current-tasks.md#task-031-interactive-highlighting-system-), [legacy-features.md](legacy-features.md#req-legacy-002-interactive-highlighting-system)
+**Validation**:
+- Smooth scrolling implemented for user experience
+- Cross-provider compatibility validated
+- Integration with details panel (LEG-003) verified
+
+**Dependencies**: LEG-001 (Address Lookup) for address display integration ✅ COMPLETED  
+**Reference**: [TASK-031](completed-tasks.md#sprint-01-feb-4-18-2026), [legacy-features.md](legacy-features.md#req-legacy-002-interactive-highlighting-system)
 
 ### LEG-003: Enhanced Details Panel
+**Status**: ✅ **COMPLETED** (TASK-032, February 11, 2026)  
 **Priority**: HIGH  
 **Type**: B  
 **EARS**: WHEN viewing detection results, THE SYSTEM SHALL display a right-hand panel with tower-specific information including address, confidence level, and image date if available  
@@ -467,15 +505,20 @@ Success criteria must be met before moving to the next phase of development.
 - WHEN panel content is extensive, THE SYSTEM SHALL provide scrollable content with proper layout
 
 **Acceptance Criteria**:
-- Right-hand panel displays detection details clearly with structured layout
-- Panel shows address, confidence, coordinates, tile info, and metadata
-- Responsive design maintains usability on mobile devices (collapsible on small screens)
-- Panel integrates smoothly with existing UI layout without breaking current functionality
-- Panel updates automatically when detection selection changes
-- Loading states handled gracefully during address lookup
+- ✅ Right-hand panel displays detection details clearly with structured layout
+- ✅ Panel shows address, confidence, coordinates, tile info, and metadata
+- ✅ Responsive design maintains usability on mobile devices (collapsible on small screens)
+- ✅ Panel integrates smoothly with existing UI layout without breaking current functionality
+- ✅ Panel updates automatically when detection selection changes
+- ✅ Loading states handled gracefully during address lookup
 
-**Dependencies**: LEG-001 (Address Lookup) for address data, LEG-002 (Interactive Highlighting) for selection integration  
-**Reference**: [TASK-032](current-tasks.md#task-032-enhanced-details-panel-), [legacy-features.md](legacy-features.md#req-legacy-003-enhanced-details-panel)
+**Validation**:
+- Requirements already met by existing implementation
+- Integration with interactive highlighting (LEG-002) verified
+- Cross-provider functionality validated
+
+**Dependencies**: LEG-001 (Address Lookup) ✅ COMPLETED, LEG-002 (Interactive Highlighting) ✅ COMPLETED  
+**Reference**: [TASK-032](completed-tasks.md#sprint-01-feb-4-18-2026), [legacy-features.md](legacy-features.md#req-legacy-003-enhanced-details-panel)
 
 ### LEG-004: False Positive Review Mode
 **Priority**: MEDIUM  

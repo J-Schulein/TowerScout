@@ -1154,8 +1154,9 @@ def get_objects():
                 except ValueError:
                     clustering_radius = 50.0  # Fallback to default
 
-            # Initialize geocoding service and cache
-            geocoding_service = create_geocoding_service()
+            # Initialize geocoding service and cache with provider preference
+            # Use the same provider selected for map imagery to ensure consistency
+            geocoding_service = create_geocoding_service(preferred_provider=provider)
             geocoding_cache = create_geocoding_cache(clustering_radius_meters=clustering_radius)
             
             # Add address to each detection
@@ -1173,7 +1174,7 @@ def get_objects():
                             detection['address_confidence'] = cached_result.confidence
                             detection['address_provider'] = cached_result.provider.value
                         else:
-                            # Geocode and cache result
+                            # Geocode and cache result (uses service's configured preference)
                             geocoding_result = geocoding_service.reverse_geocode(center_lat, center_lng)
                             detection['address'] = geocoding_result.address
                             detection['address_confidence'] = geocoding_result.confidence
