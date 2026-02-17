@@ -124,7 +124,7 @@ class GeocodingService:
     """
     
     def __init__(self, azure_key: Optional[str] = None, google_key: Optional[str] = None,
-                 rate_limit_requests_per_minute: int = 30):
+                 rate_limit_requests_per_minute: int = 30, preferred_provider: str = "auto"):
         """
         Initialize geocoding service with API keys and rate limiting.
         
@@ -132,12 +132,14 @@ class GeocodingService:
             azure_key: Azure Maps subscription key (optional, falls back to env var)
             google_key: Google Maps API key (optional, falls back to env var)
             rate_limit_requests_per_minute: Maximum requests per minute per session
+            preferred_provider: Preferred geocoding provider ('auto', 'azure', or 'google')
             
         Raises:
             ConfigurationError: If no API keys are available
         """
         self.logger = get_api_logger()
         self.rate_limit = rate_limit_requests_per_minute
+        self.preferred_provider = preferred_provider
         
         # Load API keys from parameters or environment
         self.azure_key = azure_key or os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY')
@@ -372,13 +374,15 @@ class GeocodingService:
                 coordinates=(lat, lng)
             )
     
-    def reverse_geocode(self, lat: float, lng: float) -> GeocodingResult:
+    def reverse_geocode(self, lat: float, lng: float, preferred_provider: Optional[str] = None) -> GeocodingResult:
         """
         Reverse geocode coordinates to building address with provider fallback.
         
         Args:
             lat: Latitude coordinate
             lng: Longitude coordinate
+            preferred_provider: Optional override for preferred provider.
+                              If None, uses the service's configured preference.
             
         Returns:
             GeocodingResult with address and metadata
@@ -392,10 +396,16 @@ class GeocodingService:
             self.logger.warning("Rate limit exceeded for geocoding request")
             raise RateLimitError(GeocodingProvider.AZURE_MAPS)  # Use first provider for error
         
-        self.logger.info(f"Reverse geocoding: {lat}, {lng}")
+        # Use instance preference if no override provided
+        effective_preference = preferred_provider if preferred_provider is not None else self.preferred_provider
+        
+        self.logger.info(f"Reverse geocoding: {lat}, {lng} (preferred: {effective_preference})")
+        
+        # Determine provider order based on preference
+        provider_order = self._get_provider_order(effective_preference)
         
         # Try each provider in order
-        for provider in self.providers:
+        for provider in provider_order:
             try:
                 if provider == GeocodingProvider.AZURE_MAPS:
                     result = self._geocode_azure_maps(lat, lng)
@@ -604,18 +614,28 @@ class GeocodingService:
 
 
 # Factory function for easy integration
-def create_geocoding_service(azure_key: Optional[str] = None, google_key: Optional[str] = None) -> GeocodingService:
+def create_geocoding_service(azure_key: Optional[str] = None, google_key: Optional[str] = None, 
+                            preferred_provider: str = "auto") -> GeocodingService:
     """
     Factory function to create geocoding service with automatic environment fallback.
     
     Args:
         azure_key: Optional Azure Maps subscription key
         google_key: Optional Google Maps API key
+        preferred_provider: 'auto', 'azure', or 'google' (default: 'auto')
         
     Returns:
         Configured GeocodingService instance
         
     Raises:
         ConfigurationError: If no API keys available
+        
+    Note:
+        The preferred_provider is stored in the service instance and used automatically
+        for all reverse_geocode() calls unless explicitly overridden.
     """
-    return GeocodingService(azure_key=azure_key, google_key=google_key)
+    return GeocodingService(
+        azure_key=azure_key, 
+        google_key=google_key,
+        preferred_provider=preferred_provider
+    )

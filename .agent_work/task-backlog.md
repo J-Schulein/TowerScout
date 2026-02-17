@@ -1,60 +1,106 @@
 # Task Backlog - Future Work Prioritization
 
-**Last Updated**: February 5, 2026  
-**Next Planning Session**: February 18, 2026  
+**Last Updated**: February 17, 2026  
+**Sprint 02 Period**: February 18 - March 4, 2026  
+**Next Sprint Planning**: March 4, 2026  
 
 ---
 
-## 🔥 HIGH PRIORITY - Next Sprint Ready
+## 🔥 HIGH PRIORITY - Sprint 03 Ready
 
-### **TASK-038: Frontend Code Quality & Refactoring** 🟡
+### **TASK-039: Google Maps API Upgrade (ISSUE-005)** 🔴
 **Status**: NOT_STARTED  
 **Type**: B (Technical Debt & Code Quality)  
 **Priority**: HIGH  
 **Estimated Effort**: 23 hours (spread across sprint)  
-**Target Sprint**: Sprint 3 (February 18 - March 4, 2026)
+**Target Sprint**: Sprint 02 (February 18 - March 4, 2026) ✅ MOVED TO ACTIVE
+**Status**: IN_PROGRESS - MOVED TO current-tasks.md
 
-**Objective**: Systematic refactoring of frontend codebase to improve maintainability, reduce technical debt, and establish better architecture
+---
 
-**Context**: Discovered during TASK-037 comprehensive code review. Frontend (towerscout.js) is a 4,759-line monolithic file with duplicate code, inconsistent patterns, and architectural issues that impede future development.
+### **TASK-039: Google Maps API Upgrade (ISSUE-005)** 🔴
+**Status**: NOT_STARTED  
+**Type**: C (Architecture - API Migration)  
+**Priority**: CRITICAL  
+**Estimated Effort**: 8-20 hours  
+**Target Sprint**: Sprint 3-4 (Must complete by April 2026)  
+**Hard Deadline**: April 2026 (Breaking change in May 2026)
+
+**Objective**: Migrate from deprecated Google Maps APIs before they are removed in May 2026
+
+**Context**: 
+- Discovery Date: February 5, 2026 during TASK-037 user journey testing
+- Google Maps Drawing Library deprecated August 2025, removal scheduled May 2026
+- SearchBox API deprecated March 2025 for new customers
+- Application currently using retired version (v3.55.1)
+
+**Technical Details**:
+- **Current State**: Using deprecated Drawing Library for polygon/circle tools
+- **Impact**: Complete failure of Google Maps provider after May 2026
+- **Affected Components**: Circle tool, polygon tool, all interactive drawing features
+- **Console Warnings**:
+  ```
+  ⚠️ Drawing library functionality in the Maps JavaScript API is deprecated.
+     Removal scheduled for May 2026.
+  ⚠️ google.maps.places.SearchBox not available to new customers.
+  ⚠️ RetiredVersion warning - using v3.55.1
+  ```
 
 **Requirements**:
-- Split monolithic file into logical modules (~12 separate files)
-- Consolidate duplicate code (3x getBoundariesStr(), repeated null checks)
-- Standardize error handling (remove fatalError(), use TowerScoutErrorHandler)
-- Improve provider abstraction (TSMap base class functionality)
-- Move magic numbers to CONFIG object
-- Add comprehensive input validation
-- Improve memory management and cleanup
-- Remove debug code from production
+- Upgrade to latest Google Maps JavaScript API version
+- Replace deprecated Drawing Library with new drawing tools API
+- Migrate SearchBox to Places Autocomplete API  
+- Maintain feature parity with current polygon/circle drawing capabilities
+- Ensure backward compatibility with existing boundary data structures
+- Test all Google Maps provider functionality after migration
 
-**Benefits**:
-- Easier to add new map providers (Mapbox, Leaflet)
-- Better testability (isolated modules)
-- Reduced bundle size (potential jQuery removal)
-- Improved code navigation and maintenance
-- Foundation for TypeScript migration
+**Migration Strategy**:
+1. **API Version Upgrade** (2-3 hours):
+   - Update Google Maps script loading to latest version
+   - Review and update any breaking changes in core API
+   - Update initialization code for new API patterns
+
+2. **Drawing Tools Migration** (4-8 hours):
+   - Research new Google Maps drawing tools API
+   - Replace DrawingManager with new drawing implementation
+   - Migrate polygon creation functionality
+   - Migrate circle creation functionality
+   - Ensure drawing event handlers work correctly
+
+3. **Places API Migration** (2-4 hours):
+   - Replace SearchBox with Places Autocomplete
+   - Update address search integration
+   - Verify geocoding functionality unchanged
+
+4. **Testing & Validation** (2-5 hours):
+   - Cross-browser testing (Chrome, Edge, Firefox, Safari)
+   - Verify all drawing tools work as expected
+   - Test provider switching (Google ↔ Azure)
+   - Validate boundary data compatibility
+   - Performance testing for API call efficiency
+
+**Risk Assessment**:
+- **HIGH**: Complete provider failure if not addressed before May 2026
+- **MEDIUM**: Potential breaking changes in new API requiring code restructuring
+- **LOW**: User workflow disruption (can be mitigated with thorough testing)
 
 **Dependencies**: 
-- TASK-037 (User Journey Verification) ✅ PHASE 1 COMPLETE - 8 issues identified and documented
-- ISSUE-006, ISSUE-007, ISSUE-008 ✅ FIXED - Critical path unblocked
-- ISSUE-001, ISSUE-003, ISSUE-004 deferred to this refactoring task
+- TASK-041 (Deep Dive Priority 2) ✅ COMPLETE - Clean architecture foundation
+- TASK-037 (User Journey Verification) - Re-test after migration
 
-**Issues to Resolve During Refactoring**:
-- ISSUE-001: Provider initialization timing (2-4 hours)
-- ISSUE-003: Multiple circles accumulate (1-2 hours)
-- ISSUE-004: Clear button non-functional (needs deeper investigation)
+**Success Criteria**:
+- [ ] No deprecation warnings in browser console
+- [ ] All drawing tools functional on Google Maps provider
+- [ ] Address search working with new Places API
+- [ ] Provider switching works seamlessly
+- [ ] Boundary data compatibility maintained
+- [ ] Performance equivalent or better than current implementation
 
-**Detailed Plan**: See [FRONTEND-CODE-REVIEW.md](c:\\Users\\bg90\\TowerScout\\.agent_work\\context\\analysis\\FRONTEND-CODE-REVIEW.md)
-
-**Estimated Breakdown**:
-- Module splitting: 8 hours
-- Error handling standardization: 2 hours  
-- Remove jQuery dependency: 4 hours
-- Create TowerScoutApp class: 3 hours
-- Input validation: 2 hours
-- Provider abstraction: 4 hours
-- **Total**: 23 hours
+**Notes**: 
+- **DO NOT DEFER BEYOND APRIL 2026** - This is a hard deadline
+- Consider implementing this in Sprint 3 to avoid last-minute rush
+- May want to implement provider fallback (Azure Maps) during transition period
+- Document migration process for future API updates
 
 ---
 
@@ -75,10 +121,10 @@
 
 **Dependencies**: 
 - TASK-030 (Address Lookup) ✅ COMPLETED - Address system integration
-- TASK-031 (Interactive Highlighting) 🔄 IN CURRENT SPRINT - Selection system integration
-- TASK-032 (Enhanced Details Panel) 🔄 IN CURRENT SPRINT - UI integration
+- TASK-031 (Interactive Highlighting) ✅ COMPLETED (Sprint 01) - Selection system integration
+- TASK-032 (Enhanced Details Panel) ✅ COMPLETED (Sprint 01) - UI integration
 
-**Ready Conditions**: Will be ready after current sprint completes
+**Ready Conditions**: Dependencies all met, ready for Sprint 03
 
 ---
 

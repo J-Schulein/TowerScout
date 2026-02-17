@@ -45,6 +45,12 @@ class ProviderStateManager {
     this.isInitializing = true;
     console.log('🔧 ProviderStateManager initialized');
 
+    // TASK-041 Phase 1: Initialization state tracking
+    this.initializationState = {
+      google: { styleLoaded: false, drawingManagerReady: false },
+      azure: { styleLoaded: false, drawingManagerReady: false, dataSourceReady: false }
+    };
+
     // Set initialization complete after initial setup (use setTimeout since timerManager not yet initialized)
     setTimeout(() => {
       this.isInitializing = false;
@@ -233,6 +239,59 @@ class ProviderStateManager {
 
   getMap() {
     return this.currentMap;
+  }
+
+  // TASK-041 Phase 1: Centralized access method
+  getCurrentProvider() {
+    return this.currentProvider;
+  }
+
+  // TASK-041 Phase 1: Comprehensive initialization check
+  isFullyInitialized(provider = this.currentProvider) {
+    if (!provider || !this.initializationState[provider]) {
+      console.warn('⚠️ Provider not recognized or state missing:', provider);
+      return false;
+    }
+
+    const state = this.initializationState[provider];
+
+    if (provider === 'azure') {
+      const ready = state.styleLoaded && state.drawingManagerReady && state.dataSourceReady;
+      if (!ready) {
+        console.log('🔍 Azure initialization status:', {
+          styleLoaded: state.styleLoaded,
+          drawingManagerReady: state.drawingManagerReady,
+          dataSourceReady: state.dataSourceReady
+        });
+      }
+      return ready;
+    } else if (provider === 'google') {
+      const ready = state.styleLoaded && state.drawingManagerReady;
+      if (!ready) {
+        console.log('🔍 Google initialization status:', {
+          styleLoaded: state.styleLoaded,
+          drawingManagerReady: state.drawingManagerReady
+        });
+      }
+      return ready;
+    }
+
+    return false;
+  }
+
+  // TASK-041 Phase 1: Mark initialization milestones
+  markInitialized(provider, milestone) {
+    if (this.initializationState[provider]) {
+      this.initializationState[provider][milestone] = true;
+      console.log(`✅ ${provider} - ${milestone} complete`);
+
+      // Check if provider is now fully initialized
+      if (this.isFullyInitialized(provider)) {
+        console.log(`🎉 ${provider} is now fully initialized and ready!`);
+      }
+    } else {
+      console.warn(`⚠️ Attempted to mark milestone for unknown provider: ${provider}`);
+    }
   }
 
   isProviderAvailable(provider) {
@@ -909,6 +968,13 @@ function initGoogleMap() {
   googleMap = new GoogleMap();
   setMyLocation();
 
+  // TASK-041 Phase 1: Mark Google Maps initialization milestones
+  // Style is loaded immediately for Google Maps (synchronous)
+  providerManager.markInitialized('google', 'styleLoaded');
+
+  // Drawing manager is created in GoogleMap constructor, so mark as ready
+  providerManager.markInitialized('google', 'drawingManagerReady');
+
   // Update provider manager if Google is the preferred provider
   if (providerManager.currentProvider === 'google' || providerManager.currentProvider === null) {
     providerManager.currentMap = googleMap;
@@ -1004,6 +1070,58 @@ class TSMap {
     return [b[3], b[0], b[1], b[2]].join(","); // assemble in google format w, s, e, n
   }
 
+  // TASK-041 Phase 2 Step 2.3: Boundary bounding box calculation
+  // Use drawn boundaries instead of viewport for tile generation
+  getBoundaryBounds() {
+    // If no boundaries drawn, fall back to viewport bounds
+    if (!this.boundaries || this.boundaries.length === 0) {
+      console.log('📍 No boundaries drawn, using viewport bounds');
+      return this.getBounds();
+    }
+
+    console.log(`📐 Calculating bounding box for ${this.boundaries.length} boundary/boundaries`);
+
+    // Calculate bounding box from all boundaries
+    let minLng = Infinity, maxLng = -Infinity;
+    let minLat = Infinity, maxLat = -Infinity;
+
+    for (let boundary of this.boundaries) {
+      if (!boundary.points || boundary.points.length === 0) {
+        console.warn('⚠️ Boundary has no points, skipping');
+        continue;
+      }
+
+      for (let point of boundary.points) {
+        const [lng, lat] = point;
+        minLng = Math.min(minLng, lng);
+        maxLng = Math.max(maxLng, lng);
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+      }
+    }
+
+    // Verify we got valid bounds
+    if (!isFinite(minLng) || !isFinite(maxLng) || !isFinite(minLat) || !isFinite(maxLat)) {
+      console.warn('⚠️ Invalid boundary bounds calculated, falling back to viewport');
+      return this.getBounds();
+    }
+
+    const bounds = [minLng, maxLat, maxLng, minLat]; // [west, north, east, south]
+    console.log('✅ Boundary bounding box:', {
+      west: minLng.toFixed(6),
+      north: maxLat.toFixed(6),
+      east: maxLng.toFixed(6),
+      south: minLat.toFixed(6)
+    });
+
+    return bounds;
+  }
+
+  getBoundaryBoundsUrl() {
+    let b = this.getBoundaryBounds();
+    return [b[3], b[0], b[1], b[2]].join(","); // assemble in google format w, s, e, n
+  }
+
   // Memory Management: Abstract cleanup method - must be implemented by subclasses
   cleanup() {
     throw new Error("cleanup() must be implemented by subclass")
@@ -1080,6 +1198,14 @@ class AzureMap extends TSMap {
     this.subscriptionKey = null;
     this.map = null; // Will be initialized after getting API key
     this.mapEventListeners = []; // Track map-specific event listeners for cleanup
+
+    // TASK-041 Phase 2 Step 2.1: Track created shapes for explicit cleanup
+    this.activeShapes = {
+      circles: [],      // Circle boundaries created via circle tool
+      polygons: [],     // Polygon boundaries drawn by user
+      markers: []       // Future: detection result markers
+    };
+
     this.initializationPromise = this.initializeWithSubscriptionKey();
   }
 
@@ -1181,16 +1307,24 @@ class AzureMap extends TSMap {
           try {
             this.map.setStyle('satellite');
             console.log('🔄 Attempted to reload satellite style');
+            // TASK-041 Phase 1: Mark style loaded after successful reload
+            providerManager.markInitialized('azure', 'styleLoaded');
           } catch (styleError) {
             console.error('❌ Failed to reload satellite style:', styleError);
             console.log('📍 Using default style as fallback');
+            // Mark as loaded anyway to not block other operations
+            providerManager.markInitialized('azure', 'styleLoaded');
           }
         }, 1000);
       } else {
         console.log('✅ Satellite style loaded successfully');
+        // TASK-041 Phase 1: Mark style loaded
+        providerManager.markInitialized('azure', 'styleLoaded');
       }
     } catch (validationError) {
       console.warn('⚠️ Style validation error (non-critical):', validationError);
+      // Mark as loaded anyway to not block other operations
+      providerManager.markInitialized('azure', 'styleLoaded');
     }
   }
 
@@ -1276,21 +1410,36 @@ class AzureMap extends TSMap {
 
     console.log('Initializing Azure Maps drawing tools...');
 
-    // Create drawing manager with polygon and rectangle tools
+    // Create drawing manager with polygon, rectangle, and edit tools
+    // TASK-041 Phase 1: Added edit controls for better polygon completion UX
     this.drawingManager = new atlas.drawing.DrawingManager(this.map, {
       toolbar: new atlas.control.DrawingToolbar({
         position: 'top-right',
         style: 'light',
-        buttons: ['draw-polygon', 'draw-rectangle']
+        buttons: ['draw-polygon', 'draw-rectangle', 'edit-geometry'],
+        numColumns: 3
       })
     });
 
     // Listen for drawing completion events
     this.map.events.add('drawingcomplete', this.drawingManager, (drawingCompleteEvent) => {
+      console.log('🎨 Azure Maps drawingcomplete event fired');
       let shape = drawingCompleteEvent.data;
+
+      // TASK-041 Phase 1: Defensive check - Azure SDK may pass incomplete shapes during mode changes
+      if (!shape || typeof shape.getType !== 'function') {
+        console.warn('⚠️ Received incomplete shape from drawing event, ignoring');
+        return;
+      }
+
       this.newShapes.push(shape);
-      console.log('New Azure Maps shape drawn:', shape.getType());
+      console.log('✅ New Azure Maps shape drawn:', shape.getType());
+      console.log('  - Total shapes in newShapes array:', this.newShapes.length);
     });
+
+    // TASK-041 Phase 1: Mark drawing manager ready
+    providerManager.markInitialized('azure', 'drawingManagerReady');
+    console.log('✅ Azure Maps drawing tools initialized');
   }
 
   initializeSearchBox() {
@@ -1301,6 +1450,10 @@ class AzureMap extends TSMap {
     // Create data source for detection rectangles
     this.detectionDataSource = new atlas.source.DataSource();
     this.map.sources.add(this.detectionDataSource);
+
+    // TASK-041 Phase 1: Mark data source ready
+    providerManager.markInitialized('azure', 'dataSourceReady');
+    console.log('✅ Azure Maps data sources initialized');
 
     // Add layer for search result markers (only for point features, not boundaries)
     this.map.layers.add(new atlas.layer.BubbleLayer(this.searchDataSource, null, {
@@ -1718,49 +1871,41 @@ class AzureMap extends TSMap {
   resetBoundaries() {
     console.log('🧹 Azure Maps: Resetting boundaries...');
 
-    // Enhanced cleanup: Clear boundary objects from data source and release references
+    // Use clear-and-rebuild pattern (proven reliable in Step 2.2)
     if (this.searchDataSource) {
       try {
-        // Get all shapes and identify boundaries to remove
-        const features = this.searchDataSource.getShapes();
-        const boundariesToRemove = [];
+        // Get all shapes from searchDataSource
+        const allShapes = this.searchDataSource.getShapes();
 
-        if (features && Array.isArray(features)) {
-          features.forEach(feature => {
-            if (feature && feature.properties && feature.properties.type === 'boundary') {
-              boundariesToRemove.push(feature);
-            }
-          });
-
-          // Remove all boundary features
-          if (boundariesToRemove.length > 0) {
-            this.searchDataSource.remove(boundariesToRemove);
-            console.log(`✅ Removed ${boundariesToRemove.length} boundary features from data source`);
-          }
-        }
-
-        // Force a complete re-render by temporarily hiding and showing the layers
-        // This ensures Azure Maps actually updates the visual display
-        const layers = this.map.layers.getLayers();
-        layers.forEach(layer => {
-          if (layer.getSource && layer.getSource() === this.searchDataSource) {
-            const currentVisibility = layer.getOptions().visible;
-            if (currentVisibility !== false) {
-              layer.setOptions({ visible: false });
-              // Use setTimeout to ensure the visibility change is processed
-              setTimeout(() => {
-                layer.setOptions({ visible: true });
-              }, 10);
-            }
-          }
+        // Filter to keep only non-boundary shapes (like markers)
+        const nonBoundaryShapes = allShapes.filter(feature => {
+          const props = feature.getProperties();  // Use getProperties() method
+          return !(props && props.type === 'boundary');
         });
 
+        const boundaryCount = allShapes.length - nonBoundaryShapes.length;
+        console.log(`✅ Removing ${boundaryCount} boundary shapes`);
+
+        // Clear all shapes and re-add non-boundary shapes
+        this.searchDataSource.clear();
+        if (nonBoundaryShapes.length > 0) {
+          this.searchDataSource.add(nonBoundaryShapes);
+        }
+
       } catch (e) {
-        // Fallback to clearing all if selective removal fails
-        console.warn('⚠️ Selective boundary removal failed, clearing all:', e.message);
+        console.warn('⚠️ Boundary removal failed, clearing all:', e.message);
         this.searchDataSource.clear();
       }
     }
+
+    // Clear drawing manager's data source (polygons being drawn)
+    if (this.drawingManager && this.drawingManager.getSource()) {
+      this.drawingManager.getSource().clear();
+    }
+
+    // Clear activeShapes tracking
+    this.activeShapes.circles = [];
+    this.activeShapes.polygons = [];
 
     // Clear boundary tracking and release references
     if (this.boundaries && this.boundaries.length > 0) {
@@ -1774,6 +1919,116 @@ class AzureMap extends TSMap {
     }
     this.boundaries = [];
     console.log('✅ Azure Maps boundaries reset complete');
+  }
+
+  clearCircles() {
+    console.log(`🔄 Clearing ${this.activeShapes.circles.length} circle(s) from Azure Maps...`);
+
+    if (this.activeShapes.circles.length === 0) {
+      console.log('✅ No circles to clear');
+      return;
+    }
+
+    // Step 1: Remove circle features from searchDataSource
+    if (this.searchDataSource) {
+      try {
+        // Get all shapes from data source
+        const allShapes = this.searchDataSource.getShapes();
+        console.log(`  - searchDataSource BEFORE cleanup: ${allShapes.length} total shapes`);
+
+        // Filter to separate circles from other shapes using PROPERTIES (not object references)
+        // Object reference matching with .includes() doesn't work reliably with Azure Maps
+        const circleShapes = [];
+        const nonCircleShapes = [];
+
+        allShapes.forEach(shape => {
+          const props = shape.getProperties();
+          // Check if this is a circle by looking at properties
+          if (props && props.type === 'boundary' && props.isCircle === true) {
+            circleShapes.push(shape);
+          } else {
+            nonCircleShapes.push(shape);
+          }
+        });
+
+        console.log(`  - Circle shapes found: ${circleShapes.length}`);
+        console.log(`  - Non-circle shapes to preserve: ${nonCircleShapes.length}`);
+
+        // Clear entire data source
+        this.searchDataSource.clear();
+        console.log('  - Cleared all shapes from searchDataSource');
+
+        // Re-add only non-circle shapes
+        if (nonCircleShapes.length > 0) {
+          this.searchDataSource.add(nonCircleShapes);
+          console.log(`  - Re-added ${nonCircleShapes.length} non-circle shape(s)`);
+        }
+
+        // Verify final state
+        const afterShapes = this.searchDataSource.getShapes();
+        console.log(`  - searchDataSource AFTER cleanup: ${afterShapes.length} total shapes`);
+        console.log('  - ✅ Circle removal complete');
+
+      } catch (e) {
+        console.warn('  - Failed to clear circles:', e.message);
+        console.error('  - Error details:', e);
+      }
+    }
+
+    // Step 2: Also clear from drawing manager's data source (Azure Maps keeps separate sources)
+    if (this.drawingManager) {
+      try {
+        const drawingSource = this.drawingManager.getSource();
+        console.log('  - Drawing manager source exists:', !!drawingSource);
+
+        if (drawingSource) {
+          // Get all shapes from drawing source and remove circles
+          const allShapes = drawingSource.getShapes();
+          console.log(`  - Total shapes in drawing source: ${allShapes.length}`);
+
+          const circleShapes = allShapes.filter(shape => {
+            const props = shape.getProperties();
+            console.log('  - Shape properties:', props);
+            return props && props.type === 'boundary' && props.isCircle;
+          });
+
+          console.log(`  - Circle shapes found in drawing source: ${circleShapes.length}`);
+
+          if (circleShapes.length > 0) {
+            drawingSource.remove(circleShapes);
+            console.log(`  - Removed ${circleShapes.length} circle(s) from drawing manager source`);
+          } else {
+            // If no circles found by properties, try removing ALL shapes and re-add non-circles
+            console.log('  - No circles found with properties, trying comprehensive clear...');
+            const nonCircleBoundaries = this.boundaries.filter(b => !b.isCircle);
+
+            // Clear everything from drawing source
+            drawingSource.clear();
+            console.log('  - Cleared all shapes from drawing manager source');
+
+            // Re-add non-circle boundaries if any
+            if (nonCircleBoundaries.length > 0) {
+              console.log(`  - Re-adding ${nonCircleBoundaries.length} non-circle boundaries`);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('  - Failed to clear circles from drawing manager:', e.message);
+        console.error('  - Full error:', e);
+      }
+    }
+
+    // Step 3: Filter circles from boundaries array
+    const beforeCount = this.boundaries.length;
+    this.boundaries = this.boundaries.filter(b => !b.isCircle);
+    const removedCount = beforeCount - this.boundaries.length;
+    console.log(`  - Removed ${removedCount} circle boundary reference(s)`);
+
+    // Step 4: Clear tracking array
+    const clearedCount = this.activeShapes.circles.length;
+    this.activeShapes.circles = [];
+
+    console.log(`✅ Cleared ${clearedCount} circle(s)`);
   }
 
   addBoundary(b) {
@@ -1823,12 +2078,19 @@ class AzureMap extends TSMap {
 
     let polygon = new atlas.data.Polygon(coordinates);
     let feature = new atlas.data.Feature(polygon, {
-      type: 'boundary'
+      type: 'boundary',
+      isCircle: b.isCircle || false  // TASK-041: Mark circles for property-based filtering
     });
 
     b.azureObject = feature;
     this.searchDataSource.add(feature);
     this.boundaries.push(b);
+
+    // TASK-041 Phase 2 Step 2.2: Track circle boundaries for cleanup
+    if (b.isCircle) {
+      this.activeShapes.circles.push(feature);
+      console.log('  - Tracked circle in activeShapes (total:', this.activeShapes.circles.length + ')');
+    }
   }
 
   hasNonCircleBoundaries() {
@@ -1857,9 +2119,27 @@ class AzureMap extends TSMap {
   }
 
   retrieveDrawnBoundaries() {
+    console.log('🔍 Retrieving drawn boundaries from Azure Maps...');
+    console.log('  - newShapes array length:', this.newShapes.length);
+    console.log('  - drawingManager exists:', !!this.drawingManager);
+
     let polys = [];
 
+    // TASK-041 Debug: Check if drawing manager has shapes we didn't capture
+    if (this.drawingManager) {
+      const source = this.drawingManager.getSource();
+      const allShapes = source.getShapes();
+      console.log('  - Drawing manager source shapes:', allShapes.length);
+
+      // If we have shapes in drawing manager but not in newShapes, use those
+      if (allShapes.length > 0 && this.newShapes.length === 0) {
+        console.log('  ⚠️ Found shapes in drawing manager that were not captured in event');
+        this.newShapes = allShapes;
+      }
+    }
+
     for (let shape of this.newShapes) {
+      console.log('  - Processing shape:', shape.getType());
       let geometry = shape.toJson().geometry;
 
       if (geometry.type === 'Polygon') {
@@ -1868,6 +2148,7 @@ class AzureMap extends TSMap {
         for (let coord of coordinates) {
           poly.push([coord[0], coord[1]]); // [lng, lat]
         }
+        console.log('  ✅ Created PolygonBoundary with', poly.length, 'points');
         polys.push(new PolygonBoundary(poly));
       } else if (geometry.type === 'Rectangle') {
         // Handle rectangle if Azure Maps provides this type
@@ -1876,10 +2157,12 @@ class AzureMap extends TSMap {
         let maxLng = Math.max(...coords.map(c => c[0]));
         let minLat = Math.min(...coords.map(c => c[1]));
         let maxLat = Math.max(...coords.map(c => c[1]));
+        console.log('  ✅ Created SimpleBoundary (rectangle)');
         polys.push(new SimpleBoundary([minLng, maxLat, maxLng, minLat]));
       }
     }
 
+    console.log('📊 Total boundaries retrieved:', polys.length);
     this.clearShapes();
     return polys;
   }
@@ -2274,6 +2557,13 @@ class GoogleMap extends TSMap {
     });
     this.newShapes = [];
 
+    // TASK-041 Phase 2 Step 2.1: Track created shapes for explicit cleanup
+    this.activeShapes = {
+      circles: [],      // Circle boundaries created via circle tool
+      polygons: [],     // Polygon boundaries drawn by user
+      markers: []       // Future: detection result markers
+    };
+
     // Create the search box and link it to the UI element ONLY if Google is the provider
     if (!this.searchBox) {  // Prevent multiple initializations
       this.searchBox = new google.maps.places.SearchBox(input);
@@ -2350,6 +2640,8 @@ class GoogleMap extends TSMap {
       // path.forEach((e,i)=>{console.log(" "+e.lng()+","+e.lat())})
     });
 
+    // TASK-041 Phase 1: Initialization milestones marked in initGoogleMap()
+    // after constructor completes (styleLoaded, drawingManagerReady)
 
   }
 
@@ -2590,7 +2882,40 @@ class GoogleMap extends TSMap {
     }
     this.boundaries = [];
 
+    // Clear activeShapes tracking
+    this.activeShapes.circles = [];
+    this.activeShapes.polygons = [];
+
     console.log(`✅ Google Maps: Removed ${boundaryCount} boundaries from map`);
+  }
+
+  clearCircles() {
+    console.log(`🔄 Clearing ${this.activeShapes.circles.length} circle(s) from Google Maps...`);
+
+    if (this.activeShapes.circles.length === 0) {
+      console.log('✅ No circles to clear');
+      return;
+    }
+
+    // Step 1: Remove circle polygons from map
+    for (let circle of this.activeShapes.circles) {
+      if (circle) {
+        circle.setMap(null);
+      }
+    }
+    console.log('  - Removed circle polygons from map');
+
+    // Step 2: Filter circles from boundaries array
+    const beforeCount = this.boundaries.length;
+    this.boundaries = this.boundaries.filter(b => !b.isCircle);
+    const removedCount = beforeCount - this.boundaries.length;
+    console.log(`  - Removed ${removedCount} circle boundary reference(s)`);
+
+    // Step 3: Clear tracking array
+    const clearedCount = this.activeShapes.circles.length;
+    this.activeShapes.circles = [];
+
+    console.log(`✅ Cleared ${clearedCount} circle(s)`);
   }
 
   addBoundary(b) {
@@ -2615,6 +2940,12 @@ class GoogleMap extends TSMap {
     }
 
     this.boundaries.push(b);
+
+    // TASK-041 Phase 2 Step 2.2: Track circle boundaries for cleanup
+    if (b.isCircle) {
+      this.activeShapes.circles.push(poly);
+      console.log('  - Tracked circle in activeShapes (total:', this.activeShapes.circles.length + ')');
+    }
 
 
   }
@@ -3289,11 +3620,13 @@ function getObjects(estimate) {
   // }
 
 
-  // now get the boundaries ready to ship
-  let bounds = currentMap.getBoundsUrl();
+  // TASK-041 Phase 2 Step 2.6: Use boundary bounding box instead of viewport bounds
+  // This ensures tiles are generated only for the drawn search area, not the entire viewport
+  let bounds = currentMap.getBoundaryBoundsUrl();
+  console.log('🗺️ Using bounds for tile generation:', bounds);
 
-  if (currentMap.boundaries.length === 0) {
-    if (currentMap.hasShapes()) {
+  if (currentMap && currentMap.boundaries && currentMap.boundaries.length === 0) {
+    if (currentMap.hasShapes && currentMap.hasShapes()) {
       drawnBoundary();
     }
   }
@@ -3305,10 +3638,10 @@ function getObjects(estimate) {
     console.log("No boundary selected, automatically using current viewport as detection area");
     const bounds = currentMap.getBounds();
     currentMap.addBoundary(new SimpleBoundary(bounds));
-    // Sync boundaries across providers to maintain consistency
-    if (currentMap === googleMap) {
+    // TASK-041 Phase 1: Sync boundaries to initialized providers only
+    if (currentMap === googleMap && azureMap) {
       azureMap.addBoundary(new SimpleBoundary(bounds));
-    } else {
+    } else if (currentMap === azureMap && googleMap) {
       googleMap.addBoundary(new SimpleBoundary(bounds));
     }
     boundaries = currentMap.getBoundariesStr();
@@ -3554,21 +3887,26 @@ function cancelRequest() {
 }
 
 function circleBoundary() {
-  // Defensive null checks
-  if (!currentMap) {
-    console.error('❌ currentMap is not initialized');
+  // TASK-041 Phase 1: Get map via provider manager
+  const map = providerManager.getMap();
+  const provider = providerManager.getCurrentProvider();
+
+  // TASK-041 Phase 1: Check comprehensive initialization
+  if (!providerManager.isFullyInitialized()) {
+    console.warn(`⏳ ${provider} is still initializing, please wait...`);
     TowerScoutErrorHandler.showUserNotification(
-      'Map is still initializing. Please wait a moment and try again.',
+      'Map is still loading. Please wait a moment and try again.',
       'warning'
     );
     return;
   }
 
-  if (!googleMap || !azureMap) {
-    console.error('❌ Map providers not initialized:', { googleMap: !!googleMap, azureMap: !!azureMap });
+  // Defensive null checks (fallback)
+  if (!map) {
+    console.error('❌ Map is not available from provider manager');
     TowerScoutErrorHandler.showUserNotification(
-      'Map providers are still initializing. Please wait a moment.',
-      'warning'
+      'Map is not available. Please refresh the page.',
+      'error'
     );
     return;
   }
@@ -3590,25 +3928,24 @@ function circleBoundary() {
       return;
     }
 
+    // TASK-041 Phase 1: Use map from provider manager
     // make circle - use current map center
-    let centerCoords = currentMap.getCenter();
+    let centerCoords = map.getCenter();
     console.log('🎯 Circle center coordinates:', centerCoords);
 
-    // DEBUG: Check boundaries before clearing
-    console.log('Before reset - Google boundaries:', googleMap.boundaries ? googleMap.boundaries.length : 'undefined');
-    console.log('Before reset - Azure boundaries:', azureMap.boundaries ? azureMap.boundaries.length : 'undefined');
+    // TASK-041 Phase 2 Step 2.2: Clear previous circles (surgical removal, preserves polygons)
+    console.log('🔄 Clearing previous circles before creating new one...');
 
-    // Clear existing boundaries before adding new circle
-    if (googleMap && typeof googleMap.resetBoundaries === 'function') {
-      googleMap.resetBoundaries();
+    // Clear circles from both providers (only if initialized)
+    if (googleMap && typeof googleMap.clearCircles === 'function') {
+      googleMap.clearCircles();
     }
-    if (azureMap && typeof azureMap.resetBoundaries === 'function') {
-      azureMap.resetBoundaries();
+    if (azureMap && typeof azureMap.clearCircles === 'function') {
+      azureMap.clearCircles();
     }
 
-    // DEBUG: Check boundaries after clearing
-    console.log('After reset - Google boundaries:', googleMap.boundaries.length);
-    console.log('After reset - Azure boundaries:', azureMap.boundaries.length);
+    // Show user feedback
+    TowerScoutErrorHandler.showUserNotification('Updating search area...', 'info', 1500);
 
     // Add new circle
     let circleBoundary = new CircleBoundary(centerCoords, radius);
@@ -3616,19 +3953,23 @@ function circleBoundary() {
     console.log('Circle boundary sample points:', circleBoundary.points.slice(0, 5));
     console.log('Circle boundary isCircle flag:', circleBoundary.isCircle);
 
-    googleMap.addBoundary(circleBoundary);
-    azureMap.addBoundary(circleBoundary);
+    // Add boundary to initialized providers only
+    if (googleMap) {
+      googleMap.addBoundary(circleBoundary);
+      console.log('After add - Google boundaries:', googleMap.boundaries.length);
+    }
+    if (azureMap) {
+      azureMap.addBoundary(circleBoundary);
+      console.log('After add - Azure boundaries:', azureMap.boundaries.length);
+      console.log('Azure searchDataSource exists:', !!azureMap.searchDataSource);
 
-    console.log('After add - Google boundaries:', googleMap.boundaries.length);
-    console.log('After add - Azure boundaries:', azureMap.boundaries.length);
-    console.log('Azure searchDataSource exists:', !!azureMap.searchDataSource);
-
-    // Check if boundary was actually added to data source
-    if (azureMap.searchDataSource) {
-      let shapes = azureMap.searchDataSource.getShapes();
-      console.log('Total shapes in data source:', shapes.length);
-      let boundaryShapes = shapes.filter(s => s.getProperties().type === 'boundary');
-      console.log('Boundary shapes in data source:', boundaryShapes.length);
+      // Check if boundary was actually added to data source
+      if (azureMap.searchDataSource) {
+        let shapes = azureMap.searchDataSource.getShapes();
+        console.log('Total shapes in data source:', shapes.length);
+        let boundaryShapes = shapes.filter(s => s.getProperties().type === 'boundary');
+        console.log('Boundary shapes in data source:', boundaryShapes.length);
+      }
     }
 
     // DON'T call showBoundaries() to avoid map reset - boundary should render automatically
@@ -3649,15 +3990,7 @@ function drawnBoundary() {
     return;
   }
 
-  if (!googleMap || !azureMap) {
-    console.error('❌ Map providers not initialized:', { googleMap: !!googleMap, azureMap: !!azureMap });
-    TowerScoutErrorHandler.showUserNotification(
-      'Map providers are still initializing. Please wait a moment.',
-      'warning'
-    );
-    return;
-  }
-
+  // TASK-041 Phase 1: Don't require both providers, just work with initialized ones
   console.log("using custom boundary polygon(s)");
   let boundaries = currentMap.retrieveDrawnBoundaries();
 
@@ -3670,6 +4003,7 @@ function drawnBoundary() {
     return;
   }
 
+  // TASK-041 Phase 1: Add boundaries to initialized providers only
   for (let b of boundaries) {
     if (googleMap && typeof googleMap.addBoundary === 'function') {
       googleMap.addBoundary(b);
@@ -3683,11 +4017,14 @@ function drawnBoundary() {
 }
 
 function clearBoundaries() {
-  // Defensive null checks
-  if (!googleMap || !azureMap) {
-    console.error('❌ Map providers not initialized:', { googleMap: !!googleMap, azureMap: !!azureMap });
+  // Get current map via provider manager (align with Phase 1 pattern)
+  const currentMap = providerManager.getMap();
+
+  // Only require current provider to be initialized (not both)
+  if (!currentMap) {
+    console.error('❌ Current map provider not initialized');
     TowerScoutErrorHandler.showUserNotification(
-      'Map providers are still initializing. Please wait a moment.',
+      'Map provider is still initializing. Please wait a moment.',
       'warning'
     );
     return;
@@ -3695,6 +4032,7 @@ function clearBoundaries() {
 
   console.log('🧹 Clearing all boundaries');
 
+  // Clear boundaries on initialized providers only (both if available)
   if (googleMap && typeof googleMap.resetBoundaries === 'function') {
     googleMap.resetBoundaries();
   }
