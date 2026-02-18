@@ -2240,7 +2240,11 @@ class AzureMap extends TSMap {
         dets.push(det);
       }
     }
-    Detection_detections = dets;
+    // Stage 0: Mutation instead of reassignment (prepares for getter-only pattern)
+    Detection_detections.length = 0;
+    for (const det of dets) {
+      Detection_detections.push(det);
+    }
     Detection.generateList();
   }
 
@@ -2729,7 +2733,11 @@ class GoogleMap extends TSMap {
         dets.push(det);
       }
     }
-    Detection_detections = dets;
+    // Stage 0: Mutation instead of reassignment (prepares for getter-only pattern)
+    Detection_detections.length = 0;
+    for (const det of dets) {
+      Detection_detections.push(det);
+    }
     Detection.generateList();
   }
 
@@ -3229,7 +3237,8 @@ class Tile extends PlaceRect {
     for (let tile of Tile_tiles) {
       currentMap.updateMapRect(tile, false);
     }
-    Tile_tiles = [];
+    // Stage 0: Mutation instead of reassignment (prepares for getter-only pattern)
+    Tile_tiles.length = 0;
   }
 
   constructor(x1, y1, x2, y2, metadata, url) {
@@ -3303,7 +3312,8 @@ class Detection extends PlaceRect {
     for (let det of Detection_detections) {
       det.select(false);
     }
-    Detection_detections = [];
+    // Stage 0: Mutation instead of reassignment (prepares for getter-only pattern)
+    Detection_detections.length = 0;
     Detection_detectionsAugmented = 0;
     detectionsList.innerHTML = "";
   }
