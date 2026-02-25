@@ -1,27 +1,22 @@
 {
-  "name": "towerscout-frontend-tests",
-  "version": "1.0.0",
-  "description": "Frontend testing suite for TowerScout TASK-038 refactoring",
-  "private": true,
-  "scripts": {
-    "test:stage-0": "node tests/frontend/test_stage_0_mutations.js",
-    "test:stage-0:watch": "node tests/frontend/test_stage_0_mutations.js --headless=false",
-    "test:global-contract": "node tests/frontend/test_global_contract.js",
-    "test:task-041": "node tests/integration/test_task_041_stability.js",
-    "test:all": "npm run test:stage-0 && npm run test:global-contract && npm run test:task-041"
-  },
-  "devDependencies": {
-    "puppeteer": "^21.7.0"
-  },
-  "engines": {
-    "node": ">=16.0.0"
-  },
-  "keywords": [
-    "towerscout",
-    "testing",
-    "frontend",
-    "refactoring"
-  ],
-  "author": "TowerScout Team",
-  "license": "MIT"
+    "name": "towerscout-frontend-refactoring",
+    "version": "2.6.1",
+    "description": "TowerScout TASK-038 frontend refactoring build system",
+    "private": true,
+    "scripts": {
+        "build": "node webapp/build.js",
+        "test:stage-0": "bash validate_stage_0.sh"
+    },
+    "dependencies": {},
+    "devDependencies": {},
+    "engines": {
+        "node": ">=16.0.0"
+    },
+    "keywords": [
+        "towerscout",
+        "refactoring",
+        "build"
+    ],
+    "author": "TowerScout Team",
+    "license": "MIT"
 }
