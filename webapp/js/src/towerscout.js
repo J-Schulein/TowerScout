@@ -3076,7 +3076,8 @@ class GoogleMap extends TSMap {
 
 }
 
-
+// STAGE 2: Boundary classes extracted to src/boundaries/CircleBoundary.js
+/*
 //
 // boundaries: simple, circle, polygon
 //
@@ -3154,6 +3155,7 @@ class CircleBoundary extends PolygonBoundary {
   }
 }
 
+*/
 
 
 //
@@ -3885,6 +3887,8 @@ function cancelRequest() {
     });
 }
 
+// STAGE 2: Circle boundary function extracted to src/boundaries/CircleBoundary.js
+/*
 function circleBoundary() {
   // TASK-041 Phase 1: Get map via provider manager
   const map = providerManager.getMap();
@@ -3977,7 +3981,10 @@ function circleBoundary() {
     console.warn('⚠️ No radius value entered');
   }
 }
+*/
 
+// STAGE 2: Polygon boundary functions extracted to src/boundaries/PolygonBoundary.js
+/*
 function drawnBoundary() {
   // Defensive null checks
   if (!currentMap) {
@@ -4060,6 +4067,7 @@ function polyBounds(ps) {
   }
   return bounds;
 }
+*/
 
 function fillEngines() {
   $.ajax({
@@ -4853,7 +4861,8 @@ function showPosition(position) {
   googleMap.setCenter([position.coords.longitude, position.coords.latitude]);
 }
 
-
+// STAGE 2: Zipcode boundary functions extracted to src/boundaries/ZipcodeBoundary.js
+/*
 //
 // zipcode lookup
 //
@@ -4892,6 +4901,7 @@ function parseZipcodeResult(result) {
   let coords = geom['coordinates'];
   return geom['type'] === 'Polygon' ? [coords] : coords;
 }
+*/
 
 // Provider detection and UI management
 function detectAvailableProviders() {
