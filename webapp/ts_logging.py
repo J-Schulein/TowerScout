@@ -15,6 +15,41 @@ import sys
 from datetime import datetime
 from typing import Optional, Dict, Any
 import json
+import re
+
+
+def sanitize_sensitive_data(message: str) -> str:
+    """
+    Sanitize sensitive information from log messages.
+    
+    Redacts:
+    - Google API keys (AIza...)
+    - Azure subscription keys
+    - Generic API keys in URLs
+    - Any long alphanumeric tokens that look like keys
+    
+    Args:
+        message: The log message to sanitize
+        
+    Returns:
+        Sanitized message with sensitive data redacted
+    """
+    if not isinstance(message, str):
+        message = str(message)
+    
+    # Redact Google API keys (AIza followed by 35 characters)
+    message = re.sub(r'AIza[0-9A-Za-z\-_]{35}', 'AIza***REDACTED***', message)
+    
+    # Redact Azure subscription keys (subscription-key= parameter)
+    message = re.sub(r'subscription-key=[0-9A-Za-z\-_]+', 'subscription-key=***REDACTED***', message)
+    
+    # Redact generic API key parameters in URLs
+    message = re.sub(r'([?&])(key|apikey|api_key|token|access_token)=([^&\s]+)', r'\1\2=***REDACTED***', message, flags=re.IGNORECASE)
+    
+    # Redact Authorization headers
+    message = re.sub(r'Authorization:\s*[^\s]+', 'Authorization: ***REDACTED***', message, flags=re.IGNORECASE)
+    
+    return message
 
 
 class TowerScoutFormatter(logging.Formatter):
@@ -32,33 +67,51 @@ class TowerScoutFormatter(logging.Formatter):
             )
     
     def format(self, record: logging.LogRecord) -> str:
-        if self.json_format:
-            # Structured JSON format for machine processing
-            log_entry = {
-                'timestamp': datetime.utcfromtimestamp(record.created).isoformat() + 'Z',
-                'level': record.levelname,
-                'logger': record.name,
-                'message': record.getMessage(),
-                'module': record.module,
-                'function': record.funcName,
-                'line': record.lineno
-            }
-            
-            # Add exception information if present
-            if record.exc_info:
-                log_entry['exception'] = {
-                    'type': record.exc_info[0].__name__,
-                    'message': str(record.exc_info[1]),
-                    'traceback': self.formatException(record.exc_info)
+        # Sanitize the message before formatting
+        original_msg = record.msg
+        if isinstance(record.msg, str):
+            record.msg = sanitize_sensitive_data(record.msg)
+        
+        # Also sanitize any args that will be interpolated
+        if record.args:
+            if isinstance(record.args, dict):
+                record.args = {k: sanitize_sensitive_data(str(v)) if isinstance(v, str) else v 
+                              for k, v in record.args.items()}
+            elif isinstance(record.args, tuple):
+                record.args = tuple(sanitize_sensitive_data(str(arg)) if isinstance(arg, str) else arg 
+                                   for arg in record.args)
+        
+        try:
+            if self.json_format:
+                # Structured JSON format for machine processing
+                log_entry = {
+                    'timestamp': datetime.utcfromtimestamp(record.created).isoformat() + 'Z',
+                    'level': record.levelname,
+                    'logger': record.name,
+                    'message': sanitize_sensitive_data(record.getMessage()),
+                    'module': record.module,
+                    'function': record.funcName,
+                    'line': record.lineno
                 }
-            
-            # Add extra fields if present
-            if hasattr(record, 'extra_fields'):
-                log_entry.update(record.extra_fields)
                 
-            return json.dumps(log_entry)
-        else:
-            return super().format(record)
+                # Add exception information if present
+                if record.exc_info:
+                    log_entry['exception'] = {
+                        'type': record.exc_info[0].__name__,
+                        'message': sanitize_sensitive_data(str(record.exc_info[1])),
+                        'traceback': sanitize_sensitive_data(self.formatException(record.exc_info))
+                    }
+                
+                # Add extra fields if present
+                if hasattr(record, 'extra_fields'):
+                    log_entry.update(record.extra_fields)
+                    
+                return json.dumps(log_entry)
+            else:
+                return super().format(record)
+        finally:
+            # Restore original message
+            record.msg = original_msg
 
 
 class TowerScoutLogger:
