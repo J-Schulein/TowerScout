@@ -9,17 +9,6 @@
 // TowerScout.js
 // client-side logic
 
-// STAGE 1: The following code has been extracted to separate modules
-// and is commented out to prevent duplicate definitions:
-// - CONFIG → src/config.js
-// - Global state variables → src/store.js  
-// - ProviderStateManager class → src/managers/ProviderStateManager.js
-// - TimerManager class → src/managers/TimerManager.js
-// - EventListenerManager class → src/managers/EventListenerManager.js
-// - TowerScoutErrorHandler class → src/managers/ErrorHandler.js
-// - Global variable declarations → src/globals.js
-
-/*
 // Configuration constants
 const CONFIG = {
   RETRY_DELAY_MS: 2000,
@@ -673,9 +662,6 @@ class TowerScoutErrorHandler {
   }
 }
 
-// STAGE 1: End of commented out Stage 1 extracted code
-*/
-
 // DOM element validation with error handling
 function validateDOMElement(elementId, required = true) {
   try {
@@ -710,18 +696,34 @@ function validateDOMElement(elementId, required = true) {
 // UI state management (keeping separate from provider state)
 let currentUI = null;
 
-// STAGE 1: Backward compatibility properties moved to src/globals.js
-// Object.defineProperty definitions commented out to prevent duplicate definition error
-// (These are now defined in src/globals.js which loads before this file)
+// Backward compatibility: currentProvider and currentMap as getters/setters
+Object.defineProperty(window, 'currentProvider', {
+  get() { return providerManager.getProvider(); },
+  set(value) {
+    console.warn('Direct currentProvider assignment deprecated. Use providerManager.switchProvider()');
+    // Allow for backward compatibility but log warning
+    providerManager.currentProvider = value;
+  }
+});
 
-// STAGE 1: DOM element references moved to src/globals.js
-// Variable declarations commented out to prevent duplicates
-// (These are now defined in src/globals.js which loads before this file)
+Object.defineProperty(window, 'currentMap', {
+  get() { return providerManager.getMap(); },
+  set(value) {
+    console.warn('Direct currentMap assignment deprecated. Use providerManager.switchProvider()');
+    // Allow for backward compatibility but log warning
+    providerManager.currentMap = value;
+  }
+});
 
-// STAGE 1: initializeDOMReferences moved to src/globals.js
-// Function commented out to prevent duplicate definition
-// (This is now defined in src/globals.js which loads before this file)
-/*
+// DOM element references - initialized after DOM ready
+let input = null;
+let upload = null;
+let detectionsList = null;
+let confSlider = null;
+let reviewCheckBox = null;
+const DEFAULT_CONFIDENCE = 0.15
+
+// Initialize DOM references safely after DOM is ready
 function initializeDOMReferences() {
   console.log('🔧 Initializing DOM references...');
 
@@ -751,7 +753,6 @@ function initializeDOMReferences() {
 
   console.log('✅ DOM references initialized successfully');
 }
-*/
 
 // Provider-aware search system
 
@@ -962,8 +963,7 @@ function handleAboutClick(e) {
   }
 }
 
-// STAGE 3: Provider initialization functions extracted to src/providers/providerInit.js
-/*
+// Initialize and add the map
 function initGoogleMap() {
   googleMap = new GoogleMap();
   setMyLocation();
@@ -1055,12 +1055,11 @@ async function initAzureMap() {
     }
   }
 }
-*/
 
-// STAGE 3: TSMap base class extracted to src/providers/TSMap_base.js
-// STAGE 3: AzureMap class extracted to src/providers/AzureMap.js
-// STAGE 3: GoogleMap class extracted to src/providers/GoogleMap.js
-/*
+//
+// Abstract Map base class
+//
+
 class TSMap {
   getBounds() {
     throw new Error("not implemented")
@@ -2202,7 +2201,7 @@ class AzureMap extends TSMap {
         y2 = Math.min(y2, tile.y1);
 
         let det = new Detection(x1, y1, x2, y2,
-          'added', 1.0, tileId, -1, true, true); // id_in_tile parameter
+          'added', 1.0, tileId, -1 /*id_in_tile*/, true, true);
         det.update();
       }
     }
@@ -2701,7 +2700,7 @@ class GoogleMap extends TSMap {
         y2 = Math.max(y2, tile.y2);
         y2 = Math.min(y2, tile.y1);
         let det = new Detection(x1, y1, x2, y2,
-          'added', 1.0, tileId, -1, true, true); // id_in_tile parameter
+          'added', 1.0, tileId, -1 /*id_in_tile*/, true, true);
         det.update();
       }
     }
@@ -3077,10 +3076,8 @@ class GoogleMap extends TSMap {
   }
 
 }
-*/
 
-// STAGE 2: Boundary classes extracted to src/boundaries/CircleBoundary.js
-/*
+
 //
 // boundaries: simple, circle, polygon
 //
@@ -3158,7 +3155,6 @@ class CircleBoundary extends PolygonBoundary {
   }
 }
 
-*/
 
 
 //
@@ -3890,8 +3886,6 @@ function cancelRequest() {
     });
 }
 
-// STAGE 2: Circle boundary function extracted to src/boundaries/CircleBoundary.js
-/*
 function circleBoundary() {
   // TASK-041 Phase 1: Get map via provider manager
   const map = providerManager.getMap();
@@ -3984,10 +3978,7 @@ function circleBoundary() {
     console.warn('⚠️ No radius value entered');
   }
 }
-*/
 
-// STAGE 2: Polygon boundary functions extracted to src/boundaries/PolygonBoundary.js
-/*
 function drawnBoundary() {
   // Defensive null checks
   if (!currentMap) {
@@ -4070,7 +4061,6 @@ function polyBounds(ps) {
   }
   return bounds;
 }
-*/
 
 function fillEngines() {
   $.ajax({
@@ -4864,8 +4854,7 @@ function showPosition(position) {
   googleMap.setCenter([position.coords.longitude, position.coords.latitude]);
 }
 
-// STAGE 2: Zipcode boundary functions extracted to src/boundaries/ZipcodeBoundary.js
-/*
+
 //
 // zipcode lookup
 //
@@ -4904,7 +4893,6 @@ function parseZipcodeResult(result) {
   let coords = geom['coordinates'];
   return geom['type'] === 'Polygon' ? [coords] : coords;
 }
-*/
 
 // Provider detection and UI management
 function detectAvailableProviders() {
