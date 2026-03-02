@@ -25,5 +25,13 @@
   window.timerManager = null;
   window.eventManager = null;
 
+  // Detection and Tile state (Stage 4)
+  window.Detection_detections = [];
+  window.Detection_detectionsAugmented = 0;
+  window.Detection_minConfidence = window.DEFAULT_CONFIDENCE || 0.5;
+  window.Detection_current = null;
+  
+  window.Tile_tiles = [];
+
   console.log('✅ Store module loaded');
 })();

@@ -1,8 +1,97 @@
-// Detection List Management - Stage 4 (Placeholder)
-// Will be extracted in Stage 4
-
+// STAGE 4: DetectionList - UI list rendering and filtering
 (function() {
   'use strict';
-  // Detection list code will be extracted here in Stage 4
-  console.log('✅ DetectionList module loaded (Stage 4 pending)');
+
+  /**
+   * Adjust detection visibility based on confidence slider and review mode
+   * Called when confidence slider changes or review mode toggles
+   */
+  function adjustConfidence() {
+    // Validate DOM elements are available
+    if (!confSlider || !reviewCheckBox) {
+      console.error('❌ Required DOM elements not initialized for adjustConfidence');
+      return;
+    }
+
+    Detection_minConfidence = confSlider.value / 100;
+    for (let det of Detection_detections) {
+      let meetsInside = reviewCheckBox.checked || det.inside;
+      let meetsConf = det.conf >= Detection_minConfidence || det.secondary >= 0.35;
+      let meetsAddrConf = det.firstDet.maxConf >= Detection_minConfidence || det.firstDet.maxSecondary >= 0.35;
+      det.firstDet.showAddr(meetsAddrConf && meetsInside);
+      det.show(meetsConf && meetsInside);
+      det.update();
+    }
+
+    const confPercentElement = document.getElementById('confpercent');
+    if (confPercentElement) {
+      confPercentElement.innerText = confSlider.value;
+    }
+  }
+
+  /**
+   * Toggle between normal mode and review mode
+   * Normal mode: Only show detections inside boundary with confidence threshold
+   * Review mode: Show all detections in tiles (for comprehensive labeling)
+   */
+  function changeReviewMode() {
+    // Validate DOM elements are available
+    if (!reviewCheckBox || !confSlider) {
+      console.error('❌ Required DOM elements not initialized for changeReviewMode');
+      return;
+    }
+
+    if (reviewCheckBox.checked) {
+      confSlider.value = 0;
+    } else {
+      confSlider.value = Math.round(DEFAULT_CONFIDENCE * 100);
+    }
+    adjustConfidence();
+  }
+
+  /**
+   * Update API usage display with geocoding statistics
+   */
+  function updateApiUsageDisplay() {
+    // Update API usage display from session data
+    fetch('/api-usage')
+      .then(response => response.json())
+      .then(data => {
+        if (data.geocoding_usage) {
+          const usage = data.geocoding_usage;
+          const usageElement = document.getElementById('apiUsage');
+          if (usageElement) {
+            const limited = data.geocoding_limited ? " <span style='color:#f39c12'>(Geocoding rate limit reached)</span>" : "";
+            usageElement.innerHTML = `
+              <small>
+                API Usage: Google ${usage.google_requests || 0}, Azure ${usage.azure_requests || 0}
+                (${usage.successful_requests || 0}/${usage.total_requests || 0} successful)${limited}
+              </small>
+            `;
+          }
+        }
+      })
+      .catch(error => {
+        console.log('Could not fetch API usage:', error);
+      });
+  }
+
+  /**
+   * Legacy function for post-augmentation processing
+   * Maintained for backward compatibility with existing code
+   * Addresses now come from server, but this ensures existing callers don't break
+   */
+  function afterAugment() {
+    Detection.sort();
+    Detection.generateList();
+    adjustConfidence();
+  }
+
+  // Expose functions to global scope for inline HTML handlers and legacy code
+  window.adjustConfidence = adjustConfidence;
+  window.changeReviewMode = changeReviewMode;
+  window.updateApiUsageDisplay = updateApiUsageDisplay;
+  window.afterAugment = afterAugment;
+
+  console.log('✅ DetectionList module loaded');
 })();
