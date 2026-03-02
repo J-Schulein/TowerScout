@@ -852,6 +852,8 @@ function handleGlobalSearch() {
   }
 }
 
+// STAGE 5: About dialog functions extracted to src/ui/navigation.js
+/*
 // About screen variables - Fixed: Declare aboutSecs properly
 let aboutOp = 0;
 let aboutInterval = 20;
@@ -961,6 +963,7 @@ function handleAboutClick(e) {
     about(0); // Trigger immediate dismissal
   }
 }
+*/
 
 // STAGE 3: Provider initialization functions extracted to src/providers/providerInit.js
 /*
@@ -3194,7 +3197,9 @@ let Detection_current = null;
 class Detection extends PlaceRect { ... }
 */
 
-
+// STAGE 5: Search workflow functions extracted to src/ui/search.js
+// STAGE 5: Imagery utilities extracted to src/utils/imagery.js
+/*
 function createElementFromHTML(htmlString) {
   let div = document.createElement('div');
   div.innerHTML = htmlString.trim();
@@ -3501,6 +3506,7 @@ function cancelRequest() {
       console.log("abort error: " + error);
     });
 }
+*/
 
 // STAGE 2: Circle boundary function extracted to src/boundaries/CircleBoundary.js
 /*
@@ -4312,6 +4318,8 @@ let numTiles = 0;
 let secsPerTile = CONFIG.SECS_PER_TILE_DEFAULT;
 let dataPoints = 0;
 
+// STAGE 5: Progress management and error handling functions extracted to src/ui/search.js
+/*
 function enableProgress(tiles) {
   document.getElementById("progress_div").style.display = "flex";
 
@@ -4366,6 +4374,7 @@ function progressFunction() {
 function setProgress(val) {
   document.getElementById("progress").value = String(val);
 }
+*/
 
 
 // debug helper: rerouting console.log into the window
@@ -4707,6 +4716,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
+// STAGE 5: Backend API synchronization functions extracted to src/utils/apiHelpers.js
+/*
 // New function to sync UI with backend provider defaults (Phase 2)
 async function syncUIWithBackendProviders() {
   console.log('🔄 Syncing UI with backend provider defaults...');
@@ -4820,6 +4831,7 @@ function validateMapIntegrity() {
   console.log('✅ Map integrity validated');
   return true;
 }
+*/
 
 // Fallback initialization for older browsers
 if (document.readyState === 'loading') {
