@@ -42,7 +42,8 @@ const MODULE_ORDER = [
     'src/providers/providerInit.js',
     'src/providers/providerSwitch.js',
 
-    // Stage 4: Detection
+    // Stage 4: Detection (PlaceRect must load first as base class)
+    'src/detection/PlaceRect.js',
     'src/detection/Detection.js',
     'src/detection/Tile.js',
     'src/detection/DetectionList.js',
