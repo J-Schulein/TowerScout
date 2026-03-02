@@ -2,7 +2,7 @@
 // Handles circle boundary generation and rendering
 // TASK-038 Stage 2: Extracted from monolithic towerscout.js
 
-(function() {
+(function () {
   'use strict';
 
   //

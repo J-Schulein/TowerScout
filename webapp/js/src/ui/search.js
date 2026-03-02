@@ -24,7 +24,7 @@
  * Exposed to window: getObjects, processObjects, cancelRequest, fatalError
  */
 
-(function() {
+(function () {
   'use strict';
 
   // ===== Module-level variables for progress management =====

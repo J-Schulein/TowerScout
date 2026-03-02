@@ -2,7 +2,7 @@
 // Comprehensive error handling with graceful degradation
 // Extracted from monolithic towerscout.js - Stage 1
 
-(function() {
+(function () {
   'use strict';
 
   // Error Boundary System - Comprehensive error handling with graceful degradation

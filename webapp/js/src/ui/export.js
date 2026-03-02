@@ -1,6 +1,6 @@
 // STAGE 5: Export Functions
 // CSV, KML, and dataset download functionality
-(function() {
+(function () {
   'use strict';
 
   /**
@@ -26,7 +26,7 @@
     console.log("downloading dataset ...");
     const include = [];
     const additions = [];
-    
+
     for (let det of Detection_detections) {
       if (det.idInTile !== -1 && det.conf >= Detection_minConfidence && det.selected) {
         include.push({ 'tile': det.tile, 'detection': det.idInTile, 'id': det.originalId });
@@ -68,7 +68,7 @@
    */
   function download_csv() {
     let text = "id,selected,inside_boundary,meets threshold,latitude (deg),longitude (deg),distance from center (m),address,confidence\n";
-    
+
     for (let i = 0; i < Detection_detections.length; i++) {
       const det = Detection_detections[i];
       text += [
@@ -83,7 +83,7 @@
         det['conf'].toFixed(2)
       ].join(",") + "\n";
     }
-    
+
     download("detections.csv", text);
   }
 
@@ -95,7 +95,7 @@
     let text = '<?xml version="1.0" encoding="UTF-8"?>\n';
     text += '<kml xmlns="http://www.opengis.net/kml/2.2">\n';
     text += "  <Document>\n";
-    
+
     // Add KML styles
     text += "<Style id='icon-1736-0F9D58-normal'><IconStyle><color>ffffa0a0</color><scale>1</scale>";
     text += "<Icon><href>https://maps.google.com/mapfiles/kml/pal4/icon35.png</href></Icon>";
@@ -129,7 +129,7 @@
       if (det.conf >= Detection_minConfidence && det.selected && inside) {
         text += "    <Placemark>\n";
         text += '      <name>' + det.address + '</name>\n';
-        
+
         const tileMeta = (Tile_tiles[det.tile] && Tile_tiles[det.tile].metadata) ? Tile_tiles[det.tile].metadata : '';
         text += '      <description>P(' + det.conf.toFixed(2) + ') at ' + det.address + ' ' + tileMeta + '</description>\n';
         text += "      <styleUrl>#icon-1736-0F9D58</styleUrl>\n";
@@ -141,7 +141,7 @@
         text += "    </Placemark>\n";
       }
     }
-    
+
     text += "  </Document>\n";
     text += '</kml>\n';
     download("detections.kml", text);

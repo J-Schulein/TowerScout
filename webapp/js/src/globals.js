@@ -2,7 +2,7 @@
 // Central location for all global variable declarations
 // Extracted from monolithic towerscout.js - Stage 1
 
-(function() {
+(function () {
   'use strict';
 
   // Geographic constants
@@ -31,8 +31,8 @@
   // Backward compatibility properties for currentProvider and currentMap
   // These provide getters/setters that delegate to providerManager
   Object.defineProperty(window, 'currentProvider', {
-    get() { 
-      return window.providerManager ? window.providerManager.getProvider() : null; 
+    get() {
+      return window.providerManager ? window.providerManager.getProvider() : null;
     },
     set(value) {
       console.warn('Direct currentProvider assignment deprecated. Use providerManager.switchProvider()');
@@ -44,8 +44,8 @@
   });
 
   Object.defineProperty(window, 'currentMap', {
-    get() { 
-      return window.providerManager ? window.providerManager.getMap() : null; 
+    get() {
+      return window.providerManager ? window.providerManager.getMap() : null;
     },
     set(value) {
       console.warn('Direct currentMap assignment deprecated. Use providerManager.switchProvider()');
@@ -57,7 +57,7 @@
   });
 
   // Initialize DOM references safely after DOM is ready
-  window.initializeDOMReferences = function() {
+  window.initializeDOMReferences = function () {
     console.log('🔧 Initializing DOM references...');
 
     window.input = document.getElementById("search");

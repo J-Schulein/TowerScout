@@ -2,7 +2,7 @@
 // Centralized state management for map instances and application state
 // Extracted from monolithic towerscout.js - Stage 1
 
-(function() {
+(function () {
   'use strict';
 
   // Map provider instances
@@ -30,7 +30,7 @@
   window.Detection_detectionsAugmented = 0;
   window.Detection_minConfidence = window.DEFAULT_CONFIDENCE || 0.5;
   window.Detection_current = null;
-  
+
   window.Tile_tiles = [];
 
   console.log('✅ Store module loaded');

@@ -1,6 +1,6 @@
 // STAGE 5: Imagery Utilities
 // Image processing and HTML element creation
-(function() {
+(function () {
   'use strict';
 
   /**

@@ -2,7 +2,7 @@
 // Handles initialization of Google Maps and Azure Maps providers
 // TASK-038 Stage 3: Extracted from monolithic towerscout.js
 
-(function() {
+(function () {
   'use strict';
 
   // Initialize and add the Google Maps provider

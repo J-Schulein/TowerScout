@@ -2,7 +2,7 @@
 // Eliminates race conditions and ensures consistent provider switching
 // Extracted from monolithic towerscout.js - Stage 1
 
-(function() {
+(function () {
   'use strict';
 
   // Provider State Manager - Eliminates race conditions and ensures consistent state

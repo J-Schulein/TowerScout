@@ -2,7 +2,7 @@
 // Handles zipcode polygon lookup and validation using Census TIGER data
 // TASK-038 Stage 2: Extracted from monolithic towerscout.js
 
-(function() {
+(function () {
   'use strict';
 
   //

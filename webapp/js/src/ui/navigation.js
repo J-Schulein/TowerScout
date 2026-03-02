@@ -18,7 +18,7 @@
  * Exposed to window: about
  */
 
-(function() {
+(function () {
   'use strict';
 
   // ===== Module-level variables for about dialog animation =====

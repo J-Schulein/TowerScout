@@ -1,5 +1,5 @@
 // STAGE 4: DetectionList - UI list rendering and filtering
-(function() {
+(function () {
   'use strict';
 
   /**

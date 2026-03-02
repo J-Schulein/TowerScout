@@ -2,7 +2,7 @@
 // Prevents memory leaks from uncleaned timers and intervals
 // Extracted from monolithic towerscout.js - Stage 1
 
-(function() {
+(function () {
   'use strict';
 
   // Timer Management System - Prevents memory leaks from uncleaned timers

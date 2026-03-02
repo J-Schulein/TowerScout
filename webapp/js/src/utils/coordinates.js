@@ -1,6 +1,6 @@
 // STAGE 5: Coordinate Utilities
 // Haversine distance calculation and coordinate transformations
-(function() {
+(function () {
   'use strict';
 
   /**

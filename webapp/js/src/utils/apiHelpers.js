@@ -14,7 +14,7 @@
  * Exposed to window: syncUIWithBackendProviders, validateMapIntegrity
  */
 
-(function() {
+(function () {
   'use strict';
 
   // ===== Backend API Synchronization =====

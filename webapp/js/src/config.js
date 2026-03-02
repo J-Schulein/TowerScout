@@ -2,7 +2,7 @@
 // Central configuration constants for TowerScout application
 // Extracted from monolithic towerscout.js - Stage 1
 
-(function() {
+(function () {
   'use strict';
 
   // Configuration constants

@@ -2,7 +2,7 @@
 // Handles polygon drawing, boundary management, and helper utilities
 // TASK-038 Stage 2: Extracted from monolithic towerscout.js
 
-(function() {
+(function () {
   'use strict';
 
   // Retrieve drawn polygons from current map and add to both providers

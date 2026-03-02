@@ -2,7 +2,7 @@
 // Prevents event listener memory leaks by tracking and managing all listeners
 // Extracted from monolithic towerscout.js - Stage 1
 
-(function() {
+(function () {
   'use strict';
 
   // Event Listener Management - Prevents event listener leaks
