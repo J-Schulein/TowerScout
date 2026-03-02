@@ -90,10 +90,11 @@
       const bounds = currentMap.getBounds();
       currentMap.addBoundary(new SimpleBoundary(bounds));
       // TASK-041 Phase 1: Sync boundaries to initialized providers only
-      if (currentMap === googleMap && azureMap) {
-        azureMap.addBoundary(new SimpleBoundary(bounds));
-      } else if (currentMap === azureMap && googleMap) {
-        googleMap.addBoundary(new SimpleBoundary(bounds));
+      // Access map instances via window to avoid IIFE scope issues
+      if (currentMap === window.googleMap && window.azureMap) {
+        window.azureMap.addBoundary(new SimpleBoundary(bounds));
+      } else if (currentMap === window.azureMap && window.googleMap) {
+        window.googleMap.addBoundary(new SimpleBoundary(bounds));
       }
       boundaries = currentMap.getBoundariesStr();
     }

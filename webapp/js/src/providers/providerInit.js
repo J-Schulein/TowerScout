@@ -8,6 +8,7 @@
   // Initialize and add the Google Maps provider
   function initGoogleMap() {
     googleMap = new GoogleMap();
+    window.googleMap = googleMap;  // Expose globally for cross-module access
     setMyLocation();
 
     // TASK-041 Phase 1: Mark Google Maps initialization milestones
@@ -52,6 +53,9 @@
 
         await initWithTimeout;
 
+        // Expose globally for cross-module access
+        window.azureMap = azureMap;
+
         // Validate Azure Maps is properly initialized
         if (!azureMap || !azureMap.map || typeof azureMap.getBounds !== 'function') {
           throw new Error('Azure Maps initialization incomplete - missing required methods');
@@ -81,6 +85,7 @@
 
           // Clear failed Azure Maps instance
           azureMap = null;
+          window.azureMap = null;  // Clear window reference
 
           // If this was the only provider, show fatal error
           if (!googleMap) {

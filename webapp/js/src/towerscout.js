@@ -46,6 +46,10 @@ let currentElement = null;
 let currentAddrElement = null;
 let isInitializing = true; // Flag to prevent provider switching during startup
 
+// Expose map instances globally for cross-module access
+window.googleMap = null;
+window.azureMap = null;
+
 // Provider State Manager - Eliminates race conditions and ensures consistent state
 class ProviderStateManager {
   constructor() {
