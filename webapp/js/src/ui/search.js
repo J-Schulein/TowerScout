@@ -257,15 +257,26 @@
       const objects_data = item[1];
 
       if (detection_kind === "OBJECT") {
-        Detection.add(Detection.fromJSON(objects_data));
+        // Create detection directly - constructor adds to Detection_detections array
+        new Detection(
+          objects_data.x1, objects_data.y1, objects_data.x2, objects_data.y2,
+          objects_data.class_name, objects_data.conf, objects_data.tile,
+          objects_data.id_in_tile, objects_data.inside, objects_data.selected,
+          objects_data.secondary, objects_data.address,
+          objects_data.address_confidence, objects_data.address_provider
+        );
       } else if (detection_kind === "TILE") {
-        Tile.add(Tile.fromJSON(objects_data));
+        // Create tile directly - constructor adds to Tile_tiles array
+        new Tile(
+          objects_data.x1, objects_data.y1, objects_data.x2, objects_data.y2,
+          objects_data.metadata, objects_data.url
+        );
       }
     }
 
-    Detection.sortByConfidence();
-    Detection.makeList();
-    Tile.makeList();
+    Detection.sort();
+    Detection.generateList();
+    adjustConfidence();  // Update detection visibility based on confidence threshold
     let time = (performance.now() - startTime) / 1000;
     disableProgress(time, result.length);
     console.log("Request completed in " + time + " s");
