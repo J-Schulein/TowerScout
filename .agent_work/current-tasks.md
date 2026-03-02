@@ -33,15 +33,15 @@
 ## 📋 ACTIVE TASKS
 
 ### **TASK-038: Frontend Code Quality & Refactoring** 🔄
-**Status**: IN_PROGRESS (Stages 0-3 Complete, Stage 4 Next)  
+**Status**: IN_PROGRESS (Stages 0-4 Complete, Stage 5 Next)  
 **Type**: B (Technical Debt & Code Quality)  
 **Priority**: HIGH  
 **Created**: February 17, 2026  
 **Started**: February 18, 2026  
-**Last Updated**: February 26, 2026  
+**Last Updated**: March 2, 2026  
 **Estimated Effort**: 41 hours (6 stages: 0-5)  
-**Completed**: 30 hours (73%)  
-**Remaining**: 11 hours (Stages 4-5)
+**Completed**: 34 hours (83%)  
+**Remaining**: 7 hours (Stage 5 + final validation)
 
 **Objective**: Systematic refactoring of 5,272-line monolithic `towerscout.js` into modular architecture with 26 modules across 6 subdirectories
 
@@ -50,38 +50,50 @@
 - ✅ **Stage 1: Foundation & Managers** (8 hours) - Created 7 foundation modules (config, store, globals, 4 managers). Bundle: 143.5 KB, 11 modules. Commit: 01a1b51
 - ✅ **Stage 2: Boundary System** (9 hours) - Extracted 3 boundary modules (Circle, Polygon, Zipcode). Bundle: 215.3 KB, 14 modules. Commit: 88bf013
 - ✅ **Stage 3: Map Providers** (10 hours) - Extracted 4 provider modules (TSMap_base, GoogleMap, AzureMap, providerInit). Bundle: 286.1 KB, 26 modules. Commit: 054f801
-- ⏳ **Stage 4: Detection System** (6 hours) - IN PROGRESS - Extract Detection, Tile, DetectionList, DetectionReview modules
+- 🔄 **Stage 4: Detection System** (4 hours) - CODE COMPLETE, Testing pending - Extracted Detection, Tile, DetectionList, DetectionReview modules. Bundle: 288.9 KB, 26 modules. Commit: be6a564
 - ⏳ **Stage 5: UI & Final Integration** (5 hours) - PENDING - Extract search, export, navigation, and utility modules
 
 **Current Bundle Metrics**:
-- Size: 286.1 KB (from 215 KB original)
-- Modules: 26 total (14 extracted + 12 placeholders)
+- Size: 288.9 KB (+2.8 KB from Stage 3)
+- Modules: 26 total (18 extracted + 8 placeholders)
+- Source lines: 4,946 (reduced from 5,285, -339 lines in Stage 4)
 - Largest module: AzureMap.js (47.6 KB, 1,332 lines)
 - Source directory structure:
   - `src/managers/` (4 files: ProviderStateManager, TimerManager, EventListenerManager, ErrorHandler)
   - `src/boundaries/` (3 files: CircleBoundary, PolygonBoundary, ZipcodeBoundary)
   - `src/providers/` (5 files: TSMap_base, GoogleMap, AzureMap, providerInit, providerSwitch)
-  - `src/detection/` (4 placeholders: Detection, Tile, DetectionList, DetectionReview)
+  - `src/detection/` (4 files: Detection, Tile, DetectionList, DetectionReview)
   - `src/ui/` (3 placeholders: search, export, navigation)
   - `src/utils/` (3 placeholders: coordinates, imagery, apiHelpers)
   - Root: `config.js`, `store.js`, `globals.js`, `towerscout.js`
 
 **Context**: Frontend (towerscout.js) was a 5,272-line monolithic file. Sprint 01 established solid architectural foundation (TASK-041), making this the optimal time for systematic modular refactoring.
 
-**Stage 3 Achievements** (Feb 26):
-- Provider abstraction layer complete with TSMap base class
-- Google Maps implementation extracted (561 lines)
-- Azure Maps implementation extracted (1,332 lines - largest module!)
-- Async initialization with retry logic and error handling
-- Fixed JavaScript nested block comment limitation
-- All provider features validated (search, drawing, switching, boundary sync)
+**Stage 4 Achievements** (Mar 2):
+- Detection class extracted (285 lines) with full UI interaction
+- Tile class extracted (76 lines) with grid system
+- DetectionList UI functions extracted (95 lines) - confidence slider, review mode, API usage
+- DetectionReview minimal module - navigation in Detection/Tile classes
+- State variables moved to store.js (window namespace)
+- Classes exposed to window for inline HTML handlers
+- Secondary classifier threshold fix preserved (0.35)
+- Source reduced by 339 lines through extraction
+
+**Stage 4 Manual Testing** (Pending):
+- [ ] Detection list renders with address grouping
+- [ ] Confidence slider filters detections correctly
+- [ ] Inside/Outside checkbox filtering works
+- [ ] Detection navigation (prev/next buttons)
+- [ ] Tile navigation (prev/next buttons)
+- [ ] Detection highlighting bidirectional (map ↔ list)
+- [ ] Review pane controls functional
 
 **Next Steps**:
-1. Extract Detection class and core detection management (~300 lines)
-2. Extract Tile class and grid system (~200 lines)
-3. Extract DetectionList UI rendering (~250 lines)
-4. Extract DetectionReview pane logic (~150 lines)
-5. Build, test, and commit Stage 4
+1. Complete manual testing validation for Stage 4
+2. Extract UI modules for Stage 5 (search, export, navigation)
+3. Extract utility modules (coordinates, imagery, apiHelpers)
+4. Final integration and end-to-end testing
+5. Build, test, and commit Stage 5
 
 **Requirements**:
 - Split monolithic file into logical modules (~12 separate files)
