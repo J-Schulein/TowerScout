@@ -216,63 +216,35 @@
     }
 
     console.log("Results: " + result.length + " tiles");
-    const toRemoveFromEnd = [
-      "TILE_TOTAL",
-      "OBJECT_TOTAL",
-      "API_USAGE_LAST_UPDATE",
-      "API_USAGE_ESTIMATE_DAILY",
-      "API_USAGE_ESTIMATE_MONTHLY"
-    ];
 
-    // Remove trailing metadata elements
-    while (result.length > 0 && toRemoveFromEnd.includes(result[result.length - 1][0])) {
-      const elem = result.pop();
-      if (elem[0] === "API_USAGE_LAST_UPDATE") {
-        const usageDiv = document.getElementById("api_usage");
-        if (usageDiv) {
-          usageDiv.innerHTML = elem[1];
+    // Process detection objects with error handling
+    let processedDetections = 0;
+    let processedTiles = 0;
+
+    for (let r of result) {
+      try {
+        if (r['class'] === 0) {
+          // Create detection with server-provided address data
+          new Detection(
+            r['x1'], r['y1'], r['x2'], r['y2'],
+            r['class_name'], r['conf'], r['tile'], r['id_in_tile'],
+            r['inside'], r['selected'], r['secondary'],
+            r['address'], r['address_confidence'], r['address_provider']
+          );
+          processedDetections++;
+        } else if (r['class'] === 1) {
+          // Create tile
+          new Tile(r['x1'], r['y1'], r['x2'], r['y2'], r['metadata'], r['url']);
+          processedTiles++;
         }
-      } else if (elem[0] === "API_USAGE_ESTIMATE_DAILY") {
-        const dailyDiv = document.getElementById("api_usage_estimate_daily");
-        if (dailyDiv) {
-          dailyDiv.innerHTML = elem[1];
-        }
-      } else if (elem[0] === "API_USAGE_ESTIMATE_MONTHLY") {
-        const monthlyDiv = document.getElementById("api_usage_estimate_monthly");
-        if (monthlyDiv) {
-          monthlyDiv.innerHTML = elem[1];
-        }
-      } else if (elem[0] === "OBJECT_TOTAL") {
-        console.log("Objects detected:" + JSON.parse(elem[1]));
-      } else if (elem[0] === "TILE_TOTAL") {
-        console.log("After filtering: " + JSON.parse(elem[1]) + " nonempty tiles");
+      } catch (objectError) {
+        console.error('❌ Error processing individual object:', objectError);
+        // Continue processing other objects
       }
     }
 
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
-      if (!item || !item[0]) continue;
-
-      const detection_kind = item[0];
-      const objects_data = item[1];
-
-      if (detection_kind === "OBJECT") {
-        // Create detection directly - constructor adds to Detection_detections array
-        new Detection(
-          objects_data.x1, objects_data.y1, objects_data.x2, objects_data.y2,
-          objects_data.class_name, objects_data.conf, objects_data.tile,
-          objects_data.id_in_tile, objects_data.inside, objects_data.selected,
-          objects_data.secondary, objects_data.address,
-          objects_data.address_confidence, objects_data.address_provider
-        );
-      } else if (detection_kind === "TILE") {
-        // Create tile directly - constructor adds to Tile_tiles array
-        new Tile(
-          objects_data.x1, objects_data.y1, objects_data.x2, objects_data.y2,
-          objects_data.metadata, objects_data.url
-        );
-      }
-    }
+    console.log(`✅ Processed ${processedDetections} detections and ${processedTiles} tiles`);
+    console.log(`📊 ${Detection_detections.length} total detections with server-provided addresses.`);
 
     Detection.sort();
     Detection.generateList();
