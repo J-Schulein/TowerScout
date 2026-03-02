@@ -85,6 +85,8 @@ TowerScout is a Flask web application for detecting cooling towers from satellit
 - Enhanced geocoding capabilities via `ts_geocoding.py` and `ts_geocache.py`
 
 **Remaining Architecture Improvements:**
+- ✅ Frontend modularization complete (TASK-038, March 2026)
+- 🔄 Progressive global variable deprecation (TASK-041/TASK-043)
 - Reduce tight coupling between components for better testability
 - Improve global state management for concurrent requests
 - Further separate business logic from Flask routes
@@ -162,8 +164,17 @@ results_raw = det.detect(tiles, exit_events, id(session))
 - Thread-safe event handling for concurrent processing
 
 **JavaScript Architecture**
-- **Frontend Architecture:**
-  - `js/towerscout.js` - Main client-side application logic (3,600+ lines)
+- **Frontend Architecture (Updated March 2026 - TASK-038):**
+  - **Modular Build System**: 27 source modules compiled into single bundle via `build.js`
+  - **Bundle**: `js/towerscout.bundle.js` (319 KB optimized) - auto-built via pre-commit hooks
+  - **Source Structure** (4,848 lines across 7 directories):
+    - `js/src/` - Root modules (app initialization, main entry point)
+    - `js/src/managers/` - State management (Provider, Timer, EventListener, Error)
+    - `js/src/boundaries/` - Search area tools (Circle, Polygon, Zipcode)
+    - `js/src/providers/` - Map provider implementations (Google, Azure, switching)
+    - `js/src/detection/` - Detection workflow (PlaceRect, Detection, Tile, List, Review)
+    - `js/src/ui/` - User interface (search, export, navigation)
+    - `js/src/utils/` - Utilities (coordinates, imagery metadata, API helpers)
   - `js/jquery-3.5.1.min.js` - jQuery dependency for DOM manipulation
 - **State Management Classes:**
   - `ProviderStateManager` - Handles map provider switching and prevents race conditions
@@ -181,6 +192,12 @@ results_raw = det.detect(tiles, exit_events, id(session))
   - Polygon-based area selection with tile estimation
   - Circular radius search around points of interest
   - Provider-aware search optimization
+- **Architecture Benefits** (from TASK-038 refactoring):
+  - 100% backward compatibility (zero template changes, all inline handlers preserved)
+  - Easier feature development with isolated modules
+  - Better testability with dependency injection patterns
+  - Foundation for future TypeScript migration
+  - Automatic bundle rebuilds via Git pre-commit hooks
 
 ## Critical Implementation Details
 
