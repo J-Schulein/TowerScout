@@ -27,6 +27,14 @@
 (function() {
   'use strict';
 
+  // ===== Module-level variables for progress management =====
+  let progressTimer = null;
+  let totalSecsEstimated = 0;
+  let secsElapsed = 0;
+  let numTiles = 0;
+  let secsPerTile = CONFIG.SECS_PER_TILE_DEFAULT;
+  let dataPoints = 0;
+
   // ===== Main Detection Workflow =====
 
   function getObjects(estimate) {

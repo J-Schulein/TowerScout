@@ -21,6 +21,14 @@
 (function() {
   'use strict';
 
+  // ===== Module-level variables for about dialog animation =====
+  let aboutOp = 0;
+  let aboutInterval = 20;
+  let aboutIncrement = 20;
+  let aboutTimer = null;
+  let aboutCurrentTotal = 0;
+  let aboutSecs = 0;
+
   // ===== About Dialog Functions =====
 
   function about(aboutTotal) {

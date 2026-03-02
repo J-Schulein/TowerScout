@@ -4307,6 +4307,8 @@ function estimateNumTiles(zoom, bounds) {
   return Math.ceil(num);
 }
 
+// STAGE 5: Progress bar variables moved to src/ui/search.js
+/*
 //
 // progress bar
 //
