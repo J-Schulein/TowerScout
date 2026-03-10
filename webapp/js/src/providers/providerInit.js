@@ -8,7 +8,10 @@
   // Initialize and add the Google Maps provider
   function initGoogleMap() {
     googleMap = new GoogleMap();
-    window.googleMap = googleMap;  // Expose globally for cross-module access
+
+    // TASK-043 Phase 1: Use providerManager to register map instance
+    providerManager.setGoogleMap(googleMap);
+
     setMyLocation();
 
     // TASK-041 Phase 1: Mark Google Maps initialization milestones
@@ -53,8 +56,8 @@
 
         await initWithTimeout;
 
-        // Expose globally for cross-module access
-        window.azureMap = azureMap;
+        // TASK-043 Phase 1: Use providerManager to register Azure Maps instance
+        providerManager.setAzureMap(azureMap);
 
         // Validate Azure Maps is properly initialized
         if (!azureMap || !azureMap.map || typeof azureMap.getBounds !== 'function') {
@@ -83,9 +86,9 @@
           // Final failure - use error handler
           TowerScoutErrorHandler.handleProviderError('azure', error, 'Initialization');
 
-          // Clear failed Azure Maps instance
+          // Clear failed Azure Maps instance - TASK-043: Use providerManager
           azureMap = null;
-          window.azureMap = null;  // Clear window reference
+          providerManager.setAzureMap(null);
 
           // If this was the only provider, show fatal error
           if (!googleMap) {

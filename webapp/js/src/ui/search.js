@@ -28,7 +28,8 @@
   'use strict';
 
   // ===== Module-level variables for progress management =====
-  let progressTimer = null;
+  // TASK-043 Phase 3: progressTimer now managed by ProviderStateManager  
+  // let progressTimer = null; // DEPRECATED - use providerManager.startProgressTimer/stopProgressTimer
   let totalSecsEstimated = 0;
   let secsElapsed = 0;
   let numTiles = 0;
@@ -64,23 +65,37 @@
     let provider = $('input[name=provider]:checked', '#providers').val()
     console.log('🎯 Detection provider value:', provider, '| Type:', typeof provider);
     console.log('🎯 Provider validation - Azure:', provider === 'azure', '| Google:', provider === 'google');
-    // let boundaries = googleMap.getBoundariesStr();
-    // if (boundaries === "[]" && radius == "") {
-    //   console.log("No boundary selected, instead using viewport: " + googleMap.getBounds())
-    //   googleMap.addBoundary(new SimpleBoundary(googleMap.getBounds()));
-    // }
 
+    // TASK-045: Clear old boundaries from previous detection cycles before calculating new bounds
+    // This ensures each detection run is independent and prevents boundary accumulation
+    console.log('🧹 TASK-045: Clearing previous boundaries before detection');
+    console.log('   Current boundaries count:', currentMap.boundaries ? currentMap.boundaries.length : 0);
+
+    // Check if user has drawn new shapes that need to be converted to boundaries
+    const hasNewShapes = currentMap.hasShapes && currentMap.hasShapes();
+
+    if (hasNewShapes) {
+      // Clear old boundaries and retrieve fresh drawn shapes
+      console.log('   User has drawn new shapes - clearing old boundaries and retrieving new ones');
+      currentMap.resetBoundaries();
+
+      // Sync boundary clearing to other provider if available
+      if (currentMap === window.googleMap && window.azureMap) {
+        window.azureMap.resetBoundaries();
+      } else if (currentMap === window.azureMap && window.googleMap) {
+        window.googleMap.resetBoundaries();
+      }
+
+      // Now retrieve the newly drawn boundaries
+      drawnBoundary();
+      console.log('   New boundaries retrieved:', currentMap.boundaries ? currentMap.boundaries.length : 0);
+    }
 
     // TASK-041 Phase 2 Step 2.6: Use boundary bounding box instead of viewport bounds
     // This ensures tiles are generated only for the drawn search area, not the entire viewport
     let bounds = currentMap.getBoundaryBoundsUrl();
     console.log('🗺️ Using bounds for tile generation:', bounds);
-
-    if (currentMap && currentMap.boundaries && currentMap.boundaries.length === 0) {
-      if (currentMap.hasShapes && currentMap.hasShapes()) {
-        drawnBoundary();
-      }
-    }
+    console.log('   Final boundaries count for detection:', currentMap.boundaries ? currentMap.boundaries.length : 0);
 
     let boundaries = currentMap.getBoundariesStr();
 
@@ -271,11 +286,13 @@
   function enableProgress(tiles) {
     document.getElementById("progress_div").style.display = "flex";
 
+    // TASK-043 Phase 3: Use state manager for timer lifecycle management
     // Clear any existing progress timer to prevent memory leaks
-    if (progressTimer !== null) {
-      clearInterval(progressTimer);
+    if (providerManager.isProgressActive()) {
+      providerManager.stopProgressTimer();
     }
-    progressTimer = setInterval(progressFunction, CONFIG.PROGRESS_UPDATE_INTERVAL_MS);
+    providerManager.startProgressTimer(progressFunction, CONFIG.PROGRESS_UPDATE_INTERVAL_MS);
+
     numTiles = tiles;
     totalSecsEstimated = secsPerTile * numTiles;
     secsElapsed = 0;
@@ -284,7 +301,9 @@
   function disableProgress(time, actualTiles) {
     document.getElementById("progress_div").style.display = "none";
 
-    clearInterval(progressTimer);
+    // TASK-043 Phase 3: Use state manager for guaranteed cleanup
+    providerManager.stopProgressTimer();
+
     if (time !== 0) {
       let secsPerTileLast = time / actualTiles;
       secsPerTile = (secsPerTile * dataPoints + secsPerTileLast) / (dataPoints + 1);

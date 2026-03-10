@@ -331,6 +331,32 @@
       });
       this.map.layers.add(this.detectionLineLayer);
 
+      // FIX NEW-ISSUE-004: Add click event handler for detection shapes
+      // Azure Maps filters out functions from shape properties, so we look up Detection by ID
+      this.map.events.add('click', this.detectionPolygonLayer, (e) => {
+        if (e.shapes && e.shapes.length > 0) {
+          const shape = e.shapes[0];
+
+          // Handle both Shape objects (with .getProperties()) and Feature objects (with .properties)
+          const props = (typeof shape.getProperties === 'function')
+            ? shape.getProperties()
+            : shape.properties;
+
+          if (props && props.detectionId !== undefined) {
+            // Look up Detection object by ID from global array
+            const detection = Detection_detections[props.detectionId];
+            if (detection) {
+              console.log(`🖱️ Azure Maps detection ${props.detectionId} clicked - triggering highlight`);
+              detection.highlight(true, true);  // Call Detection.highlight() directly
+            } else {
+              console.warn(`⚠️ Clicked detection ${props.detectionId} but Detection object not found`);
+            }
+          } else {
+            console.warn('⚠️ Click detected but shape has no detectionId:', props);
+          }
+        }
+      });
+
       console.log('✅ Azure Maps: Detection DataSource and layers initialized');
 
       // Initialize Azure-native search for this provider
@@ -585,12 +611,14 @@
       // Handle detection ID - may be undefined if called before ID assignment
       const detectionId = (o.id !== undefined) ? o.id : 'pending';
 
+      // FIX NEW-ISSUE-003: Use separate opacity properties for fill and stroke
       let feature = new atlas.data.Feature(rectangle, {
         type: 'detection',
         confidence: o.confidence || 0,
         strokeColor: o.color || '#FF0000',
         fillColor: o.fillColor || '#FF0000',
-        opacity: o.opacity || 0.2,
+        fillOpacity: o.opacity || 0.5,
+        strokeOpacity: 1.0,
         detectionId: detectionId
       });
 
@@ -600,17 +628,16 @@
       // Skip rendering for tiles - they're data objects only, not visual elements
       const isTile = o.classname === 'tile';
 
-      // Add feature to detection data source for rendering (skip tiles)
-      if (this.detectionDataSource && !isTile) {
-        this.detectionDataSource.add(feature);
-
+      // FIX NEW-ISSUE-004: Don't add shapes here - let updateMapRect() be the single source of truth
+      // This prevents Feature/Shape type mismatches and ensures click listeners work correctly
+      if (!isTile) {
         // Calculate box dimensions for debugging coordinate precision
         const widthDeg = Math.abs(o.x2 - o.x1);
         const heightDeg = Math.abs(o.y1 - o.y2);
         const widthMeters = widthDeg * 111320 * Math.cos(o.y1 * Math.PI / 180); // approximate meters
         const heightMeters = heightDeg * 110540; // approximate meters
 
-        console.log(`Added detection ${detectionId} to Azure Maps:`);
+        console.log(`\ud83c\udfed makeMapRect: Created Feature ${detectionId} (listener stored: ${typeof o.clickListener}, NOT added to data source)`);
         console.log(`  Coordinates: [${o.x1.toFixed(6)}, ${o.y1.toFixed(6)}] to [${o.x2.toFixed(6)}, ${o.y2.toFixed(6)}]`);
         console.log(`  Box size: ${widthMeters.toFixed(1)}m x ${heightMeters.toFixed(1)}m`);
 
@@ -624,75 +651,155 @@
 
       // Handle click listener if provided
       if (listener) {
-        // Azure Maps requires event handling through layer events
-        // Store listener reference for future implementation
-        feature.properties.clickListener = listener;
+        // Store listener on the detection object for access in updateMapRect()
+        o.clickListener = listener;
       }
 
       return feature;
     }
 
     updateMapRect(o, onoff) {
-      // Show or hide detection rectangle
-      if (!o.azureFeature) return;
+      // Show or hide detection rectangle using style-based visibility (opacity)
+      // FIX NEW-ISSUE-003: Use opacity instead of add/remove to prevent duplicate shapes
+
+      if (!this.detectionDataSource) {
+        console.warn(`⚠️ Azure Maps data source not initialized`);
+        return;
+      }
 
       // Skip tiles - they're metadata only, not visual elements
       const isTile = o.classname === 'tile';
-      if (isTile) return;
+      if (isTile) {
+        return;
+      }
 
       // Handle detection ID - may be undefined if called before ID assignment
       const detectionId = (o.id !== undefined) ? o.id : 'pending';
 
+      // Find existing shape by detection ID (shapes are atlas.Shape instances, not features)
+      const shapes = this.detectionDataSource.getShapes();
+      const existingShapes = shapes ? shapes.filter(s => {
+        const props = s.getProperties();
+        return props && props.detectionId === detectionId;
+      }) : [];
+
+      if (existingShapes.length > 0) {
+        // REUSE EXISTING SHAPE - just change opacity and border visibility
+        const shape = existingShapes[0];
+
+        if (onoff === false || !onoff) {
+          // HIDE: Set opacity to 0 and make border transparent
+          console.log(`🔴 Hiding detection ${detectionId} (opacity=0, transparent border)`);
+          shape.setProperties({
+            detectionId: detectionId,  // MUST preserve ID
+            fillOpacity: 0.0,
+            strokeColor: 'transparent',
+            strokeWidth: 0
+          });
+        } else {
+          // SHOW: Restore opacity and colors
+          console.log(`🟢 Showing detection ${detectionId} (opacity=0.5, visible border)`);
+          shape.setProperties({
+            detectionId: detectionId,  // MUST preserve ID
+            fillColor: o.fillColor,
+            strokeColor: o.color,
+            fillOpacity: 0.5,
+            strokeWidth: 2
+          });
+        }
+        return; // IMPORTANT: Exit early, don't create new shape
+      }
+
+      // Create NEW shape ONLY if it doesn't exist AND should be visible
       if (onoff) {
-        // Add feature to data source if not already present
-        if (this.detectionDataSource) {
-          const shapes = this.detectionDataSource.getShapes();
-          const exists = shapes && shapes.some(s =>
-            s.properties && s.properties.detectionId === detectionId
-          );
-          if (!exists) {
-            this.detectionDataSource.add(o.azureFeature);
-            console.log(`Showing detection ${detectionId} on Azure Maps`);
-          }
-        }
-      } else {
-        // Remove feature from data source
-        if (this.detectionDataSource) {
-          this.detectionDataSource.remove(o.azureFeature);
-          console.log(`Hiding detection ${detectionId} from Azure Maps`);
-        }
+        // Create polygon geometry
+        const polygon = new atlas.data.Polygon([[
+          [o.x1, o.y1], // top-left: [lng, lat]
+          [o.x1, o.y2], // bottom-left: [lng, lat]
+          [o.x2, o.y2], // bottom-right: [lng, lat]
+          [o.x2, o.y1], // top-right: [lng, lat]
+          [o.x1, o.y1]  // close polygon
+        ]]);
+
+        // Create shape with detectionId property (click handler will look up Detection by ID)
+        const shape = new atlas.Shape(polygon, null, {
+          detectionId: detectionId,
+          fillColor: o.fillColor,
+          strokeColor: o.color,
+          fillOpacity: 0.5,
+          strokeWidth: 2
+        });
+
+        // Add to data source
+        this.detectionDataSource.add(shape);
+
+        // Store reference for future updates
+        o.azureShape = shape;
       }
     }
 
     colorMapRect(o, color) {
-      // Update rectangle color
-      if (o.azureFeature && this.detectionDataSource) {
-        // Handle detection ID - may be undefined if called before ID assignment
-        const detectionId = (o.id !== undefined) ? o.id : 'pending';
+      // Update rectangle color for highlighting
+      // FIX NEW-ISSUE-005: Use setProperties() to properly update shape colors without mixing
+      if (!this.detectionDataSource) {
+        console.warn(`⚠️ Azure Maps data source not initialized`);
+        return;
+      }
 
-        // Determine if detection is selected (green) or unselected (red)
-        const isSelected = (color === 'green' ||
-          color === '#00FF00' ||
-          color.toLowerCase().includes('0, 255, 0') ||
-          color.toLowerCase().includes('0,255,0'));
+      // Handle detection ID
+      const detectionId = (o.id !== undefined) ? o.id : 'pending';
 
-        // Update feature properties with appropriate opacity
-        o.azureFeature.properties.strokeColor = color;
+      // Find the shape in the data source by detectionId
+      const shapes = this.detectionDataSource.getShapes();
+      const existingShapes = shapes ? shapes.filter(s => {
+        const props = (typeof s.getProperties === 'function')
+          ? s.getProperties()
+          : s.properties;
+        return props && props.detectionId === detectionId;
+      }) : [];
 
-        // Selected detections: Higher opacity (0.3) for better visibility
-        // Unselected detections: Standard opacity (0.15) - matches constructor
-        if (isSelected) {
-          o.azureFeature.properties.fillColor = 'rgba(0, 255, 0, 0.3)';
-        } else {
-          // For unselected, maintain the transparent red fill
-          o.azureFeature.properties.fillColor = 'rgba(255, 0, 0, 0.15)';
-        }
+      if (existingShapes.length === 0) {
+        console.warn(`⚠️ Cannot color detection ${detectionId} - shape not found in data source`);
+        return;
+      }
 
-        // Remove and re-add feature to trigger visual update
-        this.detectionDataSource.remove(o.azureFeature);
-        this.detectionDataSource.add(o.azureFeature);
+      if (existingShapes.length > 1) {
+        console.warn(`⚠️ Found ${existingShapes.length} shapes with detectionId ${detectionId} - using first one`);
+      }
 
-        console.log(`Updated detection ${detectionId} color to ${color} (opacity: ${isSelected ? '0.3' : '0.15'})`);
+      const shape = existingShapes[0];
+
+      // Determine if detection is selected (green) or unselected (red)
+      const isSelected = (color === 'green' ||
+        color === '#00FF00' ||
+        color.toLowerCase().includes('0, 255, 0') ||
+        color.toLowerCase().includes('0,255,0'));
+
+      // FIX NEW-ISSUE-005: CRITICAL - Always preserve detectionId when calling setProperties()
+      // Azure Maps setProperties() REPLACES all properties, doesn't merge
+      // If we don't include detectionId, it gets cleared and future lookups fail
+
+      // Update shape properties directly for immediate visual update
+      if (isSelected) {
+        // Selected: Pure green with higher opacity
+        shape.setProperties({
+          detectionId: detectionId,  // MUST preserve ID
+          fillColor: 'rgba(0, 255, 0, 0.3)',
+          strokeColor: 'green',
+          fillOpacity: 0.3,
+          strokeWidth: 2
+        });
+        console.log(`✅ Highlighted detection ${detectionId} with green (opacity: 0.3)`);
+      } else {
+        // Unselected: Red with standard opacity
+        shape.setProperties({
+          detectionId: detectionId,  // MUST preserve ID
+          fillColor: 'rgba(255, 0, 0, 0.15)',
+          strokeColor: o.color || '#FF0000',
+          fillOpacity: 0.15,
+          strokeWidth: 1
+        });
+        console.log(`🔴 Reset detection ${detectionId} to red (opacity: 0.15)`);
       }
     }
 
@@ -1069,6 +1176,7 @@
         }
       }
       Detection_detections = dets;
+      // FIX NEW-ISSUE-003: generateList() now calls adjustConfidence() to filter outside detections
       Detection.generateList();
     }
 

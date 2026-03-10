@@ -6,6 +6,7 @@
     class PlaceRect {
 
         constructor(x1, y1, x2, y2, color, fillColor, opacity, classname, listener) {
+
             this.x1 = x1;
             this.y1 = y1;
             this.x2 = x2;
@@ -17,7 +18,8 @@
             this.address = "<unknown address>";
             this.map = currentMap
             this.mapRect = this.map.makeMapRect(this, listener);
-            this.update();
+            // FIX NEW-ISSUE-003: Don't call update() here - let Detection call it after setting 'inside' property
+            // this.update();  // Removed to prevent showing markers before boundary filtering
             this.listener = listener;
         }
 
@@ -61,7 +63,8 @@
                 this.mapRect = newMap.makeMapRect(this, this.listener);
                 this.map = newMap;
             }
-            this.map.updateMapRect(this, true);
+            // FIX NEW-ISSUE-003: Don't automatically show markers - let Detection.update() control visibility
+            // this.map.updateMapRect(this, true);  // Removed - Detection subclass handles visibility logic
         }
     }
 

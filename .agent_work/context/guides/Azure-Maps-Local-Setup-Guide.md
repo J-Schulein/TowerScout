@@ -283,6 +283,106 @@ AZURE_MAPS_BATCH_REQUESTS=true
 
 ---
 
+## ⚡ **Performance Expectations (Updated March 2026)**
+
+### **Detection Performance Benchmarks** (Validated TASK-042)
+
+Azure Maps as Primary Provider:
+
+| Workload | Duration | Detections | Notes |
+|----------|----------|------------|-------|
+| **24 tiles** | ~70 seconds | ~158 detections | Typical neighborhood scan |
+| **57 tiles** | ~160 seconds | ~430 detections | Mid-size investigation area |
+| **<100 tiles** | ~30 seconds (target) | Variable | Mission-critical performance target |
+
+**Performance Breakdown**:
+- **Tile Download**: ~30-40% of total time (Azure Maps optimized with 32% improvement)
+- **YOLOv5 Detection**: ~40-50% of total time (GPU batch processing)
+- **EfficientNet Classification**: ~5-10% of total time (threshold filtering)
+- **Geocoding**: ~5-10% of total time (rate limited, see below)
+
+### **Geocoding Performance & Limitations**
+
+**Azure Maps Geocoding**:
+- **Rate Limit**: ~370 detections per batch
+- **Behavior**: First 370 detections get addresses, additional detections pending
+- **Workaround**: If >370 detections expected, consider batch processing or Google Maps provider
+- **Impact**: Sprint 02 testing validated most outbreak investigations <370 detections
+
+**Google Maps Geocoding** (Alternative):
+- **Rate Limit**: Higher limits but slower response
+- **Behavior**: More detections processed per batch
+- **Trade-off**: Slower individual requests vs higher volume capacity
+
+### **Memory Management** (Validated TASK-041)
+
+**20-Cycle Stress Test Results**:
+- **Baseline Memory**: 28.6 MB
+- **After 20 Cycles**: 28.4 MB
+- **Change**: -0.7% (memory DECREASED!)
+- **Conclusion**: No memory leaks, proper cleanup implemented
+
+**Memory Optimization Techniques**:
+- ✅ Clear-and-rebuild pattern for boundaries
+- ✅ Mutex-protected state management
+- ✅ Automatic timer and event listener cleanup
+- ✅ Provider-synchronized boundary management
+
+### **Frontend Performance**
+
+**Build System**:
+- **Build Time**: <2 seconds (concatenation-based)
+- **Bundle Size**: 319.0 KB (27 modules)
+- **Load Time**: <1 second on typical broadband
+
+**User Interface**:
+- **Map Rendering**: Instantaneous for <100 boundaries
+- **Detection Display**: <500ms for <500 detections
+- **Confidence Filtering**: Real-time slider updates
+- **Interactive Highlighting**: Bidirectional (marker ↔ list), <100ms
+
+### **Azure Maps Optimization Achievements** (TASK-030)
+
+**Before Sprint 01**:
+- Mixed provider performance
+- Inefficient tile management
+- Visual inconsistencies between providers
+
+**After Sprint 01** (32% Performance Improvement):
+- ✅ Optimized tile download with async/await patterns
+- ✅ Batch processing for multiple tiles
+- ✅ Cached tile reuse
+- ✅ Visual parity with Google Maps (transparency, styling)
+- ✅ Provider-agnostic boundary synchronization
+
+### **Performance Tuning Recommendations**
+
+**For Small Investigations** (<50 tiles, <100 detections):
+```bash
+# Use default settings - optimized for speed
+DEFAULT_MAP_PROVIDER=azure
+AZURE_MAPS_BATCH_REQUESTS=true
+```
+
+**For Large Investigations** (>100 tiles, >370 detections):
+```bash
+# Consider Google Maps for higher geocoding limits
+DEFAULT_MAP_PROVIDER=google
+# OR use Azure Maps with batch processing acceptance
+AZURE_MAPS_BATCH_REQUESTS=true
+# Expect multiple batches for >370 detections
+```
+
+**For Development/Testing**:
+```bash
+# Enable detailed performance logging
+LOG_LEVEL=DEBUG
+AZURE_MAPS_TRACK_USAGE=true
+# Monitor Azure Portal usage metrics
+```
+
+---
+
 ## 🔧 **Troubleshooting Authentication Issues**
 
 ### **Common Problems & Solutions**
@@ -325,6 +425,49 @@ except Exception as e:
     print(f'❌ Configuration error: {e}')
 "
 ```
+
+### **Common Azure Maps Issues & Resolutions**
+
+**Issue**: "Detections stop at approximately 370 results"
+- **Cause**: Azure Maps geocoding rate limit
+- **Status**: ⚠️ Expected behavior, not a bug
+- **Solution**: 
+  - For <370 detections: No action needed
+  - For >370 detections: Consider Google Maps provider or accept batch processing
+  - Impact documented in TASK-042 validation
+
+**Issue**: "Azure Maps visual appearance differs from Google Maps"
+- **Cause**: Provider styling differences
+- **Status**: ✅ RESOLVED in Sprint 01 (TASK-040)
+- **Solution**: Update to latest improvements branch
+- **Fix**: Transparency and styling parity implemented
+
+**Issue**: "Stale boundaries appear in detection results"
+- **Cause**: Boundary accumulation bug
+- **Status**: ✅ RESOLVED in Sprint 02 (TASK-045)
+- **Solution**: Update to latest improvements branch
+- **Fix**: Clear-and-rebuild pattern with resetBoundaries()
+
+**Issue**: "Provider switching takes time - app appears frozen"
+- **Cause**: No loading indicator during initialization
+- **Status**: ⚠️ Known limitation (NEW-ISSUE-006)
+- **Workaround**: Wait 1-2 seconds after clicking provider switch
+- **Planned Fix**: TASK-048 (Sprint 03) adds loading overlay
+
+**Issue**: "Console shows many deprecation warnings"
+- **Cause**: Global variable migration in progress  
+- **Status**: ⏳ Expected during Sprint 02-03 transition
+- **Impact**: ~150+ warnings during typical session
+- **Action**: No action needed - warnings guide refactoring, not errors
+- **Timeline**: Complete migration in TASK-046 (Sprint 03)
+
+**Issue**: "Azure Maps tiles don't load"
+- **Verification Steps**:
+  1. Check AZURE_MAPS_SUBSCRIPTION_KEY in .env
+  2. Verify network connectivity to atlas.microsoft.com
+  3. Check Azure Portal for key status and quota
+  4. Monitor browser console for HTTP 401/403 errors
+- **Resolution**: Regenerate key if expired, check billing status
 
 ---
 

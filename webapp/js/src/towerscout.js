@@ -3913,7 +3913,7 @@ async function setMap(newMap) {
     document.getElementById("ftowers").style.display = "none";
     document.getElementById("fsave").style.display = "none";
     document.getElementById("freview").style.display = "none";
-    // document.getElementById("ffilter").style.display = "none";
+    document.getElementById("ffilter").style.display = "none";
     document.getElementById("fadd").style.display = "none";
 
   } else if (currentUI.value === "google") {
@@ -3923,7 +3923,7 @@ async function setMap(newMap) {
     document.getElementById("ftowers").style.display = null;
     document.getElementById("fsave").style.display = null;
     document.getElementById("freview").style.display = null;
-    // document.getElementById("ffilter").style.display = null;
+    document.getElementById("ffilter").style.display = null;
     document.getElementById("fadd").style.display = null;
 
     // Defer provider switching until after initialization is complete
@@ -3968,6 +3968,7 @@ async function setMap(newMap) {
     document.getElementById("ftowers").style.display = null;
     document.getElementById("fsave").style.display = null;
     document.getElementById("freview").style.display = null;
+    document.getElementById("ffilter").style.display = null;
     document.getElementById("fadd").style.display = null;
 
     // Defer provider switching until after initialization is complete

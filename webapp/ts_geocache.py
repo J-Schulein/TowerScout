@@ -157,8 +157,9 @@ class GeocodingCache:
             with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
             
-            # Atomic rename
-            temp_file.rename(self.cache_file)
+            # Atomic rename - use replace() for Windows compatibility
+            # replace() overwrites existing file on both Unix and Windows
+            temp_file.replace(self.cache_file)
             self.logger.debug(f"Saved {len(self.file_cache)} entries to file cache")
             
         except Exception as e:

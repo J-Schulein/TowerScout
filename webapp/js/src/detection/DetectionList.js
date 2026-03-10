@@ -16,8 +16,12 @@
     Detection_minConfidence = confSlider.value / 100;
     for (let det of Detection_detections) {
       let meetsInside = reviewCheckBox.checked || det.inside;
-      let meetsConf = det.conf >= Detection_minConfidence || det.secondary >= 0.35;
-      let meetsAddrConf = det.firstDet.maxConf >= Detection_minConfidence || det.firstDet.maxSecondary >= 0.35;
+      // TASK-043 FIX: Use max confidence from either classifier for filtering
+      // This preserves both YOLOv5 and EfficientNet detections while allowing slider to work
+      let maxConf = Math.max(det.conf, det.secondary || 0);
+      let meetsConf = maxConf >= Detection_minConfidence;
+      let maxAddrConf = Math.max(det.firstDet.maxConf, det.firstDet.maxSecondary || 0);
+      let meetsAddrConf = maxAddrConf >= Detection_minConfidence;
       det.firstDet.showAddr(meetsAddrConf && meetsInside);
       det.show(meetsConf && meetsInside);
       det.update();
@@ -41,12 +45,26 @@
       return;
     }
 
+    const mode = reviewCheckBox.checked ? 'Label' : 'Find';
+    console.log(`🔄 Switching review mode to: ${mode}`);
+
     if (reviewCheckBox.checked) {
-      confSlider.value = 0;
+      confSlider.value = 0;  // Label mode: show all detections in tiles
     } else {
-      confSlider.value = Math.round(DEFAULT_CONFIDENCE * 100);
+      confSlider.value = Math.round(DEFAULT_CONFIDENCE * 100);  // Find mode: only inside boundary
     }
+
+    // Adjust confidence filtering (updates list visibility)
     adjustConfidence();
+
+    // FIX NEW-ISSUE-003: Force map visibility update for all detections
+    // adjustConfidence() updates the list, but we need to explicitly update map markers
+    console.log(`🗺️ Updating map visibility for ${Detection_detections.length} detections`);
+    for (let det of Detection_detections) {
+      det.update();  // This will correctly show/hide map markers based on new mode
+    }
+
+    console.log(`✅ Review mode switched to: ${mode}`);
   }
 
   /**

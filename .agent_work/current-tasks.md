@@ -1,223 +1,323 @@
 # Current Tasks - Active Sprint
 
-**Sprint Period**: February 18 - March 4, 2026 (Sprint 02)  
-**Last Updated**: March 2, 2026  
-**Focus**: Frontend Code Quality, Refactoring & Technical Debt Resolution  
-**Status**: 🚀 TASK-038 COMPLETE - 3 Tasks Remaining
+**Sprint Period**: March 11 - March 25, 2026 (Sprint 03)  
+**Last Updated**: March 11, 2026  
+**Focus**: Legacy Feature Restoration & Critical API Migration  
+**Status**: 🚀 **SPRINT 03 PLANNING IN PROGRESS**
 
-## 🎯 Sprint 02 Foundation
+## 🎯 Sprint 03 Foundation
 
-**Context**: Sprint 01 delivered exceptional results - all 7 tasks completed, 90% issue resolution rate, and architectural improvements that exceeded expectations (memory decreased 0.7% in stress testing).
+**Context**: Sprint 02 delivered exceptional results - all 5 tasks completed, modular frontend architecture with 27 modules, 3 critical race conditions fixed, zero regressions, and comprehensive documentation updates.
 
-**Sprint 02 Strategy**: Build on solid foundation by refactoring monolithic frontend into modular architecture. This enables faster feature development, better testability, and easier maintenance for future sprints.
+**Sprint 02 Achievements**:
+- ✅ Frontend refactored from 5,272 lines monolithic to 27 modular files
+- ✅ All deferred Sprint 01 tests validated (23/23 PASS)
+- ✅ 3 critical race conditions fixed with property descriptors
+- ✅ Frontend boundary accumulation bug resolved
+- ✅ Developer guides, setup documentation, and architecture reference updated
 
-**Key Milestone**: ✅ TASK-038 COMPLETE (March 2, 2026) - Monolithic 5,272-line frontend successfully refactored into 27 modular files. Full detection workflow validated end-to-end with user confirmation.
+**Sprint 03 Strategy**: Leverage Sprint 02's modular architecture foundation to restore critical legacy features (manual tower addition, export system) while addressing time-critical Google Maps API deprecation (May 2026 breaking change deadline).
 
 ---
 
-## 🎯 SPRINT 02 GOALS
+## 🎯 SPRINT 03 GOALS
 
-1. ✅ **JavaScript Refactoring** (TASK-038) - COMPLETE - Frontend modularization achieved
-2. 🔄 **Deferred Testing Resolution** (TASK-042) - IN PROGRESS - Complete comprehensive test suites from Sprint 01
-3. ⏳ **Global Variable Deprecation** (TASK-043) - PENDING - Continue architectural improvements from TASK-041
-4. ⏳ **Documentation Updates** (TASK-044) - PENDING - Update user guides with new workflows
+1. **Google Maps API Upgrade** (TASK-039) - Critical deadline: Must complete by April 2026
+2. **Manual Tower Addition** (TASK-033) - High-priority legacy feature restoration
+3. **Export System Restoration** (TASK-036) - Mission-critical for outbreak investigation workflows
 
-**Sprint Progress**: 41 hours completed / 32-36 hour target (114% - over budget but critical infrastructure work)  
-**Tasks Complete**: 1 of 4 (25% by count, but largest task by effort)
+**Sprint Capacity**: 32-36 hours target  
+**Sprint Velocity**: Based on Sprint 02 velocity (61 hours actual), planning conservatively for 3 substantial feature tasks
 
 **Success Criteria**:
-- ✅ Modular frontend architecture enabling faster feature development (ACHIEVED)
-- 🔄 Complete validation of Sprint 01 improvements (IN PROGRESS)
-- ⏳ Reduced global state complexity (PENDING)
-- ⏳ Updated documentation for outbreak investigation teams (PENDING)
+- [ ] Google Maps upgraded to latest API (no deprecation warnings)
+- [ ] Manual tower addition feature functional and validated
+- [ ] Export capabilities restored (CSV, KML, YOLO formats)
+- [ ] All legacy outbreak investigation workflows operational
+- [ ] Zero regressions in existing detection functionality
 
 ## 📋 ACTIVE TASKS
 
-> **Note**: TASK-038 moved to completed-tasks.md (March 2, 2026)  
-> See `.agent_work/tasks/completed/TASK-038-COMPLETION-SUMMARY.md` for comprehensive completion report
+---
+
+### **TASK-039: Google Maps API Upgrade (ISSUE-005)** 🔴
+**Status**: NOT_STARTED  
+**Type**: C (Architecture - API Migration)  
+**Priority**: CRITICAL  
+**Created**: February 17, 2026  
+**Estimated Effort**: 8-20 hours  
+**Hard Deadline**: April 2026 (Breaking change in May 2026)
+
+**Objective**: Migrate from deprecated Google Maps APIs before they are removed in May 2026
+
+**Context**: 
+- Discovery Date: February 5, 2026 during TASK-037 user journey testing
+- Google Maps Drawing Library deprecated August 2025, removal scheduled May 2026
+- SearchBox API deprecated March 2025 for new customers
+- Application currently using retired version (v3.55.1)
+
+**Technical Details**:
+- **Current State**: Using deprecated Drawing Library for polygon/circle tools
+- **Impact**: Complete failure of Google Maps provider after May 2026
+- **Affected Components**: Circle tool, polygon tool, all interactive drawing features
+- **Console Warnings**:
+  ```
+  ⚠️ Drawing library functionality in the Maps JavaScript API is deprecated.
+     Removal scheduled for May 2026.
+  ⚠️ google.maps.places.SearchBox not available to new customers.
+  ⚠️ RetiredVersion warning - using v3.55.1
+  ```
+
+**Requirements**:
+- Upgrade to latest Google Maps JavaScript API version
+- Replace deprecated Drawing Library with new drawing tools API
+- Migrate SearchBox to Places Autocomplete API  
+- Maintain feature parity with current polygon/circle drawing capabilities
+- Ensure backward compatibility with existing boundary data structures
+- Test all Google Maps provider functionality after migration
+
+**Migration Strategy**:
+1. **API Version Upgrade** (2-3 hours):
+   - Update Google Maps script loading to latest version
+   - Review and update any breaking changes in core API
+   - Update initialization code for new API patterns
+
+2. **Drawing Tools Migration** (4-8 hours):
+   - Research new Google Maps drawing tools API
+   - Replace DrawingManager with new drawing implementation
+   - Migrate polygon creation functionality
+   - Migrate circle creation functionality
+   - Ensure drawing event handlers work correctly
+
+3. **Places API Migration** (2-4 hours):
+   - Replace SearchBox with Places Autocomplete
+   - Update address search integration
+   - Verify geocoding functionality unchanged
+
+4. **Testing & Validation** (2-5 hours):
+   - Cross-browser testing (Chrome, Edge, Firefox, Safari)
+   - Verify all drawing tools work as expected
+   - Test provider switching (Google ↔ Azure)
+   - Validate boundary data compatibility
+   - Performance testing for API call efficiency
+
+**Risk Assessment**:
+- **HIGH**: Complete provider failure if not addressed before May 2026
+- **MEDIUM**: Potential breaking changes in new API requiring code restructuring
+- **LOW**: User workflow disruption (can be mitigated with thorough testing)
+
+**Dependencies**: 
+- TASK-041 (Deep Dive Priority 2) ✅ COMPLETE - Clean architecture foundation
+- TASK-037 (User Journey Verification) - Re-test after migration
+
+**Success Criteria**:
+- [ ] No deprecation warnings in browser console
+- [ ] All drawing tools functional on Google Maps provider
+- [ ] Address search working with new Places API
+- [ ] Provider switching works seamlessly
+- [ ] Boundary data compatibility maintained
+- [ ] Performance equivalent or better than current implementation
+
+**Notes**: 
+- **DO NOT DEFER BEYOND APRIL 2026** - This is a hard deadline
+- Provider fallback (Azure Maps) available during transition period
+- Document migration process for future API updates
 
 ---
 
-### **TASK-042: Deferred Testing Resolution** 🔄
-**Status**: IN_PROGRESS  
-**Type**: A (Quality Assurance)  
+### **TASK-033: Manual Tower Addition Feature** 🟡
+**Status**: NOT_STARTED  
+**Type**: B (Feature Development)  
 **Priority**: HIGH  
 **Created**: February 17, 2026  
-**Started**: March 2, 2026  
-**Estimated Effort**: 3-4 hours
+**Estimated Effort**: 3 days (24 hours)
 
-**Objective**: Execute comprehensive test suites deferred from Sprint 01 tasks to validate all improvements and ensure no regressions
+**Objective**: Restore ability for users to manually add cooling tower locations using interactive polygon drawing
 
-**Scope**: Complete testing deferred from three Sprint 01 tasks:
+**Requirements**:
+- Interactive polygon drawing on map interface for manual tower addition
+- Integration with detection results display system
+- Session persistence for manual additions
+- Export compatibility (KML, CSV, dataset formats)
+- Distinguish manually added towers from ML-detected towers in UI
 
-**1. TASK-031 Interactive Highlighting Testing** (1-1.5 hours):
-- Test Case 1: List → Marker highlighting (map centers, marker highlights green)
-- Test Case 2: Marker → List highlighting (list smoothly scrolls to detection)
-- Test Case 3: Smooth scrolling behavior (animated, centered in view)
-- Test Case 4: Rapid clicking (no flicker, highlights clear properly)
-- Test Case 5: Cross-provider compatibility (Google Maps and Azure Maps)
-- Performance: Test with 100+ detections (scroll performance)
-- Memory: Monitor for event listener buildup/leaks
+**Implementation Plan**:
+1. **UI Implementation** (8-10 hours):
+   - Add "Add Tower Manually" button to interface
+   - Enable polygon drawing mode for manual tower marking
+   - Visual distinction for manually added vs ML-detected towers (e.g., different marker color)
+   - Right-click or button to finalize manual tower addition
+   
+2. **Data Integration** (6-8 hours):
+   - Store manual additions in detection results array with `manual: true` flag
+   - Integrate with existing address lookup system
+   - Display manual towers in detection list with visual indicator
+   - Enable editing/deletion of manually added towers
 
-**2. TASK-040 Azure Maps Visual Consistency Testing** (1-1.5 hours):
-- Test search boundary styling (circles, polygons) on both providers
-- Verify tile boundaries not visible on either provider
-- Validate detection box transparency (0.15 unselected, 0.3 selected on Azure)
-- Test selection highlighting on both providers (green flash vs green fill)
-- Verify provider switching stability with detections visible
-- Monitor console for errors during cross-provider operations
-- Performance test with 50+ tiles on both providers
+3. **Session Persistence** (4-6 hours):
+   - Preserve manual additions across page refreshes
+   - Include manual towers in export operations
+   - Handle manual tower data in all existing workflows
 
-**3. TASK-037 Cross-Validation** (0.5-1 hour):
-- Re-verify all 9 resolved issues remain fixed
-- Confirm ISSUE-001, 002, 003, 004, 010 still resolved (TASK-041 improvements)
-- Validate ISSUE-006, 007, 008, 009 fixes remain stable
-- Document any new issues discovered
+4. **Testing & Validation** (6 hours):
+   - Manual addition workflow testing
+   - Integration with existing detection workflows
+   - Export functionality validation (CSV, KML, YOLO formats)
+   - Provider switching compatibility
+
+**Dependencies**: 
+- TASK-030 (Address Lookup) ✅ COMPLETED - Address system integration
+- TASK-031 (Interactive Highlighting) ✅ COMPLETED - Selection system integration
+- TASK-032 (Enhanced Details Panel) ✅ COMPLETED - UI integration
+- TASK-038 (Frontend Refactoring) ✅ COMPLETED - Modular architecture enables clean integration
 
 **Success Criteria**:
-- [ ] All TASK-031 test cases pass without issues
-- [ ] All TASK-040 visual consistency tests pass
-- [ ] All Sprint 01 bug fixes remain stable
-- [ ] No new regressions discovered
-- [ ] Performance metrics within acceptable ranges
-- [ ] Memory usage stable across test scenarios
+- [ ] Users can add towers manually via polygon drawing
+- [ ] Manual towers appear in detection list with visual distinction
+- [ ] Manual towers receive geocoded addresses automatically
+- [ ] Manual towers included in all export formats
+- [ ] Session persistence works across page refreshes
+- [ ] No conflicts with ML-detected towers
+- [ ] Provider switching preserves manual additions
 
-**Dependencies**:
-- Sprint 01 tasks completed ✅
-- Testing environment ready ✅
-
-**Notes**: This testing provides validation baseline before TASK-038 refactoring begins. Any issues discovered will inform refactoring approach.
+**User Value**: Critical for outbreak investigation teams to mark known towers not detected by ML or add suspected locations for field verification
 
 ---
 
-### **TASK-043: Global Variable Deprecation Continuation** 🔄
+### **TASK-036: Export System Restoration** 🟡
 **Status**: NOT_STARTED  
-**Type**: C (Architecture)  
-**Priority**: MEDIUM  
+**Type**: B (Feature Development)  
+**Priority**: HIGH  
 **Created**: February 17, 2026  
-**Estimated Effort**: 4-6 hours
+**Estimated Effort**: 2-3 days (16-24 hours)
 
-**Objective**: Continue progressive migration of global variables to centralized state management, building on TASK-041 Phase 1 foundation
+**Objective**: Restore and enhance data export capabilities for outbreak investigation workflows
 
-**Context**: TASK-041 Phase 1 began deprecating global variables by extending ProviderStateManager. This task continues that work to further reduce state complexity and synchronization bugs.
+**Requirements**:
+- Excel/CSV export for epidemiological tracking
+- KML export for Google Earth integration
+- YOLO format dataset export for ML training
+- Batch export with filtering options
+- Include confidence scores, addresses, coordinates, and detection metadata
 
-**Scope**:
+**Implementation Plan**:
+1. **CSV Export** (6-8 hours):
+   - Generate CSV with columns: ID, Address, Latitude, Longitude, Confidence, Detection Type (ML/Manual), Date
+   - Include filtering by confidence threshold
+   - Handle manual vs ML-detected tower distinctions
+   - Excel-compatible formatting
 
-**Phase 1: Identify Remaining Global Variables** (1-2 hours):
-- Audit towerscout.js for all global variable declarations
-- Categorize by: map state, UI state, detection state, configuration
-- Prioritize based on: usage frequency, synchronization risk, refactoring impact
-- Create migration roadmap
+2. **KML Export** (4-6 hours):
+   - Generate KML with placemarks for each detection
+   - Include tower metadata in description fields
+   - Color-code by confidence level
+   - Support for manual vs ML tower distinction
+   - Google Earth compatibility testing
 
-**Phase 2: Migrate High-Priority Globals** (2-3 hours):
-- Extend ProviderStateManager or create new state managers
-- Migrate 3-5 high-risk global variables
-- Update all references to use state manager getters/setters
-- Add validation and error handling
+3. **YOLO Format Export** (4-6 hours):
+   - Generate YOLO format labels for ML training
+   - Include bounding box coordinates in YOLO format
+   - Package images with corresponding labels
+   - ZIP archive creation for easy download
+   - Documentation for ML training workflow
 
-**Phase 3: Testing & Validation** (1 hour):
-- Verify no functionality broken by migrations
-- Test provider switching and detection workflows
-- Monitor console for errors
-- Document remaining globals for future sprints
-
-**Target Globals** (Examples from TASK-041):
-- `currentMap` - Already partially migrated, complete synchronization
-- `tiles` - Tile management state
-- `detections` - Detection results state
-- Additional globals identified during audit
-
-**Success Criteria**:
-- [ ] Complete global variable audit documented
-- [ ] 3-5 high-risk globals migrated to state managers
-- [ ] All tests pass after migration
-- [ ] No new synchronization bugs introduced
-- [ ] Migration roadmap created for Sprint 03
+4. **UI Integration** (2-4 hours):
+   - Export button with format selection dropdown
+   - Progress indicator for large exports
+   - Download handling for generated files
+   - Error handling for export failures
 
 **Dependencies**:
-- TASK-041 (ProviderStateManager foundation) ✅ COMPLETE
+- TASK-030 (Address Lookup) ✅ COMPLETED - Address data in exports
+- TASK-033 (Manual Addition) - Include manual additions in exports (can proceed independently)
+- TASK-038 (Frontend Refactoring) ✅ COMPLETED - Modular architecture enables clean export module
 
-**Notes**: Progressive approach - not attempting complete migration in one sprint. Focus on high-impact globals that reduce synchronization complexity.
+**Success Criteria**:
+- [ ] CSV export generates valid, Excel-compatible files
+- [ ] KML export opens correctly in Google Earth
+- [ ] YOLO format export compatible with ML training pipeline
+- [ ] All export formats include detection metadata (confidence, type, date)
+- [ ] Export handles both ML-detected and manually added towers
+- [ ] Filtering options work correctly (confidence threshold, detection type)
+- [ ] Large exports (100+ detections) complete without errors
+
+**User Value**: Mission-critical for outbreak investigation teams to export detection results for epidemiological analysis, GIS integration, and ML model improvement
+
+**Notes**: Critical for outbreak investigation teams
 
 ---
 
-### **TASK-044: Documentation Updates** 🔄
-**Status**: NOT_STARTED  
-**Type**: A (Documentation)  
-**Priority**: MEDIUM  
-**Created**: February 17, 2026  
-**Estimated Effort**: 2-3 hours
+## 📊 Sprint 03 Capacity
 
-**Objective**: Update user guides and setup documentation to reflect Sprint 01 improvements and remove outdated workarounds
+**Sprint Duration**: 14 days (March 11 - March 25, 2026)  
+**Sprint Status**: 🚀 **SPRINT PLANNING COMPLETE - READY TO START**  
+**Active Tasks**: 3 tasks selected (TASK-039, TASK-033, TASK-036)  
+**Planned Effort**: 48-68 hours estimated  
+**Sprint Velocity Note**: Sprint 02 velocity was 61 hours (190% of target), Sprint 03 has ambitious scope  
+**Risk Mitigation**: TASK-039 is critical (hard deadline), other tasks can be deferred if needed
 
-**Scope**:
+**Sprint 03 Task Breakdown**:
+- TASK-039 (Google Maps API Upgrade): 8-20 hours - CRITICAL, hard deadline April 2026
+- TASK-033 (Manual Tower Addition): 24 hours - HIGH, legacy feature restoration
+- TASK-036 (Export System): 16-24 hours - HIGH, mission-critical for outbreak investigations
 
-**1. User Workflow Documentation** (1-1.5 hours):
-- Remove provider switch workaround from search area instructions
-- Update detection review workflow with new highlighting features
-- Document Azure Maps visual consistency improvements
-- Add screenshots showing new smooth scrolling and highlighting
-- Update troubleshooting section with solved issues
+**Recommendation**: 
+- **Primary Focus**: TASK-039 must complete (breaking change in May 2026)
+- **Secondary**: TASK-033 and TASK-036 leverage Sprint 02 modular architecture
+- **Contingency**: If velocity lower than Sprint 02, defer TASK-033 or TASK-036 to Sprint 04
 
-**2. Setup Guides** (0.5-1 hour):
-- Verify environment variable setup instructions current
-- Update provider configuration examples
-- Document memory management improvements
-- Add performance expectations for different hardware
+## 🎯 Sprint 03 Definition of Done
 
-**3. Developer Documentation** (0.5-1 hour):
-- Document ProviderStateManager architecture
-- Update state management patterns
-- Add code examples for new patterns
-- Document testing procedures from TASK-042
-
-**Files to Update**:
-- `TowerScout_Development_Setup_Guide.txt`
-- `README.md` (if exists in webapp/)
-- `.agent_work/context/guides/Azure-Maps-Local-Setup-Guide.md`
-- User-facing documentation in TowerScoutSite/ (if applicable)
-
-**Success Criteria**:
-- [ ] All workarounds removed from user documentation
-- [ ] New features documented with examples
-- [ ] Setup guides reflect current architecture
-- [ ] Developer documentation updated for new patterns
-- [ ] No references to outdated workflows
-
-**Dependencies**:
-- Sprint 01 tasks completed ✅
-- TASK-042 (Testing) provides validation of documented workflows
-
-**Notes**: Focus on user-facing documentation first, developer docs second. Outbreak investigation teams need clear, current workflows
-
----
-
-## 📊 Sprint 02 Capacity
-
-**Sprint Duration**: 14 days (February 18 - March 4, 2026)
-**Sprint Status**: 🚀 **READY TO BEGIN** (Planning Complete)
-**Planned Tasks**: 4 tasks (1 large refactoring, 3 supporting tasks)
-**Estimated Effort**: 32-36 hours total
-**Sprint Velocity**: Based on Sprint 01 actual (~32 hours in 14 days)
-**Sprint Focus**: 70% refactoring (TASK-038), 30% validation & documentation
-
-## 🎯 Sprint 02 Definition of Done
-
-- [ ] Frontend split into 12+ modular files (TASK-038)
-- [ ] Duplicate code consolidated (TASK-038)
-- [ ] Error handling standardized (TASK-038)
-- [ ] Configuration centralized (TASK-038)
-- [ ] All Sprint 01 test suites executed (TASK-042)
-- [ ] 3-5 high-risk global variables migrated (TASK-043)
-- [ ] User documentation updated (TASK-044)
+- [ ] Google Maps API upgraded (no deprecation warnings in console)
+- [ ] Drawing Library migrated to new API
+- [ ] Places SearchBox migrated to Autocomplete
+- [ ] Manual tower addition feature functional
+- [ ] Export system restored (CSV, KML, YOLO formats)
+- [ ] All legacy outbreak investigation workflows operational
+- [ ] Cross-browser testing completed (Chrome, Edge, Firefox, Safari)
 - [ ] No regressions in existing functionality
-- [ ] All acceptance criteria met for each task
+- [ ] All acceptance criteria met for each completed task
 
-**Sprint Success Metrics**:
-- Code maintainability: ✅ Improved (modular architecture)
-- Test coverage: ✅ Comprehensive (deferred tests completed)
-- State management: ✅ Cleaner (global variable reduction)
-- User experience: ✅ Documented (updated guides)
+---
+
+## ✅ SPRINT 02 ACHIEVEMENTS (February 18 - March 11, 2026)
+
+**Sprint Summary**: All 5 tasks completed, 61 hours effort, modular architecture established
+
+See [completed-tasks.md](completed-tasks.md) for full Sprint 02 task details:
+- TASK-038: Frontend Code Quality & Refactoring (41 hours)
+- TASK-042: Deferred Testing Resolution (8 hours)
+- TASK-043: Global Variable Deprecation (6 hours)
+- TASK-044: Documentation Updates (3 hours)
+- TASK-045: Frontend Boundary Accumulation Bug (3 hours)
+
+**Key Achievements**:
+- Modular frontend architecture (27 modules across 7 directories)
+- Zero regressions in comprehensive testing (23/23 tests PASS)
+- 3 critical race conditions fixed with property descriptors
+- Comprehensive developer and user documentation
+- Frontend boundary state integrity restored
+
+---
+
+## ✅ SPRINT 01 ACHIEVEMENTS (February 4-18, 2026)
+
+**Sprint Summary**: All 7 tasks completed, 90% issue resolution rate, ~32 hours effort
+
+See [completed-tasks.md](completed-tasks.md) for full Sprint 01 task details:
+- TASK-041: Deep Dive Priority 2 (State Management & Memory Cleanup)
+- TASK-037: User Journey Verification (9 of 10 issues resolved)
+- TASK-039: Emergency Geocoding Fixes
+- TASK-040: Azure Maps Visual Consistency
+- TASK-035: Memory Management & Map Object Cleanup
+- TASK-031: Interactive Highlighting System
+- TASK-032: Enhanced Details Panel
+
+**Key Achievements**:
+- Exceptional memory performance (decreased 0.7% in stress testing)
+- 5 critical issues resolved through architectural improvements
+- Cross-provider functionality validated and stable
+- Smooth user experience improvements delivered
 
 ---
 

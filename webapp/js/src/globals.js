@@ -23,10 +23,42 @@
   window.Tile_tiles = [];
 
   // Detection management - global detection arrays and state
-  window.Detection_detections = [];
   window.Detection_detectionsAugmented = 0;
-  window.Detection_minConfidence = window.DEFAULT_CONFIDENCE;
   window.Detection_current = null;
+
+  // TASK-043 Phase 2: Detection state deprecation with soft migration
+  // Provides backward compatibility while encouraging migration to providerManager
+  Object.defineProperty(window, 'Detection_detections', {
+    get() {
+      // Return direct reference for backward compatibility
+      // Mutations will still work but are discouraged
+      if (window.providerManager) {
+        return window.providerManager.getDetectionsArrayDirect();
+      }
+      return [];
+    },
+    set(value) {
+      console.warn('⚠️ Direct Detection_detections assignment deprecated. Use providerManager.setDetections() instead.');
+      if (window.providerManager) {
+        window.providerManager.setDetections(value);
+      }
+    }
+  });
+
+  Object.defineProperty(window, 'Detection_minConfidence', {
+    get() {
+      if (window.providerManager) {
+        return window.providerManager.getMinConfidence();
+      }
+      return window.DEFAULT_CONFIDENCE;
+    },
+    set(value) {
+      console.warn('⚠️ Direct Detection_minConfidence assignment deprecated. Use providerManager.setMinConfidence() instead.');
+      if (window.providerManager) {
+        window.providerManager.setMinConfidence(value);
+      }
+    }
+  });
 
   // Backward compatibility properties for currentProvider and currentMap
   // These provide getters/setters that delegate to providerManager
@@ -56,6 +88,34 @@
     }
   });
 
+  // TASK-043 Phase 1: Map instance deprecation with soft migration
+  // Provides backward compatibility while encouraging migration to providerManager
+  Object.defineProperty(window, 'googleMap', {
+    get() {
+      return window.providerManager ? window.providerManager.getGoogleMap() : null;
+    },
+    set(value) {
+      console.warn('⚠️ Direct window.googleMap assignment deprecated. Use providerManager.setGoogleMap() instead.');
+      // Allow for backward compatibility but log warning
+      if (window.providerManager) {
+        window.providerManager.setGoogleMap(value);
+      }
+    }
+  });
+
+  Object.defineProperty(window, 'azureMap', {
+    get() {
+      return window.providerManager ? window.providerManager.getAzureMap() : null;
+    },
+    set(value) {
+      console.warn('⚠️ Direct window.azureMap assignment deprecated. Use providerManager.setAzureMap() instead.');
+      // Allow for backward compatibility but log warning
+      if (window.providerManager) {
+        window.providerManager.setAzureMap(value);
+      }
+    }
+  });
+
   // Initialize DOM references safely after DOM is ready
   window.initializeDOMReferences = function () {
     console.log('🔧 Initializing DOM references...');
@@ -79,6 +139,11 @@
         throw new Error(`Critical DOM element missing: ${name}. Check HTML template.`);
       }
     }
+
+    // FIX NEW-ISSUE-003: Attach event listeners after validation
+    // These were missing after code was moved from towerscout.js to globals.js
+    window.confSlider.oninput = adjustConfidence;
+    window.reviewCheckBox.onchange = changeReviewMode;
 
     console.log('✅ DOM references initialized');
   };

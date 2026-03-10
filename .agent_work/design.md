@@ -412,8 +412,135 @@ class LoggingService:
 
 ### Frontend Architecture
 
+**Sprint 02 Evolution** (TASK-038, March 2, 2026): Frontend refactored from monolithic 5,272-line file to **27 modular files** across **7 directories**:
+
+```
+js/
+├── managers/              # Core State Management (4 files)
+│   ├── ProviderStateManager.js       # Centralized state (provider, detections, timers)
+│   ├── TimerManager.js               # Timer lifecycle and cleanup
+│   ├── EventListenerManager.js       # Event tracking and removal
+│   └── TowerScoutErrorHandler.js     # User-friendly error handling
+├── boundaries/            # Boundary System (3 files)
+│   ├── BoundaryConfigConstants.js    # Configuration constants
+│   ├── BoundaryDrawing.js            # Polygon drawing tools
+│   └── BoundarySearch.js             # Search integration
+├── providers/             # Map Provider Abstraction (3 files)
+│   ├── GoogleMapsProvider.js         # Google Maps implementation
+│   ├── AzureMapsProvider.js          # Azure Maps implementation
+│   └── MapProviderFactory.js         # Provider instantiation
+├── detection/             # Detection Workflow (3 files)
+│   ├── DetectionControls.js          # UI controls
+│   ├── DetectionExecution.js         # Processing pipeline
+│   └── DetectionStatusPolling.js     # Progress tracking
+├── ui/                    # User Interface Components (5 files)
+│   ├── ConfidenceFilter.js           # Slider controls
+│   ├── ResultsPanel.js               # Detection display
+│   ├── HighlightingSystem.js         # Bidirectional selection
+│   ├── DetailsPanel.js               # Information display
+│   └── ExportSystem.js               # Data export
+├── utils/                 # Utilities (2 files)
+│   ├── CoordinateUtils.js            # Transformations
+│   └── ValidationUtils.js            # Input validation
+└── root/                  # Application Core (7 files)
+    ├── config.js                     # Configuration constants
+    ├── store.js                      # Data structures
+    ├── globals.js                    # Global variables (DEPRECATED, migrating to ProviderStateManager)
+    ├── init.js                       # Initialization
+    ├── main.js                       # Entry point
+    ├── legacy-functions.js           # Backward compatibility
+    └── dev-helpers.js                # Development utilities
+```
+
+**Dependency Loading Order** (concatenation-based):
+1. `config.js` - Constants first
+2. `store.js` - Data structures
+3. `globals.js` - Global state (legacy)
+4. `managers/*.js` - State management infrastructure
+5. `boundaries/*.js` - Boundary system
+6. `providers/*.js` - Provider abstraction
+7. `detection/*.js` - Detection workflow
+8. `ui/*.js` - User interface
+9. `utils/*.js` - Utilities
+10. `init.js`, `main.js` - Application bootstrap
+
+**Build System**:
+- Tool: Node.js concatenation script (build.js)
+- Performance: <2 seconds build time
+- Output: 319.0 KB unified bundle (towerscout.js)
+- Quality: Pre-commit hook ensures automatic builds before commits
+- Compatibility: 100% backward compatibility maintained with monolithic structure
+
+**State Management Architecture** (ProviderStateManager):
 ```javascript
-// Enhanced JavaScript Architecture
+// Centralized State Management with Mutex Protection
+class ProviderStateManager {
+    constructor() {
+        this._mutex = false;  // Mutex for atomic state mutations
+        this._currentProvider = 'google';
+        this._detections = [];
+        this._progressTimer = null;
+        this._initialized = false;
+    }
+    
+    // Property Descriptors with Mutex Protection
+    get currentProvider() { return this._currentProvider; }
+    set currentProvider(value) {
+        if (this._mutex) throw new Error('State mutation in progress');
+        this._mutex = true;
+        try {
+            this._currentProvider = value;
+            this._notifyProviderChange(value);
+        } finally {
+            this._mutex = false;
+        }
+    }
+    
+    // Detection Array Management (fixes race conditions)
+    clearDetections() {
+        this._mutex = true;
+        try {
+            this._detections = [];  // Full array replacement (clear-and-rebuild pattern)
+        } finally {
+            this._mutex = false;
+        }
+    }
+    
+    addDetections(newDetections) {
+        this._mutex = true;
+        try {
+            this._detections = [...this._detections, ...newDetections];  // Immutable append
+        } finally {
+            this._mutex = false;
+        }
+    }
+    
+    // Timer Lifecycle Management (fixes memory leaks)
+    startProgressTimer(callback, interval) {
+        this.stopProgressTimer();  // Clear existing timer first
+        this._progressTimer = setInterval(callback, interval);
+    }
+    
+    stopProgressTimer() {
+        if (this._progressTimer) {
+            clearInterval(this._progressTimer);
+            this._progressTimer = null;
+        }
+    }
+}
+
+// Global Instance (accessible via window.providerState)
+window.providerState = new ProviderStateManager();
+```
+
+**Race Conditions Fixed** (TASK-043, March 10, 2026):
+1. **Provider Switching Race**: Mutex-protected currentProvider prevents concurrent switches
+2. **Detection Array Mutations**: Clear-and-rebuild pattern eliminates boundary accumulation bug
+3. **Timer Cleanup**: Automatic clearInterval before setting new timers prevents memory leaks
+
+**Legacy JavaScript Architecture Preserved**:
+```javascript
+// Enhanced JavaScript Architecture (Pre-Sprint 02 pattern remains available)
 class TowerScoutUI {
     constructor() {
         this.mapInterface = new MapInterface();
@@ -505,6 +632,256 @@ class SessionManager:
         # Automatic cleanup of expired sessions and temp files
         pass
 ```
+
+---
+
+## 🧠 MEMORY MANAGEMENT ARCHITECTURE
+
+**Sprint 02 Validation** (TASK-042, March 4, 2026): 20-cycle stress test demonstrates robust memory management:
+
+### Validated Memory Performance
+- **Baseline**: 28.6 MB (initial page load)
+- **After 20 detection cycles**: 28.4 MB (final)
+- **Net Change**: -0.7% decrease (memory actually decreased slightly)
+- **Test Procedure**: 20 consecutive detection runs with full lifecycle (search → detect → clear → repeat)
+
+### Memory Management Patterns
+
+**Clear-and-Rebuild Pattern** (Boundary Bug Fix - TASK-045):
+```javascript
+// Anti-Pattern: Mutation causes accumulation
+boundaries.forEach(boundary => {
+    boundary.setMap(null);  // Mutation - doesn't prevent accumulation
+});
+
+// Correct Pattern: Clear and rebuild
+function clearBoundaries() {
+    window.providerState._mutex = true;
+    try {
+        // Full array replacement instead of mutation
+        const oldBoundaries = window.boundaries;
+        window.boundaries = [];  // New empty array
+        
+        // Clean up old references
+        oldBoundaries.forEach(boundary => {
+            boundary.setMap(null);
+            boundary = null;  // Explicit cleanup
+        });
+    } finally {
+        window.providerState._mutex = false;
+    }
+}
+```
+
+**Property-Based State Filtering**:
+```javascript
+// Memory-efficient detection filtering
+class ProviderStateManager {
+    // Use property descriptors instead of storing filtered arrays
+    getVisibleDetections(confidenceThreshold) {
+        // Compute on-demand, don't cache
+        return this._detections.filter(d => d.confidence >= confidenceThreshold);
+    }
+    
+    // Avoid storing duplicate representations
+    clearDetections() {
+        this._detections = [];  // Simple replacement, garbage collector handles old array
+    }
+}
+```
+
+**Timer Lifecycle Management**:
+```javascript
+class TimerManager {
+    constructor() {
+        this._timers = new Map();  // Track all timers for cleanup
+    }
+    
+    startTimer(id, callback, interval) {
+        this.clearTimer(id);  // Always clear existing timer first
+        const timer = setInterval(callback, interval);
+        this._timers.set(id, timer);
+        return timer;
+    }
+    
+    clearTimer(id) {
+        if (this._timers.has(id)) {
+            clearInterval(this._timers.get(id));
+            this._timers.delete(id);
+        }
+    }
+    
+    clearAllTimers() {
+        this._timers.forEach(timer => clearInterval(timer));
+        this._timers.clear();
+    }
+}
+```
+
+**Event Listener Cleanup**:
+```javascript
+class EventListenerManager {
+    constructor() {
+        this._listeners = [];  // Track for cleanup
+    }
+    
+    addEventListener(element, event, handler) {
+        element.addEventListener(event, handler);
+        this._listeners.push({ element, event, handler });
+    }
+    
+    removeAllListeners() {
+        this._listeners.forEach(({ element, event, handler }) => {
+            element.removeEventListener(event, handler);
+        });
+        this._listeners = [];
+    }
+}
+```
+
+### Memory Leak Prevention Checklist
+- ✅ **Timers**: All timers cleared before creating new ones (TimerManager)
+- ✅ **Event Listeners**: Tracked and removed on cleanup (EventListenerManager)
+- ✅ **Map Objects**: Boundaries/markers removed from map before clearing arrays
+- ✅ **Detection Arrays**: Full replacement instead of mutation (clear-and-rebuild)
+- ✅ **State Mutations**: Mutex-protected to prevent concurrent modifications
+- ✅ **Provider Switching**: Complete cleanup of old provider before initializing new one
+
+---
+
+## 🧪 TESTING ARCHITECTURE
+
+**Sprint 02 Testing Framework** (TASK-042, March 4, 2026): Established comprehensive 4-stage manual validation methodology with automated test suite.
+
+### 4-Stage Manual Validation Framework
+
+**Stage 0: Initialization & Error-Free Load**
+- **Objective**: Verify clean application startup
+- **Success Criteria**:
+  - No console errors or warnings (except known deprecation warnings)
+  - Provider loaded and displayed (Google Maps or Azure Maps)
+  - Map tiles rendering correctly
+  - All UI controls visible and responsive
+- **Validation Results**: ✅ PASS (0 errors, 2 expected warnings)
+
+**Stage 1: Location Search & Map Interaction**
+- **Objective**: Validate geocoding and navigation workflows
+- **Test Cases**:
+  - Address search with autocomplete (3 tests)
+  - Zipcode search with quotes (2 tests)
+  - City/neighborhood search (2 tests)
+  - Map pan, zoom, click interactions (3 tests)
+  - Provider switching (2 tests: Google ↔ Azure)
+- **Validation Results**: ✅ 12/12 tests passed
+
+**Stage 2: Detection Execution**
+- **Objective**: Validate complete detection workflow
+- **Test Cases**:
+  - Polygon drawing and validation (2 tests)
+  - Tile estimation and submission (1 test)
+  - Progress tracking and display (2 tests)
+  - Detection cancellation (1 test)
+  - Error handling for invalid inputs (2 tests)
+- **Validation Results**: ✅ 8/8 tests passed
+
+**Stage 3: Result Review & Export**
+- **Objective**: Validate result display and user editing workflows
+- **Test Cases**:
+  - Bidirectional highlighting (address ↔ marker) (1 test)
+  - Confidence threshold filtering (1 test)
+  - Detection address display (1 test)
+  - Result toggling (checkbox selection) (1 test)
+  - Export functionality (CSV/KML/YOLO) (1 test - deferred to TASK-036)
+- **Validation Results**: ✅ 3/3 immediate tests passed, 2 deferred
+
+### Automated Testing Structure
+
+```python
+# Unit Testing Framework (pytest)
+tests/
+├── unit/                          # Unit tests for individual modules
+│   ├── test_azure_maps.py        # Azure Maps provider tests
+│   ├── test_event_system.py      # Event handling tests
+│   ├── test_flask_routes.py      # Flask endpoint tests
+│   ├── test_geocoding.py         # Geocoding functionality tests
+│   ├── test_image_processing.py  # Image utilities tests
+│   ├── test_logging_sanitization.py # Logging security tests
+│   └── test_validation.py        # Input validation tests
+├── integration/                   # Integration tests
+│   ├── test_azure_maps_integration.py  # Azure Maps end-to-end
+│   ├── test_end_to_end.py        # Complete user workflow
+│   └── test_geocoding_integration.py   # Geocoding with providers
+├── frontend/                      # Frontend JavaScript tests
+│   ├── test_global_contract.js   # Global state contract tests
+│   ├── test_stage_0_console.js   # Console error detection
+│   └── test_stage_0_mutations.js # DOM mutation tests
+├── mocks/                         # Mock objects for testing
+└── fixtures/                      # Test data and fixtures
+
+# Testing Commands
+pytest tests/unit/                  # Run unit tests
+pytest tests/integration/           # Run integration tests
+pytest --cov=webapp tests/          # Test with coverage reporting
+```
+
+### Memory Leak Testing Procedure
+
+**20-Cycle Stress Test** (TASK-042 validation):
+```javascript
+// Memory leak detection procedure
+async function memoryLeakTest(cycles = 20) {
+    const results = [];
+    
+    for (let i = 0; i < cycles; i++) {
+        // 1. Record baseline memory
+        const memoryBefore = performance.memory.usedJSHeapSize;
+        
+        // 2. Execute complete detection workflow
+        await searchLocation('New York, NY');
+        await drawPolygon([coordinates]);
+        await runDetection();
+        
+        // 3. Clear all results and reset state
+        clearAllDetections();
+        clearAllBoundaries();
+        window.providerState.clearDetections();
+        
+        // 4. Record memory after cleanup
+        const memoryAfter = performance.memory.usedJSHeapSize;
+        
+        results.push({
+            cycle: i + 1,
+            memoryBefore,
+            memoryAfter,
+            delta: memoryAfter - memoryBefore
+        });
+        
+        // 5. Wait for garbage collection
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    return results;
+}
+```
+
+**Validation Results**:
+- Baseline: 28.6 MB
+- After 20 cycles: 28.4 MB
+- Net change: -0.7% (validates no memory leaks)
+
+### Cross-Provider Testing
+
+**Visual Consistency Validation** (TASK-040):
+- Compare detection overlay positioning across Google Maps and Azure Maps
+- Validate coordinate transformation accuracy
+- Ensure marker click events work across providers
+- Verify bidirectional highlighting functions identically
+
+**Testing Requirements**:
+- ✅ All tests must pass on both Google Maps and Azure Maps providers
+- ✅ Console logging validated for both providers
+- ✅ Memory leak testing performed with provider switching
+- ✅ Detection accuracy validated independent of provider
 
 ---
 

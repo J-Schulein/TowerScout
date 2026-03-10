@@ -212,11 +212,19 @@ class GeocodingService:
         
         # Get last request time
         last_request_time = session.get('geocoding_usage', {}).get('last_request_time', 0)
+        time_since_last_request = current_time - last_request_time
         
-        # Simple rate limiting: check requests in last minute
-        if current_time - last_request_time < 60:
-            if usage.total_requests >= self.rate_limit:
-                return False
+        # If more than 60 seconds have passed, reset the counter
+        if time_since_last_request >= 60:
+            self.logger.debug("Rate limit window expired, resetting counter")
+            session['geocoding_usage']['total_requests'] = 0
+            session['geocoding_usage']['last_request_time'] = current_time
+            return True
+        
+        # Within the 60-second window, check if limit exceeded
+        if usage.total_requests >= self.rate_limit:
+            self.logger.warning(f"Rate limit exceeded: {usage.total_requests}/{self.rate_limit} requests in last {time_since_last_request:.1f}s")
+            return False
         
         return True
     

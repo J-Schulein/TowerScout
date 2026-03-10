@@ -9,6 +9,41 @@ cd webapp
 python towerscout.py dev
 ```
 
+**Frontend Development Workflow** (Updated March 2026):
+```bash
+# Work with modular source files in webapp/js/src/
+# Edit any file in src/ directories
+
+# Build bundle (automatic via pre-commit hooks)
+cd webapp
+node build.js
+
+# Manual build if needed
+# Output: webapp/js/towerscout.js (319.0 KB)
+# Build time: < 2 seconds
+```
+
+**Build System**:
+- **Type**: Concatenation-based (no webpack/rollup)
+- **Source**: `webapp/js/src/` (27 modular files across 7 directories)
+- **Output**: `webapp/js/towerscout.js` (single bundle)
+- **Pre-commit Hooks**: Automatically rebuild bundle when source files change
+- **Build Script**: `webapp/build.js` (Node.js)
+- **Verification**: `git status` shows bundle updated alongside source changes
+
+**Module Organization**:
+```
+webapp/js/src/
+├── managers/              # State and lifecycle managers
+├── boundaries/            # Boundary type implementations  
+├── providers/             # Map provider abstractions
+├── detection/             # Detection workflow modules
+├── ui/                    # User interface components
+└── utils/                 # Shared utilities
+```
+
+See [`AGENTS.md/towerscout-domain.md`](./towerscout-domain.md#frontend-architecture-sprint-02---march-2026) for complete architecture details.
+
 **Local Deployment Docker Strategy:**
 ```dockerfile
 # Use specific Python version, security-focused base
@@ -53,6 +88,48 @@ ENV AZURE_MAPS_KEY=""
 - Test cross-provider imagery compatibility (Google vs Azure)
 - **Hardware Testing:** Hardware compatibility testing (GPU/CPU/MPS detection)
 - **Configuration Testing:** API key validation and network connectivity testing
+- **Console Logging:** Review browser console for TASK-045 boundary clearing logs, provider state transitions
+- **Network Tab:** Monitor API requests for rate limiting (geocoding ~370 detections max)
+
+**Testing Procedures** (Established Sprint 01-02):
+
+**Manual Testing Methodology** (TASK-042):
+- **4-Stage User Journey Validation**:
+  1. Stage 0: Application initialization and provider availability
+  2. Stage 1: Location search and boundary definition
+  3. Stage 2: Detection execution and progress monitoring
+  4. Stage 3: Result review, filtering, and export
+  
+- **Console Logging Validation**:
+  - Check for JavaScript errors (should be zero)
+  - Verify state transitions logged correctly
+  - Monitor memory usage during operations
+  - Validate deprecation warnings guide migration
+
+- **Cross-Provider Testing**:
+  - Test workflows on both Google Maps and Azure Maps
+  - Verify provider switching maintains state correctly
+  - Confirm visual consistency across providers
+
+**Performance Benchmarks** (Validated TASK-042):
+- **Small Area (24 tiles)**: ~70 seconds, ~158 detections
+- **Medium Area (57 tiles)**: ~160 seconds, ~430 detections
+- **Browser Responsiveness**: Excellent throughout processing
+- **Memory Management**: 0.7% decrease in 20-cycle stress test
+- **Geocoding Limit**: ~370 detections before rate limiting
+- **<100 Tiles Target**: ~30 seconds (mission-critical performance target)
+
+**Known Issues & Limitations** (Updated March 2026):
+- **NEW-ISSUE-006**: Provider switching detection visibility (HIGH - Planned Sprint 03)
+- **Geocoding Rate Limiting**: ~370 detections max (WORKING AS DESIGNED - Azure Maps API constraint)
+- **Stage 4 Testing**: Dataset management requires external data (deferred, not blocking)
+
+**Resolved Issues** (Sprint 01-02):
+- ✅ Memory leaks (TASK-041) - Exceptional cleanup performance
+- ✅ Interactive highlighting bugs (TASK-031) - Bidirectional list↔map working
+- ✅ Azure Maps visual consistency (TASK-040) - Transparency and styling fixed
+- ✅ Provider synchronization race conditions (TASK-043) - ProviderStateManager pattern
+- ✅ Boundary accumulation bug (TASK-045) - Independent detection runs validated
 
 **Deployment Strategy:**
 - **Current Strategy:** Docker containerization for local deployment

@@ -218,8 +218,7 @@
           dets.push(det);
         }
       }
-      Detection_detections = dets;
-      Detection.generateList();
+      Detection_detections = dets;      // FIX NEW-ISSUE-003: generateList() now calls adjustConfidence() to filter outside detections      Detection.generateList();
     }
 
 

@@ -1118,10 +1118,20 @@ def get_objects():
     print(f"   Average detections per tile: {len(results)/len(results_raw):.2f}" if len(results_raw) > 0 else "   No tiles processed")
 
     # mark results out of bounds or polygon
+    inside_count = 0
+    outside_count = 0
     for o in results:
         o['inside'] = ts_imgutil.resultIntersectsPolygons(o['x1'], o['y1'], o['x2'], o['y2'], polygons) and \
             ts_maps.check_bounds(o['x1'], o['y1'], o['x2'], o['y2'], bounds)
-        #print("in " if o['inside'] else "out ", end="")
+        if o['inside']:
+            inside_count += 1
+        else:
+            outside_count += 1
+    
+    print(f"\n📍 BOUNDARY FILTERING:")
+    print(f"   Inside boundary: {inside_count}")
+    print(f"   Outside boundary: {outside_count}")
+    print(f"   Total detections: {inside_count + outside_count}")
 
     # sort the results by lat, long, conf
     results.sort(key=lambda x: x['y1']*2*180+2*x['x1']+x['conf'])
@@ -1156,7 +1166,11 @@ def get_objects():
 
             # Initialize geocoding service and cache with provider preference
             # Use the same provider selected for map imagery to ensure consistency
-            geocoding_service = create_geocoding_service(preferred_provider=provider)
+            geocoding_service = create_geocoding_service(
+                azure_key=azure_api_key,
+                google_key=google_api_key,
+                preferred_provider=provider
+            )
             geocoding_cache = create_geocoding_cache(clustering_radius_meters=clustering_radius)
             
             # Add address to each detection

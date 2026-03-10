@@ -21,6 +21,21 @@
         azure: { styleLoaded: false, drawingManagerReady: false, dataSourceReady: false }
       };
 
+      // TASK-043 Phase 1: Map instance storage with null-safety
+      this.googleMapInstance = null;
+      this.azureMapInstance = null;
+      this.mapStateLock = false; // Simple lock for synchronous map state updates
+
+      // TASK-043 Phase 2: Detection state storage with mutex protection
+      this.detectionArray = [];
+      this.minConfidence = 0.15; // Default confidence threshold
+      this.detectionLock = false; // Mutex for detection array operations
+
+      // TASK-043 Phase 3: Progress timer lifecycle management
+      this.progressTimerId = null;
+      this.progressActive = false;
+      this.progressLock = false;
+
       // Set initialization complete after initial setup (use setTimeout since timerManager not yet initialized)
       setTimeout(() => {
         this.isInitializing = false;
@@ -271,6 +286,334 @@
 
     isSwitching() {
       return this.switchingInProgress;
+    }
+
+    // ========================================
+    // TASK-043 Phase 1: Map State Management
+    // ========================================
+
+    /**
+     * Set Google Maps instance with validation and state tracking
+     * @param {GoogleMap} mapInstance - The Google Map instance to store
+     * @throws {Error} If mapInstance is invalid
+     */
+    setGoogleMap(mapInstance) {
+      if (!mapInstance) {
+        console.warn('⚠️ Attempted to set null Google Maps instance');
+        this.googleMapInstance = null;
+        return;
+      }
+
+      // Validate map instance has required methods
+      if (typeof mapInstance.getBounds !== 'function') {
+        throw new Error('Invalid Google Maps instance - missing required methods');
+      }
+
+      console.log('✅ Google Maps instance registered with ProviderStateManager');
+      this.googleMapInstance = mapInstance;
+
+      // Update currentMap if Google is the current provider
+      if (this.currentProvider === 'google' || this.currentProvider === null) {
+        this.currentMap = mapInstance;
+      }
+    }
+
+    /**
+     * Set Azure Maps instance with validation and state tracking
+     * @param {AzureMap} mapInstance - The Azure Map instance to store
+     * @throws {Error} If mapInstance is invalid
+     */
+    setAzureMap(mapInstance) {
+      if (!mapInstance) {
+        console.warn('⚠️ Attempted to set null Azure Maps instance');
+        this.azureMapInstance = null;
+        return;
+      }
+
+      // Validate map instance has required methods
+      if (typeof mapInstance.getBounds !== 'function') {
+        throw new Error('Invalid Azure Maps instance - missing required methods');
+      }
+
+      console.log('✅ Azure Maps instance registered with ProviderStateManager');
+      this.azureMapInstance = mapInstance;
+
+      // Update currentMap if Azure is the current provider
+      if (this.currentProvider === 'azure') {
+        this.currentMap = mapInstance;
+      }
+    }
+
+    /**
+     * Get Google Maps instance with null-safety
+     * @returns {GoogleMap|null} The Google Map instance or null if not initialized
+     */
+    getGoogleMap() {
+      return this.googleMapInstance;
+    }
+
+    /**
+     * Get Azure Maps instance with null-safety
+     * @returns {AzureMap|null} The Azure Map instance or null if not initialized
+     */
+    getAzureMap() {
+      return this.azureMapInstance;
+    }
+
+    /**
+     * Set current map with atomic updates to prevent race conditions
+     * @param {GoogleMap|AzureMap} mapInstance - The map instance to set as current
+     * @param {string} provider - The provider name ('google' or 'azure')
+     * @throws {Error} If another update is in progress or mapInstance is invalid
+     */
+    async setCurrentMapAtomic(mapInstance, provider) {
+      // Wait for lock to be available (simple async lock)
+      while (this.mapStateLock) {
+        await new Promise(resolve => {
+          if (window.timerManager) {
+            window.timerManager.setTimeout(resolve, 10);
+          } else {
+            setTimeout(resolve, 10);
+          }
+        });
+      }
+
+      try {
+        this.mapStateLock = true;
+
+        if (!mapInstance) {
+          throw new Error('Cannot set null map instance');
+        }
+
+        // Validate provider
+        if (provider !== 'google' && provider !== 'azure') {
+          throw new Error(`Invalid provider: ${provider}`);
+        }
+
+        // Atomic state update
+        this.currentProvider = provider;
+        this.currentMap = mapInstance;
+
+        console.log(`🔒 Current map set atomically: ${provider}`);
+      } finally {
+        this.mapStateLock = false;
+      }
+    }
+
+    // ========================================
+    // TASK-043 Phase 2: Detection State Management
+    // ========================================
+
+    /**
+     * Get detections array - returns read-only copy for safe iteration
+     * @returns {Array} Read-only copy of detection array
+     */
+    getDetections() {
+      // Return copy to prevent unintended mutations during iteration
+      return [...this.detectionArray];
+    }
+
+    /**
+     * Get detections array length without copying (performance optimization)
+     * @returns {number} Number of detections
+     */
+    getDetectionsLength() {
+      return this.detectionArray.length;
+    }
+
+    /**
+     * Set detections array with validation
+     * @param {Array} detections - Array of Detection objects
+     * @throws {Error} If detections is not an array
+     */
+    setDetections(detections) {
+      if (!Array.isArray(detections)) {
+        throw new Error('Detections must be an array');
+      }
+      this.detectionArray = detections;
+      console.log(`✅ Detections array updated: ${detections.length} items`);
+    }
+
+    /**
+     * Clear detections array with mutex protection
+     */
+    clearDetections() {
+      // Acquire lock
+      while (this.detectionLock) {
+        // Busy wait (synchronous operation, should be fast)
+      }
+
+      try {
+        this.detectionLock = true;
+        this.detectionArray.length = 0;
+        console.log('🧹 Detections array cleared');
+      } finally {
+        this.detectionLock = false;
+      }
+    }
+
+    /**
+     * Add detection to array with mutex protection
+     * @param {Detection} detection - Detection object to add
+     */
+    addDetection(detection) {
+      while (this.detectionLock) {
+        // Busy wait
+      }
+
+      try {
+        this.detectionLock = true;
+        this.detectionArray.push(detection);
+      } finally {
+        this.detectionLock = false;
+      }
+    }
+
+    /**
+     * Sort detections array with mutex protection to prevent corruption during UI updates
+     * @param {Function} compareFn - Optional comparison function for Array.sort()
+     */
+    sortDetections(compareFn) {
+      while (this.detectionLock) {
+        // Busy wait
+      }
+
+      try {
+        this.detectionLock = true;
+        this.detectionArray.sort(compareFn);
+        console.log(`🔀 Detections sorted: ${this.detectionArray.length} items`);
+      } finally {
+        this.detectionLock = false;
+      }
+    }
+
+    /**
+     * Get minimum confidence threshold
+     * @returns {number} Confidence threshold (0-1)
+     */
+    getMinConfidence() {
+      return this.minConfidence;
+    }
+
+    /**
+     * Set minimum confidence threshold with validation
+     * @param {number} value - Confidence threshold (must be 0-1)
+     * @throws {Error} If value is not in valid range
+     */
+    setMinConfidence(value) {
+      const numValue = parseFloat(value);
+      if (isNaN(numValue) || numValue < 0 || numValue > 1) {
+        throw new Error('Confidence threshold must be a number between 0 and 1');
+      }
+      this.minConfidence = numValue;
+      console.log(`✅ Confidence threshold updated: ${numValue}`);
+    }
+
+    /**
+     * Direct access to detection array for legacy code (use with caution)
+     * @returns {Array} Direct reference to internal detection array
+     * @deprecated Use getDetections() for read access, add/remove methods for mutations
+     */
+    getDetectionsArrayDirect() {
+      console.warn('⚠️ Direct array access detected. Consider using getDetections() or mutation methods.');
+      return this.detectionArray;
+    }
+
+    // ========================================
+    // TASK-043 Phase 3: Progress Timer Management
+    // ========================================
+
+    /**
+     * Start progress timer with state guards to prevent multiple concurrent operations
+     * @param {Function} callback - Progress update function to call on interval
+     * @param {number} interval - Interval in milliseconds (default: 1000)
+     * @returns {number} Timer ID from setInterval
+     * @throws {Error} If progress operation already active
+     */
+    startProgressTimer(callback, interval = 1000) {
+      // Acquire lock
+      while (this.progressLock) {
+        // Busy wait
+      }
+
+      try {
+        this.progressLock = true;
+
+        if (this.progressActive) {
+          throw new Error('Progress operation already active. Call stopProgressTimer() first.');
+        }
+
+        // Clear any existing timer (safety check)
+        if (this.progressTimerId !== null) {
+          console.warn('⚠️ Existing progress timer found, clearing...');
+          if (window.timerManager && window.timerManager.clearInterval) {
+            window.timerManager.clearInterval(this.progressTimerId);
+          } else {
+            clearInterval(this.progressTimerId);
+          }
+        }
+
+        // Start new timer - use TimerManager for automatic cleanup tracking
+        if (window.timerManager && window.timerManager.setInterval) {
+          this.progressTimerId = window.timerManager.setInterval(callback, interval);
+          console.log(`⏱️ Progress timer started with TimerManager (ID: ${this.progressTimerId})`);
+        } else {
+          this.progressTimerId = setInterval(callback, interval);
+          console.log(`⏱️ Progress timer started (ID: ${this.progressTimerId})`);
+        }
+
+        this.progressActive = true;
+        return this.progressTimerId;
+
+      } finally {
+        this.progressLock = false;
+      }
+    }
+
+    /**
+     * Stop progress timer ensuring cleanup on all exit paths
+     */
+    stopProgressTimer() {
+      // Acquire lock
+      while (this.progressLock) {
+        // Busy wait
+      }
+
+      try {
+        this.progressLock = true;
+
+        if (this.progressTimerId !== null) {
+          // Use TimerManager if available for tracked cleanup
+          if (window.timerManager && window.timerManager.clearInterval) {
+            window.timerManager.clearInterval(this.progressTimerId);
+          } else {
+            clearInterval(this.progressTimerId);
+          }
+          console.log(`🛑 Progress timer stopped (ID: ${this.progressTimerId})`);
+          this.progressTimerId = null;
+        }
+
+        this.progressActive = false;
+
+      } finally {
+        this.progressLock = false;
+      }
+    }
+
+    /**
+     * Check if progress timer is active
+     * @returns {boolean} True if progress operation is running
+     */
+    isProgressActive() {
+      return this.progressActive;
+    }
+
+    /**
+     * Get current progress timer ID (for debugging)
+     * @returns {number|null} Timer ID or null if no timer active
+     */
+    getProgressTimerId() {
+      return this.progressTimerId;
     }
   }
 
