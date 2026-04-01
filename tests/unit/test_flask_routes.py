@@ -152,6 +152,27 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(len(data['objects']), 1)
         self.assertEqual(data['objects'][0]['conf'], 0.85)
 
+    def test_getobjects_post_invalid_self_intersecting_polygon(self):
+        """Test getobjects rejects self-intersecting polygons with a specific validation error."""
+        response = self.client.post('/getobjects', data={
+            'bounds': '37.7,-122.5,37.8,-122.4',
+            'engine': 'yolo',
+            'provider': 'google',
+            'polygons': json.dumps([[
+                [-122.5, 37.7],
+                [-122.4, 37.8],
+                [-122.5, 37.8],
+                [-122.4, 37.7],
+                [-122.5, 37.7]
+            ]]),
+            'estimate': 'yes'
+        })
+
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.data)
+        message = data.get('error') or data.get('message', '')
+        self.assertIn('self-intersection', message.lower())
+
 
 class TestErrorHandling(unittest.TestCase):
     """Test error handling in Flask routes."""

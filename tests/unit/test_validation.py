@@ -110,6 +110,21 @@ class TestTowerScoutValidator(unittest.TestCase):
         with self.assertRaises(ValidationError):
             TowerScoutValidator.validate_polygons_json("")
 
+    def test_validate_polygons_json_self_intersection(self):
+        """Test self-intersecting polygon is rejected with a specific message."""
+        polygon_data = [[
+            [-122.5, 37.7],
+            [-122.4, 37.8],
+            [-122.5, 37.8],
+            [-122.4, 37.7],
+            [-122.5, 37.7]
+        ]]
+
+        with self.assertRaises(ValidationError) as context:
+            TowerScoutValidator.validate_polygons_json(json.dumps(polygon_data))
+
+        self.assertIn('self-intersection', context.exception.message)
+
     def test_validate_bounds_valid(self):
         """Test valid bounds validation"""
         bounds = "37.7,-122.5,37.8,-122.4"

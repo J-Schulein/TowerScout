@@ -27,19 +27,21 @@ import json
 import time
 import os
 import math
+import secrets
 from ts_validation import (
     TowerScoutValidator, ValidationError, rate_limiter,
     validate_detection_request, validate_zipcode_request
 )
 from ts_errors import (
-    TowerScoutError, ConfigurationError, ModelLoadError, MapProviderError,
-    ProcessingError, SessionError, NetworkError, ResourceError, create_error_response
+    TowerScoutError, ConfigurationError, MapProviderError,
+    NetworkError
 )
 from ts_logging import (
-    TowerScoutLogger, get_main_logger, get_maps_logger, get_ml_logger, 
-    get_api_logger, log_startup_info, log_shutdown_info
+    get_main_logger, get_maps_logger, get_ml_logger, 
+    get_api_logger
 )
-from ts_performance import track_performance, PerformanceMetrics
+from ts_performance import PerformanceMetrics
+import ts_config
 import torch
 import os
 from shutil import rmtree
@@ -50,9 +52,9 @@ import time
 from dotenv import load_dotenv
 from pathlib import Path
 
-# Load environment variables from .env file if it exists
+# Load environment variables from config/.env if available, otherwise legacy .env
 script_dir = Path(__file__).parent
-env_path = script_dir / '.env'
+env_path = ts_config.ensure_env_file()
 
 print("=" * 60)
 print("TOWERSCOUT ENVIRONMENT DEBUG")
@@ -64,7 +66,7 @@ print(f".env file exists: {env_path.exists()}")
 
 if env_path.exists():
     print(f"Loading .env from: {env_path}")
-    load_dotenv(env_path)
+    load_dotenv(env_path, override=False)
 else:
     print("Using default load_dotenv() behavior")
     load_dotenv()
@@ -76,19 +78,10 @@ bing_key = os.getenv('BING_API_KEY', '')
 
 print(f"\nEnvironment Variables Status:")
 print(f"GOOGLE_API_KEY: {'✓ Loaded' if google_key else '✗ Missing'}")
-if google_key:
-    print(f"  - Starts with: {google_key[:15]}...")
-    print(f"  - Length: {len(google_key)} characters")
 
 print(f"AZURE_MAPS_SUBSCRIPTION_KEY: {'✓ Loaded' if azure_key else '✗ Missing'}")
-if azure_key:
-    print(f"  - Starts with: {azure_key[:15]}...")
-    print(f"  - Length: {len(azure_key)} characters")
 
 print(f"BING_API_KEY: {'✓ Loaded' if bing_key else '✗ Missing'}")
-if bing_key:
-    print(f"  - Starts with: {bing_key[:15]}...")
-    print(f"  - Length: {len(bing_key)} characters")
 
 print("=" * 60)
 
@@ -136,6 +129,9 @@ engine_default = None
 engine_lock = threading.Lock()
 
 exit_events = ExitEvents()
+secondary_en = None
+secondary_en_lock = threading.Lock()
+LAZY_MODEL_INIT = os.getenv('TOWERSCOUT_LAZY_MODEL_INIT', '').strip().lower() in ('1', 'true', 'yes', 'on')
 
 # on-demand instantiate YOLOv5 model
 def get_engine(e):
@@ -193,7 +189,7 @@ providers = {
 }
 
 # Load API keys from environment variables
-def load_api_keys():
+def load_api_keys(allow_missing=False):
     """Load and validate API keys from environment variables."""
     google_key = os.getenv('GOOGLE_API_KEY', '')
     bing_key = os.getenv('BING_API_KEY', '')
@@ -233,26 +229,32 @@ def load_api_keys():
         logger.warning("AZURE_MAPS_SUBSCRIPTION_KEY not configured or contains placeholder text. Azure Maps provider will be unavailable.")
         azure_key = ""
     
-    # At least one provider must be configured with a valid key
-    if not google_key and not bing_key and not azure_key:
+    setup_required = not google_key and not bing_key and not azure_key
+
+    # At least one provider must be configured with a valid key unless setup mode is allowed
+    if setup_required and not allow_missing:
         raise ConfigurationError(
             "At least one map provider API key is required",
             missing_config="GOOGLE_API_KEY or AZURE_MAPS_SUBSCRIPTION_KEY",
             user_message="Map provider API keys are required. Please configure Google Maps or Azure Maps."
         )
     
-    return google_key, bing_key, azure_key
+    return google_key, bing_key, azure_key, setup_required
 
-# Load API keys with proper error handling
-try:
-    google_api_key, bing_api_key, azure_api_key = load_api_keys()
-except ConfigurationError as e:
-    logger.error(f"Configuration Error: {e.message}")
-    logger.info("To fix this:")
-    logger.info("1. Copy .env.example to .env")
-    logger.info("2. Edit .env and add your Google Maps API key")
-    logger.info("3. Restart the application")
-    exit(1)
+
+def refresh_runtime_config():
+    """Reload runtime environment variables and refresh global key state."""
+    global google_api_key, bing_api_key, azure_api_key, needs_setup
+
+    ts_config.reload_runtime_environment(env_path)
+    google_api_key, bing_api_key, azure_api_key, needs_setup = load_api_keys(allow_missing=True)
+    app.config['SETUP_REQUIRED'] = needs_setup
+    return needs_setup
+
+# Load API keys with degraded setup mode support
+google_api_key, bing_api_key, azure_api_key, needs_setup = load_api_keys(allow_missing=True)
+if needs_setup:
+    logger.warning("Application booting in setup-required mode. Map and detection features will remain blocked until configuration is completed.")
 
 # other global variables
 loop = asyncio.new_event_loop()
@@ -268,8 +270,20 @@ ml_logger.info(f"Torch CUDA: {'available' if torch.cuda.is_available() else 'not
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
+def get_secondary_classifier():
+    global secondary_en
+    with secondary_en_lock:
+        if secondary_en is None:
+            ml_logger.info("Loading EfficientNet secondary classifier")
+            secondary_en = EN_Classifier()
+        return secondary_en
+
+
 # EfficientNet secondary classifier
-secondary_en = EN_Classifier()
+if not LAZY_MODEL_INIT:
+    secondary_en = EN_Classifier()
+else:
+    ml_logger.info("Secondary classifier lazy initialization enabled")
 
 
 # variable for zipcode provider
@@ -290,14 +304,13 @@ app = Flask(__name__)
 # Configure Flask from environment variables
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
 if not app.config['SECRET_KEY']:
-    raise EnvironmentError(
-        "FLASK_SECRET_KEY environment variable is required for secure sessions. "
-        "Please copy .env.example to .env and configure your secret key."
-    )
+    app.config['SECRET_KEY'] = secrets.token_hex(32)
+    logger.warning("FLASK_SECRET_KEY not configured. Using a temporary in-memory secret for setup-required mode.")
 
 app.config['UPLOAD_FOLDER'] = "uploads"
 app.config['FLASK_ENV'] = os.getenv('FLASK_ENV', 'development')
 app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+app.config['SETUP_REQUIRED'] = needs_setup
 
 # Configure server-side session
 SESSION_TYPE = 'filesystem'
@@ -311,7 +324,14 @@ def handle_towerscout_error(error):
     """Handle all TowerScout custom exceptions with structured responses."""
     api_logger.error(f"TowerScout error: {error.message}", exc_info=True)
     response = jsonify(error.to_dict())
-    response.status_code = 400 if isinstance(error, ValidationError) else 500
+    if isinstance(error, ValidationError):
+        response.status_code = 400
+    elif isinstance(error, NetworkError):
+        response.status_code = 502
+    elif isinstance(error, ConfigurationError):
+        response.status_code = 400
+    else:
+        response.status_code = 500
     return response
 
 @app.errorhandler(ValidationError)
@@ -438,6 +458,8 @@ def map_func():
     if dev == 1:
         session['tiles'] = 0
 
+    session['needs_setup'] = needs_setup
+
     # init default engine
     # get_engine(None)
 
@@ -464,6 +486,7 @@ def map_func():
     
     return render_template('towerscout.html',
                            available_providers=available_providers,
+                           needs_setup=needs_setup,
                            dev=dev)
 
 
@@ -565,6 +588,116 @@ def get_providers():
     
     result = json.dumps(available_providers)
     return result
+
+
+def _get_client_ip():
+    return request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', '127.0.0.1'))
+
+
+def _mask_key_preview(key: str) -> str:
+    if not key:
+        return ""
+    if len(key) <= 8:
+        return "*" * len(key)
+    return f"{key[:4]}{'*' * max(len(key) - 8, 4)}{key[-4:]}"
+
+
+@app.route('/api/config/validate-key', methods=['POST'])
+def validate_api_key_endpoint():
+    """Validate a Google or Azure API key with a minimal provider request."""
+    client_ip = _get_client_ip()
+    if not rate_limiter.is_allowed(f"config-validate:{client_ip}", max_requests=10, window_seconds=300):
+        return jsonify({'error': 'Rate limit exceeded. Please wait before trying again.'}), 429
+
+    data = request.get_json(silent=True) or {}
+    provider = TowerScoutValidator.validate_provider(data.get('provider'))
+    key = TowerScoutValidator.sanitize_string(data.get('key', ''), max_length=512)
+
+    result = ts_config.validate_api_key(provider, key)
+    return jsonify(result)
+
+
+@app.route('/api/config/save-keys', methods=['POST'])
+def save_api_keys():
+    """Validate and persist API key configuration without restarting the app."""
+    client_ip = _get_client_ip()
+    if not rate_limiter.is_allowed(f"config-save:{client_ip}", max_requests=5, window_seconds=300):
+        return jsonify({'error': 'Rate limit exceeded. Please wait before trying again.'}), 429
+
+    data = request.get_json(silent=True) or {}
+    google_input = TowerScoutValidator.sanitize_string(str(data.get('google_api_key', '')).strip(), max_length=512)
+    azure_input = TowerScoutValidator.sanitize_string(str(data.get('azure_maps_subscription_key', '')).strip(), max_length=512)
+    default_provider_input = str(data.get('default_map_provider') or os.getenv('DEFAULT_MAP_PROVIDER', 'azure')).strip().lower()
+    default_provider = TowerScoutValidator.validate_provider(default_provider_input)
+
+    merged_google = google_input or os.getenv('GOOGLE_API_KEY', '')
+    merged_azure = azure_input or os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY', '')
+
+    validation_results = {}
+    if merged_google and not ts_config.is_placeholder(merged_google):
+        validation_results['google'] = ts_config.validate_api_key('google', merged_google)
+        if not validation_results['google']['valid']:
+            return jsonify(validation_results['google']), 400
+
+    if merged_azure and not ts_config.is_placeholder(merged_azure):
+        validation_results['azure'] = ts_config.validate_api_key('azure', merged_azure)
+        if not validation_results['azure']['valid']:
+            return jsonify(validation_results['azure']), 400
+
+    if not validation_results:
+        return jsonify({
+            'success': False,
+            'message': 'At least one valid API key is required to save configuration.'
+        }), 400
+
+    updates = {
+        'GOOGLE_API_KEY': merged_google,
+        'AZURE_MAPS_SUBSCRIPTION_KEY': merged_azure,
+        'DEFAULT_MAP_PROVIDER': default_provider,
+    }
+
+    ts_config.update_env_file(updates)
+    refresh_runtime_config()
+    session['needs_setup'] = needs_setup
+
+    return jsonify({
+        'success': True,
+        'message': 'Configuration updated successfully.',
+        'needs_setup': needs_setup,
+        'default_map_provider': os.getenv('DEFAULT_MAP_PROVIDER', 'azure'),
+    })
+
+
+@app.route('/api/config/status', methods=['GET'])
+def get_config_status():
+    """Return current configuration status for setup and settings flows."""
+    status = ts_config.get_env_status()
+    status['google']['preview'] = _mask_key_preview(os.getenv('GOOGLE_API_KEY', ''))
+    status['azure']['preview'] = _mask_key_preview(os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY', ''))
+    status['needs_setup'] = needs_setup
+    return jsonify(status)
+
+
+@app.route('/api/config/reset-session', methods=['POST'])
+def reset_session():
+    """Clear Flask session state and temporary files used by the current session."""
+    tmpdirname = session.get('tmpdirname')
+    if tmpdirname:
+        rmtree(tmpdirname, ignore_errors=True, onerror=None)
+
+    session.clear()
+    session['needs_setup'] = needs_setup
+
+    return jsonify({
+        'success': True,
+        'message': 'Session data and temporary files cleared.'
+    })
+
+
+@app.route('/api/config/performance', methods=['GET'])
+def get_performance_stats():
+    """Return recent performance summary derived from existing performance logs."""
+    return jsonify(ts_config.get_recent_performance_stats())
 
 # Forward geocoding API for address search
 @app.route('/api/geocode/forward', methods=['POST'])
@@ -921,7 +1054,7 @@ def get_zipcode():
         zipcode = validated_data['zipcode']
     except ValidationError as e:
         return jsonify({'error': f'Validation error: {e.message}'}), 400
-    except Exception as e:
+    except Exception:
         return jsonify({'error': 'Invalid zipcode format'}), 400
         
     api_logger.debug(f"Zipcode requested: {zipcode}")
@@ -1130,7 +1263,14 @@ def get_objects():
     # detect all towers
     perf_metrics.start_phase('model_detection')
     model_start_time = time.time()
-    results_raw = det.detect(tiles, exit_events, id(session), crop_tiles=crop_tiles, secondary=secondary_en, perf_metrics=perf_metrics)
+    results_raw = det.detect(
+        tiles,
+        exit_events,
+        id(session),
+        crop_tiles=crop_tiles,
+        secondary=get_secondary_classifier(),
+        perf_metrics=perf_metrics
+    )
     perf_metrics.actual_model_time_seconds = time.time() - model_start_time
     perf_metrics.end_phase('model_detection')
     perf_metrics.update_memory_usage()  # Capture memory after model inference
@@ -1464,7 +1604,7 @@ def get_objects_custom():
         file = TowerScoutValidator.validate_image_file(request.files['image'])
     except ValidationError as e:
         return jsonify({'error': f'Validation error: {e.message}'}), 400
-    except Exception as e:
+    except Exception:
         return jsonify({'error': 'Invalid request data'}), 400
         
     print("incoming custom image detection request:")
@@ -1536,7 +1676,7 @@ def upload_model():
         file = TowerScoutValidator.validate_model_file(request.files['model'])
     except ValidationError as e:
         return jsonify({'error': f'Validation error: {e.message}'}), 400
-    except Exception as e:
+    except Exception:
         return jsonify({'error': 'Invalid request data'}), 400
 
     if file.filename == '':

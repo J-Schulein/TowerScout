@@ -9,7 +9,7 @@
   function adjustConfidence() {
     // Validate DOM elements are available
     if (!confSlider || !reviewCheckBox) {
-      console.error('❌ Required DOM elements not initialized for adjustConfidence');
+      console.error('âŒ Required DOM elements not initialized for adjustConfidence');
       return;
     }
 
@@ -46,12 +46,12 @@
   function changeReviewMode() {
     // Validate DOM elements are available
     if (!reviewCheckBox || !confSlider) {
-      console.error('❌ Required DOM elements not initialized for changeReviewMode');
+      console.error('âŒ Required DOM elements not initialized for changeReviewMode');
       return;
     }
 
     const mode = reviewCheckBox.checked ? 'Label' : 'Find';
-    console.log(`🔄 Switching review mode to: ${mode}`);
+    window.TowerScoutLogger.debug(`ðŸ”„ Switching review mode to: ${mode}`);
 
     if (reviewCheckBox.checked) {
       confSlider.value = 0;  // Label mode: show all detections in tiles
@@ -59,17 +59,10 @@
       confSlider.value = Math.round(DEFAULT_CONFIDENCE * 100);  // Find mode: only inside boundary
     }
 
-    // Adjust confidence filtering (updates list visibility)
+    // Adjust confidence filtering (updates list visibility and map overlays)
     adjustConfidence();
 
-    // FIX NEW-ISSUE-003: Force map visibility update for all detections
-    // adjustConfidence() updates the list, but we need to explicitly update map markers
-    console.log(`🗺️ Updating map visibility for ${Detection_detections.length} detections`);
-    for (let det of Detection_detections) {
-      det.update();  // This will correctly show/hide map markers based on new mode
-    }
-
-    console.log(`✅ Review mode switched to: ${mode}`);
+    window.TowerScoutLogger.debug(`âœ… Review mode switched to: ${mode}`);
   }
 
   /**
@@ -95,7 +88,7 @@
         }
       })
       .catch(error => {
-        console.log('Could not fetch API usage:', error);
+        window.TowerScoutLogger.debug('Could not fetch API usage:', error);
       });
   }
 
@@ -107,7 +100,6 @@
   function afterAugment() {
     Detection.sort();
     Detection.generateList();
-    adjustConfidence();
   }
 
   // Expose functions to global scope for inline HTML handlers and legacy code
@@ -116,5 +108,5 @@
   window.updateApiUsageDisplay = updateApiUsageDisplay;
   window.afterAugment = afterAugment;
 
-  console.log('✅ DetectionList module loaded');
+  window.TowerScoutLogger.debug('âœ… DetectionList module loaded');
 })();

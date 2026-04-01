@@ -43,6 +43,9 @@ webapp/cache/**/*.cache
 # Environment variables (contains secrets)
 .env
 webapp/.env
+webapp/config/.env
+webapp/config/.env.backup.*
+webapp/config/.env.lock
 *.env
 !.env.example
 apikey.txt
@@ -75,6 +78,7 @@ Thumbs.db
 
 # Uploads and temporary files
 uploads/*
+contents.txt
 webapp/uploads/*
 !uploads/.gitkeep
 temp/*

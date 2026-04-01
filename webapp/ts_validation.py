@@ -11,6 +11,7 @@ import os
 from typing import List, Dict, Any, Optional, Tuple
 from shapely.geometry import Polygon
 from shapely.geometry.polygon import LinearRing
+from shapely.validation import explain_validity
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -154,7 +155,14 @@ class TowerScoutValidator:
             polygon = Polygon(coordinates)
             
             if not polygon.is_valid:
-                raise ValidationError("Polygon geometry is invalid (self-intersecting or malformed)")
+                validity_detail = explain_validity(polygon)
+                if validity_detail:
+                    lowered_detail = validity_detail.lower()
+                    if 'self-intersection' in lowered_detail:
+                        raise ValidationError("Polygon geometry is invalid (self-intersection)")
+                    raise ValidationError(f"Polygon geometry is invalid ({lowered_detail})")
+
+                raise ValidationError("Polygon geometry is invalid (malformed)")
             
             if polygon.area == 0:
                 raise ValidationError("Polygon has zero area")

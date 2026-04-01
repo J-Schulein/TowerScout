@@ -8,8 +8,8 @@
   // TASK-033: Enable custom drawing mode without auto-consuming shapes
   // This allows user to choose: "Run detection" (search boundary) OR "Add Locations" (manual tower)
   function enableCustomDrawing() {
-    console.log('🎨 enableCustomDrawing() called');
-    console.log('🔍 Current state:', {
+    window.TowerScoutLogger.debug('🎨 enableCustomDrawing() called');
+    window.TowerScoutLogger.debug('🔍 Current state:', {
       hasCurrentMap: !!currentMap,
       currentProvider: currentProvider,
       hasGoogleMap: !!googleMap,
@@ -31,11 +31,11 @@
 
     // TASK-039: If Google Maps, manage drawing mode
     if (currentProvider === 'google' && googleMap) {
-      console.log('✅ Google Maps detected, checking drawing state...');
+      window.TowerScoutLogger.debug('✅ Google Maps detected, checking drawing state...');
 
       // Check if drawing is in progress
       if (googleMap.isDrawing) {
-        console.log('⚠️ Drawing already in progress');
+        window.TowerScoutLogger.debug('⚠️ Drawing already in progress');
         TowerScoutErrorHandler.showUserNotification(
           'Drawing in progress. Right-click outside to complete your polygon.',
           'info'
@@ -44,23 +44,23 @@
       }
 
       // Check if we have shapes already drawn - if so, consume them as search boundary
-      if (googleMap.newShapes && googleMap.newShapes.length > 0) {
-        console.log('✅ Consuming drawn polygon(s) as search boundary...');
+      if (googleMap.hasShapes && googleMap.hasShapes()) {
+        window.TowerScoutLogger.debug('✅ Consuming drawn polygon(s) as search boundary...');
         drawnBoundary();
         return;
       }
 
       // No shapes yet, enable drawing
-      console.log('🎨 No shapes drawn yet, enabling drawing mode...');
+      window.TowerScoutLogger.debug('🎨 No shapes drawn yet, enabling drawing mode...');
       googleMap.enablePolygonDrawing();
-      console.log('✅ Drawing mode enabled');
+      window.TowerScoutLogger.debug('✅ Drawing mode enabled');
       return;
     }
 
     // Azure Maps: Consume drawn shapes as search boundary, or show instructions
     if (currentProvider === 'azure' && azureMap) {
-      if (azureMap.newShapes && azureMap.newShapes.length > 0) {
-        console.log('✅ Consuming drawn polygon(s) as search boundary...');
+      if (azureMap.hasShapes && azureMap.hasShapes()) {
+        window.TowerScoutLogger.debug('✅ Consuming drawn polygon(s) as search boundary...');
         drawnBoundary();
       } else {
         TowerScoutErrorHandler.showUserNotification(
@@ -76,7 +76,9 @@
   // Retrieve drawn polygons from current map and add to both providers
   // TASK-039: Enhanced to initiate custom drawing mode for Google Maps
   // TASK-033: Now only called by "Run detection", not by "Custom shape" button
-  function drawnBoundary() {
+  function drawnBoundary(options = {}) {
+    const skipValidation = options.skipValidation === true;
+
     // Defensive null checks
     if (!currentMap) {
       console.error('❌ currentMap is not initialized');
@@ -84,11 +86,22 @@
         'Map is still initializing. Please wait a moment and try again.',
         'warning'
       );
-      return;
+      return false;
     }
 
     // TASK-041 Phase 1: Don't require both providers, just work with initialized ones
-    console.log("using custom boundary polygon(s)");
+    window.TowerScoutLogger.debug("using custom boundary polygon(s)");
+    if (!skipValidation && currentMap.validateDrawnShapes) {
+      const validation = currentMap.validateDrawnShapes({
+        showNotification: true,
+        label: 'custom shape'
+      });
+
+      if (!validation.valid) {
+        return false;
+      }
+    }
+
     let boundaries = currentMap.retrieveDrawnBoundaries();
 
     if (!boundaries || boundaries.length === 0) {
@@ -97,7 +110,7 @@
         'No custom shapes drawn. Please use the polygon tool to draw a boundary first.',
         'info'
       );
-      return;
+      return false;
     }
 
     // TASK-041 Phase 1: Add boundaries to initialized providers only
@@ -110,7 +123,8 @@
       }
     }
 
-    console.log(`✅ Added ${boundaries.length} custom boundary/boundaries`);
+    window.TowerScoutLogger.debug(`✅ Added ${boundaries.length} custom boundary/boundaries`);
+    return true;
   }
 
   // Clear all boundaries from all initialized providers
@@ -128,7 +142,7 @@
       return;
     }
 
-    console.log('🧹 Clearing all boundaries');
+    window.TowerScoutLogger.debug('🧹 Clearing all boundaries');
 
     // Clear boundaries on initialized providers only (both if available)
     if (googleMap && typeof googleMap.resetBoundaries === 'function') {
@@ -139,7 +153,7 @@
       azureMap.resetBoundaries();
     }
 
-    console.log('✅ Boundaries cleared');
+    window.TowerScoutLogger.debug('✅ Boundaries cleared');
   }
 
   // Helper: Convert array of [lng, lat] to Google Maps LatLng objects
@@ -168,5 +182,5 @@
   window.parseLatLngArray = parseLatLngArray;
   window.polyBounds = polyBounds;
 
-  console.log('✅ PolygonBoundary module loaded');
+  window.TowerScoutLogger.debug('✅ PolygonBoundary module loaded');
 })();

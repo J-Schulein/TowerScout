@@ -1,8 +1,8 @@
 # Task Backlog - Future Work Prioritization
 
-**Last Updated**: March 16, 2026  
+**Last Updated**: March 31, 2026  
 **Sprint 03 Period**: March 11 - March 25, 2026  
-**Next Sprint Planning**: March 25, 2026  
+**Next Sprint Planning**: Sprint 05 Prep - March 31, 2026  
 
 ---
 
@@ -91,7 +91,7 @@
 **Type**: A (Infrastructure)  
 **Priority**: MEDIUM  
 **Estimated Effort**: 1-2 days
-**Target Sprint**: Sprint 3
+**Target Sprint**: Sprint 05
 
 **Objective**: Create Docker configuration for one-command local deployment
 
@@ -101,7 +101,70 @@
 - Environment variable management
 - Platform-specific optimization (AMD64/ARM64)
 
-**Notes**: Enables easier deployment for non-technical users
+**Dependencies**:
+- TASK-046 (completed) - setup wizard/settings volume-mount behavior
+- TASK-051 - runtime dependency verification and split
+- TASK-052 - current integration smoke-test baseline
+
+**Notes**: Keep TASK-025 focused on container build/run behavior. Do not absorb dependency-verification or smoke-test replacement work into this task; use them as Sprint 05 prerequisites so Docker acceptance criteria stay clear and runtime-risk changes remain isolated.
+
+---
+
+### **TASK-051: Runtime Dependency Verification and Split**
+**Status**: NOT_STARTED  
+**Type**: C (Architecture / Deployment Readiness)  
+**Priority**: HIGH  
+**Estimated Effort**: 4-8 hours
+**Target Sprint**: Sprint 05
+
+**Objective**: Verify runtime dependencies before containerization and separate confirmed runtime requirements from removable or optional packages without changing user-visible behavior.
+
+**Requirements**:
+- Verify the current import/runtime necessity of deployment-sensitive packages in `webapp/requirements.txt`
+- Confirm Torch CPU/CUDA detection and execution behavior remains intact after any requirement cleanup
+- Treat `ultralytics` as CUDA/runtime-sensitive until proven removable in a clean environment
+- Remove or reclassify low-risk dependency drift such as `seaborn` only after verification
+- Preserve the current user workflow, appearance, and functionality of the application
+
+**Validation**:
+- Clean-environment install test
+- App startup verification
+- CPU-only verification path
+- CUDA-available verification path where hardware is available
+
+**Dependencies**:
+- TASK-049 stale-code audit and cleanup findings
+
+**Notes**: Recommended as a pre-containerization gate. Do not fold this into TASK-025 because dependency verification has different risks, acceptance criteria, and rollback needs than Docker delivery.
+
+---
+
+### **TASK-052: Current Integration Smoke Test Baseline**
+**Status**: NOT_STARTED  
+**Type**: A (Quality / Validation)  
+**Priority**: HIGH  
+**Estimated Effort**: 4-8 hours
+**Target Sprint**: Sprint 05
+
+**Objective**: Replace the quarantined legacy end-to-end harness with a current smoke test that validates the live Flask route surface and core app boot flow.
+
+**Requirements**:
+- Replace the skipped legacy `tests/integration/test_end_to_end.py` coverage with a current smoke-test harness
+- Validate application boot with the current configuration/setup flow
+- Exercise core live routes and confirm expected response behavior
+- Provide a stable regression target for containerization work
+- Keep the test lightweight enough to run regularly during Sprint 05
+
+**Dependencies**:
+- TASK-046 setup wizard/settings implementation
+- TASK-049 validation-gate repair
+
+**Success Criteria**:
+- `pytest --collect-only tests -q` remains clean
+- A current smoke test exists for app boot plus core route availability
+- Containerization work has a concrete validation target beyond import/collection success
+
+**Notes**: Recommended before TASK-025 so Docker work can validate against a current, supported app surface instead of the quarantined legacy harness.
 
 ---
 

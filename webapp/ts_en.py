@@ -28,6 +28,13 @@ from ts_logging import get_ml_logger
 
 logger = get_ml_logger()
 
+
+def _env_flag(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ('1', 'true', 'yes', 'on')
+
 class EN_Classifier:
 
     def __init__(self):
@@ -112,6 +119,9 @@ class EN_Classifier:
             transforms.ToTensor(),
             transforms.Normalize(mean=(0.5553, 0.5080, 0.4960), std=(0.1844, 0.1982, 0.2017))
             ])
+        self.save_debug_images = _env_flag('TOWERSCOUT_SAVE_EN_DEBUG_IMAGES', False)
+        if self.save_debug_images:
+            logger.info("EfficientNet debug image capture enabled")
     
     #
     # classify:
@@ -122,6 +132,8 @@ class EN_Classifier:
     # IMPORTANT: Confidence range for running EN.
     def classify(self, img, detections, min_conf=0.25, max_conf=0.65, batch_id=0):
         count=0
+        if self.save_debug_images:
+            os.makedirs("uploads", exist_ok=True)
         for det in detections:
             x1,y1,x2,y2,conf = det[0:5]
 
@@ -141,8 +153,10 @@ class EN_Classifier:
                 output = 1 - torch.sigmoid(self.model(input).cpu()).item()
                 # print(" inspected: YOLOv5 conf:",round(conf,2), end=", ")
                 # print(" secondary result:", round(output,2))
-                img.save("uploads/img_for_id_"+f"{batch_id+count:02}_conf_"+str(round(conf,2))+"_p2_"+str(round(output,2))+".jpg")
-                det_img.save("uploads/id_"+f"{batch_id+count:02}_conf_"+str(round(conf,2))+"_p2_"+str(round(output,2))+".jpg")
+                if self.save_debug_images:
+                    debug_suffix = f"{batch_id+count:02}_conf_{round(conf, 2)}_p2_{round(output, 2)}"
+                    img.save(f"uploads/img_for_id_{debug_suffix}.jpg")
+                    det_img.save(f"uploads/id_{debug_suffix}.jpg")
                 p2 = output
 
             elif conf < min_conf:

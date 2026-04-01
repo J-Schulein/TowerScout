@@ -28,5 +28,5 @@
     SECS_PER_TILE_DEFAULT: 0.25              // Estimated processing time per tile
   };
 
-  console.log('✅ CONFIG module loaded');
+  window.TowerScoutLogger.debug('✅ CONFIG module loaded');
 })();

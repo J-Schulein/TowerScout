@@ -14,7 +14,7 @@
     }
 
     constructor(x1, y1, x2, y2, metadata, url, id) {
-      super(x1, y1, x2, y2, "#0000FF", "#0000FF", 0.0, "tile")
+      super(x1, y1, x2, y2, "#0000FF", "#0000FF", 0.0, "tile", undefined, false)
       this.metadata = metadata; // for map metadata
       this.url = url
       this.id = (id !== undefined) ? id : providerManager.getTilesLength();  // Phase 2: Use state manager for length
@@ -79,6 +79,6 @@
   // Expose to window for inline HTML handlers
   window.Tile = Tile;
 
-  console.log('✅ Tile module loaded');
+  window.TowerScoutLogger.debug('✅ Tile module loaded');
 
 })();

@@ -36,6 +36,22 @@
   let secsPerTile = CONFIG.SECS_PER_TILE_DEFAULT;
   let dataPoints = 0;
 
+  async function getResponseErrorMessage(response, fallbackMessage) {
+    const contentType = response.headers.get('content-type') || '';
+
+    try {
+      if (contentType.includes('application/json')) {
+        const payload = await response.json();
+        return payload.error || payload.message || fallbackMessage;
+      }
+
+      const text = (await response.text()).trim();
+      return text || fallbackMessage;
+    } catch (error) {
+      return fallbackMessage;
+    }
+  }
+
   // ===== Main Detection Workflow =====
 
   function getObjects(estimate) {
@@ -63,20 +79,31 @@
 
     let engine = $('input[name=model]:checked', '#engines').val()
     let provider = $('input[name=provider]:checked', '#providers').val()
-    console.log('🎯 Detection provider value:', provider, '| Type:', typeof provider);
-    console.log('🎯 Provider validation - Azure:', provider === 'azure', '| Google:', provider === 'google');
+    window.TowerScoutLogger.debug('🎯 Detection provider value:', provider, '| Type:', typeof provider);
+    window.TowerScoutLogger.debug('🎯 Provider validation - Azure:', provider === 'azure', '| Google:', provider === 'google');
 
     // TASK-045: Clear old boundaries from previous detection cycles before calculating new bounds
     // This ensures each detection run is independent and prevents boundary accumulation
-    console.log('🧹 TASK-045: Clearing previous boundaries before detection');
-    console.log('   Current boundaries count:', currentMap.boundaries ? currentMap.boundaries.length : 0);
+    window.TowerScoutLogger.debug('🧹 TASK-045: Clearing previous boundaries before detection');
+    window.TowerScoutLogger.debug('   Current boundaries count:', currentMap.boundaries ? currentMap.boundaries.length : 0);
 
     // Check if user has drawn new shapes that need to be converted to boundaries
     const hasNewShapes = currentMap.hasShapes && currentMap.hasShapes();
 
     if (hasNewShapes) {
+      const validation = currentMap.validateDrawnShapes
+        ? currentMap.validateDrawnShapes({
+          showNotification: true,
+          label: 'custom shape'
+        })
+        : { valid: true };
+
+      if (!validation.valid) {
+        return;
+      }
+
       // Clear old boundaries and retrieve fresh drawn shapes
-      console.log('   User has drawn new shapes - clearing old boundaries and retrieving new ones');
+      window.TowerScoutLogger.debug('   User has drawn new shapes - clearing old boundaries and retrieving new ones');
       currentMap.resetBoundaries();
 
       // Sync boundary clearing to other provider if available
@@ -87,21 +114,23 @@
       }
 
       // Now retrieve the newly drawn boundaries
-      drawnBoundary();
-      console.log('   New boundaries retrieved:', currentMap.boundaries ? currentMap.boundaries.length : 0);
+      if (!drawnBoundary({ skipValidation: true })) {
+        return;
+      }
+      window.TowerScoutLogger.debug('   New boundaries retrieved:', currentMap.boundaries ? currentMap.boundaries.length : 0);
     }
 
     // TASK-041 Phase 2 Step 2.6: Use boundary bounding box instead of viewport bounds
     // This ensures tiles are generated only for the drawn search area, not the entire viewport
     let bounds = currentMap.getBoundaryBoundsUrl();
-    console.log('🗺️ Using bounds for tile generation:', bounds);
-    console.log('   Final boundaries count for detection:', currentMap.boundaries ? currentMap.boundaries.length : 0);
+    window.TowerScoutLogger.debug('🗺️ Using bounds for tile generation:', bounds);
+    window.TowerScoutLogger.debug('   Final boundaries count for detection:', currentMap.boundaries ? currentMap.boundaries.length : 0);
 
     let boundaries = currentMap.getBoundariesStr();
 
     // Auto-create viewport boundary if no polygons are drawn
     if (boundaries === "[]") {
-      console.log("No boundary selected, automatically using current viewport as detection area");
+      window.TowerScoutLogger.debug("No boundary selected, automatically using current viewport as detection area");
       const bounds = currentMap.getBounds();
       currentMap.addBoundary(new SimpleBoundary(bounds));
       // TASK-041 Phase 1: Sync boundaries to initialized providers only
@@ -115,9 +144,9 @@
     }
     let kinds = ["None", "Polygon", "Multiple polygons"]
     if (estimate) {
-      console.log("Estimate request in progress");
+      window.TowerScoutLogger.info("Estimating tile count for the selected search area...");
     } else {
-      console.log("Detection request in progress");
+      window.TowerScoutLogger.info("Starting cooling tower detection...");
     }
 
     // erase the previous set of towers and tiles
@@ -133,17 +162,17 @@
     formData.append('estimate', "yes");
 
     fetch("/getobjects", { method: "POST", body: formData, })
-      .then(result => {
+      .then(async (result) => {
         if (!result.ok) {
-          throw new Error(`HTTP ${result.status}: ${result.statusText}`);
+          const message = await getResponseErrorMessage(result, `HTTP ${result.status}: ${result.statusText}`);
+          throw new Error(message);
         }
 
         // Check if result is JSON error instead of tile count
         const contentType = result.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
-          return result.json().then(errorData => {
-            throw new Error(errorData.error || 'Server error');
-          });
+          const errorData = await result.json();
+          throw new Error(errorData.error || errorData.message || 'Server error');
         }
         return result.text();
       })
@@ -158,10 +187,10 @@
           fatalError("Tile limit for this session exceeded. Please close browser to continue.")
           return;
         }
-        console.log("Number of tiles: " + tileCount + ", estimated time: "
+        window.TowerScoutLogger.info("Estimated " + tileCount + " tile(s), expected time: "
           + (Math.round(tileCount * secsPerTile * 10) / 10) + " s");
         // let nt = estimateNumTiles(currentMap.getZoom());
-        // console.log("  Estimated tiles:" + nt);
+        // window.TowerScoutLogger.debug("  Estimated tiles:" + nt);
         if (estimate) {
           return;
         }
@@ -181,7 +210,8 @@
           async () => {
             const response = await fetch("/getobjects", { method: "POST", body: formData });
             if (!response.ok) {
-              throw new Error(`Detection failed: HTTP ${response.status} - ${response.statusText}`);
+              const message = await getResponseErrorMessage(response, `HTTP ${response.status}: ${response.statusText}`);
+              throw new Error(message);
             }
             return await response.json();
           },
@@ -197,24 +227,24 @@
           })
           .catch(error => {
             console.error('❌ Detection pipeline error:', error);
-            TowerScoutErrorHandler.handleNetworkError(error, 'Cooling Tower Detection');
             disableProgress(0, 0);
           });
       })
       .catch(error => {
         console.error('❌ Tile estimation error:', error);
-        TowerScoutErrorHandler.handleNetworkError(error, 'Tile Estimation');
         let msg = error.message || 'Unknown error occurred';
         if (msg.includes('zipcode')) {
           TowerScoutErrorHandler.showUserNotification(
             'Invalid ZIP code or search area. Please adjust your search boundaries.',
             'error'
           );
-        } else {
+        } else if (msg.toLowerCase().includes('validation error')) {
           TowerScoutErrorHandler.showUserNotification(
-            'Detection failed: ' + msg,
+            msg.replace(/^Validation error:\s*/i, ''),
             'error'
           );
+        } else {
+          TowerScoutErrorHandler.handleNetworkError(error, 'Tile Estimation');
         }
       });
   }
@@ -230,40 +260,41 @@
       return;
     }
 
-    console.log("Results: " + result.length + " tiles");
+    window.TowerScoutLogger.debug("Results: " + result.length + " tiles");
 
     // Process detection objects with error handling
     let processedDetections = 0;
     let processedTiles = 0;
 
-    for (let r of result) {
-      try {
-        if (r['class'] === 0) {
-          // Create detection with server-provided address data
-          new Detection(
-            r['x1'], r['y1'], r['x2'], r['y2'],
-            r['class_name'], r['conf'], r['tile'], r['id_in_tile'],
-            r['inside'], r['selected'], r['secondary'],
-            r['address'], r['address_confidence'], r['address_provider']
-          );
-          processedDetections++;
-        } else if (r['class'] === 1) {
-          // Create tile - TASK-033 Phase 3: Pass tile ID from backend
-          new Tile(r['x1'], r['y1'], r['x2'], r['y2'], r['metadata'], r['url'], r['id']);
-          processedTiles++;
-        }
-      } catch (objectError) {
+    Detection.withVisibilityUpdatesPaused(() => {
+      for (let r of result) {
+        try {
+          if (r['class'] === 0) {
+            // Create detection with server-provided address data
+            new Detection(
+              r['x1'], r['y1'], r['x2'], r['y2'],
+              r['class_name'], r['conf'], r['tile'], r['id_in_tile'],
+              r['inside'], r['selected'], r['secondary'],
+              r['address'], r['address_confidence'], r['address_provider']
+            );
+            processedDetections++;
+          } else if (r['class'] === 1) {
+            // Create tile - TASK-033 Phase 3: Pass tile ID from backend
+            new Tile(r['x1'], r['y1'], r['x2'], r['y2'], r['metadata'], r['url'], r['id']);
+            processedTiles++;
+          }
+        } catch (objectError) {
         console.error('❌ Error processing individual object:', objectError);
         // Continue processing other objects
+          }
       }
-    }
+    });
 
-    console.log(`✅ Processed ${processedDetections} detections and ${processedTiles} tiles`);
-    console.log(`📊 ${Detection_detections.length} total detections with server-provided addresses.`);
+    window.TowerScoutLogger.info(`Processed ${processedDetections} detection(s) and ${processedTiles} tile record(s).`);
+    window.TowerScoutLogger.debug(`📊 ${Detection_detections.length} total detections with server-provided addresses.`);
 
     Detection.sort();
     Detection.generateList();
-    adjustConfidence();  // Update detection visibility based on confidence threshold
 
     // TASK-033 Phase 4: Lock provider switching after ML detection completes
     if (typeof lockProviderSwitching === 'function') {
@@ -272,7 +303,7 @@
 
     let time = (performance.now() - startTime) / 1000;
     disableProgress(time, result.length);
-    console.log("Request completed in " + time + " s");
+    window.TowerScoutLogger.info("Detection request completed in " + time + " s.");
   }
 
   function cancelRequest() {
@@ -280,7 +311,7 @@
 
     fetch("/abort", { method: "POST" })
       .then(result => {
-        console.log("Request cancelled");
+        window.TowerScoutLogger.info("Detection request cancelled.");
       })
       .catch(error => {
         console.error('❌ Cancel request error:', error);
@@ -358,6 +389,6 @@
   window.cancelRequest = cancelRequest;
   window.fatalError = fatalError;
 
-  console.log('✅ Search module loaded (detection workflow, progress management)');
+  window.TowerScoutLogger.debug('✅ Search module loaded (detection workflow, progress management)');
 
 })();

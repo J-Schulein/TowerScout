@@ -42,6 +42,53 @@ Bridge the gap between requirements and implementation.
 - Full impact analysis and migration planning
 - Examples: API key security fix, model optimization, major refactoring
 
+---
+
+### Real-World Examples from Sprint 03
+
+**Type A Example: ISSUE-001 (Dataset Upload Error Handling)**
+- **Scope**: Bug fix for dataset upload error handling
+- **Effort**: 3 hours (investigation + implementation + testing)
+- **Approach**: Abbreviated workflow - focused on implementation
+- **Key Changes**:
+  - Added try-except blocks for zipfile andJSON parsing errors
+  - Implemented HTTP status checking before JSON parsing
+  - User-friendly error notifications via TowerScoutErrorHandler
+- **Documentation**: Streamlined action log in integration test results
+- **Outcome**: Zero regressions, all upload scenarios passing
+
+**Type B Example: TASK-033 (Manual Tower Addition Feature)**
+- **Scope**: Feature development - restore manual tower drawing and export
+- **Effort**: 14.5 hours (saved 8 hours via discovery phase)
+- **Approach**: Full 6-phase spec-driven workflow
+- **Key Phases**:
+  - ANALYZE: Discovered existing infrastructure (TASK-019) during investigation
+  - DESIGN: Adapted plan to leverage existing drawing tools (8-hour savings)
+  - IMPLEMENT: Integration over recreation strategy
+  - VALIDATE: 10 of 13 acceptance criteria met (77%)
+- **Documentation**: Complete task file with requirements, design, implementation log
+- **Outcome**: Feature fully restored, CSV export enhanced with ML/Manual source column
+
+**Type C Example: TASK-039 (Google Maps API Migration)**
+- **Scope**: Architecture change - migrate from deprecated APIs to quarterly version
+- **Effort**: 23 hours total (Phases 5-6 in Sprint 03)
+- **Approach**: Full spec-driven workflow with enhanced documentation
+- **Key Decisions**:
+  - Replace SearchBox with PlaceAutocompleteElement Web Component
+  - Custom polygon drawing replaces deprecated DrawingManager
+  - Quarterly version with automatic minor updates
+- **Documentation**: Complete decision records, migration patterns, testing validation
+- **Outcome**: Zero deprecation warnings, modern API usage, improved UX
+
+**Sprint 03 Workflow Effectiveness Validation**:
+- **Tasks Completed**: 8 of 8 (100%)
+- **Sprint Completion**: 6 days ahead of schedule
+- **Zero Regressions**: All legacy features operational
+- **Quality**: Clean console output, comprehensive testing
+- **Learning**: Discovery phases save significant time (TASK-033: 8 hours saved)
+
+---
+
 ### User Interaction Protocol
 
 **Confirmation Points:**
@@ -662,3 +709,46 @@ Use abbreviated entries in Action Documentation Template format for tracking Typ
 - [ ] **Sprint transition**: Template for moving tasks between files and folders
 - [ ] **Task creation**: Standard template application and proper folder placement
 - [ ] **Status change**: Automatic timestamp updates for task transitions and file movements
+
+---
+
+## 📚 Workflow Examples & Validation
+
+For real-world examples of the spec-driven workflow in practice:
+
+### Completed Task Examples
+- [Completed Tasks Archive](../.agent_work/tasks/completed/) - Browse individual task files showing workflow execution
+  - `TASK-033-manual-tower-addition.md` - Type B feature development example
+  - `TASK-036-export-system.md` - Type B with infrastructure discovery
+  - `TASK-039-google-maps-api-migration.md` - Type C architecture change
+  - `TASK-041-memory-management.md` - Type C performance optimization
+  - `TASK-043-global-variable-deprecation.md` - Type C refactoring
+
+### Sprint Retrospectives (Workflow Validation)
+- [Sprint 03 Retrospective](../.agent_work/context/status/SPRINT-03-RETROSPECTIVE.md) - Recent sprint workflow effectiveness analysis
+  - 8 of 8 tasks completed (100%)
+  - Completed 6 days ahead of schedule
+  - Discovery phase savings (TASK-033: 8 hours saved)
+  - Zero regressions across all changes
+- [Sprint 01 Retrospective](../.agent_work/context/status/SPRINT-01-RETROSPECTIVE.md) - Initial workflow establishment
+- [Sprint 02 Retrospective](../.agent_work/context/status/SPRINT-02-RETROSPECTIVE.md) - Workflow refinement
+
+### Decision Record Examples
+- [Decision Records](../.agent_work/decisions/) - Architectural decision documentation
+  - `003-security-first-approach.md` - Security design principles
+  - `DECISION-004-provider-lock-after-detection.md` - Provider switching constraints
+  - `TASK-043-global-variable-migration-patterns.md` - Migration patterns and rationale
+
+### Testing & Validation Methodology
+- [Phase 5 Integration Testing Guide](../.agent_work/context/status/PHASE-5-INTEGRATION-TESTING-GUIDE.md) - Comprehensive validation procedures
+- [Phase 5 Test Results](../.agent_work/context/status/PHASE-5-TEST-RESULTS.md) - Sprint 03 testing outcomes
+- [User Journey Guide](../.agent_work/context/guides/USER-JOURNEY-GUIDE.md) - 4-stage testing methodology
+
+### Task Management Files
+- [Current Sprint Tasks](../.agent_work/current-tasks.md) - Active Sprint 04 work (primary source of truth)
+- [Task Backlog](../.agent_work/task-backlog.md) - Future work prioritization
+- [Completed Tasks](../.agent_work/completed-tasks.md) - Historical sprint completions (last 4 weeks)
+
+### Requirements & Design Documentation
+- [Requirements](../.agent_work/requirements.md) - Project requirements in EARS notation
+- [Design](../.agent_work/design.md) - Technical architecture and implementation considerations
