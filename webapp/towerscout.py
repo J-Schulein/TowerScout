@@ -43,17 +43,30 @@ from ts_logging import (
 from ts_performance import PerformanceMetrics
 import ts_config
 import torch
-import os
 from shutil import rmtree
 import zipfile
 import ssl
 import asyncio
-import time
 from dotenv import load_dotenv
-from pathlib import Path
+from ts_progress import DetectionProgressTracker
+from ts_paths import (
+    CSS_DIR,
+    IMG_DIR,
+    JS_DIR,
+    SITE_DIR,
+    get_base_dir,
+    get_en_model_dir,
+    get_flask_session_dir,
+    get_map_cache_dir,
+    get_model_params_dir,
+    get_session_tmp_root,
+    get_temp_dir,
+    get_upload_dir,
+    get_yolov5_model_dir,
+)
 
 # Load environment variables from config/.env if available, otherwise legacy .env
-script_dir = Path(__file__).parent
+script_dir = get_base_dir()
 env_path = ts_config.ensure_env_file()
 
 print("=" * 60)
@@ -108,8 +121,11 @@ MAP_PROXY_CONFIG = {
 }
 
 # Create cache directory
-MAP_CACHE_DIR = os.path.join(os.getcwd(), 'cache', 'maps')
-os.makedirs(MAP_CACHE_DIR, exist_ok=True)
+MAP_CACHE_DIR = get_map_cache_dir()
+UPLOAD_DIR = get_upload_dir()
+MODEL_PARAMS_DIR = get_model_params_dir()
+YOLO_MODEL_DIR = get_yolov5_model_dir()
+EN_MODEL_DIR = get_en_model_dir()
 from PIL import Image, ImageDraw
 import torch
 import threading
@@ -132,6 +148,8 @@ exit_events = ExitEvents()
 secondary_en = None
 secondary_en_lock = threading.Lock()
 LAZY_MODEL_INIT = os.getenv('TOWERSCOUT_LAZY_MODEL_INIT', '').strip().lower() in ('1', 'true', 'yes', 'on')
+progress_tracker = DetectionProgressTracker()
+SESSION_TMP_ROOT = get_session_tmp_root()
 
 # on-demand instantiate YOLOv5 model
 def get_engine(e):
@@ -149,7 +167,7 @@ def get_engine(e):
         if engines[e]['engine'] is None:
             ml_logger.info(f"Loading model: {engines[e]['name']}")
             engines[e]['engine'] = YOLOv5_Detector(
-                'model_params/yolov5/'+engines[e]['file'])
+                str(YOLO_MODEL_DIR / engines[e]['file']))
 
         return engines[e]['engine']
 
@@ -162,7 +180,7 @@ def find_model(m):
 
 
 def get_custom_models():
-    for f in os.listdir("./model_params/yolov5"):
+    for f in os.listdir(YOLO_MODEL_DIR):
         if f.endswith(".pt") and not find_model(f):
             add_model(f)
 
@@ -176,7 +194,7 @@ def add_model(m):
         'name': mid,
         'file': m,
         'engine': None,
-        'ts': os.path.getmtime("./model_params/yolov5/"+m)
+        'ts': os.path.getmtime(YOLO_MODEL_DIR / m)
     }
 
 
@@ -261,10 +279,10 @@ loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
 # prepare uploads directory
-if not os.path.isdir("./uploads"):
-    os.mkdir("./uploads")
-for f in os.listdir("./uploads"):
-    os.remove(os.path.join("./uploads", f))
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+for existing_upload in UPLOAD_DIR.iterdir():
+    if existing_upload.is_file():
+        existing_upload.unlink()
 
 ml_logger.info(f"Torch CUDA: {'available' if torch.cuda.is_available() else 'not available'}")
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -276,7 +294,794 @@ def get_secondary_classifier():
         if secondary_en is None:
             ml_logger.info("Loading EfficientNet secondary classifier")
             secondary_en = EN_Classifier()
-        return secondary_en
+    return secondary_en
+
+
+def _get_session_run_id():
+    return id(session)
+
+
+def _register_detection_run(
+    session_id,
+    provider,
+    engine,
+    tile_count,
+    run_token=None,
+    status='running',
+    phase='preparing_tiles',
+    title='Preparing tiles',
+    detail='Starting detection request...',
+    counts=None,
+):
+    return progress_tracker.start(
+        session_id,
+        run_token,
+        provider=provider,
+        engine=engine,
+        tile_count=tile_count,
+        status=status,
+        phase=phase,
+        title=title,
+        detail=detail,
+        counts=counts,
+    )
+
+
+def _update_detection_run(session_id, status=None, run_token=None, **fields):
+    return progress_tracker.update(session_id, run_token=run_token, status=status, **fields)
+
+
+def _mark_detection_run_cancel_requested(session_id):
+    return progress_tracker.mark_cancel_requested(session_id)
+
+
+def _finish_detection_run(session_id, status, run_token=None, **fields):
+    return progress_tracker.finish(session_id, status, run_token=run_token, **fields)
+
+
+def _get_detection_progress_state(session_id):
+    return progress_tracker.get(session_id)
+
+
+def _serialize_detection_progress_state(progress_state):
+    public_state = dict(progress_state)
+    public_state.pop('run_token', None)
+    public_state.pop('expires_at', None)
+    return public_state
+
+
+def _cleanup_session_tmpdir():
+    tmpdirname = session.get('tmpdirname')
+    if tmpdirname:
+        rmtree(tmpdirname, ignore_errors=True, onerror=None)
+        print("cleaned up tmp dir", tmpdirname)
+        del session['tmpdirname']
+
+
+def _make_session_tmpdir():
+    for _ in range(10):
+        candidate = os.path.join(SESSION_TMP_ROOT, f"session-{secrets.token_hex(6)}")
+        try:
+            os.makedirs(candidate)
+            return candidate
+        except FileExistsError:
+            continue
+
+    raise RuntimeError("Unable to create writable session temp directory")
+
+
+def _format_tile_filter_detail(candidate_tiles, retained_tiles):
+    return (
+        f"Retained {retained_tiles} of {candidate_tiles} candidate tile(s) "
+        "after viewport and polygon filtering."
+    )
+
+
+def _format_download_detail(tile_count):
+    return f"Downloading imagery for {tile_count} tile(s)."
+
+
+def _format_model_detail(batches_completed, total_batches, tiles_processed, total_tiles):
+    if total_batches <= 0 or total_tiles <= 0:
+        return "Running model detection..."
+    return (
+        f"Processed {tiles_processed}/{total_tiles} tile(s) across "
+        f"{batches_completed}/{total_batches} model batches."
+    )
+
+
+def _format_filtering_detail(raw_detections, inside_count=None, outside_count=None, retained_count=None):
+    if inside_count is None or outside_count is None or retained_count is None:
+        return f"Applying boundary and duplicate filtering to {raw_detections} raw detection(s)."
+    return (
+        f"Retained {retained_count} of {raw_detections} raw detection(s) "
+        f"({inside_count} inside boundary, {outside_count} outside)."
+    )
+
+
+def _format_geocoding_detail(processed_count, total_count):
+    return f"Resolved {processed_count}/{total_count} detection address(es)."
+
+
+def _format_finalizing_detail(detection_count, tile_record_count):
+    return (
+        f"Preparing {detection_count} detection(s) and "
+        f"{tile_record_count} tile record(s) for display."
+    )
+
+
+def _parse_detection_request(form_data):
+    validated_data = validate_detection_request(form_data.to_dict())
+    bounds_dict = validated_data['bounds']
+
+    return {
+        'bounds': f"{bounds_dict['lat1']},{bounds_dict['lng1']},{bounds_dict['lat2']},{bounds_dict['lng2']}",
+        'engine': validated_data['engine'],
+        'provider': validated_data['provider'],
+        'polygons': validated_data['polygons'],
+        'estimate': validated_data.get('estimate')
+    }
+
+
+def _create_map_provider(provider):
+    print(f"\n🗺️  DIAGNOSTIC: Initializing map provider '{provider}'...")
+    print(f"   Google API key available: {bool(google_api_key)}")
+    print(f"   Azure API key available: {bool(azure_api_key)}")
+
+    if provider == "google" and google_api_key:
+        print("✅ Google Maps initialized")
+        return GoogleMap(google_api_key)
+    if provider == "azure" and azure_api_key:
+        print("✅ Azure Maps initialized")
+        return AzureMaps(azure_api_key)
+
+    print(f"❌ Map provider '{provider}' not available or not configured")
+    raise MapProviderError(
+        f"Map provider '{provider}' not available or not configured",
+        error_code="MAP_PROVIDER_UNAVAILABLE",
+        user_message=f"The {provider} map service is not available. Please try a different provider."
+    )
+
+
+def _build_tiles_for_request(map_provider, bounds, polygons, crop_tiles):
+    print(f"\n🔲 DIAGNOSTIC: Making tiles from bounds...")
+    print(f"   Bounds: {bounds}")
+    print(f"   Crop tiles: {crop_tiles}")
+
+    tiles, nx, ny, meters, h, w = map_provider.make_tiles(bounds, crop_tiles=crop_tiles)
+    candidate_tiles = len(tiles)
+    print(f"✅ Created {len(tiles)} tiles ({nx} x {ny})")
+
+    tiles = [t for t in tiles if ts_maps.check_tile_against_bounds(t, bounds)]
+    viewport_tiles = len(tiles)
+    tiles = [t for t in tiles if ts_imgutil.tileIntersectsPolygons(t, polygons)]
+    print(f"🔍 DEBUG: Setting IDs for {len(tiles)} tiles")
+    for i, tile in enumerate(tiles):
+        tile['id'] = i
+        print(f"  Tile {i}: keys = {tile.keys()}")
+    print(" tiles left after viewport and polygon filter:", len(tiles))
+
+    return tiles, nx, ny, meters, h, w, {
+        'candidate_tiles': candidate_tiles,
+        'viewport_tiles': viewport_tiles,
+        'retained_tiles': len(tiles)
+    }
+
+
+def _get_geocoding_clustering_radius():
+    clustering_radius = 50.0
+    env_radius = os.getenv('GEOCODING_CLUSTERING_RADIUS', '')
+    if env_radius:
+        try:
+            clustering_radius = float(env_radius)
+        except ValueError:
+            clustering_radius = 50.0
+    return clustering_radius
+
+
+def _detection_center(detection):
+    return (
+        (detection['y1'] + detection['y2']) / 2,
+        (detection['x1'] + detection['x2']) / 2
+    )
+
+
+def _detection_iou(first, second):
+    left = max(first['x1'], second['x1'])
+    right = min(first['x2'], second['x2'])
+    top = min(first['y1'], second['y1'])
+    bottom = max(first['y2'], second['y2'])
+
+    if right <= left or top <= bottom:
+        return 0.0
+
+    intersection = (right - left) * (top - bottom)
+    first_area = max(0.0, first['x2'] - first['x1']) * max(0.0, first['y1'] - first['y2'])
+    second_area = max(0.0, second['x2'] - second['x1']) * max(0.0, second['y1'] - second['y2'])
+    union = first_area + second_area - intersection
+    if union <= 0:
+        return 0.0
+    return intersection / union
+
+
+def _detections_overlap(first, second):
+    if first.get('class') != 0 or second.get('class') != 0:
+        return False
+
+    first_center_lat, first_center_lng = _detection_center(first)
+    second_center_lat, second_center_lng = _detection_center(second)
+    center_distance_m = ts_maps.get_distance(
+        first_center_lng, first_center_lat,
+        second_center_lng, second_center_lat
+    )
+    iou = _detection_iou(first, second)
+    return iou >= 0.35 or center_distance_m <= 3.0
+
+
+def _dedupe_detection_results(results):
+    if len(results) <= 1:
+        return results
+
+    ordered_results = sorted(
+        results,
+        key=lambda detection: (
+            0 if detection.get('inside') else 1,
+            -float(detection.get('conf', 0.0)),
+            -float(detection.get('secondary', 0.0)),
+            detection.get('y1', 0.0),
+            detection.get('x1', 0.0),
+        )
+    )
+
+    deduped = []
+    removed = 0
+    for candidate in ordered_results:
+        if any(_detections_overlap(candidate, kept) for kept in deduped):
+            removed += 1
+            continue
+        deduped.append(candidate)
+
+    if removed:
+        print(f" removed {removed} duplicate detections before geocoding")
+
+    return deduped
+
+
+def _attach_detection_addresses(results, provider, perf_metrics=None, progress_callback=None):
+    session['geocoding_limited'] = False
+    if not results:
+        return
+
+    print(f" starting address lookup for {len(results)} detections")
+    if perf_metrics:
+        perf_metrics.start_phase('geocoding')
+    address_start_time = time.time()
+
+    clustering_radius = _get_geocoding_clustering_radius()
+    geocoding_service = create_geocoding_service(
+        azure_key=azure_api_key,
+        google_key=google_api_key,
+        preferred_provider=provider
+    )
+    geocoding_cache = create_geocoding_cache(clustering_radius_meters=clustering_radius)
+    geocoding_total = sum(1 for detection in results if detection.get('class') == 0)
+    geocoding_processed = 0
+
+    if progress_callback is not None:
+        progress_callback(0, geocoding_total)
+
+    for detection in results:
+        if detection.get('class') != 0:
+            detection['address'] = ""
+            detection['address_confidence'] = 0.0
+            detection['address_provider'] = "none"
+            continue
+
+        center_lat, center_lng = _detection_center(detection)
+
+        try:
+            cached_result = geocoding_cache.get(center_lat, center_lng, provider=provider)
+            if cached_result:
+                detection['address'] = cached_result.address
+                detection['address_confidence'] = cached_result.confidence
+                detection['address_provider'] = cached_result.provider.value
+                geocoding_processed += 1
+                if progress_callback is not None and (
+                    geocoding_processed % 10 == 0 or geocoding_processed == geocoding_total
+                ):
+                    progress_callback(geocoding_processed, geocoding_total)
+                continue
+
+            geocoding_result = geocoding_service.reverse_geocode(center_lat, center_lng, provider)
+            if geocoding_result.success and geocoding_result.address:
+                detection['address'] = geocoding_result.address
+                detection['address_confidence'] = geocoding_result.confidence
+                detection['address_provider'] = geocoding_result.provider.value
+                geocoding_cache.put(center_lat, center_lng, geocoding_result, provider=provider)
+            else:
+                detection['address'] = f"{center_lat:.6f}, {center_lng:.6f}"
+                detection['address_confidence'] = 0.0
+                detection['address_provider'] = "fallback"
+                print(f" geocoding returned no address for {center_lat}, {center_lng}: {geocoding_result.error_message}")
+        except RateLimitError as e:
+            session['geocoding_limited'] = True
+            detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
+            detection['address_confidence'] = 0.0
+            detection['address_provider'] = "rate_limited"
+            print(f" geocoding rate limited for {center_lat}, {center_lng}: {e}")
+        except GeocodingError as e:
+            detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
+            detection['address_confidence'] = 0.0
+            detection['address_provider'] = "fallback"
+            print(f" geocoding failed for {center_lat}, {center_lng}: {e}")
+        except Exception as e:
+            detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
+            detection['address_confidence'] = 0.0
+            detection['address_provider'] = "error"
+            print(f" unexpected geocoding error for {center_lat}, {center_lng}: {e}")
+
+        geocoding_processed += 1
+        if progress_callback is not None and (
+            geocoding_processed % 10 == 0 or geocoding_processed == geocoding_total
+        ):
+            progress_callback(geocoding_processed, geocoding_total)
+
+    try:
+        usage = geocoding_service.get_session_usage()
+        session['geocoding_usage'] = {
+            'google_requests': usage.google_requests,
+            'azure_requests': usage.azure_requests,
+            'total_requests': usage.total_requests,
+            'successful_requests': usage.successful_requests,
+            'failed_requests': usage.failed_requests
+        }
+        if perf_metrics:
+            perf_metrics.geocoding_api_calls = usage.total_requests
+    except Exception as e:
+        print(f" warning: could not store geocoding usage: {e}")
+
+    if perf_metrics:
+        perf_metrics.end_phase('geocoding')
+    address_time = time.time() - address_start_time
+    print(f" address lookup completed in {address_time:.2f} seconds")
+
+
+def _run_detection_request():
+    session_id = _get_session_run_id()
+    run_token = f"{session_id}:{secrets.token_hex(8)}"
+    api_logger.debug(f"Processing session {session_id}")
+
+    if 'tiles' not in session:
+        session['tiles'] = 0
+
+    if session['tiles'] > MAX_TILES_SESSION:
+        return jsonify({'error': 'Tile limit for this session exceeded. Please close browser to continue.'}), 400
+
+    start = time.time()
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    if not rate_limiter.is_allowed(client_ip, max_requests=30, window_seconds=60):
+        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
+
+    tmpdirname = None
+    request_loop = None
+    run_registered = False
+    run_succeeded = False
+    exit_event_allocated = False
+
+    try:
+        print("\n[Task-053] Validating detection request...")
+        print(f"   Form data keys: {list(request.form.keys())}")
+        print(f"   Polygons data (first 200 chars): {request.form.get('polygons', '')[:200]}...")
+
+        request_context = _parse_detection_request(request.form)
+        bounds = request_context['bounds']
+        engine = request_context['engine']
+        provider = request_context['provider']
+        polygons = request_context['polygons']
+
+        _register_detection_run(
+            session_id,
+            provider,
+            engine,
+            0,
+            run_token=run_token,
+            status='running',
+            phase='preparing_tiles',
+            title='Preparing tiles',
+            detail='Validating the detection request and building search tiles...',
+        )
+        run_registered = True
+        exit_events.alloc(run_token)
+        exit_event_allocated = True
+
+        def cancelled_response(detail):
+            print(" client aborted request.")
+            if run_registered:
+                _finish_detection_run(
+                    session_id,
+                    'cancelled',
+                    run_token=run_token,
+                    phase='cancelled',
+                    title='Detection cancelled',
+                    detail=detail,
+                    cancel_requested=True,
+                )
+            return Response("[]", mimetype='application/json')
+
+        print("incoming detection request:")
+        print(" bounds:", bounds)
+        print(" engine:", engine)
+        print(" map provider:", provider)
+        print(" polygons count:", len(polygons))
+
+        crop_tiles = True
+        perf_metrics = PerformanceMetrics(str(session_id))
+        perf_metrics.detection_engine = engine
+        perf_metrics.map_provider = provider
+        perf_metrics.crop_tiles = crop_tiles
+
+        if exit_events.query(run_token):
+            return cancelled_response('Detection was cancelled before tile preparation finished.')
+
+        det = get_engine(engine)
+        if exit_events.query(run_token):
+            return cancelled_response('Detection was cancelled before model initialization finished.')
+
+        map_provider = _create_map_provider(provider)
+        tiles, _nx, _ny, _meters, _h, _w, tile_stats = _build_tiles_for_request(
+            map_provider,
+            bounds,
+            polygons,
+            crop_tiles
+        )
+
+        perf_metrics.tile_count = len(tiles)
+        _update_detection_run(
+            session_id,
+            run_token=run_token,
+            tile_count=len(tiles),
+            status='running',
+            phase='tiles_filtered',
+            title='Filtering tiles',
+            detail=_format_tile_filter_detail(
+                tile_stats['candidate_tiles'],
+                tile_stats['retained_tiles']
+            ),
+            counts=tile_stats,
+        )
+        perf_metrics.estimate_processing_time(len(tiles))
+        session['last_detection_provider'] = provider
+        print(f"performance estimate: {len(tiles)} tiles, ~{perf_metrics.estimated_time_seconds:.1f} seconds")
+
+        if exit_events.query(run_token):
+            return cancelled_response('Detection was cancelled after tile preparation.')
+
+        if len(tiles) > MAX_TILES:
+            print(" ---> request contains too many tiles")
+            _finish_detection_run(
+                session_id,
+                'error',
+                run_token=run_token,
+                phase='error',
+                title='Detection blocked',
+                detail='The requested search area exceeds the tile limit for a single run.',
+                cancel_requested=False,
+                counts=tile_stats,
+                tile_count=len(tiles),
+            )
+            return Response("[]", mimetype='application/json')
+
+        session['tiles'] += len(tiles)
+
+        _cleanup_session_tmpdir()
+        tmpdirname = _make_session_tmpdir()
+        tmpfilename = os.path.basename(tmpdirname)
+        print("creating tmp dir", tmpdirname)
+        session['tmpdirname'] = tmpdirname
+        print("created tmp dir", tmpdirname)
+
+        if exit_events.query(run_token):
+            return cancelled_response('Detection was cancelled before imagery download started.')
+
+        _update_detection_run(
+            session_id,
+            run_token=run_token,
+            phase='downloading_imagery',
+            title='Downloading imagery',
+            detail=_format_download_detail(len(tiles)),
+            counts={
+                'imagery_tiles_total': len(tiles),
+                'imagery_tiles_downloaded': 0,
+            },
+        )
+        perf_metrics.start_phase('tile_download')
+        request_loop = asyncio.new_event_loop()
+        meta = map_provider.get_sat_maps(tiles, request_loop, tmpdirname, tmpfilename)
+        perf_metrics.end_phase('tile_download')
+        session['metadata'] = meta
+        print(" asynchronously retrieved", len(tiles), "files")
+        perf_metrics.map_api_calls = len(tiles)
+
+        if exit_events.query(run_token):
+            return cancelled_response('Detection was cancelled during imagery download.')
+
+        for i, tile in enumerate(tiles):
+            tile['filename'] = os.path.join(tmpdirname, tmpfilename + str(i) + ".jpg")
+
+        batch_size = max(1, getattr(det, 'batch_size', 1))
+        model_batches_total = math.ceil(len(tiles) / batch_size) if len(tiles) > 0 else 0
+
+        def update_model_progress(
+            batches_completed,
+            batches_total,
+            tiles_processed,
+            tiles_total,
+        ):
+            _update_detection_run(
+                session_id,
+                run_token=run_token,
+                phase='running_model',
+                title='Running model detection',
+                detail=_format_model_detail(
+                    batches_completed,
+                    batches_total,
+                    tiles_processed,
+                    tiles_total,
+                ),
+                counts={
+                    'imagery_tiles_total': len(tiles),
+                    'imagery_tiles_downloaded': len(tiles),
+                    'model_batches_completed': batches_completed,
+                    'model_batches_total': batches_total,
+                    'model_tiles_processed': tiles_processed,
+                    'model_tiles_total': tiles_total,
+                },
+            )
+
+        update_model_progress(0, model_batches_total, 0, len(tiles))
+
+        perf_metrics.start_phase('model_detection')
+        model_start_time = time.time()
+        results_raw = det.detect(
+            tiles,
+            exit_events,
+            run_token,
+            crop_tiles=crop_tiles,
+            secondary=get_secondary_classifier(),
+            perf_metrics=perf_metrics,
+            progress_callback=update_model_progress,
+        )
+        perf_metrics.actual_model_time_seconds = time.time() - model_start_time
+        perf_metrics.end_phase('model_detection')
+        perf_metrics.update_memory_usage()
+
+        if exit_events.query(run_token):
+            return cancelled_response('Detection was cancelled during model inference.')
+
+        for tile in tiles:
+            if meta:
+                filename = os.path.join(tmpdirname, tmpfilename + str(tile['id']) + ".meta.txt")
+                with open(filename) as file_handle:
+                    tile['metadata'] = map_provider.get_date(file_handle.read())
+            else:
+                tile['metadata'] = ""
+
+        session['detections'] = make_persistable_tile_results(tiles)
+
+        results = []
+        raw_detection_count = 0
+        print(f"\nDetection summary: starting post-processing for {len(results_raw)} tiles")
+        for result, tile in zip(results_raw, tiles):
+            tile_detection_count = len(result)
+            raw_detection_count += tile_detection_count
+
+            if tile_detection_count > 0:
+                print(f" tile {tile.get('id', '?')}: {tile_detection_count} detections")
+
+            for i, obj in enumerate(result):
+                obj['x1'] = tile['lng'] - 0.5 * tile['w'] + obj['x1'] * tile['w']
+                obj['x2'] = tile['lng'] - 0.5 * tile['w'] + obj['x2'] * tile['w']
+                obj['y1'] = tile['lat'] + 0.5 * tile['h'] - obj['y1'] * tile['h']
+                obj['y2'] = tile['lat'] + 0.5 * tile['h'] - obj['y2'] * tile['h']
+                obj['tile'] = tile['id']
+                obj['id_in_tile'] = i
+                obj['selected'] = obj.get('secondary', 0.0) >= 0.35
+
+            results += result
+
+        print(f"Detection complete: {len(results)} detections across {len(results_raw)} tiles")
+        perf_metrics.detection_count = len(results)
+        if results:
+            total_confidence = sum(result.get('conf', 0) for result in results)
+            perf_metrics.avg_confidence = total_confidence / len(results)
+
+        _update_detection_run(
+            session_id,
+            run_token=run_token,
+            phase='filtering_results',
+            title='Filtering detections',
+            detail=_format_filtering_detail(raw_detection_count),
+            counts={'raw_detections': raw_detection_count},
+        )
+
+        inside_count = 0
+        outside_count = 0
+        for result in results:
+            result['inside'] = ts_imgutil.resultIntersectsPolygons(
+                result['x1'],
+                result['y1'],
+                result['x2'],
+                result['y2'],
+                polygons
+            ) and ts_maps.check_bounds(result['x1'], result['y1'], result['x2'], result['y2'], bounds)
+            if result['inside']:
+                inside_count += 1
+            else:
+                outside_count += 1
+
+        print(f"boundary filtering: inside={inside_count}, outside={outside_count}")
+        results = _dedupe_detection_results(results)
+        retained_detection_count = len(results)
+        _update_detection_run(
+            session_id,
+            run_token=run_token,
+            phase='filtering_results',
+            title='Filtering detections',
+            detail=_format_filtering_detail(
+                raw_detection_count,
+                inside_count=inside_count,
+                outside_count=outside_count,
+                retained_count=retained_detection_count,
+            ),
+            counts={
+                'raw_detections': raw_detection_count,
+                'inside_detections': inside_count,
+                'outside_detections': outside_count,
+                'retained_detections': retained_detection_count,
+                'duplicate_detections_removed': max(0, raw_detection_count - retained_detection_count),
+            },
+        )
+
+        geocoding_total = sum(1 for detection in results if detection.get('class') == 0)
+
+        def update_geocoding_progress(processed_count, total_count):
+            _update_detection_run(
+                session_id,
+                run_token=run_token,
+                phase='geocoding',
+                title='Reverse geocoding detections',
+                detail=_format_geocoding_detail(processed_count, total_count),
+                counts={
+                    'geocoding_processed': processed_count,
+                    'geocoding_total': total_count,
+                },
+            )
+
+        try:
+            update_geocoding_progress(0, geocoding_total)
+            _attach_detection_addresses(
+                results,
+                provider,
+                perf_metrics=perf_metrics,
+                progress_callback=update_geocoding_progress,
+            )
+        except Exception as error:
+            print(f" address lookup initialization failed: {error}")
+            for detection in results:
+                if detection.get('class') == 0:
+                    center_lat, center_lng = _detection_center(detection)
+                    detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
+                    detection['address_confidence'] = 0.0
+                    detection['address_provider'] = "error"
+                else:
+                    detection['address'] = ""
+                    detection['address_confidence'] = 0.0
+                    detection['address_provider'] = "none"
+            update_geocoding_progress(geocoding_total, geocoding_total)
+
+        tile_results = []
+        for tile in tiles:
+            tile_results.append({
+                'x1': tile['lng'] - 0.5 * tile['w'],
+                'y1': tile['lat'] + 0.5 * tile['h'],
+                'x2': tile['lng'] + 0.5 * tile['w'],
+                'y2': tile['lat'] - 0.5 * tile['h'],
+                'class': 1,
+                'class_name': 'tile',
+                'conf': 1,
+                'metadata': tile['metadata'],
+                'url': tile['url'],
+                'id': tile.get('id', -1),
+                'selected': True
+            })
+
+        selected = str(reduce(lambda total, entry: total + entry['selected'], results, 0))
+        selected_count = int(selected)
+        _update_detection_run(
+            session_id,
+            run_token=run_token,
+            phase='finalizing',
+            title='Finalizing results',
+            detail=_format_finalizing_detail(len(results), len(tile_results)),
+            counts={
+                'retained_detections': len(results),
+                'selected_detections': selected_count,
+                'tile_records': len(tile_results),
+            },
+        )
+        print(
+            " request complete,"
+            + str(len(results))
+            + " detections ("
+            + selected
+            + " selected), elapsed time: ",
+            (time.time() - start)
+        )
+
+        perf_metrics.detections_selected = selected_count
+        perf_metrics.finalize()
+
+        from ts_performance import get_performance_logger
+        get_performance_logger().log_metrics(perf_metrics)
+
+        results_json = json.dumps(tile_results + results)
+        session['results'] = results_json
+        _finish_detection_run(
+            session_id,
+            'completed',
+            run_token=run_token,
+            phase='complete',
+            title='Detection complete',
+            detail=(
+                f"Returned {len(results)} detection(s) across "
+                f"{len(tiles)} processed tile(s)."
+            ),
+            cancel_requested=False,
+            counts={
+                'retained_detections': len(results),
+                'selected_detections': selected_count,
+                'tile_records': len(tile_results),
+            },
+            tile_count=len(tiles),
+        )
+        run_succeeded = True
+        return Response(results_json, mimetype='application/json')
+    except ValidationError as error:
+        api_logger.error(f"Validation error: {error.message}")
+        if run_registered:
+            _finish_detection_run(
+                session_id,
+                'error',
+                run_token=run_token,
+                phase='error',
+                title='Detection failed',
+                detail=f'Validation error: {error.message}',
+                cancel_requested=False,
+            )
+        return jsonify({'error': f'Validation error: {error.message}'}), 400
+    except Exception as error:
+        api_logger.error(f"Detection pipeline failed: {error}", exc_info=True)
+        if run_registered:
+            _finish_detection_run(
+                session_id,
+                'error',
+                run_token=run_token,
+                phase='error',
+                title='Detection failed',
+                detail=f'Detection pipeline error: {str(error)}',
+                cancel_requested=False,
+            )
+        return jsonify({'error': f'Detection pipeline error: {str(error)}'}), 500
+    finally:
+        if request_loop is not None:
+            try:
+                request_loop.close()
+            except Exception as loop_error:
+                print(f" warning: failed to close request event loop: {loop_error}")
+        if exit_event_allocated:
+            exit_events.free(run_token)
+        if not run_succeeded and session.get('tmpdirname') == tmpdirname:
+            _cleanup_session_tmpdir()
 
 
 # EfficientNet secondary classifier
@@ -307,7 +1112,7 @@ if not app.config['SECRET_KEY']:
     app.config['SECRET_KEY'] = secrets.token_hex(32)
     logger.warning("FLASK_SECRET_KEY not configured. Using a temporary in-memory secret for setup-required mode.")
 
-app.config['UPLOAD_FOLDER'] = "uploads"
+app.config['UPLOAD_FOLDER'] = str(UPLOAD_DIR)
 app.config['FLASK_ENV'] = os.getenv('FLASK_ENV', 'development')
 app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
 app.config['SETUP_REQUIRED'] = needs_setup
@@ -315,6 +1120,7 @@ app.config['SETUP_REQUIRED'] = needs_setup
 # Configure server-side session
 SESSION_TYPE = 'filesystem'
 SESSION_PERMANENT = False
+SESSION_FILE_DIR = str(get_flask_session_dir())
 app.config.from_object(__name__)
 Session(app)
 
@@ -399,36 +1205,36 @@ def send_site_index():
 @app.route('/site/<path:path>')
 def send_site(path):
     # print("site page requested:",path)
-    return send_from_directory('../TowerScoutSite', path)
+    return send_from_directory(str(SITE_DIR), path)
 
 # route for images
 
 
 @app.route('/js/<path:path>')
 def send_js(path):
-    return send_from_directory('js', path)
+    return send_from_directory(str(JS_DIR), path)
 
 # route for images
 @app.route('/img/<path:path>')
 def send_img(path):
-    return send_from_directory('img', path)
+    return send_from_directory(str(IMG_DIR), path)
 
 # route for custom images
 @app.route('/uploads/<path:path>')
 def send_upload(path):
-    return send_from_directory('uploads', path)
+    return send_from_directory(str(UPLOAD_DIR), path)
 
 # route for custom images
 @app.route('/rm/uploads/<path:path>')
 def remove_upload(path):
-    os.remove('uploads/'+path)
+    os.remove(UPLOAD_DIR / path)
     logger.debug("Upload file deleted")
     return "ok"
 
 # route for js code
 @app.route('/css/<path:path>')
 def send_css(path):
-    return send_from_directory('css', path)
+    return send_from_directory(str(CSS_DIR), path)
 
 # main page route
 
@@ -515,7 +1321,7 @@ def get_engines():
 def debug_azure_maps():
     """Debug page for Azure Maps initialization issues"""
     api_logger.debug("Azure Maps debug page requested")
-    return send_from_directory('.', 'debug_azure_maps.html')
+    return send_from_directory(str(script_dir), 'debug_azure_maps.html')
 
 @app.route('/getazurekey')
 def get_azure_key():
@@ -714,7 +1520,9 @@ def forward_geocode():
             return jsonify({'error': 'Missing query parameter'}), 400
             
         query = TowerScoutValidator.validate_search_query(data['query'])
-        preferred_provider = data.get('provider', 'auto')
+        preferred_provider = str(data.get('provider', 'auto')).strip().lower() or 'auto'
+        if preferred_provider not in {'auto', 'azure', 'google'}:
+            preferred_provider = 'auto'
         
         # Import geocoding service
         from ts_geocoding import GeocodingService
@@ -722,7 +1530,8 @@ def forward_geocode():
         # Initialize geocoding with available API keys
         geocoding = GeocodingService(
             azure_key=azure_api_key,
-            google_key=google_api_key
+            google_key=google_api_key,
+            preferred_provider=preferred_provider
         )
         
         # Perform forward geocoding with provider preference
@@ -779,7 +1588,7 @@ def reverse_geocode():
         # Check cache first
         from ts_geocache import GeocodingCache
         cache = GeocodingCache()
-        cached_result = cache.get(lat, lng)
+        cached_result = cache.get(lat, lng, provider=preferred_provider)
         
         if cached_result:
             api_logger.info(f"Cache hit for reverse geocode: {lat}, {lng}")
@@ -794,16 +1603,24 @@ def reverse_geocode():
         # Perform reverse geocoding
         try:
             result = geocoding.reverse_geocode(lat, lng, preferred_provider)
-            
-            # Cache the result
-            cache.put(lat, lng, result)
-            
+
+            if result.success and result.address:
+                cache.put(lat, lng, result, provider=preferred_provider)
+                return jsonify({
+                    'success': True,
+                    'address': result.address,
+                    'provider': result.provider.value,
+                    'confidence': result.confidence,
+                    'cached': False
+                })
+
             return jsonify({
-                'success': True,
-                'address': result.address,
+                'success': False,
+                'address': f"{lat:.6f}, {lng:.6f}",
                 'provider': result.provider.value,
                 'confidence': result.confidence,
-                'cached': False
+                'cached': False,
+                'error': result.error_message or 'No address found'
             })
         except GeocodingError as e:
             api_logger.warning(f"Geocoding failed for {lat}, {lng}: {e}")
@@ -1065,35 +1882,117 @@ def get_zipcode():
         api_logger.debug("Looking up zipcode...")
         return zipcode_provider.zipcode_polygon(zipcode)
 
+
+@app.route('/api/detection/estimate', methods=['POST'])
+def estimate_detection_tiles():
+    session_id = _get_session_run_id()
+    api_logger.debug(f"Estimating tiles for session {session_id}")
+
+    if 'tiles' not in session:
+        session['tiles'] = 0
+
+    if session['tiles'] > MAX_TILES_SESSION:
+        return jsonify({
+            'tileCount': -1,
+            'estimatedSeconds': 0.0
+        })
+
+    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    if not rate_limiter.is_allowed(client_ip, max_requests=30, window_seconds=60):
+        return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
+
+    try:
+        print("\n🔍 DIAGNOSTIC: Validating estimate request...")
+        print(f"   Form data keys: {list(request.form.keys())}")
+        request_context = _parse_detection_request(request.form)
+        bounds = request_context['bounds']
+        engine = request_context['engine']
+        provider = request_context['provider']
+        polygons = request_context['polygons']
+        crop_tiles = True
+
+        print("incoming estimate request:")
+        print(" bounds:", bounds)
+        print(" engine:", engine)
+        print(" map provider:", provider)
+        print(" polygons count:", len(polygons))
+
+        perf_metrics = PerformanceMetrics(str(session_id))
+        perf_metrics.detection_engine = engine
+        perf_metrics.map_provider = provider
+        perf_metrics.crop_tiles = crop_tiles
+
+        map_provider = _create_map_provider(provider)
+        tiles, _nx, _ny, _meters, _h, _w, _tile_stats = _build_tiles_for_request(
+            map_provider,
+            bounds,
+            polygons,
+            crop_tiles
+        )
+
+        perf_metrics.tile_count = len(tiles)
+        perf_metrics.estimate_processing_time(len(tiles))
+        session['last_detection_provider'] = provider
+
+        print(f"📊 Performance estimate: {len(tiles)} tiles, ~{perf_metrics.estimated_time_seconds:.1f} seconds")
+        return jsonify({
+            'tileCount': len(tiles),
+            'estimatedSeconds': round(perf_metrics.estimated_time_seconds, 2)
+        })
+    except ValidationError as e:
+        print(f"❌ ValidationError: {e.message}")
+        api_logger.error(f"Validation error: {e.message}")
+        return jsonify({'error': f'Validation error: {e.message}'}), 400
+    except Exception as e:
+        api_logger.error(f"Tile estimate failed: {e}", exc_info=True)
+        return jsonify({'error': f'Tile estimate error: {str(e)}'}), 500
+
+
+@app.route('/api/detection/progress', methods=['GET'])
+def get_detection_progress():
+    session_id = _get_session_run_id()
+    progress_state = _serialize_detection_progress_state(
+        _get_detection_progress_state(session_id)
+    )
+    response = jsonify(progress_state)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
 # abort route
 
-@app.route('/abort', methods=['get'])
+@app.route('/abort', methods=['GET', 'POST'])
 def abort():
-    api_logger.info(f"Aborting session {id(session)}")
-    exit_events.signal(id(session))
+    session_id = _get_session_run_id()
+    api_logger.info(f"Aborting session {session_id}")
+    run_state = _mark_detection_run_cancel_requested(session_id)
+    if run_state is not None and run_state.get('run_token'):
+        exit_events.signal(run_state['run_token'])
     return "ok"
 
 # detection route
 
 @app.route('/getobjects', methods=['POST'])
 def get_objects():
-    api_logger.debug(f"Processing session {id(session)}")
+    return _run_detection_request()
+
+    session_id = _get_session_run_id()
+    api_logger.debug(f"Processing session {session_id}")
 
     # check whether this session is over its limit
     if 'tiles' not in session:
         session['tiles'] = 0
 
-    # print("tiles queried in session:", session['tiles'])
     if session['tiles'] > MAX_TILES_SESSION:
-        return "-1"
+        return jsonify({'error': 'Tile limit for this session exceeded. Please close browser to continue.'}), 400
 
-    # start time
     start = time.time()
-    
-    # Rate limiting
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
     if not rate_limiter.is_allowed(client_ip, max_requests=30, window_seconds=60):
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
+
+    tmpdirname = None
+    run_registered = False
+    run_succeeded = False
     
     # Input validation
     try:
@@ -1101,13 +2000,11 @@ def get_objects():
         print(f"   Form data keys: {list(request.form.keys())}")
         print(f"   Polygons data (first 200 chars): {request.form.get('polygons', '')[:200]}...")
         
-        validated_data = validate_detection_request(request.form.to_dict())
-        bounds_dict = validated_data['bounds']
-        bounds = f"{bounds_dict['lat1']},{bounds_dict['lng1']},{bounds_dict['lat2']},{bounds_dict['lng2']}"
-        engine = validated_data['engine']
-        provider = validated_data['provider']
-        polygons = validated_data['polygons']
-        estimate = validated_data.get('estimate')
+        request_context = _parse_detection_request(request.form)
+        bounds = request_context['bounds']
+        engine = request_context['engine']
+        provider = request_context['provider']
+        polygons = request_context['polygons']
         
         print("✅ Validation passed")
     except ValidationError as e:
@@ -1132,7 +2029,7 @@ def get_objects():
     
     # Initialize performance tracking for this detection workflow
     # NOTE: Do NOT store in session - PerformanceMetrics contains threading locks that can't be pickled
-    perf_metrics = PerformanceMetrics(str(id(session)))
+    perf_metrics = PerformanceMetrics(str(session_id))
     perf_metrics.detection_engine = engine
     perf_metrics.map_provider = provider
     perf_metrics.crop_tiles = crop_tiles
@@ -1233,7 +2130,7 @@ def get_objects():
     # make a new tempdir name and attach to session
     # TASK-033 Phase 3: Use mkdtemp() instead of TemporaryDirectory() to prevent automatic cleanup
     # TemporaryDirectory() auto-deletes when garbage collected, breaking dataset export
-    tmpdirname = tempfile.mkdtemp()
+    tmpdirname = _make_session_tmpdir()
     tmpfilename = os.path.basename(tmpdirname)
     print("creating tmp dir", tmpdirname)
     session['tmpdirname'] = tmpdirname
@@ -1619,18 +2516,19 @@ def get_objects_custom():
 
     # filename = secure_filename(file.filename)
     filename = file.filename
-    file.save("uploads/" + filename)
+    upload_path = UPLOAD_DIR / filename
+    file.save(str(upload_path))
     print(" uploaded file ")
-    results = det.detect([{'filename':"uploads/"+filename}],exit_events, id(session), crop_tiles=False)
+    results = det.detect([{'filename': str(upload_path)}], exit_events, id(session), crop_tiles=False)
 
     # draw result bounding boxes on image
     objects = 0
-    with Image.open("uploads/" + filename) as im:
+    with Image.open(upload_path) as im:
         for result in results:
             for object in result:
                 drawResult(object, im)
                 objects += 1
-        im.save("uploads/" + filename, quality=95)
+        im.save(upload_path, quality=95)
     print(" done drawing results.")
 
     # all done
@@ -1689,7 +2587,8 @@ def upload_model():
 
     # filename = secure_filename(file.filename)
     filename = file.filename
-    file.save("model_params/"+("EN" if filename.startswith("b5") else "yolov5")+"/" + filename)
+    target_dir = EN_MODEL_DIR if filename.startswith("b5") else YOLO_MODEL_DIR
+    file.save(str(target_dir / filename))
     print(" uploaded file!")
 
     add_model(filename)
@@ -1728,10 +2627,22 @@ def send_dataset():
     # filter to keep only "included" (i.e. selected and meeting threshold) detections
     keep_detections = set([])
     keep_detection_ids = set([])
+    keep_detection_refs = set([])
     for inclusion in include:
         try:
+            matched_tile = _find_tile_by_session_index(tiles, inclusion.get('tile'))
+            if matched_tile is None:
+                raise KeyError(f"tile {inclusion.get('tile')} not found in session")
+
             keep_detections.add(
-                tiles[inclusion['tile']]['detections'][inclusion['detection']])
+                matched_tile['detections'][inclusion['detection']])
+
+            detection_ref = _normalize_detection_ref(
+                inclusion.get('tile'),
+                inclusion.get('detection')
+            )
+            if detection_ref is not None:
+                keep_detection_refs.add(detection_ref)
             # if the absolute tile id was also included,
             if 'id' in inclusion:
                 keep_detection_ids.add(inclusion['id'])
@@ -1753,13 +2664,20 @@ def send_dataset():
                                   keep_detections, additions, not meta)
 
     # write a contents file so we can load this again some time
-    write_contents_file(session["tmpdirname"], tiles, keep_detection_ids, additions, meta)
+    write_contents_file(
+        session["tmpdirname"],
+        tiles,
+        keep_detection_refs,
+        keep_detection_ids,
+        additions,
+        meta
+    )
 
     print(" zipping data ...")
     zipdir(session['tmpdirname'], filenames)
     print(" done.")
     print()
-    return send_from_directory('temp', "dataset.zip")
+    return send_from_directory(str(get_temp_dir()), "dataset.zip")
 
 
 # adapted from
@@ -1767,10 +2685,8 @@ def send_dataset():
 
 def zipdir(path, filenames):
     # TASK-033 Phase 3: Ensure temp directory exists and use proper paths
-    temp_dir = os.path.join(os.path.dirname(__file__), 'temp')
-    os.makedirs(temp_dir, exist_ok=True)
-    
-    zip_path = os.path.join(temp_dir, 'dataset.zip')
+    temp_dir = get_temp_dir()
+    zip_path = temp_dir / 'dataset.zip'
     zipf = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
     
     # TASK-036: Add README.txt to dataset export
@@ -1805,6 +2721,28 @@ def zipdir(path, filenames):
     zipf.close()
 
 
+def _normalize_detection_ref(tile_id, detection_id):
+    """Build a stable lookup key for ML detections across export and restore."""
+    try:
+        return (int(tile_id), int(detection_id))
+    except (TypeError, ValueError):
+        return None
+
+
+def _find_tile_by_session_index(tiles, tile_id):
+    """Resolve a persisted tile identifier back to the current session tile record."""
+    tile_ref = _normalize_detection_ref(tile_id, 0)
+    if tile_ref is None:
+        return None
+
+    normalized_tile_id = tile_ref[0]
+    for fallback_index, tile in enumerate(tiles):
+        if int(tile.get('index', fallback_index)) == normalized_tile_id:
+            return tile
+
+    return None
+
+
 # get a portion of the tiles in serializable form to attach to the session
 def make_persistable_tile_results(tiles):
     return [{
@@ -1823,7 +2761,7 @@ def write_labels(tile_id, tile, keep, additions, double_res):
     empty = True
     # print(" attempting to write file ", tile['labelfilename'], "...")
 
-    with open(tile['labelfilename'], "w") as f:
+    with open(tile['labelfilename'], "w", encoding="utf-8") as f:
         print(" writing file ", f.name, "...")
         manual_towers_written = 0
         for detection in tile['detections']:
@@ -1845,7 +2783,7 @@ def write_labels(tile_id, tile, keep, additions, double_res):
     name = tile['labelfilename'][:-3]+"xml"
     size = 1280 if double_res else 640
 
-    with open(name, "w") as f:
+    with open(name, "w", encoding="utf-8") as f:
         print(" writing file ", f.name, "...")
         xml = "<annotation>\n"
         xml += "<size>\n"
@@ -1894,23 +2832,34 @@ def xml_from_label(label, size):
     return xml
 
 
-def write_contents_file(tmpdirname, tiles, keep_ids, additions, meta):
-    with open(tmpdirname+"/contents.txt", "w") as f:
+def write_contents_file(tmpdirname, tiles, keep_refs, keep_ids, additions, meta):
+    with open(tmpdirname+"/contents.txt", "w", encoding="utf-8") as f:
         f.write("[")
         f.write(json.dumps(tiles))
         f.write(",")
         # if we got information about which ids were still selected, filter the result before recording
-        if len(keep_ids) > 0:
-            print(" filtering results for", len(keep_ids), "selections")
+        if len(keep_refs) > 0 or len(keep_ids) > 0:
+            if len(keep_refs) > 0:
+                print(" filtering results for", len(keep_refs), "stable selections")
+            else:
+                print(" filtering results for", len(keep_ids), "legacy selections")
             results = json.loads(session['results'])
             tile_count = 0
 
             # first, write write current results that are checked (i.e. in keep_ids)
             for i, result in enumerate(results):
                 if result['class_name'] != 'tile':
-                    result['selected'] = (i-tile_count in keep_ids)
-                    print("", i-tile_count, "included" if (i-tile_count)
-                          in keep_ids else "not included")
+                    result_ref = _normalize_detection_ref(
+                        result.get('tile'),
+                        result.get('id_in_tile')
+                    )
+                    if len(keep_refs) > 0 and result_ref is not None:
+                        result['selected'] = result_ref in keep_refs
+                        print("", result_ref, "included" if result_ref in keep_refs else "not included")
+                    else:
+                        result['selected'] = (i-tile_count in keep_ids)
+                        print("", i-tile_count, "included" if (i-tile_count)
+                              in keep_ids else "not included")
                 else:
                     tile_count += 1
 
@@ -1928,11 +2877,13 @@ def write_contents_file(tmpdirname, tiles, keep_ids, additions, meta):
             #          "class_name": "ct", "secondary": 1.0, "tile": 0, "id_in_tile": -1, 
             #          "selected": true, "inside": true}
             
+            manual_provider = session.get('last_detection_provider', 'auto')
+
             # Initialize geocoding service and cache for manual tower address lookup
             geocoding_service = create_geocoding_service(
                 azure_key=azure_api_key,
                 google_key=google_api_key,
-                preferred_provider='google'  # Use consistent provider
+                preferred_provider=manual_provider
             )
             geocoding_cache = create_geocoding_cache(clustering_radius_meters=50.0)
             
@@ -1987,7 +2938,7 @@ def write_contents_file(tmpdirname, tiles, keep_ids, additions, meta):
                 # TASK-033 Phase 3: Reverse geocode manual tower location (with caching for performance)
                 try:
                     # Try cache first for performance
-                    cached_result = geocoding_cache.get(center_lat, center_lng)
+                    cached_result = geocoding_cache.get(center_lat, center_lng, provider=manual_provider)
                     if cached_result:
                         manual_address = cached_result.address
                         manual_addr_conf = cached_result.confidence
@@ -1995,14 +2946,20 @@ def write_contents_file(tmpdirname, tiles, keep_ids, additions, meta):
                         print(f"  ✅ Manual tower address from cache: {manual_address[:50]}...")
                     else:
                         # Geocode and cache result
-                        geocoding_result = geocoding_service.reverse_geocode(center_lat, center_lng)
-                        manual_address = geocoding_result.address
-                        manual_addr_conf = geocoding_result.confidence
-                        manual_addr_provider = geocoding_result.provider.value
-                        
-                        # Cache the result for future restorations
-                        geocoding_cache.put(center_lat, center_lng, geocoding_result)
-                        print(f"  ✅ Manual tower geocoded: {manual_address[:50]}...")
+                        geocoding_result = geocoding_service.reverse_geocode(center_lat, center_lng, manual_provider)
+                        if geocoding_result.success and geocoding_result.address:
+                            manual_address = geocoding_result.address
+                            manual_addr_conf = geocoding_result.confidence
+                            manual_addr_provider = geocoding_result.provider.value
+                            
+                            # Cache the result for future restorations
+                            geocoding_cache.put(center_lat, center_lng, geocoding_result, provider=manual_provider)
+                            print(f"  ✅ Manual tower geocoded: {manual_address[:50]}...")
+                        else:
+                            manual_address = ""
+                            manual_addr_conf = 0.0
+                            manual_addr_provider = "manual"
+                            print(f"  ⚠️ Manual tower geocoding returned no address: {geocoding_result.error_message}")
                 except RateLimitError as e:
                     print(f"  ⚠️ Geocoding rate limited for manual tower: {e}")
                     manual_address = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
@@ -2088,7 +3045,7 @@ def upload_dataset():
             del session['tmpdirname']
 
         # make a new tempdir name and attach to session
-        tmpdirname = tempfile.mkdtemp()
+        tmpdirname = _make_session_tmpdir()
         print(" creating tmp dir", tmpdirname)
         session['tmpdirname'] = tmpdirname
 

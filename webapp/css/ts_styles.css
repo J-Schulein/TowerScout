@@ -16,6 +16,10 @@
 /*grid arrangement*/
 .fheader {
     grid-area: fheader;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
 .fsearch {
@@ -63,6 +67,10 @@
 .fadd {
     display: flex;
     align-items: center;
+    gap: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 12px;
 }
 
 .fdetect {
@@ -89,6 +97,10 @@
 .fsave {
     display: flex;
     align-items: center;
+    gap: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 12px;
 }
 
 .frightactions {
@@ -105,7 +117,7 @@
     min-height: 50px;
     border-radius: 5px;
     background-color: rgba(255, 255, 255, 0.1);
-    padding: 10px;
+    padding: 8px 10px;
 }
 
 /* Azure Maps and Google Maps specific styling */
@@ -191,6 +203,32 @@
 #geometry button {
     flex: 0 0 auto;
     white-space: nowrap;
+}
+
+.app-title {
+    display: block;
+    width: 100%;
+    font-size: 1.7rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.action-row-button {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 6px;
+    font-size: 11px;
+    line-height: 13px;
+    white-space: nowrap;
+}
+
+.geometry-button {
+    border-radius: 4px;
 }
 
 /* Target the actual Web Component element */
@@ -852,6 +890,29 @@ input:checked+.knob:before {
     margin-bottom: 10px;
 }
 
+.resource-links a {
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 400;
+}
+
+.resource-links a:visited {
+    color: #ffffff;
+}
+
+.resource-links a:hover {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+.resource-links a:focus-visible {
+    color: #ffffff;
+    outline: 2px solid rgba(255, 255, 255, 0.8);
+    outline-offset: 2px;
+    border-radius: 4px;
+    text-decoration: underline;
+}
+
 .performance-stats {
     padding: 16px;
     border-radius: 10px;
@@ -872,4 +933,6 @@ input:checked+.knob:before {
 
 .settings-btn {
     margin-right: 0;
+    width: 28%;
+    min-width: 115px;
 }

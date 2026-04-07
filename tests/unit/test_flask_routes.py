@@ -173,6 +173,51 @@ class TestFlaskRoutes(unittest.TestCase):
         message = data.get('error') or data.get('message', '')
         self.assertIn('self-intersection', message.lower())
 
+    @patch('towerscout._build_tiles_for_request')
+    @patch('towerscout._create_map_provider')
+    @patch('towerscout._parse_detection_request')
+    def test_estimate_detection_tiles_accepts_tile_stats_return_value(
+        self,
+        mock_parse_detection_request,
+        mock_create_map_provider,
+        mock_build_tiles_for_request
+    ):
+        """Test tile estimation accepts the expanded tile-builder return tuple."""
+        mock_parse_detection_request.return_value = {
+            'bounds': '37.7,-122.5,37.8,-122.4',
+            'engine': 'yolo',
+            'provider': 'azure',
+            'polygons': [[[-122.5, 37.7], [-122.4, 37.7], [-122.4, 37.8], [-122.5, 37.8]]],
+            'estimate': 'yes'
+        }
+        mock_create_map_provider.return_value = Mock()
+        mock_build_tiles_for_request.return_value = (
+            [{'id': 0}, {'id': 1}],
+            1,
+            2,
+            10.0,
+            640,
+            640,
+            {
+                'candidate_tiles': 2,
+                'viewport_tiles': 2,
+                'retained_tiles': 2
+            }
+        )
+
+        response = self.client.post('/api/detection/estimate', data={
+            'bounds': '37.7,-122.5,37.8,-122.4',
+            'engine': 'yolo',
+            'provider': 'azure',
+            'polygons': '[]',
+            'estimate': 'yes'
+        })
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertEqual(data['tileCount'], 2)
+        self.assertIn('estimatedSeconds', data)
+
 
 class TestErrorHandling(unittest.TestCase):
     """Test error handling in Flask routes."""

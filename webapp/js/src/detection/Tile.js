@@ -22,6 +22,24 @@
       providerManager.addTile(this); // Phase 2: Use state manager for adding
     }
 
+    centerInMap() {
+      const targetMap = currentMap || this.map || googleMap;
+      if (!targetMap) {
+        return;
+      }
+
+      if (typeof targetMap.fitBounds === 'function') {
+        if (targetMap.fitBounds.length >= 4) {
+          targetMap.fitBounds(this.x1, this.y1, this.x2, this.y2);
+        } else {
+          targetMap.fitBounds([this.x1, this.y1, this.x2, this.y2]);
+        }
+        return;
+      }
+
+      super.centerInMap();
+    }
+
     // find the ids for all tiles that the center of this box belongs to
     static getTileIds(x1, y1, x2, y2) {
       let result = [];

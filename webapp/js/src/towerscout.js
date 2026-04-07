@@ -3801,9 +3801,11 @@ async function fillProviders() {
   }
 
   // retrieve the backend providers
-  $.ajax({
+  const providerLoad = new Promise((resolve, reject) => {
+    $.ajax({
     url: "/getproviders",
     success: async function (result) {
+      try {
       let html = "";
       //window.TowerScoutLogger.debug(result);
       let ps = JSON.parse(result);
@@ -3818,6 +3820,7 @@ async function fillProviders() {
           setMap(uploadRadio);
         }
 
+        resolve([]);
         return;
       }
       //window.TowerScoutLogger.debug(engines);
@@ -3872,7 +3875,21 @@ async function fillProviders() {
 
           } else if (r.value === 'google') {
             window.TowerScoutLogger.debug('🌍 Initializing Google Maps...');
-            await initGoogleMap();
+            if (!googleMap || !googleMap.map) {
+              if (typeof loadGoogleMaps === 'function') {
+                window.TowerScoutLogger.debug('🔑 Loading Google Maps SDK for initial provider startup...');
+                await loadGoogleMaps();
+              }
+
+              if (!googleMap || !googleMap.map) {
+                window.TowerScoutLogger.debug('🧭 Google Maps SDK available, creating initial Google map instance...');
+                initGoogleMap();
+              }
+            }
+
+            if (!googleMap || !googleMap.map) {
+              throw new Error('Google Maps initialization did not produce a usable map instance');
+            }
 
             // Set as current map and make visible  
             currentMap = googleMap;
@@ -3948,7 +3965,15 @@ async function fillProviders() {
         });
       }
 
+      resolve(ps);
+      } catch (error) {
+        reject(error);
+      }
+    },
+    error: function (_xhr, textStatus, errorThrown) {
+      reject(new Error(errorThrown || textStatus || 'Failed to load providers'));
     }
+  });
   });
 
   // also add change listeners for the UI providers
@@ -3956,12 +3981,17 @@ async function fillProviders() {
   let rads = document.uis.uis;
   // Use the checked radio button instead of just the first one
   currentUI = document.querySelector('input[name="uis"]:checked') || rads[0];
-  setMap(currentUI);
 
   for (let rad of rads) {
     rad.addEventListener('change', function () {
       setMap(this);
     });
+  }
+
+  await providerLoad;
+
+  if (currentUI) {
+    await setMap(currentUI);
   }
 }
 
@@ -3999,9 +4029,16 @@ async function setMap(newMap) {
   let lastMap = providerManager.getMap();  // Use provider manager
   let zoom;
   let center;
+  const filterPanel = document.getElementById("ffilter");
   if (typeof lastMap !== 'undefined' && lastMap) {
-    zoom = lastMap.getZoom();
-    center = lastMap.getCenter();
+    try {
+      zoom = lastMap.getZoom();
+      center = lastMap.getCenter();
+    } catch (mapStateError) {
+      window.TowerScoutLogger.debug(`Map state not ready during provider switch: ${mapStateError.message}`);
+      zoom = undefined;
+      center = undefined;
+    }
   }
 
   if (currentUI.value === "upload") {
@@ -4011,7 +4048,8 @@ async function setMap(newMap) {
     document.getElementById("ftowers").style.display = "none";
     document.getElementById("fsave").style.display = "none";
     document.getElementById("freview").style.display = "none";
-    document.getElementById("ffilter").style.display = "none";
+    filterPanel.style.display = "none";
+    filterPanel.style.visibility = "hidden";
     document.getElementById("fadd").style.display = "none";
 
   } else if (currentUI.value === "google") {
@@ -4021,7 +4059,8 @@ async function setMap(newMap) {
     document.getElementById("ftowers").style.display = null;
     document.getElementById("fsave").style.display = null;
     document.getElementById("freview").style.display = null;
-    document.getElementById("ffilter").style.display = null;
+    filterPanel.style.display = "flex";
+    filterPanel.style.visibility = "visible";
     document.getElementById("fadd").style.display = null;
 
     // Defer provider switching until after initialization is complete
@@ -4070,7 +4109,8 @@ async function setMap(newMap) {
     document.getElementById("ftowers").style.display = null;
     document.getElementById("fsave").style.display = null;
     document.getElementById("freview").style.display = null;
-    document.getElementById("ffilter").style.display = null;
+    filterPanel.style.display = "flex";
+    filterPanel.style.visibility = "visible";
     document.getElementById("fadd").style.display = null;
 
     // Defer provider switching until after initialization is complete
@@ -4394,6 +4434,18 @@ function uploadDataset() {
   let dataset = document.getElementById("upload_dataset").files[0];
   let formData = new FormData();
 
+  const mapsToReset = new Set(
+    [currentMap, window.googleMap, window.azureMap].filter(Boolean)
+  );
+  for (const mapInstance of mapsToReset) {
+    if (typeof mapInstance.clearShapes === 'function') {
+      mapInstance.clearShapes();
+    }
+    if (typeof mapInstance.resetBoundaries === 'function') {
+      mapInstance.resetBoundaries();
+    }
+  }
+
   Detection.resetAll();
   window.TowerScoutLogger.debug("Dataset upload request in progress ...")
   let startTime = performance.now();
@@ -4612,16 +4664,12 @@ function detectAvailableProviders() {
   if (typeof gak !== 'undefined' && gak) {
     availableProviders.push('google');
     window.TowerScoutLogger.debug("Google Maps provider available");
-  } else {
-    console.warn("Google Maps provider unavailable - missing API key");
   }
 
   // Check Azure Maps availability (API key and global variable)
   if (typeof aak !== 'undefined' && aak) {
     availableProviders.push('azure');
     window.TowerScoutLogger.debug("Azure Maps provider available");
-  } else {
-    console.warn("Azure Maps provider unavailable - missing API key");
   }
 
   return availableProviders;
@@ -4776,93 +4824,51 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    // Sync UI with backend provider defaults (Phase 2 improvement)
-    syncUIWithBackendProviders()
-      .then(async () => {
-
-        // Initialize provider-aware search
+    (async () => {
+      try {
         initializeProviderAwareSearch();
-
-        // Setup UI components
         fillEngines();
         await fillProviders();
         confSlider.value = Math.round(Detection_minConfidence * 100);
 
-        // Initialization complete - enable provider switching
         if (window.providerManager) {
           window.providerManager.setIsInitializing(false);
         }
         window.TowerScoutLogger.info('Initialization complete. Provider switching is enabled.');
 
-        // Apply stored provider preference if any
         const preferredProvider = localStorage.getItem('preferredMapProvider');
         if (preferredProvider && currentUI && currentUI.value !== preferredProvider) {
           window.TowerScoutLogger.debug(`🔄 Applying stored provider preference: ${preferredProvider}`);
           const targetRadio = document.querySelector(`input[name="uis"][value="${preferredProvider}"]`);
-          if (targetRadio) {
+          if (targetRadio && !targetRadio.disabled) {
             targetRadio.checked = true;
             currentUI = targetRadio;
-            // Now provider switching will work since isInitializing = false
             await setMap(targetRadio);
+          } else if (targetRadio && targetRadio.disabled) {
+            window.TowerScoutLogger.info(`Stored provider preference '${preferredProvider}' is unavailable; keeping current provider.`);
           }
         }
 
         window.TowerScoutLogger.info("TowerScout loaded successfully.");
 
-        // Show initialization success
         TowerScoutErrorHandler.showUserNotification(
           'TowerScout loaded successfully',
           'info',
           3000
         );
 
-        // Validate map integrity after initialization
         timerManager.setTimeout(() => {
           validateMapIntegrity();
         }, CONFIG.MAP_VALIDATION_DELAY_MS);
-      })
-      .catch(async error => {
-        console.error('❌ Backend provider sync failed:', error);
-
-        // Fallback to local initialization with better error handling
-        window.TowerScoutLogger.info('Backend provider sync failed. Falling back to local provider initialization...');
-
-        try {
-          initializeProviderManagement();
-          initializeProviderAwareSearch();
-          fillEngines();
-          await fillProviders();
-
-          // Set defaults
-          if (confSlider) {
-            confSlider.value = Math.round(Detection_minConfidence * 100);
-          }
-
-          // Show about screen in dev mode
-          if (typeof dev !== 'undefined') {
-            if (dev === 0) {
-              about(6);
-            } else {
-              about(0);
-            }
-          }
-
-          window.TowerScoutLogger.info("TowerScout loaded successfully using fallback initialization.");
-
-          TowerScoutErrorHandler.showUserNotification(
-            'TowerScout loaded (using default settings)',
-            'warning',
-            5000
-          );
-        } catch (fallbackError) {
-          console.error('❌ Fallback initialization also failed:', fallbackError);
-          TowerScoutErrorHandler.showUserNotification(
-            'TowerScout initialization failed: ' + fallbackError.message,
-            'error',
-            10000
-          );
-        }
-      });
+      } catch (error) {
+        console.error('❌ Application initialization failed:', error);
+        TowerScoutErrorHandler.showUserNotification(
+          'TowerScout initialization failed: ' + error.message,
+          'error',
+          10000
+        );
+      }
+    })();
 
   } catch (error) {
     console.error('💥 Critical initialization error:', error);

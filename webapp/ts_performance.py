@@ -18,6 +18,7 @@ from typing import Optional, Dict, Any, List
 from pathlib import Path
 from contextlib import contextmanager
 import psutil
+from ts_paths import get_base_dir, get_log_dir
 
 try:
     import torch
@@ -210,9 +211,15 @@ class PerformanceLogger:
         'phase_timings_json'
     ]
     
-    def __init__(self, log_dir: str = "logs"):
+    def __init__(self, log_dir: Optional[str] = None):
         """Initialize performance logger with CSV output."""
-        self.log_dir = Path(log_dir)
+        if log_dir is None:
+            self.log_dir = get_log_dir()
+        else:
+            candidate = Path(log_dir)
+            if not candidate.is_absolute():
+                candidate = get_base_dir() / candidate
+            self.log_dir = candidate
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
         self.csv_file = self.log_dir / "performance.log"

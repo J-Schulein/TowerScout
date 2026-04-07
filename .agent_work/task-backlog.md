@@ -1,179 +1,66 @@
 # Task Backlog - Future Work Prioritization
 
-**Last Updated**: March 31, 2026  
-**Sprint 03 Period**: March 11 - March 25, 2026  
-**Next Sprint Planning**: Sprint 05 Prep - March 31, 2026  
+**Last Updated**: April 6, 2026  
+**Sprint 04 Completed**: March 19 - April 6, 2026  
+**Sprint 05 Active**: April 7 - April 25, 2026  
+**Next Sprint Planning**: Sprint 06 Prep - April 25, 2026  
 
 ---
 
-## 🚀 SPRINT 03 ACTIVE TASKS (Moved to current-tasks.md)
+## 🚀 SPRINT 05 ACTIVE TASKS (Moved to current-tasks.md)
 
-### **TASK-039: Google Maps API Upgrade (ISSUE-005)** 🔴
-**Status**: IN_SPRINT_03 - MOVED TO current-tasks.md  
-**Type**: C (Architecture - API Migration)  
-**Priority**: CRITICAL  
-**Estimated Effort**: 8-20 hours  
-**Hard Deadline**: April 2026
-
----
-
-### **TASK-033: Manual Tower Addition Feature** 🟡
-**Status**: IN_SPRINT_03 - MOVED TO current-tasks.md  
-**Type**: B (Feature Development)  
-**Priority**: HIGH  
-**Estimated Effort**: 24 hours
-
----
-
-### **TASK-036: Export System Restoration** 🟡
-**Status**: IN_SPRINT_03 - MOVED TO current-tasks.md  
-**Type**: B (Feature Development)  
-**Priority**: HIGH  
-**Estimated Effort**: 16-24 hours
-
----
-
-## � HIGH PRIORITY - Sprint 04 Planning
-
-### **TASK-046: Setup Wizard and Settings Screen** 🟡
-**Status**: NOT_STARTED  
-**Type**: B (Feature Development)  
-**Priority**: HIGH  
-**Estimated Effort**: 5-9 days (1.5-2 weeks with testing)  
-**Target Sprint**: Sprint 04  
-**Created**: March 16, 2026
-
-**Objective**: Implement first-launch Setup Wizard and in-app Settings Screen for seamless API key management without manual .env file editing
-
-**Requirements**:
-- Setup Wizard: Auto-appears on first launch, multi-step flow (Welcome → API Keys → Provider → Info → Complete)
-- Settings Screen: In-app modal for API key updates, debug mode toggle, cache management
-- API key validation via test requests with success/error indicators
-- Docker-compatible .env file persistence with backup/rollback mechanism
-- Performance metrics display and resource links to documentation
-
-**Key Features**:
-- 🔑 **API Key Management**: Validate and save keys without text editor
-- 🚀 **User Onboarding**: Guided setup flow for non-technical users
-- ⚙️ **Settings Modal**: In-app configuration management
-- 🐳 **Docker Compatible**: Host-mounted .env file updates
-- 📊 **Performance Stats**: Recent detection metrics display
-- 🔧 **System Controls**: Debug mode toggle, cache clearing
-
-**Technical Components**:
-- Backend: `webapp/ts_config.py` module + 5 new Flask API endpoints
-- Frontend: Setup Wizard JavaScript (`setup-wizard.js`) + Settings Screen (`settings.js`)
-- UI: Modal overlays with mobile-responsive design
-- Safety: .env backups, validation, rollback mechanism
-
-**Dependencies**:
-- TASK-025 (Docker Containerization) - Volume mount strategy
-- TASK-001 (API Key Security) - Environment variable foundation ✅ COMPLETED
-- Python `python-dotenv` library (already installed)
-
-**Success Criteria**:
-- Users never need to manually edit .env files
-- Setup Wizard blocks app until configuration complete
-- API key validation via test requests (<5 seconds)
-- Settings preserve session state (detections, map view)
-- Docker volume mount persistence verified
-
-**Task Document**: [TASK-046-setup-wizard-settings-screen.md](./tasks/TASK-046-setup-wizard-settings-screen.md)
-
-**Notes**: Addresses major UX friction point for non-technical users. Eliminates manual .env file editing requirement. Critical for Docker-based local deployment strategy (TASK-025).
-
----
-
-## �🟨 MEDIUM PRIORITY - Future Sprints
-
-### **TASK-025: Docker Containerization** 🟡
-**Status**: NOT_STARTED  
-**Type**: A (Infrastructure)  
-**Priority**: MEDIUM  
-**Estimated Effort**: 1-2 days
-**Target Sprint**: Sprint 05
-
-**Objective**: Create Docker configuration for one-command local deployment
-
-**Requirements**:
-- Multi-stage Dockerfile with model weights
-- Docker Compose configuration
-- Environment variable management
-- Platform-specific optimization (AMD64/ARM64)
-
-**Dependencies**:
-- TASK-046 (completed) - setup wizard/settings volume-mount behavior
-- TASK-051 - runtime dependency verification and split
-- TASK-052 - current integration smoke-test baseline
-
-**Notes**: Keep TASK-025 focused on container build/run behavior. Do not absorb dependency-verification or smoke-test replacement work into this task; use them as Sprint 05 prerequisites so Docker acceptance criteria stay clear and runtime-risk changes remain isolated.
-
----
-
-### **TASK-051: Runtime Dependency Verification and Split**
-**Status**: NOT_STARTED  
+### **TASK-051: Runtime Dependency Verification and Split** 🔴
+**Status**: IN_SPRINT_05 - MOVED TO current-tasks.md  
 **Type**: C (Architecture / Deployment Readiness)  
-**Priority**: HIGH  
-**Estimated Effort**: 4-8 hours
+**Priority**: CRITICAL  
+**Estimated Effort**: 4-8 hours  
 **Target Sprint**: Sprint 05
 
-**Objective**: Verify runtime dependencies before containerization and separate confirmed runtime requirements from removable or optional packages without changing user-visible behavior.
-
-**Requirements**:
-- Verify the current import/runtime necessity of deployment-sensitive packages in `webapp/requirements.txt`
-- Confirm Torch CPU/CUDA detection and execution behavior remains intact after any requirement cleanup
-- Treat `ultralytics` as CUDA/runtime-sensitive until proven removable in a clean environment
-- Remove or reclassify low-risk dependency drift such as `seaborn` only after verification
-- Preserve the current user workflow, appearance, and functionality of the application
-
-**Validation**:
-- Clean-environment install test
-- App startup verification
-- CPU-only verification path
-- CUDA-available verification path where hardware is available
-
-**Dependencies**:
-- TASK-049 stale-code audit and cleanup findings
-
-**Notes**: Recommended as a pre-containerization gate. Do not fold this into TASK-025 because dependency verification has different risks, acceptance criteria, and rollback needs than Docker delivery.
+**See**: [current-tasks.md](./current-tasks.md#task-051-runtime-dependency-verification-and-split) for full details
 
 ---
 
-### **TASK-052: Current Integration Smoke Test Baseline**
-**Status**: NOT_STARTED  
+### **TASK-052: Current Integration Smoke Test Baseline** 🔴
+**Status**: IN_SPRINT_05 - MOVED TO current-tasks.md  
 **Type**: A (Quality / Validation)  
-**Priority**: HIGH  
-**Estimated Effort**: 4-8 hours
+**Priority**: CRITICAL  
+**Estimated Effort**: 4-8 hours  
 **Target Sprint**: Sprint 05
 
-**Objective**: Replace the quarantined legacy end-to-end harness with a current smoke test that validates the live Flask route surface and core app boot flow.
-
-**Requirements**:
-- Replace the skipped legacy `tests/integration/test_end_to_end.py` coverage with a current smoke-test harness
-- Validate application boot with the current configuration/setup flow
-- Exercise core live routes and confirm expected response behavior
-- Provide a stable regression target for containerization work
-- Keep the test lightweight enough to run regularly during Sprint 05
-
-**Dependencies**:
-- TASK-046 setup wizard/settings implementation
-- TASK-049 validation-gate repair
-
-**Success Criteria**:
-- `pytest --collect-only tests -q` remains clean
-- A current smoke test exists for app boot plus core route availability
-- Containerization work has a concrete validation target beyond import/collection success
-
-**Notes**: Recommended before TASK-025 so Docker work can validate against a current, supported app surface instead of the quarantined legacy harness.
+**See**: [current-tasks.md](./current-tasks.md#task-052-current-integration-smoke-test-baseline) for full details
 
 ---
+
+### **TASK-025: Docker Containerization** 🔴
+**Status**: IN_SPRINT_05 - MOVED TO current-tasks.md  
+**Type**: A (Infrastructure)  
+**Priority**: HIGH  
+**Estimated Effort**: 1-2 days (8-16 hours)  
+**Target Sprint**: Sprint 05
+
+**See**: [current-tasks.md](./current-tasks.md#task-025-docker-containerization) for full details
+
+---
+
+### **TASK-029: Multi-Provider Fallback** 🟡
+**Status**: IN_SPRINT_05 - MOVED TO current-tasks.md (stretch goal)  
+**Type**: B (Reliability)  
+**Priority**: MEDIUM  
+**Estimated Effort**: 2-3 days (16-24 hours)  
+**Target Sprint**: Sprint 05
+
+**See**: [current-tasks.md](./current-tasks.md#task-029-multi-provider-fallback) for full details
+
+---
+
+## 🔴 HIGH PRIORITY - Sprint 06 Candidates
 
 ### **TASK-026: CPU Optimization** 🟡
 **Status**: NOT_STARTED  
 **Type**: C (Performance)  
-**Priority**: MEDIUM  
-**Estimated Effort**: 2-3 days
-**Target Sprint**: Sprint 3-4
+**Priority**: HIGH  
+**Estimated Effort**: 2-3 days (16-24 hours)  
+**Target Sprint**: Sprint 06
 
 **Objective**: Optimize detection pipeline for CPU-only deployment scenarios
 
@@ -185,14 +72,18 @@
 
 **Technical Notes**: Apply model quantization, optimize batch sizes for different hardware profiles
 
+**User Value**: Better performance on systems without dedicated GPU hardware
+
 ---
+
+## 🟡 MEDIUM PRIORITY - Sprint 06 Candidates
 
 ### **TASK-027: Enhanced Error Handling** 🟡
 **Status**: NOT_STARTED  
 **Type**: A (Infrastructure)  
 **Priority**: MEDIUM  
-**Estimated Effort**: 1-2 days
-**Target Sprint**: Sprint 4
+**Estimated Effort**: 1-2 days (8-16 hours)  
+**Target Sprint**: Sprint 06
 
 **Objective**: Improve user experience with better error messages and recovery
 
@@ -202,7 +93,11 @@
 - Retry mechanisms with exponential backoff
 - Error reporting and logging improvements
 
-**Dependencies**: Enhanced logging system
+**Dependencies**: Enhanced logging system ✅ COMPLETED (Sprint 04)
+
+**Notes**: Could include standardization of error handling patterns from Sprint 04 deferred quick win
+
+**User Value**: Better user experience when errors occur, clearer troubleshooting guidance
 
 ---
 
@@ -210,8 +105,8 @@
 **Status**: NOT_STARTED  
 **Type**: B (UI/UX)  
 **Priority**: MEDIUM  
-**Estimated Effort**: 2 days
-**Target Sprint**: Sprint 4-5
+**Estimated Effort**: 2 days (16 hours)  
+**Target Sprint**: Sprint 06 or Sprint 07
 
 **Objective**: Improve mobile device compatibility for field investigators
 
@@ -223,24 +118,26 @@
 
 **Notes**: Important for field outbreak investigation teams
 
+**User Value**: Enables field investigators to use TowerScout on tablets and mobile devices
+
 ---
 
-### **TASK-029: Multi-Provider Fallback** 🟡
+### **Sprint 04 Deferred Quick Wins** 🟢
 **Status**: NOT_STARTED  
-**Type**: B (Reliability)  
-**Priority**: MEDIUM  
-**Estimated Effort**: 2-3 days
-**Target Sprint**: Sprint 5
+**Priority**: LOW-MEDIUM  
+**Total Estimated Effort**: 4-6 hours
 
-**Objective**: Implement automatic fallback between map providers for reliability
+**Browser Refresh Warning Fix** (2-3 hours)
+- Debug `window.onbeforeunload` inconsistencies
+- Cross-browser compatibility testing
+- Implement reliable solution
 
-**Requirements**:
-- Automatic provider switching on API failures
-- Quality comparison and provider selection logic
-- Rate limit handling and quota management
-- Transparent failover for users
+**Error Handling Pattern Standardization** (2-3 hours)
+- Remove deprecated `fatalError()` references
+- Standardize on `TowerScoutErrorHandler`
+- Update documentation
 
-**Dependencies**: Provider abstraction layer ✅ COMPLETED
+**Notes**: Could be absorbed into TASK-027 or completed independently if Sprint 05 has capacity
 
 ---
 
@@ -249,94 +146,160 @@
 ### **Future Enhancement: Advanced Filtering** 🔵
 **Type**: B (Feature)  
 **Priority**: LOW  
-**Estimated Effort**: 3-4 days
+**Estimated Effort**: 3-4 days (24-32 hours)
 
 **Objective**: Add advanced filtering and search capabilities for large result sets
 
 **Ideas**:
-- Confidence threshold sliders
+- Enhanced confidence threshold controls
 - Geographic filtering (distance, administrative boundaries)
 - Historical detection tracking
 - Batch operations on filtered results
+- Saved search areas and filters
+
+**User Value**: Better management of large detection result sets
 
 ---
 
 ### **Future Enhancement: Performance Dashboard** 🔵
 **Type**: A (Monitoring)  
 **Priority**: LOW  
-**Estimated Effort**: 2 days
+**Estimated Effort**: 2 days (16 hours)
 
-**Objective**: Create diagnostic dashboard for troubleshooting and optimization
+**Objective**: Create diagnostic dashboard for troublemaking and optimization
 
 **Ideas**:
-- Processing time metrics
+- Real-time processing time metrics
 - GPU/CPU utilization monitoring
-- API usage tracking
+- API usage tracking and quota management
 - System health indicators
+- Detection accuracy statistics
+
+**User Value**: Better troubleshooting and performance monitoring
 
 ---
 
 ### **Future Enhancement: User Preferences** 🔵
 **Type**: B (UX)  
 **Priority**: LOW  
-**Estimated Effort**: 1-2 days
+**Estimated Effort**: 1-2 days (8-16 hours)
 
 **Objective**: Add user preference storage and customization
 
 **Ideas**:
-- Default map provider selection
-- Saved search areas
-- Custom confidence thresholds
+- Persistent default map provider selection
+- Saved search areas and recent searches
+- Custom confidence thresholds per use case
 - Interface layout preferences
+- Detection notification preferences
+
+**Notes**: Partially addressed by Sprint 04 Settings screen - this would expand those capabilities
+
+**User Value**: More personalized user experience, faster workflow for repeat users
 
 ---
 
 ## 📅 Sprint Planning Guidelines
 
-### **Capacity Management**
-- **Sprint Duration**: 2 weeks (10 working days)
-- **Estimated Velocity**: 8-12 days per sprint
-- **Buffer Time**: 20% for unexpected issues and technical debt
+### **Sprint Capacity Management**
+- **Sprint Duration**: 2-3 weeks (14-21 calendar days, 10-15 working days)
+- **Estimated Velocity**: 8-12 days of focused work per sprint
+- **Target Hours**: 60-80 hours per sprint (accommodating complexity and validation)
 
-### **Sprint Composition Strategy**
-- **Mix**: 70% feature development (Type B), 20% infrastructure (Type A), 10% architecture (Type C)
-- **Risk Balance**: Include 1 low-risk task per sprint for momentum
-- **Dependencies**: Ensure prerequisite tasks completed before dependent work
+### **Task Selection Criteria**
+1. **Dependencies**: Respect task dependencies and prerequisites
+2. **Strategic Value**: Prioritize deployment readiness and user-facing improvements
+3. **Risk Management**: Balance high-risk architecture work with safe improvements
+4. **Validation**: Include adequate testing and validation time
+5. **Documentation**: Budget time for proper documentation
 
-### **Priority Adjustment Triggers**
-1. **User Feedback**: Outbreak investigation teams report critical workflow gaps
-2. **Technical Debt**: Performance issues impact user experience
-3. **External Changes**: API changes require urgent adaptation
-4. **Security Issues**: Vulnerabilities discovered requiring immediate attention
+### **Sprint 05 Focus**
+- Deployment readiness (containerization)
+- Validation infrastructure
+- Minimal feature development
+- Conservative risk profile
 
-### **Sprint Planning Process**
-1. **Review Completed Work**: Update effort estimates based on actual completion times
-2. **Assess Dependencies**: Verify prerequisite tasks are ready
-3. **Capacity Planning**: Consider team availability and external commitments  
-4. **Risk Assessment**: Identify potential blockers and mitigation strategies
-5. **Sprint Goal Setting**: Define clear success criteria for the sprint
+### **Sprint 06 Preview**
+- CPU optimization for wider deployment
+- Enhanced error handling and reliability
+- Optional: Mobile responsiveness or multi-provider fallback completion
+- Continue polish and quality improvements
 
-### **Backlog Maintenance**
-- **Weekly**: Review and update task priorities based on progress and feedback
-- **Bi-weekly**: Detailed effort estimation review and dependency validation
-- **Monthly**: Strategic priority adjustment and long-term roadmap alignment
+---
 
-## 🎯 Long-Term Objectives
+## 📊 Historical Sprint Performance
 
-### **Phase 1: Core Features (Sprints 1-2)**
-- Complete address lookup and legacy feature restoration
-- Establish stable foundation for outbreak investigation workflows
+| Sprint | Duration | Tasks | Completion | Bundle Change | Notes |
+|--------|----------|-------|------------|---------------|-------|
+| Sprint 01 | 14 days | 7/7 (100%) | ✅ Complete | N/A | Foundation work |
+| Sprint 02 | 14-21 days | 5/5 (100%) | ✅ Complete | N/A | Architecture work |
+| Sprint 03 | 8 days (14 planned) | 8/8 (100%) | ✅ Complete | +40.2 KB | Ahead of schedule |
+| Sprint 04 | 19 days (16 planned) | 7/7 core + 1 closeout (100%) | ✅ Complete | +33.3 KB | Extended for stabilization |
+| Sprint 05 | 19 days planned | TBD | 🏃 In Planning | TBD | Deployment readiness |
 
-### **Phase 2: Deployment Ready (Sprints 3-4)**
-- Docker containerization and CPU optimization
-- Enhanced error handling and mobile responsiveness
+**Trend Analysis**:
+- Consistent 100% core task completion across all sprints
+- Sprint 03 completed early, Sprint 04 extended - both appropriate for work type
+- Bundle size growing but staying under control (currently 446.1 KB vs 500 KB target)
+- Strong validation discipline established in Sprint 04
 
-### **Phase 3: Advanced Features (Sprints 5-6)**
-- Multi-provider reliability and advanced filtering
-- Performance monitoring and user customization
+---
 
-### **Success Metrics**
-- **User Experience**: Outbreak investigation teams can complete workflows without technical assistance
-- **Reliability**: 99%+ uptime for critical detection operations
-- **Performance**: <30 seconds processing for <100 tiles on consumer hardware
-- **Accessibility**: One-command deployment on Windows/Mac/Linux systems
+## 🎯 Long-Term Roadmap
+
+### **Phase 1: Deployment Readiness (Sprint 04-05)** ✅ In Progress
+- ✅ Setup wizard and settings (Sprint 04)
+- 🏃 Runtime dependency verification (Sprint 05)
+- 🏃 Integration testing baseline (Sprint 05)
+- 🏃 Docker containerization (Sprint 05)
+
+### **Phase 2: Performance and Reliability (Sprint 06-07)**
+- CPU optimization
+- Enhanced error handling
+- Multi-provider fallback
+- Mobile responsiveness
+
+### **Phase 3: Advanced Features (Sprint 08+)**
+- Advanced filtering and search
+- Performance dashboard
+- User preferences expansion
+- Historical tracking
+
+### **Phase 4: Scale and Polish (Sprint 09+)**
+- Large-scale deployment support
+- Advanced monitoring
+- Additional provider integrations
+- Community features
+
+---
+
+## 📝 Notes
+
+**Adding New Tasks**:
+1. Use the appropriate template from `task-backlog.md`
+2. Assign priority and estimated effort
+3. Document dependencies and acceptance criteria
+4. Link to related documentation
+
+**Sprint Planning Process**:
+1. Review completed sprint retrospective
+2. Move completed tasks to `completed-tasks.md`
+3. Select 3-5 tasks from backlog based on capacity and priorities
+4. Move selected tasks to `current-tasks.md`
+5. Update dependencies and estimates
+6. Create sprint plan document
+
+**Priority Definitions**:
+- 🔴 **CRITICAL**: Blocking issues, security, or hard deadlines
+- 🟡 **HIGH**: Important for user experience or strategic goals
+- 🟢 **MEDIUM**: Valuable improvements, not immediate blockers
+- 🔵 **LOW**: Nice-to-have enhancements, backlog items
+
+---
+
+## 🔗 Related Documentation
+
+- [Current Tasks](./current-tasks.md) - Sprint 05 active work
+- [Completed Tasks](./completed-tasks.md) - Historical completion record
+- [Sprint 05 Plan](./context/status/SPRINT-05-PLAN.md) - Sprint 05 detailed planning (create at kickoff)
+- [Sprint 04 Retrospective](./context/status/SPRINT-04-RETROSPECTIVE.md) - Sprint 04 lessons learned

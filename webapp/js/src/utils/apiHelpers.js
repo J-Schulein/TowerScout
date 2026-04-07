@@ -18,83 +18,29 @@
   'use strict';
 
   async function syncUIWithBackendProviders() {
-    window.TowerScoutLogger.info('Syncing configured providers...');
+    window.TowerScoutLogger.info('Syncing configured providers from current UI state...');
 
     if (window.needsSetup) {
       window.TowerScoutLogger.info('Setup is required before provider sync can continue.');
       return [];
     }
 
-    try {
-      if (typeof window.getBackendProviders !== 'function') {
-        console.warn('getBackendProviders function not available, using fallback provider detection');
-
-        try {
-          const response = await fetch('/getproviders');
-          const providers = await response.json();
-
-          if (providers && providers.length > 0) {
-            const defaultProvider = providers[0];
-            window.TowerScoutLogger.info('Default detection provider:', defaultProvider.id);
-            providerManager.currentProvider = defaultProvider.id;
-
-            const googleRadio = document.getElementById('providers-google');
-            const azureRadio = document.getElementById('providers-azure');
-
-            if (googleRadio && azureRadio) {
-              if (defaultProvider.id === 'google') {
-                googleRadio.checked = true;
-                azureRadio.checked = false;
-              } else if (defaultProvider.id === 'azure') {
-                azureRadio.checked = true;
-                googleRadio.checked = false;
-              }
-
-              window.TowerScoutLogger.debug('UI provider selection synced with backend default (fallback method)');
-            }
-
-            return providers;
-          }
-
-          console.warn('No providers returned from backend');
-          return [];
-        } catch (fallbackError) {
-          console.error('Fallback provider sync also failed:', fallbackError);
-          throw new Error('Unable to sync with backend providers: ' + fallbackError.message);
-        }
-      }
-
-      const providers = await window.getBackendProviders();
-
-      if (providers && providers.length > 0) {
-        const defaultProvider = providers[0];
-        window.TowerScoutLogger.info('Default detection provider:', defaultProvider.id);
-        providerManager.currentProvider = defaultProvider.id;
-
-        const googleRadio = document.getElementById('providers-google');
-        const azureRadio = document.getElementById('providers-azure');
-
-        if (googleRadio && azureRadio) {
-          if (defaultProvider.id === 'google') {
-            googleRadio.checked = true;
-            azureRadio.checked = false;
-          } else if (defaultProvider.id === 'azure') {
-            azureRadio.checked = true;
-            googleRadio.checked = false;
-          }
-
-          window.TowerScoutLogger.debug('UI provider selection synced with backend default');
-        }
-
-        return providers;
-      }
-
-      console.warn('No providers returned from backend');
+    const providerRadios = Array.from(document.querySelectorAll('#providers input[name="provider"]'));
+    if (providerRadios.length === 0) {
+      window.TowerScoutLogger.debug('Provider radios are not ready yet; skipping sync.');
       return [];
-    } catch (error) {
-      console.error('Failed to sync with backend providers:', error);
-      throw error;
     }
+
+    const checkedProvider = providerRadios.find(radio => radio.checked) || providerRadios[0];
+    if (checkedProvider) {
+      providerManager.currentProvider = checkedProvider.value;
+      window.TowerScoutLogger.info('Current detection provider:', checkedProvider.value);
+    }
+
+    return providerRadios.map(radio => ({
+      id: radio.value,
+      name: radio.nextElementSibling ? radio.nextElementSibling.textContent : radio.value
+    }));
   }
 
   function validateMapIntegrity() {

@@ -22,6 +22,7 @@
       this.boundaries = [];
       this.newShapes = [];
       this.drawingManager = null;
+      this.pendingDrawingContext = null;
       this.drawingContext = null; // Track drawing context: 'search' or 'manual'
       this.drawingNotificationId = null; // Track persistent notification
       this.searchDataSource = null;
@@ -275,6 +276,11 @@
       return validation;
     }
 
+    setPendingDrawingContext(context) {
+      this.pendingDrawingContext = context === 'manual' ? 'manual' : 'search';
+      window.TowerScoutLogger.debug('Azure Maps pending drawing context set to:', this.pendingDrawingContext);
+    }
+
     initializeDrawingTools(retryCount = 0) {
       if (this.drawingManager) {
         window.TowerScoutLogger.debug('Azure Maps drawing tools already initialized');
@@ -336,7 +342,8 @@
 
           // Determine context: search boundary (no detections yet) or manual tower (after detection)
           const hasDetections = window.providerManager && window.providerManager.getDetectionsLength() > 0;
-          this.drawingContext = hasDetections ? 'manual' : 'search';
+          const inferredContext = hasDetections ? 'manual' : 'search';
+          this.drawingContext = this.pendingDrawingContext || inferredContext;
           window.TowerScoutLogger.debug('📍 Drawing context:', this.drawingContext, '(detections:', hasDetections ? 'YES' : 'NO', ')');
 
           // Show persistent notification with provider-specific instructions
@@ -392,14 +399,17 @@
         }
 
         // Context-aware completion notification
-        const message = this.drawingContext === 'search'
+        const hasDetections = window.providerManager && window.providerManager.getDetectionsLength() > 0;
+        const inferredContext = hasDetections ? 'manual' : 'search';
+        const completionContext = this.drawingContext || this.pendingDrawingContext || inferredContext;
+        const message = completionContext === 'search'
           ? 'Polygon complete! Click "Custom Shape" again to use as search area, or "Estimate Tiles" to proceed.'
           : 'Polygon complete! Click "Save Towers" button below to add it to the detection list.';
 
         TowerScoutErrorHandler.showUserNotification(
           message,
           'success',
-          6000
+          9000
         );
 
         // Reset context
@@ -1434,6 +1444,8 @@
 
       // TASK-033: Cleanup and user feedback
       this.newShapes = [];
+      this.drawingContext = null;
+      this.pendingDrawingContext = null;
 
       // Turn off drawing mode
       if (this.drawingManager) {
@@ -1473,7 +1485,7 @@
           body: JSON.stringify({
             lat: lat,
             lng: lng,
-            provider: 'auto'
+            provider: document.querySelector('#providers input[name="provider"]:checked')?.value || 'azure'
           })
         });
 
@@ -1515,6 +1527,9 @@
     clearShapes() {
       // Remove unsaved drawn polygons only
       // Note: To delete saved manual towers, uncheck them in the detection list
+      this.drawingContext = null;
+      this.pendingDrawingContext = null;
+
       // Clear all drawn shapes from newShapes array
       for (let shape of this.newShapes) {
         this.drawingManager.getSource().remove(shape);

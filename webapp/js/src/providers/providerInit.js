@@ -7,6 +7,10 @@
 
   // Initialize and add the Google Maps provider
   function initGoogleMap() {
+    if (typeof google === 'undefined' || !google.maps || typeof google.maps.Map !== 'function') {
+      throw new Error('Google Maps SDK not loaded. Call loadGoogleMaps() before initGoogleMap().');
+    }
+
     const gmap = new GoogleMap();
 
     // TASK-043 Phase 1: Use providerManager to register map instance

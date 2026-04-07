@@ -154,14 +154,17 @@ STEP 4: ENVIRONMENT CONFIGURATION
 ------------------------------------
 Create .env file by copying the example template:
 
+# Create the canonical config directory first
+mkdir -p webapp/config
+
 # Copy the template (recommended)
-cp webapp/.env.example webapp/.env  # Linux/macOS
-copy webapp\.env.example webapp\.env  # Windows
+cp webapp/.env.example webapp/config/.env  # Linux/macOS
+copy webapp\.env.example webapp\config\.env  # Windows
 
-# OR manually create .env file in webapp/ directory
-# touch webapp/.env  # Linux/macOS
+# OR manually create .env file in webapp/config/
+# touch webapp/config/.env  # Linux/macOS
 
-Edit webapp/.env with your actual values:
+Edit webapp/config/.env with your actual values:
 
 # Required API Keys (get from cloud providers)
 GOOGLE_API_KEY=your_google_maps_api_key_here
@@ -176,7 +179,7 @@ FLASK_DEBUG=true
 # Application Settings (optional, defaults provided)
 MAX_TILES=100000
 MAX_TILES_SESSION=100000
-UPLOAD_FOLDER=uploads
+UPLOAD_DIR=uploads
 
 4.2 Obtain API Keys
 ------------------
@@ -504,7 +507,7 @@ Solution: Reinstall PyTorch with correct CUDA version for your GPU
 9.3 API Key Issues
 -----------------
 Issue: "API key not loaded"
-Solution: Verify webapp/.env file exists and contains correct keys
+Solution: Verify webapp/config/.env file exists and contains correct keys
 
 Issue: "Maps not loading"
 Solution: Check API key validity and quota limits in cloud console
@@ -524,7 +527,7 @@ Issue: "Template not found"
 Solution: Ensure working directory is webapp/ when running towerscout.py
 
 Issue: "Session errors"
-Solution: Clear flask_session directory and restart application
+Solution: Clear webapp/flask_session directory and restart application
 
 9.5 Frontend Build Issues (Sprint 02)
 -------------------------------------

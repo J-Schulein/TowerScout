@@ -408,9 +408,10 @@ class GeocodingService:
         effective_preference = preferred_provider if preferred_provider is not None else self.preferred_provider
         
         self.logger.info(f"Reverse geocoding: {lat}, {lng} (preferred: {effective_preference})")
-        
+
         # Determine provider order based on preference
         provider_order = self._get_provider_order(effective_preference)
+        last_error_message = None
         
         # Try each provider in order
         for provider in provider_order:
@@ -430,11 +431,13 @@ class GeocodingService:
                     self.logger.info(f"Geocoding successful via {provider.value}: {result.address}")
                     return result
                 else:
+                    last_error_message = result.error_message or f"{provider.value} returned no address"
                     self.logger.debug(f"Provider {provider.value} returned no address, trying next")
                     continue
             
             except (NetworkError, GeocodingError) as e:
                 self.logger.warning(f"Provider {provider.value} failed: {e}")
+                last_error_message = str(e)
                 self._update_session_usage(provider, False)
                 continue
         
@@ -446,7 +449,7 @@ class GeocodingService:
             confidence=0.0,
             coordinates=(lat, lng),
             success=False,
-            error_message="All geocoding providers failed"
+            error_message=last_error_message or "All geocoding providers failed"
         )
     
     def forward_geocode_unified(self, query: str, preferred_provider: str = "auto") -> List[GeocodingResult]:

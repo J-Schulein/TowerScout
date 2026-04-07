@@ -361,7 +361,7 @@
     }
 
     // TASK-039: Custom polygon drawing implementation
-    enablePolygonDrawing() {
+    enablePolygonDrawing(contextOverride = null) {
       if (this.isDrawing) {
         window.TowerScoutLogger.debug('Drawing already in progress');
         return;
@@ -369,9 +369,9 @@
 
       window.TowerScoutLogger.debug('🎨 Enabling custom polygon drawing mode');
 
-      // Track drawing context based on whether detections exist
+      // Track drawing context explicitly when the triggering action is known.
       const hasDetections = window.providerManager && window.providerManager.getDetectionsLength() > 0;
-      this.drawingContext = hasDetections ? 'manual' : 'search';
+      this.drawingContext = contextOverride || (hasDetections ? 'manual' : 'search');
       window.TowerScoutLogger.debug('📍 Drawing context:', this.drawingContext, '(detections:', hasDetections ? 'YES' : 'NO', ')');
 
       // Show persistent instructions based on context (0 timeout = persistent until polygon complete)
@@ -506,7 +506,7 @@
       TowerScoutErrorHandler.showUserNotification(
         message,
         'success',
-        6000
+        9000
       );
     }
 
@@ -660,7 +660,7 @@
           body: JSON.stringify({
             lat: lat,
             lng: lng,
-            provider: 'auto'
+            provider: document.querySelector('#providers input[name="provider"]:checked')?.value || 'google'
           })
         });
 
@@ -835,18 +835,25 @@
 
     getBounds() {
       let bounds = this.map.getBounds();
+      if (!bounds) {
+        const center = this.map.getCenter();
+        if (center && typeof center.lng === 'function' && typeof center.lat === 'function') {
+          return [center.lng(), center.lat(), center.lng(), center.lat()];
+        }
+        return [nyc[0], nyc[1], nyc[0], nyc[1]];
+      }
       let ne = bounds.getNorthEast();
       let sw = bounds.getSouthWest();
       return [sw.lng(), ne.lat(), ne.lng(), sw.lat()];
     }
 
     fitBounds(x1, y1, x2, y2) {
-      let bounds = google.maps.LatLngBounds({
+      let bounds = {
         north: y1,
         south: y2,
         east: x2,
         west: x1
-      });
+      };
       this.map.fitBounds(bounds);
     }
 

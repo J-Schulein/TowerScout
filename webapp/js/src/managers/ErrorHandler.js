@@ -86,7 +86,9 @@
     static handleCriticalError(error, source = 'Unknown') {
       console.error(`🚨 Critical error from ${source}:`, error);
 
-      const errorMessage = error.message || error.toString() || 'Unknown error occurred';
+      const errorMessage = error && typeof error === 'object'
+        ? (error.message || error.toString())
+        : (error ? String(error) : 'Unknown error occurred');
 
       // Check if it's a provider-related error
       if (errorMessage.includes('Maps') || errorMessage.includes('provider')) {
@@ -111,7 +113,17 @@
     }
 
     static showUserNotification(message, type = 'info', timeout = 5000) {
-      window.TowerScoutLogger.debug(`📢 User notification [${type}]: ${message} (timeout: ${timeout}ms)`);
+      const outputPrefixes = {
+        info: '',
+        success: 'Success: ',
+        warning: 'Warning: ',
+        error: 'Error: '
+      };
+      const outputMessage = `${outputPrefixes[type] || ''}${message}`;
+
+      if (window.TowerScoutLogger && typeof window.TowerScoutLogger.info === 'function') {
+        window.TowerScoutLogger.info(outputMessage);
+      }
 
       // Clear any existing auto-hide timer
       if (this._notificationTimer) {

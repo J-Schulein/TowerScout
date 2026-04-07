@@ -207,7 +207,7 @@ def _apply_tls_warning(result: Dict[str, Any], response: requests.Response) -> D
 
 
 def _validate_google_key(key: str) -> Dict[str, Any]:
-    response = _validation_get(
+    static_response = _validation_get(
         "https://maps.googleapis.com/maps/api/staticmap",
         {
             "center": "0,0",
@@ -217,16 +217,60 @@ def _validate_google_key(key: str) -> Dict[str, Any]:
         },
     )
 
-    if response.status_code == 200:
+    if static_response.status_code != 200:
+        return _apply_tls_warning({
+            "valid": False,
+            "message": f"Google Maps validation failed with status {static_response.status_code}."
+        }, static_response)
+
+    geocode_response = _validation_get(
+        "https://maps.googleapis.com/maps/api/geocode/json",
+        {
+            "latlng": "40.714956,-74.015074",
+            "location_type": "ROOFTOP|RANGE_INTERPOLATED",
+            "result_type": "street_address|premise|subpremise",
+            "key": key,
+        },
+    )
+
+    if geocode_response.status_code != 200:
+        return _apply_tls_warning({
+            "valid": False,
+            "message": (
+                "Google Maps key passed Static Maps validation but Geocoding API "
+                f"validation failed with status {geocode_response.status_code}."
+            )
+        }, geocode_response)
+
+    try:
+        geocode_data = geocode_response.json()
+    except ValueError:
+        return _apply_tls_warning({
+            "valid": False,
+            "message": "Google Geocoding validation returned invalid JSON."
+        }, geocode_response)
+
+    geocode_status = geocode_data.get("status")
+    if geocode_status == "OK":
         return _apply_tls_warning(
-            {"valid": True, "message": "Google Maps API key validated successfully."},
-            response
+            {
+                "valid": True,
+                "message": "Google Maps API key validated successfully for map and geocoding access."
+            },
+            geocode_response
         )
 
-    return _apply_tls_warning({
-        "valid": False,
-        "message": f"Google Maps validation failed with status {response.status_code}."
-    }, response)
+    geocode_error = geocode_data.get("error_message") or geocode_status or "Unknown geocoding error"
+    return _apply_tls_warning(
+        {
+            "valid": False,
+            "message": (
+                "Google Maps key is not authorized for the Geocoding API. "
+                f"Google returned: {geocode_error}"
+            )
+        },
+        geocode_response
+    )
 
 
 def _validate_azure_key(key: str) -> Dict[str, Any]:

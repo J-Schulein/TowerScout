@@ -25,6 +25,7 @@ import PIL
 from ts_imgutil import cut_square_detection
 from ts_errors import ModelLoadError, ProcessingError
 from ts_logging import get_ml_logger
+from ts_paths import get_en_model_dir, get_upload_dir
 
 logger = get_ml_logger()
 
@@ -42,12 +43,12 @@ class EN_Classifier:
             logger.info("Initializing EfficientNet classifier")
             
             # Validate model file exists
-            PATH_best = 'model_params/EN/b5_unweighted_best.pt'
-            if not os.path.exists(PATH_best):
+            path_best = get_en_model_dir() / 'b5_unweighted_best.pt'
+            if not path_best.exists():
                 raise ModelLoadError(
-                    f"EfficientNet model file not found: {PATH_best}",
+                    f"EfficientNet model file not found: {path_best}",
                     model_name="EfficientNet-B5",
-                    model_path=PATH_best
+                    model_path=str(path_best)
                 )
             
             try:
@@ -78,16 +79,16 @@ class EN_Classifier:
             try:
                 if torch.cuda.is_available():
                     self.model.cuda()
-                    checkpoint = torch.load(PATH_best)
+                    checkpoint = torch.load(str(path_best))
                     logger.info("EfficientNet loaded on CUDA")
                 else:
-                    checkpoint = torch.load(PATH_best, map_location=torch.device('cpu'))
+                    checkpoint = torch.load(str(path_best), map_location=torch.device('cpu'))
                     logger.info("EfficientNet loaded on CPU")
             except Exception as e:
                 raise ModelLoadError(
                     f"Failed to configure EfficientNet device: {str(e)}", 
                     model_name="EfficientNet-B5",
-                    model_path=PATH_best,
+                    model_path=str(path_best),
                     cause=e
                 )
 
@@ -99,7 +100,7 @@ class EN_Classifier:
                 raise ModelLoadError(
                     f"Failed to load EfficientNet weights: {str(e)}",
                     model_name="EfficientNet-B5",
-                    model_path=PATH_best,
+                    model_path=str(path_best),
                     cause=e
                 )
                 
@@ -133,7 +134,7 @@ class EN_Classifier:
     def classify(self, img, detections, min_conf=0.25, max_conf=0.65, batch_id=0):
         count=0
         if self.save_debug_images:
-            os.makedirs("uploads", exist_ok=True)
+            upload_dir = get_upload_dir()
         for det in detections:
             x1,y1,x2,y2,conf = det[0:5]
 
@@ -155,8 +156,8 @@ class EN_Classifier:
                 # print(" secondary result:", round(output,2))
                 if self.save_debug_images:
                     debug_suffix = f"{batch_id+count:02}_conf_{round(conf, 2)}_p2_{round(output, 2)}"
-                    img.save(f"uploads/img_for_id_{debug_suffix}.jpg")
-                    det_img.save(f"uploads/id_{debug_suffix}.jpg")
+                    img.save(upload_dir / f"img_for_id_{debug_suffix}.jpg")
+                    det_img.save(upload_dir / f"id_{debug_suffix}.jpg")
                 p2 = output
 
             elif conf < min_conf:

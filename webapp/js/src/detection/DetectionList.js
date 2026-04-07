@@ -14,7 +14,24 @@
     }
 
     providerManager.setMinConfidence(confSlider.value / 100);
-    for (let det of providerManager.getDetections()) {
+    const detections = providerManager.getDetections();
+    const addressVisibility = new Map();
+
+    for (let det of detections) {
+      let meetsInside = reviewCheckBox.checked || det.inside;
+      // TASK-043 FIX: Use max confidence from either classifier for filtering
+      // This preserves both YOLOv5 and EfficientNet detections while allowing slider to work
+      let maxConf = Math.max(det.conf, det.secondary || 0);
+      let meetsConf = maxConf >= Detection_minConfidence;
+
+      const groupId = det.firstDet ? det.firstDet.id : det.id;
+      addressVisibility.set(
+        groupId,
+        Boolean(addressVisibility.get(groupId)) || (meetsConf && meetsInside)
+      );
+    }
+
+    for (let det of detections) {
       let meetsInside = reviewCheckBox.checked || det.inside;
       // TASK-043 FIX: Use max confidence from either classifier for filtering
       // This preserves both YOLOv5 and EfficientNet detections while allowing slider to work
@@ -23,9 +40,7 @@
 
       // TASK-033 Phase 3: Defensive check for firstDet (may be null during restoration)
       if (det.firstDet) {
-        let maxAddrConf = Math.max(det.firstDet.maxConf, det.firstDet.maxSecondary || 0);
-        let meetsAddrConf = maxAddrConf >= Detection_minConfidence;
-        det.firstDet.showAddr(meetsAddrConf && meetsInside);
+        det.firstDet.showAddr(Boolean(addressVisibility.get(det.firstDet.id)));
       }
 
       det.show(meetsConf && meetsInside);

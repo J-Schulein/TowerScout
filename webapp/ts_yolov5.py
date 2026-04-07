@@ -79,7 +79,16 @@ class YOLOv5_Detector:
                     cause=e
                 )
 
-    def detect(self, tiles, events, id, crop_tiles=False, secondary=None, perf_metrics=None):
+    def detect(
+        self,
+        tiles,
+        events,
+        id,
+        crop_tiles=False,
+        secondary=None,
+        perf_metrics=None,
+        progress_callback=None,
+    ):
         try:
             logger.info(f"Starting YOLOv5 detection on {len(tiles)} tiles")
             
@@ -196,6 +205,17 @@ class YOLOv5_Detector:
                             continue
 
                     logger.debug(f"Batch {i//self.batch_size + 1}/{chunks} completed")
+
+                    if progress_callback is not None:
+                        try:
+                            progress_callback(
+                                batches_completed=(i // self.batch_size) + 1,
+                                batches_total=chunks,
+                                tiles_processed=min(tile_count, i + len(tile_batch)),
+                                tiles_total=tile_count
+                            )
+                        except Exception as callback_error:
+                            logger.debug(f"Progress callback failed: {callback_error}")
                     
                     # Track memory usage after batch (helpful for monitoring memory leaks)
                     if perf_metrics:
