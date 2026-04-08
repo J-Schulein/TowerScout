@@ -1,7 +1,7 @@
 # Current Tasks - Active Sprint
 
 **Sprint Period**: April 7 - April 25, 2026 (Sprint 05 - 19 days)  
-**Last Updated**: April 7, 2026  
+**Last Updated**: April 8, 2026  
 **Focus**: Deployment readiness, Docker containerization, and validation infrastructure  
 **Status**: 🆕 **SPRINT 05 PLANNING** - Sprint 05 officially starts April 7, 2026
 
@@ -39,7 +39,7 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 **Status**: COMPLETED  
 **Type**: A (Closeout / Runtime Consistency)  
 **Priority**: CRITICAL  
-**Estimated Effort**: 4-8 hours  
+**Estimated Effort**: 6-10 hours  
 **Branch Context**: `feature-sprint-04-closeout`  
 
 **Objective**: Normalize TowerScout runtime path handling so logs, uploads, cache, sessions, temp files, and model-relative assets resolve consistently regardless of launch mode.
@@ -145,21 +145,21 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 
 ## 📋 SPRINT 05 ACTIVE TASKS
 
-### **TASK-051: Runtime Dependency Verification and Split** 🟡
-**Status**: NOT_STARTED  
+### **TASK-051: Runtime Dependency Verification and Split** ✅
+**Status**: COMPLETED  
 **Type**: C (Architecture / Deployment Readiness)  
 **Priority**: CRITICAL  
-**Estimated Effort**: 4-8 hours  
+**Estimated Effort**: 6-10 hours  
 **Target Sprint**: Sprint 05  
+**Task File**: `.agent_work/tasks/TASK-051-runtime-dependency-audit-and-decision-gate.md`  
 
-**Objective**: Verify runtime dependencies before containerization and separate confirmed runtime requirements from removable or optional packages without changing user-visible behavior.
+**Objective**: Make the runtime manifest and setup docs truthful enough for Docker preparation without changing current runtime behavior.
 
 **Key Activities**:
-- Verify import/runtime necessity of deployment-sensitive packages in `webapp/requirements.txt`
-- Confirm Torch CPU/CUDA detection and execution behavior
-- Treat `ultralytics` as CUDA/runtime-sensitive until proven removable
-- Remove or reclassify low-risk dependency drift (e.g., `seaborn`)
-- Preserve current user workflow, appearance, and functionality
+- Add the verified explicit runtime gaps `psutil` and `tqdm` to `webapp/requirements.txt`
+- Update active runtime/setup guides to remove stale `pkg_resources` guidance
+- Document first-run Torch Hub / GitHub behavior and CUDA install-time requirements
+- Preserve current user workflow, appearance, and runtime behavior
 
 **Validation**:
 - Clean-environment install test
@@ -171,6 +171,19 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 - TASK-049 stale-code audit findings ✅ COMPLETED
 
 **Notes**: Recommended as pre-containerization gate. Do not fold into TASK-025 - different risks, acceptance criteria, and rollback needs.
+
+**Completion Summary**:
+- Phase 1 audit artifacts and decision memo are complete
+- Option 2 Phase 2 follow-through is complete
+- `webapp/requirements.txt` now explicitly includes `psutil` and `tqdm`
+- Active runtime/setup guides now remove the stale `pkg_resources` / `setuptools<82` workaround and document first-run Torch Hub / GitHub plus CUDA install-time requirements
+- Validation rerun completed:
+  - startup/import smoke passed
+  - `pytest --collect-only tests -q` collected `159` tests
+  - clean-manifest install proof passed
+  - empty-cache YOLO proof reproduced offline failure and networked success
+- No Torch Hub redesign or Docker work was folded into this task
+- Recommended handoff: move directly to `TASK-052`
 
 **User Value**: Ensures Docker container has minimal, verified runtime dependencies
 
@@ -187,16 +200,22 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 
 **Key Activities**:
 - Replace skipped legacy `tests/integration/test_end_to_end.py` coverage
+- Establish the smoke first on the host/non-containerized app so it becomes the baseline before Docker work begins
 - Validate application boot with current configuration/setup flow
 - Exercise core live routes and confirm expected response behavior
+- Add one bounded detection-readiness path that is strong enough to catch model-load/runtime regressions without turning `TASK-052` into a full browser E2E suite
+- Make the smoke reusable by `TASK-025` so Docker validation runs the same contract against the containerized app
 - Provide stable regression target for containerization work
 - Keep test lightweight for regular Sprint 05 runs
 - Triage or replace stale tests and mocks discovered during pre-sprint closeout so validation reflects the live route surface
 
 **Success Criteria**:
 - `pytest --collect-only tests -q` remains clean
-- Current smoke test exists for app boot + core route availability
+- Current smoke test exists for host-side app boot + core route availability
+- Smoke covers one bounded detection-readiness path or explicitly documents why a narrower substitute was required
+- Smoke prerequisites and intentional skips are documented for provider keys, model files, and first-run Torch Hub / GitHub dependence
 - Containerization work has concrete validation target beyond import/collection
+- `TASK-025` can reuse the same smoke contract against Docker instead of defining a different validation baseline
 - Stale validation surfaces are either updated to current behavior or explicitly retired from the active baseline
 
 **Dependencies**:
@@ -205,6 +224,8 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 
 **Notes**:
 - Recommended before TASK-025 so Docker work validates against current, supported app surface.
+- This task should define the validation contract once, on the host app first, and let `TASK-025` reuse it for container validation.
+- Keep the smoke broad enough to catch setup/config/model-loading regressions, but bounded enough that it remains practical for repeated Sprint 05 runs.
 - Current stale-test findings from PRE-SPRINT-05-01 include outdated Google API validation mocks in `tests/unit/test_config.py` and `GET /getobjects` assumptions in `tests/unit/test_flask_routes.py`.
 - Unless one of those blocks additional closeout work earlier, handle them under TASK-052 rather than folding them into runtime-path normalization.
 
@@ -255,6 +276,7 @@ Runtime-path normalization is complete. Docker work should treat the following a
 **Notes**:
 - Keep focused on container build/run behavior
 - Do NOT absorb dependency-verification or smoke-test replacement into this task
+- Reuse the `TASK-052` smoke contract against the containerized app rather than inventing a separate Docker-only validation path
 - Current app uses filesystem-backed Flask sessions and writes to `webapp/config/.env`
 - Final Docker volume decisions should use the normalized `webapp/` runtime contract, not historical folder duplication
 - Docker delivery must provide writable session storage, stable `FLASK_SECRET_KEY`, and persistent writable mount for `webapp/config/`
@@ -397,7 +419,7 @@ Runtime-path normalization is complete. Docker work should treat the following a
 ## 🎯 Sprint 05 Definition of Done
 
 ### Must-Have (Primary Goals)
-- [ ] TASK-051 complete: Runtime dependencies verified and split documented
+- [x] TASK-051 complete: Runtime dependencies verified and split documented
 - [ ] TASK-052 complete: Current integration smoke test in place
 - [ ] TASK-025 Phase 1-3 complete: Docker container builds and runs
 - [ ] Setup Wizard functional in Docker environment
