@@ -1,7 +1,7 @@
 TOWERSCOUT USER TESTING GUIDE
 =============================
 
-Last reviewed: 2026-04-08
+Last reviewed: 2026-04-09
 Audience: nontechnical testers who want to run the current app locally
 
 WHAT THIS GUIDE IS FOR
@@ -33,7 +33,7 @@ You do NOT need:
 
 Important:
 - The first YOLOv5 model load can still need internet access to GitHub.
-- TowerScout currently loads YOLOv5 through `torch.hub`, so a network block can cause the first detection run to fail even when the model files are already in place.
+- TowerScout currently loads YOLOv5 through `torch.hub` against a pinned upstream commit, so a network block can still cause the first detection run to fail even when the model files are already in place.
 
 BEST CASE BEFORE YOU BEGIN
 ==========================
@@ -218,7 +218,7 @@ PRACTICAL TESTING TIPS
 
 - Start with a small area. Large searches take longer.
 - The first detection run can be slower because model loading happens during the session.
-- If the machine has never loaded YOLOv5 before, the first detection run may also need GitHub/network access because of the current `torch.hub` path.
+- If the machine has never loaded TowerScout's pinned YOLOv5 Hub ref before, the first detection run may also need GitHub/network access because of the current `torch.hub` path.
 - If both Azure and Google are configured, try switching providers before detection starts.
 - Keep notes on what you searched for and what happened.
 
@@ -253,7 +253,7 @@ Problem: The install step fails
 
 Problem: The first detection run fails with a GitHub or download error
 - The machine may be blocked from reaching GitHub
-- TowerScout still needs GitHub/network access on the first YOLOv5 load unless that Hub repo is already cached
+- TowerScout still needs GitHub/network access on the first YOLOv5 load unless that pinned Hub ref is already cached
 - Send the exact error text to a teammate
 
 Problem: The app says setup is still required

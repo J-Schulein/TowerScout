@@ -16,6 +16,7 @@ import os
 import shutil
 import threading
 from pathlib import Path
+from urllib.error import URLError
 
 import torch
 from PIL import Image
@@ -27,31 +28,88 @@ from ts_logging import get_ml_logger
 logger = get_ml_logger()
 
 YOLOV5_HUB_REPO = 'ultralytics/yolov5'
+YOLOV5_HUB_REF = '1d62daa3c6b8ec15fdb319c0a2e341d8b56ec86c'
+YOLOV5_HUB_SPEC = f'{YOLOV5_HUB_REPO}:{YOLOV5_HUB_REF}'
 YOLOV5_HUB_CACHE_PREFIX = 'ultralytics_yolov5_'
+YOLOV5_HUB_PINNED_CACHE_DIR = f'{YOLOV5_HUB_CACHE_PREFIX}{YOLOV5_HUB_REF}'
 YOLOV5_STALE_IMPORT_SIGNATURE = 'import pkg_resources as pkg'
 YOLOV5_HUB_ARCHIVES = ('master.zip', 'main.zip')
+YOLOV5_HUB_PINNED_ARCHIVE = f'{YOLOV5_HUB_REF}.zip'
+YOLOV5_CACHE_REFRESH_HINT = 'Cache may be out of date, try `force_reload=True`'
 
 
-def _is_pkg_resources_missing_error(error):
-    """Detect the stale-cache failure mode caused by old YOLOv5 Hub snapshots."""
+def _iter_error_chain(error):
+    """Yield an exception and its chained causes/contexts once each."""
     current = error
     seen = set()
 
     while current is not None and id(current) not in seen:
+        yield current
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+
+
+def _is_pkg_resources_missing_error(error):
+    """Detect the stale-cache failure mode caused by old YOLOv5 Hub snapshots."""
+    for current in _iter_error_chain(error):
         if isinstance(current, ModuleNotFoundError) and getattr(current, 'name', None) == 'pkg_resources':
             return True
 
         if "No module named 'pkg_resources'" in str(current):
             return True
 
-        seen.add(id(current))
-        current = current.__cause__ or current.__context__
+    return False
+
+
+def _is_refreshable_pinned_cache_error(error):
+    """Detect cached-repo failures that merit a one-time forced refresh."""
+    for current in _iter_error_chain(error):
+        if isinstance(current, (ImportError, ModuleNotFoundError, SyntaxError)):
+            return True
+
+        if YOLOV5_CACHE_REFRESH_HINT in str(current):
+            return True
 
     return False
 
 
-def _find_stale_yolov5_hub_repos():
-    """Return cached YOLOv5 Hub repos that still import pkg_resources."""
+def _is_hub_network_error(error):
+    """Detect first-run or refresh failures caused by missing GitHub/network access."""
+    network_snippets = (
+        'Cannot find repo under',
+        'No connection could be made',
+        'Failed to establish a new connection',
+        'Name or service not known',
+        'Temporary failure in name resolution',
+        'Connection refused',
+        'Connection reset',
+        'timed out',
+    )
+
+    for current in _iter_error_chain(error):
+        if isinstance(current, URLError):
+            return True
+
+        current_text = str(current)
+        if any(snippet in current_text for snippet in network_snippets):
+            return True
+
+    return False
+
+
+def _find_pinned_yolov5_hub_repos():
+    """Return the pinned YOLOv5 Hub repo directory if it is already cached."""
+    hub_dir = Path(torch.hub.get_dir())
+    pinned_repo = hub_dir / YOLOV5_HUB_PINNED_CACHE_DIR
+
+    if pinned_repo.is_dir():
+        return hub_dir, [pinned_repo]
+
+    return hub_dir, []
+
+
+def _find_stale_legacy_yolov5_hub_repos():
+    """Return legacy cached YOLOv5 Hub repos that still import pkg_resources."""
     hub_dir = Path(torch.hub.get_dir())
     stale_repos = []
 
@@ -60,6 +118,8 @@ def _find_stale_yolov5_hub_repos():
 
     for repo_dir in hub_dir.glob(f'{YOLOV5_HUB_CACHE_PREFIX}*'):
         if not repo_dir.is_dir():
+            continue
+        if repo_dir.name == YOLOV5_HUB_PINNED_CACHE_DIR:
             continue
 
         general_py = repo_dir / 'utils' / 'general.py'
@@ -72,51 +132,106 @@ def _find_stale_yolov5_hub_repos():
     return hub_dir, stale_repos
 
 
-def _clear_stale_yolov5_hub_repos(hub_dir, stale_repos):
-    """Remove stale cached YOLOv5 Hub repos so torch.hub can fetch a fresh snapshot."""
-    for repo_dir in stale_repos:
+def _clear_yolov5_hub_repos(hub_dir, repo_dirs, archive_names):
+    """Remove Hub repos and matching zip archives."""
+    for repo_dir in repo_dirs:
         shutil.rmtree(repo_dir)
 
-    for archive_name in YOLOV5_HUB_ARCHIVES:
+    for archive_name in archive_names:
         archive_path = hub_dir / archive_name
         if archive_path.exists():
             archive_path.unlink()
 
 
+def _clear_pinned_yolov5_hub_repos(hub_dir, pinned_repos):
+    """Clear the cached repo for the pinned YOLOv5 ref so it can be refreshed."""
+    _clear_yolov5_hub_repos(hub_dir, pinned_repos, (YOLOV5_HUB_PINNED_ARCHIVE,))
+
+
+def _clear_stale_legacy_yolov5_hub_repos(hub_dir, stale_repos):
+    """Clear legacy pkg_resources-era YOLOv5 Hub caches for compatibility hygiene."""
+    _clear_yolov5_hub_repos(hub_dir, stale_repos, YOLOV5_HUB_ARCHIVES)
+
+
+def _load_pinned_yolov5_model(filename, force_reload=False):
+    """Load TowerScout's pinned YOLOv5 Hub ref."""
+    return torch.hub.load(
+        YOLOV5_HUB_SPEC,
+        'custom',
+        path=filename,
+        force_reload=force_reload,
+        trust_repo=True,
+    )
+
+
 def _load_model_with_cache_recovery(filename):
-    """Retry once if a stale cached YOLOv5 Hub snapshot still depends on pkg_resources."""
+    """Load TowerScout's pinned YOLOv5 ref with one bounded cache refresh retry."""
     try:
-        return torch.hub.load(YOLOV5_HUB_REPO, 'custom', path=filename)
+        return _load_pinned_yolov5_model(filename)
     except Exception as first_error:
-        if not _is_pkg_resources_missing_error(first_error):
-            raise
+        hub_dir, pinned_repos = _find_pinned_yolov5_hub_repos()
+        if pinned_repos and _is_refreshable_pinned_cache_error(first_error):
+            pinned_repo_list = ', '.join(str(path) for path in pinned_repos)
+            logger.warning(
+                "Pinned YOLOv5 Torch Hub cache for ref %s failed to load. "
+                "Clearing cache and retrying fresh load: %s",
+                YOLOV5_HUB_REF,
+                pinned_repo_list,
+            )
 
-        hub_dir, stale_repos = _find_stale_yolov5_hub_repos()
-        if not stale_repos:
-            raise
+            try:
+                _clear_pinned_yolov5_hub_repos(hub_dir, pinned_repos)
+            except OSError as clear_error:
+                raise RuntimeError(
+                    f"Detected invalid cached YOLOv5 Torch Hub ref {YOLOV5_HUB_REF}, "
+                    f"but failed to clear it: {clear_error}"
+                ) from clear_error
 
-        stale_repo_list = ', '.join(str(path) for path in stale_repos)
-        logger.warning(
-            "Detected stale cached YOLOv5 Torch Hub repo requiring pkg_resources. "
-            "Clearing cache and retrying fresh load: %s",
-            stale_repo_list
-        )
+            try:
+                return _load_pinned_yolov5_model(filename, force_reload=True)
+            except Exception as retry_error:
+                raise RuntimeError(
+                    f"Failed to load pinned YOLOv5 Torch Hub ref {YOLOV5_HUB_REF} from cache. "
+                    f"Cleared cached repo under {hub_dir} and retried a fresh GitHub download, "
+                    f"but reload failed: {retry_error}"
+                ) from retry_error
 
-        try:
-            _clear_stale_yolov5_hub_repos(hub_dir, stale_repos)
-        except OSError as clear_error:
+        if _is_pkg_resources_missing_error(first_error):
+            hub_dir, stale_repos = _find_stale_legacy_yolov5_hub_repos()
+            if stale_repos:
+                stale_repo_list = ', '.join(str(path) for path in stale_repos)
+                logger.warning(
+                    "Detected stale legacy YOLOv5 Torch Hub repo requiring pkg_resources. "
+                    "Clearing legacy cache and retrying pinned ref load: %s",
+                    stale_repo_list
+                )
+
+                try:
+                    _clear_stale_legacy_yolov5_hub_repos(hub_dir, stale_repos)
+                except OSError as clear_error:
+                    raise RuntimeError(
+                        "Detected stale legacy YOLOv5 Torch Hub repo that requires pkg_resources, "
+                        f"but failed to clear it: {clear_error}"
+                    ) from clear_error
+
+                try:
+                    return _load_pinned_yolov5_model(filename, force_reload=True)
+                except Exception as retry_error:
+                    raise RuntimeError(
+                        "Detected stale legacy YOLOv5 Torch Hub repo that required pkg_resources. "
+                        f"Cleared legacy cache under {hub_dir} and retried the pinned ref "
+                        f"{YOLOV5_HUB_REF}, but reload failed: {retry_error}"
+                    ) from retry_error
+
+        if not pinned_repos and _is_hub_network_error(first_error):
             raise RuntimeError(
-                "Detected stale cached YOLOv5 Torch Hub repo that requires pkg_resources, "
-                f"but failed to clear it: {clear_error}"
-            ) from clear_error
+                f"Failed to load pinned YOLOv5 Torch Hub ref {YOLOV5_HUB_REF}. "
+                f"No cached copy was available under {hub_dir}, and TowerScout could not reach GitHub "
+                "to download it. GitHub/network access is required the first time this pinned ref is "
+                f"downloaded or whenever TowerScout must refresh that cache: {first_error}"
+            ) from first_error
 
-        try:
-            return torch.hub.load(YOLOV5_HUB_REPO, 'custom', path=filename, force_reload=True)
-        except Exception as retry_error:
-            raise RuntimeError(
-                "Detected stale cached YOLOv5 Torch Hub repo that required pkg_resources. "
-                f"Cleared stale cache under {hub_dir} and retried a fresh download, but reload failed: {retry_error}"
-            ) from retry_error
+        raise
 
 
 class YOLOv5_Detector:

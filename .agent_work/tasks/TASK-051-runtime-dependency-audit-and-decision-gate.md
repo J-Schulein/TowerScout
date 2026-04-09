@@ -5,7 +5,7 @@
 **Type**: C (Architecture / Deployment Readiness)  
 **Estimated Effort**: 12-18 hours across Phase 1 audit plus selected Phase 2 cleanup  
 **Created**: April 8, 2026  
-**Last Updated**: April 8, 2026  
+**Last Updated**: April 9, 2026  
 **Target Sprint**: Sprint 05
 
 ---
@@ -51,7 +51,8 @@ The post-close stale-cache finding also made one limitation explicit: proving th
 - Option 2 was selected and executed for Phase 2 on April 8, 2026
 - a post-close user terminal log on April 8, 2026 proved that stale cached `ultralytics_yolov5_master` snapshots can still import `pkg_resources` and fail under newer setuptools even though the fresh-cache upstream path no longer does
 - a short-term stale-cache recovery path now exists in `webapp/ts_yolov5.py` to clear `pkg_resources`-era Hub snapshots and retry once with a fresh load
-- `TASK-051` is ready to hand off to `TASK-052`
+- that short-term mitigation has now been superseded by `TASK-055`, which pins the YOLOv5 Hub ref to a tested commit SHA
+- `TASK-051` now hands off to `TASK-055`, then `TASK-052`
 - current local machine facts already known at task start:
   - `torch 2.2.1+cpu`
   - `torch.cuda.is_available() == False`
@@ -268,12 +269,14 @@ If one artifact cleanly subsumes another, prefer fewer documents with clearer st
 Once `TASK-051` Phase 2 is complete, the recommended Sprint 05 sequence is:
 
 1. Close `TASK-051` with the manifest and runtime-doc cleanup complete.
-2. Move directly to `TASK-052` to establish the host-side smoke baseline for the current app surface.
-3. Reuse that `TASK-052` smoke contract during `TASK-025` so Docker validation proves the containerized app against the same baseline instead of inventing a separate ad hoc check.
+2. Complete `TASK-055` so the YOLO Torch Hub runtime is pinned and no longer tied to the mutable default branch.
+3. Move to `TASK-052` to establish the host-side smoke baseline for the current app surface on top of that hardened runtime.
+4. Reuse that `TASK-052` smoke contract during `TASK-025` so Docker validation proves the containerized app against the same baseline instead of inventing a separate ad hoc check.
 
 The intent is:
 
 - `TASK-051` makes the runtime contract truthful enough to test
+- `TASK-055` hardens the YOLO runtime contract so `TASK-052` does not baseline the earlier mutable-branch behavior
 - `TASK-052` defines the reusable validation target
 - `TASK-025` proves the containerized app against that target
 
@@ -509,4 +512,15 @@ Expected option shapes:
 - The stale-cache recovery path is covered by new unit tests
 - The new finding matches the user-provided terminal log and the current upstream YOLOv5 `utils/general.py`
 - `pkg_resources` remains a stale-cache compatibility surface, not a fresh-manifest add candidate
-**Next**: Keep `TASK-051` closed as a documented audit-plus-mitigation task, and let `TASK-052` include a bounded detection-readiness path that catches cache-drift regressions earlier.
+**Next**: Keep `TASK-051` closed as a documented audit-plus-mitigation task, complete `TASK-055` to pin and harden the YOLO Torch Hub runtime path, and then let `TASK-052` include a bounded detection-readiness path that catches regressions against that hardened baseline.
+
+### TYPE C - POST-CLOSE FOLLOW-UP: TASK-055 SUPERSEDED THE SHORT-TERM HUB MITIGATION - 2026-04-09
+**Objective**: Record the follow-up runtime hardening that replaced the earlier short-term `pkg_resources` cache-migration workaround as the preferred Sprint 05 baseline.
+**Context**: After `TASK-051` closed, the user approved a separate follow-up task for YOLO Torch Hub pinned-ref hardening. Live validation showed that published YOLOv5 release tags still imported `pkg_resources`, so the follow-up task pinned TowerScout to a tested commit SHA instead.
+**Decision**: Keep `TASK-051` closed and record `TASK-055` as the authoritative follow-up for YOLO runtime hardening instead of reopening the dependency-audit task.
+**Execution**:
+- Updated the `TASK-051` cross-reference notes and handoff sequence to point to `TASK-055` before `TASK-052`.
+- Preserved the historical record that `TASK-051` landed the short-term mitigation, but marked that mitigation as superseded by the pinned-ref hardening task.
+**Output**: `TASK-051` remains the source of truth for the dependency audit, while `TASK-055` now owns the hardened YOLO Torch Hub runtime contract.
+**Validation**: The live Sprint tracker and the new `TASK-055` task artifact now agree on the post-`TASK-051` sequence.
+**Next**: Proceed with `TASK-052` on top of the hardened runtime path from `TASK-055`.

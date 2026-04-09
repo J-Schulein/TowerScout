@@ -1,7 +1,7 @@
 TOWERSCOUT DEVELOPMENT SETUP GUIDE
 =================================
 
-Last reviewed: 2026-04-08
+Last reviewed: 2026-04-09
 Audience: developers and technical contributors
 
 PURPOSE
@@ -108,8 +108,10 @@ pip install -r requirements-dev.txt
 Notes:
 - `webapp/requirements.txt` is the runtime dependency list.
 - `webapp/requirements.txt` now includes the current verified runtime gaps `psutil` and `tqdm`.
+- `webapp/requirements.txt` also explicitly includes `packaging`, `pandas`, and a pinned `ultralytics` version because the hardened YOLOv5 Hub path imports those directly at runtime.
 - `requirements-dev.txt` adds pytest, linting, type-checking, and security tools.
-- The current YOLOv5 path still uses `torch.hub`, so the first model load can still require GitHub/network access if the Hub repo is not already cached locally.
+- TowerScout still uses `torch.hub` for YOLOv5, but it now pins a specific upstream commit instead of loading the mutable default branch.
+- The first model load can still require GitHub/network access if that pinned Hub ref is not already cached locally.
 
 OPTIONAL: CUDA-ENABLED PYTORCH
 ==============================
@@ -261,7 +263,8 @@ Current startup behavior worth knowing:
 - EfficientNet is loaded during startup unless `TOWERSCOUT_LAZY_MODEL_INIT` is enabled
 - YOLOv5 models are discovered from `webapp/model_params/yolov5/`
 - the default YOLO model is loaded on demand in `dev` mode
-- the first YOLOv5 load may still reach GitHub through `torch.hub` if the Hub repo is not already cached
+- the first YOLOv5 load may still reach GitHub through `torch.hub` if the pinned Hub ref is not already cached
+- TowerScout now ignores older `ultralytics_yolov5_master` caches and uses its pinned Hub ref instead
 
 STEP 8: VERIFY THE INSTALLATION
 ===============================
@@ -370,8 +373,8 @@ Problem: TowerScout crashes before the server starts
   - `webapp/model_params/EN/b5_unweighted_best.pt`
 
 Problem: YOLOv5 load fails with a GitHub or download error
-- The current runtime path still loads YOLOv5 through `torch.hub`
-- The first model load may fail if the machine cannot reach GitHub and no local Hub cache already exists
+- The current runtime path still loads YOLOv5 through `torch.hub`, but now against a pinned YOLOv5 commit
+- The first model load may fail if the machine cannot reach GitHub and no cached copy of that pinned Hub ref already exists
 - This is a current runtime characteristic, not a separate manual install step you missed
 
 Problem: CUDA is available on the machine but TowerScout still runs on CPU
