@@ -177,6 +177,7 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 - Option 2 Phase 2 follow-through is complete
 - `webapp/requirements.txt` now explicitly includes `psutil` and `tqdm`
 - Active runtime/setup guides now remove the stale `pkg_resources` / `setuptools<82` workaround and document first-run Torch Hub / GitHub plus CUDA install-time requirements
+- Post-close correction recorded: stale cached Torch Hub snapshots can still import `pkg_resources`, and a short-term cache-migration recovery path now exists in `webapp/ts_yolov5.py`
 - Validation rerun completed:
   - startup/import smoke passed
   - `pytest --collect-only tests -q` collected `159` tests

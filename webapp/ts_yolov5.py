@@ -12,15 +12,111 @@
 # YOLOv5 detector class
 
 import math
-import torch
 import os
-from PIL import Image
-from ts_imgutil import crop
+import shutil
 import threading
+from pathlib import Path
+
+import torch
+from PIL import Image
+
+from ts_imgutil import crop
 from ts_errors import ModelLoadError, ProcessingError, ResourceError
 from ts_logging import get_ml_logger
 
 logger = get_ml_logger()
+
+YOLOV5_HUB_REPO = 'ultralytics/yolov5'
+YOLOV5_HUB_CACHE_PREFIX = 'ultralytics_yolov5_'
+YOLOV5_STALE_IMPORT_SIGNATURE = 'import pkg_resources as pkg'
+YOLOV5_HUB_ARCHIVES = ('master.zip', 'main.zip')
+
+
+def _is_pkg_resources_missing_error(error):
+    """Detect the stale-cache failure mode caused by old YOLOv5 Hub snapshots."""
+    current = error
+    seen = set()
+
+    while current is not None and id(current) not in seen:
+        if isinstance(current, ModuleNotFoundError) and getattr(current, 'name', None) == 'pkg_resources':
+            return True
+
+        if "No module named 'pkg_resources'" in str(current):
+            return True
+
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+
+    return False
+
+
+def _find_stale_yolov5_hub_repos():
+    """Return cached YOLOv5 Hub repos that still import pkg_resources."""
+    hub_dir = Path(torch.hub.get_dir())
+    stale_repos = []
+
+    if not hub_dir.exists():
+        return hub_dir, stale_repos
+
+    for repo_dir in hub_dir.glob(f'{YOLOV5_HUB_CACHE_PREFIX}*'):
+        if not repo_dir.is_dir():
+            continue
+
+        general_py = repo_dir / 'utils' / 'general.py'
+        try:
+            if general_py.exists() and YOLOV5_STALE_IMPORT_SIGNATURE in general_py.read_text(encoding='utf-8', errors='ignore'):
+                stale_repos.append(repo_dir)
+        except OSError:
+            continue
+
+    return hub_dir, stale_repos
+
+
+def _clear_stale_yolov5_hub_repos(hub_dir, stale_repos):
+    """Remove stale cached YOLOv5 Hub repos so torch.hub can fetch a fresh snapshot."""
+    for repo_dir in stale_repos:
+        shutil.rmtree(repo_dir)
+
+    for archive_name in YOLOV5_HUB_ARCHIVES:
+        archive_path = hub_dir / archive_name
+        if archive_path.exists():
+            archive_path.unlink()
+
+
+def _load_model_with_cache_recovery(filename):
+    """Retry once if a stale cached YOLOv5 Hub snapshot still depends on pkg_resources."""
+    try:
+        return torch.hub.load(YOLOV5_HUB_REPO, 'custom', path=filename)
+    except Exception as first_error:
+        if not _is_pkg_resources_missing_error(first_error):
+            raise
+
+        hub_dir, stale_repos = _find_stale_yolov5_hub_repos()
+        if not stale_repos:
+            raise
+
+        stale_repo_list = ', '.join(str(path) for path in stale_repos)
+        logger.warning(
+            "Detected stale cached YOLOv5 Torch Hub repo requiring pkg_resources. "
+            "Clearing cache and retrying fresh load: %s",
+            stale_repo_list
+        )
+
+        try:
+            _clear_stale_yolov5_hub_repos(hub_dir, stale_repos)
+        except OSError as clear_error:
+            raise RuntimeError(
+                "Detected stale cached YOLOv5 Torch Hub repo that requires pkg_resources, "
+                f"but failed to clear it: {clear_error}"
+            ) from clear_error
+
+        try:
+            return torch.hub.load(YOLOV5_HUB_REPO, 'custom', path=filename, force_reload=True)
+        except Exception as retry_error:
+            raise RuntimeError(
+                "Detected stale cached YOLOv5 Torch Hub repo that required pkg_resources. "
+                f"Cleared stale cache under {hub_dir} and retried a fresh download, but reload failed: {retry_error}"
+            ) from retry_error
 
 
 class YOLOv5_Detector:
@@ -38,7 +134,7 @@ class YOLOv5_Detector:
             
             # Model loading with error handling
             try:
-                self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=filename)
+                self.model = _load_model_with_cache_recovery(filename)
                 logger.info("YOLOv5 model loaded successfully")
             except Exception as e:
                 raise ModelLoadError(

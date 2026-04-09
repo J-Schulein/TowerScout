@@ -1,6 +1,6 @@
 # TASK-051 Phase 1 Decision Memo
 
-**Status**: Phase 1 complete; Option 2 selected and executed for Phase 2 follow-through  
+**Status**: Phase 1 complete; Option 2 selected and executed for Phase 2 follow-through, with a post-close stale-cache correction recorded  
 **Date**: April 8, 2026
 
 ## Decision Update
@@ -34,6 +34,17 @@
   - empty-cache YOLO proof still fails offline and succeeds once network access is allowed
 - Residual risk intentionally left in place:
   - first-run GitHub / Torch Hub dependence remains part of the current runtime contract until a separate hardening task changes that behavior
+
+## Post-Close Correction: Stale Hub Cache Drift
+
+- On April 8, 2026, a user terminal log showed TowerScout loading a cached `ultralytics_yolov5_master` snapshot that still imported `pkg_resources` from `utils/general.py`.
+- The earlier `TASK-051` statement that `pkg_resources` was not part of the current runtime truth was correct for the audited fresh-cache upstream path, but too narrow for stale cached Hub snapshots.
+- Current upstream/fresh-cache YOLOv5 no longer imports `pkg_resources`; stale cached Hub repos still can.
+- A short-term mitigation now exists in `webapp/ts_yolov5.py`:
+  - detect the `pkg_resources` stale-cache failure
+  - clear the stale cached YOLOv5 Hub repo
+  - retry once with `force_reload=True`
+- This corrects the immediate user-facing regression without changing the larger conclusion that mutable Torch Hub runtime loading is the root design risk.
 
 ## Verified Runtime Keeps
 
@@ -74,9 +85,9 @@
 ## Verified Non-Runtime / Stale-Doc Items
 
 - `pkg_resources`
-  - not required by current TowerScout runtime
-  - not required by the current YOLO Torch Hub path audited here
-  - should be treated as a documentation cleanup issue rather than a runtime manifest gap
+  - not required by the current fresh-cache TowerScout runtime path
+  - still reachable through stale cached YOLO Torch Hub snapshots created before upstream removed the `pkg_resources` import
+  - should be treated as a cache-drift compatibility surface rather than a fresh runtime manifest gap
 
 ## CUDA Packaging and Enablement Conclusions
 

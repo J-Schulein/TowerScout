@@ -15,7 +15,7 @@
 | Base install from `webapp/requirements.txt` | docs and manifest both say install `webapp/requirements.txt` | `README.md`, the general user guide, and the development guide treat this as the main install step | clean install from the manifest resolved successfully, but the current YOLO path still has undeclared runtime gaps | docs are directionally right, but the manifest is not fully truthful yet |
 | `psutil` | not declared explicitly | not called out in reviewed docs | TowerScout imports `psutil` directly in `webapp/ts_performance.py`; current environment only gets it transitively from `ultralytics` | verified missing explicit runtime dependency |
 | `tqdm` | not declared | only the Windows Miniconda guide tells users to install it separately | current YOLO Hub load reaches `utils/dataloaders.py`, which imports `tqdm` before `check_requirements(...)` can help | the Windows Miniconda guide is closer to runtime truth than the manifest and other guides |
-| `pkg_resources` / `setuptools<82` | not declared | Windows Miniconda guide requires `setuptools<82` and asks users to verify `pkg_resources` imports | current TowerScout runtime and current YOLO Hub path do not require `pkg_resources`; official setuptools docs now say `pkg_resources` was removed in `setuptools 82.0.0` on February 8, 2026 | current Miniconda workaround is stale for the audited runtime path |
+| `pkg_resources` / `setuptools<82` | not declared | Windows Miniconda guide requires `setuptools<82` and asks users to verify `pkg_resources` imports | fresh current-upstream YOLO Hub snapshots no longer require `pkg_resources`, but stale cached `ultralytics_yolov5_master` snapshots still can; official setuptools docs say `pkg_resources` was removed in `setuptools 82.0.0` on February 8, 2026 | the Miniconda workaround is stale for fresh-cache installs, but stale Hub caches can still trigger this failure until refreshed or bypassed |
 | First YOLO load needs network | manifest does not express it | only the Windows Miniconda guide clearly warns that first `torch.hub` model load still needs GitHub access | empty-cache YOLO smoke with temporary `TORCH_HOME` failed without network and succeeded after network was allowed | the general setup/testing docs understate this first-run dependency |
 | `seaborn` | declared in runtime manifest | docs do not justify it | blocker probe proved current YOLO Hub load reaches `utils/plots.py`, which imports `seaborn` before `check_requirements(...)` | not a safe Phase 1 remove candidate under the current runtime path |
 | `packaging` | not declared explicitly | docs are silent | current YOLO Hub load imports `packaging` before `check_requirements(...)`; clean install gets it only because `geopandas` pulls it in | hidden runtime dependency currently satisfied transitively |
@@ -49,7 +49,7 @@
 
 - Correctly warns that first YOLO load still needs network access to GitHub.
 - Correctly compensates for the current missing `tqdm` gap.
-- Incorrectly treats `pkg_resources` and `setuptools<82` as part of the current runtime truth.
+- Correctly preserves a real historical workaround, but overstates it as part of the universal current runtime truth. The real state is cache-dependent.
 
 ## Phase 1 Documentation Implications
 
@@ -59,5 +59,5 @@
 - The main doc corrections suggested by Phase 1 are:
   - promote first-run Torch Hub / GitHub access as a real runtime note
   - explain that CUDA enablement requires a CUDA-enabled PyTorch install choice
-  - remove `pkg_resources` / `setuptools<82` as a required runtime workaround
+  - stop treating `pkg_resources` / `setuptools<82` as universally required, while still recognizing that stale cached Hub snapshots can hit that failure
   - align the manifest or docs around the verified `tqdm` and `psutil` gaps

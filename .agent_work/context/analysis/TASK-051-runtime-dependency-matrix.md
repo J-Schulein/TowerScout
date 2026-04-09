@@ -71,7 +71,7 @@
 
 | Item | Evidence | Phase 1 conclusion |
 | --- | --- | --- |
-| `pkg_resources` via `setuptools` | no current `webapp/` runtime imports; no current YOLO Hub repo references; missing-`pkg_resources` blocker did not break current custom YOLO load | not a current runtime dependency; current docs that require `pkg_resources` are stale for the audited path |
+| `pkg_resources` via `setuptools` | not part of the current fresh-cache upstream path, but still referenced by some stale cached `ultralytics_yolov5_master` snapshots | Phase 1 fresh-cache blocker did not break the current custom YOLO load; a post-close user terminal log on April 8, 2026 showed a cached Hub snapshot importing `pkg_resources` from `utils/general.py` and failing under a newer setuptools environment | cache-dependent compatibility surface, not a fresh-manifest add candidate; stale cached Hub repos remain a runtime risk until refreshed or bypassed |
 | `redis` | `webapp/ts_geocache.py` imports `redis` only inside the `if redis_url:` branch; default TowerScout cache factory does not pass a Redis URL | optional enhancement dependency, not part of the default runtime contract |
 
 ## Research and Test Surface Separation
@@ -91,4 +91,10 @@
 - The strongest hidden transitive runtime edges are:
   - `packaging`
   - `pandas`
-- `pkg_resources` is not part of the current runtime truth and should be treated as a documentation cleanup issue, not a manifest-add candidate.
+- `pkg_resources` is not part of the current fresh-cache upstream path, but stale cached Torch Hub snapshots can still require it; this is a cache-drift risk, not a reason to add `pkg_resources` back to the runtime manifest.
+
+## Post-Close Correction
+
+- On April 8, 2026, a real user terminal log showed TowerScout loading a cached `ultralytics_yolov5_master` snapshot that still imported `pkg_resources` in `utils/general.py`.
+- The original Phase 1 conclusion about `pkg_resources` was therefore too narrow: it was correct for the audited fresh-cache upstream path, but not for stale cached Hub snapshots.
+- A short-term mitigation now exists in `webapp/ts_yolov5.py` to clear `pkg_resources`-era cached Hub repos and retry a fresh load once.

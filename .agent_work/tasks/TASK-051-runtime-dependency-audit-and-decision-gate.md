@@ -39,6 +39,8 @@ Sprint 05 sequencing requires `TASK-051` to complete before `TASK-025` Docker wo
 
 Because Docker image scope and dependency truthfulness are tightly coupled, this task must establish what is truly required at runtime, what is only transitively present today, what is research-only, and what the docs currently say that the manifests do not.
 
+The post-close stale-cache finding also made one limitation explicit: proving the current empty-cache upstream path is not enough while TowerScout still executes mutable Torch Hub cache state from earlier downloads.
+
 ---
 
 ## Current Status Snapshot
@@ -47,6 +49,8 @@ Because Docker image scope and dependency truthfulness are tightly coupled, this
 - `TASK-025` and `TASK-052` are blocked on a credible runtime/dependency baseline
 - the Phase 1 decision gate is complete
 - Option 2 was selected and executed for Phase 2 on April 8, 2026
+- a post-close user terminal log on April 8, 2026 proved that stale cached `ultralytics_yolov5_master` snapshots can still import `pkg_resources` and fail under newer setuptools even though the fresh-cache upstream path no longer does
+- a short-term stale-cache recovery path now exists in `webapp/ts_yolov5.py` to clear `pkg_resources`-era Hub snapshots and retry once with a fresh load
 - `TASK-051` is ready to hand off to `TASK-052`
 - current local machine facts already known at task start:
   - `torch 2.2.1+cpu`
@@ -482,3 +486,27 @@ Expected option shapes:
 - Empty-cache YOLO proof reproduced the documented offline failure and networked success path
 - Stale `pkg_resources` / `setuptools<82` guidance was removed from the active runtime/setup guides
 **Next**: Close `TASK-051` and move to `TASK-052` so the host-side smoke baseline captures the now-truthful runtime contract before Docker work begins.
+
+### TYPE C - POST-CLOSE FINDING: STALE TORCH HUB CACHE DRIFT AND SHORT-TERM MITIGATION - 2026-04-08
+**Objective**: Correct the `TASK-051` runtime record after a real user hit a stale-cache YOLO failure that the original Phase 1 proof did not expose.
+**Context**: A user testing the Phase 2 setup hit `ModuleNotFoundError: No module named 'pkg_resources'` during YOLO load. Their terminal log showed `torch.hub` loading a cached `ultralytics_yolov5_master` snapshot from `C:\Users\iek4/.cache\torch/hub/ultralytics_yolov5_master`, and that cached snapshot still imported `pkg_resources` in `utils/general.py`. This contradicted the earlier fresh-cache proof, which had used a newly downloaded upstream snapshot whose `utils/general.py` no longer imported `pkg_resources`.
+**Decision**: Treat this as a stale Torch Hub cache drift issue, not as evidence that `pkg_resources` belongs back in `webapp/requirements.txt`. Amend the `TASK-051` findings to distinguish fresh-cache upstream behavior from stale cached Hub snapshots, and land a short-term code-side recovery path in `webapp/ts_yolov5.py`.
+**Execution**:
+- Reviewed the user terminal log and confirmed the failure was happening inside the cached Hub repo, not inside TowerScout code before model initialization.
+- Compared the stale-cache failure path to the current upstream/fresh-cache `utils/general.py`, which now imports `packaging` and `pandas` instead of `pkg_resources`.
+- Implemented a narrow recovery path in `webapp/ts_yolov5.py`:
+  - detect the `pkg_resources` failure mode
+  - inspect the cached YOLOv5 Hub repo for the stale `import pkg_resources as pkg` signature
+  - clear only those stale cached repo directories plus Hub zip artifacts
+  - retry once with `force_reload=True`
+- Added focused unit coverage for successful stale-cache recovery and refresh-failure reporting.
+- Updated the `TASK-051` artifacts so the runtime truth is now recorded as cache-dependent until the broader Torch Hub loading strategy is hardened.
+**Output**:
+- `webapp/ts_yolov5.py` now contains a short-term stale-cache migration path
+- `tests/unit/test_yolov5_cache_migration.py` proves the targeted recovery behavior
+- `TASK-051` artifacts now distinguish fresh-cache upstream behavior from stale cached Hub snapshots
+**Validation**:
+- The stale-cache recovery path is covered by new unit tests
+- The new finding matches the user-provided terminal log and the current upstream YOLOv5 `utils/general.py`
+- `pkg_resources` remains a stale-cache compatibility surface, not a fresh-manifest add candidate
+**Next**: Keep `TASK-051` closed as a documented audit-plus-mitigation task, and let `TASK-052` include a bounded detection-readiness path that catches cache-drift regressions earlier.
