@@ -109,8 +109,14 @@ This step can take a while because the app uses machine learning and mapping lib
 
 Optional GPU note:
 - CPU-only setup is supported and works for normal testing.
+- `pip install -r webapp\requirements.txt` gives the validated CPU baseline for Sprint 05; it does not install a CUDA-enabled PyTorch build automatically.
+- The runtime manifest now pins a NumPy 1 baseline and satisfies the pinned YOLOv5 Hub minimums for `Pillow` and `Requests`, so first detection should not upgrade those packages inside the live Python process.
 - If you have a compatible NVIDIA GPU and specifically want CUDA acceleration, install the matching CUDA-enabled PyTorch build for `torch==2.2.1` and `torchvision==0.17.1` using the official PyTorch instructions.
 - TowerScout will use CUDA automatically if that install reports CUDA as available.
+
+TLS note:
+- TowerScout verifies TLS certificates by default.
+- Only set `TOWERSCOUT_ALLOW_INSECURE_TLS=1` for a short-lived local recovery scenario when you explicitly need to bypass certificate verification.
 
 STEP 6: ADD ZIP CODE DATA IF YOU WANT ZIP CODE SEARCH
 =====================================================

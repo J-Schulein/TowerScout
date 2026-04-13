@@ -15,10 +15,13 @@ import math
 import os
 import shutil
 import threading
+from contextlib import contextmanager
+from importlib import metadata
 from pathlib import Path
 from urllib.error import URLError
 
 import torch
+from packaging.version import InvalidVersion, Version
 from PIL import Image
 
 from ts_imgutil import crop
@@ -36,6 +39,18 @@ YOLOV5_STALE_IMPORT_SIGNATURE = 'import pkg_resources as pkg'
 YOLOV5_HUB_ARCHIVES = ('master.zip', 'main.zip')
 YOLOV5_HUB_PINNED_ARCHIVE = f'{YOLOV5_HUB_REF}.zip'
 YOLOV5_CACHE_REFRESH_HINT = 'Cache may be out of date, try `force_reload=True`'
+YOLO_AUTOINSTALL_ENV_VAR = 'YOLO_AUTOINSTALL'
+YOLOV5_RUNTIME_DEPENDENCIES = {
+    'numpy': {'max_version_exclusive': '2.0.0'},
+    'pillow': {'min_version': '10.3.0'},
+    'requests': {'min_version': '2.32.2'},
+    'packaging': {},
+    'pandas': {},
+    'opencv-python': {},
+    'seaborn': {},
+    'tqdm': {},
+    'ultralytics': {},
+}
 
 
 def _iter_error_chain(error):
@@ -153,15 +168,88 @@ def _clear_stale_legacy_yolov5_hub_repos(hub_dir, stale_repos):
     _clear_yolov5_hub_repos(hub_dir, stale_repos, YOLOV5_HUB_ARCHIVES)
 
 
+def _format_dependency_mismatch(dist_name, spec, installed_version):
+    requirement_parts = []
+    min_version = spec.get('min_version')
+    max_version_exclusive = spec.get('max_version_exclusive')
+    if min_version:
+        requirement_parts.append(f'>={min_version}')
+    if max_version_exclusive:
+        requirement_parts.append(f'<{max_version_exclusive}')
+    requirement_text = ', '.join(requirement_parts)
+    return (
+        f'{dist_name} requires {requirement_text}, '
+        f'but TowerScout found {installed_version}.'
+    )
+
+
+def _validate_runtime_dependencies():
+    """Fail before Hub load if the local runtime cannot satisfy the pinned YOLO path."""
+    mismatches = []
+
+    for dist_name, spec in YOLOV5_RUNTIME_DEPENDENCIES.items():
+        try:
+            installed_version = metadata.version(dist_name)
+        except metadata.PackageNotFoundError:
+            mismatches.append(
+                f'{dist_name} is not installed but is required by the pinned YOLOv5 runtime.'
+            )
+            continue
+
+        try:
+            installed = Version(installed_version)
+        except InvalidVersion:
+            mismatches.append(
+                f'{dist_name} has an unreadable installed version: {installed_version}.'
+            )
+            continue
+
+        min_version = spec.get('min_version')
+        if min_version and installed < Version(min_version):
+            mismatches.append(
+                _format_dependency_mismatch(dist_name, spec, installed_version)
+            )
+            continue
+
+        max_version_exclusive = spec.get('max_version_exclusive')
+        if max_version_exclusive and installed >= Version(max_version_exclusive):
+            mismatches.append(
+                _format_dependency_mismatch(dist_name, spec, installed_version)
+            )
+
+    if mismatches:
+        mismatch_text = ' '.join(mismatches)
+        raise RuntimeError(
+            'TowerScout runtime dependency check failed before YOLO initialization. '
+            'Update the local environment with `pip install -r webapp/requirements.txt` '
+            f'and rerun detection. {mismatch_text}'
+        )
+
+
+@contextmanager
+def _disable_yolo_autoinstall():
+    """Prevent upstream YOLO runtime bootstrap from mutating packages in-process."""
+    previous_value = os.environ.get(YOLO_AUTOINSTALL_ENV_VAR)
+    os.environ[YOLO_AUTOINSTALL_ENV_VAR] = 'false'
+    try:
+        yield
+    finally:
+        if previous_value is None:
+            os.environ.pop(YOLO_AUTOINSTALL_ENV_VAR, None)
+        else:
+            os.environ[YOLO_AUTOINSTALL_ENV_VAR] = previous_value
+
+
 def _load_pinned_yolov5_model(filename, force_reload=False):
     """Load TowerScout's pinned YOLOv5 Hub ref."""
-    return torch.hub.load(
-        YOLOV5_HUB_SPEC,
-        'custom',
-        path=filename,
-        force_reload=force_reload,
-        trust_repo=True,
-    )
+    with _disable_yolo_autoinstall():
+        return torch.hub.load(
+            YOLOV5_HUB_SPEC,
+            'custom',
+            path=filename,
+            force_reload=force_reload,
+            trust_repo=True,
+        )
 
 
 def _load_model_with_cache_recovery(filename):
@@ -246,6 +334,8 @@ class YOLOv5_Detector:
                     model_name="YOLOv5",
                     model_path=filename
                 )
+
+            _validate_runtime_dependencies()
             
             # Model loading with error handling
             try:

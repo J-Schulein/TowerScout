@@ -346,7 +346,7 @@ def track_performance(session_id: str):
     Context manager for tracking performance of a detection workflow.
     
     Usage:
-        with track_performance(str(id(session))) as metrics:
+        with track_performance(stable_session_id) as metrics:
             metrics.tile_count = len(tiles)
             metrics.map_provider = "google"
             # ... do work ...

@@ -127,7 +127,10 @@ Notes:
 - `webapp\requirements.txt` now includes the current verified `tqdm` runtime dependency, so no separate `tqdm` install is required.
 - `pkg_resources` and `setuptools<82` are not required for the current audited runtime path.
 - `webapp\requirements.txt` now explicitly includes `packaging`, `pandas`, and a pinned `ultralytics` version because the hardened YOLOv5 load path imports those directly.
+- `webapp\requirements.txt` now pins the validated Sprint 05 CPU baseline, including `numpy==1.26.4` and the pinned YOLOv5 minimums for `Pillow` and `Requests`.
+- Installing `webapp\requirements.txt` does not give you CUDA automatically; it gives the validated CPU baseline.
 - If you want CUDA acceleration on a compatible NVIDIA machine, install the matching CUDA-enabled PyTorch build for `torch==2.2.1` and `torchvision==0.17.1` using the official PyTorch instructions. TowerScout will use CUDA automatically if that build reports CUDA as available.
+- TowerScout verifies TLS certificates by default. Only set `TOWERSCOUT_ALLOW_INSECURE_TLS=1` for a short-lived local recovery scenario when you explicitly need to bypass certificate verification.
 
 STEP 5: ADD ZIP CODE DATA IF YOU WANT ZIP CODE SEARCH
 =====================================================

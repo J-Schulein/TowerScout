@@ -1,8 +1,8 @@
 # Current Tasks - Active Sprint
 
 **Sprint Period**: April 7 - April 25, 2026 (Sprint 05 - 19 days)  
-**Last Updated**: April 9, 2026  
-**Focus**: Deployment readiness, Docker containerization, and validation infrastructure  
+**Last Updated**: April 10, 2026  
+**Focus**: Runtime determinism, offline-ready inference, smoke-baseline validation, and Docker readiness  
 **Status**: 🆕 **SPRINT 05 PLANNING** - Sprint 05 officially starts April 7, 2026
 
 ---
@@ -125,22 +125,23 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 
 **Sprint Period**: April 7 - April 25, 2026 (19 days)  
 **Planning Completed**: April 6, 2026  
-**Sprint Focus**: Deployment Readiness and Docker Containerization  
-**Target Capacity**: 70-80 hours (accommodating Docker complexity)  
+**Sprint Focus**: Runtime hardening, reproducible inference, Docker readiness, and bounded local-launch follow-through  
+**Target Capacity**: 70-80 hours (with Docker now contingent on additional runtime hardening gates)  
 **Expected Bundle Growth**: +10-20 KB (infrastructure-heavy sprint unless TASK-054 expands into frontend warm-start UX)  
 
 ### Sprint 05 Objectives
 
-**Primary Goal**: Deliver Docker containerization (TASK-025) with validated runtime dependencies and smoke test coverage
+**Primary Goal**: Deliver a reliable and reproducible runtime baseline, then containerize that corrected baseline rather than containerizing known first-run instability.
 
 **Secondary Goals**:
-1. Complete runtime dependency verification and split (TASK-051)
-2. Complete YOLO Torch Hub pinned-ref hardening (TASK-055)
-3. Establish current integration smoke test baseline (TASK-052)
-4. Deliver local launch UX MVP after Docker baseline lands cleanly (TASK-054)
-4. Consider multi-provider fallback (TASK-029), CPU optimization work (TASK-026), or deferred Sprint 04 quick wins if capacity remains
+1. Keep `TASK-051` and `TASK-055` as the completed foundation for Sprint 05 runtime work
+2. Complete `TASK-056` first-run reliability and runtime determinism hardening
+3. Complete `TASK-057` local YOLO runtime ownership and offline readiness
+4. Establish the current integration smoke-test baseline on that corrected runtime (`TASK-052`)
+5. Deliver Docker containerization (`TASK-025`) only after the corrected baseline exists
+6. Keep `TASK-054` as a post-Docker stretch goal and defer `TASK-029` / `TASK-026` unless meaningful Sprint 05 capacity remains
 
-**Key Principle**: Keep TASK-025 focused on container build/run behavior. Use TASK-051, TASK-055, and TASK-052 as prerequisites so Docker acceptance criteria stay clear and runtime-risk changes remain isolated. Treat launcher/browser UX as follow-on work under TASK-054 rather than silently expanding Docker scope.
+**Key Principle**: Keep `TASK-025` focused on container build/run behavior. Use `TASK-056`, `TASK-057`, and `TASK-052` as explicit prerequisites so Docker acceptance criteria stay clear and runtime-risk changes remain isolated. Treat launcher/browser UX as follow-on work under `TASK-054` rather than silently expanding Docker scope.
 
 ---
 
@@ -229,6 +230,82 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 
 ---
 
+### **TASK-056: First-Run Reliability and Runtime Determinism Hardening** 🔴
+**Status**: COMPLETED  
+**Type**: C (Runtime Hardening / Deployment Readiness)  
+**Priority**: CRITICAL  
+**Estimated Effort**: 12-20 hours  
+**Target Sprint**: Sprint 05  
+**Task File**: `.agent_work/tasks/TASK-056-first-run-reliability-and-runtime-determinism-hardening.md`  
+
+**Objective**: Correct the confirmed first-run blockers and deployment-hostile runtime behavior before the Sprint 05 smoke baseline and Docker work proceed.
+
+**Key Activities**:
+- Fail the imagery phase on any tile-download failure and prevent inference from starting on partial downloads (`UT-002`)
+- Remove the unreachable legacy block below `get_objects()` (`UT-003`)
+- Lock the Sprint 05 runtime to a validated CPU baseline plus an explicitly documented optional CUDA path (`UT-004`)
+- Explicitly contain the current stack on a validated NumPy 1 baseline and document the deferred NumPy 2 migration (`UT-005`)
+- Stop first-run in-process package mutation and align the YOLO runtime contract with the actual minimum dependency set (`UT-006`)
+- Restore TLS verification as the default runtime behavior and remove blanket bypasses (`UT-010`)
+- Replace `id(session)` with a stable session identifier (`UT-013`)
+- Remove or intentionally pin `seaborn` and replace raw `print()` usage in the touched runtime paths with structured logging (`UT-017`, scoped `UT-009`)
+
+**Validation**:
+- Partial-download failure path proves detection stops during imagery phase
+- Clean-environment first-run proof succeeds on the CPU baseline without runtime package mutation
+- `pytest --collect-only tests -q` remains clean
+- Updated runtime/setup docs reflect CPU/CUDA, NumPy, TLS, and first-run expectations
+
+**Dependencies**:
+- ✅ TASK-051 runtime dependency audit and decision gate
+- ✅ TASK-055 YOLO Torch Hub pinned-ref hardening
+
+**Notes**:
+- Preserve the current `dev` lazy-loading behavior; this task does not change that startup contract.
+- Keep this task bounded. Do not absorb vendoring YOLO locally, Docker work, or background-job architecture here.
+- Progress update (April 13): imagery failures now stop before inference, active session identity is stable, YOLO dependency checks/autoinstall hardening are in place, TLS now verifies by default, and the touched runtime paths were moved to structured logging.
+- Validation update (April 13): focused Task-056 coverage passed (`40 passed`) and pytest collection remained clean with `.venv\\Scripts\\python.exe -m pytest --collect-only tests -q -p no:cacheprovider` (`173 tests collected`).
+- Proof follow-up (April 13): the first isolated CPU-baseline proof failed because the active pinned `torch.hub` YOLO path still imported `seaborn`; `seaborn==0.13.2` was restored to the runtime manifest and the YOLO dependency preflight now checks the current Hub-path imports before model load.
+- Closeout update (April 13): the rerun same-device clean-environment CPU proof passed and is recorded in `.agent_work/context/analysis/TASK-056-clean-cpu-first-run-proof.md`.
+
+**User Value**: Makes the current app install and first detection materially more reliable before the team locks the smoke baseline or starts containerization.
+
+---
+
+### **TASK-057: Local YOLO Runtime Ownership and Offline Readiness** 🔴
+**Status**: NOT_STARTED  
+**Type**: C (Runtime Architecture / Deployment Readiness)  
+**Priority**: CRITICAL  
+**Estimated Effort**: 12-20 hours  
+**Target Sprint**: Sprint 05  
+**Task File**: `.agent_work/tasks/TASK-057-local-yolo-runtime-ownership-and-offline-readiness.md`  
+
+**Objective**: Remove the remaining Torch Hub / GitHub dependency from the active YOLO load path so the Sprint 05 smoke baseline and Docker work are built on a TowerScout-owned local inference contract.
+
+**Key Activities**:
+- Vendor the validated YOLO source snapshot locally and replace the active `torch.hub` load path (`UT-014`)
+- Revalidate the current YOLO weights against the local loader and confirm the interface TowerScout expects remains intact
+- Reconfirm the CPU baseline and optional CUDA compatibility on the new local loader path (`UT-004`)
+- Eliminate first-run GitHub dependence and revalidate the earlier first-run mutation/failure surfaces on the local loader contract (`UT-006`, `UT-001`)
+- Update runtime/setup docs so `TASK-052` and `TASK-025` inherit the local-loader contract rather than the Hub-based one
+
+**Validation**:
+- Offline first-run proof for YOLO initialization succeeds without Torch Hub cache or GitHub access
+- `webapp/model_params/yolov5/newest.pt` loads successfully through the local loader
+- CPU baseline validation passes and CUDA path expectations are documented or validated where hardware is available
+- `pytest --collect-only tests -q` remains clean
+
+**Dependencies**:
+- 🔴 TASK-056 runtime hardening complete
+
+**Notes**:
+- This is the structural follow-on to the immediate runtime hardening task, not a broad architecture rewrite.
+- Do not expand this task into ONNX/TensorRT migration, Docker work, or queue-based detection redesign.
+
+**User Value**: Removes the last major runtime nondeterminism before Docker by ensuring TowerScout owns the inference code it depends on.
+
+---
+
 ### **TASK-052: Current Integration Smoke Test Baseline** 🟡
 **Status**: NOT_STARTED  
 **Type**: A (Quality / Validation)  
@@ -236,7 +313,7 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 **Estimated Effort**: 4-8 hours  
 **Target Sprint**: Sprint 05  
 
-**Objective**: Replace the quarantined legacy end-to-end harness with a current smoke test that validates the live Flask route surface and core app boot flow.
+**Objective**: Replace the quarantined legacy end-to-end harness with a current smoke test that validates the live Flask route surface and core app boot flow on top of the corrected Sprint 05 runtime contract.
 
 **Key Activities**:
 - Replace skipped legacy `tests/integration/test_end_to_end.py` coverage
@@ -253,25 +330,27 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 - `pytest --collect-only tests -q` remains clean
 - Current smoke test exists for host-side app boot + core route availability
 - Smoke covers one bounded detection-readiness path or explicitly documents why a narrower substitute was required
-- Smoke prerequisites and intentional skips are documented for provider keys, model files, and first-run Torch Hub / GitHub dependence
+- Smoke prerequisites and intentional skips are documented for provider keys, model files, and the post-`TASK-057` local YOLO runtime contract
 - Containerization work has concrete validation target beyond import/collection
 - `TASK-025` can reuse the same smoke contract against Docker instead of defining a different validation baseline
 - Stale validation surfaces are either updated to current behavior or explicitly retired from the active baseline
 
 **Dependencies**:
+- TASK-056 first-run reliability and runtime determinism hardening 🔴
+- TASK-057 local YOLO runtime ownership and offline readiness 🔴
 - TASK-046 setup wizard/settings implementation ✅ COMPLETED
 - TASK-049 validation-gate repair ✅ COMPLETED
 - TASK-055 YOLO Torch Hub pinned-ref hardening ✅ COMPLETED
 
 **Notes**:
 - Recommended before TASK-025 so Docker work validates against current, supported app surface.
-- This smoke should validate the hardened pinned-ref YOLO path, not the earlier mutable-branch short-term mitigation.
+- This smoke should validate the corrected post-`TASK-056` runtime contract and the local post-`TASK-057` YOLO loader path, not the earlier Hub-based runtime.
 - This task should define the validation contract once, on the host app first, and let `TASK-025` reuse it for container validation.
 - Keep the smoke broad enough to catch setup/config/model-loading regressions, but bounded enough that it remains practical for repeated Sprint 05 runs.
 - Current stale-test findings from PRE-SPRINT-05-01 include outdated Google API validation mocks in `tests/unit/test_config.py` and `GET /getobjects` assumptions in `tests/unit/test_flask_routes.py`.
 - Unless one of those blocks additional closeout work earlier, handle them under TASK-052 rather than folding them into runtime-path normalization.
 
-**User Value**: Provides regression protection during containerization
+**User Value**: Provides regression protection during containerization and proves the intended post-hardening runtime contract before Docker begins.
 
 ---
 
@@ -282,7 +361,7 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 **Estimated Effort**: 1-2 days (8-16 hours)  
 **Target Sprint**: Sprint 05  
 
-**Objective**: Create Docker configuration for one-command local deployment
+**Objective**: Create Docker configuration for one-command local deployment on top of the corrected Sprint 05 runtime and smoke baseline.
 
 **Requirements**:
 - Multi-stage Dockerfile with model weights
@@ -311,6 +390,8 @@ Runtime-path normalization is complete. Docker work should treat the following a
 - `FLASK_SECRET_KEY` (must be stable across restarts)
 
 **Dependencies**:
+- 🔴 TASK-056 - first-run reliability and runtime determinism hardening
+- 🔴 TASK-057 - local YOLO runtime ownership and offline readiness
 - ✅ TASK-046 (completed) - setup wizard/settings volume-mount behavior
 - 🟡 TASK-051 - runtime dependency verification and split
 - ✅ TASK-055 - YOLO Torch Hub pinned-ref hardening
@@ -318,12 +399,13 @@ Runtime-path normalization is complete. Docker work should treat the following a
 
 **Notes**:
 - Keep focused on container build/run behavior
-- Do NOT absorb dependency-verification or smoke-test replacement into this task
+- Do NOT absorb runtime hardening, YOLO ownership redesign, or smoke-test replacement into this task
 - Reuse the `TASK-052` smoke contract against the containerized app rather than inventing a separate Docker-only validation path
 - Current app uses filesystem-backed Flask sessions and writes to `webapp/config/.env`
 - Final Docker volume decisions should use the normalized `webapp/` runtime contract, not historical folder duplication
 - Docker delivery must provide writable session storage, stable `FLASK_SECRET_KEY`, and persistent writable mount for `webapp/config/`
 - TASK-025 Phase 1 must explicitly choose and document the model-weight strategy (image layer vs runtime download vs host volume)
+- Treat the current filesystem-session and temp-path contract as an explicit containment requirement for the first Docker milestone, not as a solved architecture problem
 - Without these, first-launch setup may fail or saved configuration lost on container replacement
 
 **User Value**: Enables one-command deployment for non-technical users
@@ -412,7 +494,7 @@ Runtime-path normalization is complete. Docker work should treat the following a
 - Standardize on `TowerScoutErrorHandler`
 - Update documentation
 
-**Notes**: Include only if Sprint 05 capacity allows after TASK-051, TASK-052, and TASK-025
+**Notes**: Include only if Sprint 05 capacity allows after TASK-056, TASK-057, TASK-052, and TASK-025
 
 ---
 
@@ -420,42 +502,42 @@ Runtime-path normalization is complete. Docker work should treat the following a
 
 **Sprint Duration**: 19 days (April 7 - April 25, 2026)  
 **Target Capacity**: 70-80 hours  
-**Sprint Pace**: Medium-to-high complexity work
+**Sprint Pace**: Medium-to-high complexity work with explicit runtime hardening gates before Docker
 
-### Week 1: April 7-13 (Validation Infrastructure)
-**Focus**: Prepare for containerization with verified dependencies and test baseline  
-**Estimated Effort**: 24-32 hours
+### Week 1: April 7-13 (Runtime Contract Correction)
+**Focus**: Finish the dependency and YOLO pinning foundation, then complete the first-run hardening gate  
+**Estimated Effort**: 26-34 hours
 
 | Date | Tasks | Hours |
 |------|-------|-------|
-| Apr 7-9 | TASK-051: Runtime dependency verification | 8-12h |
-| Apr 10-11 | TASK-055: YOLO pinned-ref hardening, then TASK-052 baseline work | 8-12h |
-| Apr 12-13 | TASK-025 Phase 1: Docker research and planning, plus TASK-054 scoping and acceptance criteria | 8-10h |
+| Apr 7-9 | TASK-051: Runtime dependency verification and split | 8-12h |
+| Apr 9 | TASK-055: YOLO pinned-ref hardening | 6-10h |
+| Apr 10-13 | TASK-056: First-run reliability and runtime determinism hardening | 12-20h |
 
 **Week 1 Note**:
-- `PRE-SPRINT-05-02` closeout validation is complete; start Docker work from the canonical `webapp/` runtime contract rather than the old mixed-path folder duplication.
+- `PRE-SPRINT-05-02` closeout validation is complete; continue using the canonical `webapp/` runtime contract rather than the old mixed-path folder duplication.
 
-### Week 2: April 14-20 (Docker Implementation)
-**Focus**: Build and test containerized deployment  
-**Estimated Effort**: 30-40 hours
-
-| Date | Tasks | Hours |
-|------|-------|-------|
-| Apr 14-16 | TASK-025 Phase 2: Dockerfile and compose config | 16-24h |
-| Apr 17-18 | TASK-025 Phase 3: Volume mounts and validation | 10-12h |
-| Apr 19-20 | TASK-025 Phase 4: Testing and documentation | 8-12h |
-
-### Week 3: April 21-25 (Polish and Stretch Goals)
-**Focus**: Final validation, launch UX polish, and stretch work  
-**Estimated Effort**: 16-24 hours
+### Week 2: April 14-20 (Offline-Ready Inference + Host Baseline)
+**Focus**: Remove the remaining Hub/GitHub runtime dependency and lock the host smoke baseline  
+**Estimated Effort**: 18-28 hours
 
 | Date | Tasks | Hours |
 |------|-------|-------|
-| Apr 21-22 | TASK-025 Final validation and fixes | 8-12h |
-| Apr 23-24 | TASK-054 Phase 1-2: launcher MVP, readiness wait, browser auto-open, and launch-flow documentation | 8-12h |
+| Apr 14-17 | TASK-057: Local YOLO runtime ownership and offline readiness | 12-20h |
+| Apr 18-20 | TASK-052: Current integration smoke-test baseline | 6-10h |
+
+### Week 3: April 21-25 (Docker Baseline + Stretch Decision)
+**Focus**: Containerize the corrected baseline, then decide whether any launch-UX stretch capacity remains  
+**Estimated Effort**: 18-28 hours
+
+| Date | Tasks | Hours |
+|------|-------|-------|
+| Apr 21-23 | TASK-025 Phase 1-2: Docker strategy, Dockerfile, and compose config | 10-16h |
+| Apr 23-24 | TASK-025 Phase 3-4: volume mounts, validation, and documentation | 8-12h |
+| Apr 24-25 | Stretch decision: TASK-054 Phase 1 only if Docker baseline lands cleanly | 0-8h |
 | Apr 25 | Sprint 05 Retrospective | 2-4h |
 
-**Total Sprint Effort**: 70-96 hours (target: 70-80h)
+**Total Sprint Effort**: 64-94 hours (planning target remains 70-80h)
 
 ---
 
@@ -464,8 +546,10 @@ Runtime-path normalization is complete. Docker work should treat the following a
 ### Must-Have (Primary Goals)
 - [x] TASK-051 complete: Runtime dependencies verified and split documented
 - [x] TASK-055 complete: YOLO Torch Hub pinned-ref hardening landed
-- [ ] TASK-052 complete: Current integration smoke test in place
-- [ ] TASK-025 Phase 1-3 complete: Docker container builds and runs
+- [ ] TASK-056 complete: First-run blockers and deployment-hostile runtime defaults corrected
+- [ ] TASK-057 complete: Active YOLO load path no longer depends on Torch Hub / GitHub at runtime
+- [ ] TASK-052 complete: Current integration smoke test in place on the corrected runtime contract
+- [ ] TASK-025 Phase 1-3 complete: Docker container builds and runs on the corrected baseline
 - [ ] Setup Wizard functional in Docker environment
 - [ ] Settings save/load works with volume mounts
 - [ ] Detection workflow validated in container
@@ -477,19 +561,20 @@ Runtime-path normalization is complete. Docker work should treat the following a
 - [ ] TASK-025 Phase 4 complete: Full Docker documentation
 - [ ] Multi-platform support (AMD64 at minimum)
 - [ ] TASK-054 Phase 1 complete: launcher MVP for local Docker startup
-- [ ] TASK-054 Phase 2 complete or clearly scoped/deferred with documented readiness approach
 - [ ] Browser Refresh Warning Fix (if capacity allows)
 - [ ] Error Handling Standardization (if capacity allows)
 
 ### Nice-to-Have (Stretch Goals)
-- [ ] TASK-029 investigation started after TASK-054
-- [ ] TASK-029 partial implementation (provider fallback logic)
+- [ ] TASK-054 Phase 2 complete or cleanly deferred with documented readiness approach
 - [ ] ARM64 platform support
 - [ ] Docker Hub image publishing
 - [ ] Performance optimization in containerized environment
+- [ ] TASK-029 investigation started only if all runtime and Docker gates land early
 
 ### Sprint Health Metrics
-- TASK-051, TASK-055, and TASK-052 completed before TASK-025 starts
+- TASK-051, TASK-055, TASK-056, TASK-057, and TASK-052 complete before TASK-025 starts
+- Clean-environment first detection succeeds without in-process package mutation
+- YOLO initialization no longer depends on first-run GitHub access
 - Docker container starts successfully on first attempt
 - All TASK-046 features work in containerized environment
 - Documentation includes troubleshooting guide
@@ -501,28 +586,31 @@ Runtime-path normalization is complete. Docker work should treat the following a
 ## 📅 Sprint 05 Planning Notes
 
 **Key Decisions**:
-1. **Sequencing is critical**: TASK-051, TASK-055, and TASK-052 MUST complete before TASK-025
-2. **TASK-025 scope discipline**: Do NOT absorb dependency or validation work into Docker task
-3. **TASK-054 stays separate**: Launcher/browser UX work starts only after Docker baseline is stable enough to target
-4. **Volume mount testing**: Explicitly test Setup Wizard save/load in Docker
-5. **Model-weight strategy is a Phase 1 decision**: do not defer layer/download/volume treatment until late Docker validation
-6. **Fallback plan**: If Docker takes longer, defer TASK-054 Phase 2-3 and TASK-029 to Sprint 06
+1. **Sequencing is critical**: `TASK-051` and `TASK-055` are already complete, and `TASK-056`, `TASK-057`, and `TASK-052` MUST complete before `TASK-025`
+2. **`TASK-025` scope discipline**: Do NOT absorb runtime hardening, YOLO ownership redesign, or smoke-baseline work into the Docker task
+3. **`TASK-054` stays separate**: Launcher/browser UX work starts only after the Docker baseline is stable enough to target
+4. **Current `dev` lazy-loading behavior remains intentional**: do not expand Sprint 05 scope to "fix" that
+5. **Volume mount testing remains mandatory**: explicitly test Setup Wizard save/load in Docker against the current filesystem-session contract
+6. **Model-weight strategy is a Phase 1 Docker decision**: do not defer layer/download/volume treatment until late Docker validation
+7. **Fallback plan**: If the added runtime gates consume Sprint 05 capacity, defer `TASK-054` and `TASK-029` rather than compressing `TASK-025`
 
 **Risk Mitigation**:
-- Start with TASK-051 to identify any surprises in dependencies early
-- Complete TASK-055 so `TASK-052` validates the hardened YOLO runtime path rather than the earlier mutable-branch behavior
-- TASK-052 provides regression protection during Docker work
-- Keep TASK-025 phases separate for easier rollback if needed
-- Keep TASK-054 phased so launcher MVP can ship without forcing startup-pipeline redesign into the same sprint
+- `TASK-056` corrects first-run failures before the smoke baseline is defined
+- `TASK-057` prevents Docker from being built on top of a runtime contract that still depends on Torch Hub / GitHub
+- `TASK-052` provides regression protection during Docker work
+- Keep `TASK-025` phases separate for easier rollback if needed
+- Keep `TASK-054` phased so launcher MVP can ship without forcing startup-pipeline redesign into the same sprint
 - Use a conservative planning pace around 3.5-4.0 hrs/day instead of Sprint 03 peak velocity
 - Document all Docker-specific configuration decisions
 
 **Success Indicators**:
-- New user can run `docker-compose up` and complete Setup Wizard
+- A new user can install and run a first detection without in-process package upgrades
+- YOLO initialization works on the validated host baseline without first-run GitHub dependence
+- A new user can run `docker compose up` and complete Setup Wizard
 - Configuration persists across container restarts
 - Detection workflow works end-to-end in container
-- User can launch the local Docker deployment with minimal or no manual CLI interaction
-- No manual .env editing required
+- A user can launch the local Docker deployment with minimal or no manual CLI interaction once `TASK-054` lands
+- No manual `.env` editing required
 
 ---
 
@@ -551,8 +639,8 @@ Runtime-path normalization is complete. Docker work should treat the following a
 - Document everything for non-technical deployment
 
 **Next Sprint Preview (Sprint 06)**:
+- TASK-058: Background detection jobs and durable run state
+- TASK-059: Backend layer decomposition and logging consolidation
 - TASK-026: CPU Optimization
-- TASK-029: Complete multi-provider fallback (if not finished)
 - TASK-027: Enhanced Error Handling
-- TASK-028: Mobile Responsiveness
-- Additional polish and optimization work
+- TASK-060 / TASK-061 and remaining stretch work depending on Sprint 05 closeout

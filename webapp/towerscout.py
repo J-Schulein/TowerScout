@@ -9,8 +9,6 @@
 # (see LICENSE.TXT in the root of the repository for details)
 #
 
-print("🚀 TowerScout starting...")
-
 # import basic functionality
 from ts_yolov5 import YOLOv5_Detector
 from ts_en import EN_Classifier
@@ -45,7 +43,6 @@ import ts_config
 import torch
 from shutil import rmtree
 import zipfile
-import ssl
 import asyncio
 from dotenv import load_dotenv
 from ts_progress import DetectionProgressTracker
@@ -65,23 +62,28 @@ from ts_paths import (
     get_yolov5_model_dir,
 )
 
+# Initialize logging before startup diagnostics so first-run messages stay structured.
+logger = get_main_logger()
+api_logger = get_api_logger()
+ml_logger = get_ml_logger()
+maps_logger = get_maps_logger()
+logger.info("TowerScout starting")
+
 # Load environment variables from config/.env if available, otherwise legacy .env
 script_dir = get_base_dir()
 env_path = ts_config.ensure_env_file()
 
-print("=" * 60)
-print("TOWERSCOUT ENVIRONMENT DEBUG")
-print("=" * 60)
-print(f"Current working directory: {os.getcwd()}")
-print(f"Script directory: {script_dir}")
-print(f".env file path: {env_path}")
-print(f".env file exists: {env_path.exists()}")
+logger.info("TowerScout environment bootstrap starting")
+logger.info("Current working directory: %s", os.getcwd())
+logger.info("Script directory: %s", script_dir)
+logger.info("Active env path: %s", env_path)
+logger.info("Env file exists: %s", env_path.exists())
 
 if env_path.exists():
-    print(f"Loading .env from: {env_path}")
+    logger.info("Loading .env from %s", env_path)
     load_dotenv(env_path, override=False)
 else:
-    print("Using default load_dotenv() behavior")
+    logger.info("No explicit env file found; using default load_dotenv() behavior")
     load_dotenv()
 
 # Debug: Check if keys are loaded
@@ -89,24 +91,13 @@ google_key = os.getenv('GOOGLE_API_KEY', '')
 azure_key = os.getenv('AZURE_MAPS_SUBSCRIPTION_KEY', '')
 bing_key = os.getenv('BING_API_KEY', '')
 
-print(f"\nEnvironment Variables Status:")
-print(f"GOOGLE_API_KEY: {'✓ Loaded' if google_key else '✗ Missing'}")
-
-print(f"AZURE_MAPS_SUBSCRIPTION_KEY: {'✓ Loaded' if azure_key else '✗ Missing'}")
-
-print(f"BING_API_KEY: {'✓ Loaded' if bing_key else '✗ Missing'}")
-
-print("=" * 60)
+logger.info("GOOGLE_API_KEY configured: %s", bool(google_key))
+logger.info("AZURE_MAPS_SUBSCRIPTION_KEY configured: %s", bool(azure_key))
+logger.info("BING_API_KEY configured: %s", bool(bing_key))
 
 import tempfile
 from ts_geocoding import create_geocoding_service, GeocodingError, RateLimitError
 from ts_geocache import create_geocoding_cache
-
-# Initialize logging system early
-logger = get_main_logger()
-api_logger = get_api_logger()
-ml_logger = get_ml_logger()
-maps_logger = get_maps_logger()
 
 # Map proxy configuration
 MAP_PROXY_CONFIG = {
@@ -132,7 +123,6 @@ import threading
 import gc
 import datetime
 import sys
-from functools import reduce 
 
 dev = 0
 
@@ -150,6 +140,7 @@ secondary_en_lock = threading.Lock()
 LAZY_MODEL_INIT = os.getenv('TOWERSCOUT_LAZY_MODEL_INIT', '').strip().lower() in ('1', 'true', 'yes', 'on')
 progress_tracker = DetectionProgressTracker()
 SESSION_TMP_ROOT = get_session_tmp_root()
+SESSION_ID_KEY = "ts_session_id"
 
 # on-demand instantiate YOLOv5 model
 def get_engine(e):
@@ -285,7 +276,6 @@ for existing_upload in UPLOAD_DIR.iterdir():
         existing_upload.unlink()
 
 ml_logger.info(f"Torch CUDA: {'available' if torch.cuda.is_available() else 'not available'}")
-ssl._create_default_https_context = ssl._create_unverified_context
 
 
 def get_secondary_classifier():
@@ -298,7 +288,11 @@ def get_secondary_classifier():
 
 
 def _get_session_run_id():
-    return id(session)
+    session_id = session.get(SESSION_ID_KEY)
+    if not session_id:
+        session_id = f"session-{secrets.token_hex(16)}"
+        session[SESSION_ID_KEY] = session_id
+    return session_id
 
 
 def _register_detection_run(
@@ -354,7 +348,7 @@ def _cleanup_session_tmpdir():
     tmpdirname = session.get('tmpdirname')
     if tmpdirname:
         rmtree(tmpdirname, ignore_errors=True, onerror=None)
-        print("cleaned up tmp dir", tmpdirname)
+        api_logger.info("Cleaned up session temp dir %s", tmpdirname)
         del session['tmpdirname']
 
 
@@ -424,18 +418,21 @@ def _parse_detection_request(form_data):
 
 
 def _create_map_provider(provider):
-    print(f"\n🗺️  DIAGNOSTIC: Initializing map provider '{provider}'...")
-    print(f"   Google API key available: {bool(google_api_key)}")
-    print(f"   Azure API key available: {bool(azure_api_key)}")
+    api_logger.debug(
+        "Initializing map provider '%s' (google=%s, azure=%s)",
+        provider,
+        bool(google_api_key),
+        bool(azure_api_key),
+    )
 
     if provider == "google" and google_api_key:
-        print("✅ Google Maps initialized")
+        api_logger.info("Google Maps provider initialized")
         return GoogleMap(google_api_key)
     if provider == "azure" and azure_api_key:
-        print("✅ Azure Maps initialized")
+        api_logger.info("Azure Maps provider initialized")
         return AzureMaps(azure_api_key)
 
-    print(f"❌ Map provider '{provider}' not available or not configured")
+    api_logger.error("Map provider '%s' not available or not configured", provider)
     raise MapProviderError(
         f"Map provider '{provider}' not available or not configured",
         error_code="MAP_PROVIDER_UNAVAILABLE",
@@ -444,22 +441,23 @@ def _create_map_provider(provider):
 
 
 def _build_tiles_for_request(map_provider, bounds, polygons, crop_tiles):
-    print(f"\n🔲 DIAGNOSTIC: Making tiles from bounds...")
-    print(f"   Bounds: {bounds}")
-    print(f"   Crop tiles: {crop_tiles}")
+    api_logger.debug(
+        "Building tiles for bounds=%s crop_tiles=%s polygon_count=%s",
+        bounds,
+        crop_tiles,
+        len(polygons),
+    )
 
     tiles, nx, ny, meters, h, w = map_provider.make_tiles(bounds, crop_tiles=crop_tiles)
     candidate_tiles = len(tiles)
-    print(f"✅ Created {len(tiles)} tiles ({nx} x {ny})")
+    api_logger.info("Created %s candidate tile(s) (%s x %s)", len(tiles), nx, ny)
 
     tiles = [t for t in tiles if ts_maps.check_tile_against_bounds(t, bounds)]
     viewport_tiles = len(tiles)
     tiles = [t for t in tiles if ts_imgutil.tileIntersectsPolygons(t, polygons)]
-    print(f"🔍 DEBUG: Setting IDs for {len(tiles)} tiles")
     for i, tile in enumerate(tiles):
         tile['id'] = i
-        print(f"  Tile {i}: keys = {tile.keys()}")
-    print(" tiles left after viewport and polygon filter:", len(tiles))
+    api_logger.debug("Retained %s tile(s) after viewport and polygon filtering", len(tiles))
 
     return tiles, nx, ny, meters, h, w, {
         'candidate_tiles': candidate_tiles,
@@ -542,7 +540,7 @@ def _dedupe_detection_results(results):
         deduped.append(candidate)
 
     if removed:
-        print(f" removed {removed} duplicate detections before geocoding")
+        api_logger.info("Removed %s duplicate detection(s) before geocoding", removed)
 
     return deduped
 
@@ -552,7 +550,7 @@ def _attach_detection_addresses(results, provider, perf_metrics=None, progress_c
     if not results:
         return
 
-    print(f" starting address lookup for {len(results)} detections")
+    api_logger.info("Starting address lookup for %s detection(s)", len(results))
     if perf_metrics:
         perf_metrics.start_phase('geocoding')
     address_start_time = time.time()
@@ -602,23 +600,28 @@ def _attach_detection_addresses(results, provider, perf_metrics=None, progress_c
                 detection['address'] = f"{center_lat:.6f}, {center_lng:.6f}"
                 detection['address_confidence'] = 0.0
                 detection['address_provider'] = "fallback"
-                print(f" geocoding returned no address for {center_lat}, {center_lng}: {geocoding_result.error_message}")
+                api_logger.warning(
+                    "Geocoding returned no address for %.6f, %.6f: %s",
+                    center_lat,
+                    center_lng,
+                    geocoding_result.error_message,
+                )
         except RateLimitError as e:
             session['geocoding_limited'] = True
             detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
             detection['address_confidence'] = 0.0
             detection['address_provider'] = "rate_limited"
-            print(f" geocoding rate limited for {center_lat}, {center_lng}: {e}")
+            api_logger.warning("Geocoding rate limited for %.6f, %.6f: %s", center_lat, center_lng, e)
         except GeocodingError as e:
             detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
             detection['address_confidence'] = 0.0
             detection['address_provider'] = "fallback"
-            print(f" geocoding failed for {center_lat}, {center_lng}: {e}")
+            api_logger.warning("Geocoding failed for %.6f, %.6f: %s", center_lat, center_lng, e)
         except Exception as e:
             detection['address'] = f"Address unavailable - {center_lat:.6f}, {center_lng:.6f}"
             detection['address_confidence'] = 0.0
             detection['address_provider'] = "error"
-            print(f" unexpected geocoding error for {center_lat}, {center_lng}: {e}")
+            api_logger.error("Unexpected geocoding error for %.6f, %.6f: %s", center_lat, center_lng, e)
 
         geocoding_processed += 1
         if progress_callback is not None and (
@@ -638,18 +641,18 @@ def _attach_detection_addresses(results, provider, perf_metrics=None, progress_c
         if perf_metrics:
             perf_metrics.geocoding_api_calls = usage.total_requests
     except Exception as e:
-        print(f" warning: could not store geocoding usage: {e}")
+        api_logger.warning("Could not store geocoding usage: %s", e)
 
     if perf_metrics:
         perf_metrics.end_phase('geocoding')
     address_time = time.time() - address_start_time
-    print(f" address lookup completed in {address_time:.2f} seconds")
+    api_logger.info("Address lookup completed in %.2f seconds", address_time)
 
 
 def _run_detection_request():
     session_id = _get_session_run_id()
     run_token = f"{session_id}:{secrets.token_hex(8)}"
-    api_logger.debug(f"Processing session {session_id}")
+    api_logger.debug("Processing detection request for session %s", session_id)
 
     if 'tiles' not in session:
         session['tiles'] = 0
@@ -667,11 +670,14 @@ def _run_detection_request():
     run_registered = False
     run_succeeded = False
     exit_event_allocated = False
+    perf_metrics = None
 
     try:
-        print("\n[Task-053] Validating detection request...")
-        print(f"   Form data keys: {list(request.form.keys())}")
-        print(f"   Polygons data (first 200 chars): {request.form.get('polygons', '')[:200]}...")
+        api_logger.debug(
+            "Validating detection request with form keys=%s polygons_snippet=%s",
+            list(request.form.keys()),
+            request.form.get('polygons', '')[:200],
+        )
 
         request_context = _parse_detection_request(request.form)
         bounds = request_context['bounds']
@@ -695,7 +701,7 @@ def _run_detection_request():
         exit_event_allocated = True
 
         def cancelled_response(detail):
-            print(" client aborted request.")
+            api_logger.info("Detection cancelled for session %s: %s", session_id, detail)
             if run_registered:
                 _finish_detection_run(
                     session_id,
@@ -708,11 +714,14 @@ def _run_detection_request():
                 )
             return Response("[]", mimetype='application/json')
 
-        print("incoming detection request:")
-        print(" bounds:", bounds)
-        print(" engine:", engine)
-        print(" map provider:", provider)
-        print(" polygons count:", len(polygons))
+        api_logger.info(
+            "Incoming detection request session=%s provider=%s engine=%s polygon_count=%s bounds=%s",
+            session_id,
+            provider,
+            engine,
+            len(polygons),
+            bounds,
+        )
 
         crop_tiles = True
         perf_metrics = PerformanceMetrics(str(session_id))
@@ -751,13 +760,22 @@ def _run_detection_request():
         )
         perf_metrics.estimate_processing_time(len(tiles))
         session['last_detection_provider'] = provider
-        print(f"performance estimate: {len(tiles)} tiles, ~{perf_metrics.estimated_time_seconds:.1f} seconds")
+        api_logger.info(
+            "Detection estimate for session %s: %s tile(s), ~%.1f seconds",
+            session_id,
+            len(tiles),
+            perf_metrics.estimated_time_seconds,
+        )
 
         if exit_events.query(run_token):
             return cancelled_response('Detection was cancelled after tile preparation.')
 
         if len(tiles) > MAX_TILES:
-            print(" ---> request contains too many tiles")
+            api_logger.warning(
+                "Detection request for session %s exceeds MAX_TILES with %s tile(s)",
+                session_id,
+                len(tiles),
+            )
             _finish_detection_run(
                 session_id,
                 'error',
@@ -776,9 +794,8 @@ def _run_detection_request():
         _cleanup_session_tmpdir()
         tmpdirname = _make_session_tmpdir()
         tmpfilename = os.path.basename(tmpdirname)
-        print("creating tmp dir", tmpdirname)
+        api_logger.info("Creating session temp dir %s", tmpdirname)
         session['tmpdirname'] = tmpdirname
-        print("created tmp dir", tmpdirname)
 
         if exit_events.query(run_token):
             return cancelled_response('Detection was cancelled before imagery download started.')
@@ -794,19 +811,93 @@ def _run_detection_request():
                 'imagery_tiles_downloaded': 0,
             },
         )
-        perf_metrics.start_phase('tile_download')
         request_loop = asyncio.new_event_loop()
-        meta = map_provider.get_sat_maps(tiles, request_loop, tmpdirname, tmpfilename)
-        perf_metrics.end_phase('tile_download')
+        perf_metrics.start_phase('tile_download')
+        try:
+            meta = map_provider.get_sat_maps(tiles, request_loop, tmpdirname, tmpfilename)
+        except MapProviderError as error:
+            perf_metrics.end_phase('tile_download')
+            successful_tiles = int(error.details.get('successful_tile_count', 0))
+            failed_tiles = int(
+                error.details.get(
+                    'failed_tile_count',
+                    max(1, len(tiles) - successful_tiles),
+                )
+            )
+            maps_logger.error(
+                "Imagery download failed for session %s after %s/%s tile(s): %s",
+                session_id,
+                successful_tiles,
+                len(tiles),
+                error,
+            )
+            _finish_detection_run(
+                session_id,
+                'error',
+                run_token=run_token,
+                phase='error',
+                title='Imagery download failed',
+                detail=(
+                    f"Downloaded {successful_tiles}/{len(tiles)} tile(s) before the imagery phase failed. "
+                    f"{error.message}"
+                ),
+                cancel_requested=False,
+                counts={
+                    'imagery_tiles_total': len(tiles),
+                    'imagery_tiles_downloaded': successful_tiles,
+                    'imagery_tiles_failed': failed_tiles,
+                },
+                tile_count=len(tiles),
+            )
+            return jsonify({'error': f'Imagery download failed: {error.message}'}), 502
+        else:
+            perf_metrics.end_phase('tile_download')
         session['metadata'] = meta
-        print(" asynchronously retrieved", len(tiles), "files")
+        api_logger.info("Retrieved imagery for %s tile(s)", len(tiles))
         perf_metrics.map_api_calls = len(tiles)
 
         if exit_events.query(run_token):
             return cancelled_response('Detection was cancelled during imagery download.')
 
+        missing_tile_filenames = []
         for i, tile in enumerate(tiles):
-            tile['filename'] = os.path.join(tmpdirname, tmpfilename + str(i) + ".jpg")
+            filename = os.path.join(tmpdirname, tmpfilename + str(i) + ".jpg")
+            tile['filename'] = filename
+            if not os.path.exists(filename):
+                missing_tile_filenames.append(filename)
+
+        if missing_tile_filenames:
+            downloaded_tiles = len(tiles) - len(missing_tile_filenames)
+            api_logger.error(
+                "Imagery phase for session %s completed without %s expected file(s): %s",
+                session_id,
+                len(missing_tile_filenames),
+                missing_tile_filenames[:5],
+            )
+            _finish_detection_run(
+                session_id,
+                'error',
+                run_token=run_token,
+                phase='error',
+                title='Imagery download failed',
+                detail=(
+                    f"Expected {len(tiles)} downloaded tile file(s) but only found "
+                    f"{downloaded_tiles} on disk."
+                ),
+                cancel_requested=False,
+                counts={
+                    'imagery_tiles_total': len(tiles),
+                    'imagery_tiles_downloaded': downloaded_tiles,
+                    'imagery_tiles_failed': len(missing_tile_filenames),
+                },
+                tile_count=len(tiles),
+            )
+            return jsonify({
+                'error': (
+                    "Imagery download failed: required tile files were missing after the "
+                    "download phase completed."
+                )
+            }), 502
 
         batch_size = max(1, getattr(det, 'batch_size', 1))
         model_batches_total = math.ceil(len(tiles) / batch_size) if len(tiles) > 0 else 0
@@ -870,13 +961,20 @@ def _run_detection_request():
 
         results = []
         raw_detection_count = 0
-        print(f"\nDetection summary: starting post-processing for {len(results_raw)} tiles")
+        api_logger.info(
+            "Starting detection post-processing for %s tile result(s)",
+            len(results_raw),
+        )
         for result, tile in zip(results_raw, tiles):
             tile_detection_count = len(result)
             raw_detection_count += tile_detection_count
 
             if tile_detection_count > 0:
-                print(f" tile {tile.get('id', '?')}: {tile_detection_count} detections")
+                api_logger.debug(
+                    "Tile %s produced %s detection(s)",
+                    tile.get('id', '?'),
+                    tile_detection_count,
+                )
 
             for i, obj in enumerate(result):
                 obj['x1'] = tile['lng'] - 0.5 * tile['w'] + obj['x1'] * tile['w']
@@ -889,7 +987,11 @@ def _run_detection_request():
 
             results += result
 
-        print(f"Detection complete: {len(results)} detections across {len(results_raw)} tiles")
+        api_logger.info(
+            "Detection complete: %s detection(s) across %s tile(s)",
+            len(results),
+            len(results_raw),
+        )
         perf_metrics.detection_count = len(results)
         if results:
             total_confidence = sum(result.get('conf', 0) for result in results)
@@ -919,7 +1021,11 @@ def _run_detection_request():
             else:
                 outside_count += 1
 
-        print(f"boundary filtering: inside={inside_count}, outside={outside_count}")
+        api_logger.info(
+            "Boundary filtering complete: inside=%s outside=%s",
+            inside_count,
+            outside_count,
+        )
         results = _dedupe_detection_results(results)
         retained_detection_count = len(results)
         _update_detection_run(
@@ -966,7 +1072,7 @@ def _run_detection_request():
                 progress_callback=update_geocoding_progress,
             )
         except Exception as error:
-            print(f" address lookup initialization failed: {error}")
+            api_logger.warning("Address lookup initialization failed: %s", error)
             for detection in results:
                 if detection.get('class') == 0:
                     center_lat, center_lng = _detection_center(detection)
@@ -995,8 +1101,7 @@ def _run_detection_request():
                 'selected': True
             })
 
-        selected = str(reduce(lambda total, entry: total + entry['selected'], results, 0))
-        selected_count = int(selected)
+        selected_count = sum(1 for entry in results if entry.get('selected'))
         _update_detection_run(
             session_id,
             run_token=run_token,
@@ -1009,13 +1114,11 @@ def _run_detection_request():
                 'tile_records': len(tile_results),
             },
         )
-        print(
-            " request complete,"
-            + str(len(results))
-            + " detections ("
-            + selected
-            + " selected), elapsed time: ",
-            (time.time() - start)
+        api_logger.info(
+            "Detection request complete: %s detection(s), %s selected, elapsed %.2f seconds",
+            len(results),
+            selected_count,
+            time.time() - start,
         )
 
         perf_metrics.detections_selected = selected_count
@@ -1047,7 +1150,7 @@ def _run_detection_request():
         run_succeeded = True
         return Response(results_json, mimetype='application/json')
     except ValidationError as error:
-        api_logger.error(f"Validation error: {error.message}")
+        api_logger.error("Validation error: %s", error.message)
         if run_registered:
             _finish_detection_run(
                 session_id,
@@ -1060,7 +1163,7 @@ def _run_detection_request():
             )
         return jsonify({'error': f'Validation error: {error.message}'}), 400
     except Exception as error:
-        api_logger.error(f"Detection pipeline failed: {error}", exc_info=True)
+        api_logger.error("Detection pipeline failed: %s", error, exc_info=True)
         if run_registered:
             _finish_detection_run(
                 session_id,
@@ -1077,7 +1180,7 @@ def _run_detection_request():
             try:
                 request_loop.close()
             except Exception as loop_error:
-                print(f" warning: failed to close request event loop: {loop_error}")
+                api_logger.warning("Failed to close request event loop: %s", loop_error)
         if exit_event_allocated:
             exit_events.free(run_token)
         if not run_succeeded and session.get('tmpdirname') == tmpdirname:
@@ -1886,7 +1989,7 @@ def get_zipcode():
 @app.route('/api/detection/estimate', methods=['POST'])
 def estimate_detection_tiles():
     session_id = _get_session_run_id()
-    api_logger.debug(f"Estimating tiles for session {session_id}")
+    api_logger.debug("Estimating tiles for session %s", session_id)
 
     if 'tiles' not in session:
         session['tiles'] = 0
@@ -1902,8 +2005,7 @@ def estimate_detection_tiles():
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
     try:
-        print("\n🔍 DIAGNOSTIC: Validating estimate request...")
-        print(f"   Form data keys: {list(request.form.keys())}")
+        api_logger.debug("Validating estimate request with form keys=%s", list(request.form.keys()))
         request_context = _parse_detection_request(request.form)
         bounds = request_context['bounds']
         engine = request_context['engine']
@@ -1911,11 +2013,14 @@ def estimate_detection_tiles():
         polygons = request_context['polygons']
         crop_tiles = True
 
-        print("incoming estimate request:")
-        print(" bounds:", bounds)
-        print(" engine:", engine)
-        print(" map provider:", provider)
-        print(" polygons count:", len(polygons))
+        api_logger.info(
+            "Incoming estimate request session=%s provider=%s engine=%s polygon_count=%s bounds=%s",
+            session_id,
+            provider,
+            engine,
+            len(polygons),
+            bounds,
+        )
 
         perf_metrics = PerformanceMetrics(str(session_id))
         perf_metrics.detection_engine = engine
@@ -1934,17 +2039,21 @@ def estimate_detection_tiles():
         perf_metrics.estimate_processing_time(len(tiles))
         session['last_detection_provider'] = provider
 
-        print(f"📊 Performance estimate: {len(tiles)} tiles, ~{perf_metrics.estimated_time_seconds:.1f} seconds")
+        api_logger.info(
+            "Estimate complete for session %s: %s tile(s), ~%.1f seconds",
+            session_id,
+            len(tiles),
+            perf_metrics.estimated_time_seconds,
+        )
         return jsonify({
             'tileCount': len(tiles),
             'estimatedSeconds': round(perf_metrics.estimated_time_seconds, 2)
         })
     except ValidationError as e:
-        print(f"❌ ValidationError: {e.message}")
-        api_logger.error(f"Validation error: {e.message}")
+        api_logger.error("Validation error: %s", e.message)
         return jsonify({'error': f'Validation error: {e.message}'}), 400
     except Exception as e:
-        api_logger.error(f"Tile estimate failed: {e}", exc_info=True)
+        api_logger.error("Tile estimate failed: %s", e, exc_info=True)
         return jsonify({'error': f'Tile estimate error: {str(e)}'}), 500
 
 
@@ -1974,6 +2083,10 @@ def abort():
 @app.route('/getobjects', methods=['POST'])
 def get_objects():
     return _run_detection_request()
+
+'''
+Legacy detection route archived during TASK-056.
+The active POST /getobjects path delegates to _run_detection_request() above.
 
     session_id = _get_session_run_id()
     api_logger.debug(f"Processing session {session_id}")
@@ -2446,12 +2559,13 @@ def get_objects():
     session['results'] = results
     
     return results
+'''
 
 def cleanup_temp_directory():
     # Cleanup the tempdir at the end of the session or application
     if "tmpdir_obj" in session:
         tmpdir = session['tmpdir_obj']
-        print("Cleaning up tmp dir", tmpdir.name)
+        api_logger.info("Cleaning up tmp dir %s", tmpdir.name)
         tmpdir.cleanup()
         del session['tmpdir_obj']
         del session['tmpdirname']
@@ -2485,6 +2599,7 @@ def get_api_usage():
 @app.route('/getobjectscustom', methods=['POST'])
 def get_objects_custom():
     start = time.time()
+    session_id = _get_session_run_id()
     
     # Rate limiting
     client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
@@ -2503,10 +2618,13 @@ def get_objects_custom():
         return jsonify({'error': f'Validation error: {e.message}'}), 400
     except Exception:
         return jsonify({'error': 'Invalid request data'}), 400
-        
-    print("incoming custom image detection request:")
-    print(" engine:", engine)
-    print(" file:", file.filename)
+
+    api_logger.info(
+        "Incoming custom image detection request session=%s engine=%s file=%s",
+        session_id,
+        engine,
+        file.filename,
+    )
 
     # get the proper detector
     det = get_engine(engine)
@@ -2518,8 +2636,8 @@ def get_objects_custom():
     filename = file.filename
     upload_path = UPLOAD_DIR / filename
     file.save(str(upload_path))
-    print(" uploaded file ")
-    results = det.detect([{'filename': str(upload_path)}], exit_events, id(session), crop_tiles=False)
+    api_logger.info("Uploaded custom image to %s", upload_path)
+    results = det.detect([{'filename': str(upload_path)}], exit_events, session_id, crop_tiles=False)
 
     # draw result bounding boxes on image
     objects = 0
@@ -2529,11 +2647,14 @@ def get_objects_custom():
                 drawResult(object, im)
                 objects += 1
         im.save(upload_path, quality=95)
-    print(" done drawing results.")
+    api_logger.info("Finished drawing %s custom detection result(s)", objects)
 
     # all done
-    print(" custom request complete,", objects,
-          " objects, elapsed time: ", (time.time()-start))
+    api_logger.info(
+        "Custom image detection complete: %s object(s), elapsed %.2f seconds",
+        objects,
+        time.time() - start,
+    )
 
     results = json.dumps(results)
     session['results'] = results

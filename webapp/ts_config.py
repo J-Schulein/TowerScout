@@ -11,14 +11,12 @@ import csv
 import os
 import shutil
 import tempfile
-import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable
 
 import requests
-import urllib3
 from dotenv import dotenv_values, load_dotenv
 
 from ts_errors import ConfigurationError, NetworkError
@@ -51,6 +49,8 @@ PERFORMANCE_LOG_HEADERS = (
     "crop_tiles",
     "phase_timings_json",
 )
+INSECURE_TLS_ENV_VAR = "TOWERSCOUT_ALLOW_INSECURE_TLS"
+TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
 
 PLACEHOLDER_PATTERNS = (
     "your_google_maps_api_key_here",
@@ -174,8 +174,13 @@ def sanitize_api_key(key: str, field_name: str) -> str:
     return sanitized
 
 
+def _allow_insecure_tls() -> bool:
+    return os.getenv(INSECURE_TLS_ENV_VAR, "").strip().lower() in TRUTHY_ENV_VALUES
+
+
 def _validation_get(url: str, params: Dict[str, Any]) -> requests.Response:
-    try:
+    verify_tls = not _allow_insecure_tls()
+    if verify_tls:
         response = requests.get(
             url,
             params=params,
@@ -183,24 +188,22 @@ def _validation_get(url: str, params: Dict[str, Any]) -> requests.Response:
         )
         setattr(response, "_tls_verification_bypassed", False)
         return response
-    except requests.exceptions.SSLError:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
-            response = requests.get(
-                url,
-                params=params,
-                timeout=VALIDATION_TIMEOUT_SECONDS,
-                verify=False,
-            )
-        setattr(response, "_tls_verification_bypassed", True)
-        return response
+
+    response = requests.get(
+        url,
+        params=params,
+        timeout=VALIDATION_TIMEOUT_SECONDS,
+        verify=False,
+    )
+    setattr(response, "_tls_verification_bypassed", True)
+    return response
 
 
 def _apply_tls_warning(result: Dict[str, Any], response: requests.Response) -> Dict[str, Any]:
     if getattr(response, "_tls_verification_bypassed", False):
         result["warning"] = (
-            "TLS certificate verification failed in the local Python environment. "
-            "Validation retried with certificate checks disabled."
+            "TLS certificate verification is disabled because "
+            f"{INSECURE_TLS_ENV_VAR}=1 is enabled in the local environment."
         )
         result["tls_verification_bypassed"] = True
     return result

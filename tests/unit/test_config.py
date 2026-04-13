@@ -32,7 +32,13 @@ def _write_env(root: Path, contents: str) -> Path:
 
 @patch("ts_config.requests.get")
 def test_validate_api_key_google(mock_get):
-    mock_get.return_value = Mock(status_code=200)
+    static_response = Mock(status_code=200)
+    geocode_response = Mock(status_code=200)
+    geocode_response.json.return_value = {
+        "status": "OK",
+        "results": [{"formatted_address": "123 Test Street"}],
+    }
+    mock_get.side_effect = [static_response, geocode_response]
 
     result = ts_config.validate_api_key("google", "google-test-key")
 
@@ -63,19 +69,31 @@ def test_validate_api_key_network_error_returns_network_error(mock_get):
 
 
 @patch("ts_config.requests.get")
-def test_validate_api_key_retries_without_tls_verification_on_ssl_error(mock_get):
+def test_validate_api_key_fails_closed_on_ssl_error_by_default(mock_get, monkeypatch):
+    monkeypatch.delenv("TOWERSCOUT_ALLOW_INSECURE_TLS", raising=False)
+    mock_get.side_effect = requests.exceptions.SSLError("tls failed")
+
+    with pytest.raises(NetworkError) as exc_info:
+        ts_config.validate_api_key("google", "google-test-key")
+
+    assert exc_info.value.user_message == "Could not reach the provider validation service."
+    assert mock_get.call_count == 1
+
+
+@patch("ts_config.requests.get")
+def test_validate_api_key_can_bypass_tls_when_explicit_env_set(mock_get, monkeypatch):
+    monkeypatch.setenv("TOWERSCOUT_ALLOW_INSECURE_TLS", "1")
+    static_response = Mock(status_code=200)
     insecure_success = Mock(status_code=200)
-    mock_get.side_effect = [
-        requests.exceptions.SSLError("tls failed"),
-        insecure_success,
-    ]
+    insecure_success.json.return_value = {"status": "OK", "results": [{"formatted_address": "x"}]}
+    mock_get.side_effect = [static_response, insecure_success]
 
     result = ts_config.validate_api_key("google", "google-test-key")
 
     assert result["valid"] is True
     assert result["tls_verification_bypassed"] is True
     assert "warning" in result
-    assert mock_get.call_args_list[1].kwargs["verify"] is False
+    assert mock_get.call_args.kwargs["verify"] is False
 
 
 @patch("ts_config.requests.get")
