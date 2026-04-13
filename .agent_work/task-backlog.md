@@ -1,6 +1,6 @@
 # Task Backlog - Future Work Prioritization
 
-**Last Updated**: April 6, 2026  
+**Last Updated**: April 13, 2026  
 **Sprint 04 Completed**: March 19 - April 6, 2026  
 **Sprint 05 Active**: April 7 - April 25, 2026  
 **Next Sprint Planning**: Sprint 06 Prep - April 25, 2026  
@@ -17,6 +17,28 @@
 **Target Sprint**: Sprint 05
 
 **See**: [current-tasks.md](./current-tasks.md#task-051-runtime-dependency-verification-and-split) for full details
+
+---
+
+### **TASK-056: First-Run Reliability and Runtime Determinism Hardening** 🔴
+**Status**: IN_SPRINT_05 - MOVED TO current-tasks.md  
+**Type**: C (Runtime Hardening / Deployment Readiness)  
+**Priority**: CRITICAL  
+**Estimated Effort**: 12-20 hours  
+**Target Sprint**: Sprint 05
+
+**See**: [current-tasks.md](./current-tasks.md#task-056-first-run-reliability-and-runtime-determinism-hardening) for full details
+
+---
+
+### **TASK-057: Local YOLO Runtime Ownership and Torch Hub Independence** 🔴
+**Status**: IN_SPRINT_05 - MOVED TO current-tasks.md  
+**Type**: C (Runtime Architecture / Deployment Readiness)  
+**Priority**: CRITICAL  
+**Estimated Effort**: 12-20 hours  
+**Target Sprint**: Sprint 05
+
+**See**: [current-tasks.md](./current-tasks.md#task-057-local-yolo-runtime-ownership-and-torch-hub-independence) for full details
 
 ---
 
@@ -50,6 +72,100 @@
 **Target Sprint**: Sprint 05
 
 **See**: [current-tasks.md](./current-tasks.md#task-029-multi-provider-fallback) for full details
+
+---
+
+## 🔧 POST-CONTAINERIZATION RELIABILITY AND ARCHITECTURE FOLLOW-ON
+
+### **TASK-058: Background Detection Jobs and Durable Run State** 🟡
+**Status**: NOT_STARTED  
+**Type**: C (Architecture / Reliability)  
+**Priority**: HIGH  
+**Estimated Effort**: 3-5 days (24-40 hours)  
+**Target Sprint**: Sprint 06 or Sprint 07
+
+**Objective**: Move long-running detection work out of the request thread and introduce durable run/job state suitable for containerized deployment.
+
+**Issues Addressed**:
+- `UT-011` synchronous detection request path blocks long-running ML work
+- `UT-015` filesystem sessions and session-persisted paths make deployment state too local
+- `UT-016` asyncio download plumbing adds complexity with limited benefit
+- follow-on hardening beyond `UT-013` stable session identity
+
+**Requirements**:
+- Background job lifecycle for detection start, status, cancellation, and result completion
+- Durable job/run identity and shared backing state rather than process-local assumptions
+- Clear migration path for progress polling and cancellation
+- Explicit handling of temp files, cleanup, and retry semantics outside the request thread
+
+**User Value**: Makes the deployed application more reliable under real long-running workloads and better aligned with containerized execution.
+
+---
+
+### **TASK-059: Backend Layer Decomposition and Logging Consolidation** 🟡
+**Status**: NOT_STARTED  
+**Type**: C (Architecture / Maintainability)  
+**Priority**: HIGH  
+**Estimated Effort**: 3-5 days (24-40 hours)  
+**Target Sprint**: Sprint 06 or Sprint 07
+
+**Objective**: Reduce change risk in `towerscout.py` by extracting clearer backend layers and completing the migration away from raw `print()` logging in production code paths.
+
+**Issues Addressed**:
+- `UT-008` `towerscout.py` remains a high-risk monolith
+- remaining work from `UT-009` production request paths still use `print()` instead of structured logging
+
+**Requirements**:
+- Extract bounded runtime layers without changing user-facing behavior
+- Move detection orchestration, session/state helpers, and route concerns into clearer modules
+- Replace remaining production `print()` usage with structured logging in the active backend runtime
+- Preserve existing detection behavior and route contracts during the decomposition
+
+**User Value**: Makes future reliability and deployment changes safer and easier to reason about.
+
+---
+
+### **TASK-060: Frontend Build Modernization** 🟡
+**Status**: NOT_STARTED  
+**Type**: B (Frontend Infrastructure)  
+**Priority**: MEDIUM  
+**Estimated Effort**: 1-2 days (8-16 hours)  
+**Target Sprint**: Sprint 06 or Sprint 07
+
+**Objective**: Replace the manual ordered-concatenation frontend build with a module-aware bundling workflow.
+
+**Issues Addressed**:
+- `UT-012` frontend build still depends on manual ordered concatenation
+
+**Requirements**:
+- Adopt a supported bundling workflow with explicit module resolution
+- Preserve the current frontend runtime behavior and Flask integration contract
+- Document the new dev/build workflow
+- Keep generated assets and source ownership clear
+
+**User Value**: Reduces frontend maintenance risk and makes future UI changes easier to validate.
+
+---
+
+### **TASK-061: Coordinated NumPy 2 Runtime Migration** 🟡
+**Status**: NOT_STARTED  
+**Type**: C (Dependency / Runtime Compatibility)  
+**Priority**: MEDIUM  
+**Estimated Effort**: 1-2 days (8-16 hours)  
+**Target Sprint**: Sprint 07+
+
+**Objective**: Intentionally validate and migrate the runtime stack from the Sprint 05 NumPy 1 containment baseline to a coordinated NumPy 2-compatible stack.
+
+**Issues Addressed**:
+- full follow-on resolution path for `UT-005` NumPy 2 compatibility across Shapely and OpenCV
+
+**Requirements**:
+- Upgrade Shapely/OpenCV/NumPy together rather than piecemeal
+- Revalidate the YOLO and imagery import paths on the upgraded stack
+- Re-run first-run and smoke-level proofs against the coordinated dependency set
+- Update runtime documentation to reflect the new dependency baseline
+
+**User Value**: Removes the deferred NumPy 1 containment decision and modernizes the runtime stack safely.
 
 ---
 
@@ -214,6 +330,8 @@
 5. **Documentation**: Budget time for proper documentation
 
 ### **Sprint 05 Focus**
+- Runtime hardening and first-run reliability
+- Local YOLO runtime ownership and Torch Hub-independent initialization
 - Deployment readiness (containerization)
 - Validation infrastructure
 - Minimal feature development
@@ -249,6 +367,7 @@
 
 ### **Phase 1: Deployment Readiness (Sprint 04-05)** ✅ In Progress
 - ✅ Setup wizard and settings (Sprint 04)
+- 🏃 Runtime hardening and local YOLO ownership (Sprint 05)
 - 🏃 Runtime dependency verification (Sprint 05)
 - 🏃 Integration testing baseline (Sprint 05)
 - 🏃 Docker containerization (Sprint 05)
