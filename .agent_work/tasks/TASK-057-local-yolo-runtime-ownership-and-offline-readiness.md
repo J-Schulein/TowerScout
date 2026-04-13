@@ -1,6 +1,6 @@
 # TASK-057: Local YOLO Runtime Ownership and Torch Hub Independence
 
-**Status**: NOT_STARTED  
+**Status**: COMPLETED  
 **Priority**: CRITICAL  
 **Type**: C (Runtime Architecture / Deployment Readiness)  
 **Estimated Effort**: 12-20 hours  
@@ -86,16 +86,16 @@ That requirement is narrower than full offline operation. TowerScout's main imag
 
 ## Acceptance Criteria
 
-- [ ] Type C task artifact exists for `TASK-057`
-- [ ] TowerScout no longer uses `torch.hub.load(...)` in the active YOLO load path
-- [ ] A validated local YOLO source snapshot is present and referenced by TowerScout
-- [ ] `webapp/model_params/yolov5/newest.pt` loads successfully through the local loader
-- [ ] First-run detector initialization works without Torch Hub cache state or GitHub/Torch Hub runtime fetches when the runtime dependencies are already installed
-- [ ] The current CPU baseline is revalidated on the local loader path
-- [ ] Optional CUDA documentation and validation notes are updated for the local loader path
-- [ ] Active setup/runtime docs no longer describe first-run GitHub dependence as part of normal YOLO initialization
-- [ ] Targeted loader tests and smoke-level proofs exist for the local loader path
-- [ ] `pytest --collect-only tests -q` remains clean after the task
+- [x] Type C task artifact exists for `TASK-057`
+- [x] TowerScout no longer uses `torch.hub.load(...)` in the active YOLO load path
+- [x] A validated local YOLO source snapshot is present and referenced by TowerScout
+- [x] `webapp/model_params/yolov5/newest.pt` loads successfully through the local loader
+- [x] First-run detector initialization works without Torch Hub cache state or GitHub/Torch Hub runtime fetches when the runtime dependencies are already installed
+- [x] The current CPU baseline is revalidated on the local loader path
+- [x] Optional CUDA documentation and validation notes are updated for the local loader path
+- [x] Active setup/runtime docs no longer describe first-run GitHub dependence as part of normal YOLO initialization
+- [x] Targeted loader tests and smoke-level proofs exist for the local loader path
+- [x] `pytest --collect-only tests -q` remains clean after the task
 
 ---
 
@@ -153,6 +153,22 @@ That requirement is narrower than full offline operation. TowerScout's main imag
 ---
 
 ## Initial Planning Log
+
+### TYPE C - TASK-057 IMPLEMENTATION AND VALIDATION - 2026-04-13
+**Objective**: Replace the active YOLO Torch Hub path with a TowerScout-owned local loader and prove `newest.pt` initializes without Torch Hub dependence.
+**Context**: `TASK-056` had stabilized the pinned Hub path, but Sprint 05 still needed to eliminate the remaining Torch Hub / GitHub bootstrap dependency before `TASK-052` and `TASK-025`.
+**Decision**: Vendor the validated YOLOv5 runtime snapshot locally, wrap it with a narrow TowerScout loader, and patch only the vendored self-install fallback points instead of reworking the broader upstream runtime.
+**Execution**: Added `webapp/vendor/yolov5_local/` with the validated YOLOv5 runtime snapshot from `ultralytics/yolov5@1d62daa3c6b8ec15fdb319c0a2e341d8b56ec86c`; added `webapp/ts_yolov5_local.py`; updated `webapp/ts_yolov5.py` to call the local loader instead of `torch.hub`; patched vendored `models/common.py` and `utils/general.py` to fail fast on missing `ultralytics` instead of mutating the environment; replaced the Hub-oriented unit coverage with `tests/unit/test_yolov5_local_loader.py`; and updated the active setup/user-testing guides to describe the local loader contract.
+**Output**: TowerScout now owns its active YOLO inference source locally, the runtime no longer depends on Torch Hub cache state or first-run GitHub access for model initialization, and the validated snapshot provenance is documented in `webapp/vendor/yolov5_local/README.md`.
+**Validation**:
+- `.venv\\Scripts\\python.exe -m py_compile webapp\\ts_yolov5.py webapp\\ts_yolov5_local.py`
+- `.venv\\Scripts\\python.exe -m pytest tests\\unit\\test_yolov5_local_loader.py -q -p no:cacheprovider` -> `5 passed`
+- `.venv\\Scripts\\python.exe -m pytest --collect-only tests -q -p no:cacheprovider` -> `170 tests collected`
+- Direct `YOLOv5_Detector` initialization against `webapp\\model_params\\yolov5\\newest.pt` succeeded on the local loader path
+- Direct `YOLOv5_Detector` initialization also succeeded with `torch.hub.load` and `torch.hub.download_url_to_file` patched to fail, which proved the active model-load path no longer depends on Torch Hub
+- Clean proof artifact recorded in `.agent_work/context/analysis/TASK-057-clean-local-yolo-first-run-proof.md` with companion environment and terminal logs
+- Broader app and host-side smoke recorded in `.agent_work/context/analysis/TASK-057-broader-app-and-host-smoke.md` with companion live-server stdout/stderr and probe logs
+**Next**: Move to `TASK-052` so the smoke baseline is defined against the local YOLO runtime contract that Sprint 05 intends to keep.
 
 ### TYPE C - TASK-057 SCOPE CORRECTION - 2026-04-13
 **Objective**: Narrow `TASK-057` to the actual runtime-contract problem that still blocks `TASK-052` and `TASK-025`.

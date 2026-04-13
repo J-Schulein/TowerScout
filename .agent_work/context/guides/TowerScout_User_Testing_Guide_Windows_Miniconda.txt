@@ -36,8 +36,8 @@ You do NOT need:
 - coding experience beyond basic copy/paste
 
 Important:
-- Even without Git installed, the computer still needs internet access when YOLOv5 loads for the first time.
-- TowerScout loads YOLOv5 through `torch.hub` against a pinned upstream commit, so a network block to GitHub can still cause model-loading errors.
+- TowerScout now loads YOLOv5 from a vendored local runtime snapshot in the repo.
+- The first YOLOv5 model load no longer needs GitHub or Torch Hub access when the runtime dependencies and model files are already in place.
 
 BEST CASE BEFORE YOU BEGIN
 ==========================
@@ -320,9 +320,9 @@ Problem: The app crashes on startup with a model-related error
 - One of the two required model files is missing
 - Check the exact filenames and file locations again
 
-Problem: YOLOv5 load fails with a GitHub or download error
-- The machine may be blocked from reaching GitHub
-- Even without Git installed, TowerScout still needs network access for `torch.hub` on the first load of its pinned YOLOv5 Hub ref
+Problem: YOLOv5 load fails with a local runtime error
+- Ask a teammate to verify `pip install -r webapp/requirements.txt` completed successfully
+- Ask a teammate to confirm `webapp\vendor\yolov5_local\` and `webapp\model_params\yolov5\newest.pt` are present
 
 Problem: Nothing happens at `http://localhost:5000`
 - Make sure the `Miniconda Prompt` window is still running

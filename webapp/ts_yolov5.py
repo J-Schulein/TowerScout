@@ -13,33 +13,20 @@
 
 import math
 import os
-import shutil
 import threading
-from contextlib import contextmanager
 from importlib import metadata
-from pathlib import Path
-from urllib.error import URLError
 
 import torch
 from packaging.version import InvalidVersion, Version
 from PIL import Image
 
 from ts_imgutil import crop
-from ts_errors import ModelLoadError, ProcessingError, ResourceError
+from ts_errors import ModelLoadError, ProcessingError
 from ts_logging import get_ml_logger
+from ts_yolov5_local import load_local_yolov5_model as _load_local_yolov5_model
 
 logger = get_ml_logger()
 
-YOLOV5_HUB_REPO = 'ultralytics/yolov5'
-YOLOV5_HUB_REF = '1d62daa3c6b8ec15fdb319c0a2e341d8b56ec86c'
-YOLOV5_HUB_SPEC = f'{YOLOV5_HUB_REPO}:{YOLOV5_HUB_REF}'
-YOLOV5_HUB_CACHE_PREFIX = 'ultralytics_yolov5_'
-YOLOV5_HUB_PINNED_CACHE_DIR = f'{YOLOV5_HUB_CACHE_PREFIX}{YOLOV5_HUB_REF}'
-YOLOV5_STALE_IMPORT_SIGNATURE = 'import pkg_resources as pkg'
-YOLOV5_HUB_ARCHIVES = ('master.zip', 'main.zip')
-YOLOV5_HUB_PINNED_ARCHIVE = f'{YOLOV5_HUB_REF}.zip'
-YOLOV5_CACHE_REFRESH_HINT = 'Cache may be out of date, try `force_reload=True`'
-YOLO_AUTOINSTALL_ENV_VAR = 'YOLO_AUTOINSTALL'
 YOLOV5_RUNTIME_DEPENDENCIES = {
     'numpy': {'max_version_exclusive': '2.0.0'},
     'pillow': {'min_version': '10.3.0'},
@@ -51,121 +38,6 @@ YOLOV5_RUNTIME_DEPENDENCIES = {
     'tqdm': {},
     'ultralytics': {},
 }
-
-
-def _iter_error_chain(error):
-    """Yield an exception and its chained causes/contexts once each."""
-    current = error
-    seen = set()
-
-    while current is not None and id(current) not in seen:
-        yield current
-        seen.add(id(current))
-        current = current.__cause__ or current.__context__
-
-
-def _is_pkg_resources_missing_error(error):
-    """Detect the stale-cache failure mode caused by old YOLOv5 Hub snapshots."""
-    for current in _iter_error_chain(error):
-        if isinstance(current, ModuleNotFoundError) and getattr(current, 'name', None) == 'pkg_resources':
-            return True
-
-        if "No module named 'pkg_resources'" in str(current):
-            return True
-
-    return False
-
-
-def _is_refreshable_pinned_cache_error(error):
-    """Detect cached-repo failures that merit a one-time forced refresh."""
-    for current in _iter_error_chain(error):
-        if isinstance(current, (ImportError, ModuleNotFoundError, SyntaxError)):
-            return True
-
-        if YOLOV5_CACHE_REFRESH_HINT in str(current):
-            return True
-
-    return False
-
-
-def _is_hub_network_error(error):
-    """Detect first-run or refresh failures caused by missing GitHub/network access."""
-    network_snippets = (
-        'Cannot find repo under',
-        'No connection could be made',
-        'Failed to establish a new connection',
-        'Name or service not known',
-        'Temporary failure in name resolution',
-        'Connection refused',
-        'Connection reset',
-        'timed out',
-    )
-
-    for current in _iter_error_chain(error):
-        if isinstance(current, URLError):
-            return True
-
-        current_text = str(current)
-        if any(snippet in current_text for snippet in network_snippets):
-            return True
-
-    return False
-
-
-def _find_pinned_yolov5_hub_repos():
-    """Return the pinned YOLOv5 Hub repo directory if it is already cached."""
-    hub_dir = Path(torch.hub.get_dir())
-    pinned_repo = hub_dir / YOLOV5_HUB_PINNED_CACHE_DIR
-
-    if pinned_repo.is_dir():
-        return hub_dir, [pinned_repo]
-
-    return hub_dir, []
-
-
-def _find_stale_legacy_yolov5_hub_repos():
-    """Return legacy cached YOLOv5 Hub repos that still import pkg_resources."""
-    hub_dir = Path(torch.hub.get_dir())
-    stale_repos = []
-
-    if not hub_dir.exists():
-        return hub_dir, stale_repos
-
-    for repo_dir in hub_dir.glob(f'{YOLOV5_HUB_CACHE_PREFIX}*'):
-        if not repo_dir.is_dir():
-            continue
-        if repo_dir.name == YOLOV5_HUB_PINNED_CACHE_DIR:
-            continue
-
-        general_py = repo_dir / 'utils' / 'general.py'
-        try:
-            if general_py.exists() and YOLOV5_STALE_IMPORT_SIGNATURE in general_py.read_text(encoding='utf-8', errors='ignore'):
-                stale_repos.append(repo_dir)
-        except OSError:
-            continue
-
-    return hub_dir, stale_repos
-
-
-def _clear_yolov5_hub_repos(hub_dir, repo_dirs, archive_names):
-    """Remove Hub repos and matching zip archives."""
-    for repo_dir in repo_dirs:
-        shutil.rmtree(repo_dir)
-
-    for archive_name in archive_names:
-        archive_path = hub_dir / archive_name
-        if archive_path.exists():
-            archive_path.unlink()
-
-
-def _clear_pinned_yolov5_hub_repos(hub_dir, pinned_repos):
-    """Clear the cached repo for the pinned YOLOv5 ref so it can be refreshed."""
-    _clear_yolov5_hub_repos(hub_dir, pinned_repos, (YOLOV5_HUB_PINNED_ARCHIVE,))
-
-
-def _clear_stale_legacy_yolov5_hub_repos(hub_dir, stale_repos):
-    """Clear legacy pkg_resources-era YOLOv5 Hub caches for compatibility hygiene."""
-    _clear_yolov5_hub_repos(hub_dir, stale_repos, YOLOV5_HUB_ARCHIVES)
 
 
 def _format_dependency_mismatch(dist_name, spec, installed_version):
@@ -184,7 +56,7 @@ def _format_dependency_mismatch(dist_name, spec, installed_version):
 
 
 def _validate_runtime_dependencies():
-    """Fail before Hub load if the local runtime cannot satisfy the pinned YOLO path."""
+    """Fail before model load if the local runtime cannot satisfy TowerScout's YOLO path."""
     mismatches = []
 
     for dist_name, spec in YOLOV5_RUNTIME_DEPENDENCIES.items():
@@ -192,7 +64,7 @@ def _validate_runtime_dependencies():
             installed_version = metadata.version(dist_name)
         except metadata.PackageNotFoundError:
             mismatches.append(
-                f'{dist_name} is not installed but is required by the pinned YOLOv5 runtime.'
+                f'{dist_name} is not installed but is required by the local YOLOv5 runtime.'
             )
             continue
 
@@ -226,102 +98,6 @@ def _validate_runtime_dependencies():
         )
 
 
-@contextmanager
-def _disable_yolo_autoinstall():
-    """Prevent upstream YOLO runtime bootstrap from mutating packages in-process."""
-    previous_value = os.environ.get(YOLO_AUTOINSTALL_ENV_VAR)
-    os.environ[YOLO_AUTOINSTALL_ENV_VAR] = 'false'
-    try:
-        yield
-    finally:
-        if previous_value is None:
-            os.environ.pop(YOLO_AUTOINSTALL_ENV_VAR, None)
-        else:
-            os.environ[YOLO_AUTOINSTALL_ENV_VAR] = previous_value
-
-
-def _load_pinned_yolov5_model(filename, force_reload=False):
-    """Load TowerScout's pinned YOLOv5 Hub ref."""
-    with _disable_yolo_autoinstall():
-        return torch.hub.load(
-            YOLOV5_HUB_SPEC,
-            'custom',
-            path=filename,
-            force_reload=force_reload,
-            trust_repo=True,
-        )
-
-
-def _load_model_with_cache_recovery(filename):
-    """Load TowerScout's pinned YOLOv5 ref with one bounded cache refresh retry."""
-    try:
-        return _load_pinned_yolov5_model(filename)
-    except Exception as first_error:
-        hub_dir, pinned_repos = _find_pinned_yolov5_hub_repos()
-        if pinned_repos and _is_refreshable_pinned_cache_error(first_error):
-            pinned_repo_list = ', '.join(str(path) for path in pinned_repos)
-            logger.warning(
-                "Pinned YOLOv5 Torch Hub cache for ref %s failed to load. "
-                "Clearing cache and retrying fresh load: %s",
-                YOLOV5_HUB_REF,
-                pinned_repo_list,
-            )
-
-            try:
-                _clear_pinned_yolov5_hub_repos(hub_dir, pinned_repos)
-            except OSError as clear_error:
-                raise RuntimeError(
-                    f"Detected invalid cached YOLOv5 Torch Hub ref {YOLOV5_HUB_REF}, "
-                    f"but failed to clear it: {clear_error}"
-                ) from clear_error
-
-            try:
-                return _load_pinned_yolov5_model(filename, force_reload=True)
-            except Exception as retry_error:
-                raise RuntimeError(
-                    f"Failed to load pinned YOLOv5 Torch Hub ref {YOLOV5_HUB_REF} from cache. "
-                    f"Cleared cached repo under {hub_dir} and retried a fresh GitHub download, "
-                    f"but reload failed: {retry_error}"
-                ) from retry_error
-
-        if _is_pkg_resources_missing_error(first_error):
-            hub_dir, stale_repos = _find_stale_legacy_yolov5_hub_repos()
-            if stale_repos:
-                stale_repo_list = ', '.join(str(path) for path in stale_repos)
-                logger.warning(
-                    "Detected stale legacy YOLOv5 Torch Hub repo requiring pkg_resources. "
-                    "Clearing legacy cache and retrying pinned ref load: %s",
-                    stale_repo_list
-                )
-
-                try:
-                    _clear_stale_legacy_yolov5_hub_repos(hub_dir, stale_repos)
-                except OSError as clear_error:
-                    raise RuntimeError(
-                        "Detected stale legacy YOLOv5 Torch Hub repo that requires pkg_resources, "
-                        f"but failed to clear it: {clear_error}"
-                    ) from clear_error
-
-                try:
-                    return _load_pinned_yolov5_model(filename, force_reload=True)
-                except Exception as retry_error:
-                    raise RuntimeError(
-                        "Detected stale legacy YOLOv5 Torch Hub repo that required pkg_resources. "
-                        f"Cleared legacy cache under {hub_dir} and retried the pinned ref "
-                        f"{YOLOV5_HUB_REF}, but reload failed: {retry_error}"
-                    ) from retry_error
-
-        if not pinned_repos and _is_hub_network_error(first_error):
-            raise RuntimeError(
-                f"Failed to load pinned YOLOv5 Torch Hub ref {YOLOV5_HUB_REF}. "
-                f"No cached copy was available under {hub_dir}, and TowerScout could not reach GitHub "
-                "to download it. GitHub/network access is required the first time this pinned ref is "
-                f"downloaded or whenever TowerScout must refresh that cache: {first_error}"
-            ) from first_error
-
-        raise
-
-
 class YOLOv5_Detector:
     def __init__(self, filename):
         try:
@@ -339,7 +115,7 @@ class YOLOv5_Detector:
             
             # Model loading with error handling
             try:
-                self.model = _load_model_with_cache_recovery(filename)
+                self.model = _load_local_yolov5_model(filename)
                 logger.info("YOLOv5 model loaded successfully")
             except Exception as e:
                 raise ModelLoadError(

@@ -108,12 +108,12 @@ pip install -r requirements-dev.txt
 Notes:
 - `webapp/requirements.txt` is the runtime dependency list.
 - `webapp/requirements.txt` now includes the current verified runtime gaps `psutil` and `tqdm`.
-- `webapp/requirements.txt` also explicitly includes `packaging`, `pandas`, and a pinned `ultralytics` version because the hardened YOLOv5 Hub path imports those directly at runtime.
+- `webapp/requirements.txt` also explicitly includes `packaging`, `pandas`, and a pinned `ultralytics` version because the local YOLOv5 runtime imports those directly at runtime.
 - The Sprint 05 validated CPU baseline now pins `numpy==1.26.4` explicitly and keeps TowerScout on a NumPy 1 contract until a coordinated NumPy 2 migration is approved.
-- The runtime manifest now satisfies the pinned YOLOv5 Hub minimums for `Pillow` and `Requests`, so first detection should not auto-upgrade core packages in-process.
+- The runtime manifest now satisfies the local YOLOv5 runtime minimums for `Pillow` and `Requests`, so first detection should not auto-upgrade core packages in-process.
 - `requirements-dev.txt` adds pytest, linting, type-checking, and security tools.
-- TowerScout still uses `torch.hub` for YOLOv5, but it now pins a specific upstream commit instead of loading the mutable default branch.
-- The first model load can still require GitHub/network access if that pinned Hub ref is not already cached locally.
+- TowerScout now loads YOLOv5 from its vendored local runtime snapshot under `webapp/vendor/yolov5_local/`.
+- YOLOv5 initialization no longer depends on Torch Hub cache state or first-run GitHub access.
 
 OPTIONAL: CUDA-ENABLED PYTORCH
 ==============================
@@ -279,8 +279,8 @@ Current startup behavior worth knowing:
 - EfficientNet is loaded during startup unless `TOWERSCOUT_LAZY_MODEL_INIT` is enabled
 - YOLOv5 models are discovered from `webapp/model_params/yolov5/`
 - the default YOLO model is loaded on demand in `dev` mode
-- the first YOLOv5 load may still reach GitHub through `torch.hub` if the pinned Hub ref is not already cached
-- TowerScout now ignores older `ultralytics_yolov5_master` caches and uses its pinned Hub ref instead
+- TowerScout loads YOLOv5 from the vendored local runtime under `webapp/vendor/yolov5_local/`
+- first YOLOv5 initialization no longer depends on Torch Hub cache state or GitHub reachability
 
 STEP 8: VERIFY THE INSTALLATION
 ===============================
@@ -388,10 +388,10 @@ Problem: TowerScout crashes before the server starts
   - `webapp/model_params/yolov5/newest.pt`
   - `webapp/model_params/EN/b5_unweighted_best.pt`
 
-Problem: YOLOv5 load fails with a GitHub or download error
-- The current runtime path still loads YOLOv5 through `torch.hub`, but now against a pinned YOLOv5 commit
-- The first model load may fail if the machine cannot reach GitHub and no cached copy of that pinned Hub ref already exists
-- This is a current runtime characteristic, not a separate manual install step you missed
+Problem: YOLOv5 load fails with a local runtime error
+- Re-run `pip install -r webapp/requirements.txt`
+- Confirm the repo still contains `webapp/vendor/yolov5_local/` and `webapp/model_params/yolov5/newest.pt`
+- This no longer depends on first-run GitHub access, so treat it as a local dependency or workspace issue
 
 Problem: CUDA is available on the machine but TowerScout still runs on CPU
 - Check which PyTorch build is installed

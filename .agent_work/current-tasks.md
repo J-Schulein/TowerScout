@@ -272,8 +272,8 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 
 ---
 
-### **TASK-057: Local YOLO Runtime Ownership and Torch Hub Independence** 🔴
-**Status**: NOT_STARTED  
+### **TASK-057: Local YOLO Runtime Ownership and Torch Hub Independence** ✅
+**Status**: COMPLETED  
 **Type**: C (Runtime Architecture / Deployment Readiness)  
 **Priority**: CRITICAL  
 **Estimated Effort**: 12-20 hours  
@@ -296,12 +296,25 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 - `pytest --collect-only tests -q` remains clean
 
 **Dependencies**:
-- 🔴 TASK-056 runtime hardening complete
+- ✅ TASK-056 runtime hardening complete
 
 **Notes**:
 - This is the structural follow-on to the immediate runtime hardening task, not a broad architecture rewrite.
 - This is not a full-app offline-readiness task; provider-backed imagery and geocoding remain network-dependent.
 - Do not expand this task into ONNX/TensorRT migration, Docker work, or queue-based detection redesign.
+
+**Completion Summary**:
+- Vendored the validated YOLOv5 runtime snapshot locally under `webapp/vendor/yolov5_local/` with provenance documented from `ultralytics/yolov5@1d62daa3c6b8ec15fdb319c0a2e341d8b56ec86c`
+- Added `webapp/ts_yolov5_local.py` and switched `webapp/ts_yolov5.py` from `torch.hub` to a TowerScout-owned local loader path
+- Patched the vendored runtime to fail fast on missing `ultralytics` instead of attempting in-process package mutation
+- Updated active setup/runtime guides so they no longer describe first-run GitHub dependence as part of normal YOLO initialization
+- Validation passed:
+  - `.venv\\Scripts\\python.exe -m pytest tests\\unit\\test_yolov5_local_loader.py -q -p no:cacheprovider` -> `5 passed`
+  - `.venv\\Scripts\\python.exe -m pytest --collect-only tests -q -p no:cacheprovider` -> `170 tests collected`
+  - direct `YOLOv5_Detector` load against `webapp/model_params/yolov5/newest.pt` succeeded
+  - direct `YOLOv5_Detector` load also succeeded with `torch.hub.load` and `torch.hub.download_url_to_file` patched to fail, which proved the active loader no longer depends on Torch Hub
+- Clean first-run proof recorded in `.agent_work/context/analysis/TASK-057-clean-local-yolo-first-run-proof.md` with companion env and terminal logs
+- Broader app and host-side smoke recorded in `.agent_work/context/analysis/TASK-057-broader-app-and-host-smoke.md` with companion live-server stdout/stderr and probe logs
 
 **User Value**: Removes the last major runtime nondeterminism before Docker by ensuring TowerScout owns the inference code it depends on.
 
@@ -337,8 +350,8 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 - Stale validation surfaces are either updated to current behavior or explicitly retired from the active baseline
 
 **Dependencies**:
-- TASK-056 first-run reliability and runtime determinism hardening 🔴
-- TASK-057 local YOLO runtime ownership and Torch Hub independence 🔴
+- TASK-056 first-run reliability and runtime determinism hardening ✅ COMPLETED
+- TASK-057 local YOLO runtime ownership and Torch Hub independence ✅ COMPLETED
 - TASK-046 setup wizard/settings implementation ✅ COMPLETED
 - TASK-049 validation-gate repair ✅ COMPLETED
 - TASK-055 YOLO Torch Hub pinned-ref hardening ✅ COMPLETED
@@ -391,8 +404,8 @@ Runtime-path normalization is complete. Docker work should treat the following a
 - `FLASK_SECRET_KEY` (must be stable across restarts)
 
 **Dependencies**:
-- 🔴 TASK-056 - first-run reliability and runtime determinism hardening
-- 🔴 TASK-057 - local YOLO runtime ownership and Torch Hub independence
+- ✅ TASK-056 - first-run reliability and runtime determinism hardening
+- ✅ TASK-057 - local YOLO runtime ownership and Torch Hub independence
 - ✅ TASK-046 (completed) - setup wizard/settings volume-mount behavior
 - 🟡 TASK-051 - runtime dependency verification and split
 - ✅ TASK-055 - YOLO Torch Hub pinned-ref hardening
@@ -548,7 +561,7 @@ Runtime-path normalization is complete. Docker work should treat the following a
 - [x] TASK-051 complete: Runtime dependencies verified and split documented
 - [x] TASK-055 complete: YOLO Torch Hub pinned-ref hardening landed
 - [ ] TASK-056 complete: First-run blockers and deployment-hostile runtime defaults corrected
-- [ ] TASK-057 complete: Active YOLO load path no longer depends on Torch Hub / GitHub at runtime
+- [x] TASK-057 complete: Active YOLO load path no longer depends on Torch Hub / GitHub at runtime
 - [ ] TASK-052 complete: Current integration smoke test in place on the corrected runtime contract
 - [ ] TASK-025 Phase 1-3 complete: Docker container builds and runs on the corrected baseline
 - [ ] Setup Wizard functional in Docker environment
