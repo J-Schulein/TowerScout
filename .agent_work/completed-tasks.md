@@ -547,7 +547,7 @@
   - Dataset restoration validated (Test 3.2b PASSED)
 
 **Validated Acceptance Criteria**: 10/13 core (77%)  
-**Task Document**: `.agent_work/tasks/TASK-033-manual-tower-addition.md`
+**Task Document**: `.agent_work/tasks/completed/TASK-033/TASK-033-manual-tower-addition.md`
 
 **Value Delivered**: Production-ready manual tower feature enables outbreak investigation teams to mark known towers and add suspected locations for field verification
 
@@ -685,8 +685,8 @@
 - ZERO warnings related to Phase 1 variables (currentElement, currentAddrElement, isInitializing)
 
 **Documents**:
-- Implementation Plan: `.agent_work/context/status/GLOBAL-VARIABLE-MIGRATION-PHASE-1-PLAN.md`
-- Testing Checklist: `.agent_work/context/status/PHASE-1-TESTING-CHECKLIST.md`
+- Implementation Plan: `.agent_work/context/archive/2026-04/status/GLOBAL-VARIABLE-MIGRATION-PHASE-1-PLAN.md`
+- Testing Checklist: `.agent_work/context/archive/2026-04/status/PHASE-1-TESTING-CHECKLIST.md`
 
 **User Value**: Improved architectural consistency, better testability, and centralized state management following Sprint 02 patterns
 
@@ -810,8 +810,8 @@
 - Completes Phase 2 of 3 in global variable migration roadmap
 
 **Documents**:
-- Implementation Plan: `.agent_work/context/status/GLOBAL-VARIABLE-MIGRATION-PHASE-2-PLAN.md`
-- Testing Checklist: `.agent_work/context/status/PHASE-2-TESTING-CHECKLIST.md`
+- Implementation Plan: `.agent_work/context/archive/2026-04/status/GLOBAL-VARIABLE-MIGRATION-PHASE-2-PLAN.md`
+- Testing Checklist: `.agent_work/context/archive/2026-04/status/PHASE-2-TESTING-CHECKLIST.md`
 
 **User Value**: Improved architectural consistency across all state management, better debugging capabilities, and foundation for Phase 3 completion
 
@@ -882,8 +882,8 @@
 - Build time: <2 seconds
 - Commits: 11 total (5 stages + 1 stage fix + 1 stage extraction + 4 critical fixes)
 
-**Completion Summary**: See `.agent_work/tasks/TASK-038-COMPLETION-SUMMARY.md`  
-**Task File**: `.agent_work/tasks/TASK-038-frontend-refactoring.md`  
+**Completion Summary**: See `.agent_work/tasks/completed/TASK-038-COMPLETION-SUMMARY.md`  
+**Task File**: `.agent_work/tasks/completed/TASK-038-frontend-refactoring.md`  
 **Design Document**: `.agent_work/design-task-038-revised.md` (v2.6.1)
 
 ---
@@ -953,7 +953,7 @@
 
 **Technical Achievement**: Discovered and fixed fundamental Azure Maps SDK architectural constraints not documented in official guides. Established ID-based click handler pattern as best practice for Azure Maps data sources.
 
-**Task File**: `.agent_work/tasks/TASK-042-testing-action-log.md` (1,800+ lines with detailed debugging sessions)
+**Task File**: `.agent_work/tasks/completed/TASK-042-testing-action-log.md` (1,800+ lines with detailed debugging sessions)
 
 ---
 
@@ -989,7 +989,7 @@ Building on TASK-041's ProviderStateManager foundation, this task addressed the 
 
 - ✅ **Phase 4**: Testing & Documentation (2 hours) - March 10, 2026
   - Manual testing: 4 comprehensive test scenarios (all PASSED)
-  - Decision record created: TASK-043-global-variable-migration-patterns.md
+  - Decision record created: 015-global-variable-migration-patterns.md
   - Bundle size analysis: +8.7 KB (2.6% increase - acceptable)
   - Build status: ✅ SUCCESS (27 modules, 346.4 KB)
 
@@ -1034,8 +1034,8 @@ Building on TASK-041's ProviderStateManager foundation, this task addressed the 
 - Configuration consolidation - 1-2 hours
 - Total remaining: ~10-14 hours across Sprint 03-04
 
-**Task File**: `.agent_work/tasks/TASK-043-global-variable-deprecation.md` (comprehensive implementation log with 4 test results)  
-**Decision Record**: `.agent_work/decisions/TASK-043-global-variable-migration-patterns.md`
+**Task File**: `.agent_work/tasks/completed/TASK-043-global-variable-deprecation.md` (comprehensive implementation log with 4 test results)  
+**Decision Record**: `.agent_work/decisions/015-global-variable-migration-patterns.md`
 
 ---
 
@@ -1100,7 +1100,7 @@ Building on TASK-041's ProviderStateManager foundation, this task addressed the 
 - [x] Troubleshooting updated with resolved issues
 - [x] Architecture guide created for contributors
 
-**Task File**: `.agent_work/tasks/TASK-044-documentation-updates.md`
+**Task File**: `.agent_work/tasks/completed/TASK-044-documentation-updates.md`
 
 ---
 
@@ -1152,7 +1152,7 @@ Building on TASK-041's ProviderStateManager foundation, this task addressed the 
 - ✅ Better debugging visibility (enhanced console logging)
 - ✅ Provider synchronization working correctly
 
-**Task File**: `.agent_work/tasks/TASK-045-boundary-accumulation-bug.md`
+**Task File**: `.agent_work/tasks/completed/TASK-045-boundary-accumulation-bug.md`
 
 ---
 

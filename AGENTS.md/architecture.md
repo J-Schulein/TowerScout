@@ -79,7 +79,7 @@ function switchToAzure() {
 - ✅ Centralized state for easier debugging
 
 **Migration Guide**:
-See `.agent_work/decisions/TASK-043-global-variable-migration-patterns.md` for detailed migration patterns from global variables to ProviderStateManager.
+See `.agent_work/decisions/015-global-variable-migration-patterns.md` for detailed migration patterns from global variables to ProviderStateManager.
 
 **Sprint 03 Deprecation Warnings Cleanup**:
 - Property descriptor initialization timing fixes (order of operations)
@@ -787,8 +787,8 @@ class CustomPolygonDrawing {
 ## 📚 Architecture Deep Dive Resources
 
 ### State Management & Patterns
-- [Global Variable Migration Patterns](../.agent_work/decisions/TASK-043-global-variable-migration-patterns.md) - ProviderStateManager migration guide  - Comprehensive examples for converting legacy globals to managed state
-- [Provider Lock Decision](../.agent_work/decisions/DECISION-004-provider-lock-after-detection.md) - Provider switching design rationale and constraints
+- [Global Variable Migration Patterns](../.agent_work/decisions/015-global-variable-migration-patterns.md) - ProviderStateManager migration guide  - Comprehensive examples for converting legacy globals to managed state
+- [Provider Lock Decision](../.agent_work/decisions/014-provider-lock-after-detection.md) - Provider switching design rationale and constraints
 - [Memory Leak Solution Design](../.agent_work/context/analysis/MEMORY-LEAK-SOLUTION-DESIGN.md) - TASK-041 lifecycle management patterns and stress test results
 
 ### Provider Integration

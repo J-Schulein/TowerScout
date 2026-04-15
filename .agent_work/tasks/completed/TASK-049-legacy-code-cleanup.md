@@ -57,7 +57,7 @@ Execute verified cleanup/remediation batches from TASK-050 within the approved S
 ## Acceptance Criteria
 
 - [x] TASK-049 is marked `IN_PROGRESS` in `.agent_work/current-tasks.md`
-- [x] Dedicated task file created at `.agent_work/tasks/TASK-049-legacy-code-cleanup.md`
+- [x] Dedicated task file created at `.agent_work/tasks/completed/TASK-049-legacy-code-cleanup.md`
 - [x] TASK-050 audit refreshed with a March 31 addendum and current working-tree metrics
 - [x] `.coverage` removed from tracked git inventory
 - [x] `.DS_Store` removed from tracked git inventory

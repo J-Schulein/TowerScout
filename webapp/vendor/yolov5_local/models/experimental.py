@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from ultralytics.utils.patches import torch_load
 
-from utils.downloads import attempt_download
+from ..utils.downloads import attempt_download
 
 
 class Sum(nn.Module):
@@ -91,7 +91,7 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
 
     Example inputs: weights=[a,b,c] or a single model weights=[a] or weights=a.
     """
-    from models.yolo import Detect, Model
+    from .yolo import Detect, Model
 
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:

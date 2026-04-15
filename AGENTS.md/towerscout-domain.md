@@ -403,8 +403,8 @@ For detailed information on specific topics, refer to these comprehensive docume
 ### Architecture & Design
 - [Developer Architecture Guide](../.agent_work/context/guides/Developer-Architecture-Guide.md) - Comprehensive architecture reference
 - [Frontend Code Review](../.agent_work/context/analysis/FRONTEND-CODE-REVIEW.md) - Deep dive into JavaScript architecture
-- [Global Variable Migration Patterns](../.agent_work/decisions/TASK-043-global-variable-migration-patterns.md) - ProviderStateManager migration guide
-- [Provider Lock Decision](../.agent_work/decisions/DECISION-004-provider-lock-after-detection.md) - Provider switching design rationale
+- [Global Variable Migration Patterns](../.agent_work/decisions/015-global-variable-migration-patterns.md) - ProviderStateManager migration guide
+- [Provider Lock Decision](../.agent_work/decisions/014-provider-lock-after-detection.md) - Provider switching design rationale
 - [Memory Leak Solution Design](../.agent_work/context/analysis/MEMORY-LEAK-SOLUTION-DESIGN.md) - TASK-041 lifecycle management patterns
 
 ### User Workflows & Testing

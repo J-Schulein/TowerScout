@@ -1,4 +1,7 @@
 import os
+import sys
+import types
+from contextlib import nullcontext
 from importlib import metadata
 from unittest.mock import Mock, patch
 
@@ -8,8 +11,10 @@ from ts_errors import ModelLoadError
 from ts_yolov5 import YOLOv5_Detector, _validate_runtime_dependencies
 from ts_yolov5_local import (
     YOLOV5_AUTOINSTALL_ENV_VAR,
+    YOLOV5_LOCAL_PACKAGE,
     YOLO_AUTOINSTALL_ENV_VAR,
     disable_yolo_autoinstall,
+    load_local_yolov5_model,
 )
 
 
@@ -101,3 +106,106 @@ def test_disable_yolo_autoinstall_sets_both_env_guards():
 
         assert os.environ[YOLO_AUTOINSTALL_ENV_VAR] == "true"
         assert os.environ[YOLOV5_AUTOINSTALL_ENV_VAR] == "true"
+
+
+def test_local_loader_wraps_attempt_load_fallback_in_autoshape_without_sys_path_mutation(monkeypatch):
+    fake_device = object()
+    raw_model = Mock()
+    select_device = Mock(return_value=fake_device)
+    attempt_load = Mock(return_value=raw_model)
+
+    class FakeLogger:
+        def __init__(self):
+            self.level = 20
+            self.messages = []
+
+        def setLevel(self, level):
+            self.level = level
+
+        def warning(self, message, *args):
+            if args:
+                message = message % args
+            self.messages.append(message)
+
+    class FakeAutoShape:
+        def __init__(self, model, verbose=True):
+            self.model = model
+            self.verbose = verbose
+            self.device = None
+
+        def to(self, device):
+            self.device = device
+            return self
+
+    class FakeDetectMultiBackend:
+        def __init__(self, *args, **kwargs):
+            raise ModuleNotFoundError("export")
+
+    class FakeClassificationModel:
+        pass
+
+    class FakeSegmentationModel:
+        pass
+
+    def package_module(name):
+        module = types.ModuleType(name)
+        module.__path__ = []
+        return module
+
+    fake_logger = FakeLogger()
+    vendor_package = package_module("vendor")
+    yolov5_package = package_module("vendor.yolov5_local")
+    models_package = package_module("vendor.yolov5_local.models")
+    utils_package = package_module("vendor.yolov5_local.utils")
+    common_module = types.ModuleType("vendor.yolov5_local.models.common")
+    common_module.AutoShape = FakeAutoShape
+    common_module.DetectMultiBackend = FakeDetectMultiBackend
+    experimental_module = types.ModuleType("vendor.yolov5_local.models.experimental")
+    experimental_module.attempt_load = attempt_load
+    yolo_module = types.ModuleType("vendor.yolov5_local.models.yolo")
+    yolo_module.ClassificationModel = FakeClassificationModel
+    yolo_module.SegmentationModel = FakeSegmentationModel
+    general_module = types.ModuleType("vendor.yolov5_local.utils.general")
+    general_module.LOGGER = fake_logger
+    torch_utils_module = types.ModuleType("vendor.yolov5_local.utils.torch_utils")
+    torch_utils_module.select_device = select_device
+
+    vendor_package.yolov5_local = yolov5_package
+    yolov5_package.models = models_package
+    yolov5_package.utils = utils_package
+    models_package.common = common_module
+    models_package.experimental = experimental_module
+    models_package.yolo = yolo_module
+    utils_package.general = general_module
+    utils_package.torch_utils = torch_utils_module
+
+    monkeypatch.setattr("ts_yolov5_local.disable_yolo_autoinstall", lambda: nullcontext())
+    monkeypatch.setattr("ts_yolov5_local.ensure_local_yolov5_source_available", lambda: None)
+
+    original_sys_path = list(sys.path)
+
+    with patch.dict(
+        sys.modules,
+        {
+            "vendor": vendor_package,
+            "vendor.yolov5_local": yolov5_package,
+            "vendor.yolov5_local.models": models_package,
+            "vendor.yolov5_local.models.common": common_module,
+            "vendor.yolov5_local.models.experimental": experimental_module,
+            "vendor.yolov5_local.models.yolo": yolo_module,
+            "vendor.yolov5_local.utils": utils_package,
+            "vendor.yolov5_local.utils.general": general_module,
+            "vendor.yolov5_local.utils.torch_utils": torch_utils_module,
+        },
+        clear=False,
+    ):
+        wrapped_model = load_local_yolov5_model("newest.pt", autoshape=True, verbose=False)
+
+    assert YOLOV5_LOCAL_PACKAGE == "vendor.yolov5_local"
+    assert sys.path == original_sys_path
+    assert isinstance(wrapped_model, FakeAutoShape)
+    assert wrapped_model.model is raw_model
+    assert wrapped_model.device is fake_device
+    select_device.assert_called_once_with(None)
+    attempt_load.assert_called_once()
+    assert any("DetectMultiBackend load failed" in message for message in fake_logger.messages)

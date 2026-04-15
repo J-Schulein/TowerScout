@@ -116,7 +116,7 @@ This pass includes the 10 user-approved adjustments discussed on April 1, 2026. 
 - [x] Existing detection cancel behavior continues to work.
 - [x] No model thresholds, model outputs, export formats, or review-mode behavior regress as part of this pass.
 
-Validation note: implementation/build validation is complete, the user manually verified the new loading/progress messages on both Google Maps and Azure Maps, and current-code cancel smoke passed on both providers with runtime artifacts at `browser-runs/20260406-151929-google-cancel/summary.json` and `browser-runs/20260406-151958-azure-cancel/summary.json`.
+Validation note: implementation/build validation is complete, the user manually verified the new loading/progress messages on both Google Maps and Azure Maps, and current-code cancel smoke passed on both providers with runtime artifacts at `tasks/completed/TASK-053/evidence/browser-runs/20260406-151929-google-cancel/summary.json` and `tasks/completed/TASK-053/evidence/browser-runs/20260406-151958-azure-cancel/summary.json`.
 
 ---
 
@@ -245,7 +245,7 @@ Validation note: implementation/build validation is complete, the user manually 
 **Objective**: Translate the approved April 1 adjustment list into a dedicated, implementation-ready TASK-047 document without starting code changes.
 **Context**: TASK-047 was still open-ended in Sprint 04 tracking. The user then supplied 10 concrete requests across Main UI Screen, Settings Screen, and Process Flow/User Experience, including one harder progress-feedback enhancement.
 **Decision**: Keep TASK-047 scoped to the approved list, treat item 10 as structured phase-status plus counts instead of raw log streaming, and add explicit performance guardrails so the later implementation does not harm model responsiveness.
-**Execution**: Created `.agent_work/tasks/TASK-047-ui-formatting-and-polish.md` with scope, requirements, acceptance criteria, implementation phases, and validation guidance. Synced `.agent_work/current-tasks.md` so Sprint 04 tracking points to this task document.
+**Execution**: Created `.agent_work/tasks/completed/TASK-047-ui-formatting-and-polish.md` with scope, requirements, acceptance criteria, implementation phases, and validation guidance. Synced `.agent_work/current-tasks.md` so Sprint 04 tracking points to this task document.
 **Output**: TASK-047 now has a dedicated task file and a decision-complete implementation scope.
 **Validation**: Documentation review only; no code or runtime behavior changed in this step.
 **Next**: Start implementation when ready, beginning with the low-risk main-screen and settings-screen polish before the bounded progress-overlay enhancement.

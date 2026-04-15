@@ -121,7 +121,7 @@ Runtime-path normalization is now in place.
 - The April 7 post-normalization smokes updated `webapp/flask_session/` while repo-root `flask_session/` retained its April 6 timestamp, which confirms the root session files are stale leftovers.
 - Repo-root `cache/maps/` and `uploads/` are empty local leftovers, not active write targets.
 - Repo-root `logs/` is now a transitional/local-only compatibility surface because the performance-summary helper still falls back to `cwd/logs/performance.log` when `webapp/logs/performance.log` is absent.
-- `.agent_work/context/analysis/browser-runs/` summary JSON files can contain live provider request URLs and should remain local-only and ignored.
+- `.agent_work/tasks/completed/TASK-053/evidence/browser-runs/` summary JSON files can contain live provider request URLs and should remain local-only and ignored.
 
 ---
 

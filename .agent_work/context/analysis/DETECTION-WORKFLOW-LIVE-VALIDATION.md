@@ -33,7 +33,7 @@ AOI used for the first baseline:
 ### Run 1: Azure Smoke Attempt Before Harness Fallback
 
 - Run ID: `20260402-151701-azure`
-- Artifact directory: `.agent_work/context/analysis/browser-runs/20260402-151701-azure`
+- Artifact directory: `.agent_work/tasks/completed/TASK-053/evidence/browser-runs/20260402-151701-azure`
 - Outcome: failed before estimate request could be triggered normally
 
 Observed behavior:
@@ -55,7 +55,7 @@ Notes:
 ### Run 2: Azure Smoke Attempt With Harness Fallback
 
 - Run ID: `20260402-152342-azure`
-- Artifact directory: `.agent_work/context/analysis/browser-runs/20260402-152342-azure`
+- Artifact directory: `.agent_work/tasks/completed/TASK-053/evidence/browser-runs/20260402-152342-azure`
 - Outcome: estimate succeeded, detection failed server-side
 
 Observed behavior:
@@ -93,7 +93,7 @@ Interpretation:
 ### Run 3: Google Smoke Attempt With Harness Fallback
 
 - Run ID: `20260402-152835-google`
-- Artifact directory: `.agent_work/context/analysis/browser-runs/20260402-152835-google`
+- Artifact directory: `.agent_work/tasks/completed/TASK-053/evidence/browser-runs/20260402-152835-google`
 - Outcome: estimate succeeded, detection did not reach Flask
 
 Observed behavior:
@@ -124,9 +124,9 @@ Confirmed findings:
 
 - Run IDs: `20260402-153806-azure`, `20260402-154432-azure`, `20260402-155117-azure`
 - Artifact directories:
-  - `.agent_work/context/analysis/browser-runs/20260402-153806-azure`
-  - `.agent_work/context/analysis/browser-runs/20260402-154432-azure`
-  - `.agent_work/context/analysis/browser-runs/20260402-155117-azure`
+  - `.agent_work/tasks/completed/TASK-053/evidence/browser-runs/20260402-153806-azure`
+  - `.agent_work/tasks/completed/TASK-053/evidence/browser-runs/20260402-154432-azure`
+  - `.agent_work/tasks/completed/TASK-053/evidence/browser-runs/20260402-155117-azure`
 - Outcome: estimate still succeeds, detection still times out in-browser, and the backend still returns a structured `500`
 
 Observed behavior:
@@ -224,7 +224,7 @@ Current runtime state before the next rerun:
 
 ## April 3 Isolated `5001` Validation Pass
 
-After the stale `5000` listener ambiguity persisted, Task-053 validation shifted to an isolated helper server on `localhost:5001` driven by `.agent_work/scripts/task053_run_server_5001.py`.
+After the stale `5000` listener ambiguity persisted, Task-053 validation shifted to an isolated helper server on `localhost:5001` driven by `.agent_work/tasks/completed/TASK-053/task053_run_server_5001.py`.
 
 Important environment correction:
 
@@ -300,7 +300,7 @@ Fix now landed in-repo:
 Passing artifact:
 
 - Run ID: `20260403-142736-azure`
-- Artifact: `.agent_work/context/analysis/browser-runs/20260403-142736-azure/summary.json`
+- Artifact: `.agent_work/tasks/completed/TASK-053/evidence/browser-runs/20260403-142736-azure/summary.json`
 
 Confirmed results from the passing artifact:
 
@@ -322,7 +322,7 @@ Provider parity is now confirmed on the isolated helper server as well:
 
 - the Google smoke run targeted `http://localhost:5001`
 - the resulting artifact is `20260403-143013-google`
-- artifact path: `.agent_work/context/analysis/browser-runs/20260403-143013-google/summary.json`
+- artifact path: `.agent_work/tasks/completed/TASK-053/evidence/browser-runs/20260403-143013-google/summary.json`
 
 Confirmed results from the passing artifact:
 
@@ -350,7 +350,7 @@ The cancel path needed both backend and frontend hardening before it became stab
 Passing artifact:
 
 - Run ID: `20260403-150354-azure-cancel`
-- Artifact: `.agent_work/context/analysis/browser-runs/20260403-150354-azure-cancel/summary.json`
+- Artifact: `.agent_work/tasks/completed/TASK-053/evidence/browser-runs/20260403-150354-azure-cancel/summary.json`
 
 Confirmed results from the passing artifact:
 
@@ -387,7 +387,7 @@ Root causes isolated during the follow-up pass:
 
 Fixes now landed in the workspace:
 
-- `.agent_work/scripts/task053_run_server_5001.py`
+- `.agent_work/tasks/completed/TASK-053/task053_run_server_5001.py`
   - clears inherited proxy env vars before importing `towerscout`
   - forces UTF-8 stdio so helper-server startup is stable under the local shell
 - `webapp/ts_geocache.py`

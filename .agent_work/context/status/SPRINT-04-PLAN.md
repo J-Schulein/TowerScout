@@ -735,7 +735,7 @@ Document any shortcuts, deferred polish items, or discovered issues:
 ## 📚 Reference Documentation
 
 ### Task Documents
-- [TASK-046 Acceptance Criteria](.agent_work/tasks/TASK-046-setup-wizard-settings-screen.md)
+- [TASK-046 Acceptance Criteria](../tasks/completed/TASK-046-setup-wizard-settings-screen.md)
 - [ISSUE-003 Context](.agent_work/context/status/SPRINT-03-RETROSPECTIVE.md)
 - [Sprint 03 Retrospective](.agent_work/context/status/SPRINT-03-RETROSPECTIVE.md)
 

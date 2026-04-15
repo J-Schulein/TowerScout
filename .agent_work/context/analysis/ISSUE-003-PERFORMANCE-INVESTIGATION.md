@@ -47,8 +47,8 @@ The highest-signal finding is in `webapp/js/src/providers/AzureMap.js`: `updateM
 ## Method
 
 ### Harness
-- Created reproducible benchmark script: `.agent_work/scripts/issue-003-benchmark.js`
-- Saved raw results: `.agent_work/context/analysis/ISSUE-003-benchmark-results.json`
+- Created reproducible benchmark script: `.agent_work/context/archive/2026-04/ISSUE-003/issue-003-benchmark.js`
+- Saved raw results: `.agent_work/context/archive/2026-04/ISSUE-003/ISSUE-003-benchmark-results.json`
 
 ### Scope Measured
 - 100, 500, and 1000 visible detections

@@ -11,11 +11,13 @@ Bridge the gap between requirements and implementation.
   - **`current-tasks.md`**: Active sprint tasks and immediate work (primary source of truth for current work)
   - **`task-backlog.md`**: Future tasks organized by priority and dependencies
   - **`completed-tasks.md`**: Historical task completion record (last 4 weeks + archived)
-- **Individual task files**: `.agent_work/tasks/TASK-XXX-brief-name.md` for detailed task execution tracking (Type B/C only).
+- **Individual task files**: current sprint task docs live in `.agent_work/tasks/active/`, prior-sprint task docs live in `.agent_work/tasks/completed/`, and `.agent_work/tasks/` root should not hold loose task docs.
 - **Context Documentation**: Organized supporting documentation:
   - **`context/guides/`**: User-facing documentation, setup guides, deployment instructions
-  - **`context/analysis/`**: Technical reality checks, provider comparisons, architecture assessments
-  - **`context/status/`**: Progress tracking, workflow documents, commit readiness reports
+  - **`context/analysis/`**: Cross-task technical analysis and reality checks only
+  - **`context/status/`**: Active/current sprint status, retrospectives, and live workflow documents
+
+Use `.github/instructions/spec-driven-approach.instructions.md` as the authoritative source for `.agent_work` organization rules. If this AGENTS copy differs, follow the `.github` version.
 
 ## Integration Guidelines
 
@@ -485,8 +487,8 @@ Each requirement must be:
 ```
 
 **Individual Task File Organization:**
-- **Active work**: Individual task files accessible via `tasks/active/` (symlinked for quick access)
-- **Completed work**: Files moved to `tasks/completed/` upon task completion
+- **Active work**: Keep current sprint task files in `tasks/active/`, even if they are already marked `COMPLETED`
+- **Completed work**: Move the finished sprint batch to `tasks/completed/` during sprint closeout
 - **Complex tasks**: Maintain subfolder structure (e.g., `TASK-008/`) for multi-phase work
 
 **Task File Naming Convention:**
@@ -583,8 +585,8 @@ Use abbreviated entries in Action Documentation Template format for tracking Typ
 2. **Sprint Planning**: Move 3-5 tasks from `task-backlog.md` to `current-tasks.md`
 3. **Task Start (Type B/C)**:
    - Update status to IN_PROGRESS in `current-tasks.md`
-   - Create task file: `.agent_work/tasks/TASK-XXX-brief-name.md`
-   - Create symlink in `tasks/active/` for quick access
+   - Create task file: `.agent_work/tasks/active/TASK-XXX-brief-name.md`
+   - Create an optional same-ID support folder under `tasks/active/` when the task needs local decision memos, proof docs, or evidence
 4. **Implementation**:
    - Log all work in Implementation Log section of task file
    - Update `current-tasks.md` status to reflect progress
@@ -594,7 +596,7 @@ Use abbreviated entries in Action Documentation Template format for tracking Typ
    - Ensure all acceptance criteria are verified
 6. **Completion**:
    - Update status to COMPLETED in `current-tasks.md`
-   - Move individual task file from `tasks/active/` to `tasks/completed/`
+   - Keep the task file in `tasks/active/` for the rest of the sprint, then move the finished sprint batch to `tasks/completed/` during sprint closeout
    - During sprint retrospective, move entry to `completed-tasks.md`
 
 **Task Start (Type A):**
@@ -616,8 +618,8 @@ Use abbreviated entries in Action Documentation Template format for tracking Typ
 - **Maintenance**: Weekly archival from `completed-tasks.md` to reduce cognitive load
 
 **Task File Organization:**
-- **Active tasks**: Keep individual task files in `tasks/active/` (symlinked for quick access)
-- **Completed tasks**: Move individual task files to `tasks/completed/` upon completion
+- **Active tasks**: `tasks/active/` contains the current sprint task files
+- **Completed tasks**: `tasks/completed/` contains prior-sprint task files
 - **Complex tasks**: Maintain subfolder structure (e.g., `TASK-008/`) for multi-phase work
 - **Preservation**: All detailed task documentation preserved for historical reference
 
@@ -684,7 +686,7 @@ Use abbreviated entries in Action Documentation Template format for tracking Typ
 - [ ] **Effort estimation** - refine effort estimates based on recent completion times
 
 **File Organization:**
-- [ ] **Task file movement** - move completed individual task files from `tasks/active/` to `tasks/completed/`
+- [ ] **Task file movement** - move the finished sprint batch from `tasks/active/` to `tasks/completed/` at sprint closeout
 - [ ] **Context file review** - update any analysis documents affected by sprint work
 - [ ] **Cross-reference validation** - ensure all links between task files and context files are valid
 
@@ -736,8 +738,8 @@ For real-world examples of the spec-driven workflow in practice:
 ### Decision Record Examples
 - [Decision Records](../.agent_work/decisions/) - Architectural decision documentation
   - `003-security-first-approach.md` - Security design principles
-  - `DECISION-004-provider-lock-after-detection.md` - Provider switching constraints
-  - `TASK-043-global-variable-migration-patterns.md` - Migration patterns and rationale
+  - `014-provider-lock-after-detection.md` - Provider switching constraints
+  - `015-global-variable-migration-patterns.md` - Migration patterns and rationale
 
 ### Testing & Validation Methodology
 - [Phase 5 Integration Testing Guide](../.agent_work/context/status/PHASE-5-INTEGRATION-TESTING-GUIDE.md) - Comprehensive validation procedures

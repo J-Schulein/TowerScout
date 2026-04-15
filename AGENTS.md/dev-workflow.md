@@ -334,8 +334,8 @@ For comprehensive testing methodologies, procedures, and results:
 For detailed architectural patterns and implementation guidance:
 
 - [Developer Architecture Guide](../.agent_work/context/guides/Developer-Architecture-Guide.md) - Comprehensive architecture reference
-- [Global Variable Migration Patterns](../.agent_work/decisions/TASK-043-global-variable-migration-patterns.md) - ProviderStateManager migration guide
-- [Provider Lock Decision](../.agent_work/decisions/DECISION-004-provider-lock-after-detection.md) - Provider switching design rationale
+- [Global Variable Migration Patterns](../.agent_work/decisions/015-global-variable-migration-patterns.md) - ProviderStateManager migration guide
+- [Provider Lock Decision](../.agent_work/decisions/014-provider-lock-after-detection.md) - Provider switching design rationale
 - [Memory Leak Solution Design](../.agent_work/context/analysis/MEMORY-LEAK-SOLUTION-DESIGN.md) - Lifecycle management patterns (TASK-041)
 - [Frontend Code Review](../.agent_work/context/analysis/FRONTEND-CODE-REVIEW.md) - Deep dive into JavaScript architecture
 - [Mapping Workflow Deep Dive](../.agent_work/context/analysis/MAPPING-WORKFLOW-DEEP-DIVE.md) - Detection pipeline analysis

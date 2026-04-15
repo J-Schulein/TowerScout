@@ -49,9 +49,9 @@ except (ImportError, AssertionError) as exc:
 from ultralytics.utils.checks import check_requirements
 from ultralytics.utils.patches import torch_load
 
-from utils import TryExcept, emojis
-from utils.downloads import curl_download, gsutil_getsize
-from utils.metrics import box_iou, fitness
+from . import TryExcept, emojis
+from .downloads import curl_download, gsutil_getsize
+from .metrics import box_iou, fitness
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
@@ -587,7 +587,7 @@ def check_dataset(data, autodownload=True):
 
 def check_amp(model):
     """Checks PyTorch AMP functionality for a model, returns True if AMP operates correctly, otherwise False."""
-    from models.common import AutoShape, DetectMultiBackend
+    from ..models.common import AutoShape, DetectMultiBackend
 
     def amp_allclose(model, im):
         """Compares FP32 and AMP model inference outputs, ensuring they are close within a 10% absolute tolerance."""

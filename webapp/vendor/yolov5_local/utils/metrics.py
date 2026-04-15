@@ -12,7 +12,7 @@ import torch
 # NumPy 2.0 compatibility: trapezoid was renamed from trapz
 trapezoid = np.trapezoid if hasattr(np, "trapezoid") else np.trapz
 
-from utils import TryExcept, threaded
+from . import TryExcept, threaded
 
 
 def fitness(x):

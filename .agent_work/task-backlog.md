@@ -1,6 +1,6 @@
 # Task Backlog - Future Work Prioritization
 
-**Last Updated**: April 13, 2026  
+**Last Updated**: April 14, 2026  
 **Sprint 04 Completed**: March 19 - April 6, 2026  
 **Sprint 05 Active**: April 7 - April 25, 2026  
 **Next Sprint Planning**: Sprint 06 Prep - April 25, 2026  
@@ -50,6 +50,17 @@
 **Target Sprint**: Sprint 05
 
 **See**: [current-tasks.md](./current-tasks.md#task-052-current-integration-smoke-test-baseline) for full details
+
+---
+
+### **TASK-062: Pre-Docker Runtime Cleanup And YOLO Loader Hardening** 🟡
+**Status**: IN_SPRINT_05 - MOVED TO current-tasks.md  
+**Type**: C (Runtime Hardening / Deployment Readiness)  
+**Priority**: HIGH  
+**Estimated Effort**: 6-10 hours  
+**Target Sprint**: Sprint 05
+
+**See**: [current-tasks.md](./current-tasks.md) for full details
 
 ---
 
