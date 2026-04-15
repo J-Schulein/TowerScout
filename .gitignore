@@ -94,6 +94,10 @@ webapp/tmp.py
 
 # Local analysis artifacts
 .agent_work/context/analysis/browser-runs/
+.agent_work/tasks/completed/TASK-053/evidence/browser-runs/
+.agent_work/tmp/
+.agent_work/pytest-temp/
+.agent_work/scripts/__pycache__/
 
 # Data files
 data/*
@@ -105,6 +109,5 @@ train/*
 towerscout.pem
 hosting/connect-tc.sh
 
-# GitHub workflows (managed separately)
-.github/*
+# GitHub repo policy and workflow files are intentionally tracked
 
