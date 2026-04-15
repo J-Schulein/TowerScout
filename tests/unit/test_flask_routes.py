@@ -21,6 +21,14 @@ def _ensure_engine_catalog_loaded():
         return
 
     towerscout.get_custom_models()
+    if not towerscout.engines:
+        towerscout.engines["newest"] = {
+            "id": "newest",
+            "name": "newest",
+            "file": "newest.pt",
+            "engine": None,
+            "ts": 0,
+        }
     if towerscout.engines and towerscout.engine_default is None:
         towerscout.engine_default = sorted(
             towerscout.engines.items(),
