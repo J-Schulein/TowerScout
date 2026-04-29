@@ -156,6 +156,15 @@ This task exists because the senior reviews found release-quality risks that are
 **Validation**: PASS. Warnings are existing UTC deprecation warnings in `ts_config.py` and `ts_errors.py`; no failures or new release-hardening blockers were identified.
 **Next**: Commit the completed `TASK-063` change set, including the newly tracked `package-lock.json`, then proceed to `TASK-064`.
 
+### 2026-04-29 - PR Code Scanning Follow-Up
+**Objective**: Resolve the GitHub Advanced Security / Trivy findings reported on PR #5.
+**Context**: Code scanning flagged `Pillow==12.1.1` for `CVE-2026-40192` with fixed version `12.2.0`, and `Requests==2.32.4` for `CVE-2026-25645` with fixed version `2.33.0`.
+**Decision**: Patch both runtime pins and keep the YOLO runtime dependency preflight aligned with the stricter security baseline.
+**Execution**: Updated `webapp/requirements.txt`, `webapp/ts_yolov5.py`, and `tests/unit/test_yolov5_local_loader.py` to `Pillow==12.2.0` and `Requests==2.33.0`.
+**Output**: PR #5 now targets the fixed versions requested by code scanning.
+**Validation**: Local dependency smoke, `pip check`, YOLO local-loader tests, and full unit suite passed; see Validation Results.
+**Next**: Push the follow-up commit to PR #5 and confirm code scanning clears.
+
 ---
 
 ## Validation Results
@@ -166,7 +175,7 @@ This task exists because the senior reviews found release-quality risks that are
 **Test Status**: PASS for focused and broader unit `TASK-063` validation
 
 ### Acceptance Criteria Validation
-- [x] **Dependency findings**: PASS - `webapp/requirements.txt` now pins `Pillow==12.1.1` and `Requests==2.32.4`; local venv dependency smoke reports `Pillow 12.1.1` and `Requests 2.32.4`.
+- [x] **Dependency findings**: PASS - `webapp/requirements.txt` now pins `Pillow==12.2.0` and `Requests==2.33.0`; local venv dependency smoke reports `Pillow 12.2.0` and `Requests 2.33.0`.
 - [x] **Frontend lockfile policy**: PASS - `package-lock.json` is present and no longer ignored; `package.json` and lockfile root package require Node `>=18.0.0`.
 - [x] **CI action pinning**: PASS - `rg -n "uses: [^\s]+@(master|main|v[0-9]+|[0-9]+\.[0-9])" .github\workflows` returned no matches.
 - [x] **Trivy floating ref**: PASS - `aquasecurity/trivy-action@master` replaced with immutable SHA `57a97c7e7821a5776cebc9bb87c984fa69cba8f1` reviewed from `v0.35.0`.
@@ -188,6 +197,11 @@ This task exists because the senior reviews found release-quality risks that are
 - `.venv\Scripts\python.exe -m pytest tests\unit\test_flask_routes.py::test_uploadmodel_saves_valid_model_into_runtime_directory tests\unit\test_flask_routes.py::test_uploadmodel_disabled_by_default_blocks_model_upload tests\unit\test_config.py::test_get_recent_performance_stats_uses_existing_log tests\unit\test_config.py::test_get_recent_performance_stats_supports_headerless_log_format tests\unit\test_yolov5_local_loader.py::test_validate_runtime_dependencies_reports_missing_required_local_loader_imports -q -p no:cacheprovider` - PASS, `5 passed`
 - `.venv\Scripts\python.exe -m pytest tests\unit\test_yolov5_local_loader.py -q -p no:cacheprovider` - PASS, `6 passed`
 - `.venv\Scripts\python.exe -m pytest tests\unit -q -p no:cacheprovider` - PASS, `65 passed, 74 skipped, 17 warnings, 5 subtests passed`
+- `.venv\Scripts\python.exe -m pip install Pillow==12.2.0 Requests==2.33.0` - PASS after approved network access
+- `.venv\Scripts\python.exe -c "from importlib import metadata; ..."` - PASS after PR code-scanning fix, reported `Pillow 12.2.0` and `Requests 2.33.0`
+- `.venv\Scripts\python.exe -m pip check` - PASS after PR code-scanning fix, `No broken requirements found.`
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_yolov5_local_loader.py -q -p no:cacheprovider` - PASS after PR code-scanning fix, `6 passed`
+- `.venv\Scripts\python.exe -m pytest tests\unit -q -p no:cacheprovider` - PASS after PR code-scanning fix, `65 passed, 74 skipped, 17 warnings, 5 subtests passed`
 - `.venv\Scripts\python.exe -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml', encoding='utf-8')); print('ci yaml parse ok')"` - PASS
 - `node -e "const p=require('./package-lock.json'); console.log(p.packages[''].engines.node); console.log(p.packages['node_modules/@puppeteer/browsers'].engines.node)"` - PASS, reported `>=18.0.0` and `>=18`
 - `node webapp\build.js` - PASS; generated bundle had timestamp-only drift, reverted to keep the diff scoped
