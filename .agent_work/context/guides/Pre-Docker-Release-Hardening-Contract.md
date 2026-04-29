@@ -28,6 +28,8 @@ This document records the release, CI, dependency, upload, provider-key, and sup
 - Large model/data assets are not solved by Python or npm pins.
 - `TASK-025` must produce the runtime asset inventory and persistence strategy for YOLO weights, EfficientNet weights, ZIP-code data, and any first-run downloads.
 - The expected v1 strategy remains first-run download plus persistent storage unless an asset is intentionally baked into the image and documented with its version/source.
+- Browser model upload is not the normal v1 model-update path. Normal model updates should replace or download trusted weights into the persistent model asset directory or volume that `TASK-025` defines.
+- Enabling `TOWERSCOUT_ENABLE_MODEL_UPLOAD=true` only re-enables a trusted local-admin/developer convenience path; it does not change the required Docker asset strategy for initial weights or larger model updates.
 
 ## CI Release Interpretation
 

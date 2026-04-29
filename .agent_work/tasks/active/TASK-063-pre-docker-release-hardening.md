@@ -165,6 +165,15 @@ This task exists because the senior reviews found release-quality risks that are
 **Validation**: Local dependency smoke, `pip check`, YOLO local-loader tests, and full unit suite passed; see Validation Results.
 **Next**: Push the follow-up commit to PR #5 and confirm code scanning clears.
 
+### 2026-04-29 - Review Follow-Up For Requests Pin And Model Asset Contract
+**Objective**: Address reviewer feedback on the Requests exact pin and clarify how disabled browser model upload relates to Docker model-weight packaging.
+**Context**: The reviewer agreed the PR was approvable, noted that `Requests==2.33.0` clears the reviewed CVE but `2.33.1` is already the latest PyPI patch release, and asked that model upload not be confused with the normal model-weight update path.
+**Decision**: Bump Requests to the latest reviewed patch release and make the release contract explicit that model updates should use the persistent model asset directory or Docker volume rather than browser upload.
+**Execution**: Updated `webapp/requirements.txt`, `webapp/ts_yolov5.py`, `tests/unit/test_yolov5_local_loader.py`, and `.agent_work/context/guides/Pre-Docker-Release-Hardening-Contract.md`.
+**Output**: The PR now uses `Requests==2.33.1`, keeps the YOLO runtime dependency preflight aligned, and documents that `TASK-025` still owns the initial model-weight delivery and persistent asset strategy.
+**Validation**: Local dependency smoke, `pip check`, YOLO local-loader tests, full unit suite, `.agent_work` validation, and diff checks passed; see Validation Results.
+**Next**: Push the review follow-up to PR #5 and mark the PR ready for review once CI remains green.
+
 ---
 
 ## Validation Results
@@ -175,7 +184,7 @@ This task exists because the senior reviews found release-quality risks that are
 **Test Status**: PASS for focused and broader unit `TASK-063` validation
 
 ### Acceptance Criteria Validation
-- [x] **Dependency findings**: PASS - `webapp/requirements.txt` now pins `Pillow==12.2.0` and `Requests==2.33.0`; local venv dependency smoke reports `Pillow 12.2.0` and `Requests 2.33.0`.
+- [x] **Dependency findings**: PASS - `webapp/requirements.txt` now pins `Pillow==12.2.0` and `Requests==2.33.1`; local venv dependency smoke reports `Pillow 12.2.0` and `Requests 2.33.1`.
 - [x] **Frontend lockfile policy**: PASS - `package-lock.json` is present and no longer ignored; `package.json` and lockfile root package require Node `>=18.0.0`.
 - [x] **CI action pinning**: PASS - `rg -n "uses: [^\s]+@(master|main|v[0-9]+|[0-9]+\.[0-9])" .github\workflows` returned no matches.
 - [x] **Trivy floating ref**: PASS - `aquasecurity/trivy-action@master` replaced with immutable SHA `57a97c7e7821a5776cebc9bb87c984fa69cba8f1` reviewed from `v0.35.0`.
