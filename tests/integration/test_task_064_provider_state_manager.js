@@ -36,7 +36,7 @@ function makeMap(provider) {
   };
 }
 
-function loadProviderManager() {
+function loadProviderManagerContext() {
   const context = {
     console,
     setTimeout(callback) {
@@ -72,7 +72,11 @@ function loadProviderManager() {
   context.global = context;
   vm.createContext(context);
   vm.runInContext(source, context, { filename: sourcePath });
-  return context.window.providerManager;
+  return context;
+}
+
+function loadProviderManager() {
+  return loadProviderManagerContext().window.providerManager;
 }
 
 async function testQueuedSwitchesReplayTargetProvider() {
@@ -87,6 +91,28 @@ async function testQueuedSwitchesReplayTargetProvider() {
   assert.equal(manager.getProvider(), 'google');
   assert.equal(manager.getMap().provider, 'google');
   assert.equal(manager.isSwitching(), false);
+}
+
+async function testProviderSwitchQueueRecoversAfterFailure() {
+  const context = loadProviderManagerContext();
+  const manager = context.window.providerManager;
+
+  context.window.azureMap.getBounds = () => {
+    throw new Error('forced Azure bounds failure');
+  };
+
+  const failedSwitch = manager.switchProvider('azure');
+  const recoveredSwitch = manager.switchProvider('google');
+
+  await assert.rejects(
+    failedSwitch,
+    /azure map bounds not available: forced Azure bounds failure/
+  );
+  assert.equal(await recoveredSwitch, true);
+  assert.equal(manager.getProvider(), 'google');
+  assert.equal(manager.getMap().provider, 'google');
+  assert.equal(manager.isSwitching(), false);
+  assert.equal(context.window.googleMap.restoreCount, 1);
 }
 
 function testLockedMutationsFailFastInsteadOfSpinning() {
@@ -126,6 +152,7 @@ function testSourceHasNoProviderStateSpinLoops() {
 
 (async () => {
   await testQueuedSwitchesReplayTargetProvider();
+  await testProviderSwitchQueueRecoversAfterFailure();
   testLockedMutationsFailFastInsteadOfSpinning();
   testSourceHasNoProviderStateSpinLoops();
   console.log('TASK-064 ProviderStateManager tests passed');

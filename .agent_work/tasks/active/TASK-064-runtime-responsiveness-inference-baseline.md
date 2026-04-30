@@ -124,6 +124,25 @@ This task is intentionally narrow. It is not frontend build modernization, broad
 - post-change EfficientNet CPU fixture with one active-confidence detection and six measured iterations: `torch.inference_mode()` current path mean `522.6946 ms`, median `525.3207 ms`, matching output `0.8272`
 **Next**: `TASK-064` is complete. Proceed to `TASK-025` Docker only after committing the completed task changes and preserving the validation artifacts.
 
+### 2026-04-30 - PR Review Follow-Up And CI Coverage
+**Objective**: Address the second PR-readiness review findings that were directly in scope for `TASK-064` before merge.
+**Context**: The reviewer accepted the focused EfficientNet regression follow-up but identified two remaining PR-scoped gaps: PR-time CI did not run the Node build/provider-state regression test, and the provider-switch queue recovery branch was not directly covered.
+**Decision**: Fix the PR-scoped gaps in `TASK-064` and leave Docker documentation, container validation, and Windows `test:stage-0` portability to `TASK-025` or a later tooling task because they are not required to prove this responsiveness baseline.
+**Execution**:
+- added a PR-time `frontend-test` job in `.github/workflows/ci.yml` using pinned `actions/setup-node` `v4.4.0` SHA `49933ea5288caeca8642d1e84afbd3f7d6820020`
+- the new job runs `npm ci` with `PUPPETEER_SKIP_DOWNLOAD=true`, `node webapp/build.js`, and `node tests/integration/test_task_064_provider_state_manager.js`
+- extended `tests/integration/test_task_064_provider_state_manager.js` with a forced Azure switch failure followed by a queued Google switch to prove `providerSwitchQueue` recovers after rejection
+**Output**:
+- PR validation now covers the frontend bundle build and the Task-064 ProviderStateManager regression test on pull requests
+- provider-switch queue recovery after a failed switch is directly tested
+- remaining Docker-specific documentation and validation obligations stay with `TASK-025`
+**Validation**:
+- `node tests\integration\test_task_064_provider_state_manager.js` -> PASS; expected forced Azure failure was logged and the queued Google switch recovered successfully
+- `node webapp\build.js` -> PASS, bundle size `460.0 KB`; generated timestamp-only bundle drift was reverted
+- `.\.venv\Scripts\python.exe -m pytest tests\unit\test_ts_en_classifier.py -q -p no:cacheprovider` -> PASS, `1 passed`
+- `PUPPETEER_SKIP_DOWNLOAD=true npm.cmd ci` -> PASS outside sandbox, `98 packages` installed/audited; npm reported one existing high-severity audit finding
+**Next**: Push the follow-up commit to PR #6, let CI rerun with the new frontend job, then merge after review approval.
+
 ### 2026-04-28 - Task Creation
 **Objective**: Add a bounded runtime responsiveness and inference baseline gate based on the final path-forward review.  
 **Context**: The reviewer agreed with the roadmap but identified ProviderStateManager busy-wait behavior and `torch.inference_mode()` validation as low-cost, high-value items that should move earlier than broad frontend modernization or CPU optimization.  
