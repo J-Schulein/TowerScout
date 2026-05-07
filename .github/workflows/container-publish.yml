@@ -49,13 +49,13 @@ jobs:
             .
 
           digest="$(python - <<'PY'
-import json
-from pathlib import Path
+          import json
+          from pathlib import Path
 
-metadata = json.loads(Path("image-metadata.json").read_text(encoding="utf-8"))
-print(metadata["containerimage.digest"])
-PY
-)"
+          metadata = json.loads(Path("image-metadata.json").read_text(encoding="utf-8"))
+          print(metadata["containerimage.digest"])
+          PY
+          )"
           echo "image=$image" >> "$GITHUB_STEP_SUMMARY"
           echo "tag=$tag" >> "$GITHUB_STEP_SUMMARY"
           echo "digest=$digest" >> "$GITHUB_STEP_SUMMARY"
