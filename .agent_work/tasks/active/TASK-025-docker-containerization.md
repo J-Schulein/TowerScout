@@ -1,6 +1,6 @@
 # TASK-025: Docker / OCI Containerization
 
-**Status**: IN_PROGRESS - CLOSEOUT / PR PREPARATION
+**Status**: COMPLETED - PR #7 OPEN
 **Priority**: HIGH
 **Type**: C (Infrastructure / Deployment Readiness)
 **Estimated Effort**: 1-2 days (8-16 hours)
@@ -983,8 +983,25 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - The remaining main caveat is Docker-Desktop-free Podman Compose-provider validation for hosts without Docker Desktop installed.
 - Hosted asset download/bootstrap, optional OCI archive packaging, Buildx Node 20 action maintenance, and broad non-container Sprint 04 regression remain future/follow-up work.
 **Validation**:
-- Pending final local checks after documentation updates.
-**Next**: Run final checks, commit the closeout alignment, and prepare the PR summary.
+- Final focused unit tests passed: `47 passed, 9 warnings, 5 subtests passed`.
+- `.agent_work` structure validation passed.
+**Next**: Add explicit follow-up ownership for deferred release-support items and complete the PR handoff.
+
+### 2026-05-07 - Completion And Follow-Up Handoff
+**Objective**: Mark `TASK-025` complete while preserving clear ownership for residual release-support work.
+**Context**: Docker, Podman engine, GHCR digest, TLS CA, asset import, persistence, readiness, and containerized smoke validation have all passed. The remaining items are not blockers for the container/runtime baseline, but they must be tracked before broader release promises.
+**Decision**: Complete `TASK-025` and hand deferred release-support items to `TASK-065`, with launcher UX still owned by `TASK-054`.
+**Execution**:
+- Updated this task status to `COMPLETED - PR #7 OPEN`.
+- Updated `.agent_work/current-tasks.md` to mark `TASK-025` complete and to classify broad Sprint 04 regression validation as release-readiness follow-through rather than a hidden Task-025 blocker.
+- Added `TASK-065` to `.agent_work/task-backlog.md` for Docker-Desktop-free Podman Compose-provider validation, hosted asset download/bootstrap decisions, optional OCI archive fallback implementation, Buildx Node 20 action maintenance, and broad release-readiness regression validation.
+**Output**:
+- `TASK-025` is complete for the Docker-compatible / OCI container runtime baseline.
+- Residual support/release caveats have named follow-up ownership instead of staying as ambiguous Task-025 leftovers.
+**Validation**:
+- `git diff --check -- .agent_work\current-tasks.md .agent_work\task-backlog.md .agent_work\tasks\active\TASK-025-docker-containerization.md` -> passed.
+- `.\.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` -> passed.
+**Next**: Commit the closeout handoff and push PR #7 updates.
 
 ---
 
@@ -1079,8 +1096,9 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - Containerized smoke initially surfaced a non-blocking Ultralytics config warning; this is remediated by `YOLO_CONFIG_DIR=/app/webapp/cache/ultralytics` plus startup directory creation.
 - The build surfaced existing frontend dependency audit findings: one moderate and one high npm vulnerability. This is not a container-contract blocker, but it should be tracked as dependency/security follow-up.
 
-**Remaining Validation / Completion Work**:
-- Packaged local/release-folder asset import is implemented and validated. Network download/bootstrap remains optional future work if release assets are hosted externally.
-- For release packages, document that operators must copy `.env.example` to `.env` and set the combined CA bundle path after running `import-tls-ca.cmd` when their network performs TLS inspection.
-- Validate a Docker-Desktop-free Podman Compose provider before promising Podman broadly on hosts without Docker Desktop installed.
-- Track the `docker/setup-buildx-action@v2` Node 20 deprecation warning as future pinned-action maintenance.
+**Deferred Follow-Up Work**:
+- `TASK-065`: Decide whether hosted asset download/bootstrap is needed beyond the validated manual/restricted-network asset import path.
+- `TASK-065`: Validate a Docker-Desktop-free Podman Compose provider before promising Podman broadly on hosts without Docker Desktop installed.
+- `TASK-065`: Decide whether to implement the optional OCI image archive fallback for restricted-network release packages.
+- `TASK-065`: Track the `docker/setup-buildx-action@v2` Node 20 deprecation warning as future pinned-action maintenance.
+- `TASK-065`: Run the broad release-readiness browser/provider regression pass before end-user release support language is finalized.

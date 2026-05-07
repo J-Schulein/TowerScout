@@ -1,9 +1,9 @@
 # Task Backlog - Future Work Prioritization
 
-**Last Updated**: May 5, 2026
+**Last Updated**: May 7, 2026
 **Sprint 04 Completed**: March 19 - April 6, 2026
 **Sprint 05 Active**: April 7 - active extension after April 25, 2026
-**Next Sprint Planning**: Sprint 06 Prep after active `TASK-025` Phase 1 rebaseline and v1 operational contracts are explicit
+**Next Sprint Planning**: Sprint 06 Prep after `TASK-025` PR review and release-support follow-through scoping
 
 ---
 
@@ -87,7 +87,7 @@
 ---
 
 ### **TASK-025: Docker / OCI Containerization** 🟡
-**Status**: IN_SPRINT_05 - PHASE 1 ACTIVE IN current-tasks.md
+**Status**: COMPLETED IN current-tasks.md - PR #7 OPEN
 **Type**: C (Infrastructure / Deployment Readiness)
 **Priority**: HIGH
 **Estimated Effort**: 1-2 days (8-16 hours)
@@ -107,6 +107,35 @@
 **Target Sprint**: Sprint 05 stretch / Sprint 06 carry-forward
 
 **See**: [current-tasks.md](./current-tasks.md#task-054-local-launch-ux) and [TASK-054 task file](./tasks/active/TASK-054-local-launch-ux.md) for full details
+
+---
+
+## SPRINT 06 RELEASE-SUPPORT FOLLOW-THROUGH CANDIDATES
+
+### **TASK-065: Release Packaging And Runtime Support Follow-Through** 🟡
+**Status**: NOT_STARTED
+**Type**: B/C (Release Engineering / Runtime Supportability)
+**Priority**: HIGH
+**Estimated Effort**: 1-2 days (8-16 hours)
+**Target Sprint**: Sprint 06
+
+**Objective**: Close the release-support items intentionally deferred from `TASK-025` without reopening the completed container/runtime baseline.
+
+**Dependencies**:
+- `TASK-025`: Docker-compatible / OCI container runtime baseline complete and PR reviewed
+- `TASK-054`: Local launcher UX, where runtime-provider messaging or release-package startup behavior overlaps
+
+**Requirements**:
+- WHEN Podman is described as broadly supported on Windows hosts without Docker Desktop installed, THE PROJECT SHALL validate a Docker-Desktop-free Compose provider such as `podman-compose` or another approved provider.
+- WHEN release assets are hosted externally, THE PROJECT SHALL decide whether to implement hosted asset download/bootstrap beyond the validated manual/restricted-network import path.
+- WHEN restricted-network release packages are supported, THE PROJECT SHALL either implement and validate the optional OCI image archive fallback or document it as intentionally unsupported for the release.
+- WHEN GitHub Actions warnings indicate pinned-action runtime drift, THE PROJECT SHALL update or risk-accept the affected actions before release readiness sign-off.
+- WHEN release support language is finalized, THE PROJECT SHALL run a broad browser/provider regression pass covering the Sprint 04 setup/settings/provider/detection surfaces beyond the focused `TASK-025` container validation.
+
+**Scope Notes**:
+- This is follow-through for release support promises, not a blocker for merging the `TASK-025` container baseline.
+- Keep launcher workflow implementation in `TASK-054`; use this task to validate or document the runtime/package support claims that launcher docs depend on.
+- Preserve the `TASK-025` evidence that Podman works on this host while Docker Desktop's engine is unavailable, while keeping Docker-Desktop-free Compose-provider validation as a separate release-support gate.
 
 ---
 

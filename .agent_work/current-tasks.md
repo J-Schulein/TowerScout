@@ -3,7 +3,7 @@
 **Sprint Period**: April 7 - active extension after April 25, 2026 (Sprint 05)
 **Last Updated**: May 7, 2026
 **Focus**: Runtime determinism, local YOLO runtime ownership, smoke-baseline validation, pre-container release hardening, v1 operational contracts, OCI/GitHub-first release readiness, and launch UX follow-through
-**Status**: **SPRINT 05 EXTENSION / TASK-025 CLOSEOUT / PR PREP** - `TASK-025` now has the local OCI image, Compose profile, persistent runtime volumes, asset manifest/import path, health/readiness contract, Windows helper wrappers, containerized smoke validation, local release-package helper, GHCR digest publication, Google TLS CA path, and Podman-with-Docker-engine-unavailable runtime path validated; Docker-Desktop-free Podman Compose-provider validation remains a release-support caveat
+**Status**: **SPRINT 05 EXTENSION / TASK-025 COMPLETE / PR #7 OPEN** - `TASK-025` has the local OCI image, Compose profile, persistent runtime volumes, asset manifest/import path, health/readiness contract, Windows helper wrappers, containerized smoke validation, local release-package helper, GHCR digest publication, Google TLS CA path, and Podman-with-Docker-engine-unavailable runtime path validated. Remaining release-support caveats are handed off to `TASK-065` and launcher UX remains under `TASK-054`.
 
 ---
 
@@ -504,7 +504,7 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 ---
 
 ### **TASK-025: Docker / OCI Containerization** 🟡
-**Status**: IN_PROGRESS - PHASE 2 OCI IMAGE AND COMPOSE VALIDATION
+**Status**: COMPLETED - PR #7 OPEN
 **Type**: C (Infrastructure / Deployment Readiness)
 **Priority**: HIGH
 **Estimated Effort**: 1-2 days (8-16 hours)
@@ -598,6 +598,7 @@ Runtime-path normalization is complete. Container work should treat the followin
 - 2026-05-07 Podman with Docker Desktop fully quit passed: Docker daemon calls failed against `dockerDesktopLinuxEngine`, running WSL distros were only Podman, `start.cmd -Engine podman` ran TowerScout on port `5001`, health returned `ok`, readiness reported `runtime.container_engine: podman` and assets `ok`, containerized `TASK-052` smoke passed, Docker remained unavailable, and the Podman service was stopped afterward
 - 2026-05-07 Docker Desktop restore after Podman validation passed: Docker engine returned as `29.4.1`, Docker Compose service came back healthy on port `5000`, `/api/health` returned `ok`, `/api/readiness` returned `ready` with assets `ok`, Azure and Google configured, persisted secret present, and CA bundle env vars still pointed at `/app/webapp/config/certs/towerscout-ca-bundle.pem`
 - Docker-Desktop-free Podman Compose-provider validation remains the main `TASK-025` runtime caveat before promising Podman broadly on hosts without Docker Desktop installed
+- Completion handoff: `TASK-025` is complete for the container/runtime baseline. `TASK-065` owns Docker-Desktop-free Podman Compose-provider validation, hosted asset download/bootstrap decisions, optional OCI archive fallback implementation, Buildx Node 20 action maintenance, and broad release-readiness regression validation.
 - Default persistence should use named volumes; any host-visible data-directory profile is optional and must be documented/validated separately
 - Open-source runtime/tooling preference is addressed by the Podman-first target; TowerScout application license suitability remains a separate product/legal clarification
 - Treat Docker Desktop / WSL2 access constraints on managed machines as a live product risk; do not over-specialize the image around Docker as if it is guaranteed to be the permanent end-user delivery model
@@ -647,12 +648,14 @@ Runtime-path normalization is complete. Container work should treat the followin
 **Dependencies**:
 - 🟡 TASK-052 - current integration smoke-test baseline
 - 🔴 TASK-025 - Docker-compatible / OCI containerization baseline complete enough to support a stable local launcher target
+- TASK-065 - release-support follow-through for Docker-Desktop-free Podman Compose-provider validation and final runtime support language
 
 **Notes**:
 - Do NOT absorb this task into TASK-025. The launcher/browser UX is a separate user-experience layer with different failure modes and rollback concerns.
 - Container code should not be responsible for opening the host browser; browser launch should be driven by the host-side launcher.
 - Treat this as the bridge from container-first engineering delivery to a locally understandable product experience, not as proof that any desktop container runtime is viable on every managed machine.
 - Do not widen this task into native-installer work, cross-platform packaging promises, or runtime architecture redesign.
+- Do not promise Podman broadly on hosts without Docker Desktop installed until `TASK-065` validates a Docker-Desktop-free Compose provider or explicitly risk-accepts that gap.
 - If Sprint 05 tightens, ship Phase 1 first and defer background warm-initialization redesign.
 
 **User Value**: Reduces or eliminates command-line interaction for local users while keeping Setup Wizard and startup behavior understandable.
@@ -806,7 +809,7 @@ Runtime-path normalization is complete. Container work should treat the followin
 - [x] Podman compatibility spike completed enough for the selected Podman-first target (engine/runtime path passed; Docker-engine-unavailable path passed; Docker-Desktop-free Compose-provider validation remains a support caveat before promising Podman on hosts without Docker Desktop installed)
 - [x] First-run asset import/recovery path validated; hosted network downloader remains optional future work
 - [x] Container readiness/health behavior exists for `TASK-054`, including `/api/health` and structured `/api/readiness`
-- [ ] Zero regressions from Sprint 04 functionality beyond Task-025 focused validation
+- [x] Task-025 focused regression surfaces passed; broad Sprint 04 browser/provider regression validation is deferred to `TASK-065` release-readiness follow-through
 
 ### Should-Have (Secondary Goals)
 - [x] TASK-025 Phase 4 complete: Full GitHub-first, engine-aware container documentation
