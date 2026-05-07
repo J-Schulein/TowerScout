@@ -1,9 +1,9 @@
 # Task Backlog - Future Work Prioritization
 
-**Last Updated**: April 28, 2026  
-**Sprint 04 Completed**: March 19 - April 6, 2026  
-**Sprint 05 Active**: April 7 - active extension after April 25, 2026  
-**Next Sprint Planning**: Sprint 06 Prep after `TASK-063` / `TASK-064` / `TASK-025` rebaseline and v1 operational contracts are explicit  
+**Last Updated**: May 5, 2026
+**Sprint 04 Completed**: March 19 - April 6, 2026
+**Sprint 05 Active**: April 7 - active extension after April 25, 2026
+**Next Sprint Planning**: Sprint 06 Prep after active `TASK-025` Phase 1 rebaseline and v1 operational contracts are explicit
 
 ---
 
@@ -80,28 +80,30 @@
 **Type**: B/C (Runtime Responsiveness / Performance Validation)  
 **Priority**: HIGH  
 **Estimated Effort**: 0.5-1 day (4-8 hours)  
-**Target Sprint**: Sprint 05 extension / pre-Docker sign-off gate
+**Target Sprint**: Sprint 05 extension / pre-container sign-off gate
 
 **See**: [current-tasks.md](./current-tasks.md#task-064-targeted-runtime-responsiveness-and-inference-baseline) and [TASK-064 task file](./tasks/active/TASK-064-runtime-responsiveness-inference-baseline.md) for full details
 
 ---
 
-### **TASK-025: Docker Containerization** 🔴
-**Status**: IN_SPRINT_05 - MOVED TO current-tasks.md  
-**Type**: C (Infrastructure / Deployment Readiness)  
-**Priority**: HIGH  
-**Estimated Effort**: 1-2 days (8-16 hours)  
+### **TASK-025: Docker / OCI Containerization** 🟡
+**Status**: IN_SPRINT_05 - PHASE 1 ACTIVE IN current-tasks.md
+**Type**: C (Infrastructure / Deployment Readiness)
+**Priority**: HIGH
+**Estimated Effort**: 1-2 days (8-16 hours)
 **Target Sprint**: Sprint 05 after `TASK-063` and `TASK-064`
+
+**Current Direction**: Finalized pre-task direction is GitHub-first and OCI-compatible: GitHub Release ZIP for normal users, pinned GHCR image reference by digest, optional OCI image archive for restricted-network fallback, Podman as the preferred open-source Windows runtime target after the required validation spike, Docker-compatible fallback where licensed/approved, and source clone/build as a developer/support path.
 
 **See**: [current-tasks.md](./current-tasks.md#task-025-docker-containerization) and [TASK-025 task file](./tasks/active/TASK-025-docker-containerization.md) for full details
 
 ---
 
 ### **TASK-054: Local Launch UX** 🟡
-**Status**: IN_SPRINT_05 - MOVED TO current-tasks.md (post-Docker stretch goal)  
-**Type**: B (Deployment UX / Local Supportability)  
-**Priority**: MEDIUM  
-**Estimated Effort**: 1-2 days (8-12 hours)  
+**Status**: IN_SPRINT_05 - MOVED TO current-tasks.md (post-container stretch goal)
+**Type**: B (Deployment UX / Local Supportability)
+**Priority**: MEDIUM
+**Estimated Effort**: 1-2 days (8-12 hours)
 **Target Sprint**: Sprint 05 stretch / Sprint 06 carry-forward
 
 **See**: [current-tasks.md](./current-tasks.md#task-054-local-launch-ux) and [TASK-054 task file](./tasks/active/TASK-054-local-launch-ux.md) for full details
@@ -191,6 +193,7 @@
 - Preserve the current frontend runtime behavior and Flask integration contract
 - Document the new dev/build workflow
 - Keep generated assets and source ownership clear
+- Remove or fully refresh stale commented extracted-code scaffolds in `webapp/js/src/towerscout.js`, including the legacy `ProviderStateManager` block that no longer mirrors the live `src/managers/ProviderStateManager.js` queue/fail-fast semantics
 
 **User Value**: Reduces frontend maintenance risk and makes future UI changes easier to validate.
 
@@ -419,9 +422,9 @@
 - 🏃 Runtime hardening and local YOLO ownership (Sprint 05)
 - 🏃 Runtime dependency verification (Sprint 05)
 - 🏃 Integration testing baseline (Sprint 05)
-- 🏃 Pre-Docker release hardening and v1 operational gates (Sprint 05 extension)
-- 🏃 Docker containerization (Sprint 05)
-- 🏃 Launcher and support UX over Docker (Sprint 05 stretch / Sprint 06 carry-forward)
+- 🏃 Pre-container release hardening and v1 operational gates (Sprint 05 extension)
+- 🏃 Docker-compatible / OCI containerization and GitHub-first release packaging (Sprint 05)
+- 🏃 Launcher and support UX over selected container runtime (Sprint 05 stretch / Sprint 06 carry-forward)
 
 ### **Phase 2: Performance and Reliability (Sprint 06-07)**
 - Local background job runner and durable run state
