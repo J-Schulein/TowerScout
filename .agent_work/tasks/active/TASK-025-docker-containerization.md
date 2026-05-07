@@ -944,6 +944,32 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - A final broad Podman support claim should still validate `podman-compose` or another approved Compose provider on a host without Docker Desktop installed.
 **Next**: Update final Task-025 validation status to treat Podman runtime support as validated on this host, with Docker-Desktop-free Compose-provider validation retained as a release-support caveat rather than a core container-runtime blocker.
 
+### 2026-05-07 - Docker Desktop Restore After Podman Validation
+**Objective**: Confirm the Docker validation service restores cleanly after the Docker-engine-unavailable Podman test.
+**Context**: The owner restarted Docker Desktop after the Podman validation. The prior Docker service on port `5000` should resume without losing persisted keys, assets, secret, or the local TLS CA bundle configuration.
+**Decision**: Verify Docker daemon reachability, Compose service health, HTTP health/readiness, and non-secret runtime environment values.
+**Execution**:
+- Checked Docker client/server versions.
+- Inspected the Docker Compose service state.
+- Queried `/api/health` and `/api/readiness` on port `5000`.
+- Ran `docker compose ... exec -T towerscout printenv` to confirm the CA bundle and runtime engine env vars.
+**Output**:
+- Docker engine: client `29.4.1`, server `29.4.1`.
+- Docker Compose service `towerscout-towerscout-1` is `healthy` on `0.0.0.0:5000->5000/tcp`.
+- Health returned `{"service":"towerscout","status":"ok"}`.
+- Readiness returned `state: ready`, assets `ok`, Azure configured, Google configured, and persisted secret present.
+- Runtime env includes:
+  - `REQUESTS_CA_BUNDLE=/app/webapp/config/certs/towerscout-ca-bundle.pem`
+  - `SSL_CERT_FILE=/app/webapp/config/certs/towerscout-ca-bundle.pem`
+  - `TOWERSCOUT_CONTAINER_ENGINE=docker`
+**Validation**:
+- `docker version --format "Client={{.Client.Version}} Server={{.Server.Version}}"` -> `Client=29.4.1 Server=29.4.1`.
+- `docker compose -f compose.yaml -f compose.build.yaml ps` -> container healthy on port `5000`.
+- `GET http://127.0.0.1:5000/api/health` -> passed.
+- `GET http://127.0.0.1:5000/api/readiness` -> passed with `ready`.
+- `docker compose -f compose.yaml -f compose.build.yaml exec -T towerscout printenv` -> passed and confirmed CA bundle/runtime env.
+**Next**: Run final focused tests and complete the Task-025 closeout/PR preparation pass.
+
 ---
 
 ## Validation Results
@@ -965,6 +991,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - Google TLS inspection CA import path: Windows CA thumbprint export with chain, combined container CA bundle, and TowerScout Google validation endpoint reaching provider-level invalid-key response instead of TLS `502`.
 - Local `.env` persistence for the combined TLS CA bundle path, validated across Docker Compose recreate.
 - GHCR publish and pull-by-digest path: feature-branch image published to `ghcr.io/j-schulein/towerscout:task-025-0b5d0a7`, pinned digest validated by manifest inspect, Docker pull, release-image Compose startup, and release-package generation.
+- Docker Desktop restore after Podman validation: Docker service returned healthy on port `5000`, readiness returned `ready`, assets and provider config remained persisted, and CA bundle env vars remained configured.
 
 **Latest Test Evidence**:
 - `docker build --check -f Dockerfile .` -> passed, no warnings.
@@ -998,6 +1025,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - `.\scripts\import-assets.cmd -Source webapp -Engine podman -VerifyHashes` -> passed with `asset_status=ok`.
 - Podman containerized `TASK-052` smoke -> passed with real model load and expected controlled imagery failure.
 - Podman Docker-engine-unavailable validation -> passed; Docker client could not reach `dockerDesktopLinuxEngine`, no `docker-desktop` WSL distro was running, Podman started TowerScout on port `5001`, readiness reported `runtime.container_engine: podman` and assets `ok`, containerized `TASK-052` smoke passed, and Docker remained unavailable afterward.
+- Docker Desktop restore after Podman validation -> passed; Docker server `29.4.1`, Compose service healthy on port `5000`, health `ok`, readiness `ready`, assets `ok`, Azure and Google configured, persisted secret present, and CA bundle env vars configured.
 - Baseline in-container Google HTTPS probe before CA import -> reproduced `CERTIFICATE_VERIFY_FAILED`.
 - `.\scripts\import-tls-ca.cmd -Engine docker -Thumbprint C69667336E90D872FA44ACE4EB25412E52F406B9` -> passed after chain-export fix, Google TLS returned provider invalid-key JSON.
 - Docker container recreate with `REQUESTS_CA_BUNDLE=/app/webapp/config/certs/towerscout-ca-bundle.pem` and `SSL_CERT_FILE=/app/webapp/config/certs/towerscout-ca-bundle.pem` -> passed.
