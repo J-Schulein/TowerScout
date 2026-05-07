@@ -1,9 +1,6 @@
 name: TowerScout Container Publish
 
 on:
-  push:
-    branches:
-      - feature/task-025-docker-baseline
   workflow_dispatch:
     inputs:
       tag:
@@ -39,13 +36,8 @@ jobs:
         run: |
           set -euo pipefail
           image="ghcr.io/${GITHUB_REPOSITORY,,}"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            tag="${{ inputs.tag }}"
-            push_latest="${{ inputs.push_latest }}"
-          else
-            tag="task-025-${GITHUB_SHA::7}"
-            push_latest="false"
-          fi
+          tag="${{ inputs.tag }}"
+          push_latest="${{ inputs.push_latest }}"
 
           tags=(--tag "$image:$tag")
           if [ "$push_latest" = "true" ]; then

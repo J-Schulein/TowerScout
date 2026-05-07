@@ -3,7 +3,7 @@
 **Sprint Period**: April 7 - active extension after April 25, 2026 (Sprint 05)
 **Last Updated**: May 7, 2026
 **Focus**: Runtime determinism, local YOLO runtime ownership, smoke-baseline validation, pre-container release hardening, v1 operational contracts, OCI/GitHub-first release readiness, and launch UX follow-through
-**Status**: **SPRINT 05 EXTENSION / TASK-025 PHASE 2 ACTIVE** - `TASK-025` now has the local OCI image, Compose profile, persistent runtime volumes, asset manifest/import path, health/readiness contract, Windows helper wrappers, containerized smoke validation, and local release-package helper in place; GHCR digest publication, Podman compatibility, and Google TLS CA validation remain open gates
+**Status**: **SPRINT 05 EXTENSION / TASK-025 PHASE 2 ACTIVE** - `TASK-025` now has the local OCI image, Compose profile, persistent runtime volumes, asset manifest/import path, health/readiness contract, Windows helper wrappers, containerized smoke validation, local release-package helper, GHCR digest publication, and Google TLS CA path validated; Podman Docker-Desktop-free compatibility remains the main open runtime gate
 
 ---
 
@@ -594,6 +594,7 @@ Runtime-path normalization is complete. Container work should treat the followin
 - 2026-05-07 Podman Docker-engine-stopped validation attempt was inconclusive: `podman-compose` is not installed, `podman compose` still started TowerScout on port `5001`, but `docker version` still returned server `29.4.1` after `wsl --terminate docker-desktop`; Docker Desktop then reported manually paused, was unpaused by the owner, and the Docker validation service was restored to `ready`
 - 2026-05-07 GHCR publication and digest validation passed: workflow run `25511018110` published `ghcr.io/j-schulein/towerscout:task-025-0b5d0a7`, digest `sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`; Docker manifest inspect, Docker pull, isolated release-image Compose startup on port `5002`, and real-digest release package generation all passed
 - 2026-05-07 GHCR workflow artifact-name follow-up validated: run `25511697887` succeeded after `steps.build.outputs.tag` patch and uploaded `image-metadata-task-025-03c6084`
+- 2026-05-07 temporary feature-branch GHCR publish trigger retired after validation; `.github/workflows/container-publish.yml` is back to manual `workflow_dispatch` publishing so routine branch pushes do not create incidental images
 - A clean Podman-with-Docker-Desktop-unavailable retry and Docker-Desktop-free Podman Compose-provider validation remain the main `TASK-025` runtime validation items before promising Podman broadly
 - Default persistence should use named volumes; any host-visible data-directory profile is optional and must be documented/validated separately
 - Open-source runtime/tooling preference is addressed by the Podman-first target; TowerScout application license suitability remains a separate product/legal clarification

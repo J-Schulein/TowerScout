@@ -876,6 +876,23 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - The Actions run emitted a warning that `docker/setup-buildx-action@v2` uses a deprecated Node.js 20 runtime. It is advisory for this task and should be handled in a future pinned-action review/update.
 **Next**: Keep the clean Docker-Desktop-unavailable Podman validation as the remaining local runtime gate before promising Podman broadly. Track the Buildx Node 20 warning as future pinned-action maintenance.
 
+### 2026-05-07 - Retire Temporary Branch Publish Trigger
+**Objective**: Stop incidental GHCR image publication from routine feature-branch pushes after the pre-merge digest validation gate passed.
+**Context**: The branch-scoped `push` trigger was added only because the manual workflow was not visible in the Actions UI before the workflow file existed on the default branch. It served its validation purpose, but keeping it would publish a new GHCR image for docs-only or task-tracker commits.
+**Decision**: Remove the `push.branches: feature/task-025-docker-baseline` trigger and keep `.github/workflows/container-publish.yml` as an intentional `workflow_dispatch` publisher. Future automated publishing should use release or RC tag triggers rather than feature-branch pushes.
+**Execution**:
+- Removed the feature-branch `push` trigger from `.github/workflows/container-publish.yml`.
+- Simplified the publish script to use manual workflow inputs for `tag` and `push_latest`.
+- Updated `docs/oci-quick-start.md` to remove branch-push RC publishing guidance.
+- Updated `current-tasks.md` to mark the temporary trigger retired.
+**Output**:
+- Routine pushes to `feature/task-025-docker-baseline` will no longer publish GHCR images.
+- Manual release/RC publication remains available through `workflow_dispatch`.
+**Validation**:
+- `git diff --check -- .github\workflows\container-publish.yml docs\oci-quick-start.md .agent_work\current-tasks.md .agent_work\tasks\active\TASK-025-docker-containerization.md` -> passed.
+- `python .agent_work\scripts\validate_agent_work.py` -> passed.
+**Next**: Commit and push the cleanup. No follow-up publish run is expected from this cleanup because the branch trigger is removed.
+
 ---
 
 ## Validation Results
