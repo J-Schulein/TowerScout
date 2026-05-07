@@ -3,7 +3,7 @@
 **Sprint Period**: April 7 - active extension after April 25, 2026 (Sprint 05)
 **Last Updated**: May 7, 2026
 **Focus**: Runtime determinism, local YOLO runtime ownership, smoke-baseline validation, pre-container release hardening, v1 operational contracts, OCI/GitHub-first release readiness, and launch UX follow-through
-**Status**: **SPRINT 05 EXTENSION / TASK-025 COMPLETE / PR #7 OPEN** - `TASK-025` has the local OCI image, Compose profile, persistent runtime volumes, asset manifest/import path, health/readiness contract, Windows helper wrappers, containerized smoke validation, local release-package helper, GHCR digest publication, Google TLS CA path, and Podman-with-Docker-engine-unavailable runtime path validated. Remaining release-support caveats are handed off to `TASK-065` and launcher UX remains under `TASK-054`.
+**Status**: **SPRINT 05 EXTENSION / TASK-025 MERGED / TASK-054 READY** - `TASK-025` has the local OCI image, Compose profile, persistent runtime volumes, asset manifest/import path, health/readiness contract, Windows helper wrappers, containerized smoke validation, local release-package helper, GHCR digest publication, Google TLS CA path, and Podman-with-Docker-engine-unavailable runtime path validated. Remaining release-support caveats are handed off to `TASK-065` and launcher UX remains under `TASK-054`.
 
 ---
 
@@ -504,7 +504,7 @@ These are current-branch closeout items for `feature-sprint-04-closeout`. Comple
 ---
 
 ### **TASK-025: Docker / OCI Containerization** 🟡
-**Status**: COMPLETED - PR #7 OPEN
+**Status**: COMPLETED - MERGED TO MAIN
 **Type**: C (Infrastructure / Deployment Readiness)
 **Priority**: HIGH
 **Estimated Effort**: 1-2 days (8-16 hours)
@@ -610,7 +610,7 @@ Runtime-path normalization is complete. Container work should treat the followin
 ---
 
 ### **TASK-054: Local Launch UX** 🟡
-**Status**: NOT_STARTED  
+**Status**: NOT_STARTED - READY FOR PHASE 1 PLANNING
 **Type**: B (Deployment UX / Local Launch Flow)  
 **Priority**: MEDIUM  
 **Estimated Effort**: 1-2 days (8-12 hours)  
@@ -647,7 +647,7 @@ Runtime-path normalization is complete. Container work should treat the followin
 
 **Dependencies**:
 - 🟡 TASK-052 - current integration smoke-test baseline
-- 🔴 TASK-025 - Docker-compatible / OCI containerization baseline complete enough to support a stable local launcher target
+- ✅ TASK-025 - Docker-compatible / OCI containerization baseline merged and complete enough to support a stable local launcher target
 - TASK-065 - release-support follow-through for Docker-Desktop-free Podman Compose-provider validation and final runtime support language
 
 **Notes**:
