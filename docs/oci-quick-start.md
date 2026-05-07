@@ -52,7 +52,7 @@ The manual GitHub Actions workflow `.github/workflows/container-publish.yml` pub
 ghcr.io/j-schulein/towerscout
 ```
 
-Run the workflow with a release tag such as `v0.1.0-rc1`. The workflow summary reports the immutable digest reference:
+Run the workflow with a release tag such as `v0.1.0-rc1`. During Task-025 validation, pushes to `feature/task-025-docker-baseline` also publish an RC tag in the form `task-025-<short-sha>`. The workflow summary reports the immutable digest reference:
 
 ```text
 ghcr.io/j-schulein/towerscout@sha256:<digest>

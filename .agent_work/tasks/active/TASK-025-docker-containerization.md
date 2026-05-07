@@ -731,6 +731,21 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - The publish workflow must be pushed and run, or an appropriately scoped GHCR token must be provided, before `docker pull ghcr.io/j-schulein/towerscout@sha256:<digest>` and release-image Compose validation can be completed.
 **Next**: After publishing, validate Docker and Podman pull-by-digest paths and regenerate the release ZIP with the real digest. Continue real Google UI key validation after persisting the trusted CA bundle env vars.
 
+### 2026-05-07 - Branch Publish Trigger For GHCR Validation
+**Objective**: Make the GHCR publish workflow runnable before merge so Task-025 can validate pull-by-digest behavior from the feature branch.
+**Context**: GitHub did not show the manual `workflow_dispatch` workflow in the Actions UI because the workflow file was only present on `feature/task-025-docker-baseline`, not the default branch.
+**Decision**: Add a temporary branch-scoped `push` trigger for `feature/task-025-docker-baseline` and derive an RC tag automatically as `task-025-<short-sha>` for push events. Keep manual `workflow_dispatch` behavior for future release tags.
+**Execution**:
+- Added `push.branches: feature/task-025-docker-baseline` to `.github/workflows/container-publish.yml`.
+- Updated the publish script to use `inputs.tag` only for `workflow_dispatch` and `task-025-${GITHUB_SHA::7}` for feature-branch pushes.
+- Replaced the embedded Python heredoc with a one-line Python digest parser to avoid YAML/heredoc indentation fragility.
+- Updated `docs/oci-quick-start.md` to describe the branch RC tag behavior.
+**Output**:
+- Next push to `feature/task-025-docker-baseline` should publish `ghcr.io/j-schulein/towerscout:task-025-<short-sha>`.
+**Validation**:
+- Pending local YAML parse and push-trigger run.
+**Next**: Push the workflow update, wait for the publish run, capture the digest, and validate release Compose startup by digest.
+
 ### 2026-05-07 - Local Compose CA Bundle Persistence
 **Objective**: Persist the validated TLS CA bundle configuration for local Docker Compose restarts without storing provider secrets in the repo.
 **Context**: The containerized Google validation path worked after importing the CDC/Zscaler CA chain and recreating the container with `REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE` set to `/app/webapp/config/certs/towerscout-ca-bundle.pem`. The remaining local risk was that a later Compose recreate would fall back to the default Debian bundle unless the setting was persisted outside the one-off shell environment.
