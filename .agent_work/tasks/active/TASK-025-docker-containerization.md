@@ -842,6 +842,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - Stopped and removed the temporary release-image container/network with `docker compose -p towerscout-ghcr-validate -f compose.yaml down`.
 - Generated `towerscout-task025-ghcr-0b5d0a7.zip` with `scripts/package-release.cmd` using the real digest.
 - Patched `.github/workflows/container-publish.yml` so future metadata artifacts use the resolved build tag for both branch push and manual dispatch runs.
+- Pushed follow-up commit `03c6084` and confirmed workflow run `25511697887` succeeded with artifact `image-metadata-task-025-03c6084`.
 **Output**:
 - GHCR published image: `ghcr.io/j-schulein/towerscout:task-025-0b5d0a7`
 - Pinned image: `ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`
@@ -853,6 +854,10 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
   - `.agent_work/pytest-temp/release-package/towerscout-task025-ghcr-0b5d0a7`
   - `.agent_work/pytest-temp/release-package/towerscout-task025-ghcr-0b5d0a7.zip`
   - `.env.example` and `IMAGE.txt` pin `ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`.
+- Follow-up workflow output:
+  - run: `25511697887`
+  - commit: `03c6084`
+  - artifact: `image-metadata-task-025-03c6084`
 **Validation**:
 - GitHub Actions run `25511018110` -> success.
 - `gh api repos/J-Schulein/TowerScout/actions/runs/25511018110/artifacts` -> found `image-metadata-` artifact.
@@ -864,10 +869,12 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - `GET http://127.0.0.1:5002/api/readiness` -> passed with expected fresh-release degraded/setup state and correct image digest.
 - `scripts\package-release.cmd -Version task025-ghcr-0b5d0a7 -Image ghcr.io/j-schulein/towerscout -ImageDigest sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30 -OutputDir .agent_work\pytest-temp\release-package` -> passed.
 - `IMAGE.txt` and package `.env.example` digest checks -> passed.
+- GitHub Actions run `25511697887` -> success.
+- Artifact list for run `25511697887` -> `image-metadata-task-025-03c6084`.
 **Issues Identified**:
-- The successful branch-triggered run uploaded the artifact as `image-metadata-` because the workflow used `${{ inputs.tag }}` for the artifact name on a `push` event. The workflow has been patched locally to use `${{ steps.build.outputs.tag }}`.
+- The first successful branch-triggered run uploaded the artifact as `image-metadata-` because the workflow used `${{ inputs.tag }}` for the artifact name on a `push` event. The follow-up workflow patch is validated by run `25511697887`.
 - The Actions run emitted a warning that `docker/setup-buildx-action@v2` uses a deprecated Node.js 20 runtime. It is advisory for this task and should be handled in a future pinned-action review/update.
-**Next**: Commit and push the workflow artifact-name patch and documentation updates, then confirm the follow-up publish run still succeeds. Keep the clean Docker-Desktop-unavailable Podman validation as the remaining local runtime gate before promising Podman broadly.
+**Next**: Keep the clean Docker-Desktop-unavailable Podman validation as the remaining local runtime gate before promising Podman broadly. Track the Buildx Node 20 warning as future pinned-action maintenance.
 
 ---
 
@@ -939,6 +946,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - `docker pull ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30` -> passed.
 - Isolated release-image Compose validation on port `5002` -> passed; health `ok`, readiness `setup_required`/assets `degraded` with writable paths and matching `version.image_digest`.
 - Real-digest release package `towerscout-task025-ghcr-0b5d0a7.zip` -> passed; `IMAGE.txt` and package `.env.example` pin the immutable GHCR digest.
+- Follow-up GitHub Actions run `25511697887` -> passed; artifact name fixed to `image-metadata-task-025-03c6084`.
 - `.\.venv\Scripts\python.exe -m pytest tests\unit\test_flask_routes.py tests\unit\test_runtime_contract.py tests\unit\test_assets.py tests\unit\test_config.py -q -p no:cacheprovider` -> `35 passed, 8 warnings`.
 - `python .agent_work\scripts\validate_agent_work.py` -> passed.
 
@@ -948,7 +956,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - Asset-light startup behaves correctly: the container serves setup and readiness without model/ZIP assets, and readiness reports assets as degraded with recovery guidance.
 - Manual/local asset import into named volumes works and clears asset-degraded readiness. A packaged asset bootstrap/download script is still not implemented.
 - The release control-package helper is validated with both `towerscout:local` and the real GHCR digest-pinned image reference.
-- The successful branch-triggered GHCR run exposed an artifact naming bug (`image-metadata-` on push events); the workflow has been patched locally to use the resolved build tag for future artifact names.
+- The successful branch-triggered GHCR run exposed an artifact naming bug (`image-metadata-` on push events); the workflow patch is validated by run `25511697887`, which uploaded `image-metadata-task-025-03c6084`.
 - Podman's Windows WSL engine path works for the TowerScout runtime contract on this host, but `podman compose` delegated to Docker Desktop's bundled `docker-compose.exe`. Podman should be retested with the Docker Desktop engine stopped, and a Docker-Desktop-free Podman support promise still requires independent Compose-provider validation.
 - A first Docker-engine-stopped attempt did not prove independence from Docker Desktop because the Docker daemon remained reachable after WSL termination and Docker Desktop entered a paused state; the Docker validation service is restored.
 - Azure provider configuration saved through the containerized UI persists across restart.
@@ -962,4 +970,4 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - Packaged local/release-folder asset import is implemented and validated. Network download/bootstrap remains optional future work if release assets are hosted externally.
 - For release packages, document that operators must copy `.env.example` to `.env` and set the combined CA bundle path after running `import-tls-ca.cmd` when their network performs TLS inspection.
 - Retry Podman with Docker Desktop fully quit/unavailable, then validate a Docker-Desktop-free Podman Compose provider before promising Podman as the supported open-source runtime.
-- Push and confirm the workflow artifact-name patch so future branch-triggered metadata artifacts are named with the resolved `task-025-<short-sha>` tag.
+- Track the `docker/setup-buildx-action@v2` Node 20 deprecation warning as future pinned-action maintenance.
