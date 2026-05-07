@@ -1,6 +1,6 @@
 # TASK-054: Local Launch UX
 
-**Status**: NOT_STARTED - READY FOR PHASE 1 PLANNING
+**Status**: COMPLETED - PHASE 1 MVP
 **Priority**: MEDIUM  
 **Type**: B (Deployment UX / Local Supportability)  
 **Estimated Effort**: 1-2 days (8-12 hours)  
@@ -36,15 +36,15 @@ After the `TASK-025` merge, this task should assume the normal user path is a Gi
 
 ## Acceptance Criteria
 
-- [ ] `start.bat` or equivalent Windows-first GitHub Release launcher exists.
-- [ ] Launcher waits for app readiness before opening the browser.
-- [ ] Stop/logs/status support exists as scripts or clear user-facing guidance.
-- [ ] First-run asset/bootstrap delay and failure handling is visible to users.
-- [ ] Troubleshooting docs cover selected engine, Podman machine/WSL2/Hyper-V where applicable, Docker Desktop licensing/endpoint where applicable, port, timeout, network, asset, and provider-key failures.
-- [ ] Log locations and version/asset manifest collection guidance are documented.
-- [ ] Unsupported v1 environments are documented without implying support.
-- [ ] Launcher consumes or documents `/api/health` and structured `/api/readiness` state handling.
-- [ ] Launcher behavior is validated against the selected runtime-host path from `TASK-025`.
+- [x] `start.bat` or equivalent Windows-first GitHub Release launcher exists.
+- [x] Launcher waits for app readiness before opening the browser.
+- [x] Stop/logs/status support exists as scripts or clear user-facing guidance.
+- [x] First-run asset/bootstrap delay and failure handling is visible to users.
+- [x] Troubleshooting docs cover selected engine, Podman machine/WSL2/Hyper-V where applicable, Docker Desktop licensing/endpoint where applicable, port, timeout, network, asset, and provider-key failures.
+- [x] Log locations and version/asset manifest collection guidance are documented.
+- [x] Unsupported v1 environments are documented without implying support.
+- [x] Launcher consumes or documents `/api/health` and structured `/api/readiness` state handling.
+- [x] Launcher behavior is validated against the selected runtime-host path from `TASK-025`.
 
 ## Dependencies
 
@@ -104,8 +104,89 @@ After the `TASK-025` merge, this task should assume the normal user path is a Gi
 - `.\.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` -> passed.
 **Next**: Begin Phase 1 only after explicit go-ahead.
 
+### 2026-05-07 - Phase 1 Launcher MVP Start
+**Objective**: Start the Phase 1 launcher MVP and reconcile the remaining tracker cleanup before implementation.
+**Context**: The owner approved starting `TASK-054` after the readiness check. `TASK-025` is merged, `TASK-052` is complete, the branch is already `feature/task-054-local-launch-ux`, and `.agent_work` validation passed. Two stale bookkeeping items remained: the `TASK-025` task-file status still referenced an open PR, and `current-tasks.md` still showed `TASK-052` with a pending marker in the `TASK-054` dependency list.
+**Decision**: Keep the launcher MVP narrow: add a Windows-first host launcher over the existing Compose scripts and readiness contract, without changing container runtime behavior or broad Podman support claims.
+**Execution**: Updated task status to `IN_PROGRESS - PHASE 1 LAUNCHER MVP`, corrected the stale `TASK-025` header, and updated the active tracker dependency marker for `TASK-052`.
+**Output**: Phase 1 implementation is authorized and task tracking now reflects the current prerequisite state.
+**Validation**: Pending focused script, documentation, and `.agent_work` validation after implementation.
+**Next**: Implement the Windows launcher MVP and update release-package documentation.
+
+### 2026-05-07 - Phase 1 Launcher MVP Implementation And Validation
+**Objective**: Implement and validate the Windows-first launcher MVP.
+**Context**: `TASK-025` already provided low-level `scripts/start.cmd`, `scripts/status.cmd`, `scripts/logs.cmd`, and `scripts/stop.cmd` helpers. `TASK-054` needed the user-facing host launcher layer that waits for application readiness and opens the browser only after the app shell is reachable.
+**Decision**: Add a top-level `start.bat` that delegates to `scripts/launch.ps1`. Keep `scripts/start.cmd` as the low-level Compose command for support and automation. The launcher should create `.env` from `.env.example` when missing, set the selected engine and port for Compose, start the service, poll `/api/readiness`, print actionable readiness state, and skip browser launch when `-NoBrowser` is supplied.
+**Execution**:
+- Added `start.bat`.
+- Added `scripts/launch.ps1` with `-Engine`, `-Port`, `-TimeoutSeconds`, `-Build`, and `-NoBrowser` options.
+- Updated `scripts/package-release.ps1` so release packages include `start.bat` and `scripts/launch.ps1`.
+- Updated `docs/oci-quick-start.md` with first-run launcher flow, support diagnostics, troubleshooting, and no-browser/timeout/port options.
+- Updated `docs/oci-runtime-contract.md` to include the top-level launcher in the release package contract.
+**Output**: Phase 1 now has a Windows-first launcher MVP over the existing OCI/Compose runtime contract.
+**Validation**:
+- PowerShell parser check passed for `scripts/launch.ps1`, `scripts/start.ps1`, `scripts/status.ps1`, `scripts/package-release.ps1`, and `scripts/lib/TowerScoutCompose.ps1`.
+- `git diff --check` passed.
+- `.\start.bat -NoBrowser -TimeoutSeconds 60` passed against the Docker runtime path after running with local engine access: readiness state `ready`, asset status `ok`, config status `ok`, and browser launch skipped.
+- `.\scripts\package-release.cmd -Version task054-check2 -OutputDir .agent_work\pytest-temp\task054-package -NoZip` passed and staged `start.bat`, `scripts\launch.ps1`, and `SHA256SUMS.txt`.
+- `.\.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` passed.
+**Next**: Keep broader Podman release-support language gated by `TASK-065`; use this Phase 1 MVP as the launcher baseline for any Phase 2 readiness UX follow-up.
+
+### 2026-05-07 - Phase 1 UX And Failure-Path Closeout
+**Objective**: Confirm the launcher MVP is understandable on the happy path and fails visibly on lightweight failure paths.
+**Context**: The owner ran `.\start.bat` from the repo root. The launcher opened TowerScout in the browser, and the console messaging matched the intended healthy path. Additional failure-path checks were needed before marking Phase 1 complete.
+**Decision**: Close Phase 1 as complete and defer additional readiness orchestration/polish to a later Phase 2 only if release-support work shows the MVP is insufficient.
+**Execution**:
+- Confirmed user-facing happy-path messaging looked good to the owner.
+- Ran invalid engine selection through `.\start.bat -Engine invalid -NoBrowser`.
+- Ran invalid timeout input through `.\start.bat -NoBrowser -TimeoutSeconds 1`.
+- Ran unreachable-readiness support path through `.\scripts\status.cmd -Port 59999`.
+**Output**: Phase 1 happy path and lightweight failure paths are validated. The launcher does not silently open the browser on these failure paths.
+**Validation**:
+- Invalid engine returned PowerShell `ValidateSet` guidance listing `auto,docker,podman`.
+- Invalid timeout returned `TimeoutSeconds must be at least 5.`
+- `.\scripts\status.cmd -Port 59999` returned Compose status plus `TowerScout readiness endpoint is not reachable at http://127.0.0.1:59999/api/readiness.`
+**Next**: Commit the Phase 1 slice and move release-support follow-through to `TASK-065`.
+
+### 2026-05-07 - Windows Host Diagnostics Follow-Up
+**Objective**: Add WSL/virtualization diagnostics to startup failure output without making WSL a hard preflight gate.
+**Context**: The owner asked whether the launcher should check for WSL because Docker and Podman commonly require WSL2 or a comparable virtualization backend on Windows. A hard WSL preflight could produce false negatives for Hyper-V, future remote-engine paths, or already-managed engine behavior.
+**Decision**: Keep Docker/Podman as the runtime source of truth, and print Windows-only diagnostics only after Compose startup fails.
+**Execution**:
+- Added `Write-TowerScoutHostDiagnostics` to `scripts/launch.ps1`.
+- The launcher now checks for `wsl.exe`, prints `wsl --status` when available, prints `podman machine list` for Podman failures, and mentions Docker Desktop WSL2/Hyper-V backend health for Docker failures.
+- Updated `docs/oci-quick-start.md` to describe the diagnostic behavior as support hints rather than a support promise.
+**Output**: Startup failures now include better Windows host context for WSL2/Hyper-V/virtualization and Podman machine issues.
+**Validation**:
+- PowerShell parser check passed for `scripts/launch.ps1`.
+- `git diff --check` passed.
+- Intentional invalid-image startup check printed Windows diagnostics: `wsl.exe` location, readable `wsl --status` output showing default WSL version `2`, Docker Desktop backend guidance, and local IT virtualization/endpoint/Compose-provider guidance.
+**Next**: Commit the Phase 1 slice.
+
 ---
 
 ## Validation Results
 
-Pending implementation.
+### Test Summary
+**Test Date**: 2026-05-07
+**Test Environment**: Windows PowerShell, Docker Compose runtime on `http://127.0.0.1:5000`
+**Test Status**: PASS for Phase 1 MVP
+
+### Acceptance Criteria Validation
+- [x] **Windows launcher**: `start.bat` delegates to `scripts/launch.ps1`.
+- [x] **Readiness before browser**: launcher polls `/api/readiness` and opens the browser only after `setup_required`, `degraded`, or `ready`.
+- [x] **Support commands**: existing start/stop/logs/status scripts remain available and documented.
+- [x] **First-run status**: launcher prints readiness state, asset status, config status, and recovery guidance.
+- [x] **Troubleshooting**: quick-start docs cover engine, Podman machine/WSL2/Hyper-V, Docker Desktop policy/licensing, port, timeout, network, asset, and provider-key failures.
+- [x] **Diagnostics**: quick-start docs identify status/log commands, `IMAGE.txt`, `asset_manifest.v1.json`, `SHA256SUMS.txt`, log volume/path, and sensitive artifacts not to share.
+- [x] **Unsupported environments**: v1 exclusions remain documented.
+- [x] **Readiness contract**: launcher consumes `/api/readiness`; runtime docs cover `/api/health` and `/api/readiness`.
+- [x] **Runtime validation**: no-browser launcher run passed against the Docker runtime path.
+- [x] **Human UX pass**: owner confirmed the normal launcher command opened the app and the console messaging looked good.
+- [x] **Failure-path validation**: invalid engine, invalid timeout, and unreachable-readiness support checks fail visibly with actionable output.
+- [x] **Windows host diagnostics**: launcher startup failure path includes WSL/virtualization and Podman machine diagnostics as support hints.
+
+### Issues Identified
+
+- Launcher validation used Docker on this host. Broad Podman support language remains gated by `TASK-065`, especially Docker-Desktop-free Compose-provider validation.
+- Phase 2 readiness UX is cleanly deferred. The MVP already consumes structured readiness and opens the browser after shell availability; further polish should be driven by release-support findings rather than added speculatively.
