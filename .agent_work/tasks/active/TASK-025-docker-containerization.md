@@ -828,6 +828,47 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - A stronger follow-up should use a machine where Docker Desktop is fully quit/uninstalled or use a validated non-Docker Compose provider such as `podman-compose`.
 **Next**: Keep the Docker-engine-stopped and Docker-Desktop-free Podman Compose-provider checks open; rerun on a host where Docker Desktop can be fully quit or unavailable without auto-restarting.
 
+### 2026-05-07 - GHCR Digest Pull And Release Image Validation
+**Objective**: Validate the real GHCR publish output by digest and regenerate the release package with an immutable image reference.
+**Context**: The branch publish trigger ran successfully after the workflow YAML fix. `TASK-025` still needed proof that the published image can be resolved, pulled, and started without `compose.build.yaml`, and that release-package metadata can be generated with the real digest.
+**Decision**: Use the successful feature-branch publish run as the release-candidate image source. Validate the pinned digest directly, then start a separate Compose project on port `5002` so the existing Docker validation service on port `5000` and its persisted keys/assets are not touched.
+**Execution**:
+- Retrieved workflow run `25511018110` artifact metadata from GitHub Actions.
+- Downloaded `image-metadata.json` into `.agent_work/pytest-temp/ghcr-run-25511018110-verify`.
+- Extracted published image `ghcr.io/j-schulein/towerscout:task-025-0b5d0a7` and digest `sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`.
+- Ran `docker manifest inspect` and `docker pull` against the pinned digest.
+- Started an isolated release-image Compose project with `TOWERSCOUT_IMAGE=ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`, `TOWERSCOUT_IMAGE_DIGEST=sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`, and `TOWERSCOUT_PORT=5002`.
+- Queried `/api/health`, `/api/readiness`, and Compose status for the release-image project.
+- Stopped and removed the temporary release-image container/network with `docker compose -p towerscout-ghcr-validate -f compose.yaml down`.
+- Generated `towerscout-task025-ghcr-0b5d0a7.zip` with `scripts/package-release.cmd` using the real digest.
+- Patched `.github/workflows/container-publish.yml` so future metadata artifacts use the resolved build tag for both branch push and manual dispatch runs.
+**Output**:
+- GHCR published image: `ghcr.io/j-schulein/towerscout:task-025-0b5d0a7`
+- Pinned image: `ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`
+- Manifest inspection returned an OCI image index with Linux/AMD64 manifest digest `sha256:a3df1bdae1dfc84598e41413002eacc92025ed05eb66a6ea18bc88862f594633`.
+- Docker pull completed with digest `sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`.
+- Release-image health on port `5002` returned `{"service":"towerscout","status":"ok"}`.
+- Release-image readiness returned expected fresh-volume state: `setup_required`, assets `degraded`, writable runtime paths, persisted secret, and `version.image_digest` matching the pinned digest.
+- Release package output:
+  - `.agent_work/pytest-temp/release-package/towerscout-task025-ghcr-0b5d0a7`
+  - `.agent_work/pytest-temp/release-package/towerscout-task025-ghcr-0b5d0a7.zip`
+  - `.env.example` and `IMAGE.txt` pin `ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`.
+**Validation**:
+- GitHub Actions run `25511018110` -> success.
+- `gh api repos/J-Schulein/TowerScout/actions/runs/25511018110/artifacts` -> found `image-metadata-` artifact.
+- `gh run download 25511018110 --repo J-Schulein/TowerScout --name image-metadata-` -> passed.
+- `docker manifest inspect ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30` -> passed.
+- `docker pull ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30` -> passed.
+- `docker compose -p towerscout-ghcr-validate -f compose.yaml up -d towerscout` using the pinned image -> passed; container reported healthy.
+- `GET http://127.0.0.1:5002/api/health` -> passed.
+- `GET http://127.0.0.1:5002/api/readiness` -> passed with expected fresh-release degraded/setup state and correct image digest.
+- `scripts\package-release.cmd -Version task025-ghcr-0b5d0a7 -Image ghcr.io/j-schulein/towerscout -ImageDigest sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30 -OutputDir .agent_work\pytest-temp\release-package` -> passed.
+- `IMAGE.txt` and package `.env.example` digest checks -> passed.
+**Issues Identified**:
+- The successful branch-triggered run uploaded the artifact as `image-metadata-` because the workflow used `${{ inputs.tag }}` for the artifact name on a `push` event. The workflow has been patched locally to use `${{ steps.build.outputs.tag }}`.
+- The Actions run emitted a warning that `docker/setup-buildx-action@v2` uses a deprecated Node.js 20 runtime. It is advisory for this task and should be handled in a future pinned-action review/update.
+**Next**: Commit and push the workflow artifact-name patch and documentation updates, then confirm the follow-up publish run still succeeds. Keep the clean Docker-Desktop-unavailable Podman validation as the remaining local runtime gate before promising Podman broadly.
+
 ---
 
 ## Validation Results
@@ -848,7 +889,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - Podman Docker-engine-stopped validation attempt: Podman runtime still started, but the gate remains inconclusive because Docker Desktop restarted/stayed reachable and later reported manually paused. Docker service was restored after the owner unpaused Docker Desktop.
 - Google TLS inspection CA import path: Windows CA thumbprint export with chain, combined container CA bundle, and TowerScout Google validation endpoint reaching provider-level invalid-key response instead of TLS `502`.
 - Local `.env` persistence for the combined TLS CA bundle path, validated across Docker Compose recreate.
-- GHCR publish preparation: manual workflow added for `ghcr.io/j-schulein/towerscout`, Compose/release defaults aligned, and digest-pinned package metadata validated with a placeholder digest.
+- GHCR publish and pull-by-digest path: feature-branch image published to `ghcr.io/j-schulein/towerscout:task-025-0b5d0a7`, pinned digest validated by manifest inspect, Docker pull, release-image Compose startup, and release-package generation.
 
 **Latest Test Evidence**:
 - `docker build --check -f Dockerfile .` -> passed, no warnings.
@@ -892,16 +933,22 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - `gh auth status` -> logged in as `J-Schulein`, but token scopes do not include package scopes.
 - Manual GHCR publish workflow added at `.github/workflows/container-publish.yml`.
 - Digest-pinned release package dry run with `ghcr.io/j-schulein/towerscout@sha256:aaaaaaaa...` -> passed.
+- GitHub Actions run `25511018110` for `.github/workflows/container-publish.yml` -> success.
+- Published image metadata -> `ghcr.io/j-schulein/towerscout:task-025-0b5d0a7`, digest `sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`.
+- `docker manifest inspect ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30` -> passed.
+- `docker pull ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30` -> passed.
+- Isolated release-image Compose validation on port `5002` -> passed; health `ok`, readiness `setup_required`/assets `degraded` with writable paths and matching `version.image_digest`.
+- Real-digest release package `towerscout-task025-ghcr-0b5d0a7.zip` -> passed; `IMAGE.txt` and package `.env.example` pin the immutable GHCR digest.
 - `.\.venv\Scripts\python.exe -m pytest tests\unit\test_flask_routes.py tests\unit\test_runtime_contract.py tests\unit\test_assets.py tests\unit\test_config.py -q -p no:cacheprovider` -> `35 passed, 8 warnings`.
 - `python .agent_work\scripts\validate_agent_work.py` -> passed.
 
 **Findings**:
 - Direct `.ps1` helper execution is blocked by the default Windows execution policy on this host. This is remediated by `.cmd` wrappers and quick-start updates that use the wrappers by default.
-- The release-image path is not validated yet because `ghcr.io/towerscout/towerscout:latest` is not published or accessible. Source checkout validation uses `start.cmd -Build` and `compose.build.yaml`.
+- The release-image path is now validated against `ghcr.io/j-schulein/towerscout@sha256:e27340947a48082433dcc996beb12c0050f6e9a2c2f20e44b4148923ab9ffa30`. Source checkout validation still uses `start.cmd -Build` and `compose.build.yaml`.
 - Asset-light startup behaves correctly: the container serves setup and readiness without model/ZIP assets, and readiness reports assets as degraded with recovery guidance.
 - Manual/local asset import into named volumes works and clears asset-degraded readiness. A packaged asset bootstrap/download script is still not implemented.
-- The release control-package helper is validated locally with `towerscout:local`; production package validation still needs a published GHCR image pinned by digest.
-- GHCR publish workflow is now defined for `ghcr.io/j-schulein/towerscout`, but real digest validation is blocked until an image is published or package-scoped credentials are available.
+- The release control-package helper is validated with both `towerscout:local` and the real GHCR digest-pinned image reference.
+- The successful branch-triggered GHCR run exposed an artifact naming bug (`image-metadata-` on push events); the workflow has been patched locally to use the resolved build tag for future artifact names.
 - Podman's Windows WSL engine path works for the TowerScout runtime contract on this host, but `podman compose` delegated to Docker Desktop's bundled `docker-compose.exe`. Podman should be retested with the Docker Desktop engine stopped, and a Docker-Desktop-free Podman support promise still requires independent Compose-provider validation.
 - A first Docker-engine-stopped attempt did not prove independence from Docker Desktop because the Docker daemon remained reachable after WSL termination and Docker Desktop entered a paused state; the Docker validation service is restored.
 - Azure provider configuration saved through the containerized UI persists across restart.
@@ -912,8 +959,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - The build surfaced existing frontend dependency audit findings: one moderate and one high npm vulnerability. This is not a container-contract blocker, but it should be tracked as dependency/security follow-up.
 
 **Remaining Validation / Completion Work**:
-- Publish or otherwise provide a pinned GHCR image reference by digest and validate the release-image path without `compose.build.yaml`.
 - Packaged local/release-folder asset import is implemented and validated. Network download/bootstrap remains optional future work if release assets are hosted externally.
 - For release packages, document that operators must copy `.env.example` to `.env` and set the combined CA bundle path after running `import-tls-ca.cmd` when their network performs TLS inspection.
 - Retry Podman with Docker Desktop fully quit/unavailable, then validate a Docker-Desktop-free Podman Compose provider before promising Podman as the supported open-source runtime.
-- Validate the GHCR digest-pinning process against a real published image; local package checksum generation is implemented.
+- Push and confirm the workflow artifact-name patch so future branch-triggered metadata artifacts are named with the resolved `task-025-<short-sha>` tag.
