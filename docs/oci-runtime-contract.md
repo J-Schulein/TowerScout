@@ -38,6 +38,21 @@ The default Compose profile maps each path to a named volume:
 | `/app/webapp/uploads` | uploads and optional debug images |
 | `/app/webapp/cache` | map and geocoding caches |
 
+## Persistence Classification
+
+V1 uses named volumes as the default persistence profile. A host-visible data directory can be considered later, but it is not part of the validated default release profile.
+
+| Path | Classification | Notes |
+| --- | --- | --- |
+| `/app/webapp/config` | restart/update durable | Contains provider config, generated `FLASK_SECRET_KEY`, backups, and optional local CA bundles. |
+| `/app/webapp/model_params` | restart/update durable | Contains imported model assets. Detection depends on this volume. |
+| `/app/webapp/data` | restart/update durable | Contains imported ZIP-code shapefile assets. ZIP search depends on this volume. |
+| `/app/webapp/logs` | restart/update durable support data | Useful for diagnostics and should survive container replacement. |
+| `/app/webapp/flask_session` | writable runtime state | Preserves active user session state across container restart. It may be cleared as a support/reset action. |
+| `/app/webapp/temp/session` | cleanup-safe working state | Used for detection/export/restore working files. It should be writable and may be cleaned when no run is active. |
+| `/app/webapp/uploads` | restart/update durable user data | May contain uploaded datasets, images, or support artifacts. Treat as sensitive. |
+| `/app/webapp/cache` | best-effort durable cache | Contains map, geocoding, and Ultralytics cache/config data. It may be cleared to recover from cache problems, but preserving it improves repeated local use. |
+
 ## Secret Key Contract
 
 If `FLASK_SECRET_KEY` is absent on startup, TowerScout generates a secure value and persists it to `/app/webapp/config/.env`. The value must survive container restart/recreate through the mounted config volume and must not be exposed through config status, readiness, logs, or UI.
@@ -108,9 +123,8 @@ Release-candidate validation should add real asset import, SHA-256 verification,
 
 The engine-aware scripts support `-Engine podman` through `podman compose`. On Windows, `podman compose` delegates Compose behavior to an external provider such as Docker Compose or `podman-compose` while wiring that provider to the Podman socket.
 
-The current local spike validated the Podman WSL engine path, named volumes, asset import, readiness, and containerized smoke behavior. It did not prove either of these release gates:
+The current local spike validated the Podman WSL engine path, named volumes, asset import, readiness, and containerized smoke behavior. A follow-up validation also proved that the Podman runtime path can start and smoke-test TowerScout while Docker Desktop is fully quit and the Docker daemon is unreachable.
 
-1. Podman Compose while the Docker Desktop engine is stopped, to confirm the Podman path does not depend on the Docker daemon.
-2. Podman Compose with a Docker-Desktop-free provider such as `podman-compose`, to confirm the package can run without Docker Desktop installed.
+Remaining release-support caveat: this workstation's `podman compose` used Docker Desktop's bundled `docker-compose.exe` as the external Compose provider. Before promising Podman broadly on hosts without Docker Desktop installed, validate Podman Compose with a Docker-Desktop-free provider such as `podman-compose` or another approved Compose provider.
 
 Release qualification for Podman should include the selected Compose provider explicitly.

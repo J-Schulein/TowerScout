@@ -1,6 +1,6 @@
 # TowerScout OCI Quick Start
 
-This guide covers the v1 local container package shape for TowerScout. It is engine-aware: the same Compose files are intended to work with a validated Docker or Podman host, but Podman support must still pass the Windows compatibility spike before release docs promise it as the supported user runtime.
+This guide covers the v1 local container package shape for TowerScout. It is engine-aware: the same Compose files are intended to work with a validated Docker or Podman host. The current Windows Podman spike validates the Podman engine path, including while Docker Desktop's engine is unavailable; a Docker-Desktop-free Compose provider still needs validation before promising Podman broadly on hosts without Docker Desktop installed.
 
 ## Supported V1 Target
 
@@ -94,14 +94,18 @@ Scripts auto-detect the engine. To force one:
 .\scripts\status.cmd -Engine podman
 ```
 
-Docker Desktop use depends on license, procurement, endpoint policy, and local installation approval. Podman is the preferred open-source runtime target only after the compatibility spike validates the Windows host path.
+Docker Desktop use depends on license, procurement, endpoint policy, and local installation approval. Podman is the preferred open-source runtime target for V1, with one release-support caveat: a Docker-Desktop-free Compose provider must be validated before promising Podman broadly on hosts without Docker Desktop installed.
 
 On Windows, `podman compose` is a wrapper around an external Compose provider such as `docker-compose` or `podman-compose`. The TowerScout scripts call `podman compose` for the Podman path, but release validation must confirm the target workstation has a working Compose provider that can talk to the Podman machine.
 
-Two Podman checks are required before promising Podman as the normal user runtime:
+Validated Podman checks on the current host:
 
-1. Docker Desktop engine stopped, with Podman machine running, to confirm the Podman path does not depend on the Docker daemon.
-2. Docker-Desktop-free Compose provider validation, such as `podman-compose` or another approved provider, to confirm the package can work without Docker Desktop installed.
+- Podman WSL engine startup, named volumes, asset import, readiness, and containerized smoke behavior.
+- Podman startup and containerized smoke while Docker Desktop is fully quit and the Docker daemon is unreachable.
+
+Remaining Podman support caveat:
+
+- Docker-Desktop-free Compose provider validation, such as `podman-compose` or another approved provider, to confirm the package can work without Docker Desktop installed.
 
 ## Status And Logs
 

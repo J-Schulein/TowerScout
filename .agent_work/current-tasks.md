@@ -3,7 +3,7 @@
 **Sprint Period**: April 7 - active extension after April 25, 2026 (Sprint 05)
 **Last Updated**: May 7, 2026
 **Focus**: Runtime determinism, local YOLO runtime ownership, smoke-baseline validation, pre-container release hardening, v1 operational contracts, OCI/GitHub-first release readiness, and launch UX follow-through
-**Status**: **SPRINT 05 EXTENSION / TASK-025 PHASE 2 ACTIVE** - `TASK-025` now has the local OCI image, Compose profile, persistent runtime volumes, asset manifest/import path, health/readiness contract, Windows helper wrappers, containerized smoke validation, local release-package helper, GHCR digest publication, Google TLS CA path, and Podman-with-Docker-engine-unavailable runtime path validated; Docker-Desktop-free Podman Compose-provider validation remains a release-support caveat
+**Status**: **SPRINT 05 EXTENSION / TASK-025 CLOSEOUT / PR PREP** - `TASK-025` now has the local OCI image, Compose profile, persistent runtime volumes, asset manifest/import path, health/readiness contract, Windows helper wrappers, containerized smoke validation, local release-package helper, GHCR digest publication, Google TLS CA path, and Podman-with-Docker-engine-unavailable runtime path validated; Docker-Desktop-free Podman Compose-provider validation remains a release-support caveat
 
 ---
 
@@ -795,22 +795,22 @@ Runtime-path normalization is complete. Container work should treat the followin
 - [x] ProviderStateManager busy-wait / main-thread locking behavior removed or owner-approved
 - [x] `torch.inference_mode()` benchmark decision recorded before container sign-off
 - [x] Any unresolved `TASK-063` or `TASK-064` finding has owner-approved risk acceptance documenting issue, deferral rationale, user/release impact, mitigation, review timing, and follow-up owner/task
-- [ ] TASK-025 Phase 1-3 complete: OCI/container image builds and runs on the corrected baseline
+- [x] TASK-025 Phase 1-3 complete: OCI/container image builds and runs on the corrected baseline
 - [x] Setup Wizard functional in container environment
 - [x] Settings save/load works with volume mounts
 - [x] Detection workflow validated in container
-- [ ] All required durable and writable mount behaviors tested and documented
-- [ ] Cache and geocode data durability classified for v1
+- [x] All required durable and writable mount behaviors tested and documented
+- [x] Cache and geocode data durability classified for v1
 - [x] Compose-compatible configuration validated
-- [ ] GitHub Release ZIP package contract documented and validated enough for normal-user delivery, including GHCR image digest pinning and optional OCI archive fallback
+- [x] GitHub Release ZIP package contract documented and validated enough for normal-user delivery, including GHCR image digest pinning and optional OCI archive fallback caveat
 - [x] Podman compatibility spike completed enough for the selected Podman-first target (engine/runtime path passed; Docker-engine-unavailable path passed; Docker-Desktop-free Compose-provider validation remains a support caveat before promising Podman on hosts without Docker Desktop installed)
-- [ ] First-run asset bootstrap and recovery path validated
+- [x] First-run asset import/recovery path validated; hosted network downloader remains optional future work
 - [x] Container readiness/health behavior exists for `TASK-054`, including `/api/health` and structured `/api/readiness`
-- [ ] Zero regressions from Sprint 04 functionality
+- [ ] Zero regressions from Sprint 04 functionality beyond Task-025 focused validation
 
 ### Should-Have (Secondary Goals)
-- [ ] TASK-025 Phase 4 complete: Full GitHub-first, engine-aware container documentation
-- [ ] `AMD64` CPU baseline validated and CUDA-enabled `AMD64` path documented for compatible hosts
+- [x] TASK-025 Phase 4 complete: Full GitHub-first, engine-aware container documentation
+- [x] `AMD64` CPU baseline validated and CUDA-enabled `AMD64` path documented for compatible hosts
 - [ ] TASK-054 Phase 1 complete: launcher MVP for selected local runtime startup
 - [ ] Browser Refresh Warning Fix (if capacity allows)
 - [ ] Error Handling Standardization (if capacity allows)
@@ -818,7 +818,7 @@ Runtime-path normalization is complete. Container work should treat the followin
 ### Nice-to-Have (Stretch Goals)
 - [ ] TASK-054 Phase 2 complete or cleanly deferred with documented readiness approach
 - [ ] `ARM64` / Mac follow-on plan documented without blocking first release
-- [ ] Container registry publishing path documented
+- [x] Container registry publishing path documented
 - [ ] Performance optimization in containerized environment
 - [ ] TASK-029 investigation started only if all runtime and Docker gates land early
 

@@ -1,6 +1,6 @@
 # TASK-025: Docker / OCI Containerization
 
-**Status**: IN_PROGRESS - PHASE 2 OCI IMAGE AND COMPOSE VALIDATION
+**Status**: IN_PROGRESS - CLOSEOUT / PR PREPARATION
 **Priority**: HIGH
 **Type**: C (Infrastructure / Deployment Readiness)
 **Estimated Effort**: 1-2 days (8-16 hours)
@@ -95,29 +95,29 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 
 ## Acceptance Criteria
 
-- [ ] `TASK-063` and `TASK-064` completed, or unresolved items documented as owner-approved risk acceptances before Docker implementation starts.
-- [ ] Docker-compatible/OCI image definition exists and builds from a clean checkout with documented prerequisites.
-- [ ] Compose-compatible configuration exists for supported local deployment.
-- [ ] Docker Desktop licensing/endpoint approval and Podman Desktop/Podman machine feasibility are documented as host-runtime gates, not hidden application assumptions.
-- [ ] Validation and launcher-facing status language is engine-aware enough to support Docker or Podman without rewriting the application runtime contract.
+- [x] `TASK-063` and `TASK-064` completed, or unresolved items documented as owner-approved risk acceptances before Docker implementation starts.
+- [x] Docker-compatible/OCI image definition exists and builds from a clean checkout with documented prerequisites.
+- [x] Compose-compatible configuration exists for supported local deployment.
+- [x] Docker Desktop licensing/endpoint approval and Podman Desktop/Podman machine feasibility are documented as host-runtime gates, not hidden application assumptions.
+- [x] Validation and launcher-facing status language is engine-aware enough to support Docker or Podman without rewriting the application runtime contract.
 - [x] Podman compatibility spike is completed for this host before Podman is treated as the preferred open-source local runtime target; Docker-Desktop-free Compose-provider validation remains a support caveat before promising Podman broadly on hosts without Docker Desktop installed.
-- [ ] GitHub Release package contract is documented, including release notes, quick start, scripts, Compose-compatible config, pinned GHCR image reference by digest, optional OCI archive fallback, asset manifest, checksums, troubleshooting, and recovery guidance.
-- [ ] Local clone-and-build is documented as a developer/support path rather than the default normal-user deployment path.
-- [ ] Versioned v1 runtime/persistence contract exists and covers config, secret key, assets, exports/imports, logs, sessions, temp, uploads, cache, and geocode data.
-- [ ] Persistence contract distinguishes default named-volume behavior from any optional host-visible data-directory profile.
-- [ ] Cache and geocode data are classified as durable, best-effort, or cleanup-safe for v1.
-- [ ] Stable `FLASK_SECRET_KEY` behavior is documented and validated across restart.
-- [ ] Empty first-run container config generates and persists `FLASK_SECRET_KEY` into `webapp/config/.env` without requiring end-user manual setup.
-- [ ] Setup Wizard works in the container.
-- [ ] Settings save/load persists across container restart.
-- [ ] First-run asset inventory and bootstrap/recovery behavior are documented.
-- [ ] Asset manifest includes checksums and restricted-network/manual bundle recovery guidance.
-- [ ] Detection workflow smoke path runs in the container.
-- [ ] Container health/readiness behavior is available for `TASK-054`, including `/api/health` and structured `/api/readiness` states for `starting`, `setup_required`, `degraded`, `ready`, and `fatal`.
-- [ ] Baseline CI and release-candidate validation responsibilities are split and documented, including asset-aware skip/degraded behavior for routine CI and real-asset detection smoke for release candidates.
-- [ ] Unsupported v1 environments are documented and not implied as supported.
-- [ ] TowerScout application license/open-source suitability is recorded as a separate product/legal clarification item and not treated as solved by choosing Podman.
-- [ ] Container runtime configuration preserves the upload-limit/request-body policy decided in `TASK-063`.
+- [x] GitHub Release package contract is documented, including release notes, quick start, scripts, Compose-compatible config, pinned GHCR image reference by digest, optional OCI archive fallback, asset manifest, checksums, troubleshooting, and recovery guidance.
+- [x] Local clone-and-build is documented as a developer/support path rather than the default normal-user deployment path.
+- [x] Versioned v1 runtime/persistence contract exists and covers config, secret key, assets, exports/imports, logs, sessions, temp, uploads, cache, and geocode data.
+- [x] Persistence contract distinguishes default named-volume behavior from any optional host-visible data-directory profile.
+- [x] Cache and geocode data are classified as durable, best-effort, or cleanup-safe for v1.
+- [x] Stable `FLASK_SECRET_KEY` behavior is documented and validated across restart.
+- [x] Empty first-run container config generates and persists `FLASK_SECRET_KEY` into `webapp/config/.env` without requiring end-user manual setup.
+- [x] Setup Wizard works in the container.
+- [x] Settings save/load persists across container restart.
+- [x] First-run asset inventory and bootstrap/recovery behavior are documented.
+- [x] Asset manifest includes checksums and restricted-network/manual bundle recovery guidance.
+- [x] Detection workflow smoke path runs in the container.
+- [x] Container health/readiness behavior is available for `TASK-054`, including `/api/health` and structured `/api/readiness` states for `starting`, `setup_required`, `degraded`, `ready`, and `fatal`.
+- [x] Baseline CI and release-candidate validation responsibilities are split and documented, including asset-aware skip/degraded behavior for routine CI and real-asset detection smoke for release candidates.
+- [x] Unsupported v1 environments are documented and not implied as supported.
+- [x] TowerScout application license/open-source suitability is recorded as a separate product/legal clarification item and not treated as solved by choosing Podman.
+- [x] Container runtime configuration preserves the upload-limit/request-body policy decided in `TASK-063`.
 
 ## Dependencies
 
@@ -970,6 +970,22 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - `docker compose -f compose.yaml -f compose.build.yaml exec -T towerscout printenv` -> passed and confirmed CA bundle/runtime env.
 **Next**: Run final focused tests and complete the Task-025 closeout/PR preparation pass.
 
+### 2026-05-07 - Closeout Checklist Alignment
+**Objective**: Align the active Task-025 checklist with the validation evidence gathered during the Docker, GHCR, TLS, and Podman passes.
+**Context**: Several checklist items were still unchecked after validation passed because the evidence was recorded incrementally across the implementation log. The remaining work should distinguish true release-support caveats from completed Task-025 container-runtime gates.
+**Decision**: Mark completed acceptance criteria and current-sprint checklist items only where there is explicit implementation, documentation, or validation evidence. Keep Docker-Desktop-free Podman Compose-provider validation, broad Sprint 04 regression coverage, the Buildx Node 20 warning, and hosted asset downloader work as caveats/follow-ups rather than hidden blockers.
+**Execution**:
+- Updated `docs/oci-runtime-contract.md` with explicit persistence classifications for config, assets, logs, sessions, temp, uploads, and cache/geocode data.
+- Updated `docs/oci-runtime-contract.md` and `docs/oci-quick-start.md` to reflect that Podman works while Docker Desktop's engine is unavailable, while Docker-Desktop-free Compose-provider validation remains a support caveat.
+- Updated `current-tasks.md` and this task's acceptance checklist to mark validated gates complete and leave broad regression/support caveats open.
+**Output**:
+- Task-025 is now in closeout/PR preparation status.
+- The remaining main caveat is Docker-Desktop-free Podman Compose-provider validation for hosts without Docker Desktop installed.
+- Hosted asset download/bootstrap, optional OCI archive packaging, Buildx Node 20 action maintenance, and broad non-container Sprint 04 regression remain future/follow-up work.
+**Validation**:
+- Pending final local checks after documentation updates.
+**Next**: Run final checks, commit the closeout alignment, and prepare the PR summary.
+
 ---
 
 ## Validation Results
@@ -1044,6 +1060,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - Real-digest release package `towerscout-task025-ghcr-0b5d0a7.zip` -> passed; `IMAGE.txt` and package `.env.example` pin the immutable GHCR digest.
 - Follow-up GitHub Actions run `25511697887` -> passed; artifact name fixed to `image-metadata-task-025-03c6084`.
 - `.\.venv\Scripts\python.exe -m pytest tests\unit\test_flask_routes.py tests\unit\test_runtime_contract.py tests\unit\test_assets.py tests\unit\test_config.py -q -p no:cacheprovider` -> `35 passed, 8 warnings`.
+- Final focused unit tests after Docker/Podman restore: `.\.venv\Scripts\python.exe -m pytest tests\unit\test_flask_routes.py tests\unit\test_runtime_contract.py tests\unit\test_assets.py tests\unit\test_config.py tests\unit\test_logging_sanitization.py tests\unit\test_error_sanitization.py -q -p no:cacheprovider` -> `47 passed, 9 warnings, 5 subtests passed`.
 - `python .agent_work\scripts\validate_agent_work.py` -> passed.
 
 **Findings**:
