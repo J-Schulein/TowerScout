@@ -100,7 +100,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - [ ] Compose-compatible configuration exists for supported local deployment.
 - [ ] Docker Desktop licensing/endpoint approval and Podman Desktop/Podman machine feasibility are documented as host-runtime gates, not hidden application assumptions.
 - [ ] Validation and launcher-facing status language is engine-aware enough to support Docker or Podman without rewriting the application runtime contract.
-- [ ] Podman compatibility spike is completed or explicitly risk-accepted before Podman is promised as the supported open-source local runtime.
+- [x] Podman compatibility spike is completed for this host before Podman is treated as the preferred open-source local runtime target; Docker-Desktop-free Compose-provider validation remains a support caveat before promising Podman broadly on hosts without Docker Desktop installed.
 - [ ] GitHub Release package contract is documented, including release notes, quick start, scripts, Compose-compatible config, pinned GHCR image reference by digest, optional OCI archive fallback, asset manifest, checksums, troubleshooting, and recovery guidance.
 - [ ] Local clone-and-build is documented as a developer/support path rather than the default normal-user deployment path.
 - [ ] Versioned v1 runtime/persistence contract exists and covers config, secret key, assets, exports/imports, logs, sessions, temp, uploads, cache, and geocode data.
@@ -893,6 +893,57 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - `python .agent_work\scripts\validate_agent_work.py` -> passed.
 **Next**: Commit and push the cleanup. No follow-up publish run is expected from this cleanup because the branch trigger is removed.
 
+### 2026-05-07 - Podman With Docker Desktop Engine Unavailable
+**Objective**: Validate whether TowerScout can run through the Podman engine path while Docker Desktop is fully quit and the Docker daemon is unreachable.
+**Context**: The earlier Docker-engine-stopped attempt was inconclusive because Docker Desktop restarted or stayed reachable. The owner quit Docker Desktop from the UI, allowing a cleaner check of Docker daemon unavailability before rerunning the Podman path.
+**Decision**: Treat this validation as passing only if Docker daemon calls fail, `docker-desktop` is not among running WSL distributions, Podman starts TowerScout, readiness reports the Podman runtime, the containerized `TASK-052` smoke passes, and Docker remains unreachable afterward.
+**Execution**:
+- Verified `docker version` and `docker info` could see the Docker client only and failed to connect to `npipe:////./pipe/dockerDesktopLinuxEngine`.
+- Verified `wsl --list --running` showed only `podman-net-usermode` and `podman-machine-default`.
+- Verified Podman server `5.8.2` was reachable and `docker.io/library/towerscout:local` existed in the Podman image store.
+- Ran `scripts\start.cmd -Engine podman` with `TOWERSCOUT_PORT=5001`, `TOWERSCOUT_IMAGE=towerscout:local`, and `TOWERSCOUT_CONTAINER_ENGINE=podman`.
+- Checked Podman Compose status plus `/api/health` and `/api/readiness` on port `5001`.
+- Confirmed `docker version` still failed to connect to the Docker daemon after Podman startup.
+- Copied `scripts\validate_container_task052_smoke.py` into the running Podman container and executed it with `PYTHONPATH=/app/webapp` from `/app/webapp`.
+- Stopped the Podman validation service with `scripts\stop.cmd -Engine podman`.
+- Confirmed no Podman containers remained running and Docker daemon access still failed.
+**Output**:
+- Docker daemon unavailable:
+  - `docker version` and `docker info` failed to connect to `dockerDesktopLinuxEngine`.
+  - running WSL distros: `podman-net-usermode`, `podman-machine-default`.
+- Podman runtime:
+  - client/server version `5.8.2`.
+  - container image `docker.io/library/towerscout:local`.
+  - `podman compose` still used Docker Desktop's bundled `docker-compose.exe` as the external Compose provider, but it successfully drove the Podman socket without Docker daemon access.
+- TowerScout Podman readiness:
+  - health `{"service":"towerscout","status":"ok"}`.
+  - readiness `state: setup_required`, assets `ok`, `runtime.container_engine: podman`, writable runtime paths, and persisted secret present.
+- Containerized smoke:
+  - `container_task052_smoke=pass`
+  - `engine_id=newest`
+  - `response_status=502`
+  - `progress_title=Imagery download failed`
+**Validation**:
+- `docker version` before Podman start -> Docker client present, daemon unavailable.
+- `docker info` before Podman start -> Docker client present, daemon unavailable.
+- `wsl --list --running` -> no `docker-desktop`, only Podman WSL distributions.
+- `podman info --format json` -> passed.
+- `podman images` -> `docker.io/library/towerscout:local` present.
+- `scripts\start.cmd -Engine podman` on port `5001` -> passed.
+- `scripts\status.cmd -Engine podman` -> passed.
+- `GET http://127.0.0.1:5001/api/health` -> passed.
+- `GET http://127.0.0.1:5001/api/readiness` -> passed with Podman runtime and assets `ok`.
+- `docker version` after Podman start -> still daemon unavailable.
+- `podman exec -e PYTHONPATH=/app/webapp -w /app/webapp towerscout-towerscout-1 python /tmp/validate_container_task052_smoke.py` -> passed.
+- `scripts\stop.cmd -Engine podman` -> passed.
+- `podman ps` -> no running containers.
+- `docker version` after stop -> still daemon unavailable.
+**Issues Identified**:
+- This closes the Docker-engine-unavailable Podman runtime gate on this host.
+- It does not prove a Docker-Desktop-free host because the external Compose provider binary is still `C:\Program Files\Docker\Docker\resources\bin\docker-compose.exe`.
+- A final broad Podman support claim should still validate `podman-compose` or another approved Compose provider on a host without Docker Desktop installed.
+**Next**: Update final Task-025 validation status to treat Podman runtime support as validated on this host, with Docker-Desktop-free Compose-provider validation retained as a release-support caveat rather than a core container-runtime blocker.
+
 ---
 
 ## Validation Results
@@ -910,7 +961,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - Release-package documentation baseline through `docs/oci-quick-start.md` and `docs/oci-runtime-contract.md`.
 - Local GitHub Release control-package assembly through `scripts/package-release.cmd`, including package staging, `IMAGE.txt`, `SHA256SUMS.txt`, ZIP creation, and ZIP checksum output.
 - Windows Podman WSL runtime spike: Podman engine startup, named volumes, asset-light readiness, asset import, and containerized `TASK-052` smoke.
-- Podman Docker-engine-stopped validation attempt: Podman runtime still started, but the gate remains inconclusive because Docker Desktop restarted/stayed reachable and later reported manually paused. Docker service was restored after the owner unpaused Docker Desktop.
+- Podman with Docker Desktop engine unavailable: Docker daemon calls failed, `docker-desktop` was not running in WSL, Podman started TowerScout on port `5001`, readiness reported Podman runtime with assets `ok`, and the containerized `TASK-052` smoke passed. Docker-Desktop-free Compose-provider validation remains a support caveat because `podman compose` still used Docker Desktop's bundled `docker-compose.exe`.
 - Google TLS inspection CA import path: Windows CA thumbprint export with chain, combined container CA bundle, and TowerScout Google validation endpoint reaching provider-level invalid-key response instead of TLS `502`.
 - Local `.env` persistence for the combined TLS CA bundle path, validated across Docker Compose recreate.
 - GHCR publish and pull-by-digest path: feature-branch image published to `ghcr.io/j-schulein/towerscout:task-025-0b5d0a7`, pinned digest validated by manifest inspect, Docker pull, release-image Compose startup, and release-package generation.
@@ -946,7 +997,7 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - Podman `GET /api/readiness` asset-light state -> `setup_required`, assets `degraded`, writable paths, persisted secret.
 - `.\scripts\import-assets.cmd -Source webapp -Engine podman -VerifyHashes` -> passed with `asset_status=ok`.
 - Podman containerized `TASK-052` smoke -> passed with real model load and expected controlled imagery failure.
-- Podman Docker-engine-stopped attempt -> inconclusive; `docker version` still returned `29.4.1` after `wsl --terminate docker-desktop`, Docker Desktop later reported manually paused, and Docker service was restored after owner unpause.
+- Podman Docker-engine-unavailable validation -> passed; Docker client could not reach `dockerDesktopLinuxEngine`, no `docker-desktop` WSL distro was running, Podman started TowerScout on port `5001`, readiness reported `runtime.container_engine: podman` and assets `ok`, containerized `TASK-052` smoke passed, and Docker remained unavailable afterward.
 - Baseline in-container Google HTTPS probe before CA import -> reproduced `CERTIFICATE_VERIFY_FAILED`.
 - `.\scripts\import-tls-ca.cmd -Engine docker -Thumbprint C69667336E90D872FA44ACE4EB25412E52F406B9` -> passed after chain-export fix, Google TLS returned provider invalid-key JSON.
 - Docker container recreate with `REQUESTS_CA_BUNDLE=/app/webapp/config/certs/towerscout-ca-bundle.pem` and `SSL_CERT_FILE=/app/webapp/config/certs/towerscout-ca-bundle.pem` -> passed.
@@ -974,8 +1025,8 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 - Manual/local asset import into named volumes works and clears asset-degraded readiness. A packaged asset bootstrap/download script is still not implemented.
 - The release control-package helper is validated with both `towerscout:local` and the real GHCR digest-pinned image reference.
 - The successful branch-triggered GHCR run exposed an artifact naming bug (`image-metadata-` on push events); the workflow patch is validated by run `25511697887`, which uploaded `image-metadata-task-025-03c6084`.
-- Podman's Windows WSL engine path works for the TowerScout runtime contract on this host, but `podman compose` delegated to Docker Desktop's bundled `docker-compose.exe`. Podman should be retested with the Docker Desktop engine stopped, and a Docker-Desktop-free Podman support promise still requires independent Compose-provider validation.
-- A first Docker-engine-stopped attempt did not prove independence from Docker Desktop because the Docker daemon remained reachable after WSL termination and Docker Desktop entered a paused state; the Docker validation service is restored.
+- Podman's Windows WSL engine path works for the TowerScout runtime contract on this host, including while Docker Desktop's engine is unavailable.
+- `podman compose` still delegated to Docker Desktop's bundled `docker-compose.exe`; a Docker-Desktop-free Podman support promise still requires independent Compose-provider validation with `podman-compose` or another approved provider.
 - Azure provider configuration saved through the containerized UI persists across restart.
 - Google validation behind this TLS-inspecting network works after importing the CDC/Zscaler CA chain into the container config volume and pointing `REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE` at the combined bundle; owner-confirmed real Google key entry now succeeds in the UI.
 - Local `.env` now preserves the CA bundle path for Docker Compose recreates without storing provider secrets.
@@ -986,5 +1037,5 @@ These decisions are accepted as the starting contract for `TASK-025`. The only a
 **Remaining Validation / Completion Work**:
 - Packaged local/release-folder asset import is implemented and validated. Network download/bootstrap remains optional future work if release assets are hosted externally.
 - For release packages, document that operators must copy `.env.example` to `.env` and set the combined CA bundle path after running `import-tls-ca.cmd` when their network performs TLS inspection.
-- Retry Podman with Docker Desktop fully quit/unavailable, then validate a Docker-Desktop-free Podman Compose provider before promising Podman as the supported open-source runtime.
+- Validate a Docker-Desktop-free Podman Compose provider before promising Podman broadly on hosts without Docker Desktop installed.
 - Track the `docker/setup-buildx-action@v2` Node 20 deprecation warning as future pinned-action maintenance.
