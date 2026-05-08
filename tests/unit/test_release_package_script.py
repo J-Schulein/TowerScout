@@ -1,11 +1,19 @@
 import shutil
 import subprocess
 import uuid
+import os
 from pathlib import Path
+
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_SCRIPT = REPO_ROOT / "scripts" / "package-release.ps1"
+
+pytestmark = pytest.mark.skipif(
+    os.name != "nt",
+    reason="package-release.ps1 is a Windows release helper validated on Windows",
+)
 
 
 def _run_package_release(*args):
