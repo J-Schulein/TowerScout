@@ -1,9 +1,9 @@
 # Current Tasks - Active Sprint
 
-**Sprint Period**: Sprint 06 preparation begins May 8, 2026  
-**Last Updated**: May 8, 2026  
-**Focus**: Finish release-support review and prepare Sprint 06 without prematurely pulling unstarted backlog work into the active sprint  
-**Status**: Sprint 05 closeout complete for finished task artifacts. `TASK-065` remains the only active carry-forward task.
+**Sprint Period**: Sprint 06 planning / V1 RC1 readiness begins May 11, 2026  
+**Last Updated**: May 11, 2026  
+**Focus**: Produce a V1 RC1 / pilot-ready release path by closing release-support carry-forward work, defining the asset bundle contract, writing package-based end-user docs, validating the clean-machine release candidate, and preparing pilot / UAT execution.  
+**Status**: Sprint 06 committed lane selected. `TASK-065` remains the active carry-forward item; `TASK-072`, `TASK-071`, `TASK-066`, and `TASK-073` are selected for Sprint 06 planning and detailed active task documentation.
 
 ---
 
@@ -23,6 +23,14 @@ Sprint 05 delivered the runtime and release-readiness foundation that Sprint 04 
 - `TASK-054`: local launch UX Phase 1 MVP
 
 `TASK-029` was never started during Sprint 05. Its task artifact has been archived as a not-started planning artifact, and the task remains in the backlog table rather than staying in the active sprint.
+
+---
+
+## Sprint 06 Goal
+
+Produce and internally validate a V1 RC1 / pilot-ready local release package path for Windows 11 AMD64 users, including asset delivery, end-user documentation, release policy boundaries, and a clean-machine validation gate.
+
+Sprint 06 is not intended to declare final V1 completion. Final V1 completion should wait until pilot/UAT feedback has been triaged, install/launch/setup/detection blockers have been fixed or explicitly accepted, and remaining work has been sorted into V1 patch items or the V2 roadmap.
 
 ---
 
@@ -62,18 +70,104 @@ Sprint 05 delivered the runtime and release-readiness foundation that Sprint 04 
 
 ---
 
+## Sprint 06 Committed Lane
+
+### **TASK-072: Release Asset Bundle Contract**
+**Status**: NOT_STARTED - selected for Sprint 06  
+**Type**: C (Release Engineering / Asset Governance)  
+**Priority**: CRITICAL  
+**Estimated Effort**: 1-2 days (8-16 hours)  
+**Target Sprint**: Sprint 06 V1 RC1  
+**Task File**: `.agent_work/tasks/active/TASK-072-release-asset-bundle-contract.md`
+
+**Objective**: Define how model weights and ZIP-code data are bundled, versioned, checksummed, distributed, placed next to the release package, imported, verified, and matched to a TowerScout release.
+
+**Dependencies**: `TASK-065`; current `webapp/asset_manifest.v1.json`; release package shape.
+
+**User Value**: Removes the largest current ambiguity in the local release path: what non-git assets users need, where those assets come from, and exactly where they go.
+
+### **TASK-071: End-User Release Package Documentation**
+**Status**: NOT_STARTED - selected for Sprint 06  
+**Type**: B/C (Documentation / User Enablement)  
+**Priority**: CRITICAL  
+**Estimated Effort**: 1-2 days (8-16 hours)  
+**Target Sprint**: Sprint 06 V1 RC1  
+**Task File**: `.agent_work/tasks/active/TASK-071-end-user-release-docs.md`
+
+**Objective**: Produce the package-based quick start and full user guide that tell a non-technical Windows pilot user what to download, where assets go, how to launch, how to configure provider keys, how to validate success, and how to report problems.
+
+**Dependencies**: `TASK-072`; release package shape; current OCI quick-start/runtime docs.
+
+**User Value**: Converts the engineered release package into a self-service pilot path instead of a support-only handoff.
+
+### **TASK-066: Release Candidate Validation Gate**
+**Status**: NOT_STARTED - selected for Sprint 06  
+**Type**: C (Release Engineering / Validation)  
+**Priority**: CRITICAL  
+**Estimated Effort**: 1-2 days (8-16 hours)  
+**Target Sprint**: Sprint 06 V1 RC1  
+**Task File**: `.agent_work/tasks/active/TASK-066-release-candidate-validation-gate.md`
+
+**Objective**: Internally prove the release package, asset bundle, docs, setup flow, restart persistence, and bounded detection path from a clean user-facing environment before external pilot/UAT begins.
+
+**Dependencies**: `TASK-065`; `TASK-071`; `TASK-072`; agreed release package shape.
+
+**User Value**: Prevents end-user testing from being dominated by known package/docs/asset gaps and produces evidence that the V1 RC1 path is actually usable.
+
+### **TASK-073: Clean-Machine Pilot / UAT Execution Plan**
+**Status**: NOT_STARTED - selected for Sprint 06  
+**Type**: B/C (User Testing / Release Validation)  
+**Priority**: HIGH  
+**Estimated Effort**: 0.5-1 day (4-8 hours)  
+**Target Sprint**: Sprint 06 V1 RC1  
+**Task File**: `.agent_work/tasks/active/TASK-073-clean-machine-uat-plan.md`
+
+**Objective**: Define the controlled pilot/UAT workflow, tester instructions, acceptance checklist, environment capture, issue-report workflow, success criteria, and support escalation path.
+
+**Dependencies**: `TASK-066`; draft user package docs.
+
+**User Value**: Ensures external testing starts from a repeatable, evidence-producing workflow instead of ad hoc feedback collection.
+
+---
+
+## Policy Lane Candidates
+
+These tasks are important for V1 RC1, but they are not yet active task files in this planning update. Pull them into `current-tasks.md` and create active task docs if owner/legal availability or release risk requires formal Sprint 06 commitment.
+
+| Task | Recommended Handling | Reason |
+|---|---|---|
+| `TASK-069` License And Release Policy Review | Candidate for parallel Sprint 06 work | Distribution permission, runtime-tooling posture, and asset redistribution can block release late if deferred. |
+| `TASK-076` Provider API Key Exposure And Restriction Policy | Candidate for parallel Sprint 06 work | Browser map SDK keys remain client-visible; v1 needs an approved restriction/support policy or an engineering blocker. |
+| `TASK-075` GPU / CUDA Support Decision | Candidate for early Sprint 06 decision | V1 should explicitly be CPU-only or document a validated CUDA support path. This should stay a decision task unless implementation is intentionally selected. |
+
+---
+
+## Backlog Candidates To Watch
+
+Do not forget these follow-through tasks. They are intentionally kept in `.agent_work/task-backlog.md` rather than pulled into the active sprint now, but `TASK-066` findings may justify selecting one or more before external UAT.
+
+| Task | Pull Into Sprint 06 If | Notes |
+|---|---|---|
+| `TASK-074` Runtime Prerequisite Preflight | Clean-machine validation shows users/support still have to manually reason through Podman/Docker/Compose/ports/assets/TLS. | Conditional but likely. This is the first candidate to pull in if launch friction remains high. |
+| `TASK-067` CI Release Gate Tightening | Release-candidate checks become repetitive, fragile, or too easy to skip manually. | Keep scope narrow: package assembly, image digest, manifest/checksum consistency, and launcher smoke behavior. |
+| `TASK-068` Windows Test Portability And Script Validation | Script validation remains environment-sensitive or PowerShell/Windows coverage is needed before external UAT. | Useful release-support follow-through, especially around Windows-first helper scripts. |
+
+---
+
 ## Sprint 06 Planning Guardrails
 
-- Do not move unstarted backlog tasks into `current-tasks.md` until Sprint 06 planning explicitly selects them.
-- Use `.agent_work/task-backlog.md` as the ordered remaining-work table.
-- Treat the first Sprint 06 planning decision as a release-readiness decision: close or explicitly carry `TASK-065`, then choose whether `TASK-066`, `TASK-069`, and `TASK-067` are sprint commitments.
+- Treat Sprint 06 as a V1 RC1 / pilot-ready release-readiness sprint, not final V1 completion.
+- Do not start broad end-user testing until `TASK-072`, `TASK-071`, and `TASK-066` have produced a validated package/docs/assets path.
+- Do not start V2 work until pilot/UAT blockers are fixed or explicitly accepted.
 - Keep architecture follow-on work (`TASK-058`, `TASK-059`) behind release-candidate readiness unless the team intentionally pauses release work.
+- Keep parked tail work (`TASK-028`, `TASK-061`, Advanced Filtering, Performance Dashboard, User Preferences) out of Sprint 06 unless new evidence makes one of them release-critical.
 
 ---
 
 ## Related Documentation
 
-- [Sprint 05 Retrospective Analysis](./context/analysis/SPRINT-05-RETROSPECTIVE-ANALYSIS-2026-05-08.md)
+- [Sprint 06 Plan](./context/status/SPRINT-06-PLAN.md)
 - [Task Backlog](./task-backlog.md)
+- [Sprint 05 Retrospective Analysis](./context/analysis/SPRINT-05-RETROSPECTIVE-ANALYSIS-2026-05-08.md)
 - [Completed Tasks](./completed-tasks.md)
 - [Archived Sprint 05 Plan](./context/archive/2026-05/status/SPRINT-05-PLAN.md)
