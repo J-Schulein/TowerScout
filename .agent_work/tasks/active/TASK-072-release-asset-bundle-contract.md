@@ -64,6 +64,15 @@ This task must settle the asset bundle before end-user package documentation and
 
 ## Implementation Log
 
+### 2026-05-11 - Initial Asset And Import Inventory
+**Objective**: Inventory the current manifest, package guidance, and import verification behavior before drafting the V1 RC1 asset bundle contract.
+**Context**: `TASK-072` depends on the existing container release package shape from `TASK-065`, the manifest-backed runtime readiness checks, and the current `scripts/import-assets.*` helpers.
+**Decision**: Treat `webapp/asset_manifest.v1.json` as the authoritative runtime asset list for the first contract draft, then use the docs/import helpers to define user-facing bundle placement and verification modes.
+**Execution**: Reviewed `webapp/asset_manifest.v1.json`, `scripts/import-assets.cmd`, `scripts/import-assets.ps1`, `scripts/package-release.ps1`, `webapp/ts_assets.py`, `docs/oci-quick-start.md`, and `docs/oci-runtime-contract.md`.
+**Output**: Current manifest `towerscout-v1-assets-2026-05-05` defines 9 assets: 2 required model assets totaling 293,651,732 bytes and 7 ZIP-code data assets totaling 825,737,459 bytes. ZIP-code data includes 5 required shapefile components (`.cpg`, `.dbf`, `.prj`, `.shp`, `.shx`) and 2 optional metadata XML files. The package script stages an empty `assets/README.txt`; the importer requires a source root containing `model_params/` and `data/`, copies those directories into the selected engine's named volumes, and verifies manifest status inside the container. Normal import verifies presence and byte size; `-VerifyHashes` enables SHA-256 checks for release-candidate/support validation.
+**Validation**: `.agent_work/scripts/validate_agent_work.py` passed before this inventory log. Follow-up validation required after this log entry.
+**Next**: Draft the durable V1 RC1 asset bundle contract, including bundle naming/versioning, release matching rules, provenance notes, and verification expectations.
+
 ### 2026-05-11 - Task Intake Started
 **Objective**: Start `TASK-072` after `TASK-065` owner acceptance.
 **Context**: `TASK-065` is complete, so the next Sprint 06 dependency is the release asset bundle contract. `TASK-071` end-user docs and `TASK-066` release-candidate validation both depend on this task defining the model/data bundle shape, checksums, provenance notes, and import verification expectations.
