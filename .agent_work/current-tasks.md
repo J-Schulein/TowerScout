@@ -3,7 +3,7 @@
 **Sprint Period**: Sprint 06 planning / V1 RC1 readiness begins May 11, 2026  
 **Last Updated**: May 11, 2026  
 **Focus**: Produce a V1 RC1 / pilot-ready release path by closing release-support carry-forward work, defining the asset bundle contract, writing package-based end-user docs, validating the clean-machine release candidate, and preparing pilot / UAT execution.  
-**Status**: Sprint 06 committed lane selected. `TASK-065` is completed and remains in the active task folder until sprint closeout; `TASK-072`, `TASK-071`, `TASK-066`, and `TASK-073` are selected for Sprint 06 planning and detailed active task documentation.
+**Status**: Sprint 06 committed lane selected. `TASK-065` is completed and remains in the active task folder until sprint closeout; `TASK-072` is in progress as the current dependency for package docs and release-candidate validation; `TASK-071`, `TASK-066`, and `TASK-073` remain selected for Sprint 06.
 
 ---
 
@@ -73,7 +73,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 ## Sprint 06 Committed Lane
 
 ### **TASK-072: Release Asset Bundle Contract**
-**Status**: NOT_STARTED - selected for Sprint 06  
+**Status**: IN_PROGRESS - intake started after `TASK-065` owner acceptance  
 **Type**: C (Release Engineering / Asset Governance)  
 **Priority**: CRITICAL  
 **Estimated Effort**: 1-2 days (8-16 hours)  

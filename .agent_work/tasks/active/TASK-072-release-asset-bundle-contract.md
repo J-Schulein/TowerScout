@@ -1,6 +1,6 @@
 # TASK-072: Release Asset Bundle Contract
 
-**Status**: NOT_STARTED  
+**Status**: IN_PROGRESS  
 **Priority**: CRITICAL  
 **Type**: C (Release Engineering / Asset Governance)  
 **Estimated Effort**: 1-2 days (8-16 hours)  
@@ -64,6 +64,15 @@ This task must settle the asset bundle before end-user package documentation and
 
 ## Implementation Log
 
+### 2026-05-11 - Task Intake Started
+**Objective**: Start `TASK-072` after `TASK-065` owner acceptance.
+**Context**: `TASK-065` is complete, so the next Sprint 06 dependency is the release asset bundle contract. `TASK-071` end-user docs and `TASK-066` release-candidate validation both depend on this task defining the model/data bundle shape, checksums, provenance notes, and import verification expectations.
+**Decision**: Begin with an inventory of `webapp/asset_manifest.v1.json`, existing OCI asset guidance, and `scripts/import-assets.*` behavior before writing or changing the durable asset contract.
+**Execution**: Updated `TASK-072` status to `IN_PROGRESS` in this task file and `.agent_work/current-tasks.md`.
+**Output**: `TASK-072` is formally started and ready for analysis/inventory work.
+**Validation**: Documentation validation to be run after the intake update.
+**Next**: Inventory the manifest, current package docs, and import helper behavior.
+
 ### 2026-05-11 - Task Created
 **Objective**: Create detailed Sprint 06 task documentation for the release asset bundle contract.  
 **Context**: Sprint 06 planning identified the asset bundle contract as the first committed-lane task because package docs and meaningful user testing depend on knowing exactly what external files users receive and where they go.  
@@ -80,7 +89,7 @@ This task must settle the asset bundle before end-user package documentation and
 ### Test Summary
 **Test Date**: Pending  
 **Test Environment**: Pending  
-**Test Status**: NOT_STARTED
+**Test Status**: IN_PROGRESS
 
 ### Acceptance Criteria Validation
 - [ ] Asset layout documented - PENDING
