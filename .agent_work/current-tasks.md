@@ -3,7 +3,7 @@
 **Sprint Period**: Sprint 06 planning / V1 RC1 readiness begins May 11, 2026  
 **Last Updated**: May 11, 2026  
 **Focus**: Produce a V1 RC1 / pilot-ready release path by closing release-support carry-forward work, defining the asset bundle contract, writing package-based end-user docs, validating the clean-machine release candidate, and preparing pilot / UAT execution.  
-**Status**: Sprint 06 committed lane selected. `TASK-065` remains the active carry-forward item; `TASK-072`, `TASK-071`, `TASK-066`, and `TASK-073` are selected for Sprint 06 planning and detailed active task documentation.
+**Status**: Sprint 06 committed lane selected. `TASK-065` is completed and remains in the active task folder until sprint closeout; `TASK-072`, `TASK-071`, `TASK-066`, and `TASK-073` are selected for Sprint 06 planning and detailed active task documentation.
 
 ---
 
@@ -37,7 +37,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 ## Active Carry-Forward
 
 ### **TASK-065: Release Packaging And Runtime Support Follow-Through**
-**Status**: IN_PROGRESS - implementation-complete pending release-owner support-language review and commit/PR checkpoint  
+**Status**: COMPLETED - release-owner support-language review accepted on May 11, 2026  
 **Type**: B/C (Release Engineering / Runtime Supportability)  
 **Priority**: HIGH  
 **Estimated Effort**: 1-2 days (8-16 hours)  
@@ -55,9 +55,9 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 - Release package assembly validation passed into ignored `dist/towerscout-task065-validation`.
 - Reviewer hardening addressed evidence redaction, immutable digest enforcement, provider-aware TLS CA verification, Compose-provider reporting, and focused tests.
 
-**Remaining Before Close**:
-- Release owner reviews the final support language and residual caveats.
-- Commit/PR checkpoint records the release-support updates.
+**Closeout Status**:
+- Release owner accepted the final support language and residual caveats on May 11, 2026.
+- Commit checkpoint `2280b68 chore(task-065): complete release support validation` records the release-support updates.
 - Follow-up tasks remain in the backlog for clean-machine release-candidate validation, CI gate tightening, Windows/Podman automation, license policy review, and restricted-network package enhancements.
 
 **Validation Notes**:
