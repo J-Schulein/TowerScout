@@ -1,0 +1,18 @@
+TowerScout Corresponding Source Notice
+
+Release track: agpl-yolo
+
+Each generated TowerScout YOLO-enabled release package must record the exact
+source ref in its generated SOURCE.txt and release-manifest.v1.json. The
+matching corresponding source must include:
+
+- TowerScout source code for the release ref.
+- Vendored Ultralytics YOLOv5 source under webapp/vendor/yolov5_local/.
+- TowerScout local YOLO patches and loader code.
+- Dockerfile, Compose files, launcher scripts, packaging scripts, requirements,
+  and asset import helpers.
+- Build, package, asset import, and run instructions.
+
+If this file is viewed inside a container image, use the image's release
+manifest and the published release package to identify the exact source ref and
+artifact checksums.

@@ -44,6 +44,7 @@ RUN python -m pip install --upgrade pip \
 
 COPY webapp webapp
 COPY --from=frontend /src/webapp/js/towerscout.js webapp/js/towerscout.js
+COPY LICENSE NOTICE THIRD_PARTY_NOTICES.md MODEL_LICENSES.md DATA_LICENSES.md PROVIDER_TERMS.md SOURCE.txt SBOM.txt release-manifest.v1.json ./
 
 WORKDIR /app/webapp
 

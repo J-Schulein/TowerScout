@@ -2,6 +2,7 @@ import shutil
 import subprocess
 import uuid
 import os
+import json
 from pathlib import Path
 
 import pytest
@@ -73,8 +74,32 @@ def test_package_release_stages_digest_pinned_image():
         stage_path = output_path / f"towerscout-{package_id}"
         env_example = (stage_path / ".env.example").read_text(encoding="utf-8")
         image_txt = (stage_path / "IMAGE.txt").read_text(encoding="utf-8")
+        asset_readme = (stage_path / "assets" / "README.txt").read_text(encoding="utf-8")
+        release_manifest = json.loads(
+            (stage_path / "release-manifest.v1.json").read_text(encoding="utf-8")
+        )
         assert f"TOWERSCOUT_IMAGE=ghcr.io/j-schulein/towerscout@{digest}" in env_example
         assert f"TOWERSCOUT_IMAGE_DIGEST={digest}" in env_example
         assert f"Image: ghcr.io/j-schulein/towerscout@{digest}" in image_txt
+        assert release_manifest["track"] == "agpl-yolo"
+        assert release_manifest["image_digest"] == digest
+        assert "scripts\\import-assets.cmd -Source assets\n" in asset_readme
+        assert (
+            "scripts\\import-assets.cmd -Source assets -VerifyHashes" in asset_readme
+        )
+        assert "YOLO-derived/AGPL-governed" in asset_readme
+        for relative_path in [
+            "LICENSE",
+            "NOTICE",
+            "THIRD_PARTY_NOTICES.md",
+            "MODEL_LICENSES.md",
+            "DATA_LICENSES.md",
+            "PROVIDER_TERMS.md",
+            "SOURCE.txt",
+            "SBOM.txt",
+            "release-manifest.v1.json",
+        ]:
+            assert (stage_path / relative_path).is_file()
+        assert (stage_path / "docs" / "release-asset-bundle-contract.md").is_file()
     finally:
         shutil.rmtree(output_path, ignore_errors=True)
