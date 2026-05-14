@@ -61,5 +61,6 @@ The first PR #11 review agreed with the `agpl-yolo` direction but requested cons
 - Expanded `/license` to include `SOURCE.txt`, `SBOM.txt`, `release-manifest.v1.json`, and the vendored YOLOv5 AGPL license text.
 - Hardened `scripts/package-release.ps1` so normal release packaging requires a git source ref and clean working tree, with explicit local-validation overrides.
 - Aligned the checked-in and generated `release-manifest.v1.json` structure and added schema/static tests for compliance payload drift.
+- Updated `.github/workflows/container-publish.yml` so published images populate release-version and source-ref OCI labels from the workflow tag and `GITHUB_SHA`.
 
 Validation for this follow-up should include the targeted unit tests, PowerShell package-script parser check, `.agent_work` validation, and `git diff --check`.
