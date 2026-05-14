@@ -46,6 +46,22 @@ For Sprint 06, this means the team should be able to hand a pilot user:
 
 ---
 
+## Task-069 Sign-Off Boundary
+
+Task-069 approves the release-policy framing and compliance payload for a controlled-distribution, AGPL-governed YOLO-enabled Sprint 06 RC package for pilot validation, pending documented owner/legal/reviewer acceptance. This approval is scoped to the near-term RC path and is not final public open-source release approval.
+
+The RC package is not Apache-2.0-only because the current TowerScout detection path includes or depends on Ultralytics/YOLOv5 components and YOLO-derived detector weights.
+
+The release control package must carry AGPL-aware license text, third-party notices, model/data terms, provider terms, source-location/source-offer information, release manifest metadata, checksums, image/source identification, SBOM-reference information, and revocation notes. The container image must carry generic compliance notices and OCI labels sufficient to match it to the release control package by pinned digest.
+
+ONNX or other non-Ultralytics runtime migration is not a pre-RC blocker under this sign-off. Final public open-source sign-off remains a later gate tied to rights evidence, clean public release-line decisions, repo cleanup, model/data/provider approvals, full release governance, and a final decision on whether the public release remains AGPL-governed with the YOLO path included or moves to a permissive Apache-compatible posture through runtime replacement or separately approved licensing.
+
+The longer-term public release plan should use a clean curated public release line rather than publishing the current working repository history as-is. The current repository should remain the development/workshop repo, while the public line should include only approved source code, public-safe documentation, tests, release scripts, license/notice files, and intentionally selected decision records. Internal planning material, broad `.agent_work/` history, model weights, raw data assets, scratch artifacts, and ambiguous third-party or historical content should be excluded unless explicitly reviewed and approved.
+
+The full Task-069 sign-off plan is recorded in `.agent_work/tasks/active/TASK-069/TASK-069-SIGN-OFF-PLAN-2026-05-14.md`.
+
+---
+
 ## Sprint Goal
 
 **Sprint 06 Goal**: Produce and internally validate a V1 RC1 / pilot-ready local release package path for Windows 11 AMD64 users, including AGPL-compliant YOLO notices, asset delivery, end-user documentation, release policy boundaries, and a clean-machine validation gate.

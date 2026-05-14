@@ -4,6 +4,7 @@
 **Date**: 2026-05-13
 **Release Track**: `agpl-yolo`
 **Purpose**: Reviewer feedback package and Sprint 06 implementation alignment, not final legal approval.
+**Sign-Off Plan**: `TASK-069-SIGN-OFF-PLAN-2026-05-14.md`
 
 ## Decision Update
 
@@ -51,6 +52,14 @@ TowerScout-authored code may be Apache-2.0 where ownership and relicensing autho
 ## Fallback
 
 If reviewers reject AGPL as the public release posture, revert to the prior plan: restricted pilot now, and ONNX or another non-Ultralytics runtime replacement before any public Apache-compatible release claim.
+
+## Sign-Off Alignment - 2026-05-14
+
+Task-069 sign-off is scoped to a controlled-distribution AGPL-governed YOLO-enabled Sprint 06 RC package for pilot validation, pending documented owner/legal/reviewer acceptance. It is not final public open-source release approval.
+
+The release control ZIP is authoritative for release-specific source ref, image digest, checksums, release manifest, SBOM reference, and revocation notes. The container image carries generic compliance notices and OCI labels sufficient to match it to the control package by pinned digest.
+
+The public release path should use a clean curated public release line rather than publishing the current development repository history as-is. The development/workshop repo can continue to carry internal planning material and historical context; the public line should include only reviewed source, public-safe documentation, tests, release scripts, license/notice files, and intentionally selected decision records.
 
 ## PR #11 Review Follow-Up - 2026-05-14
 
