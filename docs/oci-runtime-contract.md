@@ -108,9 +108,13 @@ The GitHub Release control package is assembled by `scripts/package-release.cmd`
 
 Normal release packages must set `TOWERSCOUT_IMAGE` to an immutable registry digest reference such as `ghcr.io/j-schulein/towerscout@sha256:<digest>`. The package script requires `-ImageDigest` by default; packages without an image digest can be generated only by passing `-AllowMutableImage` and are for local validation or developer/support use only.
 
+Normal release packages must also record a git source ref and be generated from
+a clean working tree. `-AllowMissingSourceRef` and `-AllowDirtySource` are
+local-validation overrides only and must not be used for release artifacts.
+
 Current repository package target: `ghcr.io/j-schulein/towerscout`.
 
-The YOLO-enabled release track is `agpl-yolo`. TowerScout-authored code may be Apache-2.0 where ownership and relicensing authority are confirmed, but the package/image is not Apache-2.0-only because it includes Ultralytics YOLOv5 AGPL-3.0 runtime source and YOLO-derived detector weights. The running browser app exposes the packaged source/license notice at `/license`.
+The YOLO-enabled release track is `agpl-yolo`. TowerScout-authored code may be Apache-2.0 where ownership and relicensing authority are confirmed, but the package/image is not Apache-2.0-only because it includes Ultralytics YOLOv5 AGPL-3.0 runtime source and YOLO-derived detector weights. The running browser app exposes the packaged source/license notice at `/license`. The release control ZIP is authoritative for release-specific source, checksum, SBOM-reference, and manifest metadata; the image carries generic notices and OCI labels.
 
 Image publication is handled by the manual GitHub Actions workflow `.github/workflows/container-publish.yml`. The workflow requires `packages: write`, pushes a Linux/AMD64 image, uploads `image-metadata.json`, and reports the digest reference in the workflow summary.
 

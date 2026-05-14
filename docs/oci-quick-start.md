@@ -56,6 +56,11 @@ http://localhost:5000/license
 
 Release packages include `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `MODEL_LICENSES.md`, `DATA_LICENSES.md`, `PROVIDER_TERMS.md`, `SOURCE.txt`, `SBOM.txt`, and `release-manifest.v1.json`. Do not remove these files from a release package or image.
 
+The release control ZIP is authoritative for release-specific metadata such as
+source ref, image digest, checksums, SBOM reference, and release manifest. The
+container image carries generic notices and OCI labels; it should be matched to
+the control ZIP by the pinned image digest in `IMAGE.txt`.
+
 ## Creating A Release Package
 
 Release maintainers can assemble the control package from a source checkout:
@@ -66,7 +71,7 @@ Release maintainers can assemble the control package from a source checkout:
 
 This creates `dist\towerscout-v0.1.0\`, `dist\towerscout-v0.1.0.zip`, and `dist\towerscout-v0.1.0.zip.sha256`. The package includes `IMAGE.txt` for the release image reference and `SHA256SUMS.txt` for the files inside the package.
 
-Release package generation requires `-ImageDigest` with an immutable `sha256:<digest>` reference. For developer-only local validation with a mutable image tag, pass `-AllowMutableImage` explicitly.
+Release package generation requires `-ImageDigest` with an immutable `sha256:<digest>` reference, a git source ref, and a clean working tree. For developer-only local validation with a mutable image tag, pass `-AllowMutableImage` explicitly. For local validation packages only, `-AllowMissingSourceRef` and `-AllowDirtySource` can bypass source-ref and clean-tree enforcement.
 
 ## Publishing The GHCR Image
 

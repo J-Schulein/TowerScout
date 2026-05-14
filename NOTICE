@@ -27,10 +27,13 @@ Corresponding source for each release must include:
 - Python and frontend dependency manifests.
 - Build, package, asset import, and run instructions.
 
-The release control ZIP includes SOURCE.txt with the release source ref and
-source-location instructions. The package also includes release-manifest.v1.json,
-IMAGE.txt, SHA256SUMS.txt, SBOM.txt, MODEL_LICENSES.md, DATA_LICENSES.md,
-PROVIDER_TERMS.md, and THIRD_PARTY_NOTICES.md.
+The release control ZIP is authoritative for release-specific source, image,
+checksum, SBOM-reference, and manifest metadata. It includes SOURCE.txt with
+the release source ref and source-location instructions. The package also
+includes release-manifest.v1.json, IMAGE.txt, SHA256SUMS.txt, SBOM.txt,
+MODEL_LICENSES.md, DATA_LICENSES.md, PROVIDER_TERMS.md, and
+THIRD_PARTY_NOTICES.md. The container image carries generic compliance notices
+and OCI labels for image/source identification.
 
 The source and license notices are also exposed from the local web application
 at /license when the app is running.

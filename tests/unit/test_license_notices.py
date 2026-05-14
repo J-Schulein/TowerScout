@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 
@@ -27,6 +28,21 @@ def test_release_compliance_payload_files_exist():
 
     for relative_path in required_files:
         assert (REPO_ROOT / relative_path).is_file()
+
+
+def test_legacy_root_license_txt_is_quarantined():
+    assert not (REPO_ROOT / "LICENSE.TXT").exists()
+    assert (REPO_ROOT / "docs" / "legacy" / "LEGACY-LICENSE-NOTICE.md").is_file()
+
+
+def test_package_metadata_points_to_composite_license_file():
+    package_json = json.loads((REPO_ROOT / "package.json").read_text(encoding="utf-8"))
+    package_lock = json.loads(
+        (REPO_ROOT / "package-lock.json").read_text(encoding="utf-8")
+    )
+
+    assert package_json["license"] == "SEE LICENSE IN LICENSE"
+    assert package_lock["packages"][""]["license"] == "SEE LICENSE IN LICENSE"
 
 
 def test_license_notice_route_is_visible_in_app_shell():

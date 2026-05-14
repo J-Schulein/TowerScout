@@ -106,7 +106,7 @@ Sprint 06 should not attempt to deliver:
 | Order | Task | Purpose | Expected Deliverable |
 |---:|---|---|---|
 | 0 | `TASK-065` Release Packaging And Runtime Support Follow-Through | Close the active carry-forward release-support item. | Owner-reviewed support language and commit/PR checkpoint. |
-| 1 | `TASK-069` License And Release Policy Review | Implement the AGPL-compliant YOLO-enabled release posture. | Decision memo, corrected notices, model/data/provider terms, source offer, package/image compliance payload, release manifest, SBOM reference, and revocation notes. |
+| 1 | `TASK-069` License And Release Policy Review | Implement the AGPL-compliant YOLO-enabled release posture. | Decision memo, corrected notices, model/data/provider terms, source offer, release control ZIP compliance payload, image generic notices/OCI labels, release manifest, SBOM reference, and revocation notes. |
 | 2 | `TASK-072` Release Asset Bundle Contract | Define how out-of-repo model/data assets are distributed and imported under the `agpl-yolo` track. | Asset bundle layout, naming/version rules, checksum policy, release matching rules, import instructions, and YOLO-derived/AGPL-governed model labeling. |
 | 3 | `TASK-071` End-User Release Package Documentation | Write docs for the actual AGPL-compliant package path. | User quick start, full package guide, source/license location, troubleshooting, first-run screenshots/checklist, issue-reporting handoff. |
 | 4 | `TASK-066` Release Candidate Validation Gate | Internally prove the package/docs/assets/source-notice path before external testing. | Clean-machine validation checklist, results, defects, and release-candidate pass/fail recommendation. |
@@ -156,7 +156,7 @@ Acceptance expectations:
 
 - The release track is recorded as `agpl-yolo`.
 - Incorrect `YOLO | MIT` attribution is replaced with `Ultralytics YOLOv5 | AGPL-3.0`.
-- The package includes `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `MODEL_LICENSES.md`, `DATA_LICENSES.md`, `PROVIDER_TERMS.md`, `SOURCE.txt`, `SBOM.txt`, `release-manifest.v1.json`, `IMAGE.txt`, and `SHA256SUMS.txt`.
+- The release control ZIP includes `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `MODEL_LICENSES.md`, `DATA_LICENSES.md`, `PROVIDER_TERMS.md`, `SOURCE.txt`, `SBOM.txt`, `release-manifest.v1.json`, `IMAGE.txt`, and `SHA256SUMS.txt`; the image carries generic notices and OCI labels.
 - The package and running browser app expose the source/license location.
 - Matching corresponding source requirements are documented for the exact release package/image.
 - Asset bundle layout is defined, including:

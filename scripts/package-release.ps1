@@ -9,6 +9,10 @@ param(
 
     [switch] $AllowMutableImage,
 
+    [switch] $AllowMissingSourceRef,
+
+    [switch] $AllowDirtySource,
+
     [switch] $NoZip,
 
     [switch] $Force
@@ -49,6 +53,51 @@ if (($Image -match "@($digestPattern)$") -and -not [string]::IsNullOrWhiteSpace(
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+
+$sourceRef = ""
+try {
+    $gitOutput = & git -C $repoRoot rev-parse HEAD 2>$null
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($gitOutput)) {
+        $sourceRef = ($gitOutput | Select-Object -First 1).Trim()
+    }
+}
+catch {
+    $sourceRef = ""
+}
+
+if ([string]::IsNullOrWhiteSpace($sourceRef)) {
+    if (-not $AllowMissingSourceRef) {
+        throw "Release packaging requires a git source ref. Use -AllowMissingSourceRef only for local validation packages."
+    }
+    Write-Warning "Creating a local-validation package without a source ref. Do not use this package as a release artifact."
+}
+
+$gitStatusChecked = $false
+$dirtyEntries = @()
+try {
+    $gitStatusOutput = & git -C $repoRoot status --porcelain 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $gitStatusChecked = $true
+        $dirtyEntries = @($gitStatusOutput | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    }
+}
+catch {
+    $gitStatusChecked = $false
+}
+
+if (-not $gitStatusChecked) {
+    if (-not $AllowDirtySource) {
+        throw "Release packaging requires git working-tree status. Use -AllowDirtySource only for local validation packages."
+    }
+    Write-Warning "Creating a local-validation package without git dirty-tree verification."
+}
+elseif ($dirtyEntries.Count -gt 0) {
+    if (-not $AllowDirtySource) {
+        throw "Release packaging requires a clean git working tree. Commit or stash changes, or use -AllowDirtySource only for local validation packages."
+    }
+    Write-Warning "Creating a local-validation package from a dirty working tree. Do not use this package as a release artifact."
+}
+
 $outputPath = Join-Path $repoRoot $OutputDir
 if (-not (Test-Path -LiteralPath $outputPath -PathType Container)) {
     New-Item -ItemType Directory -Path $outputPath | Out-Null
@@ -212,17 +261,6 @@ $envLines = $envLines | ForEach-Object {
 }
 $envLines | Set-Content -LiteralPath $envSource -Encoding ASCII
 
-$sourceRef = ""
-try {
-    $gitOutput = & git -C $repoRoot rev-parse HEAD 2>$null
-    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($gitOutput)) {
-        $sourceRef = ($gitOutput | Select-Object -First 1).Trim()
-    }
-}
-catch {
-    $sourceRef = ""
-}
-
 @"
 TowerScout corresponding source notice
 
@@ -241,8 +279,8 @@ source available for the exact release ref. The source must include:
   and asset import helpers.
 - Build, package, asset import, and run instructions.
 
-If the source ref is blank, record the release commit/ref manually before
-publishing this package.
+If the source ref is blank, this package was generated with
+-AllowMissingSourceRef and is suitable for local validation only.
 "@ | Set-Content -LiteralPath (Join-Path $stagePath "SOURCE.txt") -Encoding ASCII
 
 @"
@@ -282,9 +320,17 @@ $manifest = [ordered]@{
         "IMAGE.txt",
         "SHA256SUMS.txt"
     )
+    release_artifacts = [ordered]@{
+        control_zip = if ($NoZip) { "" } else { "$packageName.zip" }
+        control_zip_sha256 = ""
+        image = $effectiveImage
+        image_digest = $ImageDigest
+        asset_manifest = "webapp/asset_manifest.v1.json"
+        asset_bundle_sha256 = ""
+    }
     corresponding_source = [ordered]@{
         source_ref = $sourceRef
-        notice = "See SOURCE.txt."
+        source_offer = "See SOURCE.txt."
         required_paths = @(
             "webapp/vendor/yolov5_local/",
             "webapp/ts_yolov5_local.py",
@@ -303,6 +349,10 @@ $manifest = [ordered]@{
             vendored_path = "webapp/vendor/yolov5_local"
             validated_upstream_commit = "1d62daa3c6b8ec15fdb319c0a2e341d8b56ec86c"
         }
+    }
+    sbom = [ordered]@{
+        reference = "SBOM.txt"
+        status = "Release SBOM must be generated or attached for each release candidate."
     }
     revocation = [ordered]@{
         notes = "Revoke and replace the release if the ZIP, image digest, model/data assets, source ref, SBOM, or notices are defective."

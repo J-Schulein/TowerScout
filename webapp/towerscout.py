@@ -81,6 +81,9 @@ COMPLIANCE_NOTICE_FILES = (
     "MODEL_LICENSES.md",
     "DATA_LICENSES.md",
     "PROVIDER_TERMS.md",
+    "SOURCE.txt",
+    "SBOM.txt",
+    "release-manifest.v1.json",
 )
 
 logger.info("TowerScout environment bootstrap starting")
@@ -1441,10 +1444,16 @@ def release_license_notice():
 
     yolo_license_path = script_dir / "vendor" / "yolov5_local" / "LICENSE"
     if yolo_license_path.is_file():
+        try:
+            yolo_license_text = yolo_license_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            yolo_license_text = yolo_license_path.read_text(
+                encoding="utf-8",
+                errors="replace",
+            )
         sections.append(
             "===== webapp/vendor/yolov5_local/LICENSE =====\n"
-            "Ultralytics YOLOv5 AGPL-3.0 license text is included at this "
-            "path in the corresponding source."
+            f"{yolo_license_text.strip()}"
         )
 
     if not sections:

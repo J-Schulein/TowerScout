@@ -84,4 +84,4 @@ This is a proof of concept and is not intended for commercial use. Users should 
 
 The YOLO-enabled release is a composite-license package. TowerScout-authored code may be Apache-2.0 where ownership and relicensing authority are confirmed, but the current YOLO-enabled package/image is distributed with AGPL-3.0 obligations because it includes Ultralytics YOLOv5 runtime source and YOLO-derived detector weights.
 
-See `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `MODEL_LICENSES.md`, `DATA_LICENSES.md`, and `PROVIDER_TERMS.md`. The running local app also exposes the source/license notice at `/license`.
+See `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `MODEL_LICENSES.md`, `DATA_LICENSES.md`, and `PROVIDER_TERMS.md`. The generated release control ZIP is authoritative for release-specific source, checksum, image digest, SBOM-reference, and manifest metadata. The running local app also exposes the source/license notice at `/license`.
