@@ -1,13 +1,13 @@
 # TASK-069 Sign-Off Plan
 
 **Date**: 2026-05-14
-**Status**: SIGN_OFF_PENDING
+**Status**: SIGN_OFF_RECORDED
 **Release Track**: `agpl-yolo`
 **Scope**: Controlled-distribution Sprint 06 RC/pilot release posture, not final public open-source approval.
 
 ## Recommended Sign-Off Phrasing
 
-Task-069 approves the release-policy framing and compliance payload for a controlled-distribution, AGPL-governed YOLO-enabled Sprint 06 RC package for pilot validation, pending documented owner/legal/reviewer acceptance. This approval is scoped to the near-term RC path and is not final public open-source release approval.
+Task-069 sign-off is sufficient to merge PR #11 as the Sprint 06 controlled-distribution, AGPL-governed YOLO-enabled RC planning and compliance baseline. This approval is scoped to the near-term RC path and is not final public open-source release approval.
 
 The RC package is not Apache-2.0-only because the current TowerScout detection path includes or depends on Ultralytics/YOLOv5 components and YOLO-derived detector weights.
 
@@ -15,7 +15,7 @@ Therefore, the release control package must carry AGPL-aware license text, third
 
 ONNX or other non-Ultralytics runtime migration is not a pre-RC blocker under this sign-off.
 
-Final public open-source sign-off remains a later gate tied to rights evidence, clean public release-line decisions, repo cleanup, model/data/provider approvals, full release governance, and a final decision on whether the public release remains AGPL-governed with the YOLO path included or moves to a permissive Apache-compatible posture through runtime replacement or separately approved licensing.
+Formal owner/legal/reviewer approval remains a later gate for broader distribution, model/data/provider publication, the clean curated public release line, and the final decision on whether the public release remains AGPL-governed with the YOLO path included or moves to a permissive Apache-compatible posture through runtime replacement or separately approved licensing.
 
 ## Public Release Line Plan
 
@@ -37,19 +37,20 @@ This sign-off plan authorizes the Sprint 06 team to keep moving toward a control
 - publication of the current development repository history as-is
 - waiver of provider/API key terms or user-side provider obligations
 
-## Required Before Merge Or Ready-For-Review
+## PR #11 Merge Boundary
 
-- PR #11 must continue to state that owner/legal/reviewer acceptance is pending unless that acceptance is documented.
+- PR #11 may be merged as the internal Sprint 06 RC planning and compliance baseline after normal technical review and repository checks.
+- Merging PR #11 does not approve final public open-source publication, broader distribution, model/data/provider publication, or Apache-2.0-only release claims.
 - The release control package/image metadata split must remain clear:
   - release control ZIP is authoritative for release-specific source ref, image digest, checksums, manifest, SBOM reference, and revocation notes
   - container image carries generic compliance notices and OCI labels
 - `TASK-071`, `TASK-066`, and `TASK-073` must use the `agpl-yolo` RC framing.
 - Public-release planning must treat clean-line publication as a later release-governance task, not an implied result of merging PR #11.
 
-## Follow-Up Gates
+## Later Release And Publication Gates
 
-- Owner/legal/reviewer acceptance of the controlled AGPL-governed RC posture.
-- Model/data/provider approvals before any broader distribution.
+- Formal owner/legal/reviewer approval before broader distribution or public release.
+- Model/data/provider approvals before publishing assets, expanding distribution, or opening the clean public release line.
 - Clean-machine RC validation under `TASK-066`.
 - Public release-line decision after RC evidence and rights review.
 - Later permissive Apache-compatible runtime path only if the team chooses ONNX, another non-Ultralytics runtime, or separately approved licensing.

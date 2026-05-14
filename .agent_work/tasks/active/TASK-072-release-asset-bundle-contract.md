@@ -114,7 +114,7 @@ This task must settle the asset bundle before end-user package documentation and
 ### 2026-05-11 - Durable Asset Contract Completed
 **Objective**: Create the durable V1 RC1 asset bundle contract and make it available in the release control package.
 **Context**: `TASK-071` needs a stable asset contract before package-based end-user docs can be written, and `TASK-066` needs explicit release-validation rules for matching the control ZIP, GHCR digest, asset ZIP, manifest, and checksums.
-**Decision**: Add the contract under `docs/` so release packages include it with the quick start and runtime contract. Keep the asset ZIP as an extracted-directory workflow rather than changing importer behavior. Treat external asset ZIP publication as blocked on `TASK-069` redistribution approval or a documented bring-your-own-assets alternative.
+**Decision**: Add the contract under `docs/` so release packages include it with the quick start and runtime contract. Keep the asset ZIP as an extracted-directory workflow rather than changing importer behavior. Treat external asset ZIP publication as governed by the `TASK-069` controlled-RC sign-off for the Sprint 06 RC path, with broader/public asset publication still gated by model/data/provider approvals or a documented bring-your-own-assets alternative.
 **Execution**: Added `docs/release-asset-bundle-contract.md`, updated `scripts/package-release.ps1` to include it, updated `docs/oci-quick-start.md` and `docs/oci-runtime-contract.md` to reference the corrected ZIP/staged/runtime layouts, and added a package-release test assertion that the contract doc is staged.
 **Output**: The V1 RC1 contract now defines artifact names, asset ZIP root layout, staged `assets/` layout, runtime destination, manifest authority and mismatch policy, required/optional asset tables, normal versus validation import modes, `.sha256` sidecar format, distribution/provenance notes, restricted-network scope, and follow-up boundaries.
 **Validation**: `python .agent_work/scripts/validate_agent_work.py`, `git diff --check`, and `.\.venv\Scripts\python.exe -m pytest tests\unit\test_release_package_script.py -q -p no:cacheprovider` passed after whitespace cleanup.
@@ -185,14 +185,14 @@ This task must settle the asset bundle before end-user package documentation and
 - [x] Manifest-copy rule documented - PASS: asset ZIP manifest copy is used for release/support identity checks while control manifest remains authoritative
 - [x] Mismatch policy documented - PASS: automated checks versus release/support validation failures are separated
 - [x] `.sha256` sidecar format documented - PASS
-- [x] Redistribution release gate documented - PASS: publication blocked on `TASK-069` approval or bring-your-own-assets alternative
+- [x] Redistribution release gate documented - PASS: controlled-RC publication follows the `TASK-069` sign-off boundary; broader/public publication remains gated by model/data/provider approvals or a bring-your-own-assets alternative
 - [x] Follow-up boundaries for typed exit codes and direct-ZIP extraction recorded - PASS
 - [x] Public-release staged allowlist import and release manifest/revocation follow-up boundaries recorded - PASS
 - [x] Distribution/provenance notes documented - PASS
 
 ### Issues Identified
 
-External asset ZIP publication remains gated by `TASK-069`; this is an explicit release-policy dependency, not an implementation blocker for `TASK-072`.
+External asset ZIP publication is governed by the `TASK-069` sign-off boundary. This is no longer a PR #11 merge blocker for the controlled RC baseline, but broader/public asset publication remains a later model/data/provider approval gate.
 
 ### Remediation Actions
 

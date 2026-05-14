@@ -3,7 +3,7 @@
 **Sprint Period**: Sprint 06 planning / V1 RC1 readiness begins May 11, 2026  
 **Last Updated**: May 14, 2026
 **Focus**: Produce a V1 RC1 / pilot-ready AGPL-compliant YOLO-enabled release path by closing release-support carry-forward work, correcting release compliance artifacts, writing package-based end-user docs, validating the clean-machine release candidate, and preparing pilot / UAT execution.
-**Status**: Sprint 06 committed lane selected. `TASK-065` and `TASK-072` are completed and remain in the active task folder until sprint closeout; `TASK-069` has a controlled AGPL-governed RC sign-off plan pending documented owner/legal/reviewer acceptance; `TASK-071` is the next documentation dependency; `TASK-066` and `TASK-073` remain selected for Sprint 06.
+**Status**: Sprint 06 committed lane selected. `TASK-065` and `TASK-072` are completed and remain in the active task folder until sprint closeout; `TASK-069` sign-off is sufficient to merge PR #11 as the internal controlled AGPL-governed RC planning and compliance baseline; `TASK-071` is the next documentation dependency; `TASK-066` and `TASK-073` remain selected for Sprint 06.
 
 ---
 
@@ -93,7 +93,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 **User Value**: Removes the largest current ambiguity in the local release path: what non-git assets users need, where those assets come from, and exactly where they go.
 
 ### **TASK-069: License And Release Policy Review**
-**Status**: SIGN_OFF_PENDING - controlled AGPL-governed RC posture documented, pending owner/legal/reviewer acceptance
+**Status**: SIGN_OFF_RECORDED - sufficient to merge PR #11 as internal Sprint 06 RC baseline
 **Type**: C (Legal / Release Policy / Governance)
 **Priority**: CRITICAL
 **Estimated Effort**: 0.5-1 day technical prep plus owner/legal review
@@ -108,7 +108,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 - TowerScout-authored code may be Apache-2.0 where ownership and relicensing authority are confirmed, but the full YOLO-enabled package/image is not Apache-2.0-only.
 - The release control package must include corrected YOLO AGPL attribution, model/data/provider terms, release manifest, checksums, image digest metadata, SBOM reference, source notice, and revocation notes; the image carries generic compliance notices and OCI labels sufficient to match it to the control package by pinned digest.
 - Model weights may be published only with AGPL-compatible labeling or separate written terms.
-- Final public open-source approval remains a later clean-line release gate; the current development/workshop repository history should not be published as-is without explicit review.
+- Formal owner/legal/reviewer approval remains a later gate for broader distribution, model/data/provider publication, and the clean curated public release line; the current development/workshop repository history should not be published as-is without explicit review.
 
 **User Value**: Allows Sprint 06 to target a YOLO-enabled RC/pilot without waiting for detector runtime replacement, while keeping the release honest about AGPL obligations and source availability.
 

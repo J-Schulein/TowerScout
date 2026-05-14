@@ -1,6 +1,6 @@
 # TASK-069: AGPL YOLO Release Implementation Update
 
-**Status**: IN_PROGRESS
+**Status**: SIGN_OFF_RECORDED
 **Date**: 2026-05-13
 **Release Track**: `agpl-yolo`
 **Purpose**: Reviewer feedback package and Sprint 06 implementation alignment, not final legal approval.
@@ -55,15 +55,17 @@ If reviewers reject AGPL as the public release posture, revert to the prior plan
 
 ## Sign-Off Alignment - 2026-05-14
 
-Task-069 sign-off is scoped to a controlled-distribution AGPL-governed YOLO-enabled Sprint 06 RC package for pilot validation, pending documented owner/legal/reviewer acceptance. It is not final public open-source release approval.
+Task-069 sign-off is sufficient to merge PR #11 as the Sprint 06 controlled-distribution AGPL-governed YOLO-enabled RC planning and compliance baseline. It is not final public open-source release approval.
 
 The release control ZIP is authoritative for release-specific source ref, image digest, checksums, release manifest, SBOM reference, and revocation notes. The container image carries generic compliance notices and OCI labels sufficient to match it to the control package by pinned digest.
 
 The public release path should use a clean curated public release line rather than publishing the current development repository history as-is. The development/workshop repo can continue to carry internal planning material and historical context; the public line should include only reviewed source, public-safe documentation, tests, release scripts, license/notice files, and intentionally selected decision records.
 
+Formal owner/legal/reviewer approval remains a later gate for broader distribution, model/data/provider publication, and the clean curated public release line.
+
 ## PR #11 Review Follow-Up - 2026-05-14
 
-The first PR #11 review agreed with the `agpl-yolo` direction but requested consistency fixes before the PR leaves draft. The follow-up implementation addresses those review comments without reintroducing ONNX as a Sprint 06 blocker:
+The first PR #11 review agreed with the `agpl-yolo` direction but requested consistency fixes before merge readiness. The follow-up implementation addresses those review comments without reintroducing ONNX as a Sprint 06 blocker:
 
 - Removed the active root `LICENSE.TXT` conflict and replaced it with `docs/legacy/LEGACY-LICENSE-NOTICE.md`.
 - Clarified that the generated release control ZIP is authoritative for release-specific source ref, image digest, checksums, SBOM-reference, and manifest metadata; the image carries generic notices and OCI labels.
