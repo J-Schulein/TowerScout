@@ -50,6 +50,7 @@ from dotenv import load_dotenv
 from ts_progress import DetectionProgressTracker
 from ts_paths import (
     CSS_DIR,
+    DOCS_DIR,
     IMG_DIR,
     JS_DIR,
     SITE_DIR,
@@ -1425,6 +1426,16 @@ def remove_upload(path):
 @app.route('/css/<path:path>')
 def send_css(path):
     return send_from_directory(str(CSS_DIR), path)
+
+
+@app.route('/docs/')
+def send_docs_index():
+    return send_docs('v1-rc1-quick-start.md')
+
+
+@app.route('/docs/<path:path>')
+def send_docs(path):
+    return send_from_directory(str(DOCS_DIR), path)
 
 
 @app.route('/license')

@@ -38,8 +38,13 @@ The release package is expected to include:
 - `webapp/asset_manifest.v1.json`
 - `IMAGE.txt`
 - `SHA256SUMS.txt`
-- quick-start and runtime-contract documentation
-- release asset bundle contract documentation
+- `docs/v1-rc1-quick-start.md`
+- `docs/v1-rc1-package-guide.md`
+- `docs/towerscout-user-guide.md`
+- `docs/project-overview.md`
+- `docs/oci-quick-start.md`
+- `docs/oci-runtime-contract.md`
+- `docs/release-asset-bundle-contract.md`
 - a pinned GHCR image reference by digest
 
 Large model and ZIP-code assets are not stored in git and are not expected to be baked into the default source checkout.
@@ -53,6 +58,8 @@ Users can review the source and license notice from the running app at:
 ```text
 http://localhost:5000/license
 ```
+
+The running app also links the V1 RC1 project overview, user guide, source/license notice, video guides, and research article from Settings > Resource Links.
 
 Release packages include `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `MODEL_LICENSES.md`, `DATA_LICENSES.md`, `PROVIDER_TERMS.md`, `SOURCE.txt`, `SBOM.txt`, and `release-manifest.v1.json`. Do not remove these files from a release package or image.
 
@@ -93,14 +100,16 @@ Use that digest reference when generating the release package.
 
 1. Start TowerScout from the package directory:
 
-```cmd
-start.bat
+```powershell
+.\start.bat
 ```
 
 2. Wait for the launcher to report readiness.
 3. Use the Setup Wizard to configure Google Maps or Azure Maps after the browser opens.
 
 The launcher creates `.env` from `.env.example` when `.env` is missing, starts the selected container engine, polls `/api/readiness`, and opens `http://localhost:5000` only after the application shell is reachable. Release packages should already pin `TOWERSCOUT_IMAGE` to an immutable digest in `.env.example`.
+
+Run the launcher once before importing assets so the release `.env` exists and the pinned image reference is active. Asset import starts the container if needed to reach named volumes, but it does not create `.env` from `.env.example`.
 
 If you open the browser manually, use `http://localhost:<port>` rather than `http://127.0.0.1:<port>`. The Azure Maps browser SDK passed release validation from the `localhost` origin and may reject some `127.0.0.1` browser requests due provider CORS behavior.
 
@@ -124,6 +133,8 @@ Scripts auto-detect the engine. To force one:
 .\start.bat -Engine docker
 .\scripts\status.cmd -Engine podman
 ```
+
+Use the same explicit `-Engine` value on `start.bat`, `scripts\import-assets.cmd`, `scripts\status.cmd`, `scripts\logs.cmd`, and `scripts\stop.cmd` when support or validation chooses a specific engine. Docker and Podman use separate named volumes, so importing assets with one engine does not populate the other engine's volumes.
 
 Docker Desktop use depends on license, procurement, endpoint policy, and local installation approval. Podman is the preferred open-source runtime target for V1 when Podman and a working Compose provider are installed and approved on the workstation.
 
@@ -263,10 +274,22 @@ Then import and verify it:
 
 The asset ZIP itself should not contain a top-level `assets/` directory. Its root should contain `model_params/`, `data/`, and `asset_manifest.v1.json`; extract those entries into the package's existing `assets/` directory. See `docs/release-asset-bundle-contract.md` for the release-matching, checksum, manifest-copy, and redistribution rules.
 
+If you started TowerScout with an explicit engine, use the same engine during asset import:
+
+```powershell
+.\scripts\import-assets.cmd -Engine podman -Source assets
+```
+
 For release-candidate or support validation, enable SHA-256 verification during import:
 
 ```powershell
 .\scripts\import-assets.cmd -Source assets -VerifyHashes
+```
+
+With an explicit engine:
+
+```powershell
+.\scripts\import-assets.cmd -Engine podman -Source assets -VerifyHashes
 ```
 
 For a source checkout that already has local assets under `webapp/`, use:

@@ -49,6 +49,23 @@ def test_index_route_renders_towerscout_shell(client):
     assert response.status_code == 200
     assert b"TowerScout" in response.data
     assert b"/license" in response.data
+    assert b"/docs/project-overview.md" in response.data
+    assert b"/docs/towerscout-user-guide.md" in response.data
+    assert b"Documentation Placeholder" not in response.data
+    assert b"Video Guide Placeholder" not in response.data
+
+
+def test_package_docs_route_serves_local_docs(client):
+    response = client.get("/docs/towerscout-user-guide.md")
+    index_response = client.get("/docs/")
+    missing_response = client.get("/docs/does-not-exist.md")
+
+    assert response.status_code == 200
+    assert b"TowerScout User Guide" in response.data
+    assert b"Azure Maps: double-click" in response.data
+    assert index_response.status_code == 200
+    assert b"TowerScout V1 RC1 Quick Start" in index_response.data
+    assert missing_response.status_code == 404
 
 
 def test_license_route_exposes_release_notices(client):

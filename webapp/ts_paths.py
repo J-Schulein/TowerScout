@@ -14,6 +14,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 SITE_DIR = BASE_DIR.parent / "TowerScoutSite"
+DOCS_DIR = BASE_DIR.parent / "docs"
 JS_DIR = BASE_DIR / "js"
 IMG_DIR = BASE_DIR / "img"
 CSS_DIR = BASE_DIR / "css"

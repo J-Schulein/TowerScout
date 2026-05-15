@@ -30,6 +30,21 @@ def test_release_compliance_payload_files_exist():
         assert (REPO_ROOT / relative_path).is_file()
 
 
+def test_v1_rc1_user_docs_exist():
+    required_docs = [
+        "docs/v1-rc1-quick-start.md",
+        "docs/v1-rc1-package-guide.md",
+        "docs/towerscout-user-guide.md",
+        "docs/project-overview.md",
+        "docs/oci-quick-start.md",
+        "docs/oci-runtime-contract.md",
+        "docs/release-asset-bundle-contract.md",
+    ]
+
+    for relative_path in required_docs:
+        assert (REPO_ROOT / relative_path).is_file()
+
+
 def test_legacy_root_license_txt_is_quarantined():
     assert not (REPO_ROOT / "LICENSE.TXT").exists()
     assert (REPO_ROOT / "docs" / "legacy" / "LEGACY-LICENSE-NOTICE.md").is_file()
@@ -52,3 +67,13 @@ def test_license_notice_route_is_visible_in_app_shell():
 
     assert 'href="/license"' in template
     assert "Source/licenses" in template
+    assert template.count('href="/license"') == 1
+    assert 'href="/docs/project-overview.md"' in template
+    assert 'href="/docs/towerscout-user-guide.md"' in template
+    assert 'href="https://www.youtube.com/@thaddeussegura8452/videos"' in template
+    assert (
+        'href="https://www.sciencedirect.com/science/article/pii/'
+        'S2589750024000943?via%3Dihub"'
+    ) in template
+    assert "Documentation Placeholder" not in template
+    assert "Video Guide Placeholder" not in template

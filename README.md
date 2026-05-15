@@ -79,6 +79,17 @@ Please cite the following publication and this GitHub repository when utilizing 
 
 This is a proof of concept and is not intended for commercial use. Users should adhere to terms of service when using tools and resources from any imagery and data providers. 
 
+## V1 RC1 package docs
+
+End-user package documentation lives under `docs/`:
+
+- `docs/v1-rc1-quick-start.md`
+- `docs/v1-rc1-package-guide.md`
+- `docs/towerscout-user-guide.md`
+- `docs/project-overview.md`
+
+The running local app exposes the project overview, user guide, source/license notice, video guides, and research article from Settings > Resource Links.
+
 
 ## License
 

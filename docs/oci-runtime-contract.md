@@ -75,6 +75,12 @@ Windows import helper:
 .\scripts\import-assets.cmd -Source assets
 ```
 
+The launcher should be run once before asset import so `.env` exists and the
+release-pinned image reference from `.env.example` is active. If a specific
+engine is selected, the same `-Engine` value must be used for start, asset
+import, status, logs, and stop because Docker and Podman use separate named
+volumes.
+
 Readiness checks:
 
 - manifest is present and valid
@@ -97,7 +103,8 @@ The GitHub Release control package is assembled by `scripts/package-release.cmd`
 - `.env.example` with the selected image reference
 - Windows `.cmd` wrappers and PowerShell helpers for start, stop, logs, status, asset import, and TLS CA import
 - top-level `start.bat` launcher that starts Compose, polls `/api/readiness`, and opens the browser at `http://localhost:<port>` after the app shell is reachable
-- this runtime contract and the quick start
+- `docs/v1-rc1-quick-start.md`, `docs/v1-rc1-package-guide.md`, `docs/towerscout-user-guide.md`, and `docs/project-overview.md`
+- `docs/oci-quick-start.md` and this runtime contract
 - the release asset bundle contract
 - `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `MODEL_LICENSES.md`, `DATA_LICENSES.md`, and `PROVIDER_TERMS.md`
 - `SOURCE.txt`, `SBOM.txt`, and `release-manifest.v1.json`
