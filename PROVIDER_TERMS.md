@@ -8,14 +8,18 @@ imagery providers. Provider services are not included with TowerScout.
 Users must supply an approved Google Maps API key and comply with Google's
 current platform terms, billing requirements, API restrictions, and quota
 controls. Browser SDK keys are visible to the client and should be restricted
-by approved HTTP referrers, APIs, quotas, and site policy.
+by approved HTTP referrers, APIs, quotas, and site policy. For the V1 RC1
+local pilot, Google keys are expected to be site/user-owned; unrestricted
+shared TowerScout project keys are unsupported.
 
 ## Azure Maps
 
 Users must supply an approved Azure Maps subscription key and comply with
 Microsoft Azure terms, billing requirements, API restrictions, and quota
 controls. Browser SDK keys are visible to the client and should be restricted
-and monitored according to site policy.
+and monitored according to site policy. For the V1 RC1 local pilot, Azure keys
+are expected to be site/user-owned, monitored, and rotated according to local
+policy; unrestricted shared TowerScout project keys are unsupported.
 
 ## Release Boundary
 

@@ -30,6 +30,8 @@ This task is the bridge between engineered release readiness and real user testi
 
 **R-066-008**: WHEN validation completes, THE TASK SHALL produce a pass/fail V1 RC1 recommendation and record remaining risks.
 
+**R-066-009**: WHEN provider setup is validated, THE VALIDATION SHALL confirm that the configured pilot provider key follows the `TASK-076` site/user-owned restricted-key assumption or record a release blocker.
+
 ## Acceptance Criteria
 
 - [ ] Release candidate package generated or obtained with immutable image digest.
@@ -40,6 +42,7 @@ This task is the bridge between engineered release readiness and real user testi
 - [ ] Readiness states verified before and after asset import and provider setup.
 - [ ] Asset import and optional release-candidate hash verification verified.
 - [ ] Provider setup and restart persistence verified.
+- [ ] Provider-key ownership/restriction assumption verified against `TASK-076` or a blocker recorded.
 - [ ] At least one bounded detection smoke passes or a blocker is recorded.
 - [ ] Status/log support commands produce useful evidence.
 - [ ] Time-to-first-run, manual interventions, confusing steps, and defects are recorded.
@@ -50,6 +53,7 @@ This task is the bridge between engineered release readiness and real user testi
 - `TASK-065`: release packaging and runtime support follow-through.
 - `TASK-072`: release asset bundle contract.
 - `TASK-071`: end-user release package documentation.
+- `TASK-076`: provider API key exposure and restriction policy.
 - `scripts/package-release.cmd` / `scripts/package-release.ps1`: package generation.
 - `scripts/import-assets.cmd` / `scripts/import-assets.ps1`: asset import.
 - `start.bat` and launcher scripts.

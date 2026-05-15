@@ -22,7 +22,7 @@ The recommended Sprint 06 path is:
 4. Write end-user release package documentation through `TASK-071`.
 5. Run a clean-machine release-candidate validation gate through `TASK-066`.
 6. Prepare pilot / UAT execution through `TASK-073`.
-7. Keep `TASK-076` near-active because provider/API terms are unaffected by the AGPL decision.
+7. Carry `TASK-076` in the policy lane with the recorded site/user-owned restricted-key decision.
 8. Use remaining capacity for preflight, narrow CI release gates, and Windows script validation.
 
 Sprint 06 should be considered successful when TowerScout reaches **V1 RC1 / pilot-ready** status. Final V1 completion should wait until pilot/UAT feedback has been triaged, install/launch/setup/detection blockers have been fixed or explicitly accepted, and remaining work has been sorted into V1 patch items or the V2 roadmap.
@@ -134,7 +134,7 @@ These tasks should run early enough that they do not block release late. They ca
 
 | Task | Purpose | Expected Deliverable |
 |---|---|---|
-| `TASK-076` Provider API Key Exposure And Restriction Policy | Decide whether current browser SDK key exposure is acceptable for v1 with restrictions or needs additional engineering. AGPL does not change provider/API terms. | Provider-key policy, required key restrictions, user guidance, and go/no-go impact. |
+| `TASK-076` Provider API Key Exposure And Restriction Policy | Record and apply the V1 RC1 policy: browser-visible map SDK keys are acceptable only for the local pilot with site/user-owned restricted keys. AGPL does not change provider/API terms. | Provider-key policy, required key restrictions, Task-071 user guidance, and Task-066 validation of key ownership/restriction assumptions. |
 | `TASK-075` GPU / CUDA Support Decision | Decide whether v1 is CPU-only or includes a documented CUDA path. | Written decision and documentation update. Implementation only if explicitly selected later. |
 
 ### Follow-Through Lane
@@ -257,7 +257,7 @@ Acceptance expectations:
 
 Acceptance expectations:
 
-- Provider key exposure posture is documented and approved or converted into an engineering blocker.
+- Provider key exposure posture is documented as site/user-owned restricted keys for V1 RC1, with unrestricted shared project keys treated as unsupported or release-blocking.
 - GPU/CUDA support is explicitly in scope or out of scope for v1.
 
 ---
@@ -304,7 +304,7 @@ Sprint 06 validation should focus on user-relevant release confidence.
 | Asset distribution remains ambiguous | Testers cannot complete setup without support intervention. | Keep `TASK-072` aligned with the `TASK-069` AGPL release posture and model terms. |
 | Docs are written before the package shape is stable | Docs become stale immediately and confuse testers. | Complete asset/package contract before finalizing `TASK-071`. |
 | End-user testing starts too early | Feedback is dominated by known package/docs gaps. | Use `TASK-066` as the internal release-candidate gate before `TASK-073` external pilot. |
-| Provider SDK keys remain client-visible without policy | Release may expose unsupported security expectations. | Complete `TASK-076` before broad distribution. |
+| Provider SDK keys remain client-visible without matching user guidance | Release may expose unsupported security expectations. | Apply the `TASK-076` decision in `TASK-071` docs and confirm site/user-owned restricted-key assumptions during `TASK-066`; shared unrestricted project keys remain unsupported. |
 | AGPL release posture is rejected by reviewers | YOLO-enabled RC cannot be public/compliant under this path. | Revert to restricted pilot now and move ONNX/non-Ultralytics runtime replacement back into the public-release blocker lane. |
 | Compliance payload is incomplete | The package may be source-incomplete or notice-incomplete. | Pull forward the narrow `TASK-077` manifest/source/SBOM/checksum/revocation slice. |
 | Runtime prerequisites remain too complex | Non-technical users fail before reaching TowerScout setup. | Add `TASK-074` if `TASK-066` shows prerequisite friction. |
@@ -321,7 +321,7 @@ Sprint 06 can be considered successful if TowerScout reaches V1 RC1 / pilot-read
 - `TASK-069`, `TASK-072`, and `TASK-071` are complete enough to give to a pilot user.
 - `TASK-066` has produced clean-machine evidence and a release-candidate recommendation.
 - `TASK-073` has a ready tester workflow if the release candidate passes.
-- `TASK-076` is resolved or clearly blocking with owners and next actions.
+- `TASK-076` policy is recorded and either validated through `TASK-066` or clearly blocking with owners and next actions.
 - The backlog no longer treats parked tail work as active v1 release scope.
 
 Sprint 06 completion does not by itself mean final V1 completion. Final V1 requires pilot/UAT blocker triage after controlled external testing.
@@ -383,7 +383,7 @@ Deferred / parked:
 2. Who owns the asset bundle source of truth and permission to redistribute model weights and ZCTA data with the release materials?
 3. Are pilot users expected to use Podman, Docker, or either runtime depending on local policy?
 4. Does the pilot cohort include enterprise TLS inspection environments?
-5. Are provider keys site-owned, user-owned, or project-provided for pilot testing?
+5. Provider keys are assumed site/user-owned for V1 RC1 pilot testing; project-provided shared keys are unsupported unless separately risk-accepted or stronger controls are implemented.
 6. Is CUDA acceleration expected by any pilot tester, or should v1 be explicitly CPU-only?
 7. What is the minimum detection smoke that proves the package path without creating a long or fragile user test?
 8. Will reviewers accept AGPL as the public/pilot release posture, or should the team revert to restricted pilot plus ONNX/non-Ultralytics migration before public release?

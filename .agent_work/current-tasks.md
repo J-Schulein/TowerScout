@@ -1,9 +1,9 @@
 # Current Tasks - Active Sprint
 
 **Sprint Period**: Sprint 06 planning / V1 RC1 readiness begins May 11, 2026  
-**Last Updated**: May 14, 2026
+**Last Updated**: May 15, 2026
 **Focus**: Produce a V1 RC1 / pilot-ready AGPL-compliant YOLO-enabled release path by closing release-support carry-forward work, correcting release compliance artifacts, writing package-based end-user docs, validating the clean-machine release candidate, and preparing pilot / UAT execution.
-**Status**: Sprint 06 committed lane selected. `TASK-065` and `TASK-072` are completed and remain in the active task folder until sprint closeout; `TASK-069` sign-off is sufficient to merge PR #11 as the internal controlled AGPL-governed RC planning and compliance baseline; `TASK-071` is the next documentation dependency; `TASK-066` and `TASK-073` remain selected for Sprint 06.
+**Status**: Sprint 06 committed lane selected. `TASK-065`, `TASK-071`, and `TASK-072` are completed and remain in the active task folder until sprint closeout; `TASK-069` sign-off is sufficient to merge PR #11 as the internal controlled AGPL-governed RC planning and compliance baseline; `TASK-076` provider-key policy is recorded and integrated into the Task-071 docs, and remains a Task-066 validation assumption; `TASK-066` and `TASK-073` remain selected for Sprint 06.
 
 ---
 
@@ -113,16 +113,16 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 **User Value**: Allows Sprint 06 to target a YOLO-enabled RC/pilot without waiting for detector runtime replacement, while keeping the release honest about AGPL obligations and source availability.
 
 ### **TASK-071: End-User Release Package Documentation**
-**Status**: NOT_STARTED - selected for Sprint 06  
+**Status**: COMPLETED - V1 RC1 docs/resource links/package integration validated; ready for TASK-066
 **Type**: B/C (Documentation / User Enablement)  
 **Priority**: CRITICAL  
 **Estimated Effort**: 1-2 days (8-16 hours)  
 **Target Sprint**: Sprint 06 V1 RC1  
 **Task File**: `.agent_work/tasks/active/TASK-071-end-user-release-docs.md`
 
-**Objective**: Produce the package-based quick start and full user guide that tell a non-technical Windows pilot user what to download, where assets go, how to launch, how to configure provider keys, how to validate success, how to find source/license notices, and how to report problems.
+**Objective**: Produce the package-based quick start, full package guide, and general user guide that tell a non-technical Windows pilot user what to download, where assets go, how to launch, how to configure provider keys, how to validate success, how to use the main TowerScout workflow, how to find source/license notices, and how to report problems. Update Settings Resource Links so Project Overview, User Guide, Source/licenses, Video Guides, and the TowerScout Research Article are discoverable without placeholder wording.
 
-**Dependencies**: `TASK-069`; `TASK-072`; release package shape; current OCI quick-start/runtime docs.
+**Dependencies**: `TASK-069`; `TASK-072`; release package shape; current OCI quick-start/runtime docs; Settings Resource Links; package-local docs packaging; `TASK-076` approved provider-key policy language.
 
 **User Value**: Converts the engineered release package into a self-service pilot path instead of a support-only handoff.
 
@@ -156,13 +156,32 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 
 ---
 
-## Policy Lane Candidates
+## Policy Lane
 
-These tasks are important for V1 RC1, but they are not yet active task files in this planning update. Pull them into `current-tasks.md` and create active task docs if owner/legal availability or release risk requires formal Sprint 06 commitment.
+### **TASK-076: Provider API Key Exposure And Restriction Policy**
+**Status**: POLICY_DECISION_RECORDED - Task-071 docs integrated; Task-066 validation pending
+**Type**: C (Security / Release Policy)
+**Priority**: HIGH
+**Estimated Effort**: 0.5-1.5 days (4-12 hours)
+**Target Sprint**: Sprint 06 V1 RC1
+**Task File**: `.agent_work/tasks/active/TASK-076-provider-api-key-exposure-policy.md`
+
+**Objective**: Record the V1 RC1 provider-key policy for TowerScout's Google Maps and Azure Maps integrations, including the known browser-visible map SDK key behavior, accepted pilot support boundary, required provider-side restrictions, and conditions that turn the issue into an engineering blocker.
+
+**Current Decision**:
+- Browser-visible map SDK keys are accepted for the V1 RC1 local pilot only when provider keys are site/user-owned and restricted.
+- Unrestricted shared TowerScout project keys are unsupported.
+- Pilot users/sites must apply provider-side restrictions, API scoping, quota controls, billing alerts, usage monitoring, and key rotation according to site policy.
+- `TASK-071` must include the approved user-facing provider-key policy language.
+- `TASK-066` must confirm the site/user-owned key assumption or record a release blocker.
+- Broader/hosted distribution should revisit stronger controls, including separate browser/server keys, compatible server-side proxying, and Azure Entra ID or SAS-token authentication.
+
+**User Value**: Lets the local pilot proceed with a clear, bounded security/support posture instead of leaving browser-visible provider keys as an implicit release risk.
+
+### Other Policy Candidate
 
 | Task | Recommended Handling | Reason |
 |---|---|---|
-| `TASK-076` Provider API Key Exposure And Restriction Policy | Candidate for parallel Sprint 06 work | Browser map SDK keys remain client-visible; v1 needs an approved restriction/support policy or an engineering blocker. AGPL does not change provider/API terms. |
 | `TASK-075` GPU / CUDA Support Decision | Candidate for early Sprint 06 decision | V1 should explicitly be CPU-only or document a validated CUDA support path. This should stay a decision task unless implementation is intentionally selected. |
 
 ---
