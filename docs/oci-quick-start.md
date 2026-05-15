@@ -39,9 +39,13 @@ The release package is expected to include:
 - `IMAGE.txt`
 - `SHA256SUMS.txt`
 - `docs/v1-rc1-quick-start.md`
+- `docs/v1-rc1-quick-start.html`
 - `docs/v1-rc1-package-guide.md`
 - `docs/towerscout-user-guide.md`
+- `docs/towerscout-user-guide.html`
 - `docs/project-overview.md`
+- `docs/project-overview.html`
+- `docs/towerscout-docs.css`
 - `docs/oci-quick-start.md`
 - `docs/oci-runtime-contract.md`
 - `docs/release-asset-bundle-contract.md`

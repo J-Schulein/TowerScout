@@ -33,9 +33,13 @@ def test_release_compliance_payload_files_exist():
 def test_v1_rc1_user_docs_exist():
     required_docs = [
         "docs/v1-rc1-quick-start.md",
+        "docs/v1-rc1-quick-start.html",
         "docs/v1-rc1-package-guide.md",
         "docs/towerscout-user-guide.md",
+        "docs/towerscout-user-guide.html",
         "docs/project-overview.md",
+        "docs/project-overview.html",
+        "docs/towerscout-docs.css",
         "docs/oci-quick-start.md",
         "docs/oci-runtime-contract.md",
         "docs/release-asset-bundle-contract.md",
@@ -68,8 +72,8 @@ def test_license_notice_route_is_visible_in_app_shell():
     assert 'href="/license"' in template
     assert "Source/licenses" in template
     assert template.count('href="/license"') == 1
-    assert 'href="/docs/project-overview.md"' in template
-    assert 'href="/docs/towerscout-user-guide.md"' in template
+    assert 'href="/docs/project-overview.html"' in template
+    assert 'href="/docs/towerscout-user-guide.html"' in template
     assert 'href="https://www.youtube.com/@thaddeussegura8452/videos"' in template
     assert (
         'href="https://www.sciencedirect.com/science/article/pii/'

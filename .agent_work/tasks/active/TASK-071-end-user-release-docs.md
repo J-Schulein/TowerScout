@@ -190,6 +190,45 @@ This task should replace or clearly distinguish older source/Conda tester guidan
 - `git diff --check` passed.
 **Next**: Use the revised docs during `TASK-066` clean-machine validation and record any real-user friction there.
 
+### 2026-05-15 - Settings Resource Link HTML Pass
+**Objective**: Make the package-local Settings Resource Link docs open as polished web pages instead of raw Markdown.
+**Context**: Manual review of the Settings Resource Links showed that the local Project Overview and User Guide opened as plain Markdown files, which was accurate but did not match the in-app presentation quality expected for pilot users.
+**Decision**: Keep the Markdown files as support/package source docs, add static HTML views plus a package-local stylesheet, and point Settings to the HTML files.
+**Execution**: Added `docs/project-overview.html`, `docs/towerscout-user-guide.html`, and `docs/towerscout-docs.css`; updated Settings Resource Links to the HTML files; updated release package inclusion and focused tests; and kept `/license`, video guides, and the research article links unchanged.
+**Output**: The two package-local Settings docs now open as styled HTML pages while the Markdown sources remain available.
+**Validation**:
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_flask_routes.py tests\unit\test_license_notices.py tests\unit\test_release_package_script.py -q -p no:cacheprovider` passed: 27 passed, 1 existing `datetime.utcnow()` deprecation warning.
+- `.venv\Scripts\python.exe .agents\skills\towerscout-end-user-docs-check\scripts\check_doc_commands.py . docs README.md` completed with the existing non-blocking `127.0.0.1` warning for an internal health/readiness reference in `docs/oci-quick-start.md`.
+- `.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` passed.
+- `git diff --check` passed.
+**Next**: Use these HTML pages during `TASK-066` clean-machine validation and record any visual or usability friction there.
+
+### 2026-05-15 - Source/License HTML Pass
+**Objective**: Make the Settings `Source/licenses` link open as a styled HTML page consistent with the package-local docs.
+**Context**: After the Project Overview and User Guide were converted to styled HTML views, the `/license` Resource Link still opened as raw plain text.
+**Decision**: Render `/license` as HTML while keeping `/license.txt` as a plain-text combined notice fallback for support and copy/paste workflows.
+**Execution**: Updated the Flask `/license` route to load the same compliance notice payload into escaped HTML sections, added `/license.txt`, reused `docs/towerscout-docs.css`, and extended focused route tests.
+**Output**: Settings `Source/licenses` now opens a styled source/license page and still exposes raw combined notices at `/license.txt`.
+**Validation**:
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_flask_routes.py tests\unit\test_license_notices.py tests\unit\test_release_package_script.py -q -p no:cacheprovider` passed: 27 passed, 1 existing `datetime.utcnow()` deprecation warning.
+- `.venv\Scripts\python.exe .agents\skills\towerscout-end-user-docs-check\scripts\check_doc_commands.py . docs README.md` completed with the existing non-blocking `127.0.0.1` warning for an internal health/readiness reference in `docs/oci-quick-start.md`.
+- `.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` passed.
+- `git diff --check` passed.
+**Next**: Use the styled source/license page during `TASK-066` clean-machine validation and record any visual or usability friction there.
+
+### 2026-05-15 - Quick Start HTML Pass
+**Objective**: Make the Quick Start linked from the HTML User Guide open as a styled HTML page.
+**Context**: The HTML User Guide footer still linked to the raw `docs/v1-rc1-quick-start.md` source file.
+**Decision**: Keep the Markdown quick-start source, add a styled `docs/v1-rc1-quick-start.html` view, and make `/docs/` open the HTML quick start by default.
+**Execution**: Added `docs/v1-rc1-quick-start.html`, updated the User Guide footer link, updated `/docs/`, release package inclusion, package contract docs, and focused tests.
+**Output**: Quick Start now has a package-local HTML view matching the Project Overview, User Guide, and Source/licenses pages.
+**Validation**:
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_flask_routes.py tests\unit\test_license_notices.py tests\unit\test_release_package_script.py -q -p no:cacheprovider` passed: 27 passed, 1 existing `datetime.utcnow()` deprecation warning.
+- `.venv\Scripts\python.exe .agents\skills\towerscout-end-user-docs-check\scripts\check_doc_commands.py . docs README.md` completed with the existing non-blocking `127.0.0.1` warning for an internal health/readiness reference in `docs/oci-quick-start.md`.
+- `.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` passed.
+- `git diff --check` passed.
+**Next**: Use the styled quick start during `TASK-066` clean-machine validation and record any visual or usability friction there.
+
 ---
 
 ## Validation Results

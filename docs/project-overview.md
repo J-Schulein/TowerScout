@@ -40,7 +40,7 @@ A typical TowerScout user:
 The User Guide is available in the running app Resource Links section and at:
 
 ```text
-http://localhost:5000/docs/towerscout-user-guide.md
+http://localhost:5000/docs/towerscout-user-guide.html
 ```
 
 ## Release Boundary

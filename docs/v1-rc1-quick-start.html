@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TowerScout V1 RC1 Quick Start</title>
+  <link rel="stylesheet" href="towerscout-docs.css">
+</head>
+<body>
+  <header class="page-header">
+    <p class="eyebrow">TowerScout V1 RC1</p>
+    <h1>Quick Start</h1>
+    <p class="lead">The short Windows pilot path for downloading the release package, importing assets, starting TowerScout, setting up a provider, and confirming readiness.</p>
+  </header>
+
+  <div class="doc-frame">
+    <nav class="doc-nav" aria-label="Quick start sections">
+      <h2>Contents</h2>
+      <a href="#download">Download</a>
+      <a href="#extract">Extract</a>
+      <a href="#initialize">Initialize</a>
+      <a href="#assets">Assets</a>
+      <a href="#setup">Setup</a>
+      <a href="#success">Confirm Success</a>
+      <a href="#help">Help</a>
+    </nav>
+
+    <main class="doc-main">
+      <section class="doc-section" id="download">
+        <h2>1. Download The Release Files</h2>
+        <p>Download or receive the control ZIP, control ZIP checksum, asset ZIP, and asset ZIP checksum for the same release version.</p>
+        <ul>
+          <li><code>towerscout-v0.1.0-rc1.zip</code></li>
+          <li><code>towerscout-v0.1.0-rc1.zip.sha256</code></li>
+          <li><code>towerscout-v0.1.0-rc1-assets-towerscout-v1-assets-2026-05-05.zip</code></li>
+          <li><code>towerscout-v0.1.0-rc1-assets-towerscout-v1-assets-2026-05-05.zip.sha256</code></li>
+        </ul>
+        <p>The exact filenames can change by release, but the control ZIP version and asset ZIP version must match.</p>
+      </section>
+
+      <section class="doc-section" id="extract">
+        <h2>2. Extract The Control Package</h2>
+        <p>Extract the control ZIP to a normal local folder such as <code>C:\Users\&lt;you&gt;\TowerScout-v0.1.0-rc1</code>.</p>
+        <p>After extraction, the folder should contain <code>start.bat</code>, <code>compose.yaml</code>, <code>scripts\</code>, <code>docs\</code>, compliance files, <code>IMAGE.txt</code>, <code>SHA256SUMS.txt</code>, and an empty <code>assets\</code> folder.</p>
+      </section>
+
+      <section class="doc-section" id="initialize">
+        <h2>3. Initialize The Package</h2>
+        <p>From PowerShell in the package folder, run the launcher once:</p>
+        <p><code>.\start.bat</code></p>
+        <p>The first launcher run creates <code>.env</code> from <code>.env.example</code>, starts the selected engine, polls TowerScout readiness, and opens <code>http://localhost:5000</code>.</p>
+        <div class="callout">
+          <p>Readiness may be <code>setup_required</code> because provider setup is incomplete, <code>degraded</code> because assets are not imported yet, or both through recovery hints. That is expected during first setup.</p>
+        </div>
+        <p>If support tells you to use a specific engine, keep using the same engine for every helper command because Docker and Podman use separate named volumes.</p>
+        <p><code>.\start.bat -Engine podman</code></p>
+      </section>
+
+      <section class="doc-section" id="assets">
+        <h2>4. Stage And Import Assets</h2>
+        <p>The asset ZIP root should contain <code>model_params\</code>, <code>data\</code>, and <code>asset_manifest.v1.json</code>. Extract those entries into the package <code>assets\</code> folder.</p>
+        <p>Normal import:</p>
+        <p><code>.\scripts\import-assets.cmd -Source assets</code></p>
+        <p>Release-candidate or support validation import:</p>
+        <p><code>.\scripts\import-assets.cmd -Source assets -VerifyHashes</code></p>
+        <p>With an explicit engine:</p>
+        <p><code>.\scripts\import-assets.cmd -Engine podman -Source assets -VerifyHashes</code></p>
+      </section>
+
+      <section class="doc-section" id="setup">
+        <h2>5. Start Or Reopen TowerScout And Complete Setup</h2>
+        <p>Run <code>.\start.bat</code> again if needed, then use Setup Wizard or Settings to configure one provider: Google Maps or Azure Maps.</p>
+        <div class="callout warning">
+          <p>One valid provider key is enough. Provider keys for the V1 RC1 pilot must be site/user-owned and restricted. Browser map SDK keys are visible to someone who can access the running browser app, so do not use an unrestricted shared TowerScout project key.</p>
+        </div>
+      </section>
+
+      <section class="doc-section" id="success">
+        <h2>6. Confirm Success</h2>
+        <p>Run <code>.\scripts\status.cmd</code>. If you started with an explicit engine, use the same engine: <code>.\scripts\status.cmd -Engine podman</code>.</p>
+        <div class="summary-grid">
+          <div class="summary-item"><strong>setup_required</strong> TowerScout is running, but provider setup is not complete.</div>
+          <div class="summary-item"><strong>degraded</strong> TowerScout is running, but assets or another recoverable capability are missing.</div>
+          <div class="summary-item"><strong>ready</strong> Provider setup and required assets are present.</div>
+          <div class="summary-item"><strong>fatal</strong> TowerScout cannot safely serve the app; collect support evidence.</div>
+        </div>
+        <p>For a small smoke check, choose a provider, define a small search area, select <code>Estimate tiles</code>, then run <code>Find towers</code> only for a small area that is appropriate for your pilot.</p>
+      </section>
+
+      <section class="doc-section" id="help">
+        <h2>7. Stop, Restart, Source, And Help</h2>
+        <p>Stop TowerScout with <code>.\scripts\stop.cmd</code>. Start again with <code>.\start.bat</code>.</p>
+        <p>The YOLO-enabled V1 RC1 package/image is not Apache-2.0-only. It is distributed with AGPL-3.0 obligations because it includes Ultralytics YOLOv5 runtime source and YOLO-derived detector weights.</p>
+        <p>When TowerScout is running, Settings includes Resource Links for Project Overview, User Guide, Source/licenses, Video Guides, and the research article. The styled source/license notice is available at <a href="/license">/license</a>.</p>
+        <p>If something fails, run <code>.\scripts\status.cmd</code> and <code>.\scripts\logs.cmd -Tail 200</code>. Do not share <code>.env</code>, provider keys, raw screenshots, raw browser network traces, cached provider responses, uploaded investigation files, exported datasets, named-volume contents, or unreviewed raw logs unless your site has an approved support-handling procedure.</p>
+      </section>
+
+      <p class="doc-footer">Package-local HTML view. Markdown source: <a href="v1-rc1-quick-start.md">v1-rc1-quick-start.md</a>. More detail: <a href="v1-rc1-package-guide.md">Package Guide</a>.</p>
+    </main>
+  </div>
+</body>
+</html>

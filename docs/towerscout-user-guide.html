@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TowerScout User Guide</title>
+  <link rel="stylesheet" href="towerscout-docs.css">
+</head>
+<body>
+  <header class="page-header">
+    <p class="eyebrow">TowerScout V1 RC1</p>
+    <h1>User Guide</h1>
+    <p class="lead">A practical guide to choosing a provider, defining a search area, running detection, reviewing likely towers, and saving results.</p>
+  </header>
+
+  <div class="doc-frame">
+    <nav class="doc-nav" aria-label="User guide sections">
+      <h2>Contents</h2>
+      <a href="#provider">Provider</a>
+      <a href="#search-area">Search Area</a>
+      <a href="#detection">Detection</a>
+      <a href="#review">Review</a>
+      <a href="#manual">Manual Towers</a>
+      <a href="#export">Export And Restore</a>
+      <a href="#help">Help</a>
+    </nav>
+
+    <main class="doc-main">
+      <section class="doc-section" id="provider">
+        <h2>Choose A Provider</h2>
+        <p>TowerScout supports Google Maps and Azure Maps. Only one valid provider key is required to start. If both are configured, use the provider selector to choose the imagery source for the current workflow.</p>
+        <div class="callout warning">
+          <p>Browser map SDK keys are visible to someone who can access the running app. V1 RC1 assumes site/user-owned restricted keys. Do not share provider keys, <code>.env</code>, browser network traces, screenshots that reveal keys, cached provider responses, or raw logs unless your site has approved handling for that material.</p>
+        </div>
+      </section>
+
+      <section class="doc-section" id="search-area">
+        <h2>Search Or Define An Area</h2>
+        <p>You can move the map manually or search by street address, city, neighborhood, or ZIP code. ZIP code search requires imported ZIP-code asset data.</p>
+        <h3>Circle Search</h3>
+        <ol>
+          <li>Search for or navigate to the location.</li>
+          <li>Enter a radius in meters.</li>
+          <li>Select <code>Circle</code>.</li>
+          <li>Select <code>Estimate tiles</code>.</li>
+        </ol>
+        <h3>Custom Search Area</h3>
+        <p>Custom search areas are polygons used to tell TowerScout where to run detection. They are different from manual tower polygons.</p>
+        <ul>
+          <li>Azure Maps: double-click to complete the polygon.</li>
+          <li>Google Maps: right-click outside to complete the polygon.</li>
+        </ul>
+      </section>
+
+      <section class="doc-section" id="detection">
+        <h2>Estimate And Run Detection</h2>
+        <p>Select <code>Estimate tiles</code> before <code>Find towers</code>. The estimate tells you how many imagery tiles TowerScout expects to process and the rough expected processing time.</p>
+        <p>During detection, TowerScout downloads imagery, runs the detector, applies secondary classification where configured, removes duplicates, and geocodes results. A progress overlay shows the current phase and detail. You can cancel an active run if needed.</p>
+      </section>
+
+      <section class="doc-section" id="review">
+        <h2>Review Results</h2>
+        <p>Results appear on the map and in the detection list. Use the list to center or highlight a detection, uncheck likely false positives before export, adjust the minimum confidence slider, and step through detections or tiles with review controls.</p>
+        <p>The confidence slider controls what is visible and exported. A higher threshold shows fewer detections. A lower threshold shows more detections and may include more false positives.</p>
+      </section>
+
+      <section class="doc-section" id="manual">
+        <h2>Add Manual Tower Detections</h2>
+        <p>Manual tower detections are corrections you add after a detection run. They are not the same as custom search-area polygons.</p>
+        <ol class="workflow-list">
+          <li>Run detection first.</li>
+          <li>Select <code>Add Towers</code>.</li>
+          <li>Draw around the tower.</li>
+          <li>Complete the polygon: Azure Maps uses double-click; Google Maps uses right-click outside.</li>
+          <li>Select <code>Save Towers</code>.</li>
+        </ol>
+        <p>Manual towers are included in CSV, KML, and dataset exports when saved.</p>
+      </section>
+
+      <section class="doc-section" id="export">
+        <h2>Export And Restore</h2>
+        <h3>CSV And KML</h3>
+        <p>Use <code>Download results</code> to download <code>detections.csv</code> and <code>detections.kml</code>.</p>
+        <h3>Dataset ZIP</h3>
+        <p>Use <code>Download dataset</code> to save the current tiles, labels, metadata, and manual additions as <code>dataset.zip</code>. Dataset ZIPs may contain sensitive locations, investigation context, imagery tiles, and manual corrections.</p>
+        <h3>Restore</h3>
+        <p>Use <code>Restore dataset</code> to reload a previously exported <code>dataset.zip</code> into the current session. After restore, review the provider selection, map framing, detections, and manual towers before exporting again.</p>
+      </section>
+
+      <section class="doc-section" id="help">
+        <h2>Stop, Resume, And Get Help</h2>
+        <p>Stop TowerScout with <code>.\scripts\stop.cmd</code>. Restart later with <code>.\start.bat</code>.</p>
+        <p>If support asked you to run TowerScout with a specific engine, use the same <code>-Engine</code> value on start, stop, status, logs, and asset-import commands because Docker and Podman use separate named volumes.</p>
+        <p>When reporting a problem, include what you were trying to do, the release package version, whether you used Docker or Podman, the readiness state from <code>scripts\status.cmd</code>, and a reviewed/redacted log summary if support asks for it.</p>
+        <p>Do not share provider keys, <code>.env</code>, raw logs, raw screenshots, browser network traces, cached provider responses, uploaded investigation files, exported datasets, named-volume contents, or sensitive AOIs unless your site has an approved support-handling procedure.</p>
+      </section>
+
+      <p class="doc-footer">Package-local HTML view. Markdown source: <a href="towerscout-user-guide.md">towerscout-user-guide.md</a>. Setup help: <a href="v1-rc1-quick-start.html">Quick Start</a> and <a href="v1-rc1-package-guide.md">Package Guide</a>.</p>
+    </main>
+  </div>
+</body>
+</html>

@@ -150,9 +150,13 @@ def test_package_release_stages_digest_pinned_image():
             assert (stage_path / relative_path).is_file()
         for relative_path in [
             "v1-rc1-quick-start.md",
+            "v1-rc1-quick-start.html",
             "v1-rc1-package-guide.md",
             "towerscout-user-guide.md",
+            "towerscout-user-guide.html",
             "project-overview.md",
+            "project-overview.html",
+            "towerscout-docs.css",
             "oci-quick-start.md",
             "oci-runtime-contract.md",
             "release-asset-bundle-contract.md",

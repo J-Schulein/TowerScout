@@ -49,30 +49,50 @@ def test_index_route_renders_towerscout_shell(client):
     assert response.status_code == 200
     assert b"TowerScout" in response.data
     assert b"/license" in response.data
-    assert b"/docs/project-overview.md" in response.data
-    assert b"/docs/towerscout-user-guide.md" in response.data
+    assert b"/docs/project-overview.html" in response.data
+    assert b"/docs/towerscout-user-guide.html" in response.data
     assert b"Documentation Placeholder" not in response.data
     assert b"Video Guide Placeholder" not in response.data
 
 
 def test_package_docs_route_serves_local_docs(client):
-    response = client.get("/docs/towerscout-user-guide.md")
+    response = client.get("/docs/towerscout-user-guide.html")
+    overview_response = client.get("/docs/project-overview.html")
+    quick_start_response = client.get("/docs/v1-rc1-quick-start.html")
+    css_response = client.get("/docs/towerscout-docs.css")
     index_response = client.get("/docs/")
     missing_response = client.get("/docs/does-not-exist.md")
 
     assert response.status_code == 200
+    assert response.mimetype == "text/html"
     assert b"TowerScout User Guide" in response.data
     assert b"Azure Maps: double-click" in response.data
+    assert b"towerscout-docs.css" in response.data
+    assert overview_response.status_code == 200
+    assert overview_response.mimetype == "text/html"
+    assert b"TowerScout Project Overview" in overview_response.data
+    assert b"Package-local HTML view" in overview_response.data
+    assert quick_start_response.status_code == 200
+    assert quick_start_response.mimetype == "text/html"
+    assert b"TowerScout V1 RC1 Quick Start" in quick_start_response.data
+    assert b"v1-rc1-quick-start.md" in quick_start_response.data
+    assert css_response.status_code == 200
+    assert b".page-header" in css_response.data
     assert index_response.status_code == 200
+    assert index_response.mimetype == "text/html"
     assert b"TowerScout V1 RC1 Quick Start" in index_response.data
     assert missing_response.status_code == 404
 
 
 def test_license_route_exposes_release_notices(client):
     response = client.get("/license")
+    text_response = client.get("/license.txt")
 
     assert response.status_code == 200
-    assert response.mimetype == "text/plain"
+    assert response.mimetype == "text/html"
+    assert b"TowerScout Source/licenses" in response.data
+    assert b"/docs/towerscout-docs.css" in response.data
+    assert b"/license.txt" in response.data
     assert b"THIRD_PARTY_NOTICES.md" in response.data
     assert b"Ultralytics YOLOv5" in response.data
     assert b"AGPL-3.0" in response.data
@@ -80,6 +100,9 @@ def test_license_route_exposes_release_notices(client):
     assert b"SBOM.txt" in response.data
     assert b"release-manifest.v1.json" in response.data
     assert b"GNU AFFERO GENERAL PUBLIC LICENSE" in response.data
+    assert text_response.status_code == 200
+    assert text_response.mimetype == "text/plain"
+    assert b"===== THIRD_PARTY_NOTICES.md =====" in text_response.data
 
 
 def test_provider_and_key_routes_match_current_boot_contract(client, monkeypatch):

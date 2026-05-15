@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TowerScout Project Overview</title>
+  <link rel="stylesheet" href="towerscout-docs.css">
+</head>
+<body>
+  <header class="page-header">
+    <p class="eyebrow">TowerScout V1 RC1</p>
+    <h1>Project Overview</h1>
+    <p class="lead">TowerScout is a local web application for identifying likely cooling towers from satellite and aerial imagery for outbreak investigation and registry-building workflows.</p>
+  </header>
+
+  <div class="doc-frame">
+    <nav class="doc-nav" aria-label="Project overview sections">
+      <h2>Contents</h2>
+      <a href="#package">Package</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#boundary">Release Boundary</a>
+      <a href="#provider-keys">Provider Keys</a>
+      <a href="#license">License And Source</a>
+      <a href="#links">Research And Videos</a>
+    </nav>
+
+    <main class="doc-main">
+      <section class="doc-section" id="package">
+        <h2>What The V1 RC1 Package Provides</h2>
+        <p>The V1 RC1 package provides a Windows-first local pilot path built around a GitHub Release control ZIP, a pinned GHCR container image digest, and a separately supplied asset bundle.</p>
+        <div class="summary-grid">
+          <div class="summary-item"><strong>Runtime</strong> Docker-compatible or OCI-compatible Compose runtime configuration.</div>
+          <div class="summary-item"><strong>Scripts</strong> Windows launch, stop, status, log, asset import, and TLS CA helper scripts.</div>
+          <div class="summary-item"><strong>Docs</strong> Package-local setup, support, workflow, and overview docs.</div>
+          <div class="summary-item"><strong>Notices</strong> Source, license, provider, model, data, SBOM, and release-manifest files.</div>
+        </div>
+        <p>The normal pilot path is package-based. Source checkout, Python virtual environment, and Conda setup guides are legacy/source-install support material, not the preferred V1 RC1 pilot path.</p>
+      </section>
+
+      <section class="doc-section" id="workflow">
+        <h2>Main Workflow</h2>
+        <ol class="workflow-list">
+          <li>Start TowerScout from <code>start.bat</code> to initialize the package.</li>
+          <li>Import required model and ZIP-code assets.</li>
+          <li>Configure Google Maps or Azure Maps in Setup Wizard or Settings.</li>
+          <li>Choose a provider, define a search area, and estimate tile count.</li>
+          <li>Run detection, review likely towers, and add manual corrections if needed.</li>
+          <li>Export CSV, KML, or dataset results according to site policy.</li>
+        </ol>
+        <p>The full workflow guide is available at <a href="towerscout-user-guide.html">TowerScout User Guide</a>.</p>
+      </section>
+
+      <section class="doc-section" id="boundary">
+        <h2>Release Boundary</h2>
+        <p>The V1 RC1 supported target is Windows 11 AMD64, single-user local use, CPU baseline, normal outbound internet access, a Docker-compatible or OCI-compatible runtime with Compose support, and one site/user-owned restricted Google Maps or Azure Maps provider key.</p>
+        <div class="callout warning">
+          <p>Out of scope for V1 RC1: macOS, ARM64, air-gapped/offline installs, VDI, shared multi-user hosting, managed remote deployment, and native installer behavior.</p>
+        </div>
+      </section>
+
+      <section class="doc-section" id="provider-keys">
+        <h2>Provider Keys</h2>
+        <p>TowerScout uses Google Maps or Azure Maps browser SDKs. Browser map SDK keys are visible to someone with access to the running browser app.</p>
+        <ul>
+          <li>V1 RC1 assumes site/user-owned restricted provider keys.</li>
+          <li>Unrestricted shared TowerScout project keys are unsupported.</li>
+          <li>Sites should configure provider restrictions, API/service scoping, quotas, billing alerts, monitoring, and key rotation according to local policy.</li>
+        </ul>
+      </section>
+
+      <section class="doc-section" id="license">
+        <h2>License And Source</h2>
+        <p>The YOLO-enabled V1 RC1 package/image is not Apache-2.0-only. It is distributed with AGPL-3.0 obligations because it includes Ultralytics YOLOv5 runtime source and YOLO-derived detector weights.</p>
+        <p>The release package includes <code>LICENSE</code>, <code>NOTICE</code>, <code>THIRD_PARTY_NOTICES.md</code>, <code>MODEL_LICENSES.md</code>, <code>DATA_LICENSES.md</code>, <code>PROVIDER_TERMS.md</code>, <code>SOURCE.txt</code>, <code>SBOM.txt</code>, and <code>release-manifest.v1.json</code>.</p>
+        <p>When TowerScout is running, the local source/license notice is available at <a href="/license">/license</a>.</p>
+      </section>
+
+      <section class="doc-section" id="links">
+        <h2>Research And Videos</h2>
+        <div class="link-grid">
+          <a class="link-item" href="https://www.sciencedirect.com/science/article/pii/S2589750024000943?via%3Dihub" target="_blank" rel="noopener"><strong>TowerScout Research Article</strong> Read the published model development and validation study.</a>
+          <a class="link-item" href="https://www.youtube.com/@thaddeussegura8452/videos" target="_blank" rel="noopener"><strong>Video Guides</strong> Open the TowerScout video guide channel.</a>
+        </div>
+      </section>
+
+      <p class="doc-footer">Package-local HTML view. Markdown source: <a href="project-overview.md">project-overview.md</a>.</p>
+    </main>
+  </div>
+</body>
+</html>

@@ -103,7 +103,7 @@ The GitHub Release control package is assembled by `scripts/package-release.cmd`
 - `.env.example` with the selected image reference
 - Windows `.cmd` wrappers and PowerShell helpers for start, stop, logs, status, asset import, and TLS CA import
 - top-level `start.bat` launcher that starts Compose, polls `/api/readiness`, and opens the browser at `http://localhost:<port>` after the app shell is reachable
-- `docs/v1-rc1-quick-start.md`, `docs/v1-rc1-package-guide.md`, `docs/towerscout-user-guide.md`, and `docs/project-overview.md`
+- `docs/v1-rc1-quick-start.md`, `docs/v1-rc1-quick-start.html`, `docs/v1-rc1-package-guide.md`, `docs/towerscout-user-guide.md`, `docs/towerscout-user-guide.html`, `docs/project-overview.md`, `docs/project-overview.html`, and `docs/towerscout-docs.css`
 - `docs/oci-quick-start.md` and this runtime contract
 - the release asset bundle contract
 - `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, `MODEL_LICENSES.md`, `DATA_LICENSES.md`, and `PROVIDER_TERMS.md`
