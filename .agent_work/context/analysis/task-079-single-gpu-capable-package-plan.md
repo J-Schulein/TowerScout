@@ -1,7 +1,7 @@
 # Task-079 Follow-Up: Single GPU-Capable Package Plan
 
 **Date**: 2026-05-20
-**Status**: Proposed implementation plan
+**Status**: Proposed implementation plan, updated after PR #14 review
 **Decision Direction**: Move forward with one CUDA-capable TowerScout package/image that still runs on CPU-only machines.
 **Owning Follow-Up**: `TASK-075` or a dedicated GPU/CUDA release-package task after Task-079 closeout.
 
@@ -10,6 +10,22 @@
 Task-079 fixed the largest confirmed CPU secondary-classifier bottleneck, but the latest user run still spent most model time in CPU YOLO inference. The meaningful model-side acceleration path is a CUDA-capable runtime. The preferred direction is a single release package and a single container image that install CUDA-enabled PyTorch, automatically use CUDA when available, and fall back to CPU when CUDA is not available or is explicitly disabled.
 
 The package should not make GPU access mandatory at startup. Default launch must continue to work on CPU-only machines. GPU users should enable a packaged GPU launch overlay, and the app should report exactly why it selected CUDA or CPU.
+
+## PR #14 Review Disposition
+
+The external PR #14 review agrees that Task-079 is mergeable as RC reliability hardening and measurement work, but it should not be treated as the GPU package implementation. I agree with that distinction. PR #14 improves diagnostics and fallback behavior, while `TASK-075` must implement the explicit device policy, package changes, and GPU validation matrix before TowerScout claims GPU support.
+
+Accepted reviewer refinements for `TASK-075`:
+
+- Add a shared device resolver, tentatively `webapp/ts_device.py`, instead of implementing `TOWERSCOUT_DEVICE=auto|cpu|cuda` separately in YOLO and EfficientNet code.
+- Emit one structured ML runtime record everywhere support needs it: requested policy, selected device, PyTorch version, CUDA build version, CUDA availability, GPU name, and fallback reason.
+- Extend `/api/readiness` with non-secret ML runtime diagnostics that do not require model weights to load.
+- Fix EfficientNet candidate batching so tensors are stacked and transferred to CUDA per chunk. `TOWERSCOUT_EN_BATCH_SIZE` must bound peak GPU transfer/forward memory, not only forward-pass chunking after all candidates have already been moved to the GPU.
+- Keep `compose.yaml` CPU-safe and use `compose.gpu.yaml` only as an optional overlay.
+- Add visible validation artifacts for CPU-only fallback, CUDA-wheel CPU import, GPU overlay execution, image-size impact, and fixed-fixture output parity.
+- Keep mixed precision as an optional benchmark candidate, not baseline behavior.
+- Do not add distributed training or `DistributedDataParallel` abstractions; TowerScout's near-term GPU work is single-process inference packaging and runtime policy.
+- Treat CPU/GPU output parity as tolerance-based fixture validation, not a bit-for-bit promise across devices.
 
 ## Source Facts
 
@@ -51,6 +67,15 @@ TOWERSCOUT_DEVICE=auto|cpu|cuda
 - `cuda`: require CUDA for detection and fail readiness/detection with actionable guidance if CUDA is not available.
 
 For RC safety, default to `auto` in the container image and allow the launcher to set `cpu` or `auto` depending on the selected GPU mode.
+
+Implement this policy through a shared resolver so YOLO, EfficientNet, readiness, and support diagnostics cannot drift. The resolver should return a small immutable record with at least:
+
+- requested policy: `auto`, `cpu`, or `cuda`
+- selected device: `cpu` or `cuda`
+- fallback reason, if any
+- PyTorch version and CUDA build version
+- `torch.cuda.is_available()` result
+- CUDA device name when available
 
 Required diagnostics in logs, performance JSON, and readiness/support status:
 
@@ -150,26 +175,34 @@ Plan:
 
 ## Application Code Implementation Plan
 
-1. Add `TOWERSCOUT_DEVICE=auto|cpu|cuda` parsing in `ts_yolov5.py` and `ts_en.py`.
+1. Add shared `TOWERSCOUT_DEVICE=auto|cpu|cuda` parsing and device selection in `webapp/ts_device.py`.
 2. Make CUDA setup failure behavior explicit:
    - `auto`: log fallback reason and continue CPU.
    - `cpu`: do not attempt CUDA.
    - `cuda`: raise a structured model/runtime error with support guidance.
-3. Record ML runtime metadata in performance logs and readiness:
+3. Reuse the shared resolver from `ts_yolov5.py`, `ts_en.py`, readiness, and future support diagnostics.
+4. Record ML runtime metadata in performance logs and readiness:
    - PyTorch version
    - CUDA build version
    - CUDA availability
    - selected device
    - GPU name
+   - requested device policy
+   - fallback reason
    - batch sizes
-4. Add a lightweight runtime diagnostics endpoint or extend `/api/readiness` with an `ml_runtime` component that does not force model weights to load.
-5. Keep model weights, thresholds, detection JSON fields, export behavior, and asset bundle layout unchanged.
-6. Add tests for:
+5. Add a lightweight runtime diagnostics endpoint or extend `/api/readiness` with an `ml_runtime` component that does not force model weights to load.
+6. Fix EfficientNet CUDA batching so candidate tensors are stacked and transferred per `TOWERSCOUT_EN_BATCH_SIZE` chunk. This must make the batch size a real peak-memory bound.
+7. Make GPU concurrency explicit. Prefer a conservative default for GPU model access and add a configurable `TOWERSCOUT_GPU_CONCURRENCY` only after GPU memory behavior is measured.
+8. Keep mixed precision behind an explicit benchmark/feature flag, such as `TOWERSCOUT_AMP=0|1`, and do not enable it by default until fixed-fixture parity and timing evidence support it.
+9. Keep model weights, thresholds, detection JSON fields, export behavior, and asset bundle layout unchanged.
+10. Add tests for:
    - CPU forced mode.
    - CUDA required but unavailable.
    - CUDA visible but model transfer fails in `auto` and falls back to CPU.
    - Runtime metadata serialization.
    - Readiness/runtime diagnostics with CPU-only PyTorch and CUDA-built PyTorch.
+   - EfficientNet chunking that bounds CUDA transfer size by `TOWERSCOUT_EN_BATCH_SIZE`.
+   - GPU concurrency configuration behavior.
 
 ## Release Package Changes
 
@@ -201,6 +234,9 @@ Minimum validation before this can be called RC-ready:
 | NVIDIA Windows 11 AMD64, `TOWERSCOUT_DEVICE=cuda` with GPU unavailable | App fails readiness/detection with actionable guidance, not a generic stack trace. |
 | Podman CPU path | Existing CPU package behavior remains intact. |
 | Podman GPU path | Validate separately with CDI; do not claim support until proven. |
+| Fixed-fixture output parity | CPU, forced CPU on CUDA wheel, and CUDA overlay outputs match within documented score/selection tolerances. |
+| EfficientNet high-candidate GPU memory fixture | Peak GPU memory scales with configured batch size, not total candidate count. |
+| Concurrent GPU detection requests | Requests serialize or throttle safely without GPU out-of-memory; logs explain queueing/concurrency behavior. |
 
 Performance evidence to capture:
 
@@ -209,6 +245,8 @@ Performance evidence to capture:
 - YOLO inference seconds, secondary inference seconds, total workflow seconds.
 - Geocoding excluded or held constant when comparing model speed.
 - Image size delta between CPU-only and CUDA-capable image.
+- Fixed-fixture `torch.profiler` output for CPU and CUDA model phases.
+- Focused GPU trace, such as Nsight Systems, only around the model-critical section if CUDA bottlenecks remain unclear.
 
 ## Risks And Mitigations
 
@@ -221,20 +259,24 @@ Performance evidence to capture:
 | Podman GPU support differs from Docker | Support complexity | Treat Podman GPU as separate validation; keep Podman CPU support intact. |
 | CUDA setup fails after `torch.cuda.is_available()` | Detection failure or crash | Keep `auto` CPU fallback and add `cpu` force mode; use `cuda` required mode only when explicitly requested. |
 | Larger GPU memory use causes out-of-memory on small GPUs | Detection failure | Keep configurable CUDA batch sizes and fallback guidance. |
+| EfficientNet batch size does not bound transfer memory | GPU out-of-memory despite small configured batch size | Stack and transfer EfficientNet tensors per chunk before advertising CUDA support. |
+| Concurrent requests oversubscribe one GPU | Runtime failures under multi-client use | Add explicit GPU concurrency policy and conservative default serialization. |
+| Mixed precision changes scores or selected detections | Silent result drift | Keep AMP opt-in until fixed-fixture parity and tolerance evidence are captured. |
 
 ## Proposed Execution Phases
 
-### Phase 1 - Proof Build
+### Phase 1 - Runtime Policy And GPU Memory Safety
+
+- Add shared `ts_device.py` policy resolver and unit tests.
+- Extend readiness/performance metadata with requested policy, selected device, CUDA build, CUDA availability, device name, and fallback reason.
+- Fix EfficientNet per-chunk CUDA transfer so `TOWERSCOUT_EN_BATCH_SIZE` bounds peak transfer memory.
+- Add explicit GPU concurrency configuration and safe defaults.
+
+### Phase 2 - Proof Build
 
 - Build `towerscout:cuda121-poc` using the CUDA 12.1 PyTorch wheel index.
 - Validate import, readiness, and CPU fallback on the current CPU-only host.
 - Measure image size and startup time delta.
-
-### Phase 2 - App Runtime Controls
-
-- Add `TOWERSCOUT_DEVICE`.
-- Add structured CUDA diagnostics.
-- Add unit tests for forced CPU, required CUDA, and auto fallback.
 
 ### Phase 3 - Docker GPU Overlay
 
@@ -262,5 +304,7 @@ Accept single GPU-capable package only if:
 - Default launch does not require GPU.
 - Support diagnostics clearly explain CPU fallback.
 - Image size and download impact are acceptable for RC users.
+- Fixed-fixture parity evidence shows no unacceptable selection drift.
+- GPU memory and concurrency behavior are bounded and supportable.
 
 If any gate fails, keep the Task-079 CPU fixes and defer the CUDA-capable package to a later RC while preserving the implementation plan.

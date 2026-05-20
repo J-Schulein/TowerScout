@@ -127,7 +127,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 - Phase 2A research is complete: the fixed 6-tile benchmark reproduced 41 raw detections and 9 EfficientNet candidates, but measured secondary-classifier time around `13.8s` rather than the live smoke's `69.48s`. EfficientNet batching is output-stable and can save roughly `15-20%` of CPU secondary time on benchmark fixtures, but it does not fully explain the live outlier.
 - Phase 2B research is complete: current code can auto-use CUDA only when CUDA-enabled PyTorch and visible NVIDIA devices are present; the RC package path currently installs CPU-only PyTorch wheels and has no Compose GPU reservation.
 - Phase 3 CPU optimization is complete: EfficientNet review-band candidates are batched with default batch size `8`, secondary-classifier subphase/candidate diagnostics are recorded, and EfficientNet now falls back to CPU if CUDA setup is visible but unusable.
-- RC1 remains CPU-safe by default. The approved follow-up direction is a single CUDA-capable package/image with CPU fallback, optional GPU launch overlay, explicit runtime diagnostics, and validation gates documented in `.agent_work/context/analysis/task-079-single-gpu-capable-package-plan.md`; implementation and runtime validation move to `TASK-075`.
+- RC1 remains CPU-safe by default. The approved follow-up direction is a single CUDA-capable package/image with CPU fallback, optional GPU launch overlay, explicit runtime diagnostics, and validation gates documented in `.agent_work/context/analysis/task-079-single-gpu-capable-package-plan.md`; the PR #14 review disposition adds shared device-policy resolution, EfficientNet per-chunk CUDA transfer, readiness diagnostics, GPU concurrency, and fixed-fixture parity as `TASK-075` entry criteria.
 
 **Dependencies**: `TASK-065`; `TASK-069`; `TASK-072`; current detection/geocoding/provider workflows. `TASK-071` and `TASK-066` should consume this task's outcomes for docs and clean-machine validation.
 
@@ -184,7 +184,7 @@ These tasks are important for V1 RC1, but they are not yet active task files in 
 | Task | Recommended Handling | Reason |
 |---|---|---|
 | `TASK-076` Provider API Key Exposure And Restriction Policy | Candidate for parallel Sprint 06 work | Browser map SDK keys remain client-visible; v1 needs an approved restriction/support policy or an engineering blocker. AGPL does not change provider/API terms. |
-| `TASK-075` Single GPU-Capable Package Implementation | Candidate follow-up after `TASK-079` closeout | `TASK-079` produced the feasibility evidence and a source-backed plan. Start from the single CUDA-capable image/package direction, keep the default launch CPU-safe, and require CPU-only plus NVIDIA Docker Desktop WSL2 validation before changing RC support language. |
+| `TASK-075` Single GPU-Capable Package Implementation | Candidate follow-up after `TASK-079` closeout | `TASK-079` produced the feasibility evidence and a source-backed plan. Start with shared `TOWERSCOUT_DEVICE` policy resolution, EfficientNet memory-bound CUDA chunking, readiness diagnostics, and fixed-fixture parity checks; keep the default launch CPU-safe and require CPU-only plus NVIDIA Docker Desktop WSL2 validation before changing RC support language. |
 
 ---
 
