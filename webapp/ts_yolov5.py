@@ -24,6 +24,7 @@ from PIL import Image
 from ts_imgutil import crop
 from ts_errors import ModelLoadError, ProcessingError
 from ts_logging import get_ml_logger
+from ts_device import DevicePolicyError, gpu_concurrency_limit, select_model_device
 from ts_yolov5_local import load_local_yolov5_model as _load_local_yolov5_model
 
 logger = get_ml_logger()
@@ -141,44 +142,57 @@ class YOLOv5_Detector:
                     cause=e
                 )
             
-            # GPU/CPU configuration with error handling
-            self.device_label = "cpu"
-            self.cuda_available = torch.cuda.is_available()
-            self.cuda_build_version = getattr(torch.version, "cuda", None)
-            self.cuda_device_name = None
-            if self.cuda_available:
+            try:
+                self.device_selection = select_model_device(
+                    "YOLOv5",
+                    move_to_cuda=lambda: self.model.cuda(),
+                    move_to_cpu=lambda: self.model.cpu() if hasattr(self.model, "cpu") else None,
+                )
+            except DevicePolicyError as e:
+                raise ModelLoadError(
+                    str(e),
+                    model_name="YOLOv5",
+                    model_path=filename,
+                    user_message="YOLOv5 device selection failed. Check GPU settings and try again.",
+                    cause=e,
+                )
+
+            self.device_label = self.device_selection.selected_device
+            self.cuda_available = self.device_selection.torch_cuda_available
+            self.cuda_build_version = self.device_selection.torch_cuda_build
+            self.cuda_device_name = self.device_selection.cuda_device_name
+            self.device_fallback_reason = self.device_selection.fallback_reason
+
+            if self.device_label == "cuda":
                 try:
-                    self.model.cuda()
-                    self.cuda_device_name = torch.cuda.get_device_name(0)
                     t = torch.cuda.get_device_properties(0).total_memory
                     r = torch.cuda.memory_reserved(0)
                     a = torch.cuda.memory_allocated(0)
                     f = r-a  # free inside reserved
-                    logger.info(
-                        "CUDA enabled - device=%s build=%s free_gpu_memory=%s bytes",
-                        self.cuda_device_name,
-                        self.cuda_build_version,
-                        f"{f:,}",
-                    )
-                    self.batch_size = _env_int("TOWERSCOUT_YOLO_CUDA_BATCH_SIZE", 8)
-                    self.device_label = "cuda"
-                except Exception as e:
-                    logger.warning(f"CUDA setup failed, falling back to CPU: {e}")
-                    self.batch_size = _env_int(
-                        "TOWERSCOUT_YOLO_CPU_BATCH_SIZE",
-                        torch.get_num_threads(),
-                    )
-                    self.device_label = "cpu"
+                except Exception:
+                    f = 0
+                logger.info(
+                    "CUDA enabled - device=%s build=%s free_gpu_memory=%s bytes",
+                    self.cuda_device_name,
+                    self.cuda_build_version,
+                    f"{f:,}",
+                )
+                self.batch_size = _env_int("TOWERSCOUT_YOLO_CUDA_BATCH_SIZE", 8)
             else:
-                logger.info("CUDA not available, using CPU (torch_cuda_build=%s)", self.cuda_build_version)
+                logger.info(
+                    "YOLOv5 using CPU (policy=%s, torch_cuda_build=%s, fallback=%s)",
+                    self.device_selection.requested_policy,
+                    self.cuda_build_version,
+                    self.device_fallback_reason,
+                )
                 self.batch_size = _env_int(
                     "TOWERSCOUT_YOLO_CPU_BATCH_SIZE",
                     torch.get_num_threads(),
                 )
-                self.device_label = "cpu"
             
-            # add a semaphore so we don't run out of GPU memory between multiple clients
-            self.semaphore = threading.Semaphore(8)
+            # Limit concurrent GPU model access; keep the historical CPU default.
+            concurrency_limit = gpu_concurrency_limit() if self.device_label == "cuda" else 8
+            self.semaphore = threading.Semaphore(concurrency_limit)
             
         except Exception as e:
             if isinstance(e, ModelLoadError):
@@ -212,6 +226,7 @@ class YOLOv5_Detector:
             if perf_metrics:
                 perf_metrics.update_memory_usage()
                 if hasattr(perf_metrics, "set_runtime_metadata"):
+                    device_selection = getattr(self, "device_selection", None)
                     perf_metrics.set_runtime_metadata(
                         model_device=self.device_label,
                         model_batch_size=self.batch_size,
@@ -221,6 +236,9 @@ class YOLOv5_Detector:
                         model_torch_cuda_build=getattr(self, "cuda_build_version", None),
                         model_cuda_available=getattr(self, "cuda_available", False),
                         model_cuda_device_name=getattr(self, "cuda_device_name", None),
+                        model_device_policy=getattr(device_selection, "requested_policy", None),
+                        model_configured_device_policy=getattr(device_selection, "configured_policy", None),
+                        model_device_fallback_reason=getattr(self, "device_fallback_reason", None),
                         secondary_classifier_enabled=secondary is not None,
                         secondary_classifier_device=getattr(secondary, "device_label", None),
                         secondary_classifier_batch_size=getattr(secondary, "batch_size", None),
@@ -250,6 +268,7 @@ class YOLOv5_Detector:
                         'crop_seconds': 'model_secondary_crop',
                         'transform_seconds': 'model_secondary_transform',
                         'stack_seconds': 'model_secondary_stack',
+                        'transfer_seconds': 'model_secondary_transfer',
                         'forward_seconds': 'model_secondary_forward',
                         'attach_seconds': 'model_secondary_attach',
                         'debug_image_seconds': 'model_secondary_debug_image_save',

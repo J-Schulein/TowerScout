@@ -166,6 +166,7 @@ function Copy-ReleaseItem {
 $releaseFiles = @(
     "start.bat",
     "compose.yaml",
+    "compose.gpu.yaml",
     ".env.example",
     "LICENSE",
     "NOTICE",
@@ -337,6 +338,7 @@ $manifest = [ordered]@{
             "webapp/ts_yolov5.py",
             "Dockerfile",
             "compose.yaml",
+            "compose.gpu.yaml",
             "scripts/",
             "webapp/requirements.txt",
             "package-lock.json"

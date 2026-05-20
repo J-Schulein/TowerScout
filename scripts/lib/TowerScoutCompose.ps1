@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 $script:TowerScoutComposeExitCode = 0
+$script:TowerScoutCudaPytorchIndexUrl = "https://download.pytorch.org/whl/cu121"
 
 function Get-TowerScoutRepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
@@ -140,6 +141,119 @@ function Write-TowerScoutComposeProviderSummary {
     }
 }
 
+function Set-TowerScoutGpuEnvironment {
+    param(
+        [ValidateSet("off", "auto", "on")]
+        [string] $Gpu = "off",
+
+        [switch] $Build
+    )
+
+    $env:TOWERSCOUT_GPU_MODE = $Gpu
+
+    if ($Gpu -eq "off") {
+        $env:TOWERSCOUT_DEVICE = "cpu"
+        return
+    }
+
+    if ($Gpu -eq "auto") {
+        $env:TOWERSCOUT_DEVICE = "auto"
+    }
+    elseif ($Gpu -eq "on") {
+        $env:TOWERSCOUT_DEVICE = "cuda"
+    }
+
+    if ($Build -and (
+        [string]::IsNullOrWhiteSpace($env:PYTORCH_INDEX_URL) -or
+        $env:PYTORCH_INDEX_URL -eq "https://download.pytorch.org/whl/cpu"
+    )) {
+        $env:PYTORCH_INDEX_URL = $script:TowerScoutCudaPytorchIndexUrl
+    }
+}
+
+function Test-TowerScoutNvidiaGpuDetected {
+    $override = $env:TOWERSCOUT_GPU_AUTO_OVERLAY
+    if ($override -in @("1", "true", "TRUE", "yes", "YES", "on", "ON")) {
+        return $true
+    }
+    if ($override -in @("0", "false", "FALSE", "no", "NO", "off", "OFF")) {
+        return $false
+    }
+
+    $nvidiaSmi = Get-Command "nvidia-smi" -ErrorAction SilentlyContinue
+    if ($null -eq $nvidiaSmi) {
+        return $false
+    }
+
+    try {
+        $previousErrorActionPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        try {
+            $gpuOutput = & $nvidiaSmi.Source -L 2>&1
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+        return ($LASTEXITCODE -eq 0 -and (($gpuOutput -join "`n") -match "GPU"))
+    }
+    catch {
+        return $false
+    }
+}
+
+function Test-TowerScoutUseGpuOverlay {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $EngineName,
+
+        [ValidateSet("off", "auto", "on")]
+        [string] $Gpu = "off"
+    )
+
+    if ($Gpu -eq "off") {
+        return $false
+    }
+
+    if ($Gpu -eq "on") {
+        return $true
+    }
+
+    return ($EngineName -eq "docker" -and (Test-TowerScoutNvidiaGpuDetected))
+}
+
+function Write-TowerScoutGpuModeSummary {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $EngineName,
+
+        [ValidateSet("off", "auto", "on")]
+        [string] $Gpu = "off",
+
+        [switch] $Build
+    )
+
+    if ($Gpu -eq "off") {
+        Write-Host "GPU mode: off. TowerScout will force CPU execution for this launch."
+        return
+    }
+
+    if ($Gpu -eq "auto") {
+        if (Test-TowerScoutUseGpuOverlay -EngineName $EngineName -Gpu $Gpu) {
+            Write-Host "GPU mode: auto. NVIDIA host preflight detected a GPU; Docker GPU overlay will be requested and TowerScout will fall back to CPU if CUDA is unavailable."
+        }
+        else {
+            Write-Host "GPU mode: auto. No validated Docker/NVIDIA GPU preflight was detected; starting without the GPU overlay and using TowerScout CPU fallback."
+        }
+    }
+    elseif ($Gpu -eq "on") {
+        Write-Host "GPU mode: on. Docker GPU overlay will be requested; TowerScout readiness will fail if CUDA is unavailable."
+    }
+
+    if ($Build) {
+        Write-Host "PyTorch build index: $env:PYTORCH_INDEX_URL"
+    }
+}
+
 function Invoke-TowerScoutCompose {
     param(
         [ValidateSet("auto", "docker", "podman")]
@@ -147,14 +261,35 @@ function Invoke-TowerScoutCompose {
 
         [string[]] $ComposeArguments = @(),
 
-        [switch] $Build
+        [switch] $Build,
+
+        [ValidateSet("off", "auto", "on")]
+        [string] $Gpu = "off"
     )
 
     $repoRoot = Get-TowerScoutRepoRoot
     $command = Get-TowerScoutComposeCommand -Engine $Engine
+    $effectiveEngine = [string] $command["Executable"]
+    $useGpuOverlay = Test-TowerScoutUseGpuOverlay -EngineName $effectiveEngine -Gpu $Gpu
+    if ($useGpuOverlay -and $effectiveEngine -ne "docker") {
+        throw "GPU launch currently requires Docker Compose with NVIDIA GPU support. Podman GPU launch is not validated for this release path."
+    }
+    if ($Gpu -eq "on" -and $effectiveEngine -ne "docker") {
+        throw "GPU launch currently requires Docker Compose with NVIDIA GPU support. Podman GPU launch is not validated for this release path."
+    }
+
+    Set-TowerScoutGpuEnvironment -Gpu $Gpu -Build:$Build
+
     $composeFiles = @("-f", (Join-Path $repoRoot "compose.yaml"))
     if ($Build) {
         $composeFiles += @("-f", (Join-Path $repoRoot "compose.build.yaml"))
+    }
+    if ($useGpuOverlay) {
+        $gpuComposePath = Join-Path $repoRoot "compose.gpu.yaml"
+        if (-not (Test-Path -LiteralPath $gpuComposePath -PathType Leaf)) {
+            throw "GPU Compose overlay not found: $gpuComposePath"
+        }
+        $composeFiles += @("-f", $gpuComposePath)
     }
 
     Push-Location $repoRoot

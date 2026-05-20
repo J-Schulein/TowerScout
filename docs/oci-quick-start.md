@@ -17,6 +17,7 @@ Out of scope for v1: Mac, ARM64, air-gapped/offline installs, VDI, shared multi-
 The release package is expected to include:
 
 - `compose.yaml`
+- `compose.gpu.yaml`
 - `.env.example`
 - `start.bat`
 - `scripts/launch.ps1`
@@ -115,6 +116,35 @@ For developer/support use from a source checkout:
 ```
 
 This uses `compose.build.yaml` and builds `towerscout:local` from the local Dockerfile.
+
+For developer/support validation of the CUDA-capable image path:
+
+```powershell
+.\start.bat -Engine docker -Build -Gpu auto
+```
+
+The GPU build path switches `PYTORCH_INDEX_URL` to the CUDA 12.1 PyTorch wheel index for that launch process unless another index is already set.
+
+## Optional GPU Launch
+
+The default launcher mode is CPU-safe:
+
+```powershell
+.\start.bat -Gpu off
+```
+
+GPU launch is opt-in and currently Docker-first:
+
+```powershell
+.\start.bat -Engine docker -Gpu auto
+.\start.bat -Engine docker -Gpu on
+```
+
+- `-Gpu off` uses the default Compose file and sets `TOWERSCOUT_DEVICE=cpu`.
+- `-Gpu auto` sets `TOWERSCOUT_DEVICE=auto` and adds `compose.gpu.yaml` only when the launcher detects a Docker/NVIDIA GPU preflight. If no GPU preflight is detected, it starts without the overlay and uses CPU fallback.
+- `-Gpu on` adds `compose.gpu.yaml`, sets `TOWERSCOUT_DEVICE=cuda`, and fails readiness if CUDA is unavailable.
+
+GPU launch requires a CUDA-capable TowerScout image plus a Docker host with NVIDIA GPU support available to containers. Podman GPU launch is not validated for this release path; use the CPU-safe Podman launch unless support provides a site-specific GPU procedure.
 
 ## Engine Selection
 
