@@ -36,6 +36,8 @@ This task starts from the Task-079 plan and PR #14 review disposition. It must n
 
 **R-075-011**: WHEN claiming GPU support, THE PROJECT SHALL capture fixed-fixture CPU/GPU parity, model-phase timing, image-size impact, Docker Desktop WSL2 GPU validation, and any Podman GPU status limitations.
 
+**R-075-012**: WHEN publishing a release image, THE PROJECT SHALL explicitly record whether the image was built with CPU or CUDA-capable PyTorch wheels.
+
 ## Acceptance Criteria
 
 - [x] Shared `webapp/ts_device.py` resolver implemented with `auto`, `cpu`, and `cuda` policies.
@@ -52,6 +54,7 @@ This task starts from the Task-079 plan and PR #14 review disposition. It must n
 - [x] CUDA-capable image CPU fallback is validated on a non-GPU host or explicitly deferred.
 - [x] Optional `compose.gpu.yaml` is added only after proof-image readiness.
 - [x] Launcher `-Gpu off|auto|on` behavior is added only after overlay behavior is understood.
+- [x] Container publication has an explicit CPU/CUDA PyTorch wheel flavor selection.
 - [x] Task-071 and Task-066 receive updated documentation and validation handoff notes.
 
 ## Dependencies
@@ -120,6 +123,15 @@ This task starts from the Task-079 plan and PR #14 review disposition. It must n
 **Output**: CPU-safe default and `-Gpu auto` are less likely to fail on CPU-only or partially configured GPU hosts. Required GPU mode remains explicit through `-Gpu on` / `TOWERSCOUT_DEVICE=cuda`.
 **Validation**: Passed `.venv\Scripts\python.exe -m py_compile webapp\ts_device.py webapp\ts_en.py webapp\ts_yolov5.py webapp\ts_runtime.py tests\unit\test_task_075_device_policy.py tests\unit\test_task_075_launcher_gpu.py`; passed focused tests with `.venv\Scripts\python.exe -m pytest tests\unit\test_task_075_device_policy.py tests\unit\test_task_075_launcher_gpu.py tests\unit\test_ts_en_classifier.py tests\unit\test_yolov5_secondary_metrics.py tests\unit\test_runtime_contract.py tests\unit\test_release_package_script.py tests\unit\test_container_publish_workflow.py -q -p no:cacheprovider`; passed full unit tests with `.venv\Scripts\python.exe -m pytest tests\unit -q -p no:cacheprovider`; passed PowerShell parser validation for `scripts\lib\TowerScoutCompose.ps1`; passed `docker compose -f compose.yaml -f compose.gpu.yaml config`; passed `.agent_work` validation and `git diff --check`.
 **Next**: Push the PR update for reviewer follow-up, then validate `-Gpu on` and `TOWERSCOUT_GPU_AUTO_OVERLAY=1` on an NVIDIA Docker Desktop WSL2 host.
+
+### 2026-05-21 - Updated PR Review Follow-Up Fixes Implemented
+**Objective**: Address the updated PR #15 review's remaining RC1 supportability fixes before moving to Task-071/Task-066.
+**Context**: The reviewer approved the CPU-safe GPU direction but identified four code-level gaps to close: the container publish workflow did not explicitly select CPU versus CUDA PyTorch wheels, readiness guidance did not distinguish CPU-wheel images from Docker GPU pass-through issues, YOLO released the shared GPU guard before result tensor CPU conversion, and EfficientNet loaded checkpoints directly to the selected device.
+**Decision**: Keep the Dockerfile default CPU-wheel for local safety, but add an explicit publish/build flavor path for `cpu` versus `cuda121`. Improve readiness recovery messages based on whether CUDA was required with a CPU-only PyTorch build, a CUDA runtime probe failure, or a generic CUDA access failure. Keep YOLO's shared GPU guard through tensor extraction/conversion and load EfficientNet checkpoints on CPU before device selection.
+**Execution**: Updated `.github/workflows/container-publish.yml`, `Dockerfile`, `compose.build.yaml`, `scripts/lib/TowerScoutCompose.ps1`, `.env.example`, `webapp/ts_runtime.py`, `webapp/towerscout.py`, `webapp/ts_yolov5.py`, `webapp/ts_en.py`, OCI docs, and focused unit tests.
+**Output**: Release publication now has an explicit PyTorch flavor choice and records `pytorch_flavor` in workflow summary output. Runtime readiness gives more actionable CUDA-required guidance. YOLO and EfficientNet now hold GPU memory/concurrency boundaries more conservatively.
+**Validation**: Passed `.venv\Scripts\python.exe -m py_compile webapp\ts_runtime.py webapp\ts_device.py webapp\ts_yolov5.py webapp\ts_en.py webapp\towerscout.py tests\unit\test_task_075_device_policy.py tests\unit\test_yolov5_secondary_metrics.py tests\unit\test_ts_en_classifier.py tests\unit\test_container_publish_workflow.py tests\unit\test_task_075_launcher_gpu.py`; passed focused tests with `.venv\Scripts\python.exe -m pytest tests\unit\test_task_075_device_policy.py tests\unit\test_task_075_launcher_gpu.py tests\unit\test_ts_en_classifier.py tests\unit\test_yolov5_secondary_metrics.py tests\unit\test_runtime_contract.py tests\unit\test_release_package_script.py tests\unit\test_container_publish_workflow.py -q -p no:cacheprovider`; passed full unit suite with `.venv\Scripts\python.exe -m pytest tests\unit -q -p no:cacheprovider`; passed PowerShell parser and GPU build-helper validation; passed `docker compose -f compose.yaml -f compose.build.yaml config`; passed `docker compose -f compose.yaml -f compose.gpu.yaml config`; passed container-publish workflow summary inspection; passed `.agent_work` validation and `git diff --check`.
+**Next**: Push the PR update, then either merge after review or proceed to NVIDIA-host validation before making GPU-supported release claims.
 
 ### 2026-05-20 - Launcher Smoke Retried After Port 5000 Was Cleared
 **Objective**: Validate the updated launcher path after the active browser/app session was closed.

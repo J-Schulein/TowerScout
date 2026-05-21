@@ -189,6 +189,7 @@ function Set-TowerScoutGpuEnvironment {
         $env:TOWERSCOUT_DEVICE = "cpu"
         if ($Build) {
             $env:PYTORCH_INDEX_URL = $script:TowerScoutCpuPytorchIndexUrl
+            $env:TOWERSCOUT_PYTORCH_FLAVOR = "cpu"
         }
         return
     }
@@ -205,6 +206,15 @@ function Set-TowerScoutGpuEnvironment {
         $env:PYTORCH_INDEX_URL -eq "https://download.pytorch.org/whl/cpu"
     )) {
         $env:PYTORCH_INDEX_URL = $script:TowerScoutCudaPytorchIndexUrl
+    }
+
+    if ($Build) {
+        if ($env:PYTORCH_INDEX_URL -eq $script:TowerScoutCudaPytorchIndexUrl) {
+            $env:TOWERSCOUT_PYTORCH_FLAVOR = "cuda121"
+        }
+        elseif ($env:PYTORCH_INDEX_URL -eq $script:TowerScoutCpuPytorchIndexUrl) {
+            $env:TOWERSCOUT_PYTORCH_FLAVOR = "cpu"
+        }
     }
 }
 

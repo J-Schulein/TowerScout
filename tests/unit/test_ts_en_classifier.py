@@ -158,5 +158,6 @@ def test_efficientnet_init_falls_back_to_cpu_when_cuda_setup_fails(monkeypatch):
         assert fake_model.evaluated is True
         assert classifier.batch_size == 8
         torch_load.assert_called_once()
+        assert torch_load.call_args.kwargs["map_location"] == torch.device("cpu")
     finally:
         shutil.rmtree(scratch_dir, ignore_errors=True)

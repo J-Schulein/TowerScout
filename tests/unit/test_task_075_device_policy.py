@@ -168,7 +168,61 @@ def test_readiness_payload_includes_ml_runtime_and_fails_when_cuda_required(monk
     assert payload["components"]["ml_runtime"]["requested_policy"] == "cuda"
     assert payload["runtime"]["device_policy"] == "cuda"
     assert payload["runtime"]["selected_device"] == "unavailable"
+    assert "CPU-only PyTorch" in " ".join(payload["recovery"])
     assert "TOWERSCOUT_DEVICE=auto or cpu" in " ".join(payload["recovery"])
+
+
+def test_readiness_payload_explains_cuda_runtime_probe_failure(monkeypatch):
+    monkeypatch.setattr(ts_runtime, "_required_paths", lambda: {})
+    monkeypatch.setattr(
+        ts_runtime,
+        "_config_status",
+        lambda: {
+            "status": "ok",
+            "env_path": "test.env",
+            "needs_setup": False,
+            "secret_key_persisted": True,
+            "providers": {
+                "google": {"configured": True},
+                "azure": {"configured": False},
+                "default": "google",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        ts_runtime,
+        "_asset_status",
+        lambda: {
+            "status": "ok",
+            "manifest_version": "test-manifest",
+            "assets": [],
+            "missing": [],
+            "corrupt": [],
+            "optional_missing": [],
+        },
+    )
+    monkeypatch.setattr(
+        ts_runtime.ts_device,
+        "build_runtime_diagnostics",
+        lambda: {
+            "status": "fatal",
+            "requested_policy": "cuda",
+            "configured_policy": "cuda",
+            "selected_device": "unavailable",
+            "torch_version": "2.2.1+cu121",
+            "torch_cuda_build": "12.1",
+            "torch_cuda_available": False,
+            "cuda_device_name": None,
+            "fallback_reason": "cuda_required_but_unavailable",
+            "cuda_probe_error": "RuntimeError: driver not available",
+        },
+    )
+
+    payload = ts_runtime.build_readiness_payload()
+
+    assert payload["state"] == "fatal"
+    assert "CUDA runtime probe" in " ".join(payload["recovery"])
+    assert "NVIDIA container access" in " ".join(payload["recovery"])
 
 
 def test_readiness_payload_fails_for_invalid_device_policy(monkeypatch):

@@ -90,6 +90,13 @@ ghcr.io/j-schulein/towerscout@sha256:<digest>
 
 Use that digest reference when generating the release package.
 
+The publish workflow has an explicit PyTorch wheel flavor input:
+
+- `cpu`: publishes the smaller CPU-wheel image.
+- `cuda121`: publishes the CUDA 12.1 PyTorch image for the single GPU-capable package path.
+
+For RC1, record the chosen flavor with the image digest. A CUDA-capable image remains CPU-safe when launched with `-Gpu off`, but GPU execution is not a supported claim until NVIDIA Docker host validation, fixed-fixture CPU/GPU parity, and timing evidence are captured.
+
 ## First Run
 
 1. Start TowerScout from the package directory:

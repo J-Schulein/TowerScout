@@ -34,6 +34,9 @@ def test_gpu_launcher_helpers_use_cpu_safe_auto_and_build_indexes():
     if ($env:PYTORCH_INDEX_URL -ne "https://download.pytorch.org/whl/cpu") {{
         throw "Expected -Gpu off -Build to force the CPU PyTorch index."
     }}
+    if ($env:TOWERSCOUT_PYTORCH_FLAVOR -ne "cpu") {{
+        throw "Expected -Gpu off -Build to set TOWERSCOUT_PYTORCH_FLAVOR=cpu."
+    }}
 
     $env:TOWERSCOUT_GPU_AUTO_OVERLAY = "0"
     if (Test-TowerScoutUseGpuOverlay -EngineName docker -Gpu auto) {{
@@ -56,6 +59,9 @@ def test_gpu_launcher_helpers_use_cpu_safe_auto_and_build_indexes():
     }}
     if ($env:PYTORCH_INDEX_URL -ne "https://download.pytorch.org/whl/cu121") {{
         throw "Expected -Gpu auto -Build to select the CUDA PyTorch index."
+    }}
+    if ($env:TOWERSCOUT_PYTORCH_FLAVOR -ne "cuda121") {{
+        throw "Expected -Gpu auto -Build to set TOWERSCOUT_PYTORCH_FLAVOR=cuda121."
     }}
 
     "ok"

@@ -86,6 +86,28 @@ def build_health_payload() -> Dict[str, str]:
     }
 
 
+def _ml_runtime_recovery_message(ml_runtime: Dict[str, Any]) -> str:
+    if ml_runtime.get("fallback_reason") != "cuda_required_but_unavailable":
+        return "Check TOWERSCOUT_DEVICE and ML runtime configuration."
+
+    if not ml_runtime.get("torch_cuda_build"):
+        return (
+            "CUDA was required, but this TowerScout image appears to include CPU-only PyTorch. "
+            "Use a CUDA-capable TowerScout image or set TOWERSCOUT_DEVICE=auto or cpu."
+        )
+
+    if ml_runtime.get("cuda_probe_error"):
+        return (
+            "CUDA was required, but TowerScout could not complete a CUDA runtime probe. "
+            "Confirm NVIDIA container access or set TOWERSCOUT_DEVICE=auto or cpu."
+        )
+
+    return (
+        "CUDA was required, but PyTorch could not access CUDA. "
+        "Confirm NVIDIA container access or set TOWERSCOUT_DEVICE=auto or cpu."
+    )
+
+
 def build_readiness_payload() -> Dict[str, Any]:
     path_details = {
         name: _write_check(path)
@@ -127,10 +149,7 @@ def build_readiness_payload() -> Dict[str, Any]:
         else:
             recovery.append("Import or bootstrap the missing runtime assets, then restart TowerScout.")
     if ml_runtime["status"] == "fatal":
-        if ml_runtime.get("fallback_reason") == "cuda_required_but_unavailable":
-            recovery.append("Set TOWERSCOUT_DEVICE=auto or cpu, or enable NVIDIA GPU access before requiring CUDA.")
-        else:
-            recovery.append("Check TOWERSCOUT_DEVICE and ML runtime configuration.")
+        recovery.append(_ml_runtime_recovery_message(ml_runtime))
 
     return {
         "state": state,
@@ -152,6 +171,7 @@ def build_readiness_payload() -> Dict[str, Any]:
             "selected_device": ml_runtime["selected_device"],
             "cuda_requested": ml_runtime["requested_policy"] == "cuda",
             "container_engine": os.getenv("TOWERSCOUT_CONTAINER_ENGINE", ""),
+            "pytorch_flavor": os.getenv("TOWERSCOUT_PYTORCH_FLAVOR", ""),
         },
         "recovery": recovery,
     }

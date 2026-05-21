@@ -94,6 +94,18 @@ class EN_Classifier:
                 )
 
             try:
+                checkpoint = torch.load(str(path_best), map_location=torch.device('cpu'))
+                self.model.load_state_dict(checkpoint)
+                logger.info("EfficientNet weights loaded on CPU")
+            except Exception as e:
+                raise ModelLoadError(
+                    f"Failed to load EfficientNet weights: {str(e)}",
+                    model_name="EfficientNet-B5",
+                    model_path=str(path_best),
+                    cause=e
+                )
+
+            try:
                 self.device_selection = select_model_device(
                     "EfficientNet",
                     move_to_cuda=lambda: self.model.to(torch.device('cuda')),
@@ -102,7 +114,7 @@ class EN_Classifier:
                 self.device = torch.device(self.device_selection.selected_device)
                 self.device_label = self.device_selection.selected_device
                 self.device_fallback_reason = self.device_selection.fallback_reason
-                checkpoint = torch.load(str(path_best), map_location=self.device)
+                self.model.eval()
                 logger.info(
                     "EfficientNet loaded on %s (policy=%s, fallback=%s)",
                     self.device_label,
@@ -119,19 +131,7 @@ class EN_Classifier:
                 )
             except Exception as e:
                 raise ModelLoadError(
-                    f"Failed to configure EfficientNet device: {str(e)}", 
-                    model_name="EfficientNet-B5",
-                    model_path=str(path_best),
-                    cause=e
-                )
-
-            try:
-                self.model.load_state_dict(checkpoint)
-                self.model.eval()
-                logger.info("EfficientNet weights loaded and model set to eval mode")
-            except Exception as e:
-                raise ModelLoadError(
-                    f"Failed to load EfficientNet weights: {str(e)}",
+                    f"Failed to configure EfficientNet device: {str(e)}",
                     model_name="EfficientNet-B5",
                     model_path=str(path_best),
                     cause=e

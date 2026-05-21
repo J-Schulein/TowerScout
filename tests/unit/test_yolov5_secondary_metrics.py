@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
 import uuid
+from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
 import torch
@@ -72,6 +73,73 @@ class _FakeSecondary:
             "debug_image_seconds": 0.0,
             "total_seconds": 0.15,
         }
+
+
+def test_cuda_detect_keeps_gpu_guard_through_tensor_conversion(monkeypatch):
+    scratch_dir = Path(".agent_work/pytest-temp") / f"ts-yolo-gpu-guard-{uuid.uuid4().hex}"
+    scratch_dir.mkdir(parents=True, exist_ok=True)
+    tile_path = scratch_dir / "tile.jpg"
+    Image.new("RGB", (8, 8), "white").save(tile_path)
+    guard_state = {"active": False}
+    cpu_conversion_under_guard = []
+    secondary_guard_state = []
+
+    class FakeCudaTensor:
+        def cpu(self):
+            cpu_conversion_under_guard.append(guard_state["active"])
+            return self
+
+        def numpy(self):
+            return self
+
+        def tolist(self):
+            return [[0.1, 0.1, 0.2, 0.2, 0.5, 0.0]]
+
+    class FakeCudaResult:
+        names = {0: "cooling_tower"}
+        xyxyn = [FakeCudaTensor()]
+
+    class FakeCudaModel:
+        def __call__(self, _images):
+            return FakeCudaResult()
+
+    class FakeSecondary:
+        device_label = "cpu"
+        batch_size = 8
+
+        def classify(self, _img, detections, batch_id=0):
+            secondary_guard_state.append(guard_state["active"])
+            detections[0].append(0.8)
+            return {}
+
+    @contextmanager
+    def fake_gpu_guard(enabled):
+        guard_state["active"] = bool(enabled)
+        try:
+            yield
+        finally:
+            guard_state["active"] = False
+
+    try:
+        detector = object.__new__(YOLOv5_Detector)
+        detector.model = FakeCudaModel()
+        detector.batch_size = 4
+        detector.device_label = "cuda"
+        monkeypatch.setattr("ts_yolov5.gpu_guard", fake_gpu_guard)
+
+        results = detector.detect(
+            [{"filename": str(tile_path)}],
+            _FakeEvents(),
+            "test-run",
+            crop_tiles=False,
+            secondary=FakeSecondary(),
+        )
+
+        assert results[0][0]["secondary"] == 0.8
+        assert cpu_conversion_under_guard == [True]
+        assert secondary_guard_state == [False]
+    finally:
+        shutil.rmtree(scratch_dir, ignore_errors=True)
 
 
 def test_detect_records_secondary_classifier_subphase_metrics():

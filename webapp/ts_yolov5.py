@@ -355,18 +355,21 @@ class YOLOv5_Detector:
                             logger.info("Detection aborted by user request")
                             return []
 
-                    # get the important part
-                    result_extraction_start = time.time()
-                    results_raw = result_obj.xyxyn
-                    record_phase('model_result_extraction', result_extraction_start)
+                        # Keep the GPU guard through extraction and CPU conversion so
+                        # asynchronous CUDA work is complete before other model stages run.
+                        result_extraction_start = time.time()
+                        results_raw = result_obj.xyxyn
+                        record_phase('model_result_extraction', result_extraction_start)
 
-                    # result is tile by tile
-                    for (tile, img, result) in zip(tile_batch, img_batch2, results_raw):
-                        try:
+                        batch_results_cpu = []
+                        for result in results_raw:
                             result_tensor_start = time.time()
-                            results_cpu = result.cpu().numpy().tolist()
+                            batch_results_cpu.append(result.cpu().numpy().tolist())
                             record_phase('model_result_tensor_conversion', result_tensor_start)
 
+                    # result is tile by tile
+                    for (tile, img, results_cpu) in zip(tile_batch, img_batch2, batch_results_cpu):
+                        try:
                             # secondary classifier processing
                             if secondary is not None:
                                 try:
