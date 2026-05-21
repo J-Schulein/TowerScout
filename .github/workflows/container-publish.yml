@@ -61,9 +61,22 @@ jobs:
               ;;
           esac
 
-          tags=(--tag "$image:$tag")
+          case "$tag" in
+            *-cpu|*-cuda121)
+              if [[ "$tag" != *-"$pytorch_flavor" ]]; then
+                echo "Tag $tag already ends with a different PyTorch flavor than $pytorch_flavor." >&2
+                exit 1
+              fi
+              published_tag="$tag"
+              ;;
+            *)
+              published_tag="$tag-$pytorch_flavor"
+              ;;
+          esac
+
+          tags=(--tag "$image:$published_tag")
           if [ "$push_latest" = "true" ]; then
-            tags+=(--tag "$image:latest")
+            tags+=(--tag "$image:latest-$pytorch_flavor")
           fi
 
           docker buildx build \
@@ -79,11 +92,13 @@ jobs:
 
           digest="$(python -c 'import json; print(json.load(open("image-metadata.json", encoding="utf-8"))["containerimage.digest"])')"
           echo "image=$image" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "base_tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "tag=$published_tag" >> "$GITHUB_OUTPUT"
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "pytorch_flavor=$pytorch_flavor" >> "$GITHUB_OUTPUT"
           echo "image=$image" >> "$GITHUB_STEP_SUMMARY"
-          echo "tag=$tag" >> "$GITHUB_STEP_SUMMARY"
+          echo "base_tag=$tag" >> "$GITHUB_STEP_SUMMARY"
+          echo "tag=$published_tag" >> "$GITHUB_STEP_SUMMARY"
           echo "pytorch_flavor=$pytorch_flavor" >> "$GITHUB_STEP_SUMMARY"
           echo "digest=$digest" >> "$GITHUB_STEP_SUMMARY"
           echo "pinned=$image@$digest" >> "$GITHUB_STEP_SUMMARY"

@@ -67,12 +67,12 @@ the control ZIP by the pinned image digest in `IMAGE.txt`.
 Release maintainers can assemble the control package from a source checkout:
 
 ```powershell
-.\scripts\package-release.cmd -Version v0.1.0 -Image ghcr.io/j-schulein/towerscout -ImageDigest sha256:<digest>
+.\scripts\package-release.cmd -Version v0.1.0 -Image ghcr.io/j-schulein/towerscout:v0.1.0-cuda121 -ImageDigest sha256:<digest> -PytorchFlavor cuda121
 ```
 
 This creates `dist\towerscout-v0.1.0\`, `dist\towerscout-v0.1.0.zip`, and `dist\towerscout-v0.1.0.zip.sha256`. The package includes `IMAGE.txt` for the release image reference and `SHA256SUMS.txt` for the files inside the package.
 
-Release package generation requires `-ImageDigest` with an immutable `sha256:<digest>` reference, a git source ref, and a clean working tree. For developer-only local validation with a mutable image tag, pass `-AllowMutableImage` explicitly. For local validation packages only, `-AllowMissingSourceRef` and `-AllowDirtySource` can bypass source-ref and clean-tree enforcement.
+Release package generation requires `-ImageDigest` with an immutable `sha256:<digest>` reference, a git source ref, a clean working tree, and an explicit or inferred PyTorch flavor (`cpu` or `cuda121`). For developer-only local validation with a mutable image tag, pass `-AllowMutableImage` explicitly. For local validation packages only, `-AllowMissingSourceRef` and `-AllowDirtySource` can bypass source-ref and clean-tree enforcement.
 
 ## Publishing The GHCR Image
 
@@ -95,7 +95,9 @@ The publish workflow has an explicit PyTorch wheel flavor input:
 - `cpu`: publishes the smaller CPU-wheel image.
 - `cuda121`: publishes the CUDA 12.1 PyTorch image for the single GPU-capable package path.
 
-For RC1, record the chosen flavor with the image digest. A CUDA-capable image remains CPU-safe when launched with `-Gpu off`, but GPU execution is not a supported claim until NVIDIA Docker host validation, fixed-fixture CPU/GPU parity, and timing evidence are captured.
+The workflow publishes flavor-specific tags. For example, a workflow tag input of `v0.1.0-rc1` with `cuda121` publishes `v0.1.0-rc1-cuda121`; `push_latest` publishes `latest-cpu` or `latest-cuda121`, not an ambiguous `latest`.
+
+For RC1, record the chosen flavor with the image digest in the release package. A CUDA-capable image remains CPU-safe when launched with `-Gpu off`, but GPU execution is not a supported claim until NVIDIA Docker host validation, fixed-fixture CPU/GPU parity, and timing evidence are captured.
 
 ## First Run
 

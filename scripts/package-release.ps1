@@ -7,6 +7,8 @@ param(
 
     [string] $ImageDigest = "",
 
+    [string] $PytorchFlavor = "",
+
     [switch] $AllowMutableImage,
 
     [switch] $AllowMissingSourceRef,
@@ -50,6 +52,26 @@ elseif ($ImageDigest -notmatch "^$digestPattern$") {
 
 if (($Image -match "@($digestPattern)$") -and -not [string]::IsNullOrWhiteSpace($ImageDigest) -and $Matches[1] -ne $ImageDigest) {
     throw "Image already contains digest $($Matches[1]), which does not match -ImageDigest $ImageDigest."
+}
+
+if ([string]::IsNullOrWhiteSpace($PytorchFlavor)) {
+    $PytorchFlavor = $env:TOWERSCOUT_PYTORCH_FLAVOR
+}
+if ([string]::IsNullOrWhiteSpace($PytorchFlavor)) {
+    $imageWithoutDigest = $Image -replace "@$digestPattern$", ""
+    if ($imageWithoutDigest -match "[-:]cuda121$") {
+        $PytorchFlavor = "cuda121"
+    }
+    elseif ($imageWithoutDigest -match "[-:]cpu$") {
+        $PytorchFlavor = "cpu"
+    }
+    else {
+        $PytorchFlavor = "cpu"
+    }
+}
+$PytorchFlavor = $PytorchFlavor.Trim().ToLowerInvariant()
+if ($PytorchFlavor -notin @("cpu", "cuda121")) {
+    throw "PytorchFlavor must be one of: cpu, cuda121."
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -241,6 +263,7 @@ TowerScout release image
 Version: $Version
 Image: $effectiveImage
 Image digest: $ImageDigest
+PyTorch flavor: $PytorchFlavor
 Generated UTC: $((Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"))
 
 Release packages pin TOWERSCOUT_IMAGE to an immutable digest reference.
@@ -255,6 +278,9 @@ $envLines = $envLines | ForEach-Object {
     }
     elseif ($_ -match "^TOWERSCOUT_IMAGE_DIGEST=") {
         "TOWERSCOUT_IMAGE_DIGEST=$ImageDigest"
+    }
+    elseif ($_ -match "^TOWERSCOUT_PYTORCH_FLAVOR=") {
+        "TOWERSCOUT_PYTORCH_FLAVOR=$PytorchFlavor"
     }
     else {
         $_
@@ -290,6 +316,7 @@ TowerScout SBOM reference
 Version: $Version
 Release track: agpl-yolo
 Image: $effectiveImage
+PyTorch flavor: $PytorchFlavor
 Generated UTC: $((Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"))
 
 Attach or publish an SBOM for the exact release package and container image.
@@ -308,6 +335,7 @@ $manifest = [ordered]@{
     generated_utc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     image = $effectiveImage
     image_digest = $ImageDigest
+    pytorch_flavor = $PytorchFlavor
     asset_manifest = "webapp/asset_manifest.v1.json"
     compliance_files = @(
         "LICENSE",
@@ -326,6 +354,7 @@ $manifest = [ordered]@{
         control_zip_sha256 = ""
         image = $effectiveImage
         image_digest = $ImageDigest
+        pytorch_flavor = $PytorchFlavor
         asset_manifest = "webapp/asset_manifest.v1.json"
         asset_bundle_sha256 = ""
     }
@@ -386,3 +415,4 @@ if (-not $NoZip) {
     Write-Host "Package zip: $zipPath"
 }
 Write-Host "Image: $effectiveImage"
+Write-Host "PyTorch flavor: $PytorchFlavor"

@@ -38,6 +38,8 @@ This task starts from the Task-079 plan and PR #14 review disposition. It must n
 
 **R-075-012**: WHEN publishing a release image, THE PROJECT SHALL explicitly record whether the image was built with CPU or CUDA-capable PyTorch wheels.
 
+**R-075-013**: WHEN publishing CPU and CUDA-capable images, THE PROJECT SHALL use flavor-specific tags so one flavor cannot overwrite or obscure the other.
+
 ## Acceptance Criteria
 
 - [x] Shared `webapp/ts_device.py` resolver implemented with `auto`, `cpu`, and `cuda` policies.
@@ -55,6 +57,7 @@ This task starts from the Task-079 plan and PR #14 review disposition. It must n
 - [x] Optional `compose.gpu.yaml` is added only after proof-image readiness.
 - [x] Launcher `-Gpu off|auto|on` behavior is added only after overlay behavior is understood.
 - [x] Container publication has an explicit CPU/CUDA PyTorch wheel flavor selection.
+- [x] Container publication and release package metadata use CPU/CUDA flavor-specific tags and metadata.
 - [x] Task-071 and Task-066 receive updated documentation and validation handoff notes.
 
 ## Dependencies
@@ -132,6 +135,15 @@ This task starts from the Task-079 plan and PR #14 review disposition. It must n
 **Output**: Release publication now has an explicit PyTorch flavor choice and records `pytorch_flavor` in workflow summary output. Runtime readiness gives more actionable CUDA-required guidance. YOLO and EfficientNet now hold GPU memory/concurrency boundaries more conservatively.
 **Validation**: Passed `.venv\Scripts\python.exe -m py_compile webapp\ts_runtime.py webapp\ts_device.py webapp\ts_yolov5.py webapp\ts_en.py webapp\towerscout.py tests\unit\test_task_075_device_policy.py tests\unit\test_yolov5_secondary_metrics.py tests\unit\test_ts_en_classifier.py tests\unit\test_container_publish_workflow.py tests\unit\test_task_075_launcher_gpu.py`; passed focused tests with `.venv\Scripts\python.exe -m pytest tests\unit\test_task_075_device_policy.py tests\unit\test_task_075_launcher_gpu.py tests\unit\test_ts_en_classifier.py tests\unit\test_yolov5_secondary_metrics.py tests\unit\test_runtime_contract.py tests\unit\test_release_package_script.py tests\unit\test_container_publish_workflow.py -q -p no:cacheprovider`; passed full unit suite with `.venv\Scripts\python.exe -m pytest tests\unit -q -p no:cacheprovider`; passed PowerShell parser and GPU build-helper validation; passed `docker compose -f compose.yaml -f compose.build.yaml config`; passed `docker compose -f compose.yaml -f compose.gpu.yaml config`; passed container-publish workflow summary inspection; passed `.agent_work` validation and `git diff --check`.
 **Next**: Push the PR update, then either merge after review or proceed to NVIDIA-host validation before making GPU-supported release claims.
+
+### 2026-05-21 - Release Flavor Metadata And Tagging Tightened
+**Objective**: Resolve the remaining updated PR #15 review concern about ambiguous CPU/CUDA image flavor metadata and tags.
+**Context**: The reviewer accepted the runtime fixes but recommended keeping PR #15 in draft until release image flavor tagging and control-package metadata are unambiguous.
+**Decision**: Keep one publish workflow but make image tags flavor-specific. Add `-PytorchFlavor cpu|cuda121` support to release package generation and record the selected flavor in `IMAGE.txt`, staged `.env.example`, and `release-manifest.v1.json`.
+**Execution**: Updated `.github/workflows/container-publish.yml`, `scripts/package-release.ps1`, `release-manifest.v1.json`, `.env.example`, OCI docs, Task-079 plan notes, and release/package workflow tests.
+**Output**: A base workflow tag such as `v0.1.0-rc1` now publishes `v0.1.0-rc1-cpu` or `v0.1.0-rc1-cuda121`, and `push_latest` publishes `latest-cpu` or `latest-cuda121`. Generated release packages now carry the selected PyTorch flavor alongside the pinned digest.
+**Validation**: Passed `.venv\Scripts\python.exe -m py_compile tests\unit\test_release_package_script.py tests\unit\test_container_publish_workflow.py tests\unit\release_manifest_contract.py`; passed focused release tests with `.venv\Scripts\python.exe -m pytest tests\unit\test_release_package_script.py tests\unit\test_release_manifest_schema.py tests\unit\test_container_publish_workflow.py -q -p no:cacheprovider`; passed PowerShell parser validation for `scripts\package-release.ps1` and `scripts\lib\TowerScoutCompose.ps1`; passed container publish workflow summary inspection; passed full unit suite with `.venv\Scripts\python.exe -m pytest tests\unit -q -p no:cacheprovider`; passed release-manifest contract inspection with expected template warnings for blank image/source fields; passed `docker compose -f compose.yaml -f compose.build.yaml config`; passed `.agent_work` validation and `git diff --check`.
+**Next**: Push the PR update, then update the PR body wording manually because the GitHub connector token is expired.
 
 ### 2026-05-20 - Launcher Smoke Retried After Port 5000 Was Cleared
 **Objective**: Validate the updated launcher path after the active browser/app session was closed.

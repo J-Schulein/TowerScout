@@ -95,7 +95,7 @@ Task-079 has already started this by adding model-side CUDA build/device metadat
 
 ## Docker And Compose Implementation Plan
 
-1. Keep `Dockerfile` support for `PYTORCH_INDEX_URL`, but make release publication choose an explicit PyTorch flavor (`cpu` or `cuda121`) so the pinned image digest is not ambiguous.
+1. Keep `Dockerfile` support for `PYTORCH_INDEX_URL`, but make release publication choose an explicit PyTorch flavor (`cpu` or `cuda121`) and publish flavor-specific tags so the pinned image digest is not ambiguous.
 2. Build a proof image with:
 
 ```powershell
@@ -222,7 +222,7 @@ Update these files during implementation:
 - `docs/oci-quick-start.md`: CPU-safe default plus GPU enablement.
 - `docs/oci-runtime-contract.md`: GPU runtime contract and diagnostics.
 - `docs/towerscout-user-guide.md`: user-facing GPU note and troubleshooting.
-- `release-manifest.v1.json` or generated package manifest: record CPU versus CUDA-capable image posture.
+- `release-manifest.v1.json` or generated package manifest: record CPU versus CUDA-capable image posture and write the chosen PyTorch flavor into the release control package.
 - `SBOM.txt` reference: call out CUDA-enabled PyTorch dependency set.
 
 ## Validation Matrix
