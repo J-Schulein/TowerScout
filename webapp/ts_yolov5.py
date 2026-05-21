@@ -13,7 +13,6 @@
 
 import math
 import os
-import threading
 import time
 from importlib import metadata
 
@@ -24,7 +23,7 @@ from PIL import Image
 from ts_imgutil import crop
 from ts_errors import ModelLoadError, ProcessingError
 from ts_logging import get_ml_logger
-from ts_device import DevicePolicyError, gpu_concurrency_limit, select_model_device
+from ts_device import DevicePolicyError, gpu_guard, select_model_device
 from ts_yolov5_local import load_local_yolov5_model as _load_local_yolov5_model
 
 logger = get_ml_logger()
@@ -190,10 +189,6 @@ class YOLOv5_Detector:
                     torch.get_num_threads(),
                 )
             
-            # Limit concurrent GPU model access; keep the historical CPU default.
-            concurrency_limit = gpu_concurrency_limit() if self.device_label == "cuda" else 8
-            self.semaphore = threading.Semaphore(concurrency_limit)
-            
         except Exception as e:
             if isinstance(e, ModelLoadError):
                 raise
@@ -340,8 +335,8 @@ class YOLOv5_Detector:
                     else:
                         img_batch2 = [None] * len(img_batch)
 
-                    # detect with semaphore protection
-                    with self.semaphore:  # limit the number of jobs going on in parallel, because of GPU mem
+                    # Shared GPU guard protects all GPU model stages in this process.
+                    with gpu_guard(self.device_label == "cuda"):
                         try:
                             inference_start = time.time()
                             result_obj = self.model(img_batch)

@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 $script:TowerScoutComposeExitCode = 0
+$script:TowerScoutCpuPytorchIndexUrl = "https://download.pytorch.org/whl/cpu"
 $script:TowerScoutCudaPytorchIndexUrl = "https://download.pytorch.org/whl/cu121"
 
 function Get-TowerScoutRepoRoot {
@@ -64,6 +65,39 @@ function Test-TowerScoutCommandOrPath {
     }
 
     return $null -ne (Get-Command $Value -ErrorAction SilentlyContinue)
+}
+
+function Get-TowerScoutEnvFileValue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Name
+    )
+
+    $envPath = Join-Path (Get-TowerScoutRepoRoot) ".env"
+    if (-not (Test-Path -LiteralPath $envPath -PathType Leaf)) {
+        return $null
+    }
+
+    $pattern = "^\s*" + [regex]::Escape($Name) + "\s*=\s*(.*)\s*$"
+    foreach ($line in Get-Content -LiteralPath $envPath) {
+        $text = [string] $line
+        if ($text.TrimStart().StartsWith("#")) {
+            continue
+        }
+        if ($text -match $pattern) {
+            $value = $matches[1].Trim()
+            if ($value.Length -ge 2) {
+                $first = $value.Substring(0, 1)
+                $last = $value.Substring($value.Length - 1, 1)
+                if (($first -eq '"' -and $last -eq '"') -or ($first -eq "'" -and $last -eq "'")) {
+                    $value = $value.Substring(1, $value.Length - 2)
+                }
+            }
+            return $value
+        }
+    }
+
+    return $null
 }
 
 function Write-TowerScoutComposeProviderSummary {
@@ -153,6 +187,9 @@ function Set-TowerScoutGpuEnvironment {
 
     if ($Gpu -eq "off") {
         $env:TOWERSCOUT_DEVICE = "cpu"
+        if ($Build) {
+            $env:PYTORCH_INDEX_URL = $script:TowerScoutCpuPytorchIndexUrl
+        }
         return
     }
 
@@ -173,32 +210,19 @@ function Set-TowerScoutGpuEnvironment {
 
 function Test-TowerScoutNvidiaGpuDetected {
     $override = $env:TOWERSCOUT_GPU_AUTO_OVERLAY
-    if ($override -in @("1", "true", "TRUE", "yes", "YES", "on", "ON")) {
+    if ([string]::IsNullOrWhiteSpace($override)) {
+        $override = Get-TowerScoutEnvFileValue -Name "TOWERSCOUT_GPU_AUTO_OVERLAY"
+    }
+
+    $normalizedOverride = ([string] $override).Trim()
+    if ($normalizedOverride -in @("1", "true", "TRUE", "yes", "YES", "on", "ON")) {
         return $true
     }
-    if ($override -in @("0", "false", "FALSE", "no", "NO", "off", "OFF")) {
+    if ($normalizedOverride -in @("0", "false", "FALSE", "no", "NO", "off", "OFF")) {
         return $false
     }
 
-    $nvidiaSmi = Get-Command "nvidia-smi" -ErrorAction SilentlyContinue
-    if ($null -eq $nvidiaSmi) {
-        return $false
-    }
-
-    try {
-        $previousErrorActionPreference = $ErrorActionPreference
-        $ErrorActionPreference = "Continue"
-        try {
-            $gpuOutput = & $nvidiaSmi.Source -L 2>&1
-        }
-        finally {
-            $ErrorActionPreference = $previousErrorActionPreference
-        }
-        return ($LASTEXITCODE -eq 0 -and (($gpuOutput -join "`n") -match "GPU"))
-    }
-    catch {
-        return $false
-    }
+    return $false
 }
 
 function Test-TowerScoutUseGpuOverlay {
@@ -239,10 +263,10 @@ function Write-TowerScoutGpuModeSummary {
 
     if ($Gpu -eq "auto") {
         if (Test-TowerScoutUseGpuOverlay -EngineName $EngineName -Gpu $Gpu) {
-            Write-Host "GPU mode: auto. NVIDIA host preflight detected a GPU; Docker GPU overlay will be requested and TowerScout will fall back to CPU if CUDA is unavailable."
+            Write-Host "GPU mode: auto. Explicit Docker GPU overlay validation override is enabled; Docker GPU overlay will be requested and TowerScout will fall back to CPU if CUDA is unavailable."
         }
         else {
-            Write-Host "GPU mode: auto. No validated Docker/NVIDIA GPU preflight was detected; starting without the GPU overlay and using TowerScout CPU fallback."
+            Write-Host "GPU mode: auto. No explicit Docker GPU overlay validation override is set; starting without the GPU overlay and using TowerScout CPU fallback."
         }
     }
     elseif ($Gpu -eq "on") {

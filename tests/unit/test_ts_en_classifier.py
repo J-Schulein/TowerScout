@@ -10,6 +10,11 @@ import torch
 import ts_en
 
 
+class _FakeCudaProbe:
+    def cpu(self):
+        return self
+
+
 def test_classify_applies_confidence_branches_and_inference_mode(monkeypatch):
     classifier = object.__new__(ts_en.EN_Classifier)
     classifier.save_debug_images = False
@@ -141,6 +146,8 @@ def test_efficientnet_init_falls_back_to_cpu_when_cuda_setup_fails(monkeypatch):
         monkeypatch.setattr(ts_en, "get_en_model_dir", lambda: scratch_dir)
         monkeypatch.setattr(ts_en.EfficientNet, "from_pretrained", Mock(return_value=fake_model))
         monkeypatch.setattr(ts_en.torch.cuda, "is_available", Mock(return_value=True))
+        monkeypatch.setattr(ts_en.torch.cuda, "get_device_name", Mock(return_value="NVIDIA Test GPU"))
+        monkeypatch.setattr(ts_en.torch, "zeros", Mock(return_value=_FakeCudaProbe()))
         monkeypatch.setattr(ts_en.torch, "load", torch_load)
 
         classifier = ts_en.EN_Classifier()

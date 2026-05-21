@@ -26,7 +26,7 @@ import PIL
 from ts_imgutil import cut_square_detection
 from ts_errors import ModelLoadError, ProcessingError
 from ts_logging import get_ml_logger
-from ts_device import DevicePolicyError, select_model_device
+from ts_device import DevicePolicyError, gpu_guard, select_model_device
 from ts_paths import get_en_model_dir, get_upload_dir
 
 logger = get_ml_logger()
@@ -231,17 +231,18 @@ class EN_Classifier:
                 chunk = torch.stack(tensor_batch)
                 stats['stack_seconds'] += time.time() - stack_start
 
-                if self.device_label == 'cuda':
-                    transfer_start = time.time()
-                    chunk = chunk.to(self.device)
-                    stats['transfer_seconds'] += time.time() - transfer_start
+                with gpu_guard(self.device_label == 'cuda'):
+                    if self.device_label == 'cuda':
+                        transfer_start = time.time()
+                        chunk = chunk.to(self.device)
+                        stats['transfer_seconds'] += time.time() - transfer_start
 
-                stats['batches'] += 1
-                forward_start = time.time()
-                # This is 1-... because the secondary has class 0 as tower.
-                with torch.inference_mode():
-                    batch_outputs = 1 - torch.sigmoid(self.model(chunk).cpu()).view(-1)
-                stats['forward_seconds'] += time.time() - forward_start
+                    stats['batches'] += 1
+                    forward_start = time.time()
+                    # This is 1-... because the secondary has class 0 as tower.
+                    with torch.inference_mode():
+                        batch_outputs = 1 - torch.sigmoid(self.model(chunk).cpu()).view(-1)
+                    stats['forward_seconds'] += time.time() - forward_start
                 outputs.extend(float(value) for value in batch_outputs.tolist())
 
             attach_start = time.time()

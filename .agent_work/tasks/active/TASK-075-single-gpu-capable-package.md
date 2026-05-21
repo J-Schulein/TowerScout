@@ -1,6 +1,6 @@
 # TASK-075: Single GPU-Capable Package Implementation
 
-**Status**: IN_PROGRESS - Phase 3 GPU overlay and launcher implemented; NVIDIA host validation pending
+**Status**: IN_PROGRESS - PR review hardening implemented; NVIDIA host validation pending
 **Priority**: CRITICAL
 **Type**: C (Runtime Policy / Hardware Compatibility / Release Packaging)
 **Estimated Effort**: 1-3 days (8-24 hours), split by validation availability
@@ -18,15 +18,15 @@ This task starts from the Task-079 plan and PR #14 review disposition. It must n
 
 **R-075-002**: WHEN `TOWERSCOUT_DEVICE=cpu`, THE SYSTEM SHALL force CPU execution even if PyTorch reports CUDA availability.
 
-**R-075-003**: WHEN `TOWERSCOUT_DEVICE=auto`, THE SYSTEM SHALL use CUDA only when PyTorch is CUDA-built, CUDA is available, and model transfer succeeds; otherwise it shall fall back to CPU with a structured fallback reason.
+**R-075-003**: WHEN `TOWERSCOUT_DEVICE=auto`, THE SYSTEM SHALL use CUDA only when PyTorch is CUDA-built, CUDA is available, a lightweight CUDA runtime probe succeeds, and model transfer succeeds; otherwise it shall fall back to CPU with a structured fallback reason.
 
 **R-075-004**: WHEN `TOWERSCOUT_DEVICE=cuda`, THE SYSTEM SHALL fail readiness or detection with actionable guidance if CUDA is unavailable or model transfer fails.
 
-**R-075-005**: WHEN readiness is requested, THE SYSTEM SHALL expose non-secret ML runtime diagnostics without requiring model weights to load.
+**R-075-005**: WHEN readiness is requested, THE SYSTEM SHALL expose non-secret ML runtime diagnostics, including CUDA runtime-probe status, without requiring model weights to load.
 
 **R-075-006**: WHEN EfficientNet reviews detection candidates on CUDA, THE SYSTEM SHALL stack and transfer candidate tensors per configured batch chunk so `TOWERSCOUT_EN_BATCH_SIZE` bounds peak GPU transfer and forward-pass memory.
 
-**R-075-007**: WHEN TowerScout runs on a shared GPU, THE SYSTEM SHALL enforce an explicit GPU concurrency policy with a conservative default.
+**R-075-007**: WHEN TowerScout runs on a shared GPU, THE SYSTEM SHALL enforce one explicit process-wide GPU concurrency policy across YOLO and EfficientNet with a conservative default.
 
 **R-075-008**: WHEN Task-075 changes device selection or batching, THE SYSTEM SHALL preserve model weights, thresholds, detection JSON fields, export behavior, asset paths, and release asset bundle layout.
 
@@ -46,8 +46,8 @@ This task starts from the Task-079 plan and PR #14 review disposition. It must n
 - [x] `TOWERSCOUT_DEVICE=cuda` fails predictably when CUDA is unavailable.
 - [x] `TOWERSCOUT_DEVICE=auto` falls back to CPU when CUDA setup fails and records the fallback reason.
 - [x] EfficientNet candidate tensors are stacked and transferred per batch chunk on CUDA.
-- [x] GPU concurrency has an explicit configuration and conservative default.
-- [x] Focused Python tests cover device policy, readiness diagnostics, CUDA-required failure, auto fallback, EfficientNet chunking, and GPU concurrency configuration.
+- [x] GPU concurrency has an explicit process-wide configuration and conservative default shared by YOLO and EfficientNet.
+- [x] Focused Python tests cover device policy, readiness diagnostics, CUDA-required failure, CUDA runtime-probe fallback, auto fallback, EfficientNet chunking, shared GPU concurrency, and launcher GPU mode behavior.
 - [x] CUDA 12.1 PyTorch proof image builds or its blocker is documented.
 - [x] CUDA-capable image CPU fallback is validated on a non-GPU host or explicitly deferred.
 - [x] Optional `compose.gpu.yaml` is added only after proof-image readiness.
@@ -85,7 +85,7 @@ This task starts from the Task-079 plan and PR #14 review disposition. It must n
 
 1. Add optional `compose.gpu.yaml` with NVIDIA device reservations.
 2. Keep default `compose.yaml` CPU-safe.
-3. Add launcher `-Gpu off|auto|on` handling.
+3. Add launcher `-Gpu off|auto|on` handling, with `auto` CPU-safe unless an explicit Docker GPU overlay validation override is set in the shell or `.env`.
 4. Package the GPU overlay only after local behavior is understood.
 
 ### Phase 4 - GPU Host Validation
@@ -112,19 +112,28 @@ This task starts from the Task-079 plan and PR #14 review disposition. It must n
 
 ## Implementation Log
 
+### 2026-05-21 - PR Review GPU Supportability Fixes Implemented
+**Objective**: Address PR #15 reviewer feedback before NVIDIA host validation.
+**Context**: The review identified three RC1 supportability gaps: `-Gpu auto` could request the GPU overlay from a host-side `nvidia-smi` signal even when Docker GPU pass-through was not validated, readiness treated `torch.cuda.is_available()` as sufficient, and GPU concurrency only guarded YOLO while EfficientNet could still overlap GPU work.
+**Decision**: Keep GPU support in RC1, but harden it behind CPU-safe defaults. `-Gpu auto` now uses the GPU overlay only when `TOWERSCOUT_GPU_AUTO_OVERLAY=1` is set in the shell or `.env` after workstation-specific Docker GPU validation. Readiness/model selection now performs a lightweight CUDA tensor probe for `auto`/`cuda`. YOLO and EfficientNet now share one process-wide GPU limiter.
+**Execution**: Updated `webapp/ts_device.py`, `webapp/ts_yolov5.py`, and `webapp/ts_en.py`; updated `scripts/lib/TowerScoutCompose.ps1`; added launcher/device-policy tests; updated `.env.example`, OCI docs, and the Task-079 GPU package plan.
+**Output**: CPU-safe default and `-Gpu auto` are less likely to fail on CPU-only or partially configured GPU hosts. Required GPU mode remains explicit through `-Gpu on` / `TOWERSCOUT_DEVICE=cuda`.
+**Validation**: Passed `.venv\Scripts\python.exe -m py_compile webapp\ts_device.py webapp\ts_en.py webapp\ts_yolov5.py webapp\ts_runtime.py tests\unit\test_task_075_device_policy.py tests\unit\test_task_075_launcher_gpu.py`; passed focused tests with `.venv\Scripts\python.exe -m pytest tests\unit\test_task_075_device_policy.py tests\unit\test_task_075_launcher_gpu.py tests\unit\test_ts_en_classifier.py tests\unit\test_yolov5_secondary_metrics.py tests\unit\test_runtime_contract.py tests\unit\test_release_package_script.py tests\unit\test_container_publish_workflow.py -q -p no:cacheprovider`; passed full unit tests with `.venv\Scripts\python.exe -m pytest tests\unit -q -p no:cacheprovider`; passed PowerShell parser validation for `scripts\lib\TowerScoutCompose.ps1`; passed `docker compose -f compose.yaml -f compose.gpu.yaml config`; passed `.agent_work` validation and `git diff --check`.
+**Next**: Push the PR update for reviewer follow-up, then validate `-Gpu on` and `TOWERSCOUT_GPU_AUTO_OVERLAY=1` on an NVIDIA Docker Desktop WSL2 host.
+
 ### 2026-05-20 - Launcher Smoke Retried After Port 5000 Was Cleared
 **Objective**: Validate the updated launcher path after the active browser/app session was closed.
 **Context**: The browser was closed, but Docker still had the TowerScout Compose service running on port `5000`. To test startup behavior rather than only readiness against an already-running container, the service was stopped with Compose and relaunched through `scripts/launch.ps1`.
 **Decision**: Validate the CPU-safe default launcher path first, then validate non-GPU-host `-Gpu auto`, and finally rebuild `towerscout:local` from the current working tree with `-Build -Gpu off`.
 **Execution**: Ran `scripts\launch.ps1 -Engine docker -Port 5000 -NoBrowser -TimeoutSeconds 180`; ran `scripts\launch.ps1 -Engine docker -Port 5000 -Gpu auto -NoBrowser -TimeoutSeconds 180`; ran `scripts\launch.ps1 -Engine docker -Port 5000 -Gpu off -Build -NoBrowser -TimeoutSeconds 240`; queried container readiness and checked for `/app/webapp/ts_device.py`.
-**Output**: Default `-Gpu off` launcher recreated the service, forced CPU mode, reached readiness `ready`, and skipped browser launch. `-Gpu auto` detected no Docker/NVIDIA preflight, started without the GPU overlay, and reached readiness `ready`. The rebuilt container includes `ts_device.py`; readiness reports `ml_runtime.requested_policy=cpu`, `selected_device=cpu`, `torch_version=2.2.1+cpu`, and `state=ready`.
+**Output**: Default `-Gpu off` launcher recreated the service, forced CPU mode, reached readiness `ready`, and skipped browser launch. `-Gpu auto` started without the GPU overlay when no explicit overlay validation override was present and reached readiness `ready`. The rebuilt container includes `ts_device.py`; readiness reports `ml_runtime.requested_policy=cpu`, `selected_device=cpu`, `torch_version=2.2.1+cpu`, and `state=ready`.
 **Validation**: Launcher smoke passed for default CPU-safe mode, non-GPU-host `auto`, and current-working-tree rebuild. The explicit `-Gpu on` path still requires NVIDIA Docker Desktop WSL2 host validation and was not run on this CPU-only host.
 **Next**: Leave the app available at `http://localhost:5000` for local inspection, then validate `-Gpu auto`/`-Gpu on` on an NVIDIA host before claiming GPU support.
 
 ### 2026-05-20 - Phase 3 GPU Overlay And Launcher Implemented
 **Objective**: Add the optional GPU launch path without changing the CPU-safe default release launch.
 **Context**: Docker's current Compose GPU documentation uses service device reservations under `deploy.resources.reservations.devices` with required `capabilities: [gpu]`. A GPU reservation can fail container creation on hosts without GPU support, so the default Compose file must not request GPU devices.
-**Decision**: Add `compose.gpu.yaml` as an optional Docker overlay. Keep `start.bat` / `scripts/launch.ps1` defaulting to `-Gpu off`, which sets `TOWERSCOUT_DEVICE=cpu` and does not include the overlay. Implement `-Gpu auto` conservatively: it sets `TOWERSCOUT_DEVICE=auto` and requests the overlay only when a simple Docker/NVIDIA host preflight detects `nvidia-smi`; otherwise it starts without the overlay so CPU fallback can work. Implement `-Gpu on` as the explicit require-GPU path using the overlay and `TOWERSCOUT_DEVICE=cuda`.
+**Decision**: Add `compose.gpu.yaml` as an optional Docker overlay. Keep `start.bat` / `scripts/launch.ps1` defaulting to `-Gpu off`, which sets `TOWERSCOUT_DEVICE=cpu` and does not include the overlay. Implement `-Gpu auto` conservatively: it sets `TOWERSCOUT_DEVICE=auto` and starts without the overlay unless `TOWERSCOUT_GPU_AUTO_OVERLAY=1` is set in the shell or `.env` after workstation-specific Docker GPU validation; otherwise CPU fallback can work. Implement `-Gpu on` as the explicit require-GPU path using the overlay and `TOWERSCOUT_DEVICE=cuda`.
 **Execution**: Added `compose.gpu.yaml`; added `TOWERSCOUT_DEVICE`, `TOWERSCOUT_GPU_CONCURRENCY`, and GPU mode notes to `.env.example`; updated `scripts/lib/TowerScoutCompose.ps1`, `scripts/launch.ps1`, `scripts/start.ps1`, `scripts/import-assets.ps1`, and `scripts/import-tls-ca.ps1` to carry GPU mode consistently; added `compose.gpu.yaml` to release package staging; updated OCI quick-start/runtime-contract notes; and extended the release-package test to assert the GPU overlay is packaged.
 **Output**: Release package can now carry a CPU-safe default launch plus an optional Docker GPU overlay. Podman remains CPU-supported only until a separate CDI GPU validation proves otherwise.
 **Validation**: PowerShell parser check passed for modified scripts; helper validation confirmed `auto` does not request the overlay on this non-GPU host, `on` does request it, and GPU modes map to `cpu|auto|cuda`; `docker compose -f compose.yaml -f compose.gpu.yaml config` passed; focused tests passed with `.venv\Scripts\python.exe -m pytest tests\unit\test_task_075_device_policy.py tests\unit\test_ts_en_classifier.py tests\unit\test_yolov5_secondary_metrics.py tests\unit\test_runtime_contract.py tests\unit\test_release_package_script.py tests\unit\test_container_publish_workflow.py -q -p no:cacheprovider`; full unit suite passed with `.venv\Scripts\python.exe -m pytest tests\unit -q -p no:cacheprovider`; `.agent_work` validation and `git diff --check` passed.

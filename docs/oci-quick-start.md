@@ -123,7 +123,7 @@ For developer/support validation of the CUDA-capable image path:
 .\start.bat -Engine docker -Build -Gpu auto
 ```
 
-The GPU build path switches `PYTORCH_INDEX_URL` to the CUDA 12.1 PyTorch wheel index for that launch process unless another index is already set.
+The GPU build path switches `PYTORCH_INDEX_URL` to the CUDA 12.1 PyTorch wheel index for `-Gpu auto` or `-Gpu on`. `-Gpu off -Build` always uses the CPU PyTorch wheel index so local support builds do not accidentally inherit a CUDA index from the shell.
 
 ## Optional GPU Launch
 
@@ -141,10 +141,12 @@ GPU launch is opt-in and currently Docker-first:
 ```
 
 - `-Gpu off` uses the default Compose file and sets `TOWERSCOUT_DEVICE=cpu`.
-- `-Gpu auto` sets `TOWERSCOUT_DEVICE=auto` and adds `compose.gpu.yaml` only when the launcher detects a Docker/NVIDIA GPU preflight. If no GPU preflight is detected, it starts without the overlay and uses CPU fallback.
+- `-Gpu auto` sets `TOWERSCOUT_DEVICE=auto` and starts without the GPU overlay unless `TOWERSCOUT_GPU_AUTO_OVERLAY=1` has been set in the shell or `.env` after Docker GPU validation on that workstation. Without that explicit override, it uses CPU fallback.
 - `-Gpu on` adds `compose.gpu.yaml`, sets `TOWERSCOUT_DEVICE=cuda`, and fails readiness if CUDA is unavailable.
 
 GPU launch requires a CUDA-capable TowerScout image plus a Docker host with NVIDIA GPU support available to containers. Podman GPU launch is not validated for this release path; use the CPU-safe Podman launch unless support provides a site-specific GPU procedure.
+
+Before setting `TOWERSCOUT_GPU_AUTO_OVERLAY=1`, validate Docker GPU access with the site-approved NVIDIA Container Toolkit procedure. A host `nvidia-smi` result alone is not enough because Docker may still be unable to pass the GPU into the container.
 
 ## Engine Selection
 

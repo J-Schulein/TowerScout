@@ -1,11 +1,18 @@
 """Task-075 shared ML device policy tests."""
 
+import threading
+import time
 from unittest.mock import Mock
 
 import pytest
 
 import ts_device
 import ts_runtime
+
+
+class _FakeCudaProbe:
+    def cpu(self):
+        return self
 
 
 def test_runtime_diagnostics_cpu_policy_forces_cpu(monkeypatch):
@@ -27,6 +34,7 @@ def test_select_model_device_auto_falls_back_after_cuda_transfer_failure(monkeyp
     monkeypatch.setenv("TOWERSCOUT_DEVICE", "auto")
     monkeypatch.setattr(ts_device.torch.cuda, "is_available", Mock(return_value=True))
     monkeypatch.setattr(ts_device.torch.cuda, "get_device_name", Mock(return_value="NVIDIA Test GPU"))
+    monkeypatch.setattr(ts_device.torch, "zeros", Mock(return_value=_FakeCudaProbe()))
 
     move_to_cuda = Mock(side_effect=RuntimeError("cuda transfer failed"))
     move_to_cpu = Mock()
@@ -44,6 +52,22 @@ def test_select_model_device_auto_falls_back_after_cuda_transfer_failure(monkeyp
     move_to_cpu.assert_called_once()
 
 
+def test_runtime_diagnostics_auto_falls_back_when_cuda_probe_fails(monkeypatch):
+    monkeypatch.setenv("TOWERSCOUT_DEVICE", "auto")
+    monkeypatch.setattr(ts_device.torch.cuda, "is_available", Mock(return_value=True))
+    monkeypatch.setattr(ts_device.torch.cuda, "get_device_name", Mock(return_value="NVIDIA Test GPU"))
+    monkeypatch.setattr(ts_device.torch, "zeros", Mock(side_effect=RuntimeError("runtime probe failed")))
+
+    diagnostics = ts_device.build_runtime_diagnostics()
+
+    assert diagnostics["requested_policy"] == "auto"
+    assert diagnostics["selected_device"] == "cpu"
+    assert diagnostics["torch_cuda_available"] is False
+    assert diagnostics["cuda_device_name"] is None
+    assert diagnostics["fallback_reason"] == "cuda_unavailable"
+    assert "runtime probe failed" in diagnostics["cuda_probe_error"]
+
+
 def test_select_model_device_cuda_required_raises_when_unavailable(monkeypatch):
     monkeypatch.setenv("TOWERSCOUT_DEVICE", "cuda")
     monkeypatch.setattr(ts_device.torch.cuda, "is_available", Mock(return_value=False))
@@ -52,6 +76,44 @@ def test_select_model_device_cuda_required_raises_when_unavailable(monkeypatch):
         ts_device.select_model_device("TestModel")
 
     assert "requires CUDA" in str(error.value)
+
+
+def test_gpu_guard_serializes_shared_gpu_work(monkeypatch):
+    monkeypatch.setenv("TOWERSCOUT_GPU_CONCURRENCY", "1")
+    ts_device._reset_gpu_limiter_for_tests()
+
+    entered = []
+    first_inside = threading.Event()
+    release_first = threading.Event()
+
+    def first_worker():
+        with ts_device.gpu_guard(True):
+            entered.append("first")
+            first_inside.set()
+            release_first.wait(timeout=2)
+
+    def second_worker():
+        with ts_device.gpu_guard(True):
+            entered.append("second")
+
+    first = threading.Thread(target=first_worker)
+    second = threading.Thread(target=second_worker)
+
+    try:
+        first.start()
+        assert first_inside.wait(timeout=2)
+        second.start()
+        time.sleep(0.05)
+        assert entered == ["first"]
+        release_first.set()
+        first.join(timeout=2)
+        second.join(timeout=2)
+        assert entered == ["first", "second"]
+    finally:
+        release_first.set()
+        first.join(timeout=2)
+        second.join(timeout=2)
+        ts_device._reset_gpu_limiter_for_tests()
 
 
 def test_readiness_payload_includes_ml_runtime_and_fails_when_cuda_required(monkeypatch):
@@ -107,3 +169,42 @@ def test_readiness_payload_includes_ml_runtime_and_fails_when_cuda_required(monk
     assert payload["runtime"]["device_policy"] == "cuda"
     assert payload["runtime"]["selected_device"] == "unavailable"
     assert "TOWERSCOUT_DEVICE=auto or cpu" in " ".join(payload["recovery"])
+
+
+def test_readiness_payload_fails_for_invalid_device_policy(monkeypatch):
+    monkeypatch.setenv("TOWERSCOUT_DEVICE", "bananas")
+    monkeypatch.setattr(ts_runtime, "_required_paths", lambda: {})
+    monkeypatch.setattr(
+        ts_runtime,
+        "_config_status",
+        lambda: {
+            "status": "ok",
+            "env_path": "test.env",
+            "needs_setup": False,
+            "secret_key_persisted": True,
+            "providers": {
+                "google": {"configured": True},
+                "azure": {"configured": False},
+                "default": "google",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        ts_runtime,
+        "_asset_status",
+        lambda: {
+            "status": "ok",
+            "manifest_version": "test-manifest",
+            "assets": [],
+            "missing": [],
+            "corrupt": [],
+            "optional_missing": [],
+        },
+    )
+
+    payload = ts_runtime.build_readiness_payload()
+
+    assert payload["state"] == "fatal"
+    assert payload["components"]["ml_runtime"]["configured_policy"] == "bananas"
+    assert payload["components"]["ml_runtime"]["fallback_reason"] == "invalid_device_policy:bananas"
+    assert "Check TOWERSCOUT_DEVICE" in " ".join(payload["recovery"])

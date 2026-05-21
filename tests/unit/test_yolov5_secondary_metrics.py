@@ -85,14 +85,6 @@ def test_detect_records_secondary_classifier_subphase_metrics():
         detector.model = _FakeModel()
         detector.batch_size = 4
         detector.device_label = "cpu"
-        detector.semaphore = type(
-            "NoOpSemaphore",
-            (),
-            {
-                "__enter__": lambda self: self,
-                "__exit__": lambda self, exc_type, exc, traceback: False,
-            },
-        )()
 
         perf_metrics = _FakePerfMetrics()
 

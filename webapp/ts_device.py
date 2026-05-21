@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Tuple
 
@@ -16,6 +18,9 @@ GPU_CONCURRENCY_ENV_VAR = "TOWERSCOUT_GPU_CONCURRENCY"
 VALID_DEVICE_POLICIES = {"auto", "cpu", "cuda"}
 
 logger = get_ml_logger()
+_gpu_limiter_lock = threading.Lock()
+_gpu_limiter: Optional[threading.Semaphore] = None
+_gpu_limiter_limit: Optional[int] = None
 
 
 class DevicePolicyError(RuntimeError):
@@ -74,7 +79,17 @@ def _normalize_policy(policy: Optional[str] = None) -> Tuple[str, str, Optional[
     return configured, configured, None
 
 
-def _torch_cuda_diagnostics() -> Dict[str, Any]:
+def _cuda_runtime_probe() -> Optional[str]:
+    try:
+        probe = torch.zeros(1, device="cuda")
+        probe.cpu()
+        del probe
+        return None
+    except Exception as exc:
+        return f"{exc.__class__.__name__}: {exc}"
+
+
+def _torch_cuda_diagnostics(probe_cuda_runtime: bool = False) -> Dict[str, Any]:
     cuda_available = False
     cuda_device_name = None
     cuda_probe_error = None
@@ -89,6 +104,14 @@ def _torch_cuda_diagnostics() -> Dict[str, Any]:
             cuda_device_name = torch.cuda.get_device_name(0)
         except Exception as exc:
             cuda_probe_error = f"{exc.__class__.__name__}: {exc}"
+            cuda_available = False
+            cuda_device_name = None
+
+    if cuda_available and probe_cuda_runtime:
+        cuda_probe_error = _cuda_runtime_probe()
+        if cuda_probe_error:
+            cuda_available = False
+            cuda_device_name = None
 
     return {
         "torch_version": getattr(torch, "__version__", "unknown"),
@@ -102,7 +125,9 @@ def _torch_cuda_diagnostics() -> Dict[str, Any]:
 def build_runtime_diagnostics(policy: Optional[str] = None) -> Dict[str, Any]:
     """Return non-secret ML runtime diagnostics without loading model weights."""
     requested_policy, configured_policy, policy_error = _normalize_policy(policy)
-    diagnostics = _torch_cuda_diagnostics()
+    diagnostics = _torch_cuda_diagnostics(
+        probe_cuda_runtime=(policy_error is None and requested_policy != "cpu")
+    )
 
     selected_device = "cpu"
     fallback_reason = policy_error
@@ -141,7 +166,9 @@ def select_model_device(
 ) -> DeviceSelection:
     """Apply the shared device policy to a loaded model."""
     requested_policy, configured_policy, policy_error = _normalize_policy(policy)
-    diagnostics = _torch_cuda_diagnostics()
+    diagnostics = _torch_cuda_diagnostics(
+        probe_cuda_runtime=(policy_error is None and requested_policy != "cpu")
+    )
 
     if policy_error:
         raise DevicePolicyError(
@@ -164,9 +191,11 @@ def select_model_device(
 
     if not diagnostics["torch_cuda_available"]:
         if requested_policy == "cuda":
+            details = diagnostics.get("cuda_probe_error")
+            suffix = f" CUDA probe failed: {details}" if details else ""
             raise DevicePolicyError(
                 f"{model_name} requires CUDA because {DEVICE_POLICY_ENV_VAR}=cuda, "
-                "but PyTorch reports CUDA is unavailable."
+                f"but PyTorch reports CUDA is unavailable or unusable.{suffix}"
             )
         return cpu_selection("cuda_unavailable")
 
@@ -207,3 +236,38 @@ def _env_int(name: str, default: int, minimum: int = 1) -> int:
 def gpu_concurrency_limit(default: int = 1) -> int:
     """Return the configured GPU model concurrency limit."""
     return _env_int(GPU_CONCURRENCY_ENV_VAR, default, minimum=1)
+
+
+def get_gpu_limiter(default: int = 1) -> threading.Semaphore:
+    """Return the process-wide semaphore shared by GPU model stages."""
+    global _gpu_limiter, _gpu_limiter_limit
+
+    limit = gpu_concurrency_limit(default)
+    with _gpu_limiter_lock:
+        if _gpu_limiter is None or _gpu_limiter_limit != limit:
+            _gpu_limiter = threading.Semaphore(limit)
+            _gpu_limiter_limit = limit
+        return _gpu_limiter
+
+
+@contextmanager
+def gpu_guard(enabled: bool, default: int = 1):
+    """Limit concurrent GPU work across TowerScout model stages."""
+    if not enabled:
+        yield
+        return
+
+    limiter = get_gpu_limiter(default)
+    limiter.acquire()
+    try:
+        yield
+    finally:
+        limiter.release()
+
+
+def _reset_gpu_limiter_for_tests() -> None:
+    global _gpu_limiter, _gpu_limiter_limit
+
+    with _gpu_limiter_lock:
+        _gpu_limiter = None
+        _gpu_limiter_limit = None

@@ -127,10 +127,12 @@ The default package launcher uses `-Gpu off`, keeps `compose.gpu.yaml` out of th
 
 Docker GPU launch is opt-in through `scripts/launch.ps1 -Engine docker -Gpu auto|on` or `start.bat -Engine docker -Gpu auto|on`. GPU overlay use requests NVIDIA GPU devices through Docker Compose device reservations, and these modes set TowerScout's runtime policy:
 
-- `auto`: add `compose.gpu.yaml` only when a simple Docker/NVIDIA host preflight detects a GPU; otherwise start without the overlay and fall back to CPU with diagnostics.
+- `auto`: start without the GPU overlay unless `TOWERSCOUT_GPU_AUTO_OVERLAY=1` has been set in the shell or `.env` after workstation-specific Docker GPU validation; otherwise fall back to CPU with diagnostics.
 - `on`: always add `compose.gpu.yaml`, require CUDA, and fail readiness when CUDA is unavailable.
 
 Podman GPU launch is not part of the validated release path. Podman remains supported for CPU launch unless a later validation proves a Podman CDI GPU procedure.
+
+Readiness diagnostics verify CUDA with a lightweight CUDA tensor probe when `TOWERSCOUT_DEVICE=auto` or `cuda`; `torch.cuda.is_available()` alone is not treated as a sufficient release diagnostic.
 
 ## Upload Limit
 
