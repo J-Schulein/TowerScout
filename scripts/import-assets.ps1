@@ -4,6 +4,8 @@ param(
 
     [string] $Source = "assets",
 
+    [int] $Port = $(if ($env:TOWERSCOUT_PORT) { [int] $env:TOWERSCOUT_PORT } else { 5000 }),
+
     [ValidateSet("off", "auto", "on")]
     [string] $Gpu = "off",
 
@@ -16,6 +18,7 @@ $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\lib\TowerScoutCompose.ps1"
 
 $repoRoot = Get-TowerScoutRepoRoot
+$env:TOWERSCOUT_PORT = "$Port"
 $sourcePath = Resolve-Path -LiteralPath (Join-Path $repoRoot $Source) -ErrorAction SilentlyContinue
 if ($null -eq $sourcePath) {
     $sourcePath = Resolve-Path -LiteralPath $Source -ErrorAction SilentlyContinue
@@ -56,6 +59,15 @@ Invoke-TowerScoutCompose -Engine $Engine -Build:$Build -Gpu $Gpu -ComposeArgumen
     "cp",
     (Join-Path $dataSource "."),
     "towerscout:/app/webapp/data/"
+)
+if ($script:TowerScoutComposeExitCode -ne 0) {
+    exit $script:TowerScoutComposeExitCode
+}
+
+Write-Host "Restarting TowerScout so imported model assets are discovered..."
+Invoke-TowerScoutCompose -Engine $Engine -Build:$Build -Gpu $Gpu -ComposeArguments @(
+    "restart",
+    "towerscout"
 )
 if ($script:TowerScoutComposeExitCode -ne 0) {
     exit $script:TowerScoutComposeExitCode

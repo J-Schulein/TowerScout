@@ -70,9 +70,11 @@ class EN_Classifier:
                 )
             
             try:
-                # load pre-trained EfficientNet model
-                self.model = EfficientNet.from_pretrained('efficientnet-b5', include_top=True)
-                logger.info("EfficientNet base model loaded successfully")
+                # Build the B5 architecture locally. The packaged TowerScout
+                # checkpoint below contains the trained weights, so using
+                # from_pretrained() would only add a hidden first-run download.
+                self.model = EfficientNet.from_name('efficientnet-b5', num_classes=1000)
+                logger.info("EfficientNet base architecture initialized")
             except Exception as e:
                 raise ModelLoadError(
                     f"Failed to load EfficientNet base model: {str(e)}",
