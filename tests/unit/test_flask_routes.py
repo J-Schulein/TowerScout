@@ -36,6 +36,8 @@ def _ensure_engine_catalog_loaded():
             towerscout.engines.items(),
             key=lambda item: -item[1]["ts"],
         )[0][0]
+
+
 @pytest.fixture
 def client():
     app.config["TESTING"] = True
@@ -113,8 +115,27 @@ def test_docs_routes_expose_package_local_docs(client):
     assert "text/css" in css_response.content_type
 
 
-def test_docs_route_rejects_non_public_docs(client):
-    response = client.get("/docs/codex-skills/README.md")
+@pytest.mark.parametrize("path", sorted(towerscout.PUBLIC_DOC_FILES))
+def test_each_public_doc_is_served(client, path):
+    response = client.get(f"/docs/{path}")
+
+    assert response.status_code == 200
+    assert response.data
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "../README.md",
+        "..%2FREADME.md",
+        "codex-skills/README.md",
+        "project-overview.html/",
+        "project-overview.html/../towerscout-user-guide.html",
+        "project-overview.html%5C..%5Ctowerscout-user-guide.html",
+    ],
+)
+def test_docs_route_rejects_non_public_docs(client, path):
+    response = client.get(f"/docs/{path}")
 
     assert response.status_code == 404
 

@@ -105,10 +105,12 @@ The release package includes:
 - `IMAGE.txt`
 - `release-manifest.v1.json`
 
-When TowerScout is running, the local source/license notice is available at:
+When TowerScout is running, the local source/license notice is available from
+these local routes:
 
 ```text
-http://localhost:5000/license
+http://localhost:5000/license      formatted browser page
+http://localhost:5000/license.txt  plain-text combined notices
 ```
 
 ## Research Article And Videos

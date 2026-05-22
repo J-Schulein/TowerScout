@@ -96,6 +96,22 @@ manifest. It does not contain the large model and ZIP-code data files.
 The asset package contains the large runtime files required for detection and
 ZIP-code search.
 
+## Verify Downloads Before Extracting
+
+Before extracting either ZIP, compare each artifact to its matching `.sha256`
+file in PowerShell:
+
+```powershell
+Get-FileHash .\towerscout-v0.1.0-rc1.zip -Algorithm SHA256
+Get-Content .\towerscout-v0.1.0-rc1.zip.sha256
+Get-FileHash .\towerscout-v0.1.0-rc1-assets-*.zip -Algorithm SHA256
+Get-Content .\towerscout-v0.1.0-rc1-assets-*.zip.sha256
+```
+
+The `Hash` value from `Get-FileHash` must match the SHA-256 value in the
+corresponding `.sha256` file. If the values do not match, stop validation and
+obtain a fresh copy of the affected release artifact.
+
 ## Control Package Layout
 
 After extracting the control ZIP, the package root should include:
@@ -513,11 +529,15 @@ Package files:
 - `IMAGE.txt`
 - `release-manifest.v1.json`
 
-Running app notice:
+Running app notices:
 
 ```text
-http://localhost:5000/license
+http://localhost:5000/license      formatted browser page
+http://localhost:5000/license.txt  plain-text combined notices
 ```
+
+Use `/license.txt` when support needs text for scripts, copy/paste, or archival
+records.
 
 Provider services are not included with TowerScout. Users are responsible for
 provider terms, billing, allowed use, quota controls, monitoring, and key

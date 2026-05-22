@@ -158,6 +158,15 @@ This task should replace or clearly distinguish older source/Conda tester guidan
 **Validation**: Focused route/license/package tests passed after adding the parity assertions; `.agent_work` validators and `git diff --check` passed.
 **Next**: Continue treating Markdown and Settings-linked HTML docs as paired update surfaces during `TASK-066` and later release-doc work.
 
+### 2026-05-22 - PR16 Reviewer Hardening
+**Objective**: Address the remaining low-risk PR16 reviewer recommendations before merge.
+**Context**: The updated review still flagged three useful hardening items after the broader documentation pass: align `/docs/` validation and serving path handling, add stronger docs-route regression coverage, and make the Quick Start's admin/support prerequisite boundary more explicit.
+**Decision**: Make the route and test changes in PR16 because they are small, directly protect the new docs surface, and do not change the release package contract. Keep larger CI/static-analysis and Markdown-to-HTML generation work in `TASK-066`.
+**Execution**: Updated `/docs/<path>` to serve the normalized allowlisted path, added parameterized tests for every public doc plus traversal/odd-separator rejection cases, and added the admin/support stop condition to both Markdown and HTML Quick Start docs.
+**Output**: PR16 now includes the reviewer hardening that is appropriate before merge while leaving broader automation/governance items tracked for the release-candidate gate.
+**Validation**: Focused route/license/package tests passed with 42 passing tests and the existing `datetime.utcnow()` warning.
+**Next**: Merge PR16 after review, then execute `TASK-066` against the package docs and decide which remaining checks should become CI gates.
+
 ---
 
 ## Validation Results
@@ -188,6 +197,7 @@ This task should replace or clearly distinguish older source/Conda tester guidan
 - `.venv\Scripts\python.exe .agents\skills\towerscout-end-user-docs-check\scripts\check_doc_commands.py . docs README.md` completed with the known non-blocking `127.0.0.1` docs warning in `docs/oci-quick-start.md`.
 - Re-ran the focused route/license/package tests after the prerequisite pass: 29 passed, 1 existing `datetime.utcnow()` deprecation warning.
 - Re-ran the focused route/license/package tests after adding HTML parity assertions: 29 passed, 1 existing `datetime.utcnow()` deprecation warning.
+- Re-ran the focused route/license/package tests after PR16 reviewer hardening: 42 passed, existing `datetime.utcnow()` warnings from the parameterized rejection cases.
 - Re-ran the docs command checker after the prerequisite pass; it completed with the same known non-blocking `127.0.0.1` docs warning in `docs/oci-quick-start.md`.
 - `.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` passed.
 - `.venv\Scripts\python.exe .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .` passed.

@@ -237,11 +237,15 @@ Settings Resource Links include:
 - Video Guides.
 - TowerScout Research Article.
 
-The running source/license notice is available at:
+The running source/license notice is available from these local routes:
 
 ```text
-http://localhost:5000/license
+http://localhost:5000/license      formatted browser page
+http://localhost:5000/license.txt  plain-text combined notices
 ```
+
+Use `/license.txt` when support needs text for scripts, copy/paste, or archival
+records.
 
 ## Getting Help
 

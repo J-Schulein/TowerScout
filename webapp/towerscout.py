@@ -87,6 +87,9 @@ COMPLIANCE_NOTICE_FILES = (
     "SBOM.txt",
     "release-manifest.v1.json",
 )
+# Keep this allowlist synchronized with Settings Resource Links in
+# webapp/templates/towerscout.html, docs staged by scripts/package-release.ps1,
+# and route assertions in tests/unit/test_flask_routes.py.
 PUBLIC_DOC_FILES = {
     "project-overview.html",
     "project-overview.md",
@@ -1558,7 +1561,7 @@ def send_docs(path):
     normalized_path = str(path).replace("\\", "/")
     if normalized_path not in PUBLIC_DOC_FILES:
         flask_abort(404)
-    return send_from_directory(str(DOCS_DIR), path)
+    return send_from_directory(str(DOCS_DIR), normalized_path)
 
 
 def _load_release_license_notice_sections():

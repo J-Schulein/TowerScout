@@ -29,6 +29,10 @@ Install or confirm these prerequisites before opening the TowerScout package:
 You do not need Git, Python, Conda, Node.js, VS Code, or a source-code checkout
 for the normal V1 RC1 package path.
 
+If Docker Desktop or Podman is not already installed and approved on your
+workstation, or if you do not already have a valid restricted provider key,
+stop here and contact your site administrator or support lead before continuing.
+
 If both Docker and Podman are installed, the launcher's automatic engine
 selection can choose Docker first. If support or local policy tells you to use
 Podman, pass `-Engine podman` on every helper command.
@@ -46,7 +50,23 @@ The exact asset filename can change by release. The control package, asset
 bundle, `IMAGE.txt`, `release-manifest.v1.json`, and `webapp/asset_manifest.v1.json`
 must describe the same release handoff.
 
-## 2. Extract The Control Package
+## 2. Verify The Downloads Before Extracting
+
+In PowerShell, compare each downloaded ZIP to its matching `.sha256` file before
+extracting either package:
+
+```powershell
+Get-FileHash .\towerscout-v0.1.0-rc1.zip -Algorithm SHA256
+Get-Content .\towerscout-v0.1.0-rc1.zip.sha256
+Get-FileHash .\towerscout-v0.1.0-rc1-assets-*.zip -Algorithm SHA256
+Get-Content .\towerscout-v0.1.0-rc1-assets-*.zip.sha256
+```
+
+The `Hash` value from `Get-FileHash` must match the SHA-256 value in the
+corresponding `.sha256` file. If either value does not match, stop and obtain a
+fresh copy of the release artifact before continuing.
+
+## 3. Extract The Control Package
 
 Extract the control ZIP to a normal local folder such as:
 
@@ -58,7 +78,7 @@ After extraction, the folder should contain `start.bat`, `compose.yaml`,
 `compose.gpu.yaml`, `scripts\`, `docs\`, compliance files, `IMAGE.txt`,
 `SHA256SUMS.txt`, and an empty `assets\` folder.
 
-## 3. Initialize The Package
+## 4. Initialize The Package
 
 From PowerShell in the package folder, run:
 
@@ -89,7 +109,7 @@ If the launcher cannot find or start a container engine, confirm the selected
 engine is installed and running before continuing. For Podman, confirm the
 Podman machine is started. For Docker, confirm Docker Desktop is running.
 
-## 4. Stage And Import Assets
+## 5. Stage And Import Assets
 
 Open the asset ZIP. Its root should contain:
 
@@ -135,7 +155,7 @@ Or, with an explicit engine:
 The import helper uses the selected engine's named volumes. It should run after
 `.env` has been created by the launcher.
 
-## 5. Start Or Reopen TowerScout
+## 6. Start Or Reopen TowerScout
 
 From the package folder, run:
 
@@ -152,7 +172,7 @@ Use `localhost`, not `127.0.0.1`, for normal browser use:
 http://localhost:5000
 ```
 
-## 6. Optional GPU Launch
+## 7. Optional GPU Launch
 
 GPU launch is optional and Docker-first. Do not use it as the normal first-run
 path unless support is validating a workstation with NVIDIA Docker GPU access.
@@ -179,7 +199,7 @@ Optional Docker GPU modes:
 Podman GPU launch is not validated for V1 RC1. Use the CPU-safe Podman launch
 unless support provides a site-specific GPU procedure.
 
-## 7. Complete Setup
+## 8. Complete Setup
 
 When the browser opens, use Setup Wizard or Settings to configure one provider:
 
@@ -195,7 +215,7 @@ Google keys must support TowerScout's Maps JavaScript, Places/autocomplete,
 Static Maps imagery, and Geocoding usage. Azure Maps subscription keys must
 support TowerScout's Web SDK, imagery, search, and geocoding usage.
 
-## 8. Confirm Success
+## 9. Confirm Success
 
 Run:
 
@@ -221,7 +241,7 @@ For a small smoke check, open TowerScout, choose a provider, define a small
 approved search area, select `Estimate tiles`, then run `Find towers` only for
 a small area appropriate for the pilot.
 
-## 9. Stop Or Restart
+## 10. Stop Or Restart
 
 Stop TowerScout:
 
@@ -238,7 +258,7 @@ Start again:
 Provider setup and imported assets are stored in named volumes and should
 survive container restarts and replacement.
 
-## 10. Source, Licenses, And Help
+## 11. Source, Licenses, And Help
 
 The YOLO-enabled V1 RC1 package/image is not Apache-2.0-only. It is distributed
 with AGPL-3.0 obligations because it includes Ultralytics YOLOv5 runtime source
@@ -259,13 +279,17 @@ Find release notices in the package:
 
 When TowerScout is running, Settings includes Resource Links for Project
 Overview, User Guide, Source/licenses, Video Guides, and the research article.
-The source/license notice is also available at:
+The source/license notice is also available from these local routes:
 
 ```text
-http://localhost:5000/license
+http://localhost:5000/license      formatted browser page
+http://localhost:5000/license.txt  plain-text combined notices
 ```
 
-## 11. If Something Fails
+Use `/license.txt` when support needs plain text for scripts, copy/paste, or
+archival use.
+
+## 12. If Something Fails
 
 Run:
 
