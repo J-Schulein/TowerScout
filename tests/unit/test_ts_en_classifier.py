@@ -164,5 +164,6 @@ def test_efficientnet_init_falls_back_to_cpu_when_cuda_setup_fails(monkeypatch):
         from_pretrained.assert_not_called()
         torch_load.assert_called_once()
         assert torch_load.call_args.kwargs["map_location"] == torch.device("cpu")
+        assert torch_load.call_args.kwargs["weights_only"] is True
     finally:
         shutil.rmtree(scratch_dir, ignore_errors=True)

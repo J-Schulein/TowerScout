@@ -96,7 +96,15 @@ class EN_Classifier:
                 )
 
             try:
-                checkpoint = torch.load(str(path_best), map_location=torch.device('cpu'))
+                load_kwargs = {"map_location": torch.device('cpu')}
+                try:
+                    checkpoint = torch.load(
+                        str(path_best),
+                        weights_only=True,
+                        **load_kwargs
+                    )
+                except TypeError:
+                    checkpoint = torch.load(str(path_best), **load_kwargs)
                 self.model.load_state_dict(checkpoint)
                 logger.info("EfficientNet weights loaded on CPU")
             except Exception as e:

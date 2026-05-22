@@ -142,6 +142,21 @@ This task is the bridge between engineered release readiness and real user testi
 **Output**: Local package path is now viable after the script/runtime fixes. The real RC artifact still needs a digest-pinned image/package run before sign-off.
 **Next**: Run focused validation on the changed scripts/runtime/docs, record CI/static-analysis and Markdown-to-HTML recommendations, then decide whether TASK-066 can move to final RC artifact validation or should route additional hardening to TASK-067/TASK-068.
 
+### 2026-05-22 - PR17 Reviewer Follow-Up Hardening
+**Objective**: Address reviewer feedback before merging PR17.
+**Context**: The reviewer agreed with the direction but identified three changes that should be tightened before merge: post-import service usability, the Windows-skipped import helper test, and safer checkpoint loading.
+**Decision**: Add a bounded post-restart wait that accepts the normal pre-provider setup state. The helper should require `/api/health` to respond, `/api/readiness` assets to be `ok`, and `/getengines` to return at least one engine; it should not require the full readiness state to be `ready` because provider setup can happen after asset import.
+**Execution**:
+- Added a post-restart poll to `scripts/import-assets.ps1` with `-RestartWaitSeconds`.
+- Moved import-helper static regression coverage into a cross-platform test file and added ordering checks for port propagation, copy, restart, wait, and verification.
+- Changed EfficientNet checkpoint loading to prefer `torch.load(..., weights_only=True)` with a compatibility fallback for older Torch behavior.
+**Validation**:
+- `git diff --check`, `.agent_work` validation, PowerShell parser validation, and ML `py_compile` passed.
+- Focused unit suite passed with `55 passed` and the existing `datetime.utcnow()` warnings.
+- Clean local EfficientNet initialization with a temporary `TORCH_HOME` succeeded with no Torch checkpoint cache populated.
+- Fresh local package import smoke on port `5006` passed after the post-restart wait: `health=ok`, readiness `state=setup_required`, `asset_status=ok`, `engine_count=1`, and `-VerifyHashes` returned `asset_status=ok`.
+**Next**: Re-run focused tests, update PR17, then proceed to final digest-pinned package validation after merge.
+
 ---
 
 ## Validation Results

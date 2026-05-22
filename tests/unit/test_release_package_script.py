@@ -15,7 +15,6 @@ from release_manifest_contract import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_SCRIPT = REPO_ROOT / "scripts" / "package-release.ps1"
-IMPORT_ASSETS_SCRIPT = REPO_ROOT / "scripts" / "import-assets.ps1"
 
 pytestmark = pytest.mark.skipif(
     os.name != "nt",
@@ -172,15 +171,6 @@ def test_package_release_stages_digest_pinned_image():
             assert (stage_path / "docs" / relative_path).is_file()
     finally:
         shutil.rmtree(output_path, ignore_errors=True)
-
-
-def test_import_assets_script_preserves_port_and_restarts_after_copy():
-    script = IMPORT_ASSETS_SCRIPT.read_text(encoding="utf-8")
-
-    assert "[int] $Port" in script
-    assert '$env:TOWERSCOUT_PORT = "$Port"' in script
-    assert '"restart",' in script
-    assert "Restarting TowerScout so imported model assets are discovered" in script
 
 
 def test_package_release_rejects_unknown_pytorch_flavor():
