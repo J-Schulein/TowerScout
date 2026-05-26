@@ -1,6 +1,6 @@
 # TASK-066: Release Candidate Validation Gate
 
-**Status**: IN_PROGRESS - digest-pinned Docker CPU-default package path passed; Podman and NVIDIA GPU evidence pending
+**Status**: IN_PROGRESS - digest-pinned Docker and Podman CPU-default package paths passed; Podman source-build TLS and NVIDIA GPU evidence pending
 **Priority**: CRITICAL  
 **Type**: C (Release Engineering / Validation)  
 **Estimated Effort**: 1-2 days (8-16 hours)  
@@ -188,26 +188,55 @@ This task is the bridge between engineered release readiness and real user testi
 **Recommendation**: Proceed toward Docker Desktop-based controlled RC1/UAT preparation, with explicit release notes that CPU-default Docker validation passed, GPU acceleration is pending NVIDIA-host evidence, and Podman remains a follow-up validation path unless it is required for the first external pilot cohort.
 **Next**: Stop the validation stack, record cleanup evidence, then decide whether to run Podman/TLS remediation before `TASK-073` or start `TASK-073` with Docker Desktop as the supported pilot engine.
 
+### 2026-05-26 - Podman Package Runtime And TLS Validation
+**Objective**: Validate the Podman path before external pilot prep and separate normal package-runtime TLS risk from source-build/base-image TLS risk.
+**Context**: Validation used the same digest-pinned RC image and a fresh extraction of `dist\towerscout-v0.1.0-rc1.zip` into `dist\towerscout-v0.1.0-rc1-podman-validation`. The existing Docker Desktop API was unavailable during this run, so the Podman evidence stands on the Podman machine and package route.
+**Execution**:
+- Confirmed Podman `5.8.2` and a running WSL Podman machine.
+- Confirmed `podman compose` is available but delegates to external provider `C:\Program Files\Docker\Docker\resources\bin\docker-compose.exe` reporting Docker Compose `v5.1.3`.
+- Pulled `ghcr.io/j-schulein/towerscout@sha256:55aabd73a0cbdb76a1d48f427e9fe74dcab63ed87f2a15d32d9709de3ce1a232` through Podman successfully, proving the GHCR digest/TLS path required by the package.
+- Launched the clean package on port `5008` with `start.bat -Engine podman -Port 5008 -Gpu off -NoBrowser -TimeoutSeconds 180`.
+- Imported the staged asset bundle with `scripts\import-assets.cmd -Engine podman -Source assets -Port 5008 -VerifyHashes -RestartWaitSeconds 180`.
+- Saved Azure provider setup, verified restart persistence, route health, bounded detection, logs, and runtime cache behavior.
+**Validation Evidence**:
+- First launch reached the expected setup state: `setup_required`, `asset_status=degraded`, `config_status=setup_required`.
+- Asset import passed: `post_import_health=ok`, `asset_status=ok`, `engine_count=1`, `verify_hashes=True`, and no missing/corrupt assets.
+- Restarted Podman package returned `ready` with `asset_status=ok` and `config_status=ok`.
+- Readiness reported `pytorch_flavor=cuda121`, `torch_version=2.2.1+cu121`, `torch_cuda_build=12.1`, `configured_policy=cpu`, and `selected_device=cpu` under `-Gpu off`.
+- `/api/health`, `/api/readiness`, `/docs/`, and `/license` returned HTTP `200` on port `5008`.
+- Bounded Azure detection smoke returned HTTP `200` in `13.05s`: 1 tile record, 14 detection records, 14 selected detections, and 14 detections with address metadata (`azure_maps=9`, `outside_boundary=5`).
+- Performance evidence: 1 tile, total workflow `13.02s`, model time `6.21s`, model initialization `5.20s`, secondary classifier load `1.05s`, geocoding provider request `0.50s`.
+- Runtime cache check found no `/root/.cache/torch`; Ultralytics settings cache was `12K`.
+- Temporary Podman validation stack was stopped after evidence capture; `podman ps` returned no running containers.
+**TLS Finding**:
+- Podman successfully pulled the RC image from GHCR by digest, so normal package image retrieval is not blocked by TLS on this host.
+- Podman still fails pulling `docker.io/library/python:3.11-slim-bookworm` because the Podman VM does not trust the Docker Hub/CloudFront TLS chain: `tls: failed to verify certificate: x509: certificate signed by unknown authority`.
+- This Docker Hub TLS failure affects source builds and Docker-Hub-backed developer paths, not the normal digest-pinned GHCR package path validated for RC1.
+**Recommendation**: Podman can be included as a validated package-runtime option for the controlled RC path only with the tested provider caveat: this host used `podman compose` delegating to Docker Compose v5.1.3. Do not claim Docker-Desktop-free Podman coverage from this run. Keep Podman VM CA import or clean-host Podman-only validation as a follow-up before promising source-build or Docker-Hub-backed workflows.
+**Next**: Merge the evidence update, then proceed to `TASK-073` with Docker Desktop as the primary pilot engine and Podman package runtime as a supported-but-qualified path unless the pilot cohort requires Docker-Desktop-free Podman.
+
 ---
 
 ## Validation Results
 
 ### Test Summary
 **Test Date**: 2026-05-22
-**Test Environment**: Windows 11 AMD64 workstation, Docker Desktop engine, digest-pinned GHCR image `ghcr.io/j-schulein/towerscout:v0.1.0-rc1-cuda121@sha256:55aabd73a0cbdb76a1d48f427e9fe74dcab63ed87f2a15d32d9709de3ce1a232`, CPU launch via `-Gpu off`, Azure provider configured from local ignored development config for validation only.
-**Test Status**: PASS_WITH_BOUNDARIES - digest-pinned Docker Desktop CPU-default package path passed; GPU and Podman evidence remain bounded follow-ups.
+**Test Environment**: Windows 11 AMD64 workstation, Docker Desktop engine, Podman `5.8.2` WSL machine using `podman compose` with Docker Compose `v5.1.3` as external provider, digest-pinned GHCR image `ghcr.io/j-schulein/towerscout:v0.1.0-rc1-cuda121@sha256:55aabd73a0cbdb76a1d48f427e9fe74dcab63ed87f2a15d32d9709de3ce1a232`, CPU launch via `-Gpu off`, Azure provider configured from local ignored development config for validation only.
+**Test Status**: PASS_WITH_BOUNDARIES - digest-pinned Docker Desktop and Podman package runtime CPU-default paths passed; GPU, Docker-Desktop-free Podman, and Podman source-build TLS evidence remain bounded follow-ups.
 
 ### Acceptance Criteria Validation
 - [x] Package generated or obtained - final RC control package generated with immutable GHCR image digest.
 - [x] Asset bundle validated - manifest assets staged in the documented extracted layout, imported, and `-VerifyHashes` returned `asset_status=ok`.
 - [x] Docs used as instructions - package quick start/package guide steps exercised; docs updated for non-default port import and post-import restart behavior.
 - [x] Launch path verified - Docker launch on alternate ports reached expected first-run states and final `ready`.
+- [x] Podman package runtime launch verified - Podman launch on port `5008` reached expected first-run states, asset import, restart persistence, and final `ready`.
 - [x] Provider setup verified - Azure provider setup saved through API and persisted across restart in the package config volume.
 - [x] Detection smoke verified - bounded Azure fixture returned HTTP `200`, 14 detection records, selected detections, and address fields.
 - [x] Status/log support commands produce useful evidence - `status.cmd`, `/api/readiness`, Docker logs, and `performance.log` exposed actionable evidence.
 - [x] CPU-safe default launch verified - validation launched with `-Gpu off`; runtime readiness selected CPU from the CUDA-capable image with `torch 2.2.1+cu121`.
 - [x] Immutable image digest release package verified - package pinned to GHCR digest `sha256:55aabd73a0cbdb76a1d48f427e9fe74dcab63ed87f2a15d32d9709de3ce1a232`.
 - [ ] NVIDIA Docker Desktop WSL2 GPU evidence - PENDING separate GPU host validation before any broad GPU support claim.
+- [ ] Docker-Desktop-free Podman evidence - PENDING clean-host validation with a provider that does not depend on Docker Desktop's external Compose binary.
 - [x] CI/static-analysis expansion recommendation recorded - see recommendations below.
 - [x] Markdown-to-HTML generation/parity recommendation recorded - see recommendations below.
 - [x] V1 RC1 recommendation produced - Docker Desktop CPU-default RC path can proceed to controlled UAT, with GPU and Podman caveats.
@@ -217,9 +246,9 @@ This task is the bridge between engineered release readiness and real user testi
 1. **Fixed - non-default port asset import failure**: `import-assets.ps1` previously did not set `TOWERSCOUT_PORT`, causing `5000` bind conflicts when the app was already running elsewhere.
 2. **Fixed - imported models not discovered until restart**: asset import copied model files after app startup, leaving the in-memory engine registry stale.
 3. **Fixed - hidden EfficientNet first-use download**: `EfficientNet.from_pretrained(...)` downloaded a 117 MB base checkpoint on clean first detection.
-4. **Environment blocker for Podman on this host**: Podman build failed on Docker Hub base-image TLS verification before TowerScout code ran. Docker Desktop remains the validated engine for this local run.
+4. **Open source-build caveat - Podman Docker Hub TLS**: Podman package runtime successfully pulled the RC image from GHCR, but Podman source-build/base-image pulls from Docker Hub still fail TLS certificate verification inside the Podman VM before TowerScout code runs.
 5. **Open validation caveat - NVIDIA GPU host**: optional GPU acceleration needs NVIDIA Docker Desktop WSL2 validation before support claims.
-6. **Open validation caveat - Podman on this host**: Podman build remains blocked by host TLS certificate verification before TowerScout code runs.
+6. **Open validation caveat - Docker-Desktop-free Podman**: this host's Podman Compose path delegates to Docker Desktop's Docker Compose binary, so it does not prove a Docker-Desktop-free Podman installation.
 7. **Open release artifact caveat - asset ZIP packaging**: this run validated the documented extracted asset layout and import hash verification, but did not produce a new asset ZIP/checksum sidecar.
 
 ### Remediation Actions
@@ -230,6 +259,7 @@ This task is the bridge between engineered release readiness and real user testi
 - Added unit coverage proving EfficientNet initialization does not call `from_pretrained()` and static regression coverage for import helper port/restart behavior.
 - Validated the patched package path with a fresh package/project name and clean runtime cache.
 - Published and validated the digest-pinned GHCR RC image and final control package.
+- Validated the digest-pinned GHCR package runtime path under Podman on port `5008` and recorded the remaining Docker Hub TLS/source-build caveat.
 
 ### Automation Recommendations
 
@@ -241,4 +271,4 @@ This task is the bridge between engineered release readiness and real user testi
 
 ### Sign-off
 
-Docker Desktop CPU-default RC1 package validation passed against the digest-pinned GHCR image and can proceed to controlled UAT preparation if Docker Desktop is accepted as the first pilot engine. Do not claim GPU acceleration until NVIDIA Docker Desktop WSL2 evidence exists. Do not claim Podman validation from this host until the TLS/base-image pull blocker is resolved or tested on a clean Podman host.
+Docker Desktop and Podman CPU-default RC1 package runtime validation passed against the digest-pinned GHCR image and can proceed to controlled UAT preparation if Docker Desktop remains the primary pilot engine and Podman is documented as a qualified package-runtime path. Do not claim GPU acceleration until NVIDIA Docker Desktop WSL2 evidence exists. Do not claim Docker-Desktop-free Podman or Podman source-build support until the external Compose-provider dependency and Docker Hub TLS/base-image pull blocker are resolved or tested on a clean Podman-only host.
