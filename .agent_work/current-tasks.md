@@ -177,7 +177,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 - `/docs/` serves the package-local Quick Start, `/license` serves a styled HTML source/license page, and `/license.txt` remains available for plain-text notices.
 - Release package and runtime image assembly now include package-local docs needed by Resource Links.
 - Older source/Conda tester guides are labeled as legacy source-install guidance.
-- The Quick Start and support docs now explicitly list prerequisite software: Windows 11 AMD64, PowerShell, browser, outbound internet, disk space, one supported container engine, and provider key; they also state Git/Python/Conda/Node/VS Code are not required for the package path.
+- The Quick Start and support docs now explicitly list prerequisite software: Windows 11 AMD64, PowerShell, browser, outbound internet, disk space, Docker Desktop/WSL 2 as the primary pilot path, qualified Podman boundaries, and provider key; they also state Git/Python/Conda/Node/VS Code are not required for the package path.
 - Focused Flask route, license, release package, docs-command, and agent-work validation passed with only the known `127.0.0.1` docs warning.
 
 **User Value**: Converts the engineered release package into a self-service pilot path instead of a support-only handoff.
@@ -224,14 +224,14 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 **User Value**: Restores confidence in internal validation before external pilot prep and reduces the chance that future agents follow stale instructions.
 
 ### **TASK-073: Clean-Machine Pilot / UAT Execution Plan**
-**Status**: IN_PROGRESS - pilot/UAT plan and tester handoff artifacts underway
+**Status**: IN_PROGRESS - pilot/UAT plan and non-command-line first-launch docs underway
 **Type**: B/C (User Testing / Release Validation)  
 **Priority**: HIGH  
 **Estimated Effort**: 0.5-1 day (4-8 hours)  
 **Target Sprint**: Sprint 06 V1 RC1  
 **Task File**: `.agent_work/tasks/active/TASK-073-clean-machine-uat-plan.md`
 
-**Objective**: Define the controlled pilot/UAT workflow, tester instructions, acceptance checklist, environment capture, issue-report workflow, success criteria, and support escalation path.
+**Objective**: Define the controlled pilot/UAT workflow, tester instructions, acceptance checklist, environment capture, issue-report workflow, success criteria, support escalation path, and first-launch guidance for users without prior command-line experience.
 
 **Dependencies**: `TASK-066`; `TASK-067`; draft user package docs.
 

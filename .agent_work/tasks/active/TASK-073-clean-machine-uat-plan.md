@@ -32,6 +32,8 @@ This task should make external testing repeatable, bounded, and evidence-produci
 
 **R-073-009**: WHEN pilot evidence is collected, THE PROJECT SHALL avoid storing API keys, full `.env` files, private AOIs, screenshots with secrets, or raw provider responses unless explicitly approved and redacted.
 
+**R-073-010**: WHEN pilot instructions are provided to non-command-line users, THE PROJECT SHALL explain prerequisite software, where to run commands, what each required command does, and the expected outcome after each command.
+
 ## Acceptance Criteria
 
 - [x] Pilot/UAT start criteria are documented.
@@ -44,6 +46,7 @@ This task should make external testing repeatable, bounded, and evidence-produci
 - [x] Blocker triage rules distinguish V1 blockers, V1 patch candidates, and V2 backlog items.
 - [x] V1 completion gate after pilot/UAT is documented.
 - [x] `TASK-066` route-test timeout/isolation gap is fixed or explicitly accepted before pilot launch.
+- [x] User-facing docs and UAT instructions explain Docker Desktop/WSL 2 readiness, PowerShell command execution, command outcomes, and first-launch recovery tips.
 - [ ] Owner/reviewer accepts the pilot/UAT plan before external testers start.
 
 ## Dependencies
@@ -79,6 +82,7 @@ Pilot/UAT may start only when all of the following are true:
 
 - The release package ZIP, pinned GHCR image digest, and matching asset bundle location/checksum instructions are available to testers.
 - `TASK-071` package docs are available from the package and from Settings Resource Links.
+- User-facing docs explain Docker Desktop/WSL 2 prerequisites, PowerShell command location, expected command outcomes, and support-safe recovery steps for first launch.
 - `TASK-066` CPU-default Docker Desktop package path has passed with assets imported and one bounded detection smoke.
 - `TASK-066` residual caveats are explicitly included in pilot support language:
   - Docker Desktop is the primary pilot engine.
@@ -115,25 +119,28 @@ Pause or stop pilot/UAT if any of the following occur:
 
 Each tester should complete the package path in this order:
 
-1. Confirm prerequisites: Windows 11 AMD64, supported container engine, browser, outbound internet, disk space, PowerShell access, provider key.
+1. Confirm prerequisites: Windows 11 AMD64, Docker Desktop running with WSL 2 support, browser, outbound internet, disk space, PowerShell access, provider key.
 2. Download or receive the release package ZIP, asset bundle, and checksum/digest instructions.
 3. Extract the release package to a local folder without spaces or special characters if possible.
 4. Extract the asset bundle into the package-local `assets/` folder.
-5. Launch CPU-default Docker Desktop path:
-   - `start.bat -Engine docker -Gpu off`
-6. Import assets with hash verification:
-   - `scripts\import-assets.cmd -Engine docker -Source assets -VerifyHashes -RestartWaitSeconds 180`
-7. Open TowerScout in the browser if the launcher does not open it automatically.
-8. Complete Setup Wizard with Azure or Google provider key.
-9. Open Settings Resource Links and confirm the package-local docs and source/license page load.
-10. Run a bounded detection smoke using the owner-provided fixture or a non-sensitive AOI.
-11. Confirm:
+5. Open Windows PowerShell in the extracted package folder.
+6. Launch CPU-default Docker Desktop path:
+   - `.\start.bat -Engine docker -Gpu off`
+   - Expected outcome: the launcher reports a readiness state and opens `http://localhost:5000` or the tester can open that address manually.
+7. Import assets with hash verification:
+   - `.\scripts\import-assets.cmd -Engine docker -Source assets -VerifyHashes -RestartWaitSeconds 180`
+   - Expected outcome: the importer completes without missing/corrupt asset errors and waits for TowerScout after restart.
+8. Open TowerScout in the browser if the launcher does not open it automatically.
+9. Complete Setup Wizard with Azure or Google provider key.
+10. Open Settings Resource Links and confirm the package-local docs and source/license page load.
+11. Run a bounded detection smoke using the owner-provided fixture or a non-sensitive AOI.
+12. Confirm:
     - Detection completes without a crash.
     - Results appear in the map and right-hand review panel.
     - Detected tower addresses/provider metadata appear when geocoding succeeds or show a clear fallback when unavailable.
     - CSV or KML export can be generated if included in the pilot script.
-12. Collect status/log evidence requested below.
-13. Stop TowerScout using the package stop script or documented shutdown path.
+13. Collect status/log evidence requested below.
+14. Stop TowerScout using `.\scripts\stop.cmd -Engine docker` unless support explicitly selected another engine.
 
 ### Environment Capture
 
@@ -197,11 +204,13 @@ First-line support should triage in this order:
 
 1. Confirm the tester is using the supported package path and current package/assets.
 2. Confirm Docker Desktop is running and the package launched with CPU-default `-Gpu off`.
-3. Confirm assets imported with hash verification.
-4. Confirm provider key setup succeeded without asking the tester to send the key.
-5. Confirm `/api/health` and `/api/readiness` state.
-6. Collect sanitized launcher/import/readiness evidence.
-7. Create or update the matching `UT-###` issue and route by triage rules.
+3. Confirm WSL 2 is available and Docker commands print version information.
+4. Confirm the tester opened PowerShell in the extracted package folder.
+5. Confirm assets imported with hash verification.
+6. Confirm provider key setup succeeded without asking the tester to send the key.
+7. Confirm `/api/health` and `/api/readiness` state.
+8. Collect sanitized launcher/import/readiness evidence.
+9. Create or update the matching `UT-###` issue and route by triage rules.
 
 Escalate to engineering when the issue is a V1 blocker, repeats across testers, affects security/privacy, or contradicts `TASK-066` validation evidence.
 
@@ -247,6 +256,15 @@ After pilot/UAT, V1 may be considered ready only if:
 **Validation**: Pending owner/reviewer acceptance and `.agent_work` validation.
 **Next**: Validate `.agent_work`, review the draft with the owner/reviewer, and identify the final package/assets/checksum inputs before tester launch.
 
+### 2026-05-27 - Non-Command-Line User Documentation Pass
+**Objective**: Reduce first-launch confusion for external pilot users who may not have prior command-line or container-runtime experience.
+**Context**: The initial UAT plan was directionally correct but some user-facing docs still described the runtime path as generic Podman-or-Docker, and several commands did not explain where to run them or what success should look like.
+**Decision**: Keep Docker Desktop with WSL 2 as the primary RC1 pilot path, keep Podman as a qualified support-directed path, and require docs/checklists to show PowerShell location, Docker/WSL readiness checks, command purpose, and expected outcomes.
+**Execution**: Updated the Task-073 plan and UAT checklist; synchronized user-facing package docs and Settings-linked HTML docs so default pilot commands use `-Engine docker -Gpu off` and expected outcomes are explicit.
+**Output**: External pilot instructions now include Docker Desktop/WSL 2 readiness checks, PowerShell basics, launch/import/status/stop command outcomes, and clearer support escalation checks.
+**Validation**: `python .agent_work\scripts\validate_agent_work.py` passed; `python .agents\skills\towerscout-end-user-docs-check\scripts\check_doc_commands.py . docs README.md` passed with the known intentional `127.0.0.1` warning in `docs\oci-quick-start.md`; `git diff --check` passed.
+**Next**: Prepare the PR update summary and request owner/reviewer acceptance before external pilot testers start.
+
 ---
 
 ## Validation Results
@@ -262,6 +280,7 @@ After pilot/UAT, V1 may be considered ready only if:
 - [x] Environment capture checklist ready - PASS - See Environment Capture.
 - [x] Issue-report workflow linked - PASS - See Issue Reporting Workflow and `.agent_work/user-testing/`.
 - [x] Tester-facing handoff artifacts updated - PASS - See `.agent_work/user-testing/instructions/RC1-PILOT-UAT-CHECKLIST.md` and `TESTER-ISSUE-REPORT-CHECKLIST.txt`.
+- [x] Non-command-line first-launch guidance added - PASS - User docs and UAT checklist now include PowerShell location, Docker Desktop/WSL 2 checks, default Docker commands, expected outcomes, and support-safe recovery instructions.
 - [x] V1 completion gate documented - PASS - See V1 Completion Gate After Pilot.
 - [ ] Owner/reviewer acceptance - PENDING.
 

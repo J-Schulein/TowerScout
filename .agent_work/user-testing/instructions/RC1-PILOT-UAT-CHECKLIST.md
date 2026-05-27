@@ -21,11 +21,34 @@ Confirm you have:
 - Matching asset bundle and checksum instructions.
 - A provider key from the release owner or your organization.
 - Docker Desktop installed and running.
+- WSL 2 enabled for Docker Desktop's normal Windows Linux-container backend.
 - PowerShell access.
 - A modern browser.
 - Outbound internet access for the container image, map provider, and geocoding provider.
 
 Do not send API keys, full `.env` files, private AOI screenshots, or unredacted logs.
+
+If you do not normally use PowerShell:
+
+1. Open File Explorer.
+2. Open the extracted TowerScout package folder.
+3. Click the address bar, type `powershell`, and press Enter.
+4. Paste one command at a time and press Enter.
+
+Commands beginning with `.\` run scripts from the current folder.
+
+Before launch, Docker Desktop should be open from the Windows Start menu and
+show that it is running. If support asks you to check WSL/Docker readiness, run:
+
+```powershell
+wsl --status
+wsl --list --verbose
+docker --version
+docker compose version
+```
+
+Expected result: WSL is installed, any listed Linux distribution uses version
+`2`, and Docker commands print version information.
 
 ## Test Steps
 
@@ -38,11 +61,18 @@ Do not send API keys, full `.env` files, private AOI screenshots, or unredacted 
    .\start.bat -Engine docker -Gpu off
    ```
 
+   Expected result: PowerShell prints that TowerScout is starting with Docker,
+   reports a readiness state, and opens `http://localhost:5000` or allows you
+   to open that address manually.
+
 5. Import assets:
 
    ```powershell
    .\scripts\import-assets.cmd -Engine docker -Source assets -VerifyHashes -RestartWaitSeconds 180
    ```
+
+   Expected result: the import finishes without missing/corrupt asset errors
+   and waits for TowerScout to respond after restart.
 
 6. Open TowerScout in the browser if it does not open automatically.
 7. Complete Setup Wizard with Azure Maps or Google Maps.
@@ -52,6 +82,10 @@ Do not send API keys, full `.env` files, private AOI screenshots, or unredacted 
 11. Confirm addresses/provider metadata appear when geocoding succeeds, or that a clear fallback appears when unavailable.
 12. If requested, export CSV or KML.
 13. Stop TowerScout through the package stop script or documented shutdown path.
+
+   ```powershell
+   .\scripts\stop.cmd -Engine docker
+   ```
 
 ## Record The Result
 

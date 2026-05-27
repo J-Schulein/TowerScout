@@ -1,41 +1,100 @@
 # TowerScout V1 RC1 Quick Start
 
 This is the short Windows pilot path for the TowerScout V1 RC1 `agpl-yolo`
-release package. It assumes a Windows 11 AMD64 workstation, a supported
-container engine, normal outbound internet access, and one approved Google Maps
-or Azure Maps provider key.
+release package. It assumes a Windows 11 AMD64 workstation, Docker Desktop as
+the primary pilot engine, normal outbound internet access, and one approved
+Google Maps or Azure Maps provider key.
 
 For detailed support guidance, see `docs/v1-rc1-package-guide.md`.
 
 ## Before You Start
 
-Install or confirm these prerequisites before opening the TowerScout package:
+Install or confirm these prerequisites before opening the TowerScout package.
+If your workstation is managed by IT, ask your site administrator before
+installing WSL, Docker Desktop, Podman, or provider credentials.
 
 - Windows 11 on AMD64.
 - Windows PowerShell. This is included with Windows.
 - A modern browser such as Microsoft Edge or Google Chrome.
+- WSL 2 and hardware virtualization support for Docker Desktop's normal Windows
+  Linux-container backend. Docker's current Windows requirements include WSL
+  `2.1.5` or later, virtualization enabled in BIOS/UEFI, and at least 8 GB RAM.
 - Normal outbound internet access so the container engine can pull the pinned
   TowerScout image from GHCR and TowerScout can reach the selected map provider.
 - Enough local disk space for the control package, asset bundle, container
   image, and Docker or Podman volumes. Plan for several GB; CUDA-capable images
   use substantially more space than CPU-only images.
-- One supported container engine:
-  - Podman with a running Podman machine and a working Compose provider such as
-    `podman-compose`.
-  - Docker Desktop, if it is licensed, approved, installed, and running on the
-    workstation.
+- One container engine, selected as follows:
+  - Docker Desktop is the primary V1 RC1 pilot path. During Docker Desktop
+    installation, keep the WSL 2 backend selected when prompted, start Docker
+    Desktop from the Windows Start menu, and wait until Docker Desktop reports
+    that it is running.
+  - Podman is a qualified package-runtime option only when support tells you to
+    use it and the workstation already has a running Podman machine plus a
+    working Compose provider such as `podman-compose`.
 - One valid site/user-owned Google Maps or Azure Maps provider key.
 
 You do not need Git, Python, Conda, Node.js, VS Code, or a source-code checkout
 for the normal V1 RC1 package path.
 
-If Docker Desktop or Podman is not already installed and approved on your
-workstation, or if you do not already have a valid restricted provider key,
-stop here and contact your site administrator or support lead before continuing.
+If Docker Desktop is not already installed and approved on your workstation, or
+if you do not already have a valid restricted provider key, stop here and
+contact your site administrator or support lead before continuing.
 
 If both Docker and Podman are installed, the launcher's automatic engine
 selection can choose Docker first. If support or local policy tells you to use
 Podman, pass `-Engine podman` on every helper command.
+
+### If Docker Desktop Or WSL 2 Is Not Ready
+
+If support asks you to check WSL 2, open PowerShell as Administrator and run:
+
+```powershell
+wsl --status
+wsl --list --verbose
+```
+
+Expected result: WSL is installed, and any listed Linux distribution uses
+version `2`. If WSL is not installed and your site allows you to install it,
+Microsoft's current install path is:
+
+```powershell
+wsl --install
+```
+
+Restart the computer after installation if Windows asks. The first Linux
+distribution launch may ask you to create a Linux username and password; that
+is normal WSL setup and is separate from your Windows password.
+
+After Docker Desktop is installed, open Docker Desktop from the Start menu. In
+Docker Desktop Settings, the WSL 2 based engine should be selected when the
+option is visible. Then open a normal PowerShell window and run:
+
+```powershell
+docker --version
+docker compose version
+```
+
+Expected result: both commands print version information. If either command is
+not recognized or says Docker is not running, keep Docker Desktop open and ask
+support before continuing.
+
+### How To Run The Commands In This Guide
+
+Use Windows PowerShell, not the WSL/Ubuntu terminal, for the package commands.
+
+To open PowerShell in a folder:
+
+1. Open File Explorer.
+2. Open the folder that contains the downloaded release files or extracted
+   TowerScout package.
+3. Click the address bar at the top of File Explorer.
+4. Type `powershell` and press Enter.
+
+Expected result: a blue or black PowerShell window opens, and the prompt shows
+the folder path. Copy one command at a time from this guide, paste it into
+PowerShell, and press Enter. Commands that start with `.\` run a script from
+the current folder.
 
 ## 1. Download The Release Files
 
@@ -83,7 +142,7 @@ After extraction, the folder should contain `start.bat`, `compose.yaml`,
 From PowerShell in the package folder, run:
 
 ```powershell
-.\start.bat
+.\start.bat -Engine docker -Gpu off
 ```
 
 The first launcher run creates `.env` from `.env.example`, starts the selected
@@ -96,6 +155,10 @@ http://localhost:5000
 Readiness may be `setup_required` because provider setup is not complete,
 `degraded` because assets are not imported yet, or both through recovery hints.
 That is expected during first setup.
+
+Expected result: PowerShell prints `Starting TowerScout with docker`, then a
+readiness state. A browser window should open to TowerScout. If it does not
+open, leave PowerShell open and manually open `http://localhost:5000`.
 
 If support tells you to use a specific engine, keep using the same `-Engine`
 value for every helper command because Docker and Podman use separate named
@@ -131,7 +194,7 @@ assets\
 From PowerShell in the package folder, import the assets:
 
 ```powershell
-.\scripts\import-assets.cmd -Source assets
+.\scripts\import-assets.cmd -Engine docker -Source assets -VerifyHashes -RestartWaitSeconds 180
 ```
 
 If you started with an explicit engine, use that same engine here:
@@ -145,13 +208,13 @@ when importing assets so the helper recreates the Compose service with the same
 port binding:
 
 ```powershell
-.\scripts\import-assets.cmd -Source assets -Port 5001
+.\scripts\import-assets.cmd -Engine docker -Source assets -Port 5001 -RestartWaitSeconds 180
 ```
 
 For release-candidate or support validation, verify hashes during import:
 
 ```powershell
-.\scripts\import-assets.cmd -Source assets -VerifyHashes
+.\scripts\import-assets.cmd -Engine docker -Source assets -VerifyHashes -RestartWaitSeconds 180
 ```
 
 Or, with an explicit engine:
@@ -165,12 +228,16 @@ The import helper uses the selected engine's named volumes. It should run after
 restarts TowerScout so the running application discovers the imported model
 files before the first detection run.
 
+Expected result: the command finishes without missing or corrupt asset errors,
+then waits for TowerScout to respond after restart. If hash verification fails,
+stop and ask support for the correct asset bundle.
+
 ## 6. Start Or Reopen TowerScout
 
 From the package folder, run:
 
 ```powershell
-.\start.bat
+.\start.bat -Engine docker -Gpu off
 ```
 
 The default launch path is CPU-safe. It sets `TOWERSCOUT_DEVICE=cpu` for the
@@ -225,12 +292,16 @@ Google keys must support TowerScout's Maps JavaScript, Places/autocomplete,
 Static Maps imagery, and Geocoding usage. Azure Maps subscription keys must
 support TowerScout's Web SDK, imagery, search, and geocoding usage.
 
+Expected result: Setup Wizard saves the provider settings and TowerScout reloads
+or reports that setup is complete. Do not paste the provider key into issue
+reports, screenshots, or support chat.
+
 ## 9. Confirm Success
 
 Run:
 
 ```powershell
-.\scripts\status.cmd
+.\scripts\status.cmd -Engine docker
 ```
 
 If you started with an explicit engine, use the same engine:
@@ -251,22 +322,29 @@ For a small smoke check, open TowerScout, choose a provider, define a small
 approved search area, select `Estimate tiles`, then run `Find towers` only for
 a small area appropriate for the pilot.
 
+Expected result: status is `ready` before the detection smoke, and the detection
+results appear on the map and in the right-hand review panel after the run
+completes.
+
 ## 10. Stop Or Restart
 
 Stop TowerScout:
 
 ```powershell
-.\scripts\stop.cmd
+.\scripts\stop.cmd -Engine docker
 ```
 
 Start again:
 
 ```powershell
-.\start.bat
+.\start.bat -Engine docker -Gpu off
 ```
 
 Provider setup and imported assets are stored in named volumes and should
 survive container restarts and replacement.
+
+If support asked you to use Podman or another explicit engine, use that same
+`-Engine` value on stop and start commands.
 
 ## 11. Source, Licenses, And Help
 
@@ -304,12 +382,17 @@ archival use.
 Run:
 
 ```powershell
-.\scripts\status.cmd
-.\scripts\logs.cmd -Tail 200
+.\scripts\status.cmd -Engine docker
+.\scripts\logs.cmd -Engine docker -Tail 200
 ```
 
 Use the same `-Engine` value on status/log commands if support asked you to
 start with a specific engine.
+
+If PowerShell says a command is not recognized, confirm the PowerShell prompt is
+open in the extracted TowerScout package folder and that the command starts
+with `.\`. If Docker commands are not recognized, open Docker Desktop from the
+Start menu and wait until it reports that it is running.
 
 Do not share `.env`, provider keys, raw screenshots, raw browser network
 traces, cached provider responses, uploaded investigation files, exported
