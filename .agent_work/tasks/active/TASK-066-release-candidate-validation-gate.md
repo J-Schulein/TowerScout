@@ -1,6 +1,6 @@
 # TASK-066: Release Candidate Validation Gate
 
-**Status**: IN_PROGRESS - digest-pinned Docker and Podman CPU-default package paths passed; route-test isolation addressed in TASK-067 branch pending PR/CI; Podman source-build TLS and NVIDIA GPU evidence pending
+**Status**: IN_PROGRESS - digest-pinned Docker and Podman CPU-default package paths passed; route-test isolation closed by TASK-067 / PR #19; Podman source-build TLS and NVIDIA GPU evidence pending
 **Priority**: CRITICAL  
 **Type**: C (Release Engineering / Validation)  
 **Estimated Effort**: 1-2 days (8-16 hours)  
@@ -228,6 +228,15 @@ This task is the bridge between engineered release readiness and real user testi
 **Sequencing Recommendation**: Address the timeout safeguard and route-test isolation issue before starting broad `TASK-073` external pilot prep, unless the owner explicitly accepts it as a non-pilot-blocking internal test-harness risk.
 **Next**: Update `current-tasks.md` and route the fix to `TASK-067`/`TASK-068` before or immediately after PR18 merge.
 
+### 2026-05-27 - Route-Test Timeout And Isolation Gap Closed
+**Objective**: Record the merged follow-up that closes the pre-pilot route-test validation caveat.
+**Context**: `TASK-067` / PR #19 implemented pytest timeout safeguards, CI timeout limits, isolated route-test runtime paths, and legacy agent-guidance cleanup.
+**Decision**: Treat the Flask route-test timeout/isolation finding as closed for `TASK-073` sequencing after PR #19 merge, while keeping broader package-runtime smoke automation as a later optional ratchet.
+**Execution**: PR #19 was squash-merged into `main` as `dcf2322`.
+**Output**: Broad pilot/UAT planning can proceed with the remaining `TASK-066` caveats limited to Podman source-build TLS, Docker-Desktop-free Podman support language, asset ZIP/checksum publication, and NVIDIA GPU support evidence.
+**Validation**: PR #19 validation included pytest-timeout recognition (`timeout: 120.0s`, `timeout method: thread`) and `52 passed` across focused route/config/runtime tests.
+**Next**: Begin `TASK-073` clean-machine pilot/UAT execution planning.
+
 ---
 
 ## Validation Results
@@ -235,7 +244,7 @@ This task is the bridge between engineered release readiness and real user testi
 ### Test Summary
 **Test Date**: 2026-05-22 through 2026-05-27
 **Test Environment**: Windows 11 AMD64 workstation, Docker Desktop engine, Podman `5.8.2` WSL machine using `podman compose` with Docker Compose `v5.1.3` as external provider, digest-pinned GHCR image `ghcr.io/j-schulein/towerscout:v0.1.0-rc1-cuda121@sha256:55aabd73a0cbdb76a1d48f427e9fe74dcab63ed87f2a15d32d9709de3ce1a232`, CPU launch via `-Gpu off`, Azure provider configured from local ignored development config for validation only.
-**Test Status**: PASS_WITH_BOUNDARIES - digest-pinned Docker Desktop and Podman package runtime CPU-default paths passed; route-test isolation has a locally validated `TASK-067` fix pending PR/CI, while GPU, Docker-Desktop-free Podman, and Podman source-build TLS evidence remain bounded follow-ups.
+**Test Status**: PASS_WITH_BOUNDARIES - digest-pinned Docker Desktop and Podman package runtime CPU-default paths passed; route-test isolation is closed by `TASK-067` / PR #19, while GPU, Docker-Desktop-free Podman, asset ZIP/checksum publication, and Podman source-build TLS evidence remain bounded follow-ups.
 
 ### Acceptance Criteria Validation
 - [x] Package generated or obtained - final RC control package generated with immutable GHCR image digest.
@@ -263,7 +272,7 @@ This task is the bridge between engineered release readiness and real user testi
 5. **Open validation caveat - NVIDIA GPU host**: optional GPU acceleration needs NVIDIA Docker Desktop WSL2 validation before support claims.
 6. **Open validation caveat - Docker-Desktop-free Podman**: this host's Podman Compose path delegates to Docker Desktop's Docker Compose binary, so it does not prove a Docker-Desktop-free Podman installation.
 7. **Open release artifact caveat - asset ZIP packaging**: this run validated the documented extracted asset layout and import hash verification, but did not produce a new asset ZIP/checksum sidecar.
-8. **Route-test isolation follow-up - addressed pending merge**: `TASK-067` adds pytest timeout safeguards and pre-import route-test runtime isolation so `tests/unit/test_flask_routes.py` no longer touches the developer's real local `.env` path during focused validation. Keep this as pending until the focused PR and CI pass.
+8. **Fixed - route-test isolation and timeout safeguards**: `TASK-067` / PR #19 added pytest timeout safeguards and pre-import route-test runtime isolation so `tests/unit/test_flask_routes.py` no longer touches the developer's real local `.env` path during focused validation.
 
 ### Remediation Actions
 
@@ -281,9 +290,9 @@ This task is the bridge between engineered release readiness and real user testi
 - Add a release/package smoke that stages a local package, imports assets into a clean Compose project, asserts `/getengines` includes `newest`, and checks `/api/readiness` after import. Keep this advisory at first because it requires container runtime availability and large assets.
 - Add an ML runtime guard test that fails if EfficientNet initialization reintroduces `from_pretrained()` or creates a Torch checkpoint cache during clean local initialization.
 - Add a route/static check that package-local `/docs/`, `/license`, `/license.txt`, and Settings-linked HTML docs are present in both source and staged packages.
-- Merge the `TASK-067` route-test bootstrap fix before broad pilot prep: local/CI timeout safeguards, pre-import config/log/runtime path isolation, and fake provider keys are locally validated and awaiting PR/CI.
+- `TASK-067` / PR #19 merged the route-test bootstrap fix: local/CI timeout safeguards, pre-import config/log/runtime path isolation, and fake provider keys are now available on `main`.
 - Treat Markdown as the source of truth for end-user docs and either generate Settings-linked HTML from Markdown during package assembly or add a CI parity check that fails when Markdown sections change without the corresponding HTML update. Generation is preferable after RC1 if there is time; parity checking is the minimum RC-safe gate.
 
 ### Sign-off
 
-Docker Desktop and Podman CPU-default RC1 package runtime validation passed against the digest-pinned GHCR image and can proceed to controlled UAT preparation if Docker Desktop remains the primary pilot engine and Podman is documented as a qualified package-runtime path. Merge and verify the `TASK-067` route-test isolation/timeout fix before broad `TASK-073` pilot prep so internal review commands cannot hang silently. Do not claim GPU acceleration until NVIDIA Docker Desktop WSL2 evidence exists. Do not claim Docker-Desktop-free Podman or Podman source-build support until the external Compose-provider dependency and Docker Hub TLS/base-image pull blocker are resolved or tested on a clean Podman-only host.
+Docker Desktop and Podman CPU-default RC1 package runtime validation passed against the digest-pinned GHCR image and can proceed to controlled UAT preparation if Docker Desktop remains the primary pilot engine and Podman is documented as a qualified package-runtime path. The route-test isolation/timeout gap is closed by `TASK-067` / PR #19. Do not claim GPU acceleration until NVIDIA Docker Desktop WSL2 evidence exists. Do not claim Docker-Desktop-free Podman or Podman source-build support until the external Compose-provider dependency and Docker Hub TLS/base-image pull blocker are resolved or tested on a clean Podman-only host.

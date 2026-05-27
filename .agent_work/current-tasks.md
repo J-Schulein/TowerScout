@@ -3,7 +3,7 @@
 **Sprint Period**: Sprint 06 planning / V1 RC1 readiness begins May 11, 2026  
 **Last Updated**: May 27, 2026
 **Focus**: Produce a V1 RC1 / pilot-ready AGPL-compliant YOLO-enabled release path by closing release-support carry-forward work, correcting release compliance artifacts, writing package-based end-user docs, validating the clean-machine release candidate, and preparing pilot / UAT execution.
-**Status**: Sprint 06 committed lane selected. `TASK-065`, `TASK-072`, `TASK-079`, and `TASK-071` are completed and remain in the active task folder until sprint closeout; `TASK-069` sign-off is sufficient to merge PR #11 as the internal controlled AGPL-governed RC planning and compliance baseline; `TASK-075` implementation is merged with NVIDIA-host validation still pending before broad GPU support claims; `TASK-066` digest-pinned Docker Desktop and Podman package runtime validation passed for CPU-default launch, with Podman Docker Hub source-build TLS and NVIDIA GPU evidence still bounded follow-ups; `TASK-067` is active to resolve the Flask route-test timeout/isolation gap and remove stale legacy agent guidance before `TASK-073`.
+**Status**: Sprint 06 committed lane selected. `TASK-065`, `TASK-072`, `TASK-079`, `TASK-071`, and `TASK-067` are completed and remain in the active task folder until sprint closeout; `TASK-069` sign-off is sufficient to merge PR #11 as the internal controlled AGPL-governed RC planning and compliance baseline; `TASK-075` implementation is merged with NVIDIA-host validation still pending before broad GPU support claims; `TASK-066` digest-pinned Docker Desktop and Podman package runtime validation passed for CPU-default launch, with Podman Docker Hub source-build TLS and NVIDIA GPU evidence still bounded follow-ups; `TASK-073` is now active for clean-machine pilot/UAT planning.
 
 ---
 
@@ -183,7 +183,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 **User Value**: Converts the engineered release package into a self-service pilot path instead of a support-only handoff.
 
 ### **TASK-066: Release Candidate Validation Gate**
-**Status**: IN_PROGRESS - digest-pinned Docker Desktop and Podman CPU-default package paths passed; route-test isolation routed to TASK-067; Podman source-build TLS and NVIDIA GPU evidence pending
+**Status**: IN_PROGRESS - digest-pinned Docker Desktop and Podman CPU-default package paths passed; route-test isolation closed by TASK-067 / PR #19; Podman source-build TLS and NVIDIA GPU evidence pending
 **Type**: C (Release Engineering / Validation)  
 **Priority**: CRITICAL  
 **Estimated Effort**: 1-2 days (8-16 hours)  
@@ -200,12 +200,12 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 - Docker Desktop and Podman package runtime paths are validated for CPU-default launch against the digest-pinned GHCR image. On this host, `podman compose` delegates to Docker Compose v5.1.3 as its external provider.
 - Podman source-build/base-image pulls from Docker Hub still fail TLS certificate verification inside the Podman VM before TowerScout code runs; this does not block the normal GHCR package path but remains a developer/build-path caveat.
 - GPU acceleration remains unclaimed until NVIDIA Docker Desktop WSL2 host validation, fixed-fixture parity, and timing evidence pass.
-- Repeated broad pytest review commands isolated a non-runtime test-harness gap: `tests/unit/test_flask_routes.py` can stall during collection because it imports the full production Flask module and local `.env` path before fixtures isolate config. This should be fixed or explicitly accepted before broad `TASK-073` pilot prep.
+- The non-runtime Flask route-test timeout/isolation gap identified during review was closed by `TASK-067` / PR #19. Focused route/config/runtime tests now run with `pytest-timeout` active and isolated test runtime paths.
 
 **User Value**: Prevents end-user testing from being dominated by known package/docs/asset gaps and produces evidence that the V1 RC1 path is actually usable.
 
 ### **TASK-067: CI Release Gate Tightening**
-**Status**: VALIDATED - focused PR ready
+**Status**: COMPLETED - PR #19 merged
 **Type**: C (CI / Release Engineering / Test Reliability)
 **Priority**: HIGH
 **Estimated Effort**: 0.5-1 day (4-8 hours)
@@ -217,14 +217,14 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 **Dependencies**: `TASK-066`; current CI workflow; route-test coverage; `.github` guidance baseline.
 
 **Current State**:
-- Pytest timeout safeguards, CI timeout limits, route-test runtime path isolation, and legacy `AGENTS.md/` removal are implemented and locally validated in a focused follow-up branch.
-- Focused validation passed for Flask routes, runtime/config path helpers, Task-079 reliability coverage, CI workflow summary, `.agent_work` validation, and `git diff --check`.
+- PR #19 merged on May 27, 2026, adding pytest timeout safeguards, CI timeout limits, route-test runtime path isolation, and legacy `AGENTS.md/` removal.
+- Focused validation passed for Flask routes, runtime/config path helpers, Task-079 reliability coverage, CI workflow summary, `.agent_work` validation, `git diff --check`, and pytest timeout config recognition.
 - This task intentionally keeps broader asset-backed package smoke checks advisory unless a later release-gate ratchet promotes them.
 
 **User Value**: Restores confidence in internal validation before external pilot prep and reduces the chance that future agents follow stale instructions.
 
 ### **TASK-073: Clean-Machine Pilot / UAT Execution Plan**
-**Status**: NOT_STARTED - selected for Sprint 06; recommended after TASK-067 route-test gap closeout
+**Status**: IN_PROGRESS - pilot/UAT plan and tester handoff artifacts underway
 **Type**: B/C (User Testing / Release Validation)  
 **Priority**: HIGH  
 **Estimated Effort**: 0.5-1 day (4-8 hours)  
@@ -246,7 +246,6 @@ These tasks are important for V1 RC1, but they are not yet active task files in 
 | Task | Recommended Handling | Reason |
 |---|---|---|
 | `TASK-076` Provider API Key Exposure And Restriction Policy | Candidate for parallel Sprint 06 work | Browser map SDK keys remain client-visible; v1 needs an approved restriction/support policy or an engineering blocker. AGPL does not change provider/API terms. |
-| `TASK-075` Single GPU-Capable Package Implementation | Candidate follow-up after `TASK-079` closeout | `TASK-079` produced the feasibility evidence and a source-backed plan. Start with shared `TOWERSCOUT_DEVICE` policy resolution, EfficientNet memory-bound CUDA chunking, readiness diagnostics, and fixed-fixture parity checks; keep the default launch CPU-safe and require CPU-only plus NVIDIA Docker Desktop WSL2 validation before changing RC support language. |
 
 ---
 
