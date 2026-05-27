@@ -34,6 +34,8 @@ This task should make external testing repeatable, bounded, and evidence-produci
 
 **R-073-010**: WHEN pilot instructions are provided to non-command-line users, THE PROJECT SHALL explain prerequisite software, where to run commands, what each required command does, and the expected outcome after each command.
 
+**R-073-011**: WHEN install-UX review identifies first-launch friction that cannot be solved by documentation alone, THE PROJECT SHALL route that work to a dedicated runtime prerequisite preflight task before broad external UAT if the owner selects it.
+
 ## Acceptance Criteria
 
 - [x] Pilot/UAT start criteria are documented.
@@ -47,6 +49,8 @@ This task should make external testing repeatable, bounded, and evidence-produci
 - [x] V1 completion gate after pilot/UAT is documented.
 - [x] `TASK-066` route-test timeout/isolation gap is fixed or explicitly accepted before pilot launch.
 - [x] User-facing docs and UAT instructions explain Docker Desktop/WSL 2 readiness, PowerShell command execution, command outcomes, and first-launch recovery tips.
+- [x] Low-risk documentation hardening from the install-UX review is applied without claiming unimplemented bootstrap behavior.
+- [x] Runtime prerequisite preflight/bootstrap work is routed to `TASK-074`.
 - [ ] Owner/reviewer accepts the pilot/UAT plan before external testers start.
 
 ## Dependencies
@@ -56,6 +60,7 @@ This task should make external testing repeatable, bounded, and evidence-produci
 - `TASK-072`: release asset bundle contract.
 - `TASK-067`: completed route-test timeout/isolation fix and CI timeout safeguards.
 - `TASK-068`: possible follow-up home for deeper Windows/script portability work if pilot prep exposes it.
+- `TASK-074`: selected follow-up for bootstrap/preflight work that should automate the remaining first-launch checks before broad external UAT.
 - `.agent_work/user-testing/README.md`: existing user-testing workspace rules.
 - `.agent_work/user-testing/issue-tracker.md`: issue tracking surface.
 - `.agent_work/user-testing/instructions/TESTER-ISSUE-REPORT-CHECKLIST.txt`: existing tester issue report checklist.
@@ -71,6 +76,7 @@ This task should make external testing repeatable, bounded, and evidence-produci
 7. Define issue triage rules for V1 blockers, V1 patch candidates, and V2 backlog items.
 8. Link the UAT plan to the Sprint 06 plan and user-testing workspace.
 9. Prepare handoff guidance for pilot testers and first-line support.
+10. Route implementation-level first-launch automation to `TASK-074` rather than promising bootstrap behavior in current docs.
 
 ---
 
@@ -265,6 +271,15 @@ After pilot/UAT, V1 may be considered ready only if:
 **Validation**: `python .agent_work\scripts\validate_agent_work.py` passed; `python .agents\skills\towerscout-end-user-docs-check\scripts\check_doc_commands.py . docs README.md` passed with the known intentional `127.0.0.1` warning in `docs\oci-quick-start.md`; `git diff --check` passed.
 **Next**: Prepare the PR update summary and request owner/reviewer acceptance before external pilot testers start.
 
+### 2026-05-27 - Install-UX Review Follow-Through And TASK-074 Selection
+**Objective**: Apply low-risk install-documentation hardening and route implementation-level first-launch automation to a dedicated task.
+**Context**: The install-UX review recommended clearer release asset naming, checksum handling, first-run expectations, asset ZIP handling, and a future bootstrap/preflight script. The owner agreed with the path forward and specifically asked to preserve Podman support as a qualified path rather than diminishing it.
+**Decision**: Harden current docs only where they reflect existing behavior, and create `TASK-074` for bootstrap/preflight implementation. Docker Desktop remains the primary RC1 pilot path; Podman remains support-directed with explicit prerequisites and validation boundaries.
+**Execution**: Updated Quick Start, Package Guide, Project Overview, Settings-linked HTML, and the UAT checklist to clarify Application Package versus Model & Data Package, GitHub Release asset selection, checksum verification, disk-space expectations, nested asset layout mistakes, first image-pull delay, stop/contact-support conditions, and smoke-test expectations. Created `TASK-074` for the bootstrap/preflight implementation plan.
+**Output**: `TASK-073` now points remaining first-launch automation to `TASK-074` and avoids promising behavior that does not exist yet.
+**Validation**: `python .agent_work\scripts\validate_agent_work.py` passed; `python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .` passed; `python .agents\skills\towerscout-end-user-docs-check\scripts\check_doc_commands.py . docs README.md` passed with the known intentional `127.0.0.1` warning in `docs\oci-quick-start.md`; `git diff --check` passed.
+**Next**: Commit the hardening updates, then start `TASK-074` implementation planning.
+
 ---
 
 ## Validation Results
@@ -281,6 +296,8 @@ After pilot/UAT, V1 may be considered ready only if:
 - [x] Issue-report workflow linked - PASS - See Issue Reporting Workflow and `.agent_work/user-testing/`.
 - [x] Tester-facing handoff artifacts updated - PASS - See `.agent_work/user-testing/instructions/RC1-PILOT-UAT-CHECKLIST.md` and `TESTER-ISSUE-REPORT-CHECKLIST.txt`.
 - [x] Non-command-line first-launch guidance added - PASS - User docs and UAT checklist now include PowerShell location, Docker Desktop/WSL 2 checks, default Docker commands, expected outcomes, and support-safe recovery instructions.
+- [x] Low-risk install-UX hardening added - PASS - Quick Start, Package Guide, Project Overview, Settings-linked HTML, and UAT checklist now clarify Application Package versus Model & Data Package naming, GitHub Release asset selection, checksums, disk-space targets, nested asset layout mistakes, first image-pull delay, support stop points, and smoke-test expectations.
+- [x] Runtime prerequisite preflight routed - PASS - `TASK-074` created and selected for bootstrap/preflight implementation without documenting unimplemented behavior as available.
 - [x] V1 completion gate documented - PASS - See V1 Completion Gate After Pilot.
 - [ ] Owner/reviewer acceptance - PENDING.
 

@@ -11,7 +11,8 @@ app Resource Links section.
 
 The V1 RC1 package provides a Windows-first local pilot path:
 
-- A GitHub Release control ZIP.
+- A GitHub Release Application Package ZIP.
+- A matching GitHub Release Model & Data Package ZIP.
 - A pinned GHCR container image digest.
 - Docker Desktop primary pilot runtime configuration, with qualified Podman
   package-runtime support when a site explicitly chooses that path.
@@ -32,6 +33,8 @@ not the preferred V1 RC1 pilot path.
 Pilot users need Windows 11 AMD64, PowerShell, a modern browser, normal outbound
 internet access, WSL 2/hardware virtualization support for Docker Desktop, and
 Docker Desktop installed, approved, and running as the primary RC1 pilot engine.
+Plan for at least `15 GB` of free disk space; `25 GB` is a better first-setup
+target, especially for CUDA-capable images.
 Podman is a qualified support path only when support tells the user to use it
 and the workstation already has a running Podman machine plus an approved
 Compose provider. Users also need one site/user-owned restricted Google Maps or
@@ -46,7 +49,8 @@ A typical TowerScout user:
 
 1. Starts TowerScout from `start.bat -Engine docker -Gpu off` to initialize the
    package.
-2. Imports required model and ZIP-code assets.
+2. Imports required model and ZIP-code assets from the matching Model & Data
+   Package.
 3. Configures Google Maps or Azure Maps in Setup Wizard or Settings.
 4. Chooses a provider.
 5. Defines a search area.

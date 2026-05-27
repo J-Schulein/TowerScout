@@ -1,6 +1,6 @@
 # TASK-066: Release Candidate Validation Gate
 
-**Status**: IN_PROGRESS - digest-pinned Docker and Podman CPU-default package paths passed; route-test isolation closed by TASK-067 / PR #19; Podman source-build TLS and NVIDIA GPU evidence pending
+**Status**: IN_PROGRESS - digest-pinned Docker and Podman CPU-default package paths passed; route-test isolation closed by TASK-067 / PR #19; TASK-074 selected for bootstrap/preflight follow-through; Podman source-build TLS and NVIDIA GPU evidence pending
 **Priority**: CRITICAL  
 **Type**: C (Release Engineering / Validation)  
 **Estimated Effort**: 1-2 days (8-16 hours)  
@@ -66,7 +66,7 @@ This task is the bridge between engineered release readiness and real user testi
 - `TASK-075`: CPU-safe default launch, optional Docker GPU overlay, and GPU validation boundaries.
 - `.github/workflows/ci.yml`: current automated CI/static-analysis baseline.
 - `TASK-067`: follow-up home for CI release-gate tightening if `TASK-066` recommends implementation beyond the RC validation task.
-- Optional: `TASK-074` if prerequisite friction becomes severe.
+- `TASK-074`: selected follow-up for runtime prerequisite preflight/bootstrap after install-UX review confirmed enough first-launch friction to automate before broad external UAT.
 
 ## Implementation Plan
 
@@ -237,6 +237,14 @@ This task is the bridge between engineered release readiness and real user testi
 **Validation**: PR #19 validation included pytest-timeout recognition (`timeout: 120.0s`, `timeout method: thread`) and `52 passed` across focused route/config/runtime tests.
 **Next**: Begin `TASK-073` clean-machine pilot/UAT execution planning.
 
+### 2026-05-27 - Install-UX Preflight Follow-Up Selected
+**Objective**: Record the follow-up task selected after user-facing install documentation review.
+**Context**: `TASK-073` and the install-UX review confirmed that current docs can be clarified, but users/support still have to manually reason through engine readiness, checksums, release-file matching, asset ZIP layout, first image pull timing, and readiness state interpretation.
+**Decision**: Treat the low-risk documentation hardening as part of `TASK-073`, and route implementation-level bootstrap/preflight work to `TASK-074` before broad external UAT. Preserve Docker Desktop as the primary pilot engine and Podman as a qualified support-directed package-runtime path.
+**Output**: `TASK-066` release validation remains passed with boundaries; `TASK-074` now owns automation that can reduce first-launch support risk before pilot expansion.
+**Validation**: `python .agent_work\scripts\validate_agent_work.py` passed; `python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .` passed; `python .agents\skills\towerscout-end-user-docs-check\scripts\check_doc_commands.py . docs README.md` passed with the known intentional `127.0.0.1` warning in `docs\oci-quick-start.md`; `git diff --check` passed.
+**Next**: Complete the docs/task hardening commit, then start `TASK-074` implementation planning.
+
 ---
 
 ## Validation Results
@@ -244,7 +252,7 @@ This task is the bridge between engineered release readiness and real user testi
 ### Test Summary
 **Test Date**: 2026-05-22 through 2026-05-27
 **Test Environment**: Windows 11 AMD64 workstation, Docker Desktop engine, Podman `5.8.2` WSL machine using `podman compose` with Docker Compose `v5.1.3` as external provider, digest-pinned GHCR image `ghcr.io/j-schulein/towerscout:v0.1.0-rc1-cuda121@sha256:55aabd73a0cbdb76a1d48f427e9fe74dcab63ed87f2a15d32d9709de3ce1a232`, CPU launch via `-Gpu off`, Azure provider configured from local ignored development config for validation only.
-**Test Status**: PASS_WITH_BOUNDARIES - digest-pinned Docker Desktop and Podman package runtime CPU-default paths passed; route-test isolation is closed by `TASK-067` / PR #19, while GPU, Docker-Desktop-free Podman, asset ZIP/checksum publication, and Podman source-build TLS evidence remain bounded follow-ups.
+**Test Status**: PASS_WITH_BOUNDARIES - digest-pinned Docker Desktop and Podman package runtime CPU-default paths passed; route-test isolation is closed by `TASK-067` / PR #19, and `TASK-074` is selected for bootstrap/preflight follow-through. GPU, Docker-Desktop-free Podman, asset ZIP/checksum publication, and Podman source-build TLS evidence remain bounded follow-ups.
 
 ### Acceptance Criteria Validation
 - [x] Package generated or obtained - final RC control package generated with immutable GHCR image digest.
@@ -295,4 +303,4 @@ This task is the bridge between engineered release readiness and real user testi
 
 ### Sign-off
 
-Docker Desktop and Podman CPU-default RC1 package runtime validation passed against the digest-pinned GHCR image and can proceed to controlled UAT preparation if Docker Desktop remains the primary pilot engine and Podman is documented as a qualified package-runtime path. The route-test isolation/timeout gap is closed by `TASK-067` / PR #19. Do not claim GPU acceleration until NVIDIA Docker Desktop WSL2 evidence exists. Do not claim Docker-Desktop-free Podman or Podman source-build support until the external Compose-provider dependency and Docker Hub TLS/base-image pull blocker are resolved or tested on a clean Podman-only host.
+Docker Desktop and Podman CPU-default RC1 package runtime validation passed against the digest-pinned GHCR image and can proceed to controlled UAT preparation if Docker Desktop remains the primary pilot engine and Podman is documented as a qualified package-runtime path. The route-test isolation/timeout gap is closed by `TASK-067` / PR #19. `TASK-074` is selected to automate remaining first-launch prerequisite checks before broad external UAT. Do not claim GPU acceleration until NVIDIA Docker Desktop WSL2 evidence exists. Do not claim Docker-Desktop-free Podman or Podman source-build support until the external Compose-provider dependency and Docker Hub TLS/base-image pull blocker are resolved or tested on a clean Podman-only host.

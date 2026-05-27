@@ -25,12 +25,13 @@
     <main class="doc-main">
       <section class="doc-section" id="package">
         <h2>What The Package Provides</h2>
-        <p>The V1 RC1 package provides a Windows-first local pilot path with a GitHub Release control ZIP, pinned GHCR image digest, Docker Desktop primary pilot runtime configuration, CPU-safe default launch, optional Docker GPU controls, helper scripts, package-local docs, and release notices.</p>
+        <p>The V1 RC1 package provides a Windows-first local pilot path with a GitHub Release Application Package ZIP, a matching Model &amp; Data Package ZIP, a pinned GHCR image digest, Docker Desktop primary pilot runtime configuration, CPU-safe default launch, optional Docker GPU controls, helper scripts, package-local docs, and release notices.</p>
         <p>The normal pilot path is package-based. Source checkout, Python virtual environment, and Conda setup guides are legacy support material.</p>
       </section>
       <section class="doc-section" id="prerequisites">
         <h2>What Users Need Installed</h2>
         <p>Pilot users need Windows 11 AMD64, PowerShell, a modern browser, normal outbound internet access, WSL 2 and hardware virtualization support for Docker Desktop, and Docker Desktop installed, approved, and running as the primary RC1 pilot engine.</p>
+        <p>Plan for at least <code>15 GB</code> of free disk space; <code>25 GB</code> is a better first-setup target, especially for CUDA-capable images.</p>
         <p>Podman is a qualified support path only when support tells the user to use it and the workstation already has a running Podman machine plus an approved Compose provider. Users also need one site/user-owned restricted Google Maps or Azure Maps provider key.</p>
         <p>The package path does not require Git, Python, Conda, Node.js, VS Code, or a source-code checkout.</p>
       </section>
@@ -38,7 +39,7 @@
         <h2>Main Workflow</h2>
         <ol>
           <li>Start TowerScout from <code>start.bat -Engine docker -Gpu off</code>.</li>
-          <li>Import required model and ZIP-code assets.</li>
+          <li>Import required model and ZIP-code assets from the matching Model &amp; Data Package.</li>
           <li>Configure Google Maps or Azure Maps.</li>
           <li>Define a search area and estimate tiles.</li>
           <li>Run detection, review results, add manual corrections, and export approved outputs.</li>
