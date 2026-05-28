@@ -325,10 +325,11 @@ Or, with an explicit engine:
 .\scripts\import-assets.cmd -Engine podman -Source assets -VerifyHashes
 ```
 
-The import helper uses the selected engine's named volumes. It should run after
-`.env` has been created by the launcher. After copying assets, the helper
-restarts TowerScout so the running application discovers the imported model
-files before the first detection run.
+The import helper uses the selected engine's named volumes. If `.env` is
+missing, the helper initializes it from the package `.env.example` before
+starting the selected container stack. After copying assets, the helper restarts
+TowerScout so the running application discovers the imported model files before
+the first detection run.
 
 Expected result: the command finishes without missing or corrupt asset errors,
 then waits for TowerScout to respond after restart. If hash verification fails,

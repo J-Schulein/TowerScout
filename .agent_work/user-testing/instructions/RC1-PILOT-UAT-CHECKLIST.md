@@ -62,8 +62,19 @@ Expected result: WSL is installed, any listed Linux distribution uses version
 1. Confirm the Application Package and Model & Data Package filenames are from
    the same release version.
 2. Compare each ZIP to its matching `.sha256` file before extracting it.
+   Run these commands from the folder that contains the downloaded ZIPs:
+
+   ```powershell
+   Get-FileHash .\towerscout-v0.1.0-rc1.zip -Algorithm SHA256
+   Get-Content .\towerscout-v0.1.0-rc1.zip.sha256
+   Get-FileHash .\towerscout-v0.1.0-rc1-assets-*.zip -Algorithm SHA256
+   Get-Content .\towerscout-v0.1.0-rc1-assets-*.zip.sha256
+   ```
+
    Expected result: the SHA-256 hash printed by PowerShell matches the value in
    the matching checksum file. Uppercase/lowercase differences are okay.
+   The `*` wildcard should match the one Model & Data Package ZIP and checksum
+   file you downloaded for this release.
 3. Extract the TowerScout Application Package ZIP to a local folder.
 4. Open PowerShell in the extracted package folder.
 5. Run the guided bootstrap with the Model & Data Package ZIP path. If the
@@ -74,7 +85,9 @@ Expected result: WSL is installed, any listed Linux distribution uses version
    .\bootstrap.cmd -Engine docker -Gpu off -AssetZip .\towerscout-v0.1.0-rc1-assets-<asset-version>.zip
    ```
 
-   If the release ZIPs are still in Downloads, pass full paths:
+   If the release ZIPs are still in Downloads, pass full paths. Replace
+   `<you>` with your Windows user folder name and `<asset-version>` with the
+   actual asset ZIP filename suffix:
 
    ```powershell
    .\bootstrap.cmd -Engine docker -Gpu off -PackageZip C:\Users\<you>\Downloads\towerscout-v0.1.0-rc1.zip -AssetZip C:\Users\<you>\Downloads\towerscout-v0.1.0-rc1-assets-<asset-version>.zip

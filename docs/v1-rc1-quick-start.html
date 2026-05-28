@@ -93,7 +93,7 @@ Get-Content .\towerscout-v0.1.0-rc1-assets-*.zip.sha256</code></pre>
         <pre><code>.\scripts\import-assets.cmd -Engine docker -Source assets -VerifyHashes -RestartWaitSeconds 180</code></pre>
         <p>If TowerScout was started on a non-default port, pass the same port to the asset importer.</p>
         <pre><code>.\scripts\import-assets.cmd -Engine docker -Source assets -Port 5001 -VerifyHashes -RestartWaitSeconds 180</code></pre>
-        <p>The importer uses the selected engine's named volumes and restarts TowerScout after copying assets so imported model files are available before the first detection run. Expected result: the command finishes without missing/corrupt asset errors and waits for TowerScout after restart.</p>
+        <p>The importer uses the selected engine's named volumes. If <code>.env</code> is missing, it initializes that file from the package <code>.env.example</code> before starting the selected container stack. It restarts TowerScout after copying assets so imported model files are available before the first detection run. Expected result: the command finishes without missing/corrupt asset errors and waits for TowerScout after restart.</p>
       </section>
       <section class="doc-section" id="gpu">
         <h2>GPU Boundary</h2>
