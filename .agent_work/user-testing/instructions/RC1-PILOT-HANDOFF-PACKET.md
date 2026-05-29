@@ -41,6 +41,7 @@ accepted by the release owner.
 
 - GitHub release URL:
 - Release tag:
+- Accepted source ref:
 - Application Package ZIP:
 - Application Package checksum file:
 - Model & Data Package ZIP:
@@ -118,6 +119,8 @@ procedure.
 ## Final Pre-Send Check
 
 - [ ] Exact release URL/tag is filled in.
+- [ ] Accepted source ref is filled in and matches `SOURCE.txt` plus
+      `release-manifest.v1.json`.
 - [ ] Exact Application Package filename is filled in.
 - [ ] Exact Model & Data Package filename is filled in.
 - [ ] Checksum filenames are filled in.

@@ -332,6 +332,19 @@ After pilot/UAT, V1 may be considered ready only if:
 **Validation**: `.\.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` passed; `.\.venv\Scripts\python.exe .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .` passed; `git diff --check` passed.
 **Next**: Generate/publish final RC artifacts from the accepted source ref, fill the handoff packet, and run one final package-path validation.
 
+### 2026-05-29 - PR27 Reviewer Follow-Up Notes
+**Objective**: Preserve the reviewer-confirmed post-merge release handoff checks before final UAT materials are sent.
+**Context**: The PR27 reviewer agreed the readiness note should merge, but emphasized that it is not approval to launch external UAT.
+**Decision**: After PR27 merges, the next release handoff step must record the post-merge accepted source ref, rebuild/publish the final GHCR image from that ref, regenerate the Application Package with that digest, publish both package ZIPs plus checksums under the same GitHub Release, and verify the published artifact path before changing the handoff packet approval state.
+**Follow-Up Checks**:
+- Verify Settings-linked docs from the running final image, because the image serves `/app/docs`.
+- Keep GPU acceleration out of tester-facing claims unless NVIDIA Docker Desktop WSL2 validation, CPU/GPU fixture parity, and timing evidence are complete.
+- Keep Podman language qualified to the validated package-runtime path.
+- Treat green CI as necessary but not sufficient; final published artifact validation remains the release authority.
+- Remove or quarantine stale local `dist` artifacts before uploading final release assets.
+- Keep the handoff packet's explicit accepted source ref aligned with `SOURCE.txt`, `release-manifest.v1.json`, image digest, and release tag.
+**Next**: Merge PR27 if checks pass, then run the final release build/publish/validation sequence before external tester handoff.
+
 ---
 
 ## Validation Results
