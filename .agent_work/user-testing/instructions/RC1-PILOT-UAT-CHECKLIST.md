@@ -157,9 +157,11 @@ Expected result: WSL is installed, any listed Linux distribution uses version
     10282`, draw a `150 meter` circle, and expect about `8` tiles. Towers
     should be detected for this fixture. If no fixture was provided, stop and
     ask support before choosing your own area.
-13. Confirm the detection workflow completes without a crash. Results may be
-    zero or more detections, but the map and right-hand review panel should
-    update consistently.
+13. Confirm the detection workflow completes without a crash. For the default
+    RC1 Azure fixture, expect a non-zero tower result. Exact counts may vary,
+    but zero towers, no review-panel update, or a crash should be reported as
+    `BLOCKED` or `FAIL`. For any future support-approved fixture, follow the
+    zero-detection rule support provided for that fixture.
 14. Confirm addresses/provider metadata appear when geocoding succeeds, or that a clear fallback appears when unavailable.
 15. If requested, export CSV or KML.
 16. Stop TowerScout through the package stop script or documented shutdown path.

@@ -379,7 +379,8 @@ After pilot/UAT, V1 may be considered ready only if:
 - Model & Data Package: `towerscout-v0.1.0-rc1-assets-towerscout-v1-assets-2026-05-05.zip`, SHA-256 `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
 - Smoke estimate: `8` tiles and `48.23` seconds.
 - Smoke result: HTTP `200`, `55` total records, `8` tile records, `47` cooling-tower records, `47` records with address data, and elapsed time about `43` seconds.
-**Finding**: Backend `/api/geocode/forward` returned HTTP `500` after Azure forward geocoding succeeded because a `GeocodingProvider` enum is not JSON serializable. This did not block the selected fixture smoke, because the fixture coordinates were resolved separately and detection completed with address data. Route this as a V1 patch candidate unless UI search is confirmed to depend on that endpoint.
+**Finding**: Backend `/api/geocode/forward` returned HTTP `500` after Azure forward geocoding succeeded because the route-level `provider_used` field exposed a `GeocodingProvider` enum. This did not block the selected fixture smoke, because the fixture coordinates were resolved separately and detection completed with address data.
+**Follow-Up Resolution**: PR #28 follow-up investigation confirmed the tester-visible Azure search path uses `/api/maps/azure/search`, not `/api/geocode/forward`. The backend forward-geocode route was still fixed to serialize `provider_used` from `GeocodingResult.to_dict()` output, and regression coverage now proves Azure forward-geocode route responses are JSON-safe.
 **Next**: Select tester/cohort, get owner/reviewer packet approval, and start controlled external UAT with the published prerelease.
 
 ---
@@ -412,12 +413,12 @@ After pilot/UAT, V1 may be considered ready only if:
 
 - No pilot execution issues yet; this task has only drafted the plan.
 - Tester/cohort selection and owner/reviewer approval are still pending.
-- Backend `/api/geocode/forward` returned HTTP `500` during fixture lookup because a `GeocodingProvider` enum is not JSON serializable after Azure geocoding succeeds. The selected detection smoke still passed with address data after coordinates were resolved separately.
+- Backend `/api/geocode/forward` serialization was fixed after the final-digest smoke uncovered a JSON-unsafe `provider_used` enum field. Tester-visible Azure search was confirmed to use `/api/maps/azure/search`.
 
 ### Remediation Actions
 
 - Keep GPU, Docker-Desktop-free Podman, source-build, restricted-network, and large-AOI scenarios out of external pilot instructions unless owner-approved evidence is added.
-- Route the `/api/geocode/forward` serialization issue to a V1 patch candidate unless UI search is confirmed to depend on that endpoint for the external UAT path.
+- Keep the forward-geocode regression test in the RC validation set so future route refactors do not reintroduce enum serialization failures.
 
 ### Sign-off
 

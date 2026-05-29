@@ -299,7 +299,8 @@ This task is the bridge between engineered release readiness and real user testi
 - Smoke fixture: Azure Maps, `200 west st, New York, NY 10282`, `150 meter` circle, estimated `8` tiles and `48.23` seconds.
 - Detection result: HTTP `200`, elapsed time about `43` seconds, `55` total records, `8` tile records, `47` cooling-tower records, and `47` records with address data.
 - Release assets remained the same final files and checksums recorded above.
-**Finding**: `/api/geocode/forward` returned HTTP `500` during fixture lookup because a successful Azure geocode result included a `GeocodingProvider` enum that Flask could not JSON serialize. The detection workflow itself completed with address data after the coordinates were resolved separately. Route this as a V1 patch candidate unless UI search is confirmed to depend on that route.
+**Finding**: `/api/geocode/forward` returned HTTP `500` during fixture lookup because a successful Azure geocode result included a `GeocodingProvider` enum in the route-level `provider_used` field that Flask could not JSON serialize. The detection workflow itself completed with address data after the coordinates were resolved separately.
+**Follow-Up Resolution**: PR #28 follow-up investigation confirmed the tester-visible Azure search path uses `/api/maps/azure/search`, not `/api/geocode/forward`. The backend route was still fixed by serializing `provider_used` from `GeocodingResult.to_dict()` output, and regression coverage now proves the route returns string provider fields for Azure forward-geocode results.
 **Recommendation**: Docker Desktop CPU-default package validation can proceed to controlled external UAT after `TASK-073` tester/cohort selection and owner/reviewer packet approval. Keep GPU, Docker-Desktop-free Podman, and Podman source-build caveats bounded.
 **Next**: Update `TASK-073` handoff state and request owner/reviewer approval for tester send.
 
@@ -341,7 +342,7 @@ This task is the bridge between engineered release readiness and real user testi
 7. **Fixed - final release artifact publication**: final Application Package, Model & Data Package, and checksum sidecars were published under the `v0.1.0-rc1` prerelease and validated from downloaded GitHub assets.
 8. **Fixed - route-test isolation and timeout safeguards**: `TASK-067` / PR #19 added pytest timeout safeguards and pre-import route-test runtime isolation so `tests/unit/test_flask_routes.py` no longer touches the developer's real local `.env` path during focused validation.
 9. **Fixed - bootstrap/preflight package ordering and `.env` initialization**: `TASK-074` / PRs #22 and #23 ensured verify-only asset ZIP checks are non-mutating and packaged Compose entrypoints initialize `.env` from `.env.example` before starting the stack.
-10. **Open V1 patch candidate - `/api/geocode/forward` serialization**: final smoke setup found this route returns HTTP `500` after Azure forward geocoding succeeds because a `GeocodingProvider` enum is not JSON serializable. Detection geocoding still produced address data in the selected smoke.
+10. **Fixed - `/api/geocode/forward` serialization**: final smoke setup found this route returned HTTP `500` after Azure forward geocoding succeeded because the route-level `provider_used` field exposed a `GeocodingProvider` enum. PR #28 follow-up fixed the response serialization and added regression coverage. Tester-visible Azure search uses `/api/maps/azure/search`, so this defect did not block the selected external UAT fixture.
 
 ### Remediation Actions
 

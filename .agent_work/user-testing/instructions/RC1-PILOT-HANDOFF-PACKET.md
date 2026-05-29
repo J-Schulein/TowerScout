@@ -10,6 +10,7 @@ the pilot run. Do not send this packet until all required values are complete.
 - Prepared date: 2026-05-29
 - Approved for tester use: `NO`
 - Approver:
+- Approval date:
 - Tester/cohort:
 - Support contact: Jonathan Schulein (`bg90@cdc.gov`) or Chris Edens (`iek4@cdc.gov`)
 
@@ -180,3 +181,4 @@ credentials.
 - [x] Provider-key ownership/restriction expectations are confirmed.
 - [ ] Tester/cohort is filled in.
 - [ ] Owner/reviewer has approved this packet for tester send.
+- [ ] Approval date is filled in.
