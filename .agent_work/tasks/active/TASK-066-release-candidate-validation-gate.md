@@ -1,6 +1,6 @@
 # TASK-066: Release Candidate Validation Gate
 
-**Status**: IN_PROGRESS - digest-pinned Docker and Podman CPU-default package paths passed; route-test isolation closed by TASK-067 / PR #19; TASK-074 bootstrap/preflight follow-through completed; Podman source-build TLS and NVIDIA GPU evidence pending
+**Status**: IN_PROGRESS - final draft-release Docker Desktop package path passed through bootstrap/readiness; provider smoke, Podman source-build TLS, Docker-Desktop-free Podman, and NVIDIA GPU evidence pending
 **Priority**: CRITICAL  
 **Type**: C (Release Engineering / Validation)  
 **Estimated Effort**: 1-2 days (8-16 hours)  
@@ -260,14 +260,39 @@ This task is the bridge between engineered release readiness and real user testi
 **Recommendation**: Treat `TASK-074` as complete for RC1 bootstrap/preflight scope. Proceed back to `TASK-073` clean-machine UAT preparation with Docker Desktop as the primary pilot path, qualified Podman language preserved, and GPU/Docker-Desktop-free Podman caveats unchanged.
 **Next**: Update active task tracking, run `.agent_work` validation, and continue `TASK-073`.
 
+### 2026-05-29 - Final Draft-Release Artifact Path Validated
+**Objective**: Re-run the release package gate against the actual draft-release assets after PR27 merged.
+**Context**: Earlier digest-pinned validation used image digest `sha256:55aabd73a0cbdb76a1d48f427e9fe74dcab63ed87f2a15d32d9709de3ce1a232`, which predated the final Task-073 handoff documentation updates. The final image needed to be rebuilt from the accepted source ref because the runtime image serves Settings-linked docs from `/app/docs`.
+**Execution**:
+- Synced `main` to accepted source ref `baa5ccc053184d4a24389a436f6d7c2168238c1e`.
+- Quarantined old local `dist` artifacts under `dist/archive-pre-final-20260529`.
+- Published `ghcr.io/j-schulein/towerscout:v0.1.0-rc1-cuda121` from that source ref with GitHub Actions run `26631165695`.
+- Generated `dist/towerscout-v0.1.0-rc1.zip` with the published digest and `pytorch_flavor=cuda121`.
+- Created draft prerelease `v0.1.0-rc1` and uploaded the Application Package, Model & Data Package, and both checksum sidecars.
+- Downloaded the draft-release assets into `dist/release-download-validation`, verified checksums, extracted the Application Package, and ran `bootstrap.cmd -Engine docker -Gpu off -PackageZip ..\towerscout-v0.1.0-rc1.zip -AssetZip ..\towerscout-v0.1.0-rc1-assets-towerscout-v1-assets-2026-05-05.zip -NoBrowser`.
+**Validation Evidence**:
+- Published image digest: `sha256:36f452a5da0d9f3fa17f5b0f90802873cb40b1a433596048e4e9437e6f51d746`.
+- GitHub asset digest for `towerscout-v0.1.0-rc1.zip`: `sha256:ff7a2c997fe0678c1133847a56e1d2f21c7935732b1103841313a2b404cd3344`.
+- GitHub asset digest for `towerscout-v0.1.0-rc1-assets-towerscout-v1-assets-2026-05-05.zip`: `sha256:00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+- Bootstrap verified both checksum sidecars, validated the asset ZIP layout, pulled the pinned image, initialized `.env`, imported assets with hash verification, and reached `setup_required` with `asset_status=ok`.
+- `/api/health`, `/api/readiness`, `/docs/project-overview.html`, `/docs/towerscout-user-guide.html`, and `/license` returned HTTP `200`.
+- `status.cmd` reported the running image `ghcr.io/j-schulein/towerscout:v0.1.0-rc1-cuda121@sha256:36f452a5da0d9f3fa17f5b0f90802873cb40b1a433596048e4e9437e6f51d746`, Docker Compose `v5.1.3`, container health `healthy`, readiness `setup_required`, and all manifest assets `ok`.
+- Runtime readiness confirmed CPU-safe launch from the CUDA-capable image: `configured_policy=cpu`, `selected_device=cpu`, `torch_version=2.2.1+cu121`, `torch_cuda_build=12.1`, and `torch_cuda_available=false`.
+- The final validation stack was stopped after evidence capture.
+**Findings**:
+- No package/image/docs/assets mismatch remains for the draft-release artifact path.
+- Provider setup persistence and bounded detection smoke were not rerun in this final draft-release validation because no provider key or final public smoke fixture was selected for this handoff packet. Earlier Task-066 validation proved those flows against the prior digest-pinned image, and Task-073 now tracks whether to rerun or owner-accept that gate before external UAT.
+**Recommendation**: Treat the final Docker Desktop bootstrap/readiness package path as passed for the draft-release assets. Do not mark external UAT approved until provider-key expectations, smoke fixture, support contact, and owner/reviewer acceptance are recorded in `TASK-073`.
+**Next**: Fill the UAT handoff packet, decide whether to run provider setup plus bounded detection against the selected fixture, and then publish or owner-approve the draft prerelease for controlled testers.
+
 ---
 
 ## Validation Results
 
 ### Test Summary
-**Test Date**: 2026-05-22 through 2026-05-28
+**Test Date**: 2026-05-22 through 2026-05-29
 **Test Environment**: Windows 11 AMD64 workstation, Docker Desktop engine, Podman `5.8.2` WSL machine using `podman compose` with Docker Compose `v5.1.3` as external provider, digest-pinned GHCR image `ghcr.io/j-schulein/towerscout:v0.1.0-rc1-cuda121@sha256:55aabd73a0cbdb76a1d48f427e9fe74dcab63ed87f2a15d32d9709de3ce1a232`, CPU launch via `-Gpu off`, Azure provider configured from local ignored development config for validation only.
-**Test Status**: PASS_WITH_BOUNDARIES - digest-pinned Docker Desktop and Podman package runtime CPU-default paths passed; route-test isolation is closed by `TASK-067` / PR #19, and `TASK-074` bootstrap/preflight follow-through passed post-merge package validation. GPU, Docker-Desktop-free Podman, asset ZIP/checksum publication, and Podman source-build TLS evidence remain bounded follow-ups.
+**Test Status**: PASS_WITH_BOUNDARIES - final draft-release Docker Desktop package path passed through bootstrap, asset import, readiness, Settings-linked docs, and `/license`; earlier digest-pinned Docker/Podman provider-smoke evidence remains valid for those flows. GPU, Docker-Desktop-free Podman, provider smoke on the final draft-release digest, and Podman source-build TLS evidence remain bounded follow-ups.
 
 ### Acceptance Criteria Validation
 - [x] Package generated or obtained - final RC control package generated with immutable GHCR image digest.

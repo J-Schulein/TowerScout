@@ -15,39 +15,49 @@ the pilot run. Do not send this packet until all required values are complete.
 
 ## Current Readiness Notes
 
-As of the final handoff check on 2026-05-29, leave `Approved for tester use`
-set to `NO` until the final release artifacts are published and verified.
+As of the final package validation check on 2026-05-29, leave
+`Approved for tester use` set to `NO` until the release owner fills the
+remaining tester-specific values and approves the packet.
 
-Known pending items:
+Resolved since the PR27 readiness check:
 
-- GitHub Releases does not yet list a published V1 RC1 release.
-- The existing local `dist\towerscout-v0.1.0-rc1.zip` was generated before the
-  latest Task-073 documentation/handoff updates and should not be used as the
-  final tester package.
-- The previously validated image digest
-  `sha256:55aabd73a0cbdb76a1d48f427e9fe74dcab63ed87f2a15d32d9709de3ce1a232`
-  came from an earlier source ref. Because the container image serves the
-  Settings Resource Links docs from `/app/docs`, the final package should use a
-  newly built/published image digest from the accepted release source ref, or
-  owner/reviewer acceptance should explicitly record any image-docs drift.
-- A local validation Model & Data Package candidate exists at
-  `dist\task074-merged-package\towerscout-v0.1.0-rc1-assets-towerscout-v1-assets-2026-05-05.zip`,
-  but it is not a published GitHub Release asset.
+- A draft prerelease now exists for `v0.1.0-rc1` with all four package assets
+  uploaded.
+- The final Application Package was regenerated from accepted source ref
+  `baa5ccc053184d4a24389a436f6d7c2168238c1e`.
+- The final GHCR image was published from that same source ref and pinned in the
+  package by immutable digest.
+- The downloaded draft-release assets passed checksum verification.
+- Docker Desktop package-path validation from the downloaded draft-release
+  assets passed through bootstrap, asset import, readiness, Settings-linked
+  docs, and `/license`.
 
-Do not send this packet externally until these notes are resolved or explicitly
-accepted by the release owner.
+Remaining before tester handoff:
+
+- Publish or otherwise owner-approve the draft release for the selected tester
+  cohort.
+- Fill the smoke-test fixture and support contact.
+- Confirm provider-key ownership/restriction expectations.
+- Complete any owner-selected provider setup and bounded detection smoke, or
+  explicitly accept that external UAT will perform those steps first.
 
 ## Required Release Values
 
-- GitHub release URL:
-- Release tag:
-- Accepted source ref:
-- Application Package ZIP:
-- Application Package checksum file:
+- GitHub release URL: draft URL is
+  `https://github.com/J-Schulein/TowerScout/releases/tag/untagged-1d9e78e68e56657d6f67`;
+  use `https://github.com/J-Schulein/TowerScout/releases/tag/v0.1.0-rc1` after
+  publication if GitHub assigns the normal tag URL.
+- Release tag: `v0.1.0-rc1`
+- Accepted source ref: `baa5ccc053184d4a24389a436f6d7c2168238c1e`
+- Application Package ZIP: `towerscout-v0.1.0-rc1.zip`
+- Application Package checksum file: `towerscout-v0.1.0-rc1.zip.sha256`
 - Model & Data Package ZIP:
+  `towerscout-v0.1.0-rc1-assets-towerscout-v1-assets-2026-05-05.zip`
 - Model & Data Package checksum file:
+  `towerscout-v0.1.0-rc1-assets-towerscout-v1-assets-2026-05-05.zip.sha256`
 - Expected image reference from `IMAGE.txt`:
-- Expected package folder name after extraction:
+  `ghcr.io/j-schulein/towerscout:v0.1.0-rc1-cuda121@sha256:36f452a5da0d9f3fa17f5b0f90802873cb40b1a433596048e4e9437e6f51d746`
+- Expected package folder name after extraction: `towerscout-v0.1.0-rc1`
 
 All four release files must come from the same GitHub release `Assets` section.
 Do not ask testers to use the green GitHub `Code` button or GitHub's automatic
@@ -60,7 +70,7 @@ source-code ZIP/TAR.GZ downloads.
 - Supported command:
 
 ```powershell
-.\bootstrap.cmd -Engine docker -Gpu off -AssetZip .\<exact-model-data-package-zip>
+.\bootstrap.cmd -Engine docker -Gpu off -AssetZip .\towerscout-v0.1.0-rc1-assets-towerscout-v1-assets-2026-05-05.zip
 ```
 
 If the release ZIPs remain in Downloads, provide a fully expanded command with
@@ -119,11 +129,11 @@ procedure.
 ## Final Pre-Send Check
 
 - [ ] Exact release URL/tag is filled in.
-- [ ] Accepted source ref is filled in and matches `SOURCE.txt` plus
+- [x] Accepted source ref is filled in and matches `SOURCE.txt` plus
       `release-manifest.v1.json`.
-- [ ] Exact Application Package filename is filled in.
-- [ ] Exact Model & Data Package filename is filled in.
-- [ ] Checksum filenames are filled in.
+- [x] Exact Application Package filename is filled in.
+- [x] Exact Model & Data Package filename is filled in.
+- [x] Checksum filenames are filled in.
 - [ ] Smoke-test fixture is filled in.
 - [ ] Support contact is filled in.
 - [ ] Tester has Docker Desktop/WSL 2 approval or an explicitly assigned Podman

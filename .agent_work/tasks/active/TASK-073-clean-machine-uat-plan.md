@@ -1,6 +1,6 @@
 # TASK-073: Clean-Machine Pilot / UAT Execution Plan
 
-**Status**: IN_PROGRESS - final release artifacts/image digest and owner acceptance pending
+**Status**: IN_PROGRESS - draft release package validation passed; smoke fixture, support contact, and owner acceptance pending
 **Priority**: HIGH  
 **Type**: B/C (User Testing / Release Validation)  
 **Estimated Effort**: 0.5-1 day (4-8 hours)  
@@ -55,7 +55,7 @@ This task should make external testing repeatable, bounded, and evidence-produci
 - [x] Reviewer documentation feedback is incorporated into the pilot handoff instructions.
 - [x] UAT handoff packet template captures exact release URL/tag, artifact filenames, smoke fixture, and support contact before tester launch.
 - [ ] Final GitHub Release assets are published and match the accepted release source ref.
-- [ ] Final package/image pair is regenerated or owner-accepted after Task-073 documentation updates.
+- [x] Final package/image pair is regenerated or owner-accepted after Task-073 documentation updates.
 - [ ] Owner/reviewer accepts the pilot/UAT plan before external testers start.
 
 ## Dependencies
@@ -345,6 +345,22 @@ After pilot/UAT, V1 may be considered ready only if:
 - Keep the handoff packet's explicit accepted source ref aligned with `SOURCE.txt`, `release-manifest.v1.json`, image digest, and release tag.
 **Next**: Merge PR27 if checks pass, then run the final release build/publish/validation sequence before external tester handoff.
 
+### 2026-05-29 - Draft Release Package Validation Passed
+**Objective**: Validate the actual draft-release artifact path before external UAT handoff.
+**Context**: PR27 was merged, `main` was synced, and the post-merge source ref was selected as the release source ref.
+**Execution**: Published the CUDA-capable GHCR image from source ref `baa5ccc053184d4a24389a436f6d7c2168238c1e`, generated the final Application Package with that digest, uploaded all four assets to a draft prerelease, downloaded those release assets into a separate validation folder, verified both ZIP checksums, and ran `bootstrap.cmd` from the downloaded package with Docker Desktop and `-Gpu off`.
+**Validation Evidence**:
+- Draft release tag: `v0.1.0-rc1`.
+- Accepted source ref: `baa5ccc053184d4a24389a436f6d7c2168238c1e`.
+- Published image: `ghcr.io/j-schulein/towerscout:v0.1.0-rc1-cuda121@sha256:36f452a5da0d9f3fa17f5b0f90802873cb40b1a433596048e4e9437e6f51d746`.
+- Application Package: `towerscout-v0.1.0-rc1.zip`, SHA-256 `ff7a2c997fe0678c1133847a56e1d2f21c7935732b1103841313a2b404cd3344`.
+- Model & Data Package: `towerscout-v0.1.0-rc1-assets-towerscout-v1-assets-2026-05-05.zip`, SHA-256 `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+- Bootstrap verified the package and asset ZIP checksum sidecars, rejected no asset-layout issues, pulled the pinned GHCR image, created `.env` from `.env.example`, imported assets with hash verification, and reached readiness `setup_required` with `asset_status=ok`.
+- Runtime readiness reported `pytorch_flavor=cuda121`, `torch_version=2.2.1+cu121`, `torch_cuda_build=12.1`, `device_policy=cpu`, `selected_device=cpu`, and image digest `sha256:36f452a5da0d9f3fa17f5b0f90802873cb40b1a433596048e4e9437e6f51d746` under `-Gpu off`.
+- `status.cmd`, `/api/health`, `/api/readiness`, `/docs/project-overview.html`, `/docs/towerscout-user-guide.html`, and `/license` passed.
+**Decision**: The package/image/docs/assets drift risk identified in PR27 is resolved for the draft-release artifact path. Keep the UAT packet approval at `NO` until the release owner fills the smoke fixture and support contact, confirms provider-key expectations, and accepts or completes the provider setup plus bounded detection smoke gate.
+**Next**: Fill owner-controlled handoff values, optionally run provider setup plus bounded detection smoke on the selected public fixture, then decide whether to publish the draft prerelease and approve the UAT packet.
+
 ---
 
 ## Validation Results
@@ -352,7 +368,7 @@ After pilot/UAT, V1 may be considered ready only if:
 ### Test Summary
 **Test Date**: May 27-29, 2026
 **Test Environment**: Documentation/task-state validation only; no external pilot run yet
-**Test Status**: DRAFT_READY - reviewer handoff fixes applied and focused documentation/task validation passed
+**Test Status**: DRAFT_READY - draft release package path validated through bootstrap/readiness; owner-controlled UAT handoff values remain pending
 
 ### Acceptance Criteria Validation
 - [x] Start/stop criteria documented - PASS - See Pilot Start Criteria and Pilot Stop Criteria.
@@ -366,12 +382,13 @@ After pilot/UAT, V1 may be considered ready only if:
 - [x] UAT checklist aligned to implemented bootstrap - PASS - The checklist now uses `bootstrap.cmd` for first setup and keeps manual import as fallback.
 - [x] UAT handoff packet template ready - PASS - See `.agent_work/user-testing/instructions/RC1-PILOT-HANDOFF-PACKET.md`; final release/fixture/support values are still pending.
 - [x] V1 completion gate documented - PASS - See V1 Completion Gate After Pilot.
+- [x] Final package/image pair regenerated and validated from accepted source ref - PASS - See 2026-05-29 draft release package validation evidence.
 - [ ] Owner/reviewer acceptance - PENDING.
 
 ### Issues Identified
 
 - No pilot execution issues yet; this task has only drafted the plan.
-- Final tester handoff values are not ready: no GitHub Release is published, the existing local application ZIP is stale relative to the latest docs, and the known image digest predates the current release source ref.
+- Final tester handoff values are not complete: draft release assets and package validation now exist, but the smoke fixture, support contact, provider-key expectations, and owner/reviewer approval are still pending.
 
 ### Remediation Actions
 
