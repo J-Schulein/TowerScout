@@ -225,7 +225,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 **User Value**: Restores confidence in internal validation before external pilot prep and reduces the chance that future agents follow stale instructions.
 
 ### **TASK-073: Clean-Machine Pilot / UAT Execution Plan**
-**Status**: IN_PROGRESS - bootstrap-first pilot/UAT plan aligned after Task-074
+**Status**: IN_PROGRESS - reviewer handoff clarity fixes incorporated; owner/reviewer acceptance pending
 **Type**: B/C (User Testing / Release Validation)  
 **Priority**: HIGH  
 **Estimated Effort**: 0.5-1 day (4-8 hours)  
