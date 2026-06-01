@@ -99,6 +99,14 @@ def test_setup_zip_discovery_finds_uat_downloads_and_requires_sidecars():
         if ($package -ne "{package_zip}") {{
             throw "Wrong package ZIP discovered: $package"
         }}
+        $explicitAsset = Find-TowerScoutSetupAssetZip -RootPath "{app_root}" -AssetZip "{asset_zip}"
+        if ($explicitAsset -ne "{asset_zip}") {{
+            throw "Wrong explicit asset ZIP resolved: $explicitAsset"
+        }}
+        $explicitPackage = Find-TowerScoutSetupPackageZip -RootPath "{app_root}" -PackageZip "{package_zip}"
+        if ($explicitPackage -ne "{package_zip}") {{
+            throw "Wrong explicit package ZIP resolved: $explicitPackage"
+        }}
         Remove-Item -LiteralPath "{asset_sidecar}"
         try {{
             Find-TowerScoutSetupAssetZip -RootPath "{app_root}" | Out-Null

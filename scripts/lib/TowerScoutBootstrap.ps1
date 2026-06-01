@@ -6,8 +6,14 @@ function Resolve-TowerScoutBootstrapPath {
         [string] $RootPath,
 
         [Parameter(Mandatory = $true)]
-        [string] $Path
+        [string] $Path,
+
+        [string] $Label = "Path"
     )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        throw "$Label was not provided."
+    }
 
     if ([System.IO.Path]::IsPathRooted($Path)) {
         return [System.IO.Path]::GetFullPath($Path)

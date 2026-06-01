@@ -344,6 +344,22 @@ does not include the Word guide, so it remains outside the package.
 **Next**: Re-run full focused validations, then rebuild/publish image and
 regenerate the Application Package ZIP when owner approves the release refresh.
 
+### 2026-06-01 - PR Review Explicit-Path Fix
+**Objective**: Address reviewer finding that explicit `-AssetZip` and
+`-PackageZip` support paths could fail because setup helpers passed `-Label` to
+`Resolve-TowerScoutBootstrapPath` before that parameter existed.
+**Execution**: Added optional `Label` support to
+`Resolve-TowerScoutBootstrapPath` with a clearer blank-path error and added
+unit coverage that calls both `Find-TowerScoutSetupAssetZip -AssetZip` and
+`Find-TowerScoutSetupPackageZip -PackageZip`.
+**Validation**: `tests/unit/test_task_074_bootstrap.py` and
+`tests/unit/test_release_package_script.py` passed with 16 tests. `.agent_work`
+validation, agent-work quick check, docs command scan, and `git diff --check`
+also passed. Docs command scan retained the existing
+`docs\oci-quick-start.md:158` `127.0.0.1` warning.
+**Next**: Push the PR fix, then complete owner/reviewer signoff and Word visual
+inspection before marking PR #30 ready for merge.
+
 ---
 
 ## Validation Results
