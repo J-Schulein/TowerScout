@@ -57,7 +57,7 @@ Jessica C Smith, and
 
 ### Manual Tower Addition
 - **Interactive Drawing**: Add cooling towers manually via polygon drawing tool
-- **Visual Distinction**: Manual towers display with purple borders and "âœ‹ Manual" badges
+- **Visual Distinction**: Manual towers display with purple borders and "✋ Manual" badges
 - **Automatic Geocoding**: Addresses automatically retrieved and cached for performance
 - **Dataset Integration**: Manual towers included in all export formats (CSV, KML, YOLO)
 - **Dataset Restoration**: Import/export datasets to preserve manual towers across sessions
@@ -74,7 +74,7 @@ Jessica C Smith, and
 - **Zipcode Search**: Define search areas by postal code boundaries
 - **Custom Polygons**: Draw complex search areas with interactive polygon tool
 - **Circular Search**: Radius-based search around specific coordinates
-- **Tile Estimation**: Preview processing time before running detection (~100 tiles â‰ˆ 30 seconds)
+- **Tile Estimation**: Preview processing time before running detection (~100 tiles ≈ 30 seconds)
 
 ### Data Validation
 - **Interactive Review**: Click towers in list to highlight on map (bidirectional)
@@ -84,7 +84,7 @@ Jessica C Smith, and
 
 ## Attribution
 Please cite the following publication and this GitHub repository when utilizing TowerScout:
-- Wong, KK, Segura T, Mein G, Lu J, Hannapel EJ, Kunz JM, Ritter T, Smith JC, Todeschini A, Nugen F, Edens C. Automated cooling tower detection through deep learning for Legionnairesâ€™ disease outbreak investigations: a model development and validation study. *Lancet Digit Health.* 2024;6(7):e500-e506. [doi.org/10.1016/S2589-7500(24)00094-3](https://doi.org/10.1016/S2589-7500(24)00094-3)
+- Wong, KK, Segura T, Mein G, Lu J, Hannapel EJ, Kunz JM, Ritter T, Smith JC, Todeschini A, Nugen F, Edens C. Automated cooling tower detection through deep learning for Legionnaires’ disease outbreak investigations: a model development and validation study. *Lancet Digit Health.* 2024;6(7):e500-e506. [doi.org/10.1016/S2589-7500(24)00094-3](https://doi.org/10.1016/S2589-7500(24)00094-3)
 
 
 ## Additional files

@@ -5,10 +5,6 @@
 **Audience**: Pilot users and support
 **Runtime scope**: See the current User Guide
 
-The current TowerScout User Guide is now:
-
-```text
-docs/user-guide.md
-```
+The current TowerScout User Guide is now [docs/user-guide.md](user-guide.md).
 
 Use that stable filename for current release-candidate package documentation.

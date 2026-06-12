@@ -349,7 +349,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 **User Value**: Reduces the chance that external UAT is blocked by runtime ambiguity, stale device mode, Podman provider gaps, or known reviewer-audit quick fixes, while preserving honest support boundaries for GPU and Podman.
 
 ### **TASK-082: RC4 Documentation And Package Organization**
-**Status**: IN_PROGRESS - stable docs naming, package/app wiring, docs/root inventory, compatibility stubs, and focused validation completed on separate stacked branch; rebase/retarget after PR #31 lands
+**Status**: IN_PROGRESS - PR #32 open as standalone Task-082 branch based on merged PR #31; reviewer-requested README encoding fix and compatibility-stub polish implemented with focused validation passing
 **Type**: B/C (Documentation / Release UX / Package Organization)
 **Priority**: HIGH
 **Estimated Effort**: 1-2 days (8-16 hours), plus optional package-smoke validation

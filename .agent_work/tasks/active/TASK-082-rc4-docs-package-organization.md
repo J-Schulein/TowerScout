@@ -1,6 +1,6 @@
 # TASK-082: RC4 Documentation And Package Organization
 
-**Status**: IN_PROGRESS - implementation completed on separate Task-082 branch; focused validation passed; branch remains stacked on PR #31 until Task-081 lands  
+**Status**: IN_PROGRESS - PR #32 open as standalone Task-082 branch based on merged PR #31; reviewer-requested README encoding fix and compatibility-stub polish implemented with focused validation passing
 **Priority**: HIGH  
 **Type**: B/C (Documentation / Release UX / Package Organization)  
 **Estimated Effort**: 1-2 days (8-16 hours), plus optional package-smoke validation  
@@ -403,6 +403,15 @@ checks only.
 **Output**: `docs/task-082-rc4-docs-package-organization` is now based directly on `origin/main` with one Task-082 commit.
 **Validation**: Re-ran the focused docs route/package/UAT tests, docs command scan, `.agent_work` validators, `py_compile`, and `git diff --check`; all passed.
 **Next**: Push the standalone Task-082 branch and open a focused docs/package organization PR when ready.
+
+### 2026-06-12 - PR #32 Reviewer Fixes
+**Objective**: Address PR #32 review feedback before merge.
+**Context**: Reviewer found visible README mojibake in three user-facing strings and suggested Markdown compatibility stubs should use clickable links.
+**Decision**: Treat the README encoding regression as merge-blocking, apply the compatibility-stub link polish in the same narrow docs update, and keep the PR as a standalone Task-082 branch.
+**Execution**: Restored the intended README characters for the manual-tower badge, tile-estimation approximation symbol, and Legionnaires' disease citation apostrophe. Updated the Markdown compatibility stubs to link directly to the stable docs. Corrected Task-082 tracker status now that PR #31 has landed and PR #32 is standalone.
+**Output**: README user-facing text is restored, compatibility stubs are easier to click from rendered Markdown, and Task-082 state matches the current branch/PR reality.
+**Validation**: Mojibake scan returned no matches in `README.md`, `docs/`, or the Task-082 task file. Focused docs route/package/UAT tests passed with 49 tests, docs command scan passed, `.agent_work` validators passed, `py_compile` passed, and whitespace check was rerun after trailing-space cleanup.
+**Next**: Commit and push the focused reviewer-fix update to PR #32, then request re-review.
 
 ---
 
