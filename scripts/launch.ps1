@@ -105,11 +105,49 @@ function Write-TowerScoutReadinessSummary {
     if ($payload.components -and $payload.components.config -and $payload.components.config.status) {
         Write-Host "Config status: $($payload.components.config.status)"
     }
+    if ($payload.runtime) {
+        Write-Host (
+            "Runtime: engine={0} device_policy={1} selected_device={2} pytorch_flavor={3}" -f
+            $payload.runtime.container_engine,
+            $payload.runtime.device_policy,
+            $payload.runtime.selected_device,
+            $payload.runtime.pytorch_flavor
+        )
+    }
+    if ($payload.version -and $payload.version.image_digest) {
+        Write-Host "Image digest: $($payload.version.image_digest)"
+    }
     if ($payload.recovery) {
         foreach ($item in $payload.recovery) {
             Write-Host "Recovery: $item"
         }
     }
+}
+
+function Test-TowerScoutCudaSelected {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Readiness
+    )
+
+    if (-not $Readiness.Reachable -or $null -eq $Readiness.Payload) {
+        return $false
+    }
+
+    $payload = $Readiness.Payload
+    $selectedDevice = ""
+    if ($payload.runtime -and $payload.runtime.selected_device) {
+        $selectedDevice = [string] $payload.runtime.selected_device
+    }
+    elseif (
+        $payload.components -and
+        $payload.components.ml_runtime -and
+        $payload.components.ml_runtime.selected_device
+    ) {
+        $selectedDevice = [string] $payload.components.ml_runtime.selected_device
+    }
+
+    return $selectedDevice.Trim().ToLowerInvariant() -eq "cuda"
 }
 
 function Write-TowerScoutHostDiagnostics {
@@ -211,6 +249,11 @@ while ((Get-Date) -lt $deadline) {
     if ($readiness.Reachable) {
         if ($readiness.State -in @("setup_required", "degraded", "ready")) {
             Write-TowerScoutReadinessSummary -Readiness $readiness
+            if ($Gpu -eq "on" -and -not (Test-TowerScoutCudaSelected -Readiness $readiness)) {
+                Write-Host "GPU mode is on, but TowerScout readiness did not report selected_device=cuda."
+                Write-Host "Check the image flavor, NVIDIA container access, and GPU overlay before continuing."
+                exit 1
+            }
             if (-not $NoBrowser) {
                 Write-Host "Opening TowerScout in your browser..."
                 Start-Process $appUrl
