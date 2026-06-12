@@ -52,7 +52,7 @@ def test_custom_image_upload_uses_sanitized_filename(monkeypatch):
             response = client.post(
                 "/getobjectscustom",
                 data={
-                    "engine": "newest",
+                    "engine": "yolo",
                     "image": (_png_bytes(), "../../unsafe image.png"),
                 },
                 content_type="multipart/form-data",
