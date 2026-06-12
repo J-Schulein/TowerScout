@@ -372,6 +372,8 @@ function Get-TowerScoutComposeServiceContainerIds {
 
     Push-Location $repoRoot
     try {
+        $previousErrorActionPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
         $output = & $command["Executable"] @(($command["Arguments"]) + $composeFiles + @("ps", "-a", "-q", $ServiceName)) 2>$null
         if ($LASTEXITCODE -ne 0) {
             return @()
@@ -380,6 +382,7 @@ function Get-TowerScoutComposeServiceContainerIds {
         return @($output | ForEach-Object { ([string] $_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     }
     finally {
+        $ErrorActionPreference = $previousErrorActionPreference
         Pop-Location
     }
 }
@@ -544,6 +547,7 @@ function Get-TowerScoutContainerSessionInfo {
         CreatedAt = $createdAt
         GpuMode = [string] $envValues["TOWERSCOUT_GPU_MODE"]
         DevicePolicy = [string] $envValues["TOWERSCOUT_DEVICE"]
+        ContainerEngine = [string] $envValues["TOWERSCOUT_CONTAINER_ENGINE"]
         Image = $imageRef
         HostPort = $hostPort
     }
@@ -558,6 +562,8 @@ function Get-TowerScoutContainerSessionPlan {
         [string] $ExpectedGpuMode = "",
 
         [string] $ExpectedDevicePolicy = "",
+
+        [string] $ExpectedContainerEngine = "",
 
         [string] $ExpectedImage = "",
 
@@ -626,6 +632,22 @@ function Get-TowerScoutContainerSessionPlan {
             return [pscustomobject]@{
                 Action = "restart"
                 Reason = "An existing TowerScout container was started with a different ML device policy."
+                ContainerIds = @($containerList | ForEach-Object { $_.Id })
+                AgeHours = $null
+            }
+        }
+    }
+
+    $normalizedExpectedContainerEngine = ([string] $ExpectedContainerEngine).Trim().ToLowerInvariant()
+    if (-not [string]::IsNullOrWhiteSpace($normalizedExpectedContainerEngine)) {
+        $containerEngineMismatch = @($containerList | Where-Object {
+            $currentContainerEngine = (Get-TowerScoutObjectPropertyValue -InputObject $_ -Name "ContainerEngine").Trim().ToLowerInvariant()
+            -not [string]::IsNullOrWhiteSpace($currentContainerEngine) -and $currentContainerEngine -ne $normalizedExpectedContainerEngine
+        })
+        if ($containerEngineMismatch.Count -gt 0) {
+            return [pscustomobject]@{
+                Action = "restart"
+                Reason = "An existing TowerScout container was started with a different container engine."
                 ContainerIds = @($containerList | ForEach-Object { $_.Id })
                 AgeHours = $null
             }
@@ -769,6 +791,7 @@ function Invoke-TowerScoutStaleContainerGuard {
         -SessionMaxHours $SessionMaxHours `
         -ExpectedGpuMode $ExpectedGpuMode `
         -ExpectedDevicePolicy $ExpectedDevicePolicy `
+        -ExpectedContainerEngine $EngineName `
         -ExpectedImage $ExpectedImage `
         -ExpectedHostPort $ExpectedHostPort
     if ($plan.Action -eq "start") {
@@ -813,6 +836,7 @@ function Invoke-TowerScoutCompose {
     }
 
     Set-TowerScoutGpuEnvironment -Gpu $Gpu -Build:$Build
+    $env:TOWERSCOUT_CONTAINER_ENGINE = $effectiveEngine
 
     $composeFiles = @("-f", (Join-Path $repoRoot "compose.yaml"))
     if ($Build) {
@@ -828,10 +852,13 @@ function Invoke-TowerScoutCompose {
 
     Push-Location $repoRoot
     try {
+        $previousErrorActionPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
         & $command["Executable"] @(($command["Arguments"]) + $composeFiles + $ComposeArguments)
         $script:TowerScoutComposeExitCode = $LASTEXITCODE
     }
     finally {
+        $ErrorActionPreference = $previousErrorActionPreference
         Pop-Location
     }
 }

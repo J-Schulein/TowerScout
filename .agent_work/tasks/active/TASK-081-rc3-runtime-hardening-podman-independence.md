@@ -252,6 +252,15 @@ coordinates, and user-identifying paths.
 **Validation**: Focused and broader automated validation passed: Task-081 runtime/route tests, import-assets, Task-074/075 launcher tests, route/runtime/package/config/error-sanitization tests, PowerShell parser checks, docs command scan, `.agent_work` validation, agent-work quick check, `py_compile`, and `git diff --check`. Full-tree secret scan surfaced pre-existing sensitive-term findings and an output-encoding crash, but a direct diff scan found no new secret-like additions in this change set.  
 **Next**: Perform live Docker/Podman package smoke validation if runtime access is available; keep Podman GPU support unclaimed until hardware evidence exists.
 
+### 2026-06-12 - Draft PR And Live Podman Validation
+**Objective**: Publish Task-081 as a focused review branch/PR and run the available live runtime validation.
+**Context**: The owner requested a focused branch/PR and live validation before pointing a reviewer at the implementation. Docker Desktop, Podman, asset import, and GPU were the requested review/validation surfaces.
+**Decision**: Open the PR first with the automated validation and reviewer focus areas, then record live host evidence as a follow-up commit. Treat Docker Desktop/GPU as blocked if the host cannot expose those runtimes, while still validating Podman CPU behavior.
+**Execution**: Created branch `feature/task-081-rc3-runtime-hardening`, committed `feat(task-081): harden runtime launch paths`, pushed to `origin`, and opened draft PR `#31`. Started the local Podman machine, ran Podman launch, fixed live-smoke defects in Compose stderr handling and strict-safe readiness summary output, ran Podman launch again, ran Podman asset import from `webapp/` with hash verification, collected status/logs, and stopped the validation container.
+**Output**: Podman CPU package-runtime launch passed on port `5006`; readiness reached `state=ready`, `asset_status=ok`, `config_status=ok`, writable persistence paths were reported, and final runtime metadata reported `container_engine=podman`. Podman asset import with `-Source webapp -VerifyHashes` passed with `post_import_health=ok`, `state=ready`, `asset_status=ok`, `verify_hashes=True`, no missing assets, and no corrupt assets. Docker Desktop validation is blocked on this host because the `desktop-linux` context cannot connect to `npipe:////./pipe/dockerDesktopLinuxEngine`; GPU validation is blocked because `nvidia-smi` is unavailable and Docker GPU runtime is not reachable.
+**Validation**: Focused Task-081 runtime tests and Task-075 launcher GPU tests passed after the live-smoke fixes. PowerShell parser checks for changed launcher/helper scripts passed.
+**Next**: Push the validation/fix follow-up commit to PR `#31`; request reviewer attention on the areas listed in the PR body, especially the live-smoke fixes and Docker/GPU host blockers.
+
 ---
 
 ## Validation Results
@@ -268,12 +277,18 @@ coordinates, and user-identifying paths.
 - [x] **Agent-work structure validation**: `python .agent_work/scripts/validate_agent_work.py`
       passes after the task file is created.
 - [x] **Implementation criteria**: CPU-safe implementation slice completed with
-      focused automated validation; live runtime and GPU evidence remain pending.
+      focused automated validation.
+- [x] **Podman CPU runtime validation**: live Podman package-runtime launch and
+      asset import passed on the local Windows/WSL2 host.
+- [ ] **Docker Desktop runtime validation**: blocked on this host because the
+      Docker Desktop Linux engine socket is unavailable.
+- [ ] **GPU runtime validation**: blocked on this host because NVIDIA runtime
+      evidence is unavailable and Docker Desktop is not reachable.
 
 ### Implementation Slice Validation
 **Test Date**: 2026-06-12  
 **Test Environment**: Local TowerScout workspace on Windows  
-**Test Status**: PASS FOR AUTOMATED VALIDATION; LIVE RUNTIME VALIDATION PENDING  
+**Test Status**: PASS FOR AUTOMATED VALIDATION; PODMAN CPU LIVE VALIDATION PASS; DOCKER/GPU BLOCKED BY HOST
 
 ### Test Results
 
@@ -287,18 +302,33 @@ coordinates, and user-identifying paths.
 - [x] `git diff --check` - PASS.
 - [x] Direct diff scan for new secret-like additions - PASS, no matches in changed/untracked Task-081 files.
 - [ ] Full-tree secret scan - NOT CLEAN: surfaced pre-existing sensitive-term findings in older docs/artifacts and hit a console encoding error; not introduced by this change set.
-- [ ] Live Docker/Podman/GPU smoke validation, if available.
+- [x] Draft PR opened: `https://github.com/J-Schulein/TowerScout/pull/31`.
+- [x] `podman machine start` - PASS; Podman 5.8.2 rootless WSL2 machine started successfully.
+- [x] `.\start.bat -Engine podman -Port 5006 -Gpu off -NoBrowser -TimeoutSeconds 180` - PASS after remediation; readiness reached `state=ready`, assets/config reported ok, and launcher summary reported `Runtime: engine=podman`.
+- [x] `.\scripts\import-assets.cmd -Engine podman -Source webapp -Port 5006 -VerifyHashes -RestartWaitSeconds 120` - PASS; `post_import_health=ok`, `state=ready`, `asset_status=ok`, `verify_hashes=True`, `missing=`, and `corrupt=`.
+- [x] `scripts\status.cmd -Engine podman -Port 5006` - PASS; final readiness reported `state=ready`, `container_engine=podman`, required assets ok, config ok, and named persistence paths writable.
+- [x] `scripts\logs.cmd -Engine podman -Tail 80` - PASS; bounded logs showed normal startup, configured Google/Azure keys, CPU runtime, lazy classifier initialization, and Waitress startup.
+- [x] `scripts\stop.cmd -Engine podman -Port 5006` - PASS; validation container stopped.
+- [ ] Docker Desktop smoke - BLOCKED: `docker info` could not connect to `npipe:////./pipe/dockerDesktopLinuxEngine`; launching Docker Desktop did not expose the engine within three minutes; `Start-Service com.docker.service` failed with permission/service access error.
+- [ ] GPU smoke - BLOCKED: `nvidia-smi` is not available on this host and Docker Desktop GPU runtime is not reachable.
 
 ### Issues Identified
 
 - Full-tree secret scan reports pre-existing sensitive artifacts and environment-variable references outside this Task-081 change set, including old browser-run summaries under `.agent_work/context/analysis/browser-runs/`. This should be handled as separate evidence hygiene, not as part of the runtime-code implementation.
-- Live Docker, Podman, and GPU smokes were not run in this automated slice.
+- Live Podman launch initially exposed that Podman Compose provider banners on stderr could abort PowerShell under `$ErrorActionPreference = "Stop"` during both stale-session `compose ps` inspection and main Compose invocation.
+- Live Podman launch initially exposed that `Write-TowerScoutReadinessSummary` assumed optional readiness `runtime.device_policy` fields were always present under strict mode.
+- Live Podman import/status initially exposed stale local `.env` engine metadata: `TOWERSCOUT_CONTAINER_ENGINE=docker` could leak into a Podman-launched container unless the selected engine overrides shell env before Compose runs.
+- Docker Desktop and GPU validation remain blocked by host runtime state.
 
 ### Remediation Actions
 
 - No remediation needed for changed files based on direct diff scan.
+- Updated `Invoke-TowerScoutCompose` and `Get-TowerScoutComposeServiceContainerIds` to temporarily set `$ErrorActionPreference = "Continue"` around native Compose calls, preserving exit-code handling while tolerating successful providers that write banners to stderr.
+- Updated `Write-TowerScoutReadinessSummary` and `Test-TowerScoutCudaSelected` to use strict-safe optional property reads for partial readiness payloads.
+- Updated shared Compose invocation to set `$env:TOWERSCOUT_CONTAINER_ENGINE` to the selected engine and added stale-session detection for container-engine mismatches.
+- Added/extended Task-081 regression tests for successful provider stderr banners, engine metadata propagation, and container-engine mismatch restarts.
 - Defer pre-existing evidence cleanup to a separate task or owner-approved hygiene pass to avoid altering unrelated historical artifacts during this runtime implementation.
 
 ### Sign-off
 
-Automated implementation validation passed for the CPU-safe hardening slice. Keep task open until live Docker/Podman validation is recorded and any hardware-dependent GPU evidence is handled.
+Automated implementation validation and live Podman CPU package-runtime validation passed. Keep task open until Docker Desktop and GPU validation are run on a host where those runtimes are available, or record them as explicit RC3 support caveats.

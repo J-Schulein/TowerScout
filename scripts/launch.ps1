@@ -23,6 +23,23 @@ $repoRoot = Get-TowerScoutRepoRoot
 $appUrl = "http://localhost:$Port"
 $readinessUrl = "$appUrl/api/readiness"
 
+function Get-TowerScoutPropertyValue {
+    param(
+        [object] $InputObject,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Name
+    )
+
+    if ($null -eq $InputObject) {
+        return $null
+    }
+    if ($InputObject.PSObject.Properties.Name -notcontains $Name) {
+        return $null
+    }
+    return $InputObject.PSObject.Properties[$Name].Value
+}
+
 function Get-TowerScoutReadiness {
     param(
         [Parameter(Mandatory = $true)]
@@ -99,26 +116,35 @@ function Write-TowerScoutReadinessSummary {
             Write-Host "Next action: keep this PowerShell window open while TowerScout continues starting."
         }
     }
-    if ($payload.components -and $payload.components.assets -and $payload.components.assets.status) {
-        Write-Host "Asset status: $($payload.components.assets.status)"
+    $components = Get-TowerScoutPropertyValue -InputObject $payload -Name "components"
+    $assets = Get-TowerScoutPropertyValue -InputObject $components -Name "assets"
+    $assetStatus = Get-TowerScoutPropertyValue -InputObject $assets -Name "status"
+    if ($assetStatus) {
+        Write-Host "Asset status: $assetStatus"
     }
-    if ($payload.components -and $payload.components.config -and $payload.components.config.status) {
-        Write-Host "Config status: $($payload.components.config.status)"
+    $config = Get-TowerScoutPropertyValue -InputObject $components -Name "config"
+    $configStatus = Get-TowerScoutPropertyValue -InputObject $config -Name "status"
+    if ($configStatus) {
+        Write-Host "Config status: $configStatus"
     }
-    if ($payload.runtime) {
+    $runtime = Get-TowerScoutPropertyValue -InputObject $payload -Name "runtime"
+    if ($runtime) {
         Write-Host (
             "Runtime: engine={0} device_policy={1} selected_device={2} pytorch_flavor={3}" -f
-            $payload.runtime.container_engine,
-            $payload.runtime.device_policy,
-            $payload.runtime.selected_device,
-            $payload.runtime.pytorch_flavor
+            (Get-TowerScoutPropertyValue -InputObject $runtime -Name "container_engine"),
+            (Get-TowerScoutPropertyValue -InputObject $runtime -Name "device_policy"),
+            (Get-TowerScoutPropertyValue -InputObject $runtime -Name "selected_device"),
+            (Get-TowerScoutPropertyValue -InputObject $runtime -Name "pytorch_flavor")
         )
     }
-    if ($payload.version -and $payload.version.image_digest) {
-        Write-Host "Image digest: $($payload.version.image_digest)"
+    $version = Get-TowerScoutPropertyValue -InputObject $payload -Name "version"
+    $imageDigest = Get-TowerScoutPropertyValue -InputObject $version -Name "image_digest"
+    if ($imageDigest) {
+        Write-Host "Image digest: $imageDigest"
     }
-    if ($payload.recovery) {
-        foreach ($item in $payload.recovery) {
+    $recovery = Get-TowerScoutPropertyValue -InputObject $payload -Name "recovery"
+    if ($recovery) {
+        foreach ($item in $recovery) {
             Write-Host "Recovery: $item"
         }
     }
@@ -136,15 +162,18 @@ function Test-TowerScoutCudaSelected {
 
     $payload = $Readiness.Payload
     $selectedDevice = ""
-    if ($payload.runtime -and $payload.runtime.selected_device) {
-        $selectedDevice = [string] $payload.runtime.selected_device
+    $runtime = Get-TowerScoutPropertyValue -InputObject $payload -Name "runtime"
+    $runtimeSelectedDevice = Get-TowerScoutPropertyValue -InputObject $runtime -Name "selected_device"
+    if ($runtimeSelectedDevice) {
+        $selectedDevice = [string] $runtimeSelectedDevice
     }
-    elseif (
-        $payload.components -and
-        $payload.components.ml_runtime -and
-        $payload.components.ml_runtime.selected_device
-    ) {
-        $selectedDevice = [string] $payload.components.ml_runtime.selected_device
+    else {
+        $components = Get-TowerScoutPropertyValue -InputObject $payload -Name "components"
+        $mlRuntime = Get-TowerScoutPropertyValue -InputObject $components -Name "ml_runtime"
+        $mlRuntimeSelectedDevice = Get-TowerScoutPropertyValue -InputObject $mlRuntime -Name "selected_device"
+        if ($mlRuntimeSelectedDevice) {
+            $selectedDevice = [string] $mlRuntimeSelectedDevice
+        }
     }
 
     return $selectedDevice.Trim().ToLowerInvariant() -eq "cuda"

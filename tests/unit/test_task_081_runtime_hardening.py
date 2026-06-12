@@ -60,6 +60,7 @@ def test_import_assets_uses_shared_copy_fallback_and_sets_gpu_environment():
     assert "Get-TowerScoutPodmanServiceContainerId" in helper
     assert "io.podman.compose.project" in helper
     assert "com.docker.compose.project" in helper
+    assert "$env:TOWERSCOUT_CONTAINER_ENGINE = $effectiveEngine" in helper
 
 
 def test_launch_gpu_on_requires_cuda_readiness():
@@ -93,6 +94,62 @@ def test_auto_engine_selection_prefers_reachable_podman_when_docker_is_down():
     }}
     if ($command["Arguments"][0] -ne "compose") {{
         throw "Expected Podman compose arguments."
+    }}
+    "ok"
+    """
+    result = _run_powershell(command)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "ok" in result.stdout
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")
+def test_compose_invocation_allows_successful_provider_stderr_banner():
+    command = f"""
+    $ErrorActionPreference = "Stop"
+    . "{COMPOSE_LIB}"
+    $stubDir = Join-Path "{REPO_ROOT}" ".agent_work\\pytest-temp"
+    New-Item -ItemType Directory -Force -Path $stubDir | Out-Null
+    $stubPath = Join-Path $stubDir "task081-provider-stderr.ps1"
+    Set-Content -LiteralPath $stubPath -Encoding UTF8 -Value "[Console]::Error.WriteLine('provider banner'); Write-Output 'abc123'; exit 0"
+
+    function Get-TowerScoutRepoRoot {{
+        return "{REPO_ROOT}"
+    }}
+
+    function Get-TowerScoutComposeCommand {{
+        param([string] $Engine)
+        return @{{
+            Executable = "powershell.exe"
+            Arguments = @(
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                $stubPath
+            )
+        }}
+    }}
+
+    function Test-TowerScoutUseGpuOverlay {{
+        return $false
+    }}
+
+    function Set-TowerScoutGpuEnvironment {{
+        param(
+            [string] $Gpu,
+            [switch] $Build
+        )
+    }}
+
+    $containerIds = @(Get-TowerScoutComposeServiceContainerIds -Engine podman)
+    if ($containerIds.Count -ne 1 -or $containerIds[0] -ne "abc123") {{
+        throw "Expected compose ps to return abc123 despite provider stderr banner."
+    }}
+
+    Invoke-TowerScoutCompose -Engine podman -ComposeArguments @("up", "-d")
+    if ($script:TowerScoutComposeExitCode -ne 0) {{
+        throw "Expected provider command to exit 0, got $script:TowerScoutComposeExitCode"
     }}
     "ok"
     """
@@ -155,6 +212,7 @@ def test_stale_container_plan_restarts_on_gpu_or_device_mismatch():
         CreatedAt = $now.AddHours(-1)
         GpuMode = "on"
         DevicePolicy = "cuda"
+        ContainerEngine = "podman"
         Image = "ghcr.io/j-schulein/towerscout:latest-cpu"
         HostPort = "5000"
     }}
@@ -163,6 +221,7 @@ def test_stale_container_plan_restarts_on_gpu_or_device_mismatch():
         -SessionMaxHours 12 `
         -ExpectedGpuMode "on" `
         -ExpectedDevicePolicy "cuda" `
+        -ExpectedContainerEngine "podman" `
         -ExpectedImage "ghcr.io/j-schulein/towerscout:latest-cpu" `
         -ExpectedHostPort "5000" `
         -Now $now
@@ -175,6 +234,7 @@ def test_stale_container_plan_restarts_on_gpu_or_device_mismatch():
         -SessionMaxHours 12 `
         -ExpectedGpuMode "on" `
         -ExpectedDevicePolicy "cuda" `
+        -ExpectedContainerEngine "podman" `
         -ExpectedImage "ghcr.io/j-schulein/towerscout:v0.1.0-rc3-cpu" `
         -ExpectedHostPort "5000" `
         -Now $now
@@ -187,11 +247,25 @@ def test_stale_container_plan_restarts_on_gpu_or_device_mismatch():
         -SessionMaxHours 12 `
         -ExpectedGpuMode "on" `
         -ExpectedDevicePolicy "cuda" `
+        -ExpectedContainerEngine "podman" `
         -ExpectedImage "ghcr.io/j-schulein/towerscout:latest-cpu" `
         -ExpectedHostPort "5001" `
         -Now $now
     if ($portPlan.Action -ne "restart" -or $portPlan.Reason -notmatch "different host port") {{
         throw "Expected port mismatch restart, got $($portPlan.Action): $($portPlan.Reason)"
+    }}
+
+    $enginePlan = Get-TowerScoutContainerSessionPlan `
+        -Containers @($matchingContainer) `
+        -SessionMaxHours 12 `
+        -ExpectedGpuMode "on" `
+        -ExpectedDevicePolicy "cuda" `
+        -ExpectedContainerEngine "docker" `
+        -ExpectedImage "ghcr.io/j-schulein/towerscout:latest-cpu" `
+        -ExpectedHostPort "5000" `
+        -Now $now
+    if ($enginePlan.Action -ne "restart" -or $enginePlan.Reason -notmatch "different container engine") {{
+        throw "Expected container engine mismatch restart, got $($enginePlan.Action): $($enginePlan.Reason)"
     }}
     "ok"
     """
