@@ -174,6 +174,24 @@ def test_tile_estimate_reports_pilot_tile_cap_without_breaking_shape(client, mon
     assert "current pilot limit" in payload["message"]
 
 
+def test_estimate_frontend_surfaces_pilot_tile_cap_warning():
+    repo_root = Path(__file__).resolve().parents[2]
+    search_js = (repo_root / "webapp" / "js" / "src" / "ui" / "search.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "result.blockedByTileLimit === true" in search_js
+    assert "error.blockedByTileLimit = true" in search_js
+    assert "TowerScoutErrorHandler.showUserNotification(msg, 'warning', 8000)" in search_js
+    assert "TowerScoutErrorHandler.handleNetworkError(error, estimate ? 'Tile Estimation'" in search_js
+    assert search_js.index("if (result.blockedByTileLimit === true)") < search_js.index(
+        "return {\n      tileCount,"
+    )
+    assert search_js.index("if (error.blockedByTileLimit)") < search_js.index(
+        "TowerScoutErrorHandler.handleNetworkError(error, estimate ? 'Tile Estimation'"
+    )
+
+
 def test_dataset_upload_validation_sanitizes_filename():
     from werkzeug.datastructures import FileStorage
 
