@@ -1,6 +1,6 @@
 # TASK-081: RC3 Runtime Hardening And Podman Independence
 
-**Status**: IN_PROGRESS - implementation slice completed with focused automated validation; live runtime validation pending  
+**Status**: IN_PROGRESS - implementation slice completed with focused automated validation; live Podman and Docker Desktop CPU runtime validation passed; GPU validation pending suitable NVIDIA runtime evidence
 **Priority**: HIGH  
 **Type**: C (Runtime Hardening / Podman Support / Release Validation)  
 **Estimated Effort**: 2-4 days (16-32 hours), split between CPU-dev-able fixes and hardware-dependent GPU validation  
@@ -261,6 +261,15 @@ coordinates, and user-identifying paths.
 **Validation**: Focused Task-081 runtime tests and Task-075 launcher GPU tests passed after the live-smoke fixes. PowerShell parser checks for changed launcher/helper scripts passed.
 **Next**: Push the validation/fix follow-up commit to PR `#31`; request reviewer attention on the areas listed in the PR body, especially the live-smoke fixes and Docker/GPU host blockers.
 
+### 2026-06-12 - Live Docker Desktop CPU Validation
+**Objective**: Complete the Docker Desktop CPU-default runtime validation after the host runtime became reachable.
+**Context**: Earlier Docker Desktop validation was blocked because the `desktop-linux` context could not connect to the Docker Desktop Linux engine socket. After host restart/recovery, Docker Desktop reported server version `29.5.3` and Compose version `v5.1.4`. A stale rc2 CUDA container was still running on port `5015`.
+**Decision**: Stop only the stale rc2 container by name, preserving named volumes, then run the Task-081 Docker CPU launch/import/status path on port `5005`.
+**Execution**: Stopped `towerscout-google-firstlaunch-towerscout-1`, ran `.\start.bat -Engine docker -Port 5005 -Gpu off -NoBrowser -TimeoutSeconds 180`, ran `.\scripts\import-assets.cmd -Engine docker -Source webapp -Port 5005 -VerifyHashes -RestartWaitSeconds 120`, collected Docker status and bounded logs, and stopped the validation container.
+**Output**: Docker Desktop CPU launch passed. Readiness reached `state=ready`; asset and config status were `ok`; runtime metadata reported `container_engine=docker`, `device_policy=cpu`, `selected_device=cpu`, and `pytorch_flavor=cpu`; persistence paths were writable. Asset import passed with `post_import_health=ok`, `state=ready`, `asset_status=ok`, `verify_hashes=True`, no missing assets, and no corrupt assets.
+**Validation**: Docker status reported `towerscout-towerscout-1` healthy on port `5005`; bounded logs showed normal startup, configured Google/Azure keys, CPU runtime, lazy classifier initialization, persistent secret loading, and Waitress startup. `scripts\stop.cmd -Engine docker -Port 5005` stopped the validation container after the smoke.
+**Next**: Keep GPU validation pending until a suitable NVIDIA Docker Desktop or Podman GPU runtime is visible; update PR evidence with the Docker Desktop CPU pass.
+
 ---
 
 ## Validation Results
@@ -280,15 +289,16 @@ coordinates, and user-identifying paths.
       focused automated validation.
 - [x] **Podman CPU runtime validation**: live Podman package-runtime launch and
       asset import passed on the local Windows/WSL2 host.
-- [ ] **Docker Desktop runtime validation**: blocked on this host because the
-      Docker Desktop Linux engine socket is unavailable.
+- [x] **Docker Desktop runtime validation**: live Docker Desktop CPU launch,
+      asset import, readiness/status, bounded logs, and cleanup passed on port
+      `5005`.
 - [ ] **GPU runtime validation**: blocked on this host because NVIDIA runtime
-      evidence is unavailable and Docker Desktop is not reachable.
+      evidence is unavailable.
 
 ### Implementation Slice Validation
 **Test Date**: 2026-06-12  
 **Test Environment**: Local TowerScout workspace on Windows  
-**Test Status**: PASS FOR AUTOMATED VALIDATION; PODMAN CPU LIVE VALIDATION PASS; DOCKER/GPU BLOCKED BY HOST
+**Test Status**: PASS FOR AUTOMATED VALIDATION; PODMAN CPU LIVE VALIDATION PASS; DOCKER DESKTOP CPU LIVE VALIDATION PASS; GPU BLOCKED BY HOST
 
 ### Test Results
 
@@ -309,8 +319,15 @@ coordinates, and user-identifying paths.
 - [x] `scripts\status.cmd -Engine podman -Port 5006` - PASS; final readiness reported `state=ready`, `container_engine=podman`, required assets ok, config ok, and named persistence paths writable.
 - [x] `scripts\logs.cmd -Engine podman -Tail 80` - PASS; bounded logs showed normal startup, configured Google/Azure keys, CPU runtime, lazy classifier initialization, and Waitress startup.
 - [x] `scripts\stop.cmd -Engine podman -Port 5006` - PASS; validation container stopped.
-- [ ] Docker Desktop smoke - BLOCKED: `docker info` could not connect to `npipe:////./pipe/dockerDesktopLinuxEngine`; launching Docker Desktop did not expose the engine within three minutes; `Start-Service com.docker.service` failed with permission/service access error.
-- [ ] GPU smoke - BLOCKED: `nvidia-smi` is not available on this host and Docker Desktop GPU runtime is not reachable.
+- [x] `docker version` / `docker info --format '{{json .ServerVersion}}'` - PASS after host runtime recovery; Docker Desktop `4.77.0`, Engine `29.5.3`, Linux/amd64.
+- [x] `docker compose version` - PASS; Docker Compose `v5.1.4`.
+- [x] `docker stop towerscout-google-firstlaunch-towerscout-1` - PASS; stopped stale rc2 CUDA container on port `5015` without deleting named volumes.
+- [x] `.\start.bat -Engine docker -Port 5005 -Gpu off -NoBrowser -TimeoutSeconds 180` - PASS; readiness reached `state=ready`, assets/config reported ok, and launcher summary reported `Runtime: engine=docker device_policy=cpu selected_device=cpu pytorch_flavor=cpu`.
+- [x] `.\scripts\import-assets.cmd -Engine docker -Source webapp -Port 5005 -VerifyHashes -RestartWaitSeconds 120` - PASS; `post_import_health=ok`, `state=ready`, `asset_status=ok`, `verify_hashes=True`, `missing=`, and `corrupt=`.
+- [x] `scripts\status.cmd -Engine docker -Port 5005` - PASS; final readiness reported `state=ready`, `container_engine=docker`, required assets ok, config ok, and named persistence paths writable.
+- [x] `docker logs --tail 80 towerscout-towerscout-1` - PASS; bounded logs showed normal startup, configured Google/Azure keys, CPU runtime, lazy classifier initialization, persistent secret loading, and Waitress startup.
+- [x] `scripts\stop.cmd -Engine docker -Port 5005` - PASS; validation container stopped.
+- [ ] GPU smoke - BLOCKED: `nvidia-smi` is not available on this host and no NVIDIA runtime evidence has been captured.
 
 ### Issues Identified
 
@@ -318,7 +335,8 @@ coordinates, and user-identifying paths.
 - Live Podman launch initially exposed that Podman Compose provider banners on stderr could abort PowerShell under `$ErrorActionPreference = "Stop"` during both stale-session `compose ps` inspection and main Compose invocation.
 - Live Podman launch initially exposed that `Write-TowerScoutReadinessSummary` assumed optional readiness `runtime.device_policy` fields were always present under strict mode.
 - Live Podman import/status initially exposed stale local `.env` engine metadata: `TOWERSCOUT_CONTAINER_ENGINE=docker` could leak into a Podman-launched container unless the selected engine overrides shell env before Compose runs.
-- Docker Desktop and GPU validation remain blocked by host runtime state.
+- Docker Desktop was initially blocked by host runtime state, then passed after Docker Desktop became reachable outside the sandbox. Sandboxed Docker CLI access still reports named-pipe permission denial, so local validation commands that talk to Docker Desktop require approved elevated execution.
+- GPU validation remains blocked by missing NVIDIA runtime evidence.
 
 ### Remediation Actions
 
@@ -331,4 +349,4 @@ coordinates, and user-identifying paths.
 
 ### Sign-off
 
-Automated implementation validation and live Podman CPU package-runtime validation passed. Keep task open until Docker Desktop and GPU validation are run on a host where those runtimes are available, or record them as explicit RC3 support caveats.
+Automated implementation validation, live Podman CPU package-runtime validation, and live Docker Desktop CPU runtime validation passed. Keep task open until GPU validation is run on a host where NVIDIA runtime evidence is available, or record GPU as an explicit RC3 support caveat.

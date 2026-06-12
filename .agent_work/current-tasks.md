@@ -327,7 +327,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 **User Value**: Reduces first-cohort UAT friction by turning the validated release package path into a plain-language walkthrough that explains what users are doing, why each step matters, what success looks like, and how to report safe evidence if blocked.
 
 ### **TASK-081: RC3 Runtime Hardening And Podman Independence**
-**Status**: IN_PROGRESS - runtime defaults, launcher/import hardening, route safety fixes, docs, focused automated validation, and live Podman CPU launch/import validation passed; Docker Desktop and GPU validation blocked by host runtime availability
+**Status**: IN_PROGRESS - runtime defaults, launcher/import hardening, route safety fixes, docs, focused automated validation, live Podman CPU launch/import validation, and live Docker Desktop CPU launch/import validation passed; GPU validation remains blocked pending suitable NVIDIA runtime evidence
 **Type**: C (Runtime Hardening / Podman Support / Release Validation)
 **Priority**: HIGH
 **Estimated Effort**: 2-4 days (16-32 hours), split between CPU-dev-able fixes and hardware-dependent GPU validation
