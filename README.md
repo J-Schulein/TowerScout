@@ -1,15 +1,15 @@
 # TowerScout
 
-TowerScout is a tool for identifying cooling towers from satellite and aerial imagery.  Cooling towers are potential sources of _Legionella_ bacteria, which causes Legionnaires' disease.  TowerScout has been utilized in over 12 investigations of outbreaks of Legionnaires' disease across 8 states since 2021.  It can be used after outbreaks to identify potential sources of _Legionella_, and it can be used before outbreaks to build and update a registry of cooling towers to aid future investigations.  
+TowerScout is a tool for identifying cooling towers from satellite and aerial imagery.  Cooling towers are potential sources of _Legionella_ bacteria, which causes Legionnaires' disease.  TowerScout has been utilized in over 12 investigations of outbreaks of Legionnaires' disease across 8 states since 2021.  It can be used after outbreaks to identify potential sources of _Legionella_, and it can be used before outbreaks to build and update a registry of cooling towers to aid future investigations.
 
-## Install The V1 RC1 Release Package
+## Install The Release Package
 
 Most pilot users should not start by cloning this repository. If you received a
 TowerScout release package, start here instead:
 
-- [Quick Start](docs/v1-rc1-quick-start.md)
-- [Full Package Guide](docs/v1-rc1-package-guide.md)
-- [User Guide](docs/towerscout-user-guide.md)
+- [Quick Start](docs/quick-start.md)
+- [Full Package Guide](docs/package-guide.md)
+- [User Guide](docs/user-guide.md)
 
 Release packages are published from the repository
 [Releases](https://github.com/J-Schulein/TowerScout/releases) page. Use the
@@ -19,30 +19,31 @@ source-code ZIP/TAR.GZ downloads for the normal package workflow.
 
 The normal package path assumes Windows 11 AMD64, Docker Desktop with the WSL 2
 backend as the primary pilot engine, normal outbound internet access, and one
-valid Google Maps or Azure Maps key. Podman is a qualified support path only
-when a running Podman machine and approved Compose provider are already
-available. You do not need Git, Python, Conda, Node.js, VS Code, or a source
-checkout for the normal package workflow.
+valid Google Maps or Azure Maps key. Podman CPU use is a qualified
+support-assigned path only when a running Podman machine and approved Compose
+provider are already available. Docker GPU use is support-assigned after NVIDIA
+Docker validation. Podman GPU is not validated. You do not need Git, Python,
+Conda, Node.js, VS Code, or a source checkout for the normal package workflow.
 
-## About TowerScout 
+## About TowerScout
 
-The [Centers for Disease Control and Prevention](https://cdc.gov) have [procedures](https://www.cdc.gov/legionella/health-depts/environmental-inv-resources/id-cooling-towers.html) for identifying cooling towers during investigation of an outbreak of Legionnaires' disease, which can be significantly sped up by using TowerScout.  TowerScout has been used in more than 12 investigations of outbreaks of Legionnaires' disease across 8 states since 2021.  In 2021, TowerScout was the [Hal Varian Award Winner](https://www.ischool.berkeley.edu/programs/mids/capstone/varianaward) for the [Master of Information and Data Science Program (MIDS)](https://www.ischool.berkeley.edu/programs/mids) in the [School of Information](https://ischool.berkeley.edu) at [UC Berkeley](https://berkeley.edu).  
+The [Centers for Disease Control and Prevention](https://cdc.gov) have [procedures](https://www.cdc.gov/legionella/health-depts/environmental-inv-resources/id-cooling-towers.html) for identifying cooling towers during investigation of an outbreak of Legionnaires' disease, which can be significantly sped up by using TowerScout.  TowerScout has been used in more than 12 investigations of outbreaks of Legionnaires' disease across 8 states since 2021.  In 2021, TowerScout was the [Hal Varian Award Winner](https://www.ischool.berkeley.edu/programs/mids/capstone/varianaward) for the [Master of Information and Data Science Program (MIDS)](https://www.ischool.berkeley.edu/programs/mids) in the [School of Information](https://ischool.berkeley.edu) at [UC Berkeley](https://berkeley.edu).
 
 TowerScout has been used by local health departments:
 - The Utah Department of Health and Human Services (DHHS) used TowerScout for [detecting cooling towers](https://gis.utah.gov/blog/2023-07-04-cooling-tower-update/) in aerial imagery.
-- The Los Angeles County Enterprise GIS (eGIS) team and Department of Public Health used TowerScout to build an initial dataset of likely cooling tower locations across the County.  The work was the [2023 NACo Achievement Award Winner, Information Technology (Best in Category)](https://www.naco.org/resources/award-programs/towerscout-adaptation-%E2%80%93-automated-image-analysis-identify-cooling-towers). 
+- The Los Angeles County Enterprise GIS (eGIS) team and Department of Public Health used TowerScout to build an initial dataset of likely cooling tower locations across the County.  The work was the [2023 NACo Achievement Award Winner, Information Technology (Best in Category)](https://www.naco.org/resources/award-programs/towerscout-adaptation-%E2%80%93-automated-image-analysis-identify-cooling-towers).
 
 ## TowerScout Team
 
 [Karen K Wong](https://www.linkedin.com/in/karenkwong/),
 [Jia Lu](https://www.linkedin.com/in/jia-lu-gracie-a8b5a71a/),
 [Gunnar Mein](https://www.linkedin.com/in/gunnarmein/),
-[Thaddeus Segura](https://www.linkedin.com/in/thaddeussegura/).  
+[Thaddeus Segura](https://www.linkedin.com/in/thaddeussegura/).
 [Fred Nugen](https://www.linkedin.com/in/drnooj/),
-[Alberto Todeschini](https://www.linkedin.com/in/atodeschini/), 
-[Elizabeth J Hannapel](https://www.linkedin.com/in/elizabeth-hannapel/), 
+[Alberto Todeschini](https://www.linkedin.com/in/atodeschini/),
+[Elizabeth J Hannapel](https://www.linkedin.com/in/elizabeth-hannapel/),
 Jasen M Kunz,
-[Troy Ritter](https://www.linkedin.com/in/troy-ritter-b1bb3a24/), 
+[Troy Ritter](https://www.linkedin.com/in/troy-ritter-b1bb3a24/),
 Jessica C Smith, and
 [Chris Edens](https://www.linkedin.com/in/wcedens/) helped guide the project.
 
@@ -56,7 +57,7 @@ Jessica C Smith, and
 
 ### Manual Tower Addition
 - **Interactive Drawing**: Add cooling towers manually via polygon drawing tool
-- **Visual Distinction**: Manual towers display with purple borders and "✋ Manual" badges
+- **Visual Distinction**: Manual towers display with purple borders and "âœ‹ Manual" badges
 - **Automatic Geocoding**: Addresses automatically retrieved and cached for performance
 - **Dataset Integration**: Manual towers included in all export formats (CSV, KML, YOLO)
 - **Dataset Restoration**: Import/export datasets to preserve manual towers across sessions
@@ -73,7 +74,7 @@ Jessica C Smith, and
 - **Zipcode Search**: Define search areas by postal code boundaries
 - **Custom Polygons**: Draw complex search areas with interactive polygon tool
 - **Circular Search**: Radius-based search around specific coordinates
-- **Tile Estimation**: Preview processing time before running detection (~100 tiles ≈ 30 seconds)
+- **Tile Estimation**: Preview processing time before running detection (~100 tiles â‰ˆ 30 seconds)
 
 ### Data Validation
 - **Interactive Review**: Click towers in list to highlight on map (bidirectional)
@@ -83,7 +84,7 @@ Jessica C Smith, and
 
 ## Attribution
 Please cite the following publication and this GitHub repository when utilizing TowerScout:
-- Wong, KK, Segura T, Mein G, Lu J, Hannapel EJ, Kunz JM, Ritter T, Smith JC, Todeschini A, Nugen F, Edens C. Automated cooling tower detection through deep learning for Legionnaires’ disease outbreak investigations: a model development and validation study. *Lancet Digit Health.* 2024;6(7):e500-e506. [doi.org/10.1016/S2589-7500(24)00094-3](https://doi.org/10.1016/S2589-7500(24)00094-3)
+- Wong, KK, Segura T, Mein G, Lu J, Hannapel EJ, Kunz JM, Ritter T, Smith JC, Todeschini A, Nugen F, Edens C. Automated cooling tower detection through deep learning for Legionnairesâ€™ disease outbreak investigations: a model development and validation study. *Lancet Digit Health.* 2024;6(7):e500-e506. [doi.org/10.1016/S2589-7500(24)00094-3](https://doi.org/10.1016/S2589-7500(24)00094-3)
 
 
 ## Additional files
@@ -91,7 +92,7 @@ Please cite the following publication and this GitHub repository when utilizing 
 * EfficientNet weights - distributed through the release asset bundle when project distribution authority is confirmed; see `MODEL_LICENSES.md` and `webapp/asset_manifest.v1.json`.
 * ZCTA shapefile data - distributed according to `DATA_LICENSES.md` and the release asset manifest.
 
-This is a proof of concept and is not intended for commercial use. Users should adhere to terms of service when using tools and resources from any imagery and data providers. 
+This is a proof of concept and is not intended for commercial use. Users should adhere to terms of service when using tools and resources from any imagery and data providers.
 
 
 ## License
