@@ -15,6 +15,7 @@ PACKAGE_SCRIPT = REPO_ROOT / "scripts" / "package-release.ps1"
 COMPOSE_LIB = REPO_ROOT / "scripts" / "lib" / "TowerScoutCompose.ps1"
 LAUNCH_SCRIPT = REPO_ROOT / "scripts" / "launch.ps1"
 IMPORT_ASSETS_SCRIPT = REPO_ROOT / "scripts" / "import-assets.ps1"
+STOP_SCRIPT = REPO_ROOT / "scripts" / "stop.ps1"
 
 
 def _powershell_executable():
@@ -70,6 +71,16 @@ def test_launch_gpu_on_requires_cuda_readiness():
     assert '$Gpu -eq "on" -and -not (Test-TowerScoutCudaSelected -Readiness $readiness)' in launch
     assert "selected_device=cuda" in launch
     assert "Runtime: engine={0} device_policy={1} selected_device={2} pytorch_flavor={3}" in launch
+
+
+def test_stop_script_uses_down_without_deleting_named_volumes():
+    stop_script = STOP_SCRIPT.read_text(encoding="utf-8")
+    compose_line = next(line for line in stop_script.splitlines() if "Invoke-TowerScoutCompose" in line)
+
+    assert '@("down", "--remove-orphans")' in stop_script
+    assert '@("stop")' not in stop_script
+    assert "--volumes" not in compose_line
+    assert "-v" not in compose_line
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")

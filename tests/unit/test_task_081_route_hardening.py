@@ -93,9 +93,6 @@ def test_model_upload_uses_sanitized_filename(client, monkeypatch):
 
 def test_detection_request_blocks_before_inference_when_pilot_tile_cap_exceeded(client, monkeypatch):
     monkeypatch.setenv("TOWERSCOUT_PILOT_MAX_TILES", "100")
-    fake_detector = Mock()
-    fake_detector.batch_size = 1
-    fake_detector.device_label = "cpu"
 
     with patch.object(towerscout.rate_limiter, "is_allowed", return_value=True), patch(
         "towerscout._parse_detection_request",
@@ -105,7 +102,7 @@ def test_detection_request_blocks_before_inference_when_pilot_tile_cap_exceeded(
             "provider": "azure",
             "polygons": [],
         },
-    ), patch("towerscout.get_engine", return_value=fake_detector), patch(
+    ), patch("towerscout.get_engine") as mock_get_engine, patch(
         "towerscout._create_map_provider",
         return_value=Mock(),
     ), patch(
@@ -132,7 +129,7 @@ def test_detection_request_blocks_before_inference_when_pilot_tile_cap_exceeded(
     assert payload["tileCount"] == 101
     assert payload["tileLimit"] == 100
     assert "current pilot limit" in payload["error"]
-    fake_detector.detect.assert_not_called()
+    mock_get_engine.assert_not_called()
 
     progress = client.get("/api/detection/progress").get_json()
     assert progress["title"] == "Detection blocked"

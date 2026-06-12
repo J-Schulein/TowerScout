@@ -915,17 +915,6 @@ def _run_detection_request():
         if exit_events.query(run_token):
             return cancelled_response('Detection was cancelled before tile preparation finished.')
 
-        perf_metrics.start_phase('model_initialization')
-        det = get_engine(engine)
-        perf_metrics.end_phase('model_initialization')
-        if hasattr(perf_metrics, "set_runtime_metadata"):
-            perf_metrics.set_runtime_metadata(
-                model_batch_size=getattr(det, 'batch_size', None),
-                model_device=getattr(det, 'device_label', None),
-            )
-        if exit_events.query(run_token):
-            return cancelled_response('Detection was cancelled before model initialization finished.')
-
         map_provider = _create_map_provider(provider)
         tiles, _nx, _ny, _meters, _h, _w, tile_stats = _build_tiles_for_request(
             map_provider,
@@ -989,6 +978,17 @@ def _run_detection_request():
                 'tileLimit': tile_limit,
                 'blockedByTileLimit': True,
             }), 400
+
+        perf_metrics.start_phase('model_initialization')
+        det = get_engine(engine)
+        perf_metrics.end_phase('model_initialization')
+        if hasattr(perf_metrics, "set_runtime_metadata"):
+            perf_metrics.set_runtime_metadata(
+                model_batch_size=getattr(det, 'batch_size', None),
+                model_device=getattr(det, 'device_label', None),
+            )
+        if exit_events.query(run_token):
+            return cancelled_response('Detection was cancelled before model initialization finished.')
 
         session['tiles'] += len(tiles)
 
