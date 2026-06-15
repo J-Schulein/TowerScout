@@ -185,6 +185,37 @@ function Get-TowerScoutPodmanGpuProperty {
     return [string] $InputObject.PSObject.Properties[$Name].Value
 }
 
+function Get-TowerScoutPodmanMachineVmType {
+    param(
+        [object] $Machine
+    )
+
+    if ($null -eq $Machine) {
+        return ""
+    }
+
+    if ($Machine.PSObject.Properties.Name -contains "VMType") {
+        $vmType = ([string] $Machine.PSObject.Properties["VMType"].Value).Trim()
+        if (-not [string]::IsNullOrWhiteSpace($vmType)) {
+            return $vmType.ToLowerInvariant()
+        }
+    }
+
+    if ($Machine.PSObject.Properties.Name -contains "ConfigDir") {
+        $configDir = $Machine.PSObject.Properties["ConfigDir"].Value
+        if ($null -ne $configDir -and $configDir.PSObject.Properties.Name -contains "Path") {
+            $configPath = [string] $configDir.PSObject.Properties["Path"].Value
+            if (-not [string]::IsNullOrWhiteSpace($configPath)) {
+                $trimmed = $configPath -replace '[\\/]+$', ''
+                $idx = $trimmed.LastIndexOfAny([char[]]@('\', '/'))
+                return $trimmed.Substring($idx + 1).Trim().ToLowerInvariant()
+            }
+        }
+    }
+
+    return ""
+}
+
 function Invoke-TowerScoutPodmanGpuPlanStep {
     param(
         [Parameter(Mandatory = $true)]
@@ -316,7 +347,7 @@ function Invoke-TowerScoutPodmanGpuEnablement {
         throw "Podman machine '$MachineName' is not running. Run 'podman machine start $MachineName' and retry."
     }
 
-    $vmType = (Get-TowerScoutPodmanGpuProperty -InputObject $machine -Name "VMType").Trim().ToLowerInvariant()
+    $vmType = Get-TowerScoutPodmanMachineVmType -Machine $machine
     if ($vmType -ne "wsl") {
         throw "Podman GPU requires the WSL2 machine backend. Machine '$MachineName' reports VMType='$vmType'."
     }

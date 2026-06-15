@@ -1,6 +1,6 @@
 # TASK-083: RC5 Podman Independence, GPU CDI, And Release Validation
 
-**Status**: IN_PROGRESS - Phase 1 RC4 follow-ups, Phase 2 Podman provider guardrails, and Phase 3 Podman GPU CDI source implementation are complete with focused tests passing; branch/PR publication and a local validation package are complete; live Podman CPU/GPU validation, fixed-fixture parity, final rc5 image/package build, and release matrix remain pending
+**Status**: IN_PROGRESS - Phase 1 RC4 follow-ups, Phase 2 Podman provider guardrails, and Phase 3 Podman GPU CDI source implementation are complete; live Windows 11 + Podman 5.8.2 + NVIDIA T1000 validation found and fixed two rc5-blocking Podman issues; final rc5 image/package build, Docker matrix, manifest cleanup, fixed-fixture parity, and release matrix remain pending
 **Priority**: CRITICAL
 **Type**: C (Runtime Support / Podman GPU / Release Validation)
 **Estimated Effort**: 3-6 days (24-48 hours), split across CPU-dev-able implementation, GPU-host validation, and package release validation
@@ -327,6 +327,15 @@ implementation begins.
 **Validation**: Release package summary passed with 55 files and included `compose.gpu.podman.yaml`. Manifest checker exited 0, but still emitted recommended-key warnings for `checksums`, `releasePosture`, `releaseVersion`, and `sourceRef`; resolve the checker/schema naming mismatch or record an owner-accepted waiver before final rc5.
 **Next**: Run live Docker-Desktop-free Podman CPU and Podman GPU validation from the package, then build/publish the final rc5 image/package if the matrix passes.
 
+### 2026-06-15 - Podman 5.8.2 Live Validation Fixes
+**Objective**: Incorporate live Windows 11 + Podman 5.8.2 + NVIDIA T1000 validation findings that blocked the two Task-083 headline capabilities.
+**Context**: The sanitized validation packet under `.agent_work/context/analysis/towerscout-rc5-podman-gpu-evidence-2026-06-15/` proved Docker-Desktop-free Podman CPU and Podman GPU CDI only after two source fixes. Before the fixes, `podman compose version` exposed Docker Desktop's provider path with doubled backslashes that the guardrail missed, and Podman 5.8.2 `machine inspect` omitted top-level `VMType`, causing the GPU ladder to reject a valid WSL2 machine.
+**Decision**: Treat both findings as rc5 blockers. Keep the fix narrow to Podman-only logic: collapse repeated path separators before Docker Desktop provider matching, and infer the Podman machine backend from `ConfigDir.Path` when `VMType` is absent. Add regression fixtures matching the live Podman 5.8.2 output so the green test suite covers the real failure shapes.
+**Execution**: Updated `scripts/lib/TowerScoutCompose.ps1`, `scripts/lib/TowerScoutPodmanGpu.ps1`, `tests/unit/test_task_081_runtime_hardening.py`, and `tests/unit/test_podman_gpu_enablement.py`.
+**Output**: Podman provider guardrails now detect Docker Desktop's escaped provider banner, and both the launch preflight and GPU provisioner accept Podman 5.8.x WSL machines whose backend is represented by `ConfigDir.Path`.
+**Validation**: Focused tests passed: `.venv\Scripts\python.exe -m pytest tests\unit\test_podman_gpu_enablement.py tests\unit\test_task_081_runtime_hardening.py -q -p no:cacheprovider` returned 14 passed.
+**Next**: Run the full Task-083 focused suite and hygiene checks, then rebuild final rc5 artifacts only after image/default, manifest, asset checksum, Docker matrix, and parity decisions are closed.
+
 ---
 
 ## Validation Results
@@ -343,8 +352,8 @@ implementation begins.
 - [x] Phase 1 RC4 setup/manifest source fixes implemented and unit-tested.
 - [x] Phase 2 Podman provider guardrails implemented and unit-tested.
 - [x] Phase 3 Podman GPU CDI source gating/provisioner implemented and unit-tested.
-- [ ] Live Docker-Desktop-free Podman CPU setup/import/start/status validation pending.
-- [ ] Live Podman GPU CDI provisioning and TowerScout `selected_device=cuda` validation pending.
+- [x] Live Docker-Desktop-free Podman CPU setup/import/start/status validation passed on Windows 11 + Podman 5.8.2 after the Podman 5.8.2 guardrail fix.
+- [x] Live Podman GPU CDI provisioning and TowerScout `selected_device=cuda` validation passed on Windows 11 + Podman 5.8.2 + NVIDIA T1000 after the Podman 5.8.2 backend-detection fix.
 - [ ] Fixed-fixture parity, rc5 image/package build, and final release matrix pending.
 - [x] Rollback checkpoint branch and draft PR created.
 - [x] Local Task-083 validation package created for package-content inspection.
@@ -380,10 +389,28 @@ implementation begins.
 - [x] `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.0-rc5-task083-validation ... -AllowDirtySource -Force` - PASS; package generated under `dist\`.
 - [x] `.venv\Scripts\python.exe .agents\skills\towerscout-release-candidate-gate\scripts\summarize_release_package.py dist\towerscout-v0.1.0-rc5-task083-validation.zip` - PASS, 55 files.
 - [x] `.venv\Scripts\python.exe .agents\skills\towerscout-release-candidate-gate\scripts\check_release_manifest.py dist\towerscout-v0.1.0-rc5-task083-validation\release-manifest.v1.json dist\towerscout-v0.1.0-rc5-task083-validation` - PASS with recommended-key warnings.
+- [x] Sanitized evidence packet scan:
+      `.venv\Scripts\python.exe .agents\skills\towerscout-secret-and-provider-key-safety\scripts\scan_for_sensitive_terms.py .agent_work\context\analysis\towerscout-rc5-podman-gpu-evidence-2026-06-15` - PASS, 0 matches.
+- [x] `.venv\Scripts\python.exe -m pytest tests\unit\test_podman_gpu_enablement.py tests\unit\test_task_081_runtime_hardening.py -q -p no:cacheprovider` - PASS, 14 tests after Podman 5.8.2 blocker fixes.
+- [x] `.venv\Scripts\python.exe -m pytest tests\unit\test_podman_gpu_enablement.py tests\unit\test_task_075_launcher_gpu.py tests\unit\test_task_081_runtime_hardening.py tests\unit\test_task_074_bootstrap.py tests\unit\test_release_manifest_schema.py tests\unit\test_release_package_script.py -q -p no:cacheprovider` - PASS, 36 tests after Podman 5.8.2 blocker fixes.
+- [x] PowerShell parser pass over `scripts\lib\TowerScoutCompose.ps1` and `scripts\lib\TowerScoutPodmanGpu.ps1` - PASS.
+- [x] Edited Python test line-length scan after Podman 5.8.2 fixture updates - PASS, no lines over 127 characters.
+- [x] `.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` - PASS after Podman 5.8.2 task updates.
+- [x] `.venv\Scripts\python.exe .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .` - PASS after Podman 5.8.2 task updates.
+- [x] `git diff --check` - PASS after Podman 5.8.2 blocker fixes.
 
 ### Issues Identified
 
-No source-level blocker identified. Local live Podman validation remains pending:
+Live Podman validation identified two source-level rc5 blockers that were not
+covered by the original synthetic fixtures:
+
+- Docker Desktop provider banners with doubled backslashes were not detected.
+- Podman 5.8.x `machine inspect` does not expose top-level `VMType`, so valid
+  WSL2 machines were rejected by the Podman GPU ladder.
+
+Both issues are remediated in source with regression fixtures.
+
+Earlier local live Podman validation remains limited on this development host:
 `podman compose -f compose.yaml -f compose.gpu.podman.yaml config` failed because
 the configured Podman machine connection was unavailable, and
 `enable-podman-gpu.ps1 -VerifyOnly` failed cleanly at machine inspection because
@@ -399,11 +426,17 @@ before final rc5 package sign-off.
 ### Remediation Actions
 
 - Run the Docker-Desktop-free Podman CPU package smoke with the approved
-  provider selected.
-- Run the Podman GPU CDI live validation ladder on the GPU host and preserve
-  support-safe evidence before building rc5.
+  provider selected again after final rc5 package assembly.
+- Run the Podman GPU CDI live validation ladder on the GPU host again after
+  final rc5 package assembly.
 - Resolve or waive the manifest checker recommended-key warning before final
   rc5 release packaging.
+- Decide and document the approved standalone Compose provider strategy,
+  including version/checksum or vendoring policy.
+- Fix release/default image references so source defaults and generated
+  packages point only to pullable tags or digest-pinned images.
+- Pass the Model & Data Package checksum to final package generation with
+  `-AssetBundleSha256`.
 
 ### Sign-off
 

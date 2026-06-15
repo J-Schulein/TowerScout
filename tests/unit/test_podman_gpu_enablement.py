@@ -123,6 +123,10 @@ def test_podman_gpu_preflight_ladder_reports_ready_and_cdi_missing():
     command = f"""
     $ErrorActionPreference = "Stop"
     . "{COMPOSE_LIB}"
+    $machineInspectJson = (
+        '[{{"Name":"podman-machine-default","State":"running","ConfigDir":' +
+        '{{"Path":"C:\\\\Users\\\\tester\\\\.config\\\\containers\\\\podman\\\\machine\\\\wsl"}}}}]'
+    )
 
     function Test-TowerScoutCommand {{
         param([string] $Name)
@@ -140,7 +144,7 @@ def test_podman_gpu_preflight_ladder_reports_ready_and_cdi_missing():
         if ($text -match "machine inspect") {{
             return [pscustomobject]@{{
                 ExitCode = 0
-                StdOut = '[{{"Name":"podman-machine-default","Running":true,"VMType":"wsl"}}]'
+                StdOut = $machineInspectJson
                 StdErr = ""
             }}
         }}
@@ -167,7 +171,7 @@ def test_podman_gpu_preflight_ladder_reports_ready_and_cdi_missing():
         if ($text -match "machine inspect") {{
             return [pscustomobject]@{{
                 ExitCode = 0
-                StdOut = '[{{"Name":"podman-machine-default","Running":true,"VMType":"wsl"}}]'
+                StdOut = $machineInspectJson
                 StdErr = ""
             }}
         }}
@@ -197,6 +201,10 @@ def test_podman_gpu_provisioner_dry_run_and_verify_only_are_non_mutating():
     command = f"""
     $ErrorActionPreference = "Stop"
     . "{PODMAN_GPU_LIB}"
+    $machineInspectJson = (
+        '[{{"Name":"podman-machine-default","State":"running","ConfigDir":' +
+        '{{"Path":"C:\\\\Users\\\\tester\\\\.config\\\\containers\\\\podman\\\\machine\\\\wsl"}}}}]'
+    )
 
     $script:Calls = @()
     function Invoke-TowerScoutPodmanGpuCommand {{
@@ -217,7 +225,7 @@ def test_podman_gpu_provisioner_dry_run_and_verify_only_are_non_mutating():
         if ($text -match "machine inspect") {{
             return [pscustomobject]@{{
                 ExitCode = 0
-                StdOut = '[{{"Name":"podman-machine-default","Running":true,"VMType":"wsl"}}]'
+                StdOut = $machineInspectJson
                 StdErr = ""
             }}
         }}
@@ -258,6 +266,10 @@ def test_podman_gpu_provisioner_recovers_stale_cdi_once():
         command = f"""
         $ErrorActionPreference = "Stop"
         . "{PODMAN_GPU_LIB}"
+        $machineInspectJson = (
+            '[{{"Name":"podman-machine-default","State":"running","ConfigDir":' +
+            '{{"Path":"C:\\\\Users\\\\tester\\\\.config\\\\containers\\\\podman\\\\machine\\\\wsl"}}}}]'
+        )
 
         $script:GenerateCount = 0
         $script:SmokeCount = 0
@@ -267,7 +279,7 @@ def test_podman_gpu_provisioner_recovers_stale_cdi_once():
             if ($text -match "machine inspect") {{
                 return [pscustomobject]@{{
                     ExitCode = 0
-                    StdOut = '[{{"Name":"podman-machine-default","Running":true,"VMType":"wsl"}}]'
+                    StdOut = $machineInspectJson
                     StdErr = ""
                 }}
             }}

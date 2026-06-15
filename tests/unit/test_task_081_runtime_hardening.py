@@ -224,8 +224,16 @@ def test_podman_compose_provider_override_uses_env_file_and_rejects_docker_deskt
                 '>>>> Executing external compose provider ' +
                 '"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker-compose.exe"'
             )
+            $dockerDesktopEscapedProviderLine = (
+                '>>>> Executing external compose provider ' +
+                '"C:\\\\Program Files\\\\Docker\\\\Docker\\\\resources\\\\bin\\\\docker-compose.exe". <<<<'
+            )
+            if (-not (Test-TowerScoutDockerDesktopComposeProvider -Value $dockerDesktopEscapedProviderLine)) {{
+                throw "Docker Desktop provider output with escaped backslashes was not detected."
+            }}
             Assert-TowerScoutPodmanComposeProviderAllowed -Lines @(
-                $dockerDesktopProviderLine
+                $dockerDesktopProviderLine,
+                $dockerDesktopEscapedProviderLine
             )
             throw "Docker Desktop provider output was accepted."
         }}
