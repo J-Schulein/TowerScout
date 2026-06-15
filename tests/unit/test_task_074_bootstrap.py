@@ -148,6 +148,16 @@ def test_bootstrap_verify_only_does_not_stage_asset_zip_before_exit():
     assert bootstrap.index("if ($VerifyOnly)") < bootstrap.index("Expand-TowerScoutAssetZip")
 
 
+def test_bootstrap_reuses_valid_staged_assets_before_extracting_asset_zip():
+    bootstrap = BOOTSTRAP_SCRIPT.read_text(encoding="utf-8")
+
+    assert "$hasExistingStagedAssets = Test-TowerScoutStagedAssets" in bootstrap
+    assert "if ($hasExistingStagedAssets)" in bootstrap
+    assert "Reusing the staged assets and continuing with engine import." in bootstrap
+    assert bootstrap.index("$hasExistingStagedAssets = Test-TowerScoutStagedAssets") < bootstrap.index("if ($VerifyOnly)")
+    assert bootstrap.index("if ($hasExistingStagedAssets)") < bootstrap.index("Expand-TowerScoutAssetZip")
+
+
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell bootstrap helpers are Windows-only")
 def test_compose_helper_initializes_env_from_package_template_without_overwrite():
     temp_root = REPO_ROOT / ".agent_work" / "pytest-temp" / f"task074-env-{uuid.uuid4().hex}"
@@ -350,7 +360,10 @@ def test_bootstrap_asset_zip_uses_temporary_staging_and_cleans_failed_extract():
                 throw "Failed extraction left final asset entry behind: $entry"
             }}
         }}
-        if ((Test-Path -LiteralPath "{bad_assets}") -and ((Get-ChildItem -LiteralPath "{bad_assets}" -Directory -Filter ".staging-*" | Measure-Object).Count -ne 0)) {{
+        if (
+            (Test-Path -LiteralPath "{bad_assets}") -and
+            ((Get-ChildItem -LiteralPath "{bad_assets}" -Directory -Filter ".staging-*" | Measure-Object).Count -ne 0)
+        ) {{
             throw "Temporary staging folder was not removed after failed extraction."
         }}
         "ok"
@@ -397,6 +410,52 @@ def test_bootstrap_staged_assets_must_match_control_manifest():
         }}
         catch {{
             if ($_.Exception.Message -notmatch "does not match the control package manifest") {{
+                throw
+            }}
+        }}
+        "ok"
+        """
+        result = _run_powershell(command)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "ok" in result.stdout
+    finally:
+        shutil.rmtree(temp_root, ignore_errors=True)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell bootstrap helpers are Windows-only")
+def test_bootstrap_partial_staged_assets_fail_with_rerun_guidance():
+    temp_root = REPO_ROOT / ".agent_work" / "pytest-temp" / f"task083-partial-assets-{uuid.uuid4().hex}"
+    assets = temp_root / "assets"
+    control_manifest = temp_root / "webapp" / "asset_manifest.v1.json"
+    asset_zip = temp_root / "assets.zip"
+    control_manifest.parent.mkdir(parents=True)
+    assets.mkdir(parents=True)
+    (assets / "model_params").mkdir()
+
+    manifest = {
+        "schema_version": 1,
+        "manifest_version": "task083-test-assets",
+        "assets": [],
+    }
+    manifest_text = json.dumps(manifest, sort_keys=True)
+    control_manifest.write_text(manifest_text, encoding="utf-8")
+
+    with zipfile.ZipFile(asset_zip, "w") as package:
+        package.writestr("model_params/yolov5/newest.pt", b"weights")
+        package.writestr("data/tl_2025_us_zcta520/tl_2025_us_zcta520.shp", b"shape")
+        package.writestr("asset_manifest.v1.json", manifest_text)
+
+    try:
+        command = f"""
+        $ErrorActionPreference = "Stop"
+        . "{BOOTSTRAP_LIB}"
+        try {{
+            Expand-TowerScoutAssetZip -RootPath "{temp_root}" -ZipPath "{asset_zip}" -AssetsPath "{assets}"
+            throw "Partial staged assets were accepted."
+        }}
+        catch {{
+            if ($_.Exception.Message -notmatch "valid staged assets are reused automatically") {{
                 throw
             }}
         }}

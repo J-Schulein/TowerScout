@@ -257,13 +257,26 @@ function Test-TowerScoutPodmanPreflight {
         }
     }
 
-    $providerOverride = $env:PODMAN_COMPOSE_PROVIDER
-    if (-not [string]::IsNullOrWhiteSpace($providerOverride)) {
-        if ((Test-Path -LiteralPath $providerOverride -PathType Leaf) -or (Test-TowerScoutBootstrapCommand -Name $providerOverride)) {
-            $details += "PODMAN_COMPOSE_PROVIDER points to an available provider."
+    if (Get-Command "Initialize-TowerScoutPodmanComposeProvider" -ErrorAction SilentlyContinue) {
+        try {
+            $resolvedProvider = Initialize-TowerScoutPodmanComposeProvider
+            if (-not [string]::IsNullOrWhiteSpace($resolvedProvider)) {
+                $details += "PODMAN_COMPOSE_PROVIDER points to an available approved provider."
+            }
         }
-        else {
-            $failures += "PODMAN_COMPOSE_PROVIDER is set to '$providerOverride', but that file or command was not found."
+        catch {
+            $failures += $_.Exception.Message
+        }
+    }
+    else {
+        $providerOverride = $env:PODMAN_COMPOSE_PROVIDER
+        if (-not [string]::IsNullOrWhiteSpace($providerOverride)) {
+            if ((Test-Path -LiteralPath $providerOverride -PathType Leaf) -or (Test-TowerScoutBootstrapCommand -Name $providerOverride)) {
+                $details += "PODMAN_COMPOSE_PROVIDER points to an available provider."
+            }
+            else {
+                $failures += "PODMAN_COMPOSE_PROVIDER is set to '$providerOverride', but that file or command was not found."
+            }
         }
     }
 
@@ -276,6 +289,14 @@ function Test-TowerScoutPodmanPreflight {
         $failures += "Podman Compose is not available through 'podman compose'. Install or configure an approved Compose provider such as podman-compose. $message"
     }
     else {
+        if (Get-Command "Assert-TowerScoutPodmanComposeProviderAllowed" -ErrorAction SilentlyContinue) {
+            try {
+                Assert-TowerScoutPodmanComposeProviderAllowed -Lines @($compose.StdOut, $compose.StdErr)
+            }
+            catch {
+                $failures += $_.Exception.Message
+            }
+        }
         $details += "Podman Compose provider is available."
     }
 
@@ -1062,7 +1083,7 @@ function Expand-TowerScoutAssetZip {
     foreach ($existing in @("model_params", "data", "asset_manifest.v1.json")) {
         $existingPath = Join-Path $AssetsPath $existing
         if (Test-Path -LiteralPath $existingPath) {
-            throw "Assets folder already contains '$existing'. Remove the staged assets or omit -AssetZip to use the existing layout."
+            throw "Assets folder already contains '$existing' but the complete staged layout did not validate. Remove or repair the staged assets before re-running setup; valid staged assets are reused automatically."
         }
     }
 
@@ -1120,7 +1141,7 @@ function Expand-TowerScoutAssetZip {
         foreach ($existing in @("model_params", "data", "asset_manifest.v1.json")) {
             $existingPath = Join-Path $AssetsPath $existing
             if (Test-Path -LiteralPath $existingPath) {
-                throw "Assets folder already contains '$existing'. Remove the staged assets or omit -AssetZip to use the existing layout."
+                throw "Assets folder already contains '$existing' but the complete staged layout did not validate. Remove or repair the staged assets before re-running setup; valid staged assets are reused automatically."
             }
         }
 

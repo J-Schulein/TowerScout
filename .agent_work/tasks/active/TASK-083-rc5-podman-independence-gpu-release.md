@@ -1,6 +1,6 @@
 # TASK-083: RC5 Podman Independence, GPU CDI, And Release Validation
 
-**Status**: IN_PROGRESS - implementation branch created from the `v0.1.0-rc4` `main` baseline; planning checkpoint in progress before code changes
+**Status**: IN_PROGRESS - Phase 1 RC4 follow-ups, Phase 2 Podman provider guardrails, and Phase 3 Podman GPU CDI source implementation are complete with focused tests passing; live Podman CPU/GPU validation, fixed-fixture parity, rc5 package build, and release matrix remain pending
 **Priority**: CRITICAL
 **Type**: C (Runtime Support / Podman GPU / Release Validation)
 **Estimated Effort**: 3-6 days (24-48 hours), split across CPU-dev-able implementation, GPU-host validation, and package release validation
@@ -111,31 +111,31 @@ readiness, health, and fixed-fixture parity.
 
 ## Acceptance Criteria
 
-- [ ] Valid staged asset reuse is implemented and covered by focused tests.
-- [ ] Invalid staged assets still fail safely before import/launch.
+- [x] Valid staged asset reuse is implemented and covered by focused tests.
+- [x] Invalid staged assets still fail safely before import/launch.
 - [ ] Podman CPU setup/import/start/status succeeds with an approved provider
       that is not Docker Desktop's bundled `docker-compose.exe`.
-- [ ] Provider selection and version are visible in support-safe output.
-- [ ] `compose.gpu.podman.yaml` is added and validated through `compose config`.
-- [ ] `scripts/enable-podman-gpu.ps1` and a testable helper module are added.
-- [ ] Podman GPU hard blocks in `TowerScoutCompose.ps1` are replaced with a
+- [x] Provider selection and version are visible in support-safe output.
+- [x] `compose.gpu.podman.yaml` is added and validated through `compose config`.
+- [x] `scripts/enable-podman-gpu.ps1` and a testable helper module are added.
+- [x] Podman GPU hard blocks in `TowerScoutCompose.ps1` are replaced with a
       gated CDI decision tree.
-- [ ] `-Gpu on` remains fail-closed unless readiness reports
+- [x] `-Gpu on` remains fail-closed unless readiness reports
       `selected_device=cuda`.
-- [ ] `-Gpu auto` remains CPU-safe unless the explicit Podman GPU gate is ready.
-- [ ] Windows PowerShell 5.1 unit tests cover preflight rungs, provider
+- [x] `-Gpu auto` remains CPU-safe unless the explicit Podman GPU gate is ready.
+- [x] Windows PowerShell 5.1 unit tests cover preflight rungs, provider
       resolution, image-reference splitting, provisioner scenarios, and stale
       CDI self-heal.
-- [ ] Release manifest/package checksum metadata validates without known
+- [x] Release manifest/package checksum metadata validates without known
       recommended-field warnings, or the checker is updated to accept the
       canonical schema fields.
 - [ ] Fixed-fixture parity evidence is preserved for the next RC.
 - [ ] The next image/package is generated only after implementation validation
       passes.
 - [ ] The next release matrix passes or records bounded, owner-accepted caveats.
-- [ ] Documentation support language does not claim Docker-Desktop-free Podman or
+- [x] Documentation support language does not claim Docker-Desktop-free Podman or
       Podman GPU beyond evidence.
-- [ ] `.agent_work` validation passes after task and evidence updates.
+- [x] `.agent_work` validation passes after task and evidence updates.
 
 ## Dependencies
 
@@ -291,6 +291,33 @@ implementation begins.
 **Validation**: `.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py`, `.venv\Scripts\python.exe .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`, and `git diff --check` passed.
 **Next**: Commit the planning checkpoint, then begin Phase 1 implementation.
 
+### 2026-06-15 - Phase 1 Staged Assets And Manifest Metadata
+**Objective**: Implement the RC4 application follow-ups that can be completed before the larger Podman provider/GPU work.
+**Context**: RC4 UAT found that rerunning setup after a successful asset extraction fails because the setup wrapper auto-discovers the asset ZIP and `bootstrap.ps1` tries to extract over valid staged assets. RC4 manifest review also flagged blank checksum metadata that needed a canonical sidecar-aware schema.
+**Decision**: Reuse staged assets only after `Test-TowerScoutStagedAssets` validates them against the control manifest, then continue engine import. Keep invalid or partial staged assets fail-closed with clearer rerun guidance. For manifest metadata, record checksum sidecar fields and accept an `-AssetBundleSha256` input instead of embedding the control ZIP's own checksum inside the ZIP manifest.
+**Execution**: Updated `scripts/bootstrap.ps1`, `scripts/lib/TowerScoutBootstrap.ps1`, `scripts/package-release.ps1`, `release-manifest.v1.json`, and focused bootstrap/release-manifest tests.
+**Output**: Valid staged assets are reused and still imported into Docker/Podman volumes on rerun. Partial staged assets still fail before import. Generated manifests now name checksum sidecars, package contents checksum file, asset bundle artifact name, and optional asset bundle checksum.
+**Validation**: `.venv\Scripts\python.exe -m pytest tests\unit\test_task_074_bootstrap.py tests\unit\test_release_manifest_schema.py tests\unit\test_release_package_script.py -q -p no:cacheprovider` passed with 21 tests. Line-length scan over edited Python tests and `git diff --check` passed.
+**Next**: Begin Phase 2 provider-resolution work for Docker-Desktop-free Podman CPU.
+
+### 2026-06-15 - Phase 2 Podman Compose Provider Guardrails
+**Objective**: Prevent the Podman path from silently relying on Docker Desktop's bundled Compose provider and make provider selection visible in support evidence.
+**Context**: RC4 Podman CPU proved Podman-engine operation, but the evidence showed `podman compose` delegated to Docker Desktop's `docker-compose.exe`, which does not satisfy the no-Docker-Desktop reliance requirement.
+**Decision**: Use the support-installed `PODMAN_COMPOSE_PROVIDER` strategy for this source slice. Do not vendor a Compose provider yet because that needs owner decisions for binary source, checksum, license, and CVE lifecycle. Fail early if the override is missing, invalid, or resolves to Docker Desktop's bundled provider, and inspect `podman compose version` before invoking Podman Compose.
+**Execution**: Updated `scripts/lib/TowerScoutCompose.ps1`, `scripts/lib/TowerScoutBootstrap.ps1`, `.env.example`, `scripts/status.ps1`, and focused runtime tests.
+**Output**: Launch/status/preflight now report the Podman Compose provider path/version when available, `PODMAN_COMPOSE_PROVIDER` can be loaded from `.env`, and Docker Desktop provider paths or version banners are rejected for the Podman support path.
+**Validation**: Focused provider tests passed under Windows PowerShell 5.1 as part of the 36-test runtime/package suite.
+**Next**: Validate Podman CPU setup/import/start/status on a host with the approved non-Docker-Desktop provider selected and Docker Desktop unavailable or not selected.
+
+### 2026-06-15 - Phase 3 Podman GPU CDI Source Implementation
+**Objective**: Implement the CPU-testable Podman GPU CDI path from the reference packet while keeping support claims bounded until live GPU evidence is captured.
+**Context**: The current checkout hard-blocked Podman GPU, while the reference evidence showed Podman GPU could reach `selected_device=cuda` after NVIDIA Toolkit/CDI provisioning on a WSL2 Podman machine.
+**Decision**: Add the Podman CDI overlay and provisioner, replace the hard block with a gated decision tree, keep `-Gpu auto` CPU-safe, keep `-Gpu on` fail-closed, and leave final support claims pending live validation.
+**Execution**: Added `compose.gpu.podman.yaml`, `scripts/enable-podman-gpu.ps1`, `scripts/lib/TowerScoutPodmanGpu.ps1`, `tests/unit/test_podman_gpu_enablement.py`, and release-package wiring. Updated `scripts/lib/TowerScoutCompose.ps1`, `scripts/launch.ps1`, `scripts/start.ps1`, package manifest generation, and package tests.
+**Output**: Podman GPU now uses `compose.gpu.podman.yaml` only after the explicit Podman overlay gate and CDI readiness pass. `enable-podman-gpu.ps1 -DryRun` prints the non-mutating plan, `-VerifyOnly` is read-only and fails when CDI is missing, normal provisioning installs/verifies NVIDIA Toolkit/CDI, runs a transient GPU smoke, retries once after stale CDI, and records runtime evidence.
+**Validation**: The 36-test focused suite passed; Docker Compose `config` passed for base, Docker GPU, Podman GPU, and build+Podman GPU combinations; `enable-podman-gpu.ps1 -DryRun` passed. Local `podman compose config` and `-VerifyOnly` could not prove live Podman readiness because this workstation's configured Podman machine connection was unavailable.
+**Next**: Run the live validation ladder on the GPU Podman host: approved provider, negative `-Gpu on`, `-DryRun`, `-VerifyOnly`, provisioning, `-VerifyOnly`, container smoke, TowerScout readiness `selected_device=cuda`, fixed-fixture parity, and release evidence capture.
+
 ---
 
 ## Validation Results
@@ -304,8 +331,12 @@ implementation begins.
 
 - [x] Task tracker entry created in `current-tasks.md`.
 - [x] Active task file created under `.agent_work/tasks/active/`.
-- [ ] Implementation criteria pending code changes.
-- [ ] Runtime/package validation pending implementation.
+- [x] Phase 1 RC4 setup/manifest source fixes implemented and unit-tested.
+- [x] Phase 2 Podman provider guardrails implemented and unit-tested.
+- [x] Phase 3 Podman GPU CDI source gating/provisioner implemented and unit-tested.
+- [ ] Live Docker-Desktop-free Podman CPU setup/import/start/status validation pending.
+- [ ] Live Podman GPU CDI provisioning and TowerScout `selected_device=cuda` validation pending.
+- [ ] Fixed-fixture parity, rc5 image/package build, and final release matrix pending.
 
 ### Test Results
 
@@ -316,16 +347,42 @@ implementation begins.
       `.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py`,
       `.venv\Scripts\python.exe .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`,
       and `git diff --check` - PASS.
+- [x] `.venv\Scripts\python.exe -m pytest tests\unit\test_task_074_bootstrap.py tests\unit\test_release_manifest_schema.py tests\unit\test_release_package_script.py -q -p no:cacheprovider` - PASS, 21 tests.
+- [x] Edited Python test line-length scan - PASS, no lines over 127 characters.
+- [x] `git diff --check` - PASS after Phase 1 edits.
+- [x] `.venv\Scripts\python.exe -m pytest tests\unit\test_task_081_runtime_hardening.py tests\unit\test_task_074_bootstrap.py -q -p no:cacheprovider` - PASS, 24 tests after provider-guardrail edits.
+- [x] `.venv\Scripts\python.exe -m pytest tests\unit\test_podman_gpu_enablement.py -q -p no:cacheprovider` - PASS, 6 tests.
+- [x] `.venv\Scripts\python.exe -m pytest tests\unit\test_podman_gpu_enablement.py tests\unit\test_task_075_launcher_gpu.py tests\unit\test_task_081_runtime_hardening.py tests\unit\test_task_074_bootstrap.py tests\unit\test_release_manifest_schema.py tests\unit\test_release_package_script.py -q -p no:cacheprovider` - PASS, 36 tests.
+- [x] `docker compose -f compose.yaml config` - PASS.
+- [x] `docker compose -f compose.yaml -f compose.gpu.yaml config` - PASS.
+- [x] `docker compose -f compose.yaml -f compose.gpu.podman.yaml config` - PASS.
+- [x] `docker compose -f compose.yaml -f compose.build.yaml -f compose.gpu.podman.yaml config` - PASS.
+- [x] `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\enable-podman-gpu.ps1 -DryRun -Image test:image` - PASS.
+- [x] Edited Python test line-length scan after Phase 3 - PASS, no lines over 127 characters.
+- [x] `git diff --check` - PASS after Phase 3 edits.
+- [x] PowerShell parser pass over edited runtime/package scripts - PASS.
+- [x] `.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` - PASS after Phase 3 task updates.
+- [x] `.venv\Scripts\python.exe .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .` - PASS after Phase 3 task updates.
 
 ### Issues Identified
 
-None yet. This checkpoint is planning and branch preparation only.
+No source-level blocker identified. Local live Podman validation remains pending:
+`podman compose -f compose.yaml -f compose.gpu.podman.yaml config` failed because
+the configured Podman machine connection was unavailable, and
+`enable-podman-gpu.ps1 -VerifyOnly` failed cleanly at machine inspection because
+the local `podman-machine-default` lock/connection was not usable in this
+workspace context. This does not validate or invalidate the GPU CDI path; it
+means the remaining evidence must be collected on the intended GPU Podman host.
 
 ### Remediation Actions
 
-None yet.
+- Run the Docker-Desktop-free Podman CPU package smoke with the approved
+  provider selected.
+- Run the Podman GPU CDI live validation ladder on the GPU host and preserve
+  support-safe evidence before building rc5.
 
 ### Sign-off
 
-Not signed off. Planning and branch preparation are complete; implementation
-validation is still pending code changes and release-matrix evidence.
+Not signed off. Source implementation validation is passing; live runtime,
+release-package, fixed-fixture parity, and release-matrix evidence are still
+pending.

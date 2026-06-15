@@ -85,7 +85,14 @@ if ($VerifyOnly) {
 }
 
 if (-not [string]::IsNullOrWhiteSpace($resolvedAssetZip)) {
-    Expand-TowerScoutAssetZip -RootPath $repoRoot -ZipPath $resolvedAssetZip -AssetsPath $resolvedAssetsPath
+    if ($hasExistingStagedAssets) {
+        Write-Host ""
+        Write-Host "Model & Data Package ZIP was found, but valid staged assets already exist."
+        Write-Host "Reusing the staged assets and continuing with engine import."
+    }
+    else {
+        Expand-TowerScoutAssetZip -RootPath $repoRoot -ZipPath $resolvedAssetZip -AssetsPath $resolvedAssetsPath
+    }
 }
 
 $hasStagedAssets = Test-TowerScoutStagedAssets -RootPath $repoRoot -AssetsPath $resolvedAssetsPath

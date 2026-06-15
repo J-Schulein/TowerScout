@@ -3,7 +3,7 @@
 **Sprint Period**: Sprint 06 planning / V1 RC1 readiness begins May 11, 2026  
 **Last Updated**: June 15, 2026
 **Focus**: Produce a V1 RC1 / pilot-ready AGPL-compliant YOLO-enabled release path by closing release-support carry-forward work, correcting release compliance artifacts, writing package-based end-user docs, validating the clean-machine release candidate, and preparing pilot / UAT execution.
-**Status**: Sprint 06 committed lane selected. `TASK-065`, `TASK-072`, `TASK-079`, `TASK-071`, `TASK-067`, and `TASK-074` are completed and remain in the active task folder until sprint closeout; `TASK-069` sign-off is sufficient to merge PR #11 as the internal controlled AGPL-governed RC planning and compliance baseline; `TASK-075` implementation is merged with NVIDIA-host validation still pending before broad GPU support claims; `TASK-066` post-PR28 final prerelease Docker Desktop package path passed through checksum verification, bootstrap/readiness from the GitHub Release Application Package, Settings-linked docs, `/license`, in-container asset hash verification, and bounded Azure detection smoke on the refreshed final digest, with Podman Docker Hub source-build TLS, Docker-Desktop-free Podman, and NVIDIA GPU evidence still bounded follow-ups; `TASK-073` is active for clean-machine pilot/UAT planning and now has exact refreshed release artifact values, default smoke fixture, support contacts, provider-key evidence boundaries, published rc2/rc3 prereleases, rc2 provider setup / bounded Azure smoke, and rc3 package/downloaded-release setup validation; tester cohort selection and owner/reviewer acceptance remain before external tester launch; `TASK-080` has simplified the first-cohort setup path, produced and locked the consolidated Word guide, verified the Google first-launch TLS support path, and published/validated the refreshed rc3 UAT release package; `TASK-081` runtime hardening landed on `main`; `TASK-082` landed on `main` as `v0.1.0-rc4` with stable docs naming and package wiring; `TASK-083` is created for RC4 follow-up implementation, Docker-Desktop-free Podman provider independence, Podman GPU CDI enablement, and the next release-candidate package validation gate.
+**Status**: Sprint 06 committed lane selected. `TASK-065`, `TASK-072`, `TASK-079`, `TASK-071`, `TASK-067`, and `TASK-074` are completed and remain in the active task folder until sprint closeout; `TASK-069` sign-off is sufficient to merge PR #11 as the internal controlled AGPL-governed RC planning and compliance baseline; `TASK-075` implementation is merged with NVIDIA-host validation still pending before broad GPU support claims; `TASK-066` post-PR28 final prerelease Docker Desktop package path passed through checksum verification, bootstrap/readiness from the GitHub Release Application Package, Settings-linked docs, `/license`, in-container asset hash verification, and bounded Azure detection smoke on the refreshed final digest, with Podman Docker Hub source-build TLS, Docker-Desktop-free Podman, and NVIDIA GPU evidence still bounded follow-ups; `TASK-073` is active for clean-machine pilot/UAT planning and now has exact refreshed release artifact values, default smoke fixture, support contacts, provider-key evidence boundaries, published rc2/rc3 prereleases, rc2 provider setup / bounded Azure smoke, and rc3 package/downloaded-release setup validation; tester cohort selection and owner/reviewer acceptance remain before external tester launch; `TASK-080` has simplified the first-cohort setup path, produced and locked the consolidated Word guide, verified the Google first-launch TLS support path, and published/validated the refreshed rc3 UAT release package; `TASK-081` runtime hardening landed on `main`; `TASK-082` landed on `main` as `v0.1.0-rc4` with stable docs naming and package wiring; `TASK-083` Phase 1 RC4 follow-ups, Phase 2 Podman provider guardrails, and Phase 3 Podman GPU CDI source implementation are complete with focused tests passing, while live Docker-Desktop-free Podman CPU/GPU validation and rc5 release build remain pending.
 
 ---
 
@@ -392,7 +392,7 @@ users to reason through stale RC labels, historical examples, duplicate docs,
 or implementation-contract material before they can install and run TowerScout.
 
 ### **TASK-083: RC5 Podman Independence, GPU CDI, And Release Validation**
-**Status**: IN_PROGRESS - implementation branch created from the `v0.1.0-rc4` `main` baseline; planning checkpoint in progress before code changes
+**Status**: IN_PROGRESS - Phase 1 RC4 follow-ups, Phase 2 Podman provider guardrails, and Phase 3 Podman GPU CDI source implementation complete with focused tests passing; live Podman CPU/GPU validation and rc5 release build pending
 **Type**: C (Runtime Support / Podman GPU / Release Validation)
 **Priority**: CRITICAL
 **Estimated Effort**: 3-6 days (24-48 hours), split across CPU-dev-able implementation, GPU-host validation, and package release validation
@@ -404,23 +404,18 @@ needed before the next release-candidate package, then build and validate an
 `rc5` release artifact from the resulting branch.
 
 **Current Direction**:
-- Implement staged-asset reuse on setup rerun so valid package-local assets can
-  be reused and imported into a fresh Docker or Podman engine volume.
-- Make Podman CPU genuinely Docker-Desktop-free by selecting and validating an
-  approved Compose provider that is not Docker Desktop's bundled
-  `docker-compose.exe`.
-- Implement Podman GPU through the CDI-gated path described in the Podman GPU
-  reference packet, preserving `-Gpu on` fail-closed behavior and CPU-safe
-  `-Gpu auto` fallback.
-- Add or update focused Windows PowerShell tests for provider resolution,
-  preflight rungs, provisioning scenarios, stale CDI self-heal, and
-  image-reference splitting.
-- Clean up release manifest checksum/recommended metadata and preserve
-  fixed-fixture parity evidence for the next release candidate.
-- Build the next image/package only after implementation validation passes, then
-  validate Docker CPU, Docker GPU, Podman CPU without Docker Desktop provider
-  selection, Podman GPU with CDI, setup rerun, asset import, readiness/health,
-  and fixed-fixture parity.
+- Source implementation now covers staged-asset reuse, release manifest checksum
+  metadata, Podman provider guardrails, Podman GPU CDI overlay selection,
+  `enable-podman-gpu.ps1`, and focused Windows PowerShell tests.
+- Validate Podman CPU setup/import/start/status with the approved provider and
+  evidence that Docker Desktop's bundled `docker-compose.exe` was not selected.
+- Validate Podman GPU through the CDI ladder on the NVIDIA WSL2 Podman host:
+  negative `-Gpu on`, `-DryRun`, `-VerifyOnly`, provisioning, container smoke,
+  TowerScout readiness `selected_device=cuda`, and fixed-fixture parity.
+- Build the next image/package only after live implementation validation passes,
+  then validate Docker CPU, Docker GPU, Podman CPU without Docker Desktop
+  provider selection, Podman GPU with CDI, setup rerun, asset import,
+  readiness/health, and fixed-fixture parity.
 
 **Dependencies**: `TASK-066`; `TASK-074`; `TASK-075`; `TASK-080`;
 `TASK-081`; `TASK-082`; RC4 follow-up and Podman GPU implementation review
