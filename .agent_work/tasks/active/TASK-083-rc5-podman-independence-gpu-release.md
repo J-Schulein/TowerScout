@@ -1,6 +1,6 @@
 # TASK-083: RC5 Podman Independence, GPU CDI, And Release Validation
 
-**Status**: IN_PROGRESS - Phase 1 RC4 follow-ups, Phase 2 Podman provider guardrails, Phase 3 Podman GPU CDI source implementation, rc5 candidate image/package assembly, and local Docker CPU package smoke are complete; live Windows 11 + Podman 5.8.2 + NVIDIA T1000 validation found and fixed two rc5-blocking Podman issues; Docker GPU, final Podman CPU/GPU package validation, fixed-fixture parity, and final release matrix remain pending
+**Status**: IN_PROGRESS - Source implementation, Podman 5.8.2 blocker fixes, rc5 candidate image/package assembly, local Docker CPU smoke, live Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and fixed-fixture runtime parity are validated; final RC5 package sign-off remains pending a rebuilt package with the updated docs, SBOM decision/waiver, and revalidation against the final pinned rc5 digest.
 **Priority**: CRITICAL
 **Type**: C (Runtime Support / Podman GPU / Release Validation)
 **Estimated Effort**: 3-6 days (24-48 hours), split across CPU-dev-able implementation, GPU-host validation, and package release validation
@@ -113,7 +113,7 @@ readiness, health, and fixed-fixture parity.
 
 - [x] Valid staged asset reuse is implemented and covered by focused tests.
 - [x] Invalid staged assets still fail safely before import/launch.
-- [ ] Podman CPU setup/import/start/status succeeds with an approved provider
+- [x] Podman CPU setup/import/start/status succeeds with an approved provider
       that is not Docker Desktop's bundled `docker-compose.exe`.
 - [x] Provider selection and version are visible in support-safe output.
 - [x] `compose.gpu.podman.yaml` is added and validated through `compose config`.
@@ -129,10 +129,11 @@ readiness, health, and fixed-fixture parity.
 - [x] Release manifest/package checksum metadata validates without known
       recommended-field warnings, or the checker is updated to accept the
       canonical schema fields.
-- [ ] Fixed-fixture parity evidence is preserved for the next RC.
+- [x] Fixed-fixture parity evidence is preserved for the next RC.
 - [x] The next image/package is generated only after implementation validation
       passes.
-- [ ] The next release matrix passes or records bounded, owner-accepted caveats.
+- [ ] The final rebuilt package release matrix passes or records bounded,
+      owner-accepted caveats.
 - [x] Documentation support language does not claim Docker-Desktop-free Podman or
       Podman GPU beyond evidence.
 - [x] `.agent_work` validation passes after task and evidence updates.
@@ -229,9 +230,10 @@ Implementation validation should include:
 
 - Do not make model, threshold, TF32, or detector pipeline changes unless new
   evidence proves a model/runtime correctness issue.
-- Do not claim Podman GPU support before the gated CDI path passes on hardware.
-- Do not claim Docker-Desktop-free Podman support until the Compose provider path
-  is proven without Docker Desktop selection.
+- Do not claim Podman GPU beyond the RC5 support-assigned CDI boundary proved
+  by the gated hardware evidence.
+- Do not claim Docker-Desktop-free Podman beyond the approved-provider path
+  proved without Docker Desktop selection.
 - Do not broaden release scope to Mac, ARM64, VDI, shared deployment, native
   installer behavior, or air-gapped GPU toolkit installation.
 - Do not delete or reorganize broad repo-root research/legacy folders as part of
@@ -241,8 +243,8 @@ Implementation validation should include:
 
 - Vendoring or blessing a standalone Compose provider creates license,
   checksum, update, and CVE-response obligations.
-- The Podman GPU evidence used Docker Desktop's Compose binary; true
-  Docker-Desktop-free GPU validation still needs an approved provider.
+- Earlier Podman GPU evidence used the wrong provider family; the later RC5
+  sign-off packet superseded it with an approved standalone provider.
 - WSL2 Podman memory/resource guidance must be validated before publishing exact
   `podman machine set` commands.
 - NVIDIA Toolkit installation requires network egress inside the Podman machine
@@ -310,7 +312,9 @@ implementation begins.
 **Next**: Validate Podman CPU setup/import/start/status on a host with the approved non-Docker-Desktop provider selected and Docker Desktop unavailable or not selected.
 
 ### 2026-06-15 - Phase 3 Podman GPU CDI Source Implementation
-**Objective**: Implement the CPU-testable Podman GPU CDI path from the reference packet while keeping support claims bounded until live GPU evidence is captured.
+**Objective**: Implement the CPU-testable Podman GPU CDI path from the
+reference packet while keeping support claims bounded pending the later live
+GPU evidence captured by this task.
 **Context**: The current checkout hard-blocked Podman GPU, while the reference evidence showed Podman GPU could reach `selected_device=cuda` after NVIDIA Toolkit/CDI provisioning on a WSL2 Podman machine.
 **Decision**: Add the Podman CDI overlay and provisioner, replace the hard block with a gated decision tree, keep `-Gpu auto` CPU-safe, keep `-Gpu on` fail-closed, and leave final support claims pending live validation.
 **Execution**: Added `compose.gpu.podman.yaml`, `scripts/enable-podman-gpu.ps1`, `scripts/lib/TowerScoutPodmanGpu.ps1`, `tests/unit/test_podman_gpu_enablement.py`, and release-package wiring. Updated `scripts/lib/TowerScoutCompose.ps1`, `scripts/launch.ps1`, `scripts/start.ps1`, package manifest generation, and package tests.
@@ -373,6 +377,42 @@ fixed-fixture parity validation before promoting `v0.1.0-rc5`.
 
 ---
 
+### 2026-06-15 - RC5 Sign-Off Evidence Review And Documentation Alignment
+**Objective**: Incorporate the RC5 sign-off packet findings into the release
+support boundary and remove stale package documentation language.
+**Context**: The sanitized packet under
+`.agent_work/context/analysis/towerscout-rc5-signoff-evidence-2026-06-15/`
+proved Docker CPU, Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI,
+and fixed-fixture parity on the Windows 11 + Podman 5.8.2 + NVIDIA T1000 host.
+The packet also showed that the tested package pinned the earlier rc4 CUDA
+digest as a stand-in, while the later clean `rc5-candidate.1` package pins the
+real rc5 candidate image digest. A second review found package docs still
+carried the prior unsupported Podman GPU boundary.
+**Decision**: Include Podman GPU in RC5 as a support-assigned path, not as the
+default first-run path. Keep Docker Desktop CPU as the primary pilot path and
+require workstation-specific validation for Docker GPU and Podman GPU. Document
+the Podman GPU boundary as Windows 11 WSL2 Podman, approved
+non-Docker-Desktop Compose provider, NVIDIA Toolkit/CDI, and readiness
+`selected_device=cuda`.
+**Execution**: Updated `README.md`, `docs/quick-start.*`,
+`docs/package-guide.md`, `docs/project-overview.*`, `docs/user-guide.*`,
+`docs/support/oci-quick-start.md`, `docs/support/oci-runtime-contract.md`,
+`docs/release/release-asset-bundle-contract.md`, and compatibility stubs to
+remove stale RC4 and unsupported-Podman-GPU wording while recording the RC5
+support boundary.
+**Output**: Current docs now treat Podman CPU, Docker GPU, and Podman GPU as
+support-assigned RC5 paths after selected-engine, Compose-provider, and NVIDIA
+validation. The support docs record the validated standalone Docker Compose
+v5.1.4 `PODMAN_COMPOSE_PROVIDER` strategy and Podman CDI overlay.
+**Validation**: Stale-doc search no longer finds the old unsupported GPU
+boundary, Docker-prioritized GPU wording, superseded provider-version wording,
+or superseded RC-label wording in `README.md` or `docs/`.
+**Next**: Run docs/package validation, rebuild the final RC5 candidate package,
+resolve or explicitly waive the SBOM reference warning, and rerun the release
+matrix against the final pinned rc5 digest.
+
+---
+
 ## Validation Results
 
 ### Planning Validation
@@ -394,8 +434,11 @@ fixed-fixture parity validation before promoting `v0.1.0-rc5`.
 - [x] Local Docker CPU package smoke passed from the rc5 candidate package with
       staged-asset reuse, asset hash verification, readiness
       `setup_required`, and `selected_device=cpu`.
-- [ ] Docker GPU, final Podman CPU/GPU package validation, fixed-fixture parity,
-      and final release matrix pending.
+- [x] Live Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and
+      fixed-fixture runtime parity passed in the RC5 sign-off evidence packet.
+- [ ] Final rebuilt package validation remains pending because the sign-off
+      packet validated a stand-in rc4 CUDA digest and the docs have since been
+      updated for RC5 Podman GPU support.
 - [x] Rollback checkpoint branch and draft PR created.
 - [x] Local Task-083 validation package created for package-content inspection.
 
@@ -484,23 +527,20 @@ the immutable rc5 candidate image digest recorded above.
 
 ### Remediation Actions
 
+- Rebuild the RC5 candidate package so package-local docs include the RC5
+  Podman GPU support boundary.
+- Resolve or explicitly waive the SBOM reference warning before final sign-off.
 - Run the Docker-Desktop-free Podman CPU package smoke with the approved
-  provider selected again after final rc5 package assembly.
-- Run the Podman GPU CDI live validation ladder on the GPU host again after
-  final rc5 package assembly.
-- Decide and document the approved standalone Compose provider strategy,
-  including version/checksum or vendoring policy.
-- Decide whether the rc5 candidate image/package should be promoted unchanged
-  to `v0.1.0-rc5` after the remaining matrix passes, or rebuilt from a later
-  commit if package validation finds additional fixes.
-- Capture Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI,
-  fixed-fixture parity, and final release-matrix evidence from the generated
-  candidate package.
+  provider selected against the rebuilt package.
+- Run the Docker GPU and Podman GPU CDI live validation ladder against the
+  rebuilt package and final pinned rc5 digest.
+- Capture final fixed-fixture parity and release-matrix evidence from the
+  rebuilt candidate package.
 
 ### Sign-off
 
-Not signed off. Source implementation validation, rc5 candidate image/package
-assembly, and local Docker CPU package smoke are passing. Docker GPU,
-Docker-Desktop-free Podman CPU from the final package, Podman GPU CDI from the
-final package, fixed-fixture parity, and final release-matrix evidence are still
-pending.
+Not signed off. Runtime implementation and the live four-cell matrix are
+validated, including Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI,
+and fixed-fixture parity. Final RC5 package sign-off is still pending because
+the package must be rebuilt with updated docs and then revalidated against the
+final pinned rc5 digest with the SBOM decision or waiver recorded.
