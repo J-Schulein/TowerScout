@@ -1,6 +1,6 @@
 # TASK-083: RC5 Podman Independence, GPU CDI, And Release Validation
 
-**Status**: IN_PROGRESS - Phase 1 RC4 follow-ups, Phase 2 Podman provider guardrails, and Phase 3 Podman GPU CDI source implementation are complete with focused tests passing; live Podman CPU/GPU validation, fixed-fixture parity, rc5 package build, and release matrix remain pending
+**Status**: IN_PROGRESS - Phase 1 RC4 follow-ups, Phase 2 Podman provider guardrails, and Phase 3 Podman GPU CDI source implementation are complete with focused tests passing; branch/PR publication and a local validation package are complete; live Podman CPU/GPU validation, fixed-fixture parity, final rc5 image/package build, and release matrix remain pending
 **Priority**: CRITICAL
 **Type**: C (Runtime Support / Podman GPU / Release Validation)
 **Estimated Effort**: 3-6 days (24-48 hours), split across CPU-dev-able implementation, GPU-host validation, and package release validation
@@ -318,6 +318,15 @@ implementation begins.
 **Validation**: The 36-test focused suite passed; Docker Compose `config` passed for base, Docker GPU, Podman GPU, and build+Podman GPU combinations; `enable-podman-gpu.ps1 -DryRun` passed. Local `podman compose config` and `-VerifyOnly` could not prove live Podman readiness because this workstation's configured Podman machine connection was unavailable.
 **Next**: Run the live validation ladder on the GPU Podman host: approved provider, negative `-Gpu on`, `-DryRun`, `-VerifyOnly`, provisioning, `-VerifyOnly`, container smoke, TowerScout readiness `selected_device=cuda`, fixed-fixture parity, and release evidence capture.
 
+### 2026-06-15 - Branch Publish, Rollback Checkpoint, And Validation Package
+**Objective**: Preserve a rollback checkpoint, publish the Task-083 branch for review, and build a local package for validation before final rc5 release work.
+**Context**: The owner requested a pre-Task-083 checkpoint before pushing and testing the implementation.
+**Decision**: Preserve the rc4 baseline as `checkpoint/pre-task-083-rc4` at `32074a7`, publish the Task-083 branch, and create a draft PR while keeping generated packages out of git. Use the rc4 CUDA image digest for a source/package validation build until a final rc5 image is built.
+**Execution**: Pushed `feature/task-083-rc5-podman-independence-gpu-release`, pushed `checkpoint/pre-task-083-rc4`, opened draft PR #33, and generated `dist\towerscout-v0.1.0-rc5-task083-validation.zip` plus a version-matched asset ZIP sidecar.
+**Output**: Draft PR #33 tracks source review. The validation package pins `ghcr.io/j-schulein/towerscout:v0.1.0-rc4-cuda121@sha256:d686d8556443ead03e257e4abb2d04f97dece3e04c228963c6f65201a308161e` and source ref `839ab00a35bd3b997179d504752e66fa71545b77`. Package SHA-256 is `d25a7fc4980f4893e8794608450258563bd50154a28886eb6be766cf60d1728c`; asset ZIP SHA-256 is `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+**Validation**: Release package summary passed with 55 files and included `compose.gpu.podman.yaml`. Manifest checker exited 0, but still emitted recommended-key warnings for `checksums`, `releasePosture`, `releaseVersion`, and `sourceRef`; resolve the checker/schema naming mismatch or record an owner-accepted waiver before final rc5.
+**Next**: Run live Docker-Desktop-free Podman CPU and Podman GPU validation from the package, then build/publish the final rc5 image/package if the matrix passes.
+
 ---
 
 ## Validation Results
@@ -337,6 +346,8 @@ implementation begins.
 - [ ] Live Docker-Desktop-free Podman CPU setup/import/start/status validation pending.
 - [ ] Live Podman GPU CDI provisioning and TowerScout `selected_device=cuda` validation pending.
 - [ ] Fixed-fixture parity, rc5 image/package build, and final release matrix pending.
+- [x] Rollback checkpoint branch and draft PR created.
+- [x] Local Task-083 validation package created for package-content inspection.
 
 ### Test Results
 
@@ -363,6 +374,12 @@ implementation begins.
 - [x] PowerShell parser pass over edited runtime/package scripts - PASS.
 - [x] `.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` - PASS after Phase 3 task updates.
 - [x] `.venv\Scripts\python.exe .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .` - PASS after Phase 3 task updates.
+- [x] `git push -u origin feature/task-083-rc5-podman-independence-gpu-release` - PASS.
+- [x] `git push -u origin checkpoint/pre-task-083-rc4` - PASS.
+- [x] Draft PR #33 created against `main` - PASS.
+- [x] `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Version v0.1.0-rc5-task083-validation ... -AllowDirtySource -Force` - PASS; package generated under `dist\`.
+- [x] `.venv\Scripts\python.exe .agents\skills\towerscout-release-candidate-gate\scripts\summarize_release_package.py dist\towerscout-v0.1.0-rc5-task083-validation.zip` - PASS, 55 files.
+- [x] `.venv\Scripts\python.exe .agents\skills\towerscout-release-candidate-gate\scripts\check_release_manifest.py dist\towerscout-v0.1.0-rc5-task083-validation\release-manifest.v1.json dist\towerscout-v0.1.0-rc5-task083-validation` - PASS with recommended-key warnings.
 
 ### Issues Identified
 
@@ -374,12 +391,19 @@ the local `podman-machine-default` lock/connection was not usable in this
 workspace context. This does not validate or invalidate the GPU CDI path; it
 means the remaining evidence must be collected on the intended GPU Podman host.
 
+The validation package manifest checker still warns about recommended camelCase
+metadata keys while the package manifest uses the canonical snake_case fields.
+This is not a packaging failure, but it should be resolved or explicitly waived
+before final rc5 package sign-off.
+
 ### Remediation Actions
 
 - Run the Docker-Desktop-free Podman CPU package smoke with the approved
   provider selected.
 - Run the Podman GPU CDI live validation ladder on the GPU host and preserve
   support-safe evidence before building rc5.
+- Resolve or waive the manifest checker recommended-key warning before final
+  rc5 release packaging.
 
 ### Sign-off
 
