@@ -1,6 +1,6 @@
 # TASK-083: RC5 Podman Independence, GPU CDI, And Release Validation
 
-**Status**: IN_PROGRESS - Phase 1 RC4 follow-ups, Phase 2 Podman provider guardrails, and Phase 3 Podman GPU CDI source implementation are complete; live Windows 11 + Podman 5.8.2 + NVIDIA T1000 validation found and fixed two rc5-blocking Podman issues; final rc5 image/package build, Docker matrix, manifest cleanup, fixed-fixture parity, and release matrix remain pending
+**Status**: IN_PROGRESS - Phase 1 RC4 follow-ups, Phase 2 Podman provider guardrails, Phase 3 Podman GPU CDI source implementation, rc5 candidate image/package assembly, and local Docker CPU package smoke are complete; live Windows 11 + Podman 5.8.2 + NVIDIA T1000 validation found and fixed two rc5-blocking Podman issues; Docker GPU, final Podman CPU/GPU package validation, fixed-fixture parity, and final release matrix remain pending
 **Priority**: CRITICAL
 **Type**: C (Runtime Support / Podman GPU / Release Validation)
 **Estimated Effort**: 3-6 days (24-48 hours), split across CPU-dev-able implementation, GPU-host validation, and package release validation
@@ -130,7 +130,7 @@ readiness, health, and fixed-fixture parity.
       recommended-field warnings, or the checker is updated to accept the
       canonical schema fields.
 - [ ] Fixed-fixture parity evidence is preserved for the next RC.
-- [ ] The next image/package is generated only after implementation validation
+- [x] The next image/package is generated only after implementation validation
       passes.
 - [ ] The next release matrix passes or records bounded, owner-accepted caveats.
 - [x] Documentation support language does not claim Docker-Desktop-free Podman or
@@ -336,6 +336,41 @@ implementation begins.
 **Validation**: Focused tests passed: `.venv\Scripts\python.exe -m pytest tests\unit\test_podman_gpu_enablement.py tests\unit\test_task_081_runtime_hardening.py -q -p no:cacheprovider` returned 14 passed.
 **Next**: Run the full Task-083 focused suite and hygiene checks, then rebuild final rc5 artifacts only after image/default, manifest, asset checksum, Docker matrix, and parity decisions are closed.
 
+### 2026-06-15 - RC5 Candidate Image Publish And Package Assembly
+**Objective**: Build a digest-pinned rc5 candidate package that can be moved to
+the GPU Podman validation host.
+**Context**: The first local Buildx image build succeeded, but direct GHCR push
+failed until GitHub CLI authentication was restored. Final package generation
+needed a pullable image digest, clean source-ref capture, and the Model & Data
+Package checksum recorded in the generated manifest.
+**Decision**: Publish the image through the manual GitHub Actions container
+workflow, then assemble the package from a clean detached worktree at the PR
+branch head instead of using `-AllowDirtySource` in the main worktree.
+**Execution**: Dispatched `TowerScout Container Publish` run `27571265547` for
+`tag=v0.1.0-rc5-candidate.1`, `pytorch_flavor=cuda121`, and
+`push_latest=false`. Downloaded `image-metadata.json`, generated
+`dist\towerscout-v0.1.0-rc5-candidate.1.zip`, copied the unchanged Model & Data
+Package ZIP to the matching rc5 candidate filename, and wrote checksum
+sidecars.
+**Output**: Published image
+`ghcr.io/j-schulein/towerscout:v0.1.0-rc5-candidate.1-cuda121@sha256:ae917be0c2541be152e73c0b379698c53e980dcb34575e1d079d5822556b7c72`.
+Application Package SHA-256:
+`de7c628b9c83877668b17f833c2de36242f4e989aa3d7a50408ed234981b958c`.
+Model & Data Package SHA-256:
+`00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+**Validation**: Package summary passed with 55 files. Manifest checker passed
+without known canonical-field warnings. Control and asset ZIP sidecars matched
+their computed hashes. `docker manifest inspect` resolved the pinned GHCR
+digest and reported a Linux AMD64 manifest. A local Docker CPU package rerun
+from the generated package reused staged assets, verified the package and asset
+checksums, imported assets with hash verification, reached readiness
+`setup_required`, and reported `device_policy=cpu`, `selected_device=cpu`,
+`pytorch_flavor=cuda121`, and the expected image digest. The isolated stack on
+port `5020` was stopped and removed.
+**Next**: Move the rc5 candidate package to the Windows 11 + Podman 5.8.2 +
+NVIDIA host for Docker-Desktop-free Podman CPU, Podman GPU CDI, Docker GPU, and
+fixed-fixture parity validation before promoting `v0.1.0-rc5`.
+
 ---
 
 ## Validation Results
@@ -354,7 +389,13 @@ implementation begins.
 - [x] Phase 3 Podman GPU CDI source gating/provisioner implemented and unit-tested.
 - [x] Live Docker-Desktop-free Podman CPU setup/import/start/status validation passed on Windows 11 + Podman 5.8.2 after the Podman 5.8.2 guardrail fix.
 - [x] Live Podman GPU CDI provisioning and TowerScout `selected_device=cuda` validation passed on Windows 11 + Podman 5.8.2 + NVIDIA T1000 after the Podman 5.8.2 backend-detection fix.
-- [ ] Fixed-fixture parity, rc5 image/package build, and final release matrix pending.
+- [x] RC5 candidate image/package build passed with a pinned GHCR digest and
+      `-AssetBundleSha256` recorded in the generated manifest.
+- [x] Local Docker CPU package smoke passed from the rc5 candidate package with
+      staged-asset reuse, asset hash verification, readiness
+      `setup_required`, and `selected_device=cpu`.
+- [ ] Docker GPU, final Podman CPU/GPU package validation, fixed-fixture parity,
+      and final release matrix pending.
 - [x] Rollback checkpoint branch and draft PR created.
 - [x] Local Task-083 validation package created for package-content inspection.
 
@@ -401,7 +442,16 @@ implementation begins.
 - [x] `.venv\Scripts\python.exe -m pytest tests\unit\test_release_manifest_schema.py -q -p no:cacheprovider` - PASS, 2 tests after manifest checker canonical-field update.
 - [x] `.venv\Scripts\python.exe .agents\skills\towerscout-release-candidate-gate\scripts\check_release_manifest.py ...\release-manifest.v1.json ...\evidence` - PASS for canonical snake_case fields; remaining `SHA256SUMS.txt` warning is expected when checking the sanitized evidence folder instead of the full package root.
 - [x] `docker buildx build ... --tag ghcr.io/j-schulein/towerscout:v0.1.0-rc5-candidate.1-cuda121 --push ...` - IMAGE BUILD PASS locally; GHCR push blocked by authentication. Local image ID: `sha256:15da2bebff3d131ba2e274e6cf9564126abde0c31902d06454be51533991033b`.
-- [ ] RC5 candidate image publication, registry digest capture, and digest-pinned package generation are pending restored GHCR/GitHub workflow authentication.
+- [x] `gh workflow run container-publish.yml --ref feature/task-083-rc5-podman-independence-gpu-release -f tag=v0.1.0-rc5-candidate.1 -f push_latest=false -f pytorch_flavor=cuda121` - PASS; workflow run `27571265547`.
+- [x] `gh run download 27571265547 --name image-metadata-v0.1.0-rc5-candidate.1-cuda121` - PASS; `containerimage.digest` is `sha256:ae917be0c2541be152e73c0b379698c53e980dcb34575e1d079d5822556b7c72`.
+- [x] Clean detached worktree package generation without `-AllowDirtySource` - PASS; generated `dist\towerscout-v0.1.0-rc5-candidate.1.zip`.
+- [x] `.venv\Scripts\python.exe .agents\skills\towerscout-release-candidate-gate\scripts\summarize_release_package.py dist\towerscout-v0.1.0-rc5-candidate.1.zip` - PASS, 55 files.
+- [x] `.venv\Scripts\python.exe .agents\skills\towerscout-release-candidate-gate\scripts\check_release_manifest.py dist\towerscout-v0.1.0-rc5-candidate.1\release-manifest.v1.json dist\towerscout-v0.1.0-rc5-candidate.1` - PASS.
+- [x] Control ZIP checksum verification - PASS; `de7c628b9c83877668b17f833c2de36242f4e989aa3d7a50408ed234981b958c  towerscout-v0.1.0-rc5-candidate.1.zip`.
+- [x] Model & Data Package checksum verification - PASS; `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb  towerscout-v0.1.0-rc5-candidate.1-assets-towerscout-v1-assets-2026-05-05.zip`.
+- [x] `docker manifest inspect ghcr.io/j-schulein/towerscout:v0.1.0-rc5-candidate.1-cuda121@sha256:ae917be0c2541be152e73c0b379698c53e980dcb34575e1d079d5822556b7c72` - PASS; digest resolves and includes a Linux AMD64 manifest.
+- [x] `.\setup-towerscout.cmd -Engine docker -Gpu off -Port 5020 -NoBrowser ...` from the rc5 candidate package - PASS on rerun; staged assets reused, package and asset checksums verified, assets imported with hash verification, readiness reached `setup_required`, and runtime reported `device_policy=cpu`, `selected_device=cpu`, `pytorch_flavor=cuda121`, and the expected image digest.
+- [x] `.\scripts\stop.cmd -Engine docker -Port 5020` from the rc5 candidate package - PASS; isolated smoke stack removed.
 
 ### Issues Identified
 
@@ -426,10 +476,11 @@ The manifest checker warning for canonical snake_case release metadata has been
 resolved in source. Older sanitized evidence folders may still warn when checked
 outside the full package root because they do not include `SHA256SUMS.txt`.
 
-The first RC5 candidate image build completed locally, but publishing to GHCR
-failed with `unauthorized: unauthenticated: User cannot be authenticated with
-the token provided.` No RC5 package should be generated for user/UAT validation
-until the image is published and an immutable registry digest is available.
+The first direct local Buildx push attempt failed with
+`unauthorized: unauthenticated: User cannot be authenticated with the token
+provided.` This was resolved by restoring GitHub CLI authentication and
+publishing through the repository's manual container workflow, which produced
+the immutable rc5 candidate image digest recorded above.
 
 ### Remediation Actions
 
@@ -437,18 +488,19 @@ until the image is published and an immutable registry digest is available.
   provider selected again after final rc5 package assembly.
 - Run the Podman GPU CDI live validation ladder on the GPU host again after
   final rc5 package assembly.
-- Restore either Docker GHCR authentication or GitHub CLI/workflow
-  authentication, publish the RC5 candidate image, and capture the immutable
-  `ghcr.io/j-schulein/towerscout@sha256:<digest>` reference.
 - Decide and document the approved standalone Compose provider strategy,
   including version/checksum or vendoring policy.
-- Fix release/default image references so source defaults and generated
-  packages point only to pullable tags or digest-pinned images.
-- Pass the Model & Data Package checksum to final package generation with
-  `-AssetBundleSha256`.
+- Decide whether the rc5 candidate image/package should be promoted unchanged
+  to `v0.1.0-rc5` after the remaining matrix passes, or rebuilt from a later
+  commit if package validation finds additional fixes.
+- Capture Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI,
+  fixed-fixture parity, and final release-matrix evidence from the generated
+  candidate package.
 
 ### Sign-off
 
-Not signed off. Source implementation validation is passing; live runtime,
-release-package, fixed-fixture parity, and release-matrix evidence are still
+Not signed off. Source implementation validation, rc5 candidate image/package
+assembly, and local Docker CPU package smoke are passing. Docker GPU,
+Docker-Desktop-free Podman CPU from the final package, Podman GPU CDI from the
+final package, fixed-fixture parity, and final release-matrix evidence are still
 pending.
