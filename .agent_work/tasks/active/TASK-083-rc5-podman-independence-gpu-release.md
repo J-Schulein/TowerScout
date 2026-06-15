@@ -398,6 +398,10 @@ implementation begins.
 - [x] `.venv\Scripts\python.exe .agent_work\scripts\validate_agent_work.py` - PASS after Podman 5.8.2 task updates.
 - [x] `.venv\Scripts\python.exe .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .` - PASS after Podman 5.8.2 task updates.
 - [x] `git diff --check` - PASS after Podman 5.8.2 blocker fixes.
+- [x] `.venv\Scripts\python.exe -m pytest tests\unit\test_release_manifest_schema.py -q -p no:cacheprovider` - PASS, 2 tests after manifest checker canonical-field update.
+- [x] `.venv\Scripts\python.exe .agents\skills\towerscout-release-candidate-gate\scripts\check_release_manifest.py ...\release-manifest.v1.json ...\evidence` - PASS for canonical snake_case fields; remaining `SHA256SUMS.txt` warning is expected when checking the sanitized evidence folder instead of the full package root.
+- [x] `docker buildx build ... --tag ghcr.io/j-schulein/towerscout:v0.1.0-rc5-candidate.1-cuda121 --push ...` - IMAGE BUILD PASS locally; GHCR push blocked by authentication. Local image ID: `sha256:15da2bebff3d131ba2e274e6cf9564126abde0c31902d06454be51533991033b`.
+- [ ] RC5 candidate image publication, registry digest capture, and digest-pinned package generation are pending restored GHCR/GitHub workflow authentication.
 
 ### Issues Identified
 
@@ -418,10 +422,14 @@ the local `podman-machine-default` lock/connection was not usable in this
 workspace context. This does not validate or invalidate the GPU CDI path; it
 means the remaining evidence must be collected on the intended GPU Podman host.
 
-The validation package manifest checker still warns about recommended camelCase
-metadata keys while the package manifest uses the canonical snake_case fields.
-This is not a packaging failure, but it should be resolved or explicitly waived
-before final rc5 package sign-off.
+The manifest checker warning for canonical snake_case release metadata has been
+resolved in source. Older sanitized evidence folders may still warn when checked
+outside the full package root because they do not include `SHA256SUMS.txt`.
+
+The first RC5 candidate image build completed locally, but publishing to GHCR
+failed with `unauthorized: unauthenticated: User cannot be authenticated with
+the token provided.` No RC5 package should be generated for user/UAT validation
+until the image is published and an immutable registry digest is available.
 
 ### Remediation Actions
 
@@ -429,8 +437,9 @@ before final rc5 package sign-off.
   provider selected again after final rc5 package assembly.
 - Run the Podman GPU CDI live validation ladder on the GPU host again after
   final rc5 package assembly.
-- Resolve or waive the manifest checker recommended-key warning before final
-  rc5 release packaging.
+- Restore either Docker GHCR authentication or GitHub CLI/workflow
+  authentication, publish the RC5 candidate image, and capture the immutable
+  `ghcr.io/j-schulein/towerscout@sha256:<digest>` reference.
 - Decide and document the approved standalone Compose provider strategy,
   including version/checksum or vendoring policy.
 - Fix release/default image references so source defaults and generated
