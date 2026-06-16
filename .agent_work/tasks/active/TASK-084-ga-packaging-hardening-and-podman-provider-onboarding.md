@@ -504,3 +504,31 @@ this Windows host because its LibreOffice profile URI is not Windows-safe, so
 the direct renderer command is the documented local workaround for this pass.
 **Next**: Commit/push the docs slice, open the docs PR, then proceed to final
 CPU/CUDA image digest capture and package validation.
+
+### 2026-06-16 - PR 37 Asset Bundle Lookup Review Remediated
+**Objective**: Address PR #37 review feedback that variant control packages
+could generate `release_version` values with `-cpu` or `-cuda121` while sharing
+one unsuffixed Model & Data Package ZIP.
+**Context**: `scripts/package-release.ps1` records the shared asset ZIP name in
+`release_artifacts.asset_bundle`, but setup/bootstrap discovery and filename
+validation still derived the asset ZIP candidate from `release_version`. That
+would make a CPU package look for
+`towerscout-<release-version>-cpu-assets-...zip` instead of the documented
+shared `towerscout-<release-version>-assets-...zip`.
+**Execution**:
+- Updated `scripts/lib/TowerScoutBootstrap.ps1` so setup discovery and asset
+  ZIP filename validation prefer the exact
+  `release_artifacts.asset_bundle` value when present, with the existing
+  `release_version` fallback preserved for source/local packages.
+- Added PowerShell-backed bootstrap regression coverage for variant packages
+  sharing a manifest-declared unsuffixed asset ZIP.
+- Updated the release asset bundle contract to state that setup enforces the
+  filename from `release_artifacts.asset_bundle`.
+**Validation**:
+- `.venv\Scripts\python.exe -m pytest tests/unit/test_task_074_bootstrap.py tests/unit/test_release_package_script.py tests/unit/test_release_manifest_schema.py -q -p no:cacheprovider`
+  passed with `27 passed`.
+- `git diff --check` passed.
+- `.venv\Scripts\python.exe .agents\skills\towerscout-end-user-docs-check\scripts\check_doc_commands.py . docs README.md`
+  passed.
+**Next**: Commit and push the PR #37 remediation, then update the PR body
+before merge review.
