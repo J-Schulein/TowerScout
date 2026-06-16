@@ -1,6 +1,6 @@
 # TASK-084: GA Packaging Hardening And Podman Provider Onboarding
 
-**Status**: IN_PROGRESS - implementation slice completed on June 16, 2026 for RC5 runtime cleanup, shared asset bundle identity, package guardrails, and Podman provider onboarding; `TASK-085` is merged/validated, and final image publication, package evidence, and docs remain
+**Status**: IN_PROGRESS - implementation slice completed on June 16, 2026 for RC5 runtime cleanup, shared asset bundle identity, package guardrails, Podman provider onboarding, and user/support docs; `TASK-085` is merged/validated, and final image publication plus package evidence remain
 **Priority**: HIGH
 **Type**: C (Release Packaging / Distribution / First-Run Support)
 **Estimated Effort**: 2-4 days (16-32 hours), including runtime-defect cleanup, two-package generation, Podman provider onboarding, docs, and validation
@@ -194,7 +194,7 @@ with pinned runtime dependencies instead of relying on global Python packages.
       validation, or the CUDA package is held from final publication.
 - [x] `TASK-085` dataset ZIP restore hardening is merged and validated before
       final GA/pilot package publication.
-- [ ] User/support docs explain the selected package and Podman-provider path in
+- [x] User/support docs explain the selected package and Podman-provider path in
       plain language.
 
 ## Implementation Plan
@@ -463,3 +463,39 @@ gate checklist created at
 `.agent_work/tasks/active/TASK-084/final-package-gate-checklist-2026-06-16.md`.
 **Next**: Finalize release inputs, capture image digests, generate the CPU and
 CUDA control packages, and run the package validation matrix.
+
+### 2026-06-16 - User-Facing CPU/CUDA Package Docs Updated
+**Objective**: Update package-facing and UAT-facing documentation before
+recreating final CPU/CUDA package artifacts.
+**Context**: After PR #36 merged the final-package checklist, the remaining
+user-facing docs still assumed a single Application Package ZIP in several
+places.
+**Execution**:
+- Updated README, quick-start, package-guide, project-overview, user-guide,
+  release asset bundle contract, OCI support quick start, and OCI runtime
+  contract docs to explain the default CPU Application Package, the
+  support-assigned CUDA 12.1 Application Package, the shared Model & Data
+  Package, and the Podman Compose provider helper path.
+- Updated UAT tester materials:
+  `RC1-PILOT-UAT-CHECKLIST.md`,
+  `RC1-PILOT-HANDOFF-PACKET.md`,
+  `TESTER-ISSUE-REPORT-CHECKLIST.txt`,
+  `README.md`, and
+  `TowerScout_V1_RC1_UAT_User_Guide.docx`.
+- Updated package-local route test expectations for the new package wording.
+**Validation**:
+- `git diff --check` passed.
+- `.venv\Scripts\python.exe .agents\skills\towerscout-end-user-docs-check\scripts\check_doc_commands.py . docs README.md`
+  passed.
+- `.venv\Scripts\python.exe -m pytest tests/unit/test_release_package_script.py tests/unit/test_task_080_uat_followups.py`
+  passed with `8 passed`.
+- `.venv\Scripts\python.exe -m pytest tests/unit/test_flask_routes.py`
+  passed with `49 passed`.
+- DOCX OOXML text extraction confirmed required CPU/CUDA package,
+  Podman-provider helper, and `selected_device=cuda` wording.
+**Render Note**: Full DOCX page rendering could not be completed locally:
+`render_docx.py` failed because `pdf2image` is not installed, no
+LibreOffice/Poppler/ImageMagick renderer was on `PATH`, and Word COM export
+hung until interrupted. No background Word processes remained after cleanup.
+**Next**: Commit/push the docs slice, open the docs PR, then proceed to final
+CPU/CUDA image digest capture and package validation.
