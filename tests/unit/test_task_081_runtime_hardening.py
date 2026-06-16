@@ -253,6 +253,66 @@ def test_podman_compose_provider_override_uses_env_file_and_rejects_docker_deskt
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")
+def test_podman_gpu_gate_uses_configured_machine_from_env_file():
+    temp_root = REPO_ROOT / ".agent_work" / "pytest-temp" / f"task083-podman-machine-{uuid.uuid4().hex}"
+    temp_root.mkdir(parents=True)
+    (temp_root / ".env").write_text(
+        "TOWERSCOUT_PODMAN_MACHINE=towerscout-gpu-machine\n",
+        encoding="utf-8",
+    )
+
+    try:
+        command = f"""
+        $ErrorActionPreference = "Stop"
+        . "{COMPOSE_LIB}"
+
+        function Get-TowerScoutRepoRoot {{
+            return "{temp_root}"
+        }}
+
+        function Test-TowerScoutUseGpuOverlay {{
+            return $true
+        }}
+
+        function Test-TowerScoutPodmanGpuReady {{
+            param([string] $MachineName)
+            $script:CapturedMachineName = $MachineName
+            return [pscustomobject]@{{
+                Ready = $true
+                FailedRung = -1
+                Message = "ready"
+            }}
+        }}
+
+        $env:TOWERSCOUT_PODMAN_MACHINE = ""
+        $resolved = Get-TowerScoutConfiguredPodmanMachineName
+        if ($resolved -ne "towerscout-gpu-machine") {{
+            throw "Expected .env Podman machine, got $resolved"
+        }}
+
+        $overlay = Resolve-TowerScoutGpuComposeOverlay -EngineName podman -Gpu on
+        if ($overlay -ne "compose.gpu.podman.yaml") {{
+            throw "Expected Podman GPU overlay, got $overlay"
+        }}
+        if ($script:CapturedMachineName -ne "towerscout-gpu-machine") {{
+            throw "Expected GPU readiness check to use configured machine, got $script:CapturedMachineName"
+        }}
+
+        $explicit = Get-TowerScoutConfiguredPodmanMachineName -MachineName "explicit-machine"
+        if ($explicit -ne "explicit-machine") {{
+            throw "Explicit Podman machine should win, got $explicit"
+        }}
+        "ok"
+        """
+        result = _run_powershell(command)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "ok" in result.stdout
+    finally:
+        shutil.rmtree(temp_root, ignore_errors=True)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")
 def test_stale_container_plan_restarts_on_gpu_or_device_mismatch():
     command = f"""
     $ErrorActionPreference = "Stop"

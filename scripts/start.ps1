@@ -5,7 +5,7 @@ param(
     [ValidateSet("off", "auto", "on")]
     [string] $Gpu = "off",
 
-    [string] $PodmanMachineName = $(if ($env:TOWERSCOUT_PODMAN_MACHINE) { [string] $env:TOWERSCOUT_PODMAN_MACHINE } else { "podman-machine-default" }),
+    [string] $PodmanMachineName = "",
 
     [switch] $Build
 )

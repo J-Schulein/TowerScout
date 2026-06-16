@@ -65,7 +65,10 @@ if (-not [string]::IsNullOrWhiteSpace($AssetZip)) {
     Test-TowerScoutAssetZipReleaseMatch -RootPath $repoRoot -ZipPath $resolvedAssetZip
 }
 
-$hasExistingStagedAssets = Test-TowerScoutStagedAssets -RootPath $repoRoot -AssetsPath $resolvedAssetsPath
+$hasExistingStagedAssets = Test-TowerScoutStagedAssets `
+    -RootPath $repoRoot `
+    -AssetsPath $resolvedAssetsPath `
+    -AllowRepair:((-not [string]::IsNullOrWhiteSpace($resolvedAssetZip)))
 $effectiveEngine = Resolve-TowerScoutBootstrapEngine -Engine $Engine -Port $Port -RootPath $repoRoot -MinimumFreeGB $MinimumFreeGB
 Write-TowerScoutImagePullReadiness -RootPath $repoRoot -Engine $effectiveEngine
 
@@ -91,7 +94,11 @@ if (-not [string]::IsNullOrWhiteSpace($resolvedAssetZip)) {
         Write-Host "Reusing the staged assets and continuing with engine import."
     }
     else {
-        Expand-TowerScoutAssetZip -RootPath $repoRoot -ZipPath $resolvedAssetZip -AssetsPath $resolvedAssetsPath
+        Expand-TowerScoutAssetZip `
+            -RootPath $repoRoot `
+            -ZipPath $resolvedAssetZip `
+            -AssetsPath $resolvedAssetsPath `
+            -ReplaceExisting
     }
 }
 

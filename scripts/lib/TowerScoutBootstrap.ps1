@@ -1067,7 +1067,9 @@ function Expand-TowerScoutAssetZip {
         [string] $ZipPath,
 
         [Parameter(Mandatory = $true)]
-        [string] $AssetsPath
+        [string] $AssetsPath,
+
+        [switch] $ReplaceExisting
     )
 
     if (-not (Test-TowerScoutBootstrapChildPath -Parent $RootPath -Child $AssetsPath)) {
@@ -1080,10 +1082,12 @@ function Expand-TowerScoutAssetZip {
         New-Item -ItemType Directory -Path $AssetsPath | Out-Null
     }
 
-    foreach ($existing in @("model_params", "data", "asset_manifest.v1.json")) {
-        $existingPath = Join-Path $AssetsPath $existing
-        if (Test-Path -LiteralPath $existingPath) {
-            throw "Assets folder already contains '$existing' but the complete staged layout did not validate. Remove or repair the staged assets before re-running setup; valid staged assets are reused automatically."
+    if (-not $ReplaceExisting) {
+        foreach ($existing in @("model_params", "data", "asset_manifest.v1.json")) {
+            $existingPath = Join-Path $AssetsPath $existing
+            if (Test-Path -LiteralPath $existingPath) {
+                throw "Assets folder already contains '$existing' but the complete staged layout did not validate. Remove or repair the staged assets before re-running setup; valid staged assets are reused automatically."
+            }
         }
     }
 
@@ -1137,11 +1141,22 @@ function Expand-TowerScoutAssetZip {
 
         $assetManifestPath = Join-Path $stagingPath "asset_manifest.v1.json"
         Test-TowerScoutAssetReleaseMatch -RootPath $RootPath -AssetManifestPath $assetManifestPath -AssetZipPath $ZipPath
+        Test-TowerScoutStagedAssets -RootPath $RootPath -AssetsPath $stagingPath | Out-Null
 
-        foreach ($existing in @("model_params", "data", "asset_manifest.v1.json")) {
-            $existingPath = Join-Path $AssetsPath $existing
-            if (Test-Path -LiteralPath $existingPath) {
-                throw "Assets folder already contains '$existing' but the complete staged layout did not validate. Remove or repair the staged assets before re-running setup; valid staged assets are reused automatically."
+        if ($ReplaceExisting) {
+            foreach ($existing in @("model_params", "data", "asset_manifest.v1.json")) {
+                $existingPath = Join-Path $AssetsPath $existing
+                if (Test-Path -LiteralPath $existingPath) {
+                    Remove-Item -LiteralPath $existingPath -Recurse -Force -ErrorAction Stop
+                }
+            }
+        }
+        else {
+            foreach ($existing in @("model_params", "data", "asset_manifest.v1.json")) {
+                $existingPath = Join-Path $AssetsPath $existing
+                if (Test-Path -LiteralPath $existingPath) {
+                    throw "Assets folder already contains '$existing' but the complete staged layout did not validate. Remove or repair the staged assets before re-running setup; valid staged assets are reused automatically."
+                }
             }
         }
 
@@ -1176,7 +1191,9 @@ function Test-TowerScoutStagedAssets {
         [string] $RootPath,
 
         [Parameter(Mandatory = $true)]
-        [string] $AssetsPath
+        [string] $AssetsPath,
+
+        [switch] $AllowRepair
     )
 
     if (-not (Test-Path -LiteralPath $AssetsPath -PathType Container)) {
@@ -1206,9 +1223,84 @@ function Test-TowerScoutStagedAssets {
         return $false
     }
 
-    Test-TowerScoutAssetReleaseMatch -RootPath $RootPath -AssetManifestPath $manifestSource
-    Write-Host "Asset layout check: staged assets are present and match the control manifest."
+    try {
+        Test-TowerScoutAssetReleaseMatch -RootPath $RootPath -AssetManifestPath $manifestSource
+        Test-TowerScoutStagedAssetFiles -AssetsPath $AssetsPath -AssetManifestPath $manifestSource
+    }
+    catch {
+        if ($AllowRepair) {
+            Write-Warning "Existing staged assets are incomplete or corrupt and will be replaced from the verified Model & Data Package ZIP. $($_.Exception.Message)"
+            return $false
+        }
+        throw
+    }
+
+    Write-Host "Asset layout check: staged assets are present, complete, and match the control manifest."
     return $true
+}
+
+function Test-TowerScoutStagedAssetFiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $AssetsPath,
+
+        [Parameter(Mandatory = $true)]
+        [string] $AssetManifestPath
+    )
+
+    $manifest = Get-TowerScoutJsonFile -Path $AssetManifestPath
+    $assets = @($manifest.assets)
+    foreach ($asset in $assets) {
+        $assetId = [string] $asset.id
+        if ([string]::IsNullOrWhiteSpace($assetId)) {
+            $assetId = [string] $asset.path
+        }
+
+        $relativePath = ([string] $asset.path).Trim()
+        if ([string]::IsNullOrWhiteSpace($relativePath)) {
+            throw "Asset manifest entry '$assetId' does not identify a relative path."
+        }
+        if ([System.IO.Path]::IsPathRooted($relativePath)) {
+            throw "Asset manifest entry '$assetId' uses an absolute path; asset paths must be relative."
+        }
+
+        $normalizedRelativePath = $relativePath.Replace("/", [System.IO.Path]::DirectorySeparatorChar)
+        $assetPath = [System.IO.Path]::GetFullPath((Join-Path $AssetsPath $normalizedRelativePath))
+        if (-not (Test-TowerScoutBootstrapChildPath -Parent $AssetsPath -Child $assetPath)) {
+            throw "Asset manifest entry '$assetId' resolves outside the assets folder."
+        }
+
+        $required = $true
+        if ($asset.PSObject.Properties.Name -contains "required") {
+            $required = [bool] $asset.required
+        }
+
+        if (-not (Test-Path -LiteralPath $assetPath -PathType Leaf)) {
+            if ($required) {
+                throw "Staged assets are missing required asset '$assetId' at $relativePath."
+            }
+            continue
+        }
+
+        if ($asset.PSObject.Properties.Name -contains "bytes" -and $null -ne $asset.bytes) {
+            $expectedBytes = [Int64] $asset.bytes
+            $actualBytes = (Get-Item -LiteralPath $assetPath).Length
+            if ($actualBytes -ne $expectedBytes) {
+                throw "Staged asset '$assetId' has $actualBytes bytes, expected $expectedBytes."
+            }
+        }
+
+        $expectedSha256 = ""
+        if ($asset.PSObject.Properties.Name -contains "sha256") {
+            $expectedSha256 = ([string] $asset.sha256).Trim()
+        }
+        if (-not [string]::IsNullOrWhiteSpace($expectedSha256)) {
+            $actualSha256 = Get-TowerScoutSha256FileHash -Path $assetPath
+            if ($actualSha256.ToLowerInvariant() -ne $expectedSha256.ToLowerInvariant()) {
+                throw "Staged asset '$assetId' failed SHA-256 verification."
+            }
+        }
+    }
 }
 
 function Get-TowerScoutReadinessGuidance {

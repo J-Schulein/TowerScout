@@ -156,6 +156,27 @@ function Get-TowerScoutEnvFileValue {
     return $null
 }
 
+function Get-TowerScoutConfiguredPodmanMachineName {
+    param(
+        [string] $MachineName = ""
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($MachineName)) {
+        return ([string] $MachineName).Trim()
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace([string] $env:TOWERSCOUT_PODMAN_MACHINE)) {
+        return ([string] $env:TOWERSCOUT_PODMAN_MACHINE).Trim()
+    }
+
+    $envFileMachine = [string] (Get-TowerScoutEnvFileValue -Name "TOWERSCOUT_PODMAN_MACHINE")
+    if (-not [string]::IsNullOrWhiteSpace($envFileMachine)) {
+        return $envFileMachine.Trim()
+    }
+
+    return $script:TowerScoutDefaultPodmanMachineName
+}
+
 function Resolve-TowerScoutCommandOrPath {
     param(
         [Parameter(Mandatory = $true)]
@@ -562,8 +583,10 @@ function Get-TowerScoutPodmanMachineVmType {
 
 function Test-TowerScoutPodmanGpuReady {
     param(
-        [string] $MachineName = $script:TowerScoutDefaultPodmanMachineName
+        [string] $MachineName = $(Get-TowerScoutConfiguredPodmanMachineName)
     )
+
+    $MachineName = Get-TowerScoutConfiguredPodmanMachineName -MachineName $MachineName
 
     if (-not (Test-TowerScoutCommand "podman")) {
         return New-TowerScoutPodmanGpuReadyResult -Ready:$false -FailedRung 0 -Message "Podman CLI was not found."
@@ -651,7 +674,7 @@ function Resolve-TowerScoutGpuComposeOverlay {
         [ValidateSet("off", "auto", "on")]
         [string] $Gpu = "off",
 
-        [string] $PodmanMachineName = $script:TowerScoutDefaultPodmanMachineName
+        [string] $PodmanMachineName = $(Get-TowerScoutConfiguredPodmanMachineName)
     )
 
     if (-not (Test-TowerScoutUseGpuOverlay -EngineName $EngineName -Gpu $Gpu)) {
@@ -662,7 +685,8 @@ function Resolve-TowerScoutGpuComposeOverlay {
         return "compose.gpu.yaml"
     }
 
-    $ready = Test-TowerScoutPodmanGpuReady -MachineName $PodmanMachineName
+    $resolvedPodmanMachineName = Get-TowerScoutConfiguredPodmanMachineName -MachineName $PodmanMachineName
+    $ready = Test-TowerScoutPodmanGpuReady -MachineName $resolvedPodmanMachineName
     if ([bool] $ready.Ready) {
         return "compose.gpu.podman.yaml"
     }
@@ -1187,7 +1211,7 @@ function Invoke-TowerScoutCompose {
         [ValidateSet("off", "auto", "on")]
         [string] $Gpu = "off",
 
-        [string] $PodmanMachineName = $script:TowerScoutDefaultPodmanMachineName
+        [string] $PodmanMachineName = $(Get-TowerScoutConfiguredPodmanMachineName)
     )
 
     $repoRoot = Get-TowerScoutRepoRoot
@@ -1198,7 +1222,7 @@ function Invoke-TowerScoutCompose {
         $gpuOverlayFile = Resolve-TowerScoutGpuComposeOverlay `
             -EngineName $effectiveEngine `
             -Gpu $Gpu `
-            -PodmanMachineName $PodmanMachineName
+            -PodmanMachineName (Get-TowerScoutConfiguredPodmanMachineName -MachineName $PodmanMachineName)
     }
 
     Set-TowerScoutGpuEnvironment -Gpu $Gpu -Build:$Build

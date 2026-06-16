@@ -11,7 +11,7 @@ param(
 
     [int] $SessionMaxHours = $(if ($env:TOWERSCOUT_SESSION_MAX_HOURS) { [int] $env:TOWERSCOUT_SESSION_MAX_HOURS } else { 12 }),
 
-    [string] $PodmanMachineName = $(if ($env:TOWERSCOUT_PODMAN_MACHINE) { [string] $env:TOWERSCOUT_PODMAN_MACHINE } else { "podman-machine-default" }),
+    [string] $PodmanMachineName = "",
 
     [switch] $Build,
 
