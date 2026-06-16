@@ -493,9 +493,14 @@ places.
   passed with `49 passed`.
 - DOCX OOXML text extraction confirmed required CPU/CUDA package,
   Podman-provider helper, and `selected_device=cuda` wording.
-**Render Note**: Full DOCX page rendering could not be completed locally:
-`render_docx.py` failed because `pdf2image` is not installed, no
-LibreOffice/Poppler/ImageMagick renderer was on `PATH`, and Word COM export
-hung until interrupted. No background Word processes remained after cleanup.
+- Added a static Table of Contents to
+  `TowerScout_V1_RC1_UAT_User_Guide.docx`, kept the normal Docker CPU path in
+  the main body, and moved support-assigned Podman/GPU tracks into Appendix A.
+**Render Note**: Full DOCX page rendering now passed through the direct
+LibreOffice plus Poppler fallback. The final rendered guide is 11 pages; every
+PNG page was visually inspected for clipping, overlap, table breakage, and
+stale TOC page numbers. The packaged `render_docx.py` helper still fails on
+this Windows host because its LibreOffice profile URI is not Windows-safe, so
+the direct renderer command is the documented local workaround for this pass.
 **Next**: Commit/push the docs slice, open the docs PR, then proceed to final
 CPU/CUDA image digest capture and package validation.
