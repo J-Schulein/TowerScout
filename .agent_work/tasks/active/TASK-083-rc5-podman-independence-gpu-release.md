@@ -1,6 +1,6 @@
 # TASK-083: RC5 Podman Independence, GPU CDI, And Release Validation
 
-**Status**: IN_PROGRESS - Source implementation, Podman 5.8.2 blocker fixes, rc5 candidate image/package assembly, local Docker CPU smoke, live Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and fixed-fixture runtime parity are validated; final RC5 package sign-off remains pending a rebuilt package with the updated docs, SBOM decision/waiver, and revalidation against the final pinned rc5 digest.
+**Status**: REVIEW_READY - Source implementation, Podman 5.8.2 blocker fixes, rc5 candidate image/package assembly, local Docker CPU smoke, live Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and fixed-fixture runtime parity are validated for RC5 candidate 3. PR #33 closure remains; GA package distribution polish is split to `TASK-084`.
 **Priority**: CRITICAL
 **Type**: C (Runtime Support / Podman GPU / Release Validation)
 **Estimated Effort**: 3-6 days (24-48 hours), split across CPU-dev-able implementation, GPU-host validation, and package release validation
@@ -132,7 +132,7 @@ readiness, health, and fixed-fixture parity.
 - [x] Fixed-fixture parity evidence is preserved for the next RC.
 - [x] The next image/package is generated only after implementation validation
       passes.
-- [ ] The final rebuilt package release matrix passes or records bounded,
+- [x] The final candidate package release matrix passes or records bounded,
       owner-accepted caveats.
 - [x] Documentation support language does not claim Docker-Desktop-free Podman or
       Podman GPU beyond evidence.
@@ -413,6 +413,30 @@ matrix against the final pinned rc5 digest.
 
 ---
 
+### 2026-06-16 - RC5 Candidate 3 Review And GA Packaging Split
+**Objective**: Review the RC5 candidate 3 validation packet and decide whether
+remaining image/provider polish belongs in Task-083 or a new task.
+**Context**: The packet under
+`.agent_work/context/analysis/towerscout-rc5-candidate3-validation-evidence-2026-06-15/`
+validated the published pre-release `v0.1.0-rc5-candidate.3` at source ref
+`ef6904fc` with image digest
+`sha256:841bc196c753654d359ff399e5ac5a547d4b2ab01150c7cc20eb2b7be73852ad`.
+Docker CPU, Docker GPU, Podman CPU, and Podman GPU CDI all reached readiness,
+and fixed-fixture parity was byte-identical at 45 detections over 25 tiles.
+**Decision**: Treat Task-083 runtime work as review-ready after PR #33 metadata
+is updated and the PR leaves draft. Split remaining GA packaging/distribution
+polish into `TASK-084`, specifically CPU/CUDA package strategy, Podman Compose
+provider onboarding, and public evidence sanitization.
+**Output**: Task-083 status updated to `REVIEW_READY`; `TASK-084` created and
+linked from the sprint tracker.
+**Validation**: The evidence packet's `SHA256SUMS.txt` verified locally during
+review, and the parity JSONs had identical per-tile detection counts across all
+four cells.
+**Next**: Update PR #33 body/draft state, complete review/merge, then pursue
+GA packaging hardening under Task-084.
+
+---
+
 ## Validation Results
 
 ### Planning Validation
@@ -436,9 +460,9 @@ matrix against the final pinned rc5 digest.
       `setup_required`, and `selected_device=cpu`.
 - [x] Live Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and
       fixed-fixture runtime parity passed in the RC5 sign-off evidence packet.
-- [ ] Final rebuilt package validation remains pending because the sign-off
-      packet validated a stand-in rc4 CUDA digest and the docs have since been
-      updated for RC5 Podman GPU support.
+- [x] RC5 candidate 3 package validation passed against the published rc5 image
+      digest and current source ref; GA package-distribution polish is tracked
+      separately in `TASK-084`.
 - [x] Rollback checkpoint branch and draft PR created.
 - [x] Local Task-083 validation package created for package-content inspection.
 
@@ -527,20 +551,18 @@ the immutable rc5 candidate image digest recorded above.
 
 ### Remediation Actions
 
-- Rebuild the RC5 candidate package so package-local docs include the RC5
-  Podman GPU support boundary.
-- Resolve or explicitly waive the SBOM reference warning before final sign-off.
-- Run the Docker-Desktop-free Podman CPU package smoke with the approved
-  provider selected against the rebuilt package.
-- Run the Docker GPU and Podman GPU CDI live validation ladder against the
-  rebuilt package and final pinned rc5 digest.
-- Capture final fixed-fixture parity and release-matrix evidence from the
-  rebuilt candidate package.
+- Update PR #33 body to replace stale "live validation pending" language with
+  the RC5 candidate 3 evidence summary.
+- Remove draft status from PR #33 when the owner is ready for normal review.
+- Keep Task-083 runtime scope closed unless PR review identifies a source
+  defect.
+- Continue CPU/CUDA package strategy, Podman provider onboarding, and public
+  evidence sanitization under `TASK-084`.
 
 ### Sign-off
 
-Not signed off. Runtime implementation and the live four-cell matrix are
-validated, including Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI,
-and fixed-fixture parity. Final RC5 package sign-off is still pending because
-the package must be rebuilt with updated docs and then revalidated against the
-final pinned rc5 digest with the SBOM decision or waiver recorded.
+Runtime sign-off is complete for the RC5 candidate 3 support boundary: Docker
+CPU, Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and
+fixed-fixture parity are validated. Task-083 remains open only for PR #33
+review/merge closure. GA packaging and first-run distribution hardening are
+tracked in `TASK-084`.

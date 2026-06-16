@@ -1,9 +1,9 @@
 # Current Tasks - Active Sprint
 
 **Sprint Period**: Sprint 06 planning / V1 RC1 readiness begins May 11, 2026  
-**Last Updated**: June 15, 2026
+**Last Updated**: June 16, 2026
 **Focus**: Produce a V1 RC1 / pilot-ready AGPL-compliant YOLO-enabled release path by closing release-support carry-forward work, correcting release compliance artifacts, writing package-based end-user docs, validating the clean-machine release candidate, and preparing pilot / UAT execution.
-**Status**: Sprint 06 committed lane selected. `TASK-065`, `TASK-072`, `TASK-079`, `TASK-071`, `TASK-067`, and `TASK-074` are completed and remain in the active task folder until sprint closeout; `TASK-069` sign-off is sufficient to merge PR #11 as the internal controlled AGPL-governed RC planning and compliance baseline; `TASK-075` implementation is merged with NVIDIA-host validation still pending before broad GPU support claims; `TASK-066` post-PR28 final prerelease Docker Desktop package path passed through checksum verification, bootstrap/readiness from the GitHub Release Application Package, Settings-linked docs, `/license`, in-container asset hash verification, and bounded Azure detection smoke on the refreshed final digest, with Podman Docker Hub source-build TLS, Docker-Desktop-free Podman, and NVIDIA GPU evidence still bounded follow-ups; `TASK-073` is active for clean-machine pilot/UAT planning and now has exact refreshed release artifact values, default smoke fixture, support contacts, provider-key evidence boundaries, published rc2/rc3 prereleases, rc2 provider setup / bounded Azure smoke, and rc3 package/downloaded-release setup validation; tester cohort selection and owner/reviewer acceptance remain before external tester launch; `TASK-080` has simplified the first-cohort setup path, produced and locked the consolidated Word guide, verified the Google first-launch TLS support path, and published/validated the refreshed rc3 UAT release package; `TASK-081` runtime hardening landed on `main`; `TASK-082` landed on `main` as `v0.1.0-rc4` with stable docs naming and package wiring; `TASK-083` source implementation, Podman 5.8.2 blocker fixes, rc5 candidate image/package assembly, local Docker CPU smoke, live Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and fixed-fixture runtime parity are validated; final RC5 package sign-off remains pending a rebuilt package with updated docs, SBOM decision/waiver, and revalidation against the final pinned rc5 digest.
+**Status**: Sprint 06 committed lane selected. `TASK-065`, `TASK-072`, `TASK-079`, `TASK-071`, `TASK-067`, and `TASK-074` are completed and remain in the active task folder until sprint closeout; `TASK-069` sign-off is sufficient to merge PR #11 as the internal controlled AGPL-governed RC planning and compliance baseline; `TASK-075` implementation is merged and its GPU support claims are now bounded by `TASK-083` evidence; `TASK-066` post-PR28 final prerelease Docker Desktop package path passed through checksum verification, bootstrap/readiness from the GitHub Release Application Package, Settings-linked docs, `/license`, in-container asset hash verification, and bounded Azure detection smoke on the refreshed final digest; `TASK-073` is active for clean-machine pilot/UAT planning and now has exact refreshed release artifact values, default smoke fixture, support contacts, provider-key evidence boundaries, published rc2/rc3 prereleases, rc2 provider setup / bounded Azure smoke, and rc3 package/downloaded-release setup validation; tester cohort selection and owner/reviewer acceptance remain before external tester launch; `TASK-080` has simplified the first-cohort setup path, produced and locked the consolidated Word guide, verified the Google first-launch TLS support path, and published/validated the refreshed rc3 UAT release package; `TASK-081` runtime hardening landed on `main`; `TASK-082` landed on `main` as `v0.1.0-rc4` with stable docs naming and package wiring; `TASK-083` is review-ready after validating RC5 candidate 3 across Docker CPU, Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and fixed-fixture parity; `TASK-084` now owns GA package distribution polish, including CPU/CUDA package strategy and Podman Compose provider onboarding.
 
 ---
 
@@ -157,8 +157,8 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 - Optional `compose.gpu.yaml` is implemented and included in release package staging.
 - `start.bat` / `scripts/launch.ps1` now support `-Gpu off|auto|on`; default `off` remains CPU-safe, `auto` only requests the overlay when a simple Docker/NVIDIA host preflight detects a GPU, and `on` explicitly requires CUDA.
 - TASK-075 originally kept GPU support claims pending hardware evidence. TASK-083
-  now provides RC5 support-assigned Docker GPU and Podman GPU runtime evidence,
-  while final package sign-off still requires the rebuilt-package matrix.
+  now provides RC5 support-assigned Docker GPU and Podman GPU runtime evidence.
+  TASK-084 carries GA image/package delivery decisions.
 
 **Dependencies**: `TASK-079`; `TASK-051`; `TASK-065`; `TASK-071`; `TASK-066`.
 
@@ -332,7 +332,7 @@ Sprint 06 is not intended to declare final V1 completion. Final V1 completion sh
 **User Value**: Reduces first-cohort UAT friction by turning the validated release package path into a plain-language walkthrough that explains what users are doing, why each step matters, what success looks like, and how to report safe evidence if blocked.
 
 ### **TASK-081: RC3 Runtime Hardening And Podman Independence**
-**Status**: IN_PROGRESS - runtime defaults, launcher/import hardening, route safety fixes, docs, focused automated validation, live Podman CPU launch/import validation, and live Docker Desktop CPU launch/import validation passed; TASK-083 now carries the RC5 Docker/Podman GPU evidence and final-package sign-off gate
+**Status**: IN_PROGRESS - runtime defaults, launcher/import hardening, route safety fixes, docs, focused automated validation, live Podman CPU launch/import validation, and live Docker Desktop CPU launch/import validation passed; TASK-083 now carries the RC5 Docker/Podman GPU evidence and TASK-084 carries GA packaging follow-through
 **Type**: C (Runtime Hardening / Podman Support / Release Validation)
 **Priority**: HIGH
 **Estimated Effort**: 2-4 days (16-32 hours), split between CPU-dev-able fixes and hardware-dependent GPU validation
@@ -399,7 +399,7 @@ users to reason through stale RC labels, historical examples, duplicate docs,
 or implementation-contract material before they can install and run TowerScout.
 
 ### **TASK-083: RC5 Podman Independence, GPU CDI, And Release Validation**
-**Status**: IN_PROGRESS - source implementation, Podman 5.8.2 CPU/GPU blocker fixes, rc5 candidate image/package assembly, local Docker CPU smoke, live Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and fixed-fixture runtime parity are validated; final RC5 package sign-off remains pending a rebuilt package with updated docs, SBOM decision/waiver, and revalidation against the final pinned rc5 digest
+**Status**: REVIEW_READY - source implementation, Podman 5.8.2 CPU/GPU blocker fixes, rc5 candidate image/package assembly, local Docker CPU smoke, live Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and fixed-fixture runtime parity are validated for RC5 candidate 3; PR #33 closure remains
 **Type**: C (Runtime Support / Podman GPU / Release Validation)
 **Priority**: CRITICAL
 **Estimated Effort**: 3-6 days (24-48 hours), split across CPU-dev-able implementation, GPU-host validation, and package release validation
@@ -418,11 +418,10 @@ needed before the next release-candidate package, then build and validate an
   evidence that Docker Desktop's bundled `docker-compose.exe` was not selected.
 - Podman GPU passed through the CDI ladder on the NVIDIA WSL2 Podman host, with
   TowerScout readiness `selected_device=cuda`.
-- Docker CPU, Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and
-  fixed-fixture parity passed as runtime evidence. Final release sign-off still
-  requires rebuilding the package with updated docs, resolving or waiving the
-  SBOM reference warning, and revalidating the rebuilt package against the final
-  pinned rc5 digest.
+- RC5 candidate 3 passed Docker CPU, Docker GPU, Docker-Desktop-free Podman CPU,
+  Podman GPU CDI, and fixed-fixture parity as runtime evidence.
+- Remaining GA packaging and first-run distribution decisions are split to
+  `TASK-084` rather than blocking Task-083 runtime closure.
 
 **Dependencies**: `TASK-066`; `TASK-074`; `TASK-075`; `TASK-080`;
 `TASK-081`; `TASK-082`; RC4 follow-up and Podman GPU implementation review
@@ -432,6 +431,37 @@ validation.
 **User Value**: Converts the RC4 findings into a supportable next release
 candidate that can honestly claim Docker-Desktop-free Podman support and, if
 validation passes, gated Podman GPU support without changing model behavior.
+
+### **TASK-084: GA Packaging Hardening And Podman Provider Onboarding**
+**Status**: PLANNED - selected after RC5 candidate 3 validation split GA packaging/distribution decisions out of `TASK-083`
+**Type**: C (Release Packaging / Distribution / First-Run Support)
+**Priority**: HIGH
+**Estimated Effort**: 1-3 days (8-24 hours), depending on one-package versus two-package image selection
+**Target Sprint**: Sprint 06 V1 RC1 / RC5-to-GA hardening
+**Task File**: `.agent_work/tasks/active/TASK-084-ga-packaging-hardening-and-podman-provider-onboarding.md`
+
+**Objective**: Turn the RC5 runtime-valid package path into a cleaner GA
+distribution path by settling image flavor delivery and making Podman Compose
+provider setup easier for Docker-Desktop-free users.
+
+**Current Direction**:
+- Prefer publishing both CPU and CUDA image flavors so CPU users do not need to
+  pull the large CUDA image unless the owner explicitly waives that for GA.
+- Decide between two pinned packages (`-cpu` and `-cuda121`) and one package
+  that selects between pinned image digests.
+- Keep the Podman path fail-closed against Docker Desktop's bundled Compose
+  provider while adding approved provider auto-detect and/or a fetch-and-verify
+  helper.
+- Sanitize public evidence packets so even masked provider-key previews are
+  removed before attachment to public release materials.
+
+**Dependencies**: `TASK-083`; `TASK-066`; `TASK-071`; `TASK-074`; release image
+workflow and package generation scripts; owner decision on image/package and
+provider strategy.
+
+**User Value**: Reduces download size and first-run confusion for CPU users,
+while making the Docker-Desktop-free Podman path easier to execute without
+weakening the provider guardrail validated in RC5.
 
 ### **TASK-074: Runtime Prerequisite Preflight**
 **Status**: COMPLETED - post-merge package-artifact bootstrap validation passed
