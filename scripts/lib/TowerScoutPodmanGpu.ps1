@@ -10,27 +10,30 @@ function Get-TowerScoutPodmanGpuEnvFileValue {
         [string] $Name
     )
 
-    $envPath = Join-Path (Get-TowerScoutPodmanGpuRepoRoot) ".env"
-    if (-not (Test-Path -LiteralPath $envPath -PathType Leaf)) {
-        return ""
-    }
-
+    $repoRoot = Get-TowerScoutPodmanGpuRepoRoot
     $pattern = "^\s*" + [regex]::Escape($Name) + "\s*=\s*(.*)\s*$"
-    foreach ($line in Get-Content -LiteralPath $envPath) {
-        $text = [string] $line
-        if ($text.TrimStart().StartsWith("#")) {
+    foreach ($fileName in @(".env", ".env.example")) {
+        $envPath = Join-Path $repoRoot $fileName
+        if (-not (Test-Path -LiteralPath $envPath -PathType Leaf)) {
             continue
         }
-        if ($text -match $pattern) {
-            $value = $matches[1].Trim()
-            if ($value.Length -ge 2) {
-                $first = $value.Substring(0, 1)
-                $last = $value.Substring($value.Length - 1, 1)
-                if (($first -eq '"' -and $last -eq '"') -or ($first -eq "'" -and $last -eq "'")) {
-                    $value = $value.Substring(1, $value.Length - 2)
-                }
+
+        foreach ($line in Get-Content -LiteralPath $envPath) {
+            $text = [string] $line
+            if ($text.TrimStart().StartsWith("#")) {
+                continue
             }
-            return $value
+            if ($text -match $pattern) {
+                $value = $matches[1].Trim()
+                if ($value.Length -ge 2) {
+                    $first = $value.Substring(0, 1)
+                    $last = $value.Substring($value.Length - 1, 1)
+                    if (($first -eq '"' -and $last -eq '"') -or ($first -eq "'" -and $last -eq "'")) {
+                        $value = $value.Substring(1, $value.Length - 2)
+                    }
+                }
+                return $value
+            }
         }
     }
 
@@ -51,7 +54,12 @@ function Get-TowerScoutPodmanGpuImage {
 
     $envFileImage = Get-TowerScoutPodmanGpuEnvFileValue -Name "TOWERSCOUT_IMAGE"
     if (-not [string]::IsNullOrWhiteSpace($envFileImage)) {
-        return $envFileImage.Trim()
+        $image = $envFileImage.Trim()
+        $digest = Get-TowerScoutPodmanGpuEnvFileValue -Name "TOWERSCOUT_IMAGE_DIGEST"
+        if (-not [string]::IsNullOrWhiteSpace($digest) -and $image -notmatch "@sha256:") {
+            return "$image@$($digest.Trim())"
+        }
+        return $image
     }
 
     return "ghcr.io/j-schulein/towerscout:latest-cpu"

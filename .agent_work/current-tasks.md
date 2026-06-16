@@ -435,7 +435,7 @@ candidate that can honestly claim Docker-Desktop-free Podman support and, if
 validation passes, gated Podman GPU support without changing model behavior.
 
 ### **TASK-084: GA Packaging Hardening And Podman Provider Onboarding**
-**Status**: PLANNED - owner decisions locked on June 16, 2026; ready for implementation after RC5 candidate 3 validation split GA packaging/distribution decisions out of `TASK-083`
+**Status**: IN_PROGRESS - runtime cleanup, shared asset-bundle identity, package guardrails, and Podman provider onboarding implementation slice passed focused validation; final image publication, evidence, docs, and `TASK-085` gate remain
 **Type**: C (Release Packaging / Distribution / First-Run Support)
 **Priority**: HIGH
 **Estimated Effort**: 2-4 days (16-32 hours), including runtime-defect cleanup, two-package generation, Podman provider onboarding, docs, and validation
@@ -469,9 +469,9 @@ provider setup easier for Docker-Desktop-free users.
 - Make the provider helper print the `.env` setting by default and write only
   with `-Apply`, backing up `.env` and updating only
   `PODMAN_COMPOSE_PROVIDER`.
-- Include the RC5 review runtime-defect cleanup in this task: Podman `cp`
-  fallback lookup, Podman GPU image resolution, real command timeouts, and
-  complete stopped-port-conflict reporting.
+- Implemented and focused-tested the RC5 review runtime-defect cleanup:
+  Podman `cp` fallback lookup, Podman GPU image resolution, real command
+  timeouts, and complete stopped-port-conflict reporting.
 - Include `SOURCE.txt`, exact source ref, SBOM/provenance, package checksums,
   image digests, shared asset checksum, and manifest consistency in final
   evidence.

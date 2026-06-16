@@ -1,6 +1,6 @@
 # TASK-084: GA Packaging Hardening And Podman Provider Onboarding
 
-**Status**: PLANNED - owner decisions locked on June 16, 2026; ready for implementation after RC5 candidate 3 runtime validation split GA packaging/distribution decisions out of `TASK-083`
+**Status**: IN_PROGRESS - implementation slice completed on June 16, 2026 for RC5 runtime cleanup, shared asset bundle identity, package guardrails, and Podman provider onboarding; final image publication, evidence packets, docs, and `TASK-085` gate remain
 **Priority**: HIGH
 **Type**: C (Release Packaging / Distribution / First-Run Support)
 **Estimated Effort**: 2-4 days (16-32 hours), including runtime-defect cleanup, two-package generation, Podman provider onboarding, docs, and validation
@@ -156,27 +156,27 @@ and release-manifest consistency.
 - [ ] CPU image is published and digest-pinned.
 - [ ] Package generation emits separate CPU and CUDA control ZIPs without
       mutable tags in release runtime paths.
-- [ ] Both package manifests identify the same shared Model & Data Package
+- [x] Both package manifests identify the same shared Model & Data Package
       filename and SHA-256 unless a documented asset difference exists.
-- [ ] Package setup/launch detects stale `.env` image or digest mismatches and
+- [x] Package setup/launch detects stale `.env` image or digest mismatches and
       gives a clear repair action instead of silently reusing the wrong image.
-- [ ] CPU package `-Gpu on` fails with a package-aware "use CUDA package"
+- [x] CPU package `-Gpu on` fails with a package-aware "use CUDA package"
       message.
 - [ ] CUDA package `-Gpu on` remains fail-closed unless readiness reports
       `selected_device=cuda`.
-- [ ] Podman provider auto-detect is implemented and tested for blank
+- [x] Podman provider auto-detect is implemented and tested for blank
       `PODMAN_COMPOSE_PROVIDER`.
-- [ ] Provider auto-detect uses a machine-readable allowlist contract and fails
+- [x] Provider auto-detect uses a machine-readable allowlist contract and fails
       with candidate details when detection is ambiguous.
-- [ ] Explicit fetch-and-verify provider helper is implemented and tested for
+- [x] Explicit fetch-and-verify provider helper is implemented and tested for
       connected support/setup use.
-- [ ] Provider helper prints the `.env` setting by default; `-Apply` backs up
+- [x] Provider helper prints the `.env` setting by default; `-Apply` backs up
       `.env`, updates only `PODMAN_COMPOSE_PROVIDER`, and preserves other
       settings.
-- [ ] Normal launch does not silently download or install provider binaries.
-- [ ] Docker Desktop's bundled Compose provider remains fail-closed for the
+- [x] Normal launch does not silently download or install provider binaries.
+- [x] Docker Desktop's bundled Compose provider remains fail-closed for the
       Podman support path.
-- [ ] Podman `cp` fallback, Podman GPU image resolution, command timeout, and
+- [x] Podman `cp` fallback, Podman GPU image resolution, command timeout, and
       stopped-port-conflict reporting fixes from RC5 review are implemented and
       covered by focused regression tests.
 - [ ] Final package evidence includes `-AssetBundleSha256`,
@@ -350,3 +350,46 @@ validation strategy, and non-goals.
 **Next**: Start implementation with the RC5 runtime defect cleanup slice, then
 move through package generation and Podman provider onboarding before selecting
 `TASK-085`.
+
+### 2026-06-16 - Runtime Cleanup, Package Guardrails, And Provider Onboarding Implemented
+**Objective**: Execute the first implementation slice before final image
+publication and `TASK-085`.
+**Context**: RC5 review left several GA-blocking polish issues that were safe
+to implement before cutting final CPU/CUDA package artifacts.
+**Execution**:
+- Added bounded Podman helper command execution with timeout enforcement and
+  Windows child-process cleanup.
+- Changed Podman `cp` fallback lookup to prefer provider-consistent
+  `compose ps` service container IDs before label-based fallback.
+- Updated Podman GPU enablement image resolution to honor package
+  `.env.example` image/digest values before `.env` exists.
+- Expanded stale stopped-container port reporting to enumerate all known
+  conflicts for the requested host port.
+- Added release-package `.env` image/digest mismatch detection that fails
+  closed with repair guidance instead of silently reusing stale image values.
+- Added CPU package guardrail that rejects `-Gpu on` outside build mode and
+  points users/support to the CUDA package.
+- Updated package generation so CPU and CUDA control ZIP variants share one
+  asset bundle release identity while retaining separate image/digest metadata.
+- Added a machine-readable Podman Compose provider allowlist, approved-provider
+  auto-detection, ambiguous-provider failure with candidate details, and
+  Docker Desktop provider rejection.
+- Added an explicit connected `scripts\install-podman-compose-provider.cmd`
+  helper that downloads the pinned PyPI `podman-compose` wheel, verifies
+  SHA-256, installs a package-local wrapper, prints the `.env` setting by
+  default, and updates only `PODMAN_COMPOSE_PROVIDER` with backup when `-Apply`
+  is used.
+- Included the provider catalog/helper files in release package staging and
+  updated package-facing Podman setup text.
+**Validation**:
+- PowerShell parser checks passed for
+  `scripts\lib\TowerScoutCompose.ps1`,
+  `scripts\lib\TowerScoutPodmanComposeProvider.ps1`,
+  `scripts\install-podman-compose-provider.ps1`, and
+  `scripts\package-release.ps1`.
+- `git diff --check` passed.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_task_075_launcher_gpu.py tests\unit\test_task_081_runtime_hardening.py tests\unit\test_task_074_bootstrap.py tests\unit\test_podman_gpu_enablement.py tests\unit\test_release_package_script.py tests\unit\test_release_manifest_schema.py -q -p no:cacheprovider`
+  passed with `46 passed`.
+**Open Gates**: CPU/CUDA image publication and digest capture, final package
+assembly/evidence, broader docs pass, public evidence sanitization, and
+`TASK-085` dataset ZIP path traversal hardening remain open.
