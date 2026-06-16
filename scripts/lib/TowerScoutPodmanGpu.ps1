@@ -4,6 +4,50 @@ function Get-TowerScoutPodmanGpuRepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 }
 
+function Get-TowerScoutPodmanGpuEnvFileValueFromPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Name
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return [pscustomobject]@{
+            Found = $false
+            Value = ""
+        }
+    }
+
+    $pattern = "^\s*" + [regex]::Escape($Name) + "\s*=\s*(.*)\s*$"
+    foreach ($line in Get-Content -LiteralPath $Path) {
+        $text = [string] $line
+        if ($text.TrimStart().StartsWith("#")) {
+            continue
+        }
+        if ($text -match $pattern) {
+            $value = $matches[1].Trim()
+            if ($value.Length -ge 2) {
+                $first = $value.Substring(0, 1)
+                $last = $value.Substring($value.Length - 1, 1)
+                if (($first -eq '"' -and $last -eq '"') -or ($first -eq "'" -and $last -eq "'")) {
+                    $value = $value.Substring(1, $value.Length - 2)
+                }
+            }
+            return [pscustomobject]@{
+                Found = $true
+                Value = $value
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        Found = $false
+        Value = ""
+    }
+}
+
 function Get-TowerScoutPodmanGpuEnvFileValue {
     param(
         [Parameter(Mandatory = $true)]
@@ -11,30 +55,43 @@ function Get-TowerScoutPodmanGpuEnvFileValue {
     )
 
     $repoRoot = Get-TowerScoutPodmanGpuRepoRoot
-    $pattern = "^\s*" + [regex]::Escape($Name) + "\s*=\s*(.*)\s*$"
+    foreach ($fileName in @(".env", ".env.example")) {
+        $entry = Get-TowerScoutPodmanGpuEnvFileValueFromPath -Path (Join-Path $repoRoot $fileName) -Name $Name
+        if ($entry.Found) {
+            return $entry.Value
+        }
+    }
+
+    return ""
+}
+
+function Join-TowerScoutPodmanGpuImageDigest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Image,
+
+        [string] $Digest = ""
+    )
+
+    $resolvedImage = $Image.Trim()
+    if (-not [string]::IsNullOrWhiteSpace($Digest) -and $resolvedImage -notmatch "@sha256:") {
+        return "$resolvedImage@$($Digest.Trim())"
+    }
+
+    return $resolvedImage
+}
+
+function Get-TowerScoutPodmanGpuEnvFileImage {
+    $repoRoot = Get-TowerScoutPodmanGpuRepoRoot
     foreach ($fileName in @(".env", ".env.example")) {
         $envPath = Join-Path $repoRoot $fileName
-        if (-not (Test-Path -LiteralPath $envPath -PathType Leaf)) {
+        $imageEntry = Get-TowerScoutPodmanGpuEnvFileValueFromPath -Path $envPath -Name "TOWERSCOUT_IMAGE"
+        if (-not $imageEntry.Found -or [string]::IsNullOrWhiteSpace([string] $imageEntry.Value)) {
             continue
         }
 
-        foreach ($line in Get-Content -LiteralPath $envPath) {
-            $text = [string] $line
-            if ($text.TrimStart().StartsWith("#")) {
-                continue
-            }
-            if ($text -match $pattern) {
-                $value = $matches[1].Trim()
-                if ($value.Length -ge 2) {
-                    $first = $value.Substring(0, 1)
-                    $last = $value.Substring($value.Length - 1, 1)
-                    if (($first -eq '"' -and $last -eq '"') -or ($first -eq "'" -and $last -eq "'")) {
-                        $value = $value.Substring(1, $value.Length - 2)
-                    }
-                }
-                return $value
-            }
-        }
+        $digestEntry = Get-TowerScoutPodmanGpuEnvFileValueFromPath -Path $envPath -Name "TOWERSCOUT_IMAGE_DIGEST"
+        return Join-TowerScoutPodmanGpuImageDigest -Image $imageEntry.Value -Digest $digestEntry.Value
     }
 
     return ""
@@ -49,17 +106,12 @@ function Get-TowerScoutPodmanGpuImage {
         return $Image.Trim()
     }
     if (-not [string]::IsNullOrWhiteSpace($env:TOWERSCOUT_IMAGE)) {
-        return $env:TOWERSCOUT_IMAGE.Trim()
+        return Join-TowerScoutPodmanGpuImageDigest -Image $env:TOWERSCOUT_IMAGE -Digest $env:TOWERSCOUT_IMAGE_DIGEST
     }
 
-    $envFileImage = Get-TowerScoutPodmanGpuEnvFileValue -Name "TOWERSCOUT_IMAGE"
+    $envFileImage = Get-TowerScoutPodmanGpuEnvFileImage
     if (-not [string]::IsNullOrWhiteSpace($envFileImage)) {
-        $image = $envFileImage.Trim()
-        $digest = Get-TowerScoutPodmanGpuEnvFileValue -Name "TOWERSCOUT_IMAGE_DIGEST"
-        if (-not [string]::IsNullOrWhiteSpace($digest) -and $image -notmatch "@sha256:") {
-            return "$image@$($digest.Trim())"
-        }
-        return $image
+        return $envFileImage
     }
 
     return "ghcr.io/j-schulein/towerscout:latest-cpu"

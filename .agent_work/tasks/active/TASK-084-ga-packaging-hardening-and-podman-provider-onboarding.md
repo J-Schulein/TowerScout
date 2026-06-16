@@ -145,6 +145,10 @@ EVIDENCE SHALL include SBOM artifacts or SBOM references for both images,
 `SOURCE.txt`, exact source ref, image digest, package checksum, asset checksum,
 and release-manifest consistency.
 
+**R-084-020**: WHEN the connected `podman-compose` helper installs a Python
+provider, THE HELPER SHALL install it into a package-local isolated environment
+with pinned runtime dependencies instead of relying on global Python packages.
+
 ## Acceptance Criteria
 
 - [x] Owner decision recorded for image/package strategy: two digest-pinned
@@ -170,6 +174,9 @@ and release-manifest consistency.
       with candidate details when detection is ambiguous.
 - [x] Explicit fetch-and-verify provider helper is implemented and tested for
       connected support/setup use.
+- [x] Provider helper installs `podman-compose` into a package-local `.venv`
+      with pinned `python-dotenv` and `PyYAML` dependency requirements instead
+      of extracting only `podman_compose.py` and depending on global packages.
 - [x] Provider helper prints the `.env` setting by default; `-Apply` backs up
       `.env`, updates only `PODMAN_COMPOSE_PROVIDER`, and preserves other
       settings.
@@ -274,6 +281,9 @@ and release-manifest consistency.
 - Focused tests for provider allowlist parsing, ambiguous detection, default
   helper output, and `-Apply` `.env` backup/update behavior.
 - PowerShell parser checks for edited launcher/provider scripts.
+- Connected scratch install validation for the Podman provider helper:
+  download pinned wheel, verify SHA-256, create package-local `.venv`, install
+  pinned provider dependencies, and run `podman-compose.cmd version`.
 - Compose config validation for selected package modes.
 - Package summary and release-manifest checker for both CPU and CUDA packages.
 - CPU package validation: Docker CPU and Podman CPU.
@@ -393,3 +403,46 @@ to implement before cutting final CPU/CUDA package artifacts.
 **Open Gates**: CPU/CUDA image publication and digest capture, final package
 assembly/evidence, broader docs pass, public evidence sanitization, and
 `TASK-085` dataset ZIP path traversal hardening remain open.
+
+### 2026-06-16 - PR 34 Merge-Readiness Blockers Remediated
+**Objective**: Address the two blocking findings from the PR #34
+merge-readiness review before moving the parent Task-084 PR out of draft.
+**Context**: Review feedback identified that the connected
+`podman-compose` helper extracted only `podman_compose.py` and therefore
+depended on global `python-dotenv`/`PyYAML` availability, and that Podman GPU
+image resolution could combine `TOWERSCOUT_IMAGE` from `.env` with
+`TOWERSCOUT_IMAGE_DIGEST` from `.env.example`.
+**Decision**: Keep the connected helper, but install the approved
+`podman-compose` wheel into a package-local `.venv` with pinned runtime
+dependency requirements. Resolve GPU image/digest values as same-source pairs:
+explicit argument, process environment pair, `.env` pair, then
+`.env.example` pair.
+**Execution**:
+- Updated `scripts\install-podman-compose-provider.ps1` to enforce Python
+  `>=3.9`, create an isolated provider `.venv`, install the verified provider
+  wheel plus pinned `python-dotenv==1.1.1` and `PyYAML==6.0.2`, and generate a
+  wrapper that calls the venv-installed `podman-compose.exe`.
+- Added provider catalog metadata for `requires_python` and pinned dependency
+  requirements.
+- Updated `scripts\lib\TowerScoutPodmanGpu.ps1` to parse image/digest values
+  per file and avoid borrowing a digest from a lower-precedence source.
+- Added regression coverage for the installer isolation contract, `.env` image
+  override with blank digest, and process-environment image/digest pairing.
+**Validation**:
+- PowerShell parser checks passed for
+  `scripts\install-podman-compose-provider.ps1` and
+  `scripts\lib\TowerScoutPodmanGpu.ps1`.
+- `git diff --check` passed.
+- Focused regression tests passed:
+  `.venv\Scripts\python.exe -m pytest tests\unit\test_task_081_runtime_hardening.py tests\unit\test_podman_gpu_enablement.py -q -p no:cacheprovider`
+  with `20 passed`.
+- Connected scratch install validation passed: the helper downloaded the
+  approved PyPI wheel, verified SHA-256, created a scratch provider `.venv`,
+  installed pinned runtime dependencies, and
+  `podman-compose.cmd version` reported `podman-compose version 1.5.0`.
+- Broader Task-084 regression set passed:
+  `.venv\Scripts\python.exe -m pytest tests\unit\test_task_075_launcher_gpu.py tests\unit\test_task_081_runtime_hardening.py tests\unit\test_task_074_bootstrap.py tests\unit\test_podman_gpu_enablement.py tests\unit\test_release_package_script.py tests\unit\test_release_manifest_schema.py -q -p no:cacheprovider`
+  with `47 passed`.
+**Next**: Commit and push the remediation to PR #34, then keep PR #35 stacked
+until PR #34 merges and can become the base for the dataset ZIP restore
+hardening PR.

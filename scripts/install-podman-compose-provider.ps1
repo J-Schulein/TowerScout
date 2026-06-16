@@ -30,6 +30,85 @@ function Test-TowerScoutInstallerChildPath {
     return $childFull.StartsWith($parentPrefix, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+function Invoke-TowerScoutInstallerCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $FileName,
+
+        [string[]] $Arguments = @(),
+
+        [Parameter(Mandatory = $true)]
+        [string] $FailureMessage
+    )
+
+    Write-Host "$FileName $([string]::Join(' ', $Arguments))"
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Stop"
+    try {
+        try {
+            $output = & $FileName @Arguments 2>&1
+            $exitCode = $LASTEXITCODE
+            if ($null -eq $exitCode) {
+                $exitCode = 0
+            }
+        }
+        catch {
+            $message = $_.Exception.Message
+            if ([string]::IsNullOrWhiteSpace($message)) {
+                $message = "command failed"
+            }
+            throw "$FailureMessage`n$message"
+        }
+
+        if ($exitCode -ne 0) {
+            $outputText = ([string]::Join([Environment]::NewLine, @($output))).Trim()
+            if (-not [string]::IsNullOrWhiteSpace($outputText)) {
+                throw "$FailureMessage`n$outputText"
+            }
+            throw $FailureMessage
+        }
+        return @($output)
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
+function Get-TowerScoutInstallerVenvPython {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $VenvDir
+    )
+
+    foreach ($relativePath in @("Scripts\python.exe", "bin\python")) {
+        $candidate = Join-Path $VenvDir $relativePath
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return $candidate
+        }
+    }
+
+    throw "The provider virtual environment was created, but no Python executable was found under $VenvDir."
+}
+
+function Assert-TowerScoutInstallerPythonVersion {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Python,
+
+        [string] $Requirement = ">=3.9"
+    )
+
+    if ($Requirement -ne ">=3.9") {
+        throw "Unsupported provider Python requirement '$Requirement'. The installer currently enforces >=3.9."
+    }
+
+    $versionCheck = "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)"
+    Invoke-TowerScoutInstallerCommand `
+        -FileName $Python `
+        -Arguments @("-c", $versionCheck) `
+        -FailureMessage "Podman Compose provider '$ProviderId' requires Python $Requirement. Install Python 3.9 or newer and retry." | Out-Null
+}
+
 $repoRoot = Get-TowerScoutProviderRepoRoot
 if ([string]::IsNullOrWhiteSpace($InstallDir)) {
     $InstallDir = Join-Path $repoRoot "tools\podman-compose-provider\$ProviderId"
@@ -73,33 +152,52 @@ if ($actualSha256 -ne $expectedSha256) {
 }
 Write-Host "Provider package SHA-256 verified."
 
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$zip = [System.IO.Compression.ZipFile]::OpenRead($downloadPath)
-try {
-    $scriptEntry = $null
-    foreach ($entry in $zip.Entries) {
-        if ($entry.FullName -eq "podman_compose.py") {
-            $scriptEntry = $entry
-            break
-        }
-    }
-    if ($null -eq $scriptEntry) {
-        throw "Downloaded provider package did not contain podman_compose.py."
-    }
-    [System.IO.Compression.ZipFileExtensions]::ExtractToFile(
-        $scriptEntry,
-        (Join-Path $InstallDir "podman_compose.py"),
-        $true
-    )
+$requiresPython = (Get-TowerScoutProviderObjectValue -InputObject $provider -Name "requires_python").Trim()
+if ([string]::IsNullOrWhiteSpace($requiresPython)) {
+    $requiresPython = ">=3.9"
 }
-finally {
-    $zip.Dispose()
+Assert-TowerScoutInstallerPythonVersion -Python $Python -Requirement $requiresPython
+
+$venvDir = Join-Path $InstallDir ".venv"
+Invoke-TowerScoutInstallerCommand `
+    -FileName $Python `
+    -Arguments @("-m", "venv", $venvDir) `
+    -FailureMessage "Failed to create the provider virtual environment." | Out-Null
+
+$venvPython = Get-TowerScoutInstallerVenvPython -VenvDir $venvDir
+$dependencyRequirements = @()
+foreach ($dependency in @($provider.dependencies)) {
+    $requirement = (Get-TowerScoutProviderObjectValue -InputObject $dependency -Name "requirement").Trim()
+    if (-not [string]::IsNullOrWhiteSpace($requirement)) {
+        $dependencyRequirements += $requirement
+    }
+}
+
+$pipInstallArguments = @(
+    "-m",
+    "pip",
+    "install",
+    "--disable-pip-version-check",
+    "--no-warn-script-location",
+    "--only-binary",
+    ":all:",
+    $downloadPath
+) + $dependencyRequirements
+Invoke-TowerScoutInstallerCommand `
+    -FileName $venvPython `
+    -Arguments $pipInstallArguments `
+    -FailureMessage "Failed to install the approved Podman Compose provider and its pinned runtime dependencies." | Out-Null
+
+$venvProviderPath = Join-Path $venvDir "Scripts\podman-compose.exe"
+if (-not (Test-Path -LiteralPath $venvProviderPath -PathType Leaf)) {
+    throw "Provider installation completed, but the expected virtual-environment executable was not found: $venvProviderPath"
 }
 
 $wrapperPath = Join-Path $InstallDir "podman-compose.cmd"
 @"
 @echo off
-"$Python" "%~dp0podman_compose.py" %*
+set "TOWERSCOUT_PODMAN_COMPOSE_PROVIDER_HOME=%~dp0"
+"%~dp0.venv\Scripts\podman-compose.exe" %*
 "@ | Set-Content -LiteralPath $wrapperPath -Encoding ASCII
 
 $check = Test-TowerScoutApprovedPodmanComposeProvider -ProviderPath $wrapperPath -Provider $provider

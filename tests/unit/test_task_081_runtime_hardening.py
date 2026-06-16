@@ -1,5 +1,6 @@
 """Task-081 runtime and launcher hardening coverage."""
 
+import json
 import os
 import shutil
 import subprocess
@@ -17,6 +18,8 @@ COMPOSE_LIB = REPO_ROOT / "scripts" / "lib" / "TowerScoutCompose.ps1"
 LAUNCH_SCRIPT = REPO_ROOT / "scripts" / "launch.ps1"
 IMPORT_ASSETS_SCRIPT = REPO_ROOT / "scripts" / "import-assets.ps1"
 STOP_SCRIPT = REPO_ROOT / "scripts" / "stop.ps1"
+PROVIDER_CATALOG = REPO_ROOT / "scripts" / "podman-compose-providers.v1.json"
+PROVIDER_INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install-podman-compose-provider.ps1"
 
 
 def _powershell_executable():
@@ -66,6 +69,27 @@ def test_compose_defaults_use_cpu_tag_restart_and_runtime_guards():
     assert "PODMAN_COMPOSE_PROVIDER=" in env_example
     assert "auto-detect exactly one" in env_example
     assert "install-podman-compose-provider.cmd -Apply" in env_example
+
+
+def test_podman_compose_provider_installer_uses_isolated_venv_and_pinned_deps():
+    installer = PROVIDER_INSTALL_SCRIPT.read_text(encoding="utf-8")
+    catalog = json.loads(PROVIDER_CATALOG.read_text(encoding="utf-8"))
+    provider = next(
+        item for item in catalog["providers"] if item["id"] == "podman-compose-pypi-1.5.0"
+    )
+
+    requirements = {dependency["requirement"] for dependency in provider["dependencies"]}
+    assert provider["requires_python"] == ">=3.9"
+    assert requirements == {"python-dotenv==1.1.1", "PyYAML==6.0.2"}
+    assert "Join-Path $InstallDir \".venv\"" in installer
+    assert "@(\"-m\", \"venv\", $venvDir)" in installer
+    assert "\"pip\"" in installer
+    assert "\"install\"" in installer
+    assert "--only-binary" in installer
+    assert "foreach ($dependency in @($provider.dependencies))" in installer
+    assert "\"%~dp0.venv\\Scripts\\podman-compose.exe\" %*" in installer
+    assert "System.IO.Compression.ZipFile" not in installer
+    assert "podman_compose.py" not in installer
 
 
 def test_import_assets_uses_shared_copy_fallback_and_sets_gpu_environment():

@@ -361,10 +361,20 @@ def test_podman_gpu_image_uses_package_template_digest_before_env_exists():
         }}
 
         $env:TOWERSCOUT_IMAGE = ""
+        $env:TOWERSCOUT_IMAGE_DIGEST = ""
         $resolved = Get-TowerScoutPodmanGpuImage
         $expected = "ghcr.io/j-schulein/towerscout:v0.1.0-ga-cuda121@{digest}"
         if ($resolved -ne $expected) {{
             throw "Expected package template image '$expected', got '$resolved'"
+        }}
+
+        Set-Content -LiteralPath "{temp_root / '.env'}" -Encoding ASCII -Value @(
+            "TOWERSCOUT_IMAGE=ghcr.io/j-schulein/towerscout:local-cuda121",
+            "TOWERSCOUT_IMAGE_DIGEST="
+        )
+        $resolvedEnvWithoutDigest = Get-TowerScoutPodmanGpuImage
+        if ($resolvedEnvWithoutDigest -ne "ghcr.io/j-schulein/towerscout:local-cuda121") {{
+            throw ".env image should not append .env.example digest: $resolvedEnvWithoutDigest"
         }}
 
         Set-Content -LiteralPath "{temp_root / '.env'}" -Encoding ASCII -Value @(
@@ -374,6 +384,13 @@ def test_podman_gpu_image_uses_package_template_digest_before_env_exists():
         $resolvedEnv = Get-TowerScoutPodmanGpuImage
         if ($resolvedEnv -ne "ghcr.io/j-schulein/towerscout:local-cuda121@{digest}") {{
             throw ".env should win and should not append a second digest: $resolvedEnv"
+        }}
+
+        $env:TOWERSCOUT_IMAGE = "ghcr.io/j-schulein/towerscout:process-cuda121"
+        $env:TOWERSCOUT_IMAGE_DIGEST = "sha256:{'d' * 64}"
+        $resolvedProcessEnv = Get-TowerScoutPodmanGpuImage
+        if ($resolvedProcessEnv -ne "ghcr.io/j-schulein/towerscout:process-cuda121@sha256:{'d' * 64}") {{
+            throw "process environment image should use only process environment digest: $resolvedProcessEnv"
         }}
         "ok"
         """
