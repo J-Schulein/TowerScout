@@ -192,15 +192,14 @@ The prerelease is marked as a prerelease, targets
   included Podman/Google log captures the matching `49` high-mode run.
 - CPU package `-Gpu on` guardrail returned exit code `1` and refused before
   container startup with package-aware guidance to use the CUDA package.
-- `SUMMARY.md` was hardened to distinguish internal/email-safe artifacts from
-  public-ready output, `ARTIFACT-PROVENANCE.md` makes the packet standalone,
-  and `PUBLIC-SUMMARY.md` is the public-safe attachment.
+- The local internal evidence summary remains ignored because it contains
+  email-safe but non-public validation context; `ARTIFACT-PROVENANCE.md` makes
+  the packet standalone, and `PUBLIC-SUMMARY.md` is the public-safe attachment.
 - Evidence hardening checks passed:
   `python .agent_work\scripts\validate_agent_work.py`, `git diff --check`,
-  the TowerScout secret/provider-key scan over `SUMMARY.md`,
-  `ARTIFACT-PROVENANCE.md`, and `PUBLIC-SUMMARY.md`, and a targeted grep over
-  the public-safe files for the raw AOI, local paths, key-preview terms, and
-  common provider-key patterns.
+  the TowerScout secret/provider-key scan over `ARTIFACT-PROVENANCE.md` and
+  `PUBLIC-SUMMARY.md`, and a targeted grep over the public-safe files for the
+  raw AOI, local paths, key-preview terms, and common provider-key patterns.
 
 ## Closed Runtime Blockers
 

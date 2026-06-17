@@ -817,8 +817,8 @@ provenance and a public-safe summary that omits raw AOI/local context.
 - Added `ARTIFACT-PROVENANCE.md` so the packet records source ref, prerelease
   tag, CPU/CUDA package checksums, shared asset checksum, image digests, and
   the runtime evidence index.
-- Added `PUBLIC-SUMMARY.md` as the public-safe external attachment and updated
-  `SUMMARY.md` to mark the raw folder as internal/email-safe only.
+- Added `PUBLIC-SUMMARY.md` as the public-safe external attachment and kept the
+  local internal evidence summary ignored with the raw evidence artifacts.
 **Output**:
 - Final CUDA package evidence now includes Docker GPU and Podman GPU CDI
   validation.
@@ -829,7 +829,7 @@ provenance and a public-safe summary that omits raw AOI/local context.
 **Validation**:
 - `python .agent_work\scripts\validate_agent_work.py` passed.
 - `git diff --check` passed.
-- `python .agents\skills\towerscout-secret-and-provider-key-safety\scripts\scan_for_sensitive_terms.py .agent_work\context\analysis\TowerScout-rc6-gpu-validation-evidence-emailsafe\TowerScout-rc6-gpu-validation-evidence\PUBLIC-SUMMARY.md .agent_work\context\analysis\TowerScout-rc6-gpu-validation-evidence-emailsafe\TowerScout-rc6-gpu-validation-evidence\ARTIFACT-PROVENANCE.md .agent_work\context\analysis\TowerScout-rc6-gpu-validation-evidence-emailsafe\TowerScout-rc6-gpu-validation-evidence\SUMMARY.md`
+- `python .agents\skills\towerscout-secret-and-provider-key-safety\scripts\scan_for_sensitive_terms.py .agent_work\context\analysis\TowerScout-rc6-gpu-validation-evidence-emailsafe\TowerScout-rc6-gpu-validation-evidence\PUBLIC-SUMMARY.md .agent_work\context\analysis\TowerScout-rc6-gpu-validation-evidence-emailsafe\TowerScout-rc6-gpu-validation-evidence\ARTIFACT-PROVENANCE.md`
   returned `matches: 0`.
 - Targeted grep over `PUBLIC-SUMMARY.md` and `ARTIFACT-PROVENANCE.md` found no
   raw AOI, local user paths, key-preview strings, or common provider-key
@@ -847,8 +847,8 @@ official release needs exact assets, checksums, image digests, release notes,
 and a command template without publishing before owner approval.
 **Execution**:
 - Added `.gitignore` inside the local RC6 GPU evidence folder so only
-  `SUMMARY.md`, `ARTIFACT-PROVENANCE.md`, and `PUBLIC-SUMMARY.md` are tracked;
-  raw local evidence artifacts remain ignored.
+  `ARTIFACT-PROVENANCE.md` and `PUBLIC-SUMMARY.md` are tracked; the local
+  internal evidence summary and raw evidence artifacts remain ignored.
 - Added `.agent_work/tasks/active/TASK-084/official-rc6-release-notes.md` as
   public-safe release notes.
 - Added `.agent_work/tasks/active/TASK-084/official-rc6-release-handoff-2026-06-17.md`
