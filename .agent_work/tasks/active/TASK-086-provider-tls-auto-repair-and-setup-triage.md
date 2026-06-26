@@ -1,6 +1,6 @@
 # TASK-086: Provider TLS Auto-Repair And Setup Triage
 
-**Status**: VALIDATION_PACKAGE_STAGED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26` package, image, tag, and draft prerelease are staged; managed-network repair proof remains before the next official tester-facing package
+**Status**: VALIDATION_PACKAGE_STAGED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26` package, image, tag, and published prerelease are staged; managed-network repair proof remains before the next official tester-facing package
 **Priority**: HIGH
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -810,9 +810,9 @@ must pin a newly published image built from the Task-086 source ref.
 - Created and pushed annotated git tag `tls-validation-2026-06-26`.
 - Generated local package folder
   `dist\tls-validation-2026-06-26`.
-- Created a draft/prerelease GitHub validation release with tag
-  `tls-validation-2026-06-26`; GitHub exposes the current draft URL as
-  `https://github.com/J-Schulein/TowerScout/releases/tag/untagged-e20634e982e045720595`.
+- Created the GitHub validation prerelease with tag
+  `tls-validation-2026-06-26` at
+  `https://github.com/J-Schulein/TowerScout/releases/tag/tls-validation-2026-06-26`.
 **Output**:
 - Image:
   `ghcr.io/j-schulein/towerscout:tls-validation-2026-06-26-cpu@sha256:e2cf5de79338b57e5c2094f3b633d857e130a9688daccc93611b1bc3ce4df105`.
@@ -841,3 +841,23 @@ validation assets, reproduce Google TLS failure, run
 `scripts\repair-provider-tls.cmd` dry run, apply with support approval, restart
 with the same engine/GPU mode, confirm Google reaches normal provider feedback
 instead of `CERTIFICATE_VERIFY_FAILED`, and confirm Azure remains usable.
+
+### 2026-06-26 - Validation Release Asset Visibility Fixed
+**Objective**: Ensure the GitHub `tls-validation-2026-06-26` page exposes the
+actual TowerScout package assets instead of only GitHub source archives.
+**Context**: The initial GitHub release was left as a draft and therefore the
+visible tag page showed only automatic source archives. The package assets had
+uploaded to the draft release but were not visible on the public prerelease
+page.
+**Execution**: Published the existing release as a prerelease with
+`gh release edit tls-validation-2026-06-26 --draft=false --prerelease`.
+**Validation**: `gh release view tls-validation-2026-06-26` now reports
+`draft: false`, `prerelease: true`, URL
+`https://github.com/J-Schulein/TowerScout/releases/tag/tls-validation-2026-06-26`,
+and all four expected assets:
+- `towerscout-tls-validation-2026-06-26.zip`
+- `towerscout-tls-validation-2026-06-26.zip.sha256`
+- `towerscout-tls-validation-2026-06-26-assets-towerscout-v1-assets-2026-05-05.zip`
+- `towerscout-tls-validation-2026-06-26-assets-towerscout-v1-assets-2026-05-05.zip.sha256`
+**Next**: Continue with managed-network proof using the published validation
+prerelease assets.
