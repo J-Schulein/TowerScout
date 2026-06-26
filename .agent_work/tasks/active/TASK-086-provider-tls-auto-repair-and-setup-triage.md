@@ -1,6 +1,6 @@
 # TASK-086: Provider TLS Auto-Repair And Setup Triage
 
-**Status**: VALIDATION_PACKAGE_V3_PUBLISHED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26-V3` CPU/CUDA package variants, images, tag, and published prerelease are staged from the verifier source fix; downloaded-package managed-network proof remains before the next official tester-facing package
+**Status**: V3_CPU_MANAGED_NETWORK_PROOF_PASSED_PENDING_CUDA_DECISION - downloaded V3 CPU package proof passed the normal Google TLS repair/setup path without `-VerifyProvider none`; decide whether to run the CUDA package through the same live proof or proceed to rc7 preparation with CPU live proof plus CUDA package validation
 **Priority**: HIGH
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -1194,3 +1194,50 @@ expected V3 source commit and the package manifests embed that source ref.
 -Apply` path on the managed network, restart TowerScout, and confirm Google
 key validation succeeds without `CERTIFICATE_VERIFY_FAILED` and without using
 `-VerifyProvider none`.
+
+### 2026-06-26 - V3 CPU Managed-Network Proof Passed
+**Objective**: Validate the V3 CPU package through the downloaded-package,
+managed-network Google TLS repair path using the normal support-facing command.
+**Context**: V3 was created to prove the normal
+`scripts\repair-provider-tls.cmd ... -Apply` flow after replacing V2's inline
+`python -c` verifier with a temporary in-container verifier script. The tester
+ran the V3 CPU package from a downloaded release asset and accidentally ran
+`status`/`logs` before the final local `.env` `Select-String`, which does not
+invalidate the result because the stop/start happened before those checks.
+**Decision**: Treat this as a V3 CPU managed-network proof pass with one
+evidence caveat: the pasted transcript does not include the explicit
+`google_tls_status=...` verifier line or the import helper's final
+`Updated .env...` line, but it does show the V3 verifier-script copy path, no
+`-VerifyProvider none`, persisted CA bundle settings, no V2 syntax failure, no
+TLS certificate failure, and successful Google setup after restart.
+**Execution**:
+- Ran `setup-towerscout.cmd -Engine docker` from the downloaded V3 CPU package.
+- Confirmed the V3 CPU image digest in the package/runtime:
+  `sha256:630ef39c12441cb1ed27330338a95f628a47b7982eb441b245c6b3fe194e16ad`.
+- Ran the normal repair command:
+  `scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off -Apply`.
+- Confirmed the wrapper selected a store-backed organization/root CA candidate
+  and delegated to `scripts\import-tls-ca.cmd -Engine docker -Gpu off
+  -VerifyProvider google -Thumbprint <redacted>`.
+- Confirmed the V3 helper copied the temporary verifier script to
+  `/tmp/towerscout-tls-verify-*.py`, proving the package used the V3 script-file
+  verifier path rather than the V2 inline `python -c` path.
+- Restarted with `scripts\stop.cmd -Engine docker` and
+  `start.bat -Engine docker -Gpu off`.
+- Confirmed `.env` persisted:
+  `REQUESTS_CA_BUNDLE=/app/webapp/config/certs/towerscout-ca-bundle.pem` and
+  `SSL_CERT_FILE=/app/webapp/config/certs/towerscout-ca-bundle.pem`.
+- Confirmed readiness reached `state: ready`, Google was configured, and the
+  frontend Google key endpoint reported a key available.
+**Validation**:
+- No API key pattern was present in the pasted output.
+- No `-VerifyProvider none` bypass was used.
+- No `SyntaxError`, traceback, or `CERTIFICATE_VERIFY_FAILED` appeared.
+- Asset status remained `ok`, runtime selected CPU as expected, and package
+  image digest matched the V3 CPU release digest.
+- Raw certificate subjects/thumbprints remain support-sensitive and are not
+  recorded in this task evidence.
+**Next**: Decide whether to run the CUDA 12.1 V3 package through the same live
+managed-network repair path for package-variant confidence, or accept this CPU
+live proof plus existing CUDA package/image validation as sufficient to start
+rc7 refinement.

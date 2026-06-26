@@ -523,7 +523,7 @@ a release-blocking archive path traversal risk before broader package
 distribution.
 
 ### **TASK-086: Provider TLS Auto-Repair And Setup Triage**
-**Status**: VALIDATION_PACKAGE_V3_PUBLISHED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26-V3` CPU/CUDA package variants, images, tag, and published prerelease are staged from the verifier source fix; downloaded-package managed-network proof remains before the next official tester-facing package
+**Status**: V3_CPU_MANAGED_NETWORK_PROOF_PASSED_PENDING_CUDA_DECISION - downloaded V3 CPU package proof passed the normal Google TLS repair/setup path without `-VerifyProvider none`; decide whether to run the CUDA package through the same live proof or proceed to rc7 preparation with CPU live proof plus CUDA package validation
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -596,12 +596,17 @@ improving Setup Wizard triage for invalid-key versus TLS trust failures.
 - V3 package validation passed package-shape summaries, generated manifest
   checks, sidecar checksum verification, package `SHA256SUMS.txt`
   verification, and local runtime-artifact hygiene checks.
+- Downloaded V3 CPU managed-network validation passed the normal
+  `repair-provider-tls.cmd -Provider google -Engine docker -Gpu off -Apply`
+  path without using `-VerifyProvider none`; `.env` persisted the combined CA
+  bundle path, the restarted app reached `ready`, Google was configured, and
+  logs showed no `CERTIFICATE_VERIFY_FAILED`, V2 `SyntaxError`, or traceback.
 
 **Remaining**:
-- Run the managed-network proof from downloaded V3 assets through the normal
-  `repair-provider-tls.cmd ... -Apply` path, without `-VerifyProvider none`,
-  before promoting the verified flow into the next official tester-facing
-  package.
+- Decide whether to run the CUDA 12.1 V3 package through the same live
+  managed-network repair path for package-variant confidence, or accept the
+  CPU live proof plus existing CUDA image/package validation as sufficient to
+  begin rc7 user-facing material refinement and package preparation.
 
 **Dependencies**: `TASK-073`; `TASK-074`; `TASK-080`; `TASK-084`; current
 `scripts/import-tls-ca.*`, `scripts/launch.ps1`, provider validation, setup
