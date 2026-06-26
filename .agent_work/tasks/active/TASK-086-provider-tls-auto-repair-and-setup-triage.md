@@ -1,6 +1,6 @@
 # TASK-086: Provider TLS Auto-Repair And Setup Triage
 
-**Status**: SOURCE_FIX_VALIDATED_PENDING_PACKAGE_REBUILD - first internal `tls-validation-2026-06-26` managed-network proof exposed an incomplete TLS-chain discovery bug; source fix is implemented and focused-validated, and replacement validation packages/images remain before the next official tester-facing package
+**Status**: VALIDATION_PACKAGE_V2_PUBLISHED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26-V2` CPU/CUDA package variants, images, tag, and published prerelease are staged from the post-fix source ref; managed-network repair proof remains before the next official tester-facing package
 **Priority**: HIGH
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -983,3 +983,65 @@ different thumbprint.
 **Next**: Commit the source fix, rebuild/publish replacement internal CPU and
 CUDA validation images/packages, then re-run the managed-network repair proof
 from a downloaded package before planning the official rc7 package.
+
+### 2026-06-26 - V2 TLS Validation Package Published
+**Objective**: Rebuild and publish replacement internal validation packages
+from the post-fix Task-086 source ref.
+**Context**: The first `tls-validation-2026-06-26` validation release was
+superseded for TLS proof because dry-run chain discovery could miss the actual
+organization Root/CA chain. The replacement package needed a new validation tag
+without rc naming so testers do not confuse it with the future rc7 package.
+**Decision**: Use `tls-validation-2026-06-26-V2` as a separate validation tag
+and prerelease. Keep CPU and CUDA 12.1 Application Package ZIPs separate and
+use one shared V2-named Model & Data Package ZIP.
+**Execution**:
+- Created and pushed annotated git tag `tls-validation-2026-06-26-V2`.
+- Published CPU and CUDA 12.1 validation images from source ref
+  `280b073a40d0d95098de9fe443b25fddab6a90a7`.
+- Generated digest-pinned package variants under
+  `dist\tls-validation-2026-06-26-V2`.
+- Reused the already-validated asset ZIP bytes with a V2 asset filename and
+  checksum sidecar.
+- Created the GitHub prerelease at
+  `https://github.com/J-Schulein/TowerScout/releases/tag/tls-validation-2026-06-26-V2`.
+**Output**:
+- CPU image:
+  `ghcr.io/j-schulein/towerscout:tls-validation-2026-06-26-V2-cpu@sha256:756aae17137d98e1a970814f43497b1da815c110bf850880e5483a7faa5fb7a7`.
+- CUDA 12.1 image:
+  `ghcr.io/j-schulein/towerscout:tls-validation-2026-06-26-V2-cuda121@sha256:794a501899d5edecc023a8f88dfcb60ce961ca02b61a57e3455d18fadb92d436`.
+- CPU Application Package ZIP:
+  `towerscout-tls-validation-2026-06-26-V2-cpu.zip`.
+- CPU Application Package ZIP SHA-256:
+  `dc739ffb9f0f1f4a0151706398afed5210bbe6e2c1cc797e45c0418a2951bf67`.
+- CUDA Application Package ZIP:
+  `towerscout-tls-validation-2026-06-26-V2-cuda121.zip`.
+- CUDA Application Package ZIP SHA-256:
+  `183907830ee425a49033debf5c30c7a30c13fbc4ddfbea70693d43c0b72b54c8`.
+- Shared Model & Data Package ZIP:
+  `towerscout-tls-validation-2026-06-26-V2-assets-towerscout-v1-assets-2026-05-05.zip`.
+- Shared Model & Data Package ZIP SHA-256:
+  `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+**Validation**:
+- GitHub Actions CPU publish run `28266443448` passed.
+- GitHub Actions CUDA 12.1 publish run `28266444732` passed.
+- `summarize_release_package.py` passed for both CPU and CUDA package ZIPs.
+- `check_release_manifest.py` passed for both generated package manifests.
+- Control ZIP and asset ZIP checksum sidecars matched `Get-FileHash`.
+- Package `SHA256SUMS.txt` verification passed for both CPU and CUDA staging
+  folders.
+- Package manifests identify source ref
+  `280b073a40d0d95098de9fe443b25fddab6a90a7`, the expected image digests, and
+  the same shared V2 asset ZIP name/hash.
+- Generated package folders do not include local `.env`, logs, temp/session
+  files, uploads, cache, screenshots, or raw support artifacts.
+- `gh release view tls-validation-2026-06-26-V2` reports `draft: false`,
+  `prerelease: true`, target commit
+  `280b073a40d0d95098de9fe443b25fddab6a90a7`, and the six expected assets:
+  CPU ZIP/checksum, CUDA ZIP/checksum, and shared asset ZIP/checksum.
+**Caveat**: Package generation used `-AllowDirtySource` because an unrelated
+local untracked cleanup guide artifact exists outside the Task-086 source
+commit. This package is explicitly internal-validation-only and not an official
+release artifact.
+**Next**: Download/extract the V2 validation assets, reproduce the managed
+Google TLS failure, run dry-run/apply/restart through the package, and confirm
+Google reaches normal provider feedback instead of `CERTIFICATE_VERIFY_FAILED`.

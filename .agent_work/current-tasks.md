@@ -523,7 +523,7 @@ a release-blocking archive path traversal risk before broader package
 distribution.
 
 ### **TASK-086: Provider TLS Auto-Repair And Setup Triage**
-**Status**: SOURCE_FIX_VALIDATED_PENDING_PACKAGE_REBUILD - first internal `tls-validation-2026-06-26` managed-network proof exposed an incomplete TLS-chain discovery bug; source fix is implemented and focused-validated, and replacement validation packages/images remain before the next official tester-facing package
+**Status**: VALIDATION_PACKAGE_V2_PUBLISHED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26-V2` CPU/CUDA package variants, images, tag, and published prerelease are staged from the post-fix source ref; managed-network repair proof remains before the next official tester-facing package
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -568,14 +568,18 @@ improving Setup Wizard triage for invalid-key versus TLS trust failures.
   checksum, and package `SHA256SUMS.txt` verification for both
   `tls-validation-2026-06-26-cpu` and
   `tls-validation-2026-06-26-cuda121`.
+- Source fix commit `280b073a40d0d95098de9fe443b25fddab6a90a7` was tagged as
+  `tls-validation-2026-06-26-V2`.
+- CPU and CUDA 12.1 V2 image publish runs passed, and V2 CPU/CUDA Application
+  Package ZIPs plus a shared V2 Model & Data Package ZIP were published to
+  `https://github.com/J-Schulein/TowerScout/releases/tag/tls-validation-2026-06-26-V2`.
+- V2 package validation passed package-shape summaries, generated manifest
+  checks, sidecar checksum verification, package `SHA256SUMS.txt`
+  verification, and local runtime-artifact hygiene checks.
 
 **Remaining**:
-- Rebuild and republish the internal `tls-validation-2026-06-26` CPU and CUDA
-  12.1 images/Application Package ZIPs from the post-fix source commit. The
-  first published validation package is now superseded for TLS repair proof
-  because its dry-run chain discovery can miss the actual organization Root/CA
-  chain and lead support toward the wrong thumbprint.
-- Re-run the managed-network proof path before promoting the verified flow into
+- Run the managed-network proof path from the downloaded
+  `tls-validation-2026-06-26-V2` assets before promoting the verified flow into
   the next official tester-facing package.
 
 **Dependencies**: `TASK-073`; `TASK-074`; `TASK-080`; `TASK-084`; current
