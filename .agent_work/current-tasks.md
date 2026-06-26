@@ -523,7 +523,7 @@ a release-blocking archive path traversal risk before broader package
 distribution.
 
 ### **TASK-086: Provider TLS Auto-Repair And Setup Triage**
-**Status**: VALIDATION_PACKAGE_V2_PUBLISHED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26-V2` CPU/CUDA package variants, images, tag, and published prerelease are staged from the post-fix source ref; managed-network repair proof remains before the next official tester-facing package
+**Status**: V3_SOURCE_FIX_VALIDATED_PENDING_PACKAGE_PUBLISH - V2 managed-network testing proved the CA bundle repair path works when verification is bypassed, and the remaining inline Python verifier bug has a focused source fix ready for V3 CPU/CUDA validation packages
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -576,11 +576,25 @@ improving Setup Wizard triage for invalid-key versus TLS trust failures.
 - V2 package validation passed package-shape summaries, generated manifest
   checks, sidecar checksum verification, package `SHA256SUMS.txt`
   verification, and local runtime-artifact hygiene checks.
+- Downloaded V2 managed-network CPU validation proved the combined CA bundle
+  repair works when `import-tls-ca.cmd ... -VerifyProvider none` is used:
+  `.env` persisted the bundle path, the restarted app reached `ready`, and
+  Google key validation completed without `CERTIFICATE_VERIFY_FAILED`.
+- Identified the remaining V2 gap as inline `python -c` verifier command
+  construction in `scripts/import-tls-ca.ps1`, not as a failure of the CA
+  import/bundle strategy.
+- Patched the provider verifier to copy a temporary `.py` file into the
+  container and execute it by path, avoiding Compose quote stripping.
+- V3 source-fix validation passed PowerShell parser checks, focused importer
+  regression tests, the 80-test related package/config/route unit subset, and
+  `.agent_work` validation.
 
 **Remaining**:
-- Run the managed-network proof path from the downloaded
-  `tls-validation-2026-06-26-V2` assets before promoting the verified flow into
-  the next official tester-facing package.
+- Commit/push the V3 source fix, tag `tls-validation-2026-06-26-V3`,
+  publish CPU/CUDA images and package assets, then rerun the managed-network
+  proof from downloaded V3 assets through the normal
+  `repair-provider-tls.cmd ... -Apply` path before promoting the verified flow
+  into the next official tester-facing package.
 
 **Dependencies**: `TASK-073`; `TASK-074`; `TASK-080`; `TASK-084`; current
 `scripts/import-tls-ca.*`, `scripts/launch.ps1`, provider validation, setup

@@ -253,7 +253,7 @@ except requests.exceptions.RequestException:
 '@
 }
 
-function Copy-TowerScoutCertificateIntoContainer {
+function Copy-TowerScoutFileIntoContainer {
     param(
         [Parameter(Mandatory = $true)]
         [string] $LocalPath,
@@ -301,6 +301,67 @@ function Copy-TowerScoutCertificateIntoContainer {
     $script:TowerScoutComposeExitCode = $LASTEXITCODE
 }
 
+function Invoke-TowerScoutTlsProviderVerification {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("google", "azure")]
+        [string] $Provider,
+
+        [Parameter(Mandatory = $true)]
+        [string] $ContainerBundlePath
+    )
+
+    $pythonVerify = Get-TowerScoutTlsVerificationScript -Provider $Provider
+    $verifyId = [Guid]::NewGuid().ToString("N")
+    $localVerifyPath = Join-Path ([System.IO.Path]::GetTempPath()) "towerscout-tls-verify-$verifyId.py"
+    $containerVerifyPath = "/tmp/towerscout-tls-verify-$verifyId.py"
+    $copiedVerifyScript = $false
+
+    Set-Content -LiteralPath $localVerifyPath -Value $pythonVerify -Encoding ASCII
+
+    try {
+        Copy-TowerScoutFileIntoContainer -LocalPath $localVerifyPath -ContainerPath $containerVerifyPath
+        if ($script:TowerScoutComposeExitCode -ne 0) {
+            return
+        }
+        $copiedVerifyScript = $true
+
+        Invoke-TowerScoutCompose -Engine $Engine -Build:$Build -Gpu $Gpu -ComposeArguments @(
+            "exec",
+            "-T",
+            "towerscout",
+            "env",
+            "REQUESTS_CA_BUNDLE=$ContainerBundlePath",
+            "SSL_CERT_FILE=$ContainerBundlePath",
+            "python",
+            $containerVerifyPath
+        )
+    }
+    finally {
+        if (Test-Path -LiteralPath $localVerifyPath) {
+            Remove-Item -LiteralPath $localVerifyPath -Force
+        }
+
+        if ($copiedVerifyScript) {
+            $verificationExitCode = $script:TowerScoutComposeExitCode
+            try {
+                Invoke-TowerScoutCompose -Engine $Engine -Build:$Build -Gpu $Gpu -ComposeArguments @(
+                    "exec",
+                    "-T",
+                    "towerscout",
+                    "rm",
+                    "-f",
+                    $containerVerifyPath
+                )
+            }
+            catch {
+                Write-Host "Warning: could not remove temporary TLS verification script from the container."
+            }
+            $script:TowerScoutComposeExitCode = $verificationExitCode
+        }
+    }
+}
+
 try {
     Write-Host "Starting TowerScout container so the persistent config volume is available..."
     Invoke-TowerScoutCompose -Engine $Engine -Build:$Build -Gpu $Gpu -ComposeArguments @("up", "-d", "towerscout")
@@ -322,7 +383,7 @@ try {
     }
 
     Write-Host "Importing TLS CA certificate from $sourceDescription..."
-    Copy-TowerScoutCertificateIntoContainer -LocalPath $tempPem -ContainerPath $containerCertPath
+    Copy-TowerScoutFileIntoContainer -LocalPath $tempPem -ContainerPath $containerCertPath
     if ($script:TowerScoutComposeExitCode -ne 0) {
         exit $script:TowerScoutComposeExitCode
     }
@@ -346,19 +407,8 @@ try {
         Write-Host "Skipping remote TLS verification by request."
     }
     else {
-        $pythonVerify = Get-TowerScoutTlsVerificationScript -Provider $resolvedVerifyProvider
         Write-Host "Verifying $resolvedVerifyProvider TLS through the combined CA bundle..."
-        Invoke-TowerScoutCompose -Engine $Engine -Build:$Build -Gpu $Gpu -ComposeArguments @(
-            "exec",
-            "-T",
-            "towerscout",
-            "env",
-            "REQUESTS_CA_BUNDLE=$containerBundlePath",
-            "SSL_CERT_FILE=$containerBundlePath",
-            "python",
-            "-c",
-            $pythonVerify
-        )
+        Invoke-TowerScoutTlsProviderVerification -Provider $resolvedVerifyProvider -ContainerBundlePath $containerBundlePath
         if ($script:TowerScoutComposeExitCode -ne 0) {
             Write-Host "Provider TLS verification failed; .env was not updated."
             Write-Host "Re-run scripts\repair-provider-tls.cmd in dry-run mode and use the selected CA, or provide a full PEM CA chain with -CertificatePath."

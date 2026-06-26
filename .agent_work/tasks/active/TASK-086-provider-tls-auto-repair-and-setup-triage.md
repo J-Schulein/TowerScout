@@ -1,6 +1,6 @@
 # TASK-086: Provider TLS Auto-Repair And Setup Triage
 
-**Status**: VALIDATION_PACKAGE_V2_PUBLISHED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26-V2` CPU/CUDA package variants, images, tag, and published prerelease are staged from the post-fix source ref; managed-network repair proof remains before the next official tester-facing package
+**Status**: V3_SOURCE_FIX_VALIDATED_PENDING_PACKAGE_PUBLISH - V2 managed-network testing proved the CA bundle repair path works when verification is bypassed, and the remaining inline Python verifier bug has a focused source fix ready for V3 CPU/CUDA validation packages
 **Priority**: HIGH
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -1045,3 +1045,78 @@ release artifact.
 **Next**: Download/extract the V2 validation assets, reproduce the managed
 Google TLS failure, run dry-run/apply/restart through the package, and confirm
 Google reaches normal provider feedback instead of `CERTIFICATE_VERIFY_FAILED`.
+
+### 2026-06-26 - V2 Managed-Network Proof And Verifier Gap
+**Objective**: Interpret the downloaded V2 CPU package validation results and
+identify whether the remaining failure is in the CA repair concept or in the
+packaged helper implementation.
+**Context**: Managed-network V2 validation showed the dry-run candidate
+selection fix worked: the helper selected the expected store-backed
+organization/root CA candidate. The normal apply path then failed before
+persisting `.env` because the container-side provider verifier received a
+malformed Python command. A follow-up support command imported the same CA
+material with `-VerifyProvider none`, restarted TowerScout, and Google key
+validation completed.
+**Decision**: Treat V2 as a useful proof of the underlying CA bundle approach,
+but not as the final proof for the documented user-facing repair command. Build
+V3 specifically to remove the inline verifier command fragility while keeping
+the same CA import, `.env` persistence, and restart behavior.
+**Execution**:
+- Reviewed redacted V2 terminal output from the downloaded CPU package.
+- Confirmed the manual bypass path updated `.env` to:
+  `REQUESTS_CA_BUNDLE=/app/webapp/config/certs/towerscout-ca-bundle.pem` and
+  `SSL_CERT_FILE=/app/webapp/config/certs/towerscout-ca-bundle.pem`.
+- Confirmed the restarted app reached `state: ready`, Google was configured,
+  and logs no longer showed `CERTIFICATE_VERIFY_FAILED`.
+- Confirmed the raw output includes local certificate identity/thumbprint
+  details and should remain support-sensitive rather than public evidence.
+**Validation**:
+- V2 workaround proof demonstrated the container trust-store repair and
+  persistent CA bundle path are correct for the managed-network Google setup
+  failure.
+- V2 did not prove the normal `repair-provider-tls.cmd ... -Apply` command
+  because the operator had to use `import-tls-ca.cmd ... -VerifyProvider none`
+  to bypass the broken inline verifier.
+**Next**: Patch `scripts/import-tls-ca.ps1` so provider verification runs from
+a temporary script file inside the container, then build and publish V3 CPU and
+CUDA validation packages.
+
+### 2026-06-26 - V3 Provider Verifier Source Fix
+**Objective**: Fix the V2 provider-verification command construction issue so
+the normal documented repair command can verify Google/Azure TLS without
+requiring `-VerifyProvider none`.
+**Context**: V2 used `docker compose exec ... python -c <multiline script>` for
+the no-key provider TLS probe. The downloaded-package validation showed Compose
+argument handling could strip Python string quotes, producing a syntax error
+instead of a provider TLS status/category result. The CA bundle itself worked
+once verification was bypassed.
+**Decision**: Keep the same no-key Google/Azure TLS probe logic, but write the
+probe to a temporary local `.py` file, copy it into the running TowerScout
+container, execute `python /tmp/towerscout-tls-verify-*.py` with
+`REQUESTS_CA_BUNDLE` and `SSL_CERT_FILE` pointed at the combined bundle, then
+remove the temporary container file while preserving the verifier exit code.
+**Execution**:
+- Updated `scripts/import-tls-ca.ps1` to rename the generic copy helper to
+  `Copy-TowerScoutFileIntoContainer` and reuse it for both CA material and the
+  temporary provider verifier script.
+- Added `Invoke-TowerScoutTlsProviderVerification` to create/copy/run/cleanup
+  the verifier script without inline `python -c` quoting.
+- Kept `-VerifyProvider none` as a support escape hatch, but the default
+  `google`/`azure` verifier now runs through a file path.
+- Added a focused regression assertion in
+  `tests/unit/test_import_assets_script.py` proving the importer no longer
+  invokes Python as `python -c` for provider verification.
+**Validation**:
+- PowerShell parser checks passed for `scripts/import-tls-ca.ps1` and
+  `scripts/repair-provider-tls.ps1`.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_import_assets_script.py
+  -q -p no:cacheprovider` passed: 4 tests.
+- `.venv\Scripts\python.exe -m pytest tests\unit\test_import_assets_script.py
+  tests\unit\test_release_package_script.py tests\unit\test_config.py
+  tests\unit\test_flask_routes.py -q -p no:cacheprovider` passed: 80 tests.
+- `python .agent_work\scripts\validate_agent_work.py` passed.
+**Next**: Commit and push the V3 source fix, create tag
+`tls-validation-2026-06-26-V3`, publish CPU/CUDA images from that tag, rebuild
+digest-pinned CPU/CUDA validation packages, publish the V3 prerelease assets,
+and repeat downloaded-package managed-network validation through the normal
+`repair-provider-tls.cmd ... -Apply` path.

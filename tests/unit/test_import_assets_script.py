@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -64,6 +65,12 @@ def test_tls_ca_import_persists_bundle_paths_in_env_file():
     assert "except requests.exceptions.SSLError" in script
     assert "google_tls_category=tls_certificate_error" in script
     assert "ok = r.status_code in (200, 400, 401, 403)" in script
+    assert "function Invoke-TowerScoutTlsProviderVerification" in script
+    assert "Copy-TowerScoutFileIntoContainer -LocalPath $localVerifyPath" in script
+    assert "/tmp/towerscout-tls-verify-$verifyId.py" in script
+    assert '"python",' in script
+    assert "$containerVerifyPath" in script
+    assert not re.search(r'"python",\s*"-c"', script)
     assert "Provider TLS verification failed; .env was not updated." in script
     assert verify < persist < imported
 
