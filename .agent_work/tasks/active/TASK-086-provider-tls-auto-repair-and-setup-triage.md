@@ -1,6 +1,6 @@
 # TASK-086: Provider TLS Auto-Repair And Setup Triage
 
-**Status**: VALIDATION_PACKAGE_STAGED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26` package, image, tag, and published prerelease are staged; managed-network repair proof remains before the next official tester-facing package
+**Status**: VALIDATION_PACKAGE_STAGED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26` CPU/CUDA package variants, images, tag, and published prerelease are staged; managed-network repair proof remains before the next official tester-facing package
 **Priority**: HIGH
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -854,10 +854,81 @@ page.
 **Validation**: `gh release view tls-validation-2026-06-26` now reports
 `draft: false`, `prerelease: true`, URL
 `https://github.com/J-Schulein/TowerScout/releases/tag/tls-validation-2026-06-26`,
-and all four expected assets:
+and all four initial assets:
 - `towerscout-tls-validation-2026-06-26.zip`
 - `towerscout-tls-validation-2026-06-26.zip.sha256`
 - `towerscout-tls-validation-2026-06-26-assets-towerscout-v1-assets-2026-05-05.zip`
 - `towerscout-tls-validation-2026-06-26-assets-towerscout-v1-assets-2026-05-05.zip.sha256`
-**Next**: Continue with managed-network proof using the published validation
+**Next**: Correct the package shape to publish CPU and CUDA app ZIP variants
+before managed-network proof.
+
+### 2026-06-26 - CPU/CUDA Validation Package Split Corrected
+**Objective**: Replace the initial unsuffixed validation Application Package
+ZIP with explicit CPU and CUDA 12.1 package variants so the TLS repair path can
+be validated through both normal CPU and support-assigned GPU package flows.
+**Context**: The initial `tls-validation-2026-06-26` release exposed a single
+unsuffixed Application Package ZIP. That was not the package shape established
+for the current release path, where CPU users and GPU validation use separate
+digest-pinned app ZIPs and one shared Model & Data Package ZIP.
+**Decision**: Treat the unsuffixed ZIP as superseded validation output. Keep
+the validation tag and prerelease name unchanged, publish
+`-cpu` and `-cuda121` app ZIPs, and keep the shared asset ZIP unsuffixed.
+Rebuild the CUDA image from the validation tag so both CPU and CUDA image
+metadata point to source ref `1566163a86c92f59763014e6ad317067721f91c0`.
+**Execution**:
+- Confirmed the earlier CPU image was built from tag source ref
+  `1566163a86c92f59763014e6ad317067721f91c0`.
+- Published the CUDA 12.1 validation image from tag
+  `tls-validation-2026-06-26` with GitHub Actions run
+  `https://github.com/J-Schulein/TowerScout/actions/runs/28261884499`.
+- Generated package variants from the validation source ref:
+  `towerscout-tls-validation-2026-06-26-cpu.zip` and
+  `towerscout-tls-validation-2026-06-26-cuda121.zip`.
+- Removed the old local unsuffixed Application Package folder, ZIP, and
+  checksum sidecar from `dist\tls-validation-2026-06-26`.
+- Uploaded the CPU/CUDA package ZIPs and checksum sidecars to the GitHub
+  prerelease.
+- Deleted the obsolete unsuffixed Application Package ZIP and checksum sidecar
+  from the GitHub prerelease.
+- Updated the validation prerelease notes to describe the CPU and CUDA package
+  choices and to avoid any rc7 implication.
+**Output**:
+- CPU image:
+  `ghcr.io/j-schulein/towerscout:tls-validation-2026-06-26-cpu@sha256:e2cf5de79338b57e5c2094f3b633d857e130a9688daccc93611b1bc3ce4df105`.
+- CUDA 12.1 image:
+  `ghcr.io/j-schulein/towerscout:tls-validation-2026-06-26-cuda121@sha256:aa7645299010c1eb600b1c40b1c9841521b0970f08c2384d930861dec3ea66c4`.
+- CPU Application Package ZIP:
+  `towerscout-tls-validation-2026-06-26-cpu.zip`.
+- CPU Application Package ZIP SHA-256:
+  `c56a7f87db19f7d1d78c3e708b189036d799ae3dfced3701735c2487fa7affd4`.
+- CUDA Application Package ZIP:
+  `towerscout-tls-validation-2026-06-26-cuda121.zip`.
+- CUDA Application Package ZIP SHA-256:
+  `cf41a5193b6dceee6414b5a3e3050772080c03d34d2fdd1a343d1ce345ce9dc0`.
+- Shared Model & Data Package ZIP:
+  `towerscout-tls-validation-2026-06-26-assets-towerscout-v1-assets-2026-05-05.zip`.
+- Shared Model & Data Package ZIP SHA-256:
+  `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+**Validation**:
+- CUDA tag-based container publish completed successfully with source ref
+  `1566163a86c92f59763014e6ad317067721f91c0`.
+- `summarize_release_package.py` passed for both CPU and CUDA package ZIPs.
+- `check_release_manifest.py` passed for both generated package manifests.
+- `IMAGE.txt`, `.env.example`, and `release-manifest.v1.json` in each package
+  identify the correct package flavor and pinned image digest.
+- Both package manifests identify the same shared asset bundle filename and
+  SHA-256.
+- Control ZIP and asset ZIP checksum sidecars matched `Get-FileHash`.
+- Package `SHA256SUMS.txt` verification passed for both CPU and CUDA staging
+  folders.
+- `gh release view tls-validation-2026-06-26` reports `draft: false`,
+  `prerelease: true`, target commit
+  `1566163a86c92f59763014e6ad317067721f91c0`, and the six expected assets:
+  CPU ZIP/checksum, CUDA ZIP/checksum, and shared asset ZIP/checksum.
+**Caveat**: Package generation still used `-AllowDirtySource` because the
+unrelated untracked
+`.agent_work/context/guides/TowerScout-RC-Package-Cleanup-Guide.docx` artifact
+exists locally. The package was generated from the validation source ref, and
+the artifact remains ignored/unpublished.
+**Next**: Continue with managed-network proof using the corrected validation
 prerelease assets.

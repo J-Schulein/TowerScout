@@ -523,7 +523,7 @@ a release-blocking archive path traversal risk before broader package
 distribution.
 
 ### **TASK-086: Provider TLS Auto-Repair And Setup Triage**
-**Status**: VALIDATION_PACKAGE_STAGED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26` package, image, tag, and published prerelease are staged; managed-network repair proof remains before the next official tester-facing package
+**Status**: VALIDATION_PACKAGE_STAGED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26` CPU/CUDA package variants, images, tag, and published prerelease are staged; managed-network repair proof remains before the next official tester-facing package
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -564,11 +564,16 @@ improving Setup Wizard triage for invalid-key versus TLS trust failures.
 - Focused pytest suite passed: 110 tests.
 - `git diff --check` passed.
 - `python .agent_work\scripts\validate_agent_work.py` passed.
+- Internal validation release package correction passed manifest, sidecar
+  checksum, and package `SHA256SUMS.txt` verification for both
+  `tls-validation-2026-06-26-cpu` and
+  `tls-validation-2026-06-26-cuda121`.
 
 **Remaining**:
-- Internal `tls-validation-2026-06-26` package is staged at
+- Internal `tls-validation-2026-06-26` CPU and CUDA 12.1 Application Package
+  ZIPs plus the shared Model & Data Package ZIP are staged at
   `dist\tls-validation-2026-06-26`, tagged on GitHub, and attached to the
-  published prerelease at
+  published validation prerelease at
   `https://github.com/J-Schulein/TowerScout/releases/tag/tls-validation-2026-06-26`.
   Run the managed-network proof path before promoting the verified flow into
   the next official tester-facing package.
