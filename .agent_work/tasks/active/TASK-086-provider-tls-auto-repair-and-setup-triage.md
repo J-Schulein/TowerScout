@@ -1,6 +1,6 @@
 # TASK-086: Provider TLS Auto-Repair And Setup Triage
 
-**Status**: V3_SOURCE_FIX_VALIDATED_PENDING_PACKAGE_PUBLISH - V2 managed-network testing proved the CA bundle repair path works when verification is bypassed, and the remaining inline Python verifier bug has a focused source fix ready for V3 CPU/CUDA validation packages
+**Status**: VALIDATION_PACKAGE_V3_PUBLISHED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26-V3` CPU/CUDA package variants, images, tag, and published prerelease are staged from the verifier source fix; downloaded-package managed-network proof remains before the next official tester-facing package
 **Priority**: HIGH
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -1120,3 +1120,77 @@ remove the temporary container file while preserving the verifier exit code.
 digest-pinned CPU/CUDA validation packages, publish the V3 prerelease assets,
 and repeat downloaded-package managed-network validation through the normal
 `repair-provider-tls.cmd ... -Apply` path.
+
+### 2026-06-26 - V3 TLS Validation Package Published
+**Objective**: Build and publish the V3 internal validation package set from
+the committed provider-verifier source fix.
+**Context**: V2 proved the CA bundle import and `.env` persistence strategy
+when provider verification was bypassed, but did not prove the normal
+`repair-provider-tls.cmd ... -Apply` path because the inline Python verifier
+could be malformed by Compose argument handling. V3 needed fresh CPU and CUDA
+12.1 images/packages from the source fix.
+**Decision**: Use `tls-validation-2026-06-26-V3` as a separate internal
+validation tag and prerelease. Keep separate CPU and CUDA 12.1 Application
+Package ZIPs, with one shared V3-named Model & Data Package ZIP using the
+already-validated asset bytes.
+**Execution**:
+- Committed the source fix as
+  `cd362ec976a37c1f5fd13bac03c8e657720f49ba`.
+- Pushed branch `feature/task-086-provider-tls-repair`.
+- Created and pushed annotated git tag `tls-validation-2026-06-26-V3`.
+- Published CPU and CUDA 12.1 validation images from source ref
+  `cd362ec976a37c1f5fd13bac03c8e657720f49ba`.
+- Generated digest-pinned package variants under
+  `dist\tls-validation-2026-06-26-V3`.
+- Reused the already-validated asset ZIP bytes with a V3 asset filename and
+  checksum sidecar.
+- Created the GitHub prerelease at
+  `https://github.com/J-Schulein/TowerScout/releases/tag/tls-validation-2026-06-26-V3`.
+**Output**:
+- CPU publish run: `28268701301`.
+- CUDA 12.1 publish run: `28268704018`.
+- CPU image:
+  `ghcr.io/j-schulein/towerscout:tls-validation-2026-06-26-V3-cpu@sha256:630ef39c12441cb1ed27330338a95f628a47b7982eb441b245c6b3fe194e16ad`.
+- CUDA 12.1 image:
+  `ghcr.io/j-schulein/towerscout:tls-validation-2026-06-26-V3-cuda121@sha256:b76a1733869e04d38489031490c657ccfda47284b1e9c5ac56b1c5e9725d3c37`.
+- CPU Application Package ZIP:
+  `towerscout-tls-validation-2026-06-26-V3-cpu.zip`.
+- CPU Application Package ZIP SHA-256:
+  `172f9fe27a96aa0c3adbb8b3e1c9a71b1294df9f96624b74cecd0c2af672527d`.
+- CUDA Application Package ZIP:
+  `towerscout-tls-validation-2026-06-26-V3-cuda121.zip`.
+- CUDA Application Package ZIP SHA-256:
+  `356e73c112eba077ba01feaea1a1bda8fddad0f1172a22a956ab36de9e202308`.
+- Shared Model & Data Package ZIP:
+  `towerscout-tls-validation-2026-06-26-V3-assets-towerscout-v1-assets-2026-05-05.zip`.
+- Shared Model & Data Package ZIP SHA-256:
+  `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+**Validation**:
+- GitHub Actions CPU publish run `28268701301` passed.
+- GitHub Actions CUDA 12.1 publish run `28268704018` passed.
+- Remote annotated tag `tls-validation-2026-06-26-V3` dereferences to
+  `cd362ec976a37c1f5fd13bac03c8e657720f49ba`.
+- `summarize_release_package.py` passed for both CPU and CUDA package ZIPs.
+- `check_release_manifest.py` passed for both generated package manifests.
+- Control ZIP and asset ZIP checksum sidecars matched `Get-FileHash`.
+- Package `SHA256SUMS.txt` verification passed for both CPU and CUDA staging
+  folders.
+- Package manifests identify source ref
+  `cd362ec976a37c1f5fd13bac03c8e657720f49ba`, the expected image digests, and
+  the same shared V3 asset ZIP name/hash.
+- Generated package folders do not include local `.env`, logs, temp/session
+  files, uploads, cache, screenshots, or raw support artifacts.
+- `gh release view tls-validation-2026-06-26-V3` reports `draft: false`,
+  `prerelease: true`, and the six expected assets: CPU ZIP/checksum, CUDA
+  ZIP/checksum, and shared asset ZIP/checksum.
+**Caveat**: Package generation used `-AllowDirtySource` because an unrelated
+local untracked cleanup guide artifact exists outside the Task-086 source
+commit. This package is explicitly internal-validation-only and not an official
+release artifact. GitHub's release API reports `targetCommitish: main` for the
+release object, but the published annotated tag itself dereferences to the
+expected V3 source commit and the package manifests embed that source ref.
+**Next**: Download/extract the V3 validation assets, run the normal
+`scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off
+-Apply` path on the managed network, restart TowerScout, and confirm Google
+key validation succeeds without `CERTIFICATE_VERIFY_FAILED` and without using
+`-VerifyProvider none`.

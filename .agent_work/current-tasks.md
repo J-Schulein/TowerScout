@@ -523,7 +523,7 @@ a release-blocking archive path traversal risk before broader package
 distribution.
 
 ### **TASK-086: Provider TLS Auto-Repair And Setup Triage**
-**Status**: V3_SOURCE_FIX_VALIDATED_PENDING_PACKAGE_PUBLISH - V2 managed-network testing proved the CA bundle repair path works when verification is bypassed, and the remaining inline Python verifier bug has a focused source fix ready for V3 CPU/CUDA validation packages
+**Status**: VALIDATION_PACKAGE_V3_PUBLISHED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26-V3` CPU/CUDA package variants, images, tag, and published prerelease are staged from the verifier source fix; downloaded-package managed-network proof remains before the next official tester-facing package
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -588,13 +588,20 @@ improving Setup Wizard triage for invalid-key versus TLS trust failures.
 - V3 source-fix validation passed PowerShell parser checks, focused importer
   regression tests, the 80-test related package/config/route unit subset, and
   `.agent_work` validation.
+- Source fix commit `cd362ec976a37c1f5fd13bac03c8e657720f49ba` was tagged as
+  `tls-validation-2026-06-26-V3`.
+- CPU and CUDA 12.1 V3 image publish runs passed, and V3 CPU/CUDA Application
+  Package ZIPs plus a shared V3 Model & Data Package ZIP were published to
+  `https://github.com/J-Schulein/TowerScout/releases/tag/tls-validation-2026-06-26-V3`.
+- V3 package validation passed package-shape summaries, generated manifest
+  checks, sidecar checksum verification, package `SHA256SUMS.txt`
+  verification, and local runtime-artifact hygiene checks.
 
 **Remaining**:
-- Commit/push the V3 source fix, tag `tls-validation-2026-06-26-V3`,
-  publish CPU/CUDA images and package assets, then rerun the managed-network
-  proof from downloaded V3 assets through the normal
-  `repair-provider-tls.cmd ... -Apply` path before promoting the verified flow
-  into the next official tester-facing package.
+- Run the managed-network proof from downloaded V3 assets through the normal
+  `repair-provider-tls.cmd ... -Apply` path, without `-VerifyProvider none`,
+  before promoting the verified flow into the next official tester-facing
+  package.
 
 **Dependencies**: `TASK-073`; `TASK-074`; `TASK-080`; `TASK-084`; current
 `scripts/import-tls-ca.*`, `scripts/launch.ps1`, provider validation, setup
