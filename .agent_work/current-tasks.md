@@ -523,7 +523,7 @@ a release-blocking archive path traversal risk before broader package
 distribution.
 
 ### **TASK-086: Provider TLS Auto-Repair And Setup Triage**
-**Status**: IMPLEMENTED_PENDING_MANAGED_NETWORK_VALIDATION - source changes, docs updates, and focused validation are complete; internal `tls-validation-2026-06-26` package and managed-network proof remain before the next official tester-facing package
+**Status**: VALIDATION_PACKAGE_STAGED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26` package, image, tag, and draft prerelease are staged; managed-network repair proof remains before the next official tester-facing package
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -566,9 +566,10 @@ improving Setup Wizard triage for invalid-key versus TLS trust failures.
 - `python .agent_work\scripts\validate_agent_work.py` passed.
 
 **Remaining**:
-- Create the internal `tls-validation-2026-06-26` validation package and run
-  the managed-network proof path before promoting the verified flow into the
-  next official tester-facing package.
+- Internal `tls-validation-2026-06-26` package is staged at
+  `dist\tls-validation-2026-06-26`, tagged on GitHub, and attached to a draft
+  prerelease. Run the managed-network proof path before promoting the verified
+  flow into the next official tester-facing package.
 
 **Dependencies**: `TASK-073`; `TASK-074`; `TASK-080`; `TASK-084`; current
 `scripts/import-tls-ca.*`, `scripts/launch.ps1`, provider validation, setup

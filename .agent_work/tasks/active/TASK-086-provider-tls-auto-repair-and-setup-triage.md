@@ -1,6 +1,6 @@
 # TASK-086: Provider TLS Auto-Repair And Setup Triage
 
-**Status**: IMPLEMENTED_PENDING_MANAGED_NETWORK_VALIDATION - source changes, docs updates, and focused validation are complete; internal `tls-validation-2026-06-26` package and managed-network proof remain before the next official tester-facing package
+**Status**: VALIDATION_PACKAGE_STAGED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26` package, image, tag, and draft prerelease are staged; managed-network repair proof remains before the next official tester-facing package
 **Priority**: HIGH
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -792,3 +792,52 @@ correct any source/docs gaps, and record what is complete.
 **Remaining**: Build the internal `tls-validation-2026-06-26` validation
 package and prove the dry-run/apply/restart path on a managed network before
 promoting the verified flow into the next official tester-facing package.
+
+### 2026-06-26 - Internal TLS Validation Package Staged
+**Objective**: Create a traceable internal validation package named
+`tls-validation-2026-06-26` without rc naming.
+**Context**: The validation package needs to prove the Task-086 source changes
+through the packaged path before the next official tester-facing package. The
+backend/frontend TLS behavior lives inside the container image, so the package
+must pin a newly published image built from the Task-086 source ref.
+**Execution**:
+- Created branch `feature/task-086-provider-tls-repair`.
+- Committed Task-086 source/docs/tests as
+  `1566163a86c92f59763014e6ad317067721f91c0`.
+- Pushed the branch to `origin`.
+- Published CPU validation image with GitHub Actions run
+  `https://github.com/J-Schulein/TowerScout/actions/runs/28258939025`.
+- Created and pushed annotated git tag `tls-validation-2026-06-26`.
+- Generated local package folder
+  `dist\tls-validation-2026-06-26`.
+- Created a draft/prerelease GitHub validation release with tag
+  `tls-validation-2026-06-26`; GitHub exposes the current draft URL as
+  `https://github.com/J-Schulein/TowerScout/releases/tag/untagged-e20634e982e045720595`.
+**Output**:
+- Image:
+  `ghcr.io/j-schulein/towerscout:tls-validation-2026-06-26-cpu@sha256:e2cf5de79338b57e5c2094f3b633d857e130a9688daccc93611b1bc3ce4df105`.
+- Control ZIP:
+  `towerscout-tls-validation-2026-06-26.zip`.
+- Control ZIP SHA-256:
+  `fced0b089753556b2b36ca75d3fafc12dc3fe03cbad2948f1c8810c1d0585ce5`.
+- Asset ZIP:
+  `towerscout-tls-validation-2026-06-26-assets-towerscout-v1-assets-2026-05-05.zip`.
+- Asset ZIP SHA-256:
+  `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+**Validation**:
+- Container publish workflow completed successfully.
+- `summarize_release_package.py` reported the expected package shape.
+- `check_release_manifest.py` passed for the staged package manifest.
+- Control ZIP and asset ZIP checksum sidecars matched `Get-FileHash`.
+- Staged package `SHA256SUMS.txt` verification passed.
+- Package includes `scripts\repair-provider-tls.*`, `scripts\import-tls-ca.*`,
+  runtime-specific Docker/Podman CPU/GPU guides, and pinned `IMAGE.txt`.
+**Caveat**: Package generation used `-AllowDirtySource` because an unrelated
+local untracked `.agent_work/context/guides/TowerScout-RC-Package-Cleanup-Guide.docx`
+artifact exists outside the Task-086 source commit. This package is explicitly
+internal-validation-only and not an official release artifact.
+**Next**: Run the managed-network validation proof: download/extract the
+validation assets, reproduce Google TLS failure, run
+`scripts\repair-provider-tls.cmd` dry run, apply with support approval, restart
+with the same engine/GPU mode, confirm Google reaches normal provider feedback
+instead of `CERTIFICATE_VERIFY_FAILED`, and confirm Azure remains usable.
