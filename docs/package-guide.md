@@ -772,13 +772,17 @@ If key validation says TowerScout could not reach the provider validation
 service and logs mention `CERTIFICATE_VERIFY_FAILED`, the container may not
 trust the local network inspection certificate.
 
-Import a local CA bundle for the selected engine. The helper copies the CA into
-the selected engine's persistent `towerscout_config` volume, builds a combined
-CA bundle, verifies provider TLS with an invalid test key, and updates the
-local `.env` so future TowerScout starts use the bundle automatically.
+Run the guided TLS repair helper for the selected engine. The dry run inspects
+the provider TLS chain as Windows sees it, avoids selecting the provider leaf
+certificate, and prints the exact apply command when it finds one safe CA
+candidate. The helper copies the CA into the selected engine's persistent
+`towerscout_config` volume, builds a combined CA bundle, verifies provider TLS
+with an invalid test key, and updates the local `.env` so future TowerScout
+starts use the bundle automatically.
 
 ```powershell
-.\scripts\import-tls-ca.cmd -Engine docker -Thumbprint <windows-certificate-thumbprint> -VerifyProvider google
+.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off
+.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off -Apply
 .\scripts\stop.cmd -Engine docker
 .\start.bat -Engine docker -Gpu off
 ```
@@ -786,7 +790,8 @@ local `.env` so future TowerScout starts use the bundle automatically.
 For Podman:
 
 ```powershell
-.\scripts\import-tls-ca.cmd -Engine podman -Thumbprint <windows-certificate-thumbprint>
+.\scripts\repair-provider-tls.cmd -Provider google -Engine podman -Gpu off
+.\scripts\repair-provider-tls.cmd -Provider google -Engine podman -Gpu off -Apply
 .\scripts\stop.cmd -Engine podman
 .\start.bat -Engine podman -Gpu off
 ```
@@ -794,13 +799,16 @@ For Podman:
 If the site blocks Google but uses Azure, choose Azure verification:
 
 ```powershell
-.\scripts\import-tls-ca.cmd -Engine docker -Thumbprint <windows-certificate-thumbprint> -VerifyProvider azure
+.\scripts\repair-provider-tls.cmd -Provider azure -Engine docker -Gpu off
 ```
 
-Do not paste the literal placeholder text `<windows-certificate-thumbprint>`
-into PowerShell. Replace it with the actual Windows certificate thumbprint from
-the site's root or intermediate inspection CA. A website leaf/server
-certificate is not sufficient.
+Do not paste dry-run certificate subjects, issuer details, or thumbprints into
+public issue comments or release evidence. If support already knows the correct
+Windows certificate thumbprint or has an exported PEM/CER/CRT file, pass
+`-Thumbprint` or `-CertificatePath` to `scripts\repair-provider-tls.cmd`. A
+website leaf/server certificate is not sufficient. If automatic discovery is
+ambiguous or unavailable, support may still use the lower-level
+`scripts\import-tls-ca.cmd` command with the known CA thumbprint or file.
 
 `TOWERSCOUT_ALLOW_INSECURE_TLS=1` is a last-resort validation-only workaround.
 Do not use it as normal release configuration.

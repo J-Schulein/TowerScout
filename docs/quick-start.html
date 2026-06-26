@@ -126,7 +126,7 @@ readiness: setup_required</code></pre>
       <section class="doc-section" id="setup">
         <h2>Complete Setup</h2>
         <p>Use Setup Wizard or Settings to configure one valid Google Maps or Azure Maps key. Browser map SDK keys are client-visible, so the package expects site/user-owned restricted keys.</p>
-        <p>If Google or Azure validation fails even though the key is correct, and support sees <code>CERTIFICATE_VERIFY_FAILED</code> in container logs, support should run <code>.\scripts\import-tls-ca.cmd -Engine docker -Thumbprint &lt;windows-certificate-thumbprint&gt; -VerifyProvider google</code>, then restart TowerScout. The helper stores the combined CA bundle in the selected engine's config volume and updates local <code>.env</code> so future starts use that bundle automatically.</p>
+        <p>If Google or Azure validation fails even though the key is correct, and support sees <code>CERTIFICATE_VERIFY_FAILED</code> in container logs, support should run <code>.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off</code>, review the local support-sensitive dry-run output, then run the generated apply command and restart TowerScout. The helper stores the combined CA bundle in the selected engine's config volume and updates local <code>.env</code> so future starts use that bundle automatically.</p>
       </section>
       <section class="doc-section" id="success">
         <h2>Confirm Success</h2>
@@ -199,11 +199,11 @@ readiness: setup_required</code></pre>
               <td><code>.\scripts\logs.cmd -Engine podman -Tail 200</code></td>
             </tr>
             <tr>
-              <td>TLS CA import if support asks</td>
-              <td><code>.\scripts\import-tls-ca.cmd -Engine docker -Thumbprint &lt;windows-certificate-thumbprint&gt; -VerifyProvider google</code></td>
-              <td><code>.\scripts\import-tls-ca.cmd -Engine docker -Thumbprint &lt;windows-certificate-thumbprint&gt; -VerifyProvider google</code></td>
-              <td><code>.\scripts\import-tls-ca.cmd -Engine podman -Thumbprint &lt;windows-certificate-thumbprint&gt; -VerifyProvider google</code></td>
-              <td><code>.\scripts\import-tls-ca.cmd -Engine podman -Thumbprint &lt;windows-certificate-thumbprint&gt; -VerifyProvider google</code></td>
+              <td>TLS CA repair if support asks</td>
+              <td><code>.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off</code></td>
+              <td><code>.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu auto</code> or assigned GPU mode</td>
+              <td><code>.\scripts\repair-provider-tls.cmd -Provider google -Engine podman -Gpu off</code></td>
+              <td><code>.\scripts\repair-provider-tls.cmd -Provider google -Engine podman -Gpu on</code></td>
             </tr>
             <tr>
               <td>Manual asset import fallback</td>

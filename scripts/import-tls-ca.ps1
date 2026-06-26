@@ -215,10 +215,10 @@ function Get-TowerScoutTlsVerificationScript {
     )
 
     if ($Provider -eq "azure") {
-        return "import requests; r=requests.get('https://atlas.microsoft.com/map/attribution', params={'api-version':'2024-04-01','subscription-key':'invalid'}, timeout=10); print('azure_tls_status=' + str(r.status_code)); print('azure_tls_body=' + r.text[:80].replace(chr(10), ' ')); raise SystemExit(0 if r.status_code in (200, 401, 403) else 1)"
+        return "import requests; r=requests.get('https://atlas.microsoft.com/map/attribution', params={'api-version':'2024-04-01'}, timeout=10); ok=r.status_code in (200, 401, 403); print('azure_tls_status=' + str(r.status_code)); print('azure_tls_category=' + ('tls_ok' if ok else 'provider_http_error')); raise SystemExit(0 if ok else 1)"
     }
 
-    return "import requests; r=requests.get('https://maps.googleapis.com/maps/api/geocode/json?address=test&key=invalid', timeout=10); print('google_tls_status=' + str(r.status_code)); print('google_tls_body=' + r.text[:80].replace(chr(10), ' ')); raise SystemExit(0 if r.status_code == 200 else 1)"
+    return "import requests; r=requests.get('https://maps.googleapis.com/maps/api/geocode/json', params={'address':'test'}, timeout=10); ok=r.status_code == 200; print('google_tls_status=' + str(r.status_code)); print('google_tls_category=' + ('tls_ok' if ok else 'provider_http_error')); raise SystemExit(0 if ok else 1)"
 }
 
 function Copy-TowerScoutCertificateIntoContainer {

@@ -1,7 +1,7 @@
 # Current Tasks - Active Sprint
 
 **Sprint Period**: Sprint 06 planning / V1 RC1 readiness begins May 11, 2026  
-**Last Updated**: June 17, 2026
+**Last Updated**: June 26, 2026
 **Focus**: Produce a V1 RC1 / pilot-ready AGPL-compliant YOLO-enabled release path by closing release-support carry-forward work, correcting release compliance artifacts, writing package-based end-user docs, validating the clean-machine release candidate, and preparing pilot / UAT execution.
 **Status**: Sprint 06 committed lane selected. `TASK-065`, `TASK-072`, `TASK-079`, `TASK-071`, `TASK-067`, and `TASK-074` are completed and remain in the active task folder until sprint closeout; `TASK-069` sign-off is sufficient to merge PR #11 as the internal controlled AGPL-governed RC planning and compliance baseline; `TASK-075` implementation is merged and its GPU support claims are now bounded by `TASK-083` evidence; `TASK-066` post-PR28 final prerelease Docker Desktop package path passed through checksum verification, bootstrap/readiness from the GitHub Release Application Package, Settings-linked docs, `/license`, in-container asset hash verification, and bounded Azure detection smoke on the refreshed final digest; `TASK-073` is active for clean-machine pilot/UAT planning and now has an RC6 handoff packet with exact artifact values, default smoke fixture, support contacts, and provider-key evidence boundaries; official RC6 release publication and downloaded-release validation are complete, while tester cohort selection and owner/reviewer acceptance remain before external tester launch; `TASK-080` has simplified the first-cohort setup path, produced and locked the consolidated Word guide, verified the Google first-launch TLS support path, and published/validated the refreshed rc3 UAT release package; `TASK-081` runtime hardening landed on `main`; `TASK-082` landed on `main` as `v0.1.0-rc4` with stable docs naming and package wiring; `TASK-083` landed through merged PR #33 after validating RC5 candidate 3 across Docker CPU, Docker GPU, Docker-Desktop-free Podman CPU, Podman GPU CDI, and fixed-fixture parity; `TASK-084` merged its GA packaging implementation slice through PR #34 and Podman package asset-import stabilization through PR #38, then completed official `v0.1.0-rc6` publication and downloaded-release verification on June 17, 2026; `TASK-085` merged its dataset ZIP restore traversal hardening through PR #35; RC6 CPU/CUDA images and control ZIPs were rebuilt from `main` at `12daa5536f580f76d063559e86b9a474451bc54b`; static checks, Docker CPU, Docker CUDA CPU-fallback, Podman CPU with approved package-local provider, CPU-package `-Gpu on` guardrail validation, Docker GPU validation, Podman GPU CDI validation, public-safe evidence summary preparation, official release handoff, publication, and downloaded CPU package validation have passed.
 
@@ -521,6 +521,63 @@ tests; `TASK-084` final package sequencing.
 **User Value**: Keeps the investigation export/restore workflow while closing
 a release-blocking archive path traversal risk before broader package
 distribution.
+
+### **TASK-086: Provider TLS Auto-Repair And Setup Triage**
+**Status**: IMPLEMENTED_PENDING_MANAGED_NETWORK_VALIDATION - source changes, docs updates, and focused validation are complete; internal `tls-validation-2026-06-26` package and managed-network proof remain before the next official tester-facing package
+**Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
+**Priority**: HIGH
+**Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
+**Target Sprint**: Sprint 06 post-RC6 UAT follow-up / next pilot package
+**Task File**: `.agent_work/tasks/active/TASK-086-provider-tls-auto-repair-and-setup-triage.md`
+
+**Objective**: Add a guided, support-safe provider TLS diagnosis and repair
+path that reduces manual Windows certificate thumbprint hunting when Google
+Maps or Azure Maps validation fails inside the container on a managed
+TLS-inspected network, while centralizing provider HTTP/TLS handling and
+improving Setup Wizard triage for invalid-key versus TLS trust failures.
+
+**Completed Implementation**:
+- Added shared provider HTTP/TLS handling across validation, geocoding, map
+  proxy, async imagery downloads, keyless TLS preflight, and redacted provider
+  URL surfaces.
+- Added `scripts/repair-provider-tls.ps1/.cmd` as the guided dry-run-first
+  support wrapper, with `-Provider`, `-Engine`, `-Gpu`, `-Thumbprint`,
+  `-CertificatePath`, and explicit `-Apply` semantics. Apply mode delegates to
+  `scripts/import-tls-ca.cmd`.
+- Updated Setup Wizard and Settings to preserve structured backend
+  `details`/`category`/`support_action`/`repair_command` fields, allow Azure to
+  persist when Google needs TLS repair and Azure is selected/default, and avoid
+  treating repairable TLS failures as bad keys.
+- Updated Docker CPU/GPU, Podman CPU/GPU, Quick Start, Package Guide, OCI
+  support docs, runtime contract, and `.env.example` so the guided repair
+  helper is the preferred path and low-level `import-tls-ca` is support
+  fallback.
+- Added focused tests for helper safety text/delegation, provider/GPU
+  forwarding, category mapping, frontend structured-error preservation,
+  read-only TLS status, map proxy/imagery redaction, and package inclusion.
+
+**Latest Validation**:
+- `node webapp\build.js` passed.
+- PowerShell parser checks passed for `scripts/repair-provider-tls.ps1` and
+  `scripts/import-tls-ca.ps1`.
+- `python -m py_compile` passed for changed Python backend modules.
+- Focused pytest suite passed: 110 tests.
+- `git diff --check` passed.
+- `python .agent_work\scripts\validate_agent_work.py` passed.
+
+**Remaining**:
+- Create the internal `tls-validation-2026-06-26` validation package and run
+  the managed-network proof path before promoting the verified flow into the
+  next official tester-facing package.
+
+**Dependencies**: `TASK-073`; `TASK-074`; `TASK-080`; `TASK-084`; current
+`scripts/import-tls-ca.*`, `scripts/launch.ps1`, provider validation, setup
+wizard, package docs, and a managed-network validation environment.
+
+**User Value**: Converts a repeated UAT support blocker into a guided repair
+workflow, reducing the chance that valid Google provider setup stalls because a
+tester or support contact cannot safely identify the correct local TLS
+inspection CA.
 
 ### **TASK-074: Runtime Prerequisite Preflight**
 **Status**: COMPLETED - post-merge package-artifact bootstrap validation passed

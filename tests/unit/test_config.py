@@ -51,6 +51,7 @@ def test_validate_api_key_google(mock_get):
 
     assert result["valid"] is True
     assert result["provider"] == "google"
+    assert result["category"] == "tls_ok"
     assert "tested_at" in result
 
 
@@ -62,6 +63,7 @@ def test_validate_api_key_azure(mock_get):
 
     assert result["valid"] is True
     assert result["provider"] == "azure"
+    assert result["category"] == "tls_ok"
     assert "tested_at" in result
 
 
@@ -73,9 +75,8 @@ def test_validate_api_key_network_error_returns_network_error(mock_get):
         ts_config.validate_api_key("google", "google-test-key")
 
     assert "TowerScout could not reach Google Maps" in exc_info.value.user_message
-    assert "without sending API keys or raw network traces" in exc_info.value.user_message
     assert exc_info.value.details["provider"] == "google"
-    assert exc_info.value.details["category"] == "provider_validation_network"
+    assert exc_info.value.details["category"] == "provider_network_blocked"
 
 
 @patch("ts_config.requests.get")
@@ -87,9 +88,9 @@ def test_validate_api_key_fails_closed_on_ssl_error_by_default(mock_get, monkeyp
         ts_config.validate_api_key("google", "google-test-key")
 
     assert "could not verify the Google Maps TLS certificate" in exc_info.value.user_message
-    assert "scripts/import-tls-ca.cmd" in exc_info.value.user_message
+    assert "scripts\\repair-provider-tls.cmd" in exc_info.value.details["repair_command"]
     assert exc_info.value.details["provider"] == "google"
-    assert exc_info.value.details["category"] == "provider_validation_tls"
+    assert exc_info.value.details["category"] == "tls_ca_untrusted"
     assert mock_get.call_count == 1
 
 
@@ -104,8 +105,8 @@ def test_validate_api_key_reports_missing_configured_tls_bundle(mock_get, monkey
         ts_config.validate_api_key("google", "google-test-key")
 
     assert "TLS CA bundle was not found" in exc_info.value.user_message
-    assert exc_info.value.details["env_var"] == "REQUESTS_CA_BUNDLE"
-    assert exc_info.value.details["configured_path"] == str(missing_bundle)
+    assert exc_info.value.details["category"] == "tls_bundle_missing"
+    assert exc_info.value.details["bundle_path"] == str(missing_bundle)
     mock_get.assert_not_called()
 
 
@@ -120,8 +121,8 @@ def test_validate_api_key_reports_missing_ssl_cert_file_bundle(mock_get, monkeyp
         ts_config.validate_api_key("google", "google-test-key")
 
     assert "TLS CA bundle was not found" in exc_info.value.user_message
-    assert exc_info.value.details["env_var"] == "SSL_CERT_FILE"
-    assert exc_info.value.details["configured_path"] == str(missing_bundle)
+    assert exc_info.value.details["category"] == "tls_bundle_missing"
+    assert exc_info.value.details["bundle_path"] == str(missing_bundle)
     mock_get.assert_not_called()
 
 
@@ -138,6 +139,7 @@ def test_validate_api_key_reports_unusable_configured_tls_bundle(mock_get, monke
         ts_config.validate_api_key("google", "google-test-key")
 
     assert "TLS CA bundle could not be used" in exc_info.value.user_message
+    assert exc_info.value.details["category"] == "tls_bundle_unusable"
     assert mock_get.call_count == 1
 
 

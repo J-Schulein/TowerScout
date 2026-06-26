@@ -523,11 +523,13 @@ reports, screenshots, or support chat.
 
 Managed-network note: if Google or Azure provider validation fails even though
 the key is correct, and support sees `CERTIFICATE_VERIFY_FAILED` in container
-logs, the problem is usually local TLS inspection. Support should import the
-site CA for the selected engine, then restart TowerScout:
+logs, the problem is usually local TLS inspection. Support should run the
+guided TLS repair helper for the selected engine, review its local
+support-sensitive dry-run output, then apply the repair and restart TowerScout:
 
 ```powershell
-.\scripts\import-tls-ca.cmd -Engine docker -Thumbprint <windows-certificate-thumbprint> -VerifyProvider google
+.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off
+.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off -Apply
 .\scripts\stop.cmd -Engine docker
 .\start.bat -Engine docker -Gpu off
 ```
@@ -535,7 +537,8 @@ site CA for the selected engine, then restart TowerScout:
 The TLS helper stores the combined CA bundle in the selected engine's
 `towerscout_config` volume and updates the local `.env` so future starts use
 that bundle automatically. Do not send provider keys, full `.env` files, raw
-logs, or browser network traces when reporting this issue.
+logs, browser network traces, certificate thumbprints, or certificate issuer
+details when reporting this issue.
 
 ## 10. Confirm Success
 
@@ -628,7 +631,7 @@ Run commands from the extracted TowerScout application folder, such as
 | Restart | `.\scripts\stop.cmd -Engine docker`, then `.\start.bat -Engine docker -Gpu off` | `.\scripts\stop.cmd -Engine docker`, then the assigned Docker GPU start command | `.\scripts\stop.cmd -Engine podman`, then `.\start.bat -Engine podman -Gpu off` | `.\scripts\stop.cmd -Engine podman`, then `.\start.bat -Engine podman -Gpu on` |
 | Status | `.\scripts\status.cmd -Engine docker` | `.\scripts\status.cmd -Engine docker` | `.\scripts\status.cmd -Engine podman` | `.\scripts\status.cmd -Engine podman` |
 | Logs if support asks | `.\scripts\logs.cmd -Engine docker -Tail 200` | `.\scripts\logs.cmd -Engine docker -Tail 200` | `.\scripts\logs.cmd -Engine podman -Tail 200` | `.\scripts\logs.cmd -Engine podman -Tail 200` |
-| TLS CA import if support asks | `.\scripts\import-tls-ca.cmd -Engine docker -Thumbprint <windows-certificate-thumbprint> -VerifyProvider google` | `.\scripts\import-tls-ca.cmd -Engine docker -Thumbprint <windows-certificate-thumbprint> -VerifyProvider google` | `.\scripts\import-tls-ca.cmd -Engine podman -Thumbprint <windows-certificate-thumbprint> -VerifyProvider google` | `.\scripts\import-tls-ca.cmd -Engine podman -Thumbprint <windows-certificate-thumbprint> -VerifyProvider google` |
+| TLS CA repair if support asks | `.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off` | `.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu auto` or assigned GPU mode | `.\scripts\repair-provider-tls.cmd -Provider google -Engine podman -Gpu off` | `.\scripts\repair-provider-tls.cmd -Provider google -Engine podman -Gpu on` |
 | Manual asset import fallback | `.\scripts\import-assets.cmd -Engine docker -Source assets -VerifyHashes -RestartWaitSeconds 180` | `.\scripts\import-assets.cmd -Engine docker -Source assets -VerifyHashes -RestartWaitSeconds 180` | `.\scripts\import-assets.cmd -Engine podman -Source assets -VerifyHashes` | `.\scripts\import-assets.cmd -Engine podman -Source assets -VerifyHashes` |
 | Longer support session | Add `-SessionMaxHours 24` to setup, start, or import commands when support approves it. | Add `-SessionMaxHours 24` to the assigned Docker GPU command when support approves it. | Add `-SessionMaxHours 24` to setup, start, or import commands when support approves it. | Add `-SessionMaxHours 24` to setup, start, or import commands when support approves it. |
 
