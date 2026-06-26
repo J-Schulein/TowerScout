@@ -112,17 +112,38 @@ function Get-TowerScoutRemoteCertificateChain {
     )
 
     $tcpClient = [System.Net.Sockets.TcpClient]::new()
+    $callbackChainElements = [System.Collections.Generic.List[object]]::new()
     try {
         $tcpClient.Connect($HostName, 443)
+        $validationCallback = {
+            param($sender, $certificate, $chain, $sslPolicyErrors)
+
+            $callbackChainElements.Clear()
+            if ($null -ne $chain) {
+                for ($index = 0; $index -lt $chain.ChainElements.Count; $index += 1) {
+                    $chainCertificate = $chain.ChainElements[$index].Certificate
+                    $callbackChainElements.Add([PSCustomObject]@{
+                        Index = $index
+                        Certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($chainCertificate.RawData)
+                    })
+                }
+            }
+
+            return $true
+        }
         $sslStream = [System.Net.Security.SslStream]::new(
             $tcpClient.GetStream(),
             $false,
-            { param($sender, $certificate, $chain, $sslPolicyErrors) return $true }
+            $validationCallback
         )
         try {
             $sslStream.AuthenticateAsClient($HostName)
             if ($null -eq $sslStream.RemoteCertificate) {
                 throw "Remote host did not provide a certificate."
+            }
+
+            if ($callbackChainElements.Count -gt 0) {
+                return $callbackChainElements
             }
 
             $leaf = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($sslStream.RemoteCertificate)
@@ -284,6 +305,7 @@ if ([string]::IsNullOrWhiteSpace($selectedThumbprint) -and [string]::IsNullOrWhi
     foreach ($element in $chainElements) {
         $certificate = $element.Certificate
         Write-Host ("  chain[{0}] subject={1}" -f $element.Index, $certificate.Subject)
+        Write-Host ("           issuer={0}" -f $certificate.Issuer)
         Write-Host ("           thumbprint={0}" -f $certificate.Thumbprint)
     }
 

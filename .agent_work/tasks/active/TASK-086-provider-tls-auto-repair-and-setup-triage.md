@@ -1,6 +1,6 @@
 # TASK-086: Provider TLS Auto-Repair And Setup Triage
 
-**Status**: VALIDATION_PACKAGE_STAGED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26` CPU/CUDA package variants, images, tag, and published prerelease are staged; managed-network repair proof remains before the next official tester-facing package
+**Status**: SOURCE_FIX_VALIDATED_PENDING_PACKAGE_REBUILD - first internal `tls-validation-2026-06-26` managed-network proof exposed an incomplete TLS-chain discovery bug; source fix is implemented and focused-validated, and replacement validation packages/images remain before the next official tester-facing package
 **Priority**: HIGH
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -932,3 +932,54 @@ exists locally. The package was generated from the validation source ref, and
 the artifact remains ignored/unpublished.
 **Next**: Continue with managed-network proof using the corrected validation
 prerelease assets.
+
+### 2026-06-26 - Managed-Network Validation Failure Root-Cause Fix
+**Objective**: Triage the downloaded CPU validation package failure and correct
+the source before producing the next validation package.
+**Context**: Managed-network testing of the downloaded
+`tls-validation-2026-06-26-cpu` package reproduced the Google provider TLS
+failure after running the documented manual repair command with the previously
+identified thumbprint. The helper copied CA material into the container, but
+provider TLS verification still failed, so `.env` remained pointed at the
+stock Linux trust bundle and the restart could not use the repaired bundle.
+**Decision**: Treat the first validation package as superseded for TLS proof.
+Fix the discovery helper instead of asking testers to manually hunt for a
+different thumbprint.
+**Execution**:
+- Confirmed the pasted support output contained no raw provider API key.
+- Confirmed the package `.env` still used the default Linux CA bundle after
+  the failed repair because the helper exits before persisting
+  `REQUESTS_CA_BUNDLE` / `SSL_CERT_FILE` when verification fails.
+- Probed the running validation container without API keys and confirmed the
+  combined CA bundle existed, but no-key Google TLS still failed with a
+  certificate-verification category.
+- Identified the implementation bug: `scripts/repair-provider-tls.ps1`
+  rebuilt a new Windows chain from the leaf certificate after the TLS
+  handshake, which can collapse to only the provider leaf on managed networks.
+  It did not preserve the chain supplied to the TLS validation callback, which
+  contained the real organization Root/CA chain needed for conservative
+  candidate selection.
+- Updated `scripts/repair-provider-tls.ps1` to capture callback chain elements,
+  clone their certificate raw data, include issuer details in the local
+  support-sensitive dry-run output, and continue falling back to leaf-chain
+  reconstruction only if the callback provides no chain.
+- Updated `scripts/import-tls-ca.ps1` verification so Google/Azure no-key TLS
+  checks report concise status/category lines, accept expected provider HTTP
+  feedback as TLS success, catch certificate and request exceptions without a
+  Python traceback, and state that `.env` was not updated when verification
+  fails.
+- Added focused static regression assertions in
+  `tests/unit/test_import_assets_script.py`.
+**Validation**:
+- PowerShell parser checks passed for `scripts/repair-provider-tls.ps1` and
+  `scripts/import-tls-ca.ps1`.
+- `.venv\Scripts\python.exe -m pytest tests/unit/test_import_assets_script.py
+  -q -p no:cacheprovider` passed: 4 tests.
+- Live dry run of `scripts\repair-provider-tls.cmd -Provider google -Engine
+  docker -Gpu off` now captures the full managed-network callback chain and
+  selects the store-backed organization Root CA candidate instead of stopping
+  at the provider leaf. Raw certificate identities and thumbprints are treated
+  as local support-sensitive output and are not recorded here.
+**Next**: Commit the source fix, rebuild/publish replacement internal CPU and
+CUDA validation images/packages, then re-run the managed-network repair proof
+from a downloaded package before planning the official rc7 package.

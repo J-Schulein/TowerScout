@@ -61,6 +61,10 @@ def test_tls_ca_import_persists_bundle_paths_in_env_file():
     assert "TrimStart().StartsWith(\"#\")" in script
     assert "_tls_body" not in script
     assert "_tls_category" in script
+    assert "except requests.exceptions.SSLError" in script
+    assert "google_tls_category=tls_certificate_error" in script
+    assert "ok = r.status_code in (200, 400, 401, 403)" in script
+    assert "Provider TLS verification failed; .env was not updated." in script
     assert verify < persist < imported
 
 
@@ -72,6 +76,9 @@ def test_provider_tls_repair_wrapper_is_dry_run_first_and_delegates_to_importer(
     assert "Dry run only" in script
     assert "Get-TowerScoutRemoteCertificateChain" in script
     assert "Select-TowerScoutTlsCaCandidate" in script
+    assert "$callbackChainElements" in script
+    assert "X509Certificate2]::new($chainCertificate.RawData)" in script
+    assert "return $callbackChainElements" in script
     assert "if ($element.Index -eq 0)" in script
     assert "Multiple CA candidates have the same score" in script
     assert "Format-TowerScoutRepairCommand" in script
@@ -81,6 +88,7 @@ def test_provider_tls_repair_wrapper_is_dry_run_first_and_delegates_to_importer(
     assert "\"-Provider\", $Provider" in script
     assert "\"-Gpu\", $Gpu" in script
     assert "Support-sensitive local output" in script
+    assert "issuer={0}" in script
     assert "Write-Host \"  $repairCommand\"" in script
     assert "Write-Host \"  $importCommand -Apply\"" not in script
     assert "No API keys or provider response bodies" in script

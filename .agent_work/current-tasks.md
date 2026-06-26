@@ -523,7 +523,7 @@ a release-blocking archive path traversal risk before broader package
 distribution.
 
 ### **TASK-086: Provider TLS Auto-Repair And Setup Triage**
-**Status**: VALIDATION_PACKAGE_STAGED_PENDING_MANAGED_NETWORK_PROOF - internal `tls-validation-2026-06-26` CPU/CUDA package variants, images, tag, and published prerelease are staged; managed-network repair proof remains before the next official tester-facing package
+**Status**: SOURCE_FIX_VALIDATED_PENDING_PACKAGE_REBUILD - first internal `tls-validation-2026-06-26` managed-network proof exposed an incomplete TLS-chain discovery bug; source fix is implemented and focused-validated, and replacement validation packages/images remain before the next official tester-facing package
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -570,12 +570,12 @@ improving Setup Wizard triage for invalid-key versus TLS trust failures.
   `tls-validation-2026-06-26-cuda121`.
 
 **Remaining**:
-- Internal `tls-validation-2026-06-26` CPU and CUDA 12.1 Application Package
-  ZIPs plus the shared Model & Data Package ZIP are staged at
-  `dist\tls-validation-2026-06-26`, tagged on GitHub, and attached to the
-  published validation prerelease at
-  `https://github.com/J-Schulein/TowerScout/releases/tag/tls-validation-2026-06-26`.
-  Run the managed-network proof path before promoting the verified flow into
+- Rebuild and republish the internal `tls-validation-2026-06-26` CPU and CUDA
+  12.1 images/Application Package ZIPs from the post-fix source commit. The
+  first published validation package is now superseded for TLS repair proof
+  because its dry-run chain discovery can miss the actual organization Root/CA
+  chain and lead support toward the wrong thumbprint.
+- Re-run the managed-network proof path before promoting the verified flow into
   the next official tester-facing package.
 
 **Dependencies**: `TASK-073`; `TASK-074`; `TASK-080`; `TASK-084`; current

@@ -215,10 +215,42 @@ function Get-TowerScoutTlsVerificationScript {
     )
 
     if ($Provider -eq "azure") {
-        return "import requests; r=requests.get('https://atlas.microsoft.com/map/attribution', params={'api-version':'2024-04-01'}, timeout=10); ok=r.status_code in (200, 401, 403); print('azure_tls_status=' + str(r.status_code)); print('azure_tls_category=' + ('tls_ok' if ok else 'provider_http_error')); raise SystemExit(0 if ok else 1)"
+        return @'
+import requests
+try:
+    r = requests.get("https://atlas.microsoft.com/map/attribution", params={"api-version": "2024-04-01"}, timeout=10)
+    ok = r.status_code in (200, 400, 401, 403)
+    print("azure_tls_status=" + str(r.status_code))
+    print("azure_tls_category=" + ("tls_ok" if ok else "provider_http_error"))
+    raise SystemExit(0 if ok else 1)
+except requests.exceptions.SSLError:
+    print("azure_tls_status=unavailable")
+    print("azure_tls_category=tls_certificate_error")
+    raise SystemExit(1)
+except requests.exceptions.RequestException:
+    print("azure_tls_status=unavailable")
+    print("azure_tls_category=network_error")
+    raise SystemExit(1)
+'@
     }
 
-    return "import requests; r=requests.get('https://maps.googleapis.com/maps/api/geocode/json', params={'address':'test'}, timeout=10); ok=r.status_code == 200; print('google_tls_status=' + str(r.status_code)); print('google_tls_category=' + ('tls_ok' if ok else 'provider_http_error')); raise SystemExit(0 if ok else 1)"
+    return @'
+import requests
+try:
+    r = requests.get("https://maps.googleapis.com/maps/api/geocode/json", params={"address": "test"}, timeout=10)
+    ok = r.status_code in (200, 400, 401, 403)
+    print("google_tls_status=" + str(r.status_code))
+    print("google_tls_category=" + ("tls_ok" if ok else "provider_http_error"))
+    raise SystemExit(0 if ok else 1)
+except requests.exceptions.SSLError:
+    print("google_tls_status=unavailable")
+    print("google_tls_category=tls_certificate_error")
+    raise SystemExit(1)
+except requests.exceptions.RequestException:
+    print("google_tls_status=unavailable")
+    print("google_tls_category=network_error")
+    raise SystemExit(1)
+'@
 }
 
 function Copy-TowerScoutCertificateIntoContainer {
@@ -328,6 +360,8 @@ try {
             $pythonVerify
         )
         if ($script:TowerScoutComposeExitCode -ne 0) {
+            Write-Host "Provider TLS verification failed; .env was not updated."
+            Write-Host "Re-run scripts\repair-provider-tls.cmd in dry-run mode and use the selected CA, or provide a full PEM CA chain with -CertificatePath."
             exit $script:TowerScoutComposeExitCode
         }
     }
