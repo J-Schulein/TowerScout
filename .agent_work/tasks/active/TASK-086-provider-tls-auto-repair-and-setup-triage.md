@@ -1,6 +1,6 @@
 # TASK-086: Provider TLS Auto-Repair And Setup Triage
 
-**Status**: V3_CPU_MANAGED_NETWORK_PROOF_PASSED_PENDING_CUDA_DECISION - downloaded V3 CPU package proof passed the normal Google TLS repair/setup path without `-VerifyProvider none`; decide whether to run the CUDA package through the same live proof or proceed to rc7 preparation with CPU live proof plus CUDA package validation
+**Status**: COMPLETED - V3 CPU managed-network proof passed and owner-confirmed CUDA managed-network validation shows the Task-086 TLS repair fix works for the CUDA package path; keep Task-087 as a follow-on one-click helper plan, not an rc7 baseline blocker
 **Priority**: HIGH
 **Type**: B/C (Runtime Support / Provider Setup / TLS Trust)
 **Estimated Effort**: 3-5 days (24-40 hours) plus one managed-network validation pass
@@ -1237,7 +1237,36 @@ TLS certificate failure, and successful Google setup after restart.
   image digest matched the V3 CPU release digest.
 - Raw certificate subjects/thumbprints remain support-sensitive and are not
   recorded in this task evidence.
-**Next**: Decide whether to run the CUDA 12.1 V3 package through the same live
-managed-network repair path for package-variant confidence, or accept this CPU
-live proof plus existing CUDA package/image validation as sufficient to start
-rc7 refinement.
+**Next**: Record owner-confirmed CUDA managed-network validation and close
+Task-086 as the rc7 TLS repair baseline.
+
+### 2026-06-29 - CUDA Managed-Network Confirmation And Completion
+**Objective**: Close Task-086 after confirming that the V3 TLS repair fix works
+for both CPU and CUDA validation package paths on a managed TLS-inspected
+network.
+**Context**: The downloaded V3 CPU package already passed the normal
+`repair-provider-tls.cmd -Provider google -Engine docker -Gpu off -Apply` path
+without `-VerifyProvider none`. The remaining decision was whether to run the
+CUDA 12.1 V3 package through the same managed-network proof or accept CPU live
+proof plus CUDA package/image validation.
+**Decision**: Treat Task-086 as complete based on owner-reported confirmation
+that the Task-086 fix also works with CUDA on a managed network. Keep the
+manual/guided command path from Task-086 as the rc7 baseline. Keep
+`TASK-087` as a separate follow-on plan for a one-click host-side repair helper
+after rc7 unless tester evidence promotes it.
+**Execution**:
+- Recorded owner confirmation that the V3 CUDA package path works on a managed
+  network with the Task-086 TLS repair fix.
+- Kept the evidence support-safe by not recording raw terminal output,
+  certificate subjects, certificate thumbprints, provider keys, provider
+  responses, or local environment details.
+- Updated Task-086 status to completed.
+**Validation**:
+- V3 CPU downloaded-package managed-network proof passed the normal repair path
+  without `-VerifyProvider none`.
+- V3 CPU and CUDA 12.1 image publish and package validation previously passed.
+- V3 CUDA managed-network behavior is owner-confirmed as working for the
+  Task-086 fix.
+**Next**: Use Task-086 as the rc7 provider TLS repair baseline, then proceed
+with Sprint 6 closeout planning, repository housekeeping, rc7 package/docs
+refinement, and rc7 publication sequencing.
