@@ -32,6 +32,8 @@ TLS_REPAIR_CATEGORIES = frozenset(
         TLS_BUNDLE_UNUSABLE,
     }
 )
+TLS_REPAIR_ENGINES = frozenset({"auto", "docker", "podman"})
+TLS_REPAIR_GPU_MODES = frozenset({"off", "auto", "on"})
 
 SENSITIVE_QUERY_KEYS = frozenset(
     {
@@ -73,8 +75,28 @@ def provider_hostname(provider: str) -> str:
     return normalized
 
 
-def provider_repair_command(provider: str, engine: str = "auto", gpu: str = "off") -> str:
-    return f"scripts\\repair-provider-tls.cmd -Provider {provider} -Engine {engine} -Gpu {gpu}"
+def _normalize_repair_option(value: str | None, allowed: frozenset[str], fallback: str) -> str:
+    normalized = (value or "").strip().lower()
+    if normalized in allowed:
+        return normalized
+    return fallback
+
+
+def provider_repair_command(provider: str, engine: str | None = None, gpu: str | None = None) -> str:
+    resolved_engine = _normalize_repair_option(
+        engine if engine is not None else os.getenv("TOWERSCOUT_CONTAINER_ENGINE"),
+        TLS_REPAIR_ENGINES,
+        "auto",
+    )
+    resolved_gpu = _normalize_repair_option(
+        gpu if gpu is not None else os.getenv("TOWERSCOUT_GPU_MODE"),
+        TLS_REPAIR_GPU_MODES,
+        "off",
+    )
+    return (
+        f".\\scripts\\repair-provider-tls.cmd -Provider {provider} "
+        f"-Engine {resolved_engine} -Gpu {resolved_gpu}"
+    )
 
 
 def provider_support_action(category: str | None, provider: str) -> str | None:

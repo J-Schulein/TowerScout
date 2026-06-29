@@ -1270,3 +1270,36 @@ after rc7 unless tester evidence promotes it.
 **Next**: Use Task-086 as the rc7 provider TLS repair baseline, then proceed
 with Sprint 6 closeout planning, repository housekeeping, rc7 package/docs
 refinement, and rc7 publication sequencing.
+
+### 2026-06-29 - RC7 Setup Wizard Repair Command Check
+**Objective**: Confirm the startup wizard's TLS/CA repair guidance before
+building rc7 packages.
+**Finding**: The wizard already consumed the backend `repair_command` value, but
+the backend helper defaulted that command to `-Engine auto -Gpu off`. That was
+acceptable for the default Docker CPU path, but it was not precise enough for
+CUDA or Podman users because support guidance should preserve the engine and GPU
+mode selected at setup.
+**Correction**:
+- Updated the provider repair command helper to resolve
+  `TOWERSCOUT_CONTAINER_ENGINE` and `TOWERSCOUT_GPU_MODE` from the running
+  container, with allowlisted fallbacks to `auto` and `off` when runtime metadata
+  is missing or invalid.
+- Kept the wizard command as the support-reviewed dry run rather than adding
+  `-Apply`; the dry run remains the intended first step because it prints the
+  safe apply command after CA candidate selection.
+- Added unit coverage for runtime-specific command generation, invalid runtime
+  fallback handling, and the exact validation payload command that the startup
+  wizard displays.
+**Validation**:
+- `.venv\Scripts\python.exe -m pytest tests/unit/test_provider_http.py
+  tests/unit/test_config.py tests/unit/test_flask_routes.py
+  tests/unit/test_frontend_provider_tls.py -q -p no:cacheprovider --tb=short`
+  passed with 80 tests.
+- `.venv\Scripts\python.exe -m py_compile webapp\ts_provider_http.py
+  webapp\ts_config.py` passed.
+- Command-generation probe confirmed:
+  `docker/off`, `docker/on`, `podman/off`, and `podman/on` produce matching
+  `.\scripts\repair-provider-tls.cmd -Provider google -Engine <engine> -Gpu
+  <mode>` commands.
+**Decision**: Treat the startup wizard TLS/CA command guidance as corrected for
+rc7 packaging once this change is included in the release source ref.

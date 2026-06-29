@@ -1,8 +1,8 @@
 # TowerScout Docker GPU User Guide
 
-**Applies to**: Current V1 release-candidate package path after RC6
-packaging, unless release notes say otherwise
-**Last reviewed**: 2026-06-24
+**Applies to**: Current V1 release-candidate package path through the RC7
+provider TLS repair baseline, unless release notes say otherwise
+**Last reviewed**: 2026-06-29
 **Audience**: Windows users assigned Docker Desktop NVIDIA GPU validation
 **Runtime scope**: Docker Desktop, CUDA 12.1 Application Package, GPU launch
 mode
@@ -219,10 +219,11 @@ recent logs. Do not send provider secrets, `.env`, raw screenshots, browser
 network traces, exported datasets, or unreviewed raw logs unless your site has
 an approved handling procedure.
 
-### Google Maps TLS Inspection CA
+### Provider TLS Inspection CA
 
-Use this only when Google Maps key validation fails even though the key is
-correct and support sees `CERTIFICATE_VERIFY_FAILED` in container logs. This
+Use this only when Google Maps or Azure Maps key validation fails even though
+the key is correct and support sees `CERTIFICATE_VERIFY_FAILED` in container
+logs. This
 usually means the container does not trust a local TLS inspection root or
 intermediate certificate.
 
@@ -260,8 +261,8 @@ exported CA file, they can bypass automatic selection:
 Do not paste the placeholder text. Replace it with the actual support-provided
 thumbprint or certificate path. The helper copies the CA chain into Docker's
 persistent TowerScout config volume, builds a combined CA bundle, updates
-`.env`, and verifies that Google TLS reaches the normal invalid-key response
-instead of a certificate error.
+`.env`, and verifies that selected provider TLS reaches the normal invalid-key
+response instead of a certificate error.
 
 If your site uses Azure Maps instead of Google Maps for validation, support may
 use `-Provider azure`. If automatic discovery is ambiguous or unavailable,

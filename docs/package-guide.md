@@ -3,9 +3,9 @@
 This guide is for first-line support, internal release-candidate validation,
 and pilot testers using the TowerScout Windows package path.
 
-**Applies to**: Current V1 release-candidate package path after RC5 package
-hardening, unless release notes say otherwise
-**Last reviewed**: 2026-06-16
+**Applies to**: Current V1 release-candidate package path through the RC7
+provider TLS repair baseline, unless release notes say otherwise
+**Last reviewed**: 2026-06-29
 **Audience**: First-line support, release validation, and pilot testers
 **Runtime scope**: The CPU Application Package is the primary path; the CUDA
 12.1 Application Package, Podman CPU, Docker GPU, and Podman GPU are
@@ -796,6 +796,9 @@ For Podman:
 .\start.bat -Engine podman -Gpu off
 ```
 
+For support-assigned GPU validation, preserve the assigned GPU mode in the
+repair and restart commands, such as `-Gpu auto` or `-Gpu on`.
+
 If the site blocks Google but uses Azure, choose Azure verification:
 
 ```powershell
@@ -812,6 +815,10 @@ ambiguous or unavailable, support may still use the lower-level
 
 `TOWERSCOUT_ALLOW_INSECURE_TLS=1` is a last-resort validation-only workaround.
 Do not use it as normal release configuration.
+
+The rc7 provider TLS repair path is the guided script workflow above. A
+one-click browser repair/restart helper is planned separately and is not part
+of the rc7 package baseline.
 
 ### Restricted Networks
 

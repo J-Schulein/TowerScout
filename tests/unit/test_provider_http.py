@@ -7,6 +7,7 @@ from ts_provider_http import (
     INVALID_PROVIDER_KEY,
     TLS_OK,
     classify_provider_response,
+    provider_repair_command,
     redact_provider_url,
 )
 
@@ -36,6 +37,33 @@ def test_classify_google_auth_failure_as_tls_ok_for_keyless_probe():
         auth_failure_is_tls_ok=True,
     ) == TLS_OK
     assert classify_provider_response("google", response, body_json=body_json) == INVALID_PROVIDER_KEY
+
+
+def test_provider_repair_command_uses_runtime_engine_and_gpu(monkeypatch):
+    monkeypatch.setenv("TOWERSCOUT_CONTAINER_ENGINE", "podman")
+    monkeypatch.setenv("TOWERSCOUT_GPU_MODE", "on")
+
+    assert provider_repair_command("azure") == (
+        ".\\scripts\\repair-provider-tls.cmd -Provider azure -Engine podman -Gpu on"
+    )
+
+
+def test_provider_repair_command_falls_back_to_safe_defaults(monkeypatch):
+    monkeypatch.delenv("TOWERSCOUT_CONTAINER_ENGINE", raising=False)
+    monkeypatch.delenv("TOWERSCOUT_GPU_MODE", raising=False)
+
+    assert provider_repair_command("google") == (
+        ".\\scripts\\repair-provider-tls.cmd -Provider google -Engine auto -Gpu off"
+    )
+
+
+def test_provider_repair_command_rejects_invalid_runtime_defaults(monkeypatch):
+    monkeypatch.setenv("TOWERSCOUT_CONTAINER_ENGINE", "cmd.exe")
+    monkeypatch.setenv("TOWERSCOUT_GPU_MODE", "cuda && whoami")
+
+    assert provider_repair_command("google") == (
+        ".\\scripts\\repair-provider-tls.cmd -Provider google -Engine auto -Gpu off"
+    )
 
 
 def test_check_provider_tls_status_uses_keyless_google_probe(monkeypatch):
