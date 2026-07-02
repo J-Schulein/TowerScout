@@ -875,6 +875,47 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Rejected Provider Reflection Hardening
+
+**Objective**: Address the PR #45 reviewer finding that rejected provider
+status should not reflect caller-controlled invalid provider text before any
+browser-exposed operation endpoint exists.
+
+**Context**: The reviewer accepted `95ea6fb` as a Gate 1/Gate 2 checkpoint and
+recommended continuing into the next non-mutating operation-control slice. The
+one must-fix before browser-accessible POST exposure was that invalid provider
+input such as `google;Start-Process` was rejected but could still appear in the
+rejected operation's public status.
+
+**Decision**: Treat invalid-provider reflection as a pre-POST blocker. Rejected
+operation plans may report an approved provider enum when one was supplied, but
+non-allowlisted provider text must collapse to `unknown` in all public rejected
+operation status.
+
+**Execution**: Updated the rejected operation-plan helper to sanitize provider
+status centrally before building either the internal rejected plan or public
+operation status. Extended the helper self-test and focused pytest coverage to
+prove `google;Start-Process` returns `rejected_unknown_provider` with
+`provider=unknown` and the caller-controlled text is absent from public self-test
+output.
+
+**Gate**: Gate 2 Security Proof, rejected-input redaction hardening
+**Observed States**: `rejected_unknown_provider`, `provider=unknown`
+**Result**: PASS. The helper still has no mutating repair/restart endpoint,
+`provider_tls_repair` remains unavailable, and product UI remains blocked.
+**Redaction Check**: Invalid caller provider text, command paths, helper tokens,
+local paths, certificate details, provider keys, raw subprocess output, and
+operation credentials are not returned in public self-test output.
+
+**Validation**: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+scripts\host-helper.ps1 -SelfTest` passed. `.venv\Scripts\python.exe -m pytest
+tests\unit\test_task_087_host_helper.py -q -p no:cacheprovider` passed with 2
+tests.
+
+**Next**: Update the PR description to reflect the visible helper proof,
+non-mutating Docker operation boundary, and rejected-provider reflection fix,
+then continue only into bounded non-mutating operation-control work.
+
 ### 2026-07-02 - Docker TLS Operation Boundary Slice
 
 **Objective**: Add the first non-mutating provider TLS repair operation

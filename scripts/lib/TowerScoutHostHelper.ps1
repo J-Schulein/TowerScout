@@ -396,6 +396,10 @@ function New-TowerScoutHostHelperRejectedOperationPlan {
         $appPortText = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "AppPort"
         [int]::TryParse($appPortText, [ref] $appPort) | Out-Null
     }
+    $publicProvider = ([string] $Provider).Trim().ToLowerInvariant()
+    if ($publicProvider -notin @("google", "azure")) {
+        $publicProvider = "unknown"
+    }
 
     return [pscustomobject]@{
         Accepted = $false
@@ -403,10 +407,10 @@ function New-TowerScoutHostHelperRejectedOperationPlan {
         Reason = $Reason
         OperationId = ""
         OperationType = "provider_tls_repair"
-        Provider = $Provider
+        Provider = $publicProvider
         PublicStatus = (New-TowerScoutHostHelperPublicOperationStatus `
             -State $State `
-            -Provider $Provider `
+            -Provider $publicProvider `
             -Engine $engine `
             -Gpu $gpu `
             -AppPort $appPort)
@@ -1197,6 +1201,9 @@ function Invoke-TowerScoutHostHelperSelfTest {
         if ($badProviderPlan.State -ne "rejected_unknown_provider") {
             throw "Host helper operation plan accepted a non-allowlisted provider."
         }
+        if ($badProviderPlan.PublicStatus.provider -ne "unknown") {
+            throw "Host helper operation plan reflected caller-supplied invalid provider text."
+        }
         if (-not $lockResult.Acquired -or $lockResult.State -ne "operation_locked") {
             throw "Host helper operation lock was not acquired for the first operation."
         }
@@ -1207,6 +1214,10 @@ function Invoke-TowerScoutHostHelperSelfTest {
         $publicOperationJson = $acceptedPlan.PublicStatus | ConvertTo-Json -Depth 8 -Compress
         if ($publicOperationJson -match "repair-provider-tls|scripts\\\\|start\.bat|stop\.cmd|token|secret|thumbprint|certificate") {
             throw "Host helper public operation status exposed support-sensitive command or credential details."
+        }
+        $badProviderPublicJson = $badProviderPlan.PublicStatus | ConvertTo-Json -Depth 8 -Compress
+        if ($badProviderPublicJson -match "google;|start-process") {
+            throw "Host helper rejected-provider status exposed caller-supplied invalid provider text."
         }
 
         Clear-TowerScoutHostHelperOperationLock -Profile $operationProfile | Out-Null
@@ -1240,6 +1251,7 @@ function Invoke-TowerScoutHostHelperSelfTest {
                 [pscustomobject]@{
                     name = "provider_tls_repair_provider_allowlist"
                     state = [string] $badProviderPlan.PublicStatus.state
+                    provider = [string] $badProviderPlan.PublicStatus.provider
                 },
                 [pscustomobject]@{
                     name = "provider_tls_repair_single_operation_lock"

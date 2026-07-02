@@ -29,6 +29,7 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert '"unsupported_runtime"' in script
     assert '"rejected_confirmation"' in script
     assert '"rejected_unknown_provider"' in script
+    assert '$publicProvider = "unknown"' in script
     assert '"scripts\\repair-provider-tls.cmd"' in script
     assert (
         'Arguments = @("-Provider", $providerValue, "-Engine", "docker", '
@@ -88,6 +89,7 @@ def test_host_helper_self_test_covers_provider_tls_operation_contract():
         scenarios["provider_tls_repair_provider_allowlist"]["state"]
         == "rejected_unknown_provider"
     )
+    assert scenarios["provider_tls_repair_provider_allowlist"]["provider"] == "unknown"
     assert (
         scenarios["provider_tls_repair_single_operation_lock"]["state"]
         == "operation_busy"
@@ -95,3 +97,5 @@ def test_host_helper_self_test_covers_provider_tls_operation_contract():
     assert "repair-provider-tls" not in result.stdout
     assert "scripts\\" not in result.stdout
     assert "start.bat" not in result.stdout
+    assert "google;start-process" not in result.stdout.lower()
+    assert "Start-Process" not in result.stdout
