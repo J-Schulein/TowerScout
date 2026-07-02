@@ -732,7 +732,93 @@ Optional validation:
   Compose provider check/remediation when that scope is included.
 - Multi-instance behavior when another TowerScout package is already running.
 
-### 9. Implementation Phases
+### 9. Internal Live Wrapper Validation Runbook
+
+Do not run the live `repair-provider-tls.cmd -Apply`, `stop.cmd`, and
+`start.bat` sequence until this runbook is reviewed for the selected validation
+window. The live run is internal only; it must not enable product UI,
+`provider_tls_repair=true`, browser-triggered default mutation, Podman
+remediation, or tester-facing guided repair packaging.
+
+Runbook scope:
+
+- Package/profile: current package-local checkout or validation package for PR
+  #45, Docker runtime profile only, CPU/off first. CUDA can follow only after
+  the Docker CPU/off sequence is understood.
+- Runtime state: TowerScout may be running on the selected app port before the
+  live sequence begins; the validation intentionally allows the helper runner
+  to stop and restart that runtime.
+- Provider: start with `google`, because `TASK-086` established the Google Maps
+  managed-network TLS repair baseline. Azure may be tested later only if the
+  repairable TLS category is reproduced and the same support-safety boundaries
+  apply.
+- Port: use the selected runtime profile port, normally `5000` unless the
+  validation host already has a deliberate alternate port.
+- Expected wrapper sequence: repair, stop, start. No other script or shell
+  command is in scope for the helper-controlled live run.
+- Expected timeout budget: repair step 300 seconds, stop step 120 seconds,
+  start/readiness step 180 seconds, with the existing overall operation timeout
+  and operation-lock behavior retained.
+- Rollback/manual fallback: keep the audited command path available:
+  `.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off -Apply`,
+  `.\scripts\stop.cmd -Engine docker`, and
+  `.\start.bat -Engine docker -Gpu off -Port 5000 -NoBrowser -TimeoutSeconds 180`.
+- Evidence location: record only sanitized states in this task file or a
+  task-local proof note under `.agent_work/tasks/active/TASK-087/` if the
+  evidence needs more space.
+
+Pre-run checklist:
+
+- Confirm the branch/PR head under validation.
+- Confirm no product UI repair button is enabled.
+- Confirm the public helper runtime profile still reports
+  `provider_tls_repair=false` and `podman_provider_repair=false`.
+- Confirm `ExecutionEnabled` is supplied only by the internal validation path,
+  not by browser input or a persisted default.
+- Confirm the selected provider, engine, GPU mode, and app port match the
+  intended validation profile.
+- Confirm no second TowerScout package instance is using the same runtime
+  profile or app port.
+- Confirm the manual fallback commands above are available before the run.
+
+Sanitized evidence to record:
+
+- Branch or PR head SHA.
+- Runtime summary: `engine=docker`, GPU mode, app port, package flavor label.
+- Operation states only, such as `tls_repair_completed`, `runtime_stopped`,
+  `ready`, `readiness_timeout`, `tls_repair_failed`, or `operation_timeout`.
+- Step order and terminal classification.
+- Whether readiness returned and provider setup could be retried.
+- Confirmation that no raw subprocess output, helper token, operation
+  credential, `.env` content, certificate subject, certificate thumbprint,
+  provider key, local full path, browser network trace, screenshot, or support
+  log was recorded.
+
+Abort conditions:
+
+- The wrapper contract differs from the expected repair/stop/start sequence.
+- Browser input can enable execution or change wrapper paths, arguments,
+  command interpreter, GPU mode, engine, port, or timeouts.
+- Any public status, task evidence, PR evidence, or helper output includes raw
+  subprocess output, helper credentials, certificate details, provider keys,
+  `.env` values, or full local paths.
+- The runtime profile is stale, ambiguous, or points at another package or app
+  port.
+- Endpoint protection blocks helper execution in a way that requires bypassing
+  the security model.
+
+Post-run checklist:
+
+- Record sanitized PASS/FAIL/PARTIAL evidence.
+- If the app is left stopped or degraded, run the manual start fallback before
+  ending the validation window.
+- Keep product UI, `provider_tls_repair=true`, browser-triggered default
+  mutation, Podman remediation, and tester-facing packaging blocked until the
+  live evidence is reviewed.
+- Ask the reviewer to evaluate whether the live evidence is sufficient to move
+  to Gate 3 product integration design.
+
+### 10. Implementation Phases
 
 #### Phase 1: Design Spike
 
@@ -951,6 +1037,38 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-02 - Internal Live Wrapper Validation Runbook Added
+
+**Objective**: Incorporate the reviewer's `e0bb8b5` feedback before running any
+live repair/stop/start sequence.
+
+**Context**: The reviewer accepted the non-mutating real-wrapper contract proof
+as sufficient to proceed to explicit internal live-wrapper validation. They did
+not identify a code blocker, but required a short validation runbook before
+running the mutating sequence.
+
+**Decision**: Add the runbook as a tracked Task-087 gate before live execution.
+Keep product UI exposure, `provider_tls_repair=true`, browser-triggered default
+mutation, Podman remediation, and tester-facing guided repair packaging blocked
+until live evidence is reviewed.
+
+**Execution**: Added an internal live wrapper validation runbook covering the
+selected Docker profile, provider, app port, expected repair/stop/start
+sequence, timeout budget, rollback/manual fallback commands, pre-run checks,
+sanitized evidence fields, abort conditions, and post-run review requirements.
+
+**Validation**:
+
+- PASS: `python .agent_work\scripts\validate_agent_work.py`
+- PASS:
+  `python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`
+- PASS: `git diff --check`
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_task_087_host_helper.py -q -p no:cacheprovider`
+
+**Next**: Commit and push the runbook checkpoint, then schedule the internal
+live Docker validation window before any Gate 3 product integration work.
 
 ### 2026-07-02 - Non-Mutating Real Wrapper Contract Proof Added
 
