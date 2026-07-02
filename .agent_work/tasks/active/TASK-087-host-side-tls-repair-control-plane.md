@@ -952,6 +952,53 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Controlled Runner Review Hardening Tests Added
+
+**Objective**: Close the reviewer follow-ups from `5a73075` before any
+user-facing enablement or real-wrapper default mutation.
+
+**Context**: The reviewer accepted the internal controlled-runner checkpoint but
+requested explicit coverage for package roots containing CMD metacharacters,
+browser attempts to pass `execution_enabled`, and tampered command-wrapper
+script names for all three controlled steps.
+
+**Decision**: Add targeted tests only unless they expose a real runner gap. Keep
+product UI exposure, `provider_tls_repair=true`, browser-triggered default
+mutation, and Podman remediation blocked.
+
+**Execution**:
+
+- Extended the controlled-runner test to execute a harmless temp wrapper from a
+  package-root path containing spaces, `&`, and parentheses.
+- Added a direct operation-POST test proving browser input with
+  `execution_enabled=true` is rejected as an unexpected field.
+- Added tampered script-name rejection checks for the repair, stop, and start
+  wrapper slots.
+
+**Gate**: Gate 2 controlled-runner hardening, still pre-product-UI and
+pre-default-mutation.
+
+**Result**: PASS. The new hardening tests passed without production helper-code
+changes, so the existing controlled runner already handled the reviewed path
+safety and script-name tampering cases.
+
+**Validation**:
+
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_task_087_host_helper.py -q -p no:cacheprovider`
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_config.py tests\unit\test_error_sanitization.py -q -p no:cacheprovider`
+- PASS:
+  `python .agents\skills\towerscout-secret-and-provider-key-safety\scripts\scan_for_sensitive_terms.py scripts\lib`
+- PASS: `python .agent_work\scripts\validate_agent_work.py`
+- PASS:
+  `python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`
+- PASS: `git diff --check`
+
+**Next**: Request reviewer feedback on the hardening-test follow-up, then proceed
+to internal real-wrapper controlled validation only if the reviewer agrees the
+Gate 2 controlled-runner boundary is sufficient.
+
 ### 2026-07-02 - Controlled Runner Execution Slice Added
 
 **Objective**: Implement the first controlled execution-design slice behind the

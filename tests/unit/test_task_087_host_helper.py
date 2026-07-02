@@ -148,6 +148,11 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
                 BodyText = (@{{ provider = "google"; confirmation = $script:TowerScoutHostHelperProviderTlsRepairConfirmation; operation_authorization = (New-TowerScoutHostHelperToken); restart_mode = "restart_now" }} | ConvertTo-Json -Compress)
             }}
             $unexpected = New-TowerScoutProviderTlsRepairOperationPlanResponse -Profile $profile -Request $unexpectedRequest
+            $executionEnabledRequest = [pscustomobject]@{{
+                Headers = @{{ "content-type" = "application/json" }}
+                BodyText = (@{{ provider = "google"; confirmation = $script:TowerScoutHostHelperProviderTlsRepairConfirmation; operation_authorization = (New-TowerScoutHostHelperToken); execution_enabled = $true }} | ConvertTo-Json -Compress)
+            }}
+            $executionEnabledRejected = New-TowerScoutProviderTlsRepairOperationPlanResponse -Profile $profile -Request $executionEnabledRequest
             $badAuthorizationRequest = [pscustomobject]@{{
                 Headers = @{{ "content-type" = "application/json" }}
                 BodyText = (@{{ provider = "google"; confirmation = $script:TowerScoutHostHelperProviderTlsRepairConfirmation; operation_authorization = "short" }} | ConvertTo-Json -Compress)
@@ -178,6 +183,8 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
                 different_state = [string] $busy.Body.state
                 unexpected_field = $unexpected.StatusCode
                 unexpected_state = [string] $unexpected.Body.state
+                execution_enabled_field = $executionEnabledRejected.StatusCode
+                execution_enabled_field_state = [string] $executionEnabledRejected.Body.state
                 bad_authorization = $badAuthorization.StatusCode
                 bad_authorization_state = [string] $badAuthorization.Body.state
                 exit_states = $exitStates
@@ -206,6 +213,8 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
         "different_state": "operation_busy",
         "unexpected_field": 400,
         "unexpected_state": "rejected_unexpected_field",
+        "execution_enabled_field": 400,
+        "execution_enabled_field_state": "rejected_unexpected_field",
         "bad_authorization": 400,
         "bad_authorization_state": "rejected_operation_authorization",
         "exit_states": {
@@ -232,7 +241,7 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
         f"""
         $ProgressPreference = 'SilentlyContinue'
         . '{helper_path}'
-        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout task087 runner {{0}}" -f (New-TowerScoutHostHelperSessionId))
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout task087 runner (&) {{0}}" -f (New-TowerScoutHostHelperSessionId))
         New-Item -ItemType Directory -Path (Join-Path $root "scripts") -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $root "scripts\\repair-provider-tls.cmd") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
         Set-Content -LiteralPath (Join-Path $root "scripts\\stop.cmd") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
@@ -251,6 +260,36 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
             }}
             catch {{
                 $badArgumentRejected = $true
+            }}
+
+            $badRepairScriptPlan = $plan | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+            $badRepairScriptPlan.InternalCommands.Repair.Script = "scripts\\repair-provider-tls-evil.cmd"
+            $badRepairScriptRejected = $false
+            try {{
+                Resolve-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $badRepairScriptPlan -Step "repair" | Out-Null
+            }}
+            catch {{
+                $badRepairScriptRejected = $true
+            }}
+
+            $badStopScriptPlan = $plan | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+            $badStopScriptPlan.InternalCommands.Stop.Script = "scripts\\stop-evil.cmd"
+            $badStopScriptRejected = $false
+            try {{
+                Resolve-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $badStopScriptPlan -Step "stop" | Out-Null
+            }}
+            catch {{
+                $badStopScriptRejected = $true
+            }}
+
+            $badStartScriptPlan = $plan | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+            $badStartScriptPlan.InternalCommands.Start.Script = "start-evil.bat"
+            $badStartScriptRejected = $false
+            try {{
+                Resolve-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $badStartScriptPlan -Step "start" | Out-Null
+            }}
+            catch {{
+                $badStartScriptRejected = $true
             }}
 
             $script:fakeCalls = @()
@@ -291,6 +330,9 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
                 repair_arguments = @($repairCommand.Arguments)
                 actual_repair_state = [string] $actualRepair.State
                 bad_argument_rejected = $badArgumentRejected
+                bad_repair_script_rejected = $badRepairScriptRejected
+                bad_stop_script_rejected = $badStopScriptRejected
+                bad_start_script_rejected = $badStartScriptRejected
                 success_state = [string] $success.state
                 success_classification = [string] $success.classification
                 success_terminal = [bool] $success.terminal
@@ -331,6 +373,9 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
     ]
     assert payload["actual_repair_state"] == "tls_repair_completed"
     assert payload["bad_argument_rejected"] is True
+    assert payload["bad_repair_script_rejected"] is True
+    assert payload["bad_stop_script_rejected"] is True
+    assert payload["bad_start_script_rejected"] is True
     assert payload["success_state"] == "ready"
     assert payload["success_classification"] == "terminal_success"
     assert payload["success_terminal"] is True
