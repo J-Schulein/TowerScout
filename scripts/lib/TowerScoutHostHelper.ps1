@@ -5,6 +5,8 @@ $script:TowerScoutHostHelperReadTimeoutMs = 5000
 $script:TowerScoutHostHelperMaxRequestLineLength = 4096
 $script:TowerScoutHostHelperMaxHeaderLines = 64
 $script:TowerScoutHostHelperMaxHeaderBytes = 16384
+$script:TowerScoutHostHelperProviderTlsRepairConfirmation = "repair_tls_and_restart"
+$script:TowerScoutHostHelperOperationTimeoutSeconds = 900
 
 function New-TowerScoutHostHelperToken {
     $bytes = New-Object byte[] 32
@@ -17,6 +19,27 @@ function New-TowerScoutHostHelperToken {
     }
 
     return ([Convert]::ToBase64String($bytes).TrimEnd("=") -replace "\+", "-" -replace "/", "_")
+}
+
+function Get-TowerScoutHostHelperValueFingerprint {
+    param(
+        [string] $Value = ""
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return ""
+    }
+
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Value)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $sha256.ComputeHash($bytes)
+    }
+    finally {
+        $sha256.Dispose()
+    }
+
+    return (($hashBytes | ForEach-Object { $_.ToString("x2") }) -join "").Substring(0, 16)
 }
 
 function Get-TowerScoutHostHelperObjectValue {
@@ -205,15 +228,18 @@ function Clear-TowerScoutHostHelperSession {
     $normalizedSessionId = if ([string]::IsNullOrWhiteSpace($SessionId)) { "" } else { Resolve-TowerScoutHostHelperSessionId -SessionId $SessionId }
     $sessionFilter = if ([string]::IsNullOrWhiteSpace($normalizedSessionId)) { "session-*.json" } else { "session-$normalizedSessionId.json" }
     $tokenFilter = if ([string]::IsNullOrWhiteSpace($normalizedSessionId)) { "token-*.secret" } else { "token-$normalizedSessionId.secret" }
+    $operationFilter = if ([string]::IsNullOrWhiteSpace($normalizedSessionId)) { "operation-*.json" } else { "operation-$normalizedSessionId.json" }
     $sessionFiles = @(Get-ChildItem -LiteralPath $stateDirectory -Filter $sessionFilter -File -ErrorAction SilentlyContinue)
     $tokenFiles = @(Get-ChildItem -LiteralPath $stateDirectory -Filter $tokenFilter -File -ErrorAction SilentlyContinue)
-    foreach ($file in @($sessionFiles + $tokenFiles)) {
+    $operationFiles = @(Get-ChildItem -LiteralPath $stateDirectory -Filter $operationFilter -File -ErrorAction SilentlyContinue)
+    foreach ($file in @($sessionFiles + $tokenFiles + $operationFiles)) {
         Remove-Item -LiteralPath $file.FullName -Force -ErrorAction SilentlyContinue
     }
 
     return [pscustomobject]@{
         cleared = $sessionFiles.Count
         token_files_cleared = $tokenFiles.Count
+        operation_files_cleared = $operationFiles.Count
         state = "invalidated"
     }
 }
@@ -307,6 +333,345 @@ function ConvertTo-TowerScoutHostHelperPublicRuntimeProfile {
             podman_provider_repair = $false
             max_active_operations = 1
         }
+    }
+}
+
+function New-TowerScoutHostHelperPublicOperationStatus {
+    param(
+        [string] $State,
+
+        [string] $OperationType = "provider_tls_repair",
+
+        [string] $OperationId = "",
+
+        [string] $Provider = "",
+
+        [string] $Engine = "",
+
+        [string] $Gpu = "",
+
+        [int] $AppPort = 0,
+
+        [bool] $Accepted = $false,
+
+        [bool] $ExistingOperation = $false
+    )
+
+    return [pscustomobject]@{
+        state = $State
+        operation_id = $OperationId
+        operation_type = $OperationType
+        provider = $Provider
+        accepted = $Accepted
+        existing_operation = $ExistingOperation
+        runtime = [pscustomobject]@{
+            engine = $Engine
+            gpu = $Gpu
+            app_port = $AppPort
+        }
+        steps = @("repair_tls", "stop_runtime", "start_runtime", "readiness_wait")
+        timeout_seconds = $script:TowerScoutHostHelperOperationTimeoutSeconds
+    }
+}
+
+function New-TowerScoutHostHelperRejectedOperationPlan {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $State,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Reason,
+
+        [string] $Provider = "",
+
+        [object] $Profile = $null
+    )
+
+    $engine = ""
+    $gpu = ""
+    [int] $appPort = 0
+    if ($null -ne $Profile) {
+        $engine = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "Engine"
+        $gpu = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "Gpu"
+        $appPortText = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "AppPort"
+        [int]::TryParse($appPortText, [ref] $appPort) | Out-Null
+    }
+
+    return [pscustomobject]@{
+        Accepted = $false
+        State = $State
+        Reason = $Reason
+        OperationId = ""
+        OperationType = "provider_tls_repair"
+        Provider = $Provider
+        PublicStatus = (New-TowerScoutHostHelperPublicOperationStatus `
+            -State $State `
+            -Provider $Provider `
+            -Engine $engine `
+            -Gpu $gpu `
+            -AppPort $appPort)
+    }
+}
+
+function New-TowerScoutProviderTlsRepairOperationPlan {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Provider,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Confirmation
+    )
+
+    $providerValue = ([string] $Provider).Trim().ToLowerInvariant()
+    if ($providerValue -notin @("google", "azure")) {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "rejected_unknown_provider" `
+            -Reason "provider_not_allowlisted" `
+            -Provider $providerValue `
+            -Profile $Profile
+    }
+
+    if (-not [string]::Equals([string] $Confirmation, $script:TowerScoutHostHelperProviderTlsRepairConfirmation, [System.StringComparison]::Ordinal)) {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "rejected_confirmation" `
+            -Reason "confirmation_required" `
+            -Provider $providerValue `
+            -Profile $Profile
+    }
+
+    $engine = (Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "Engine").Trim().ToLowerInvariant()
+    $gpu = (Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "Gpu").Trim().ToLowerInvariant()
+    $appPortText = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "AppPort"
+    [int] $appPort = 0
+    if (-not [int]::TryParse($appPortText, [ref] $appPort) -or $appPort -lt 1 -or $appPort -gt 65535) {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "rejected_runtime_profile" `
+            -Reason "invalid_app_port" `
+            -Provider $providerValue `
+            -Profile $Profile
+    }
+
+    if ($engine -ne "docker") {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "unsupported_runtime" `
+            -Reason "docker_only_first_slice" `
+            -Provider $providerValue `
+            -Profile $Profile
+    }
+    if ($gpu -notin @("off", "auto", "on")) {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "rejected_runtime_profile" `
+            -Reason "invalid_gpu_mode" `
+            -Provider $providerValue `
+            -Profile $Profile
+    }
+
+    $operationId = New-TowerScoutHostHelperSessionId
+    $publicStatus = New-TowerScoutHostHelperPublicOperationStatus `
+        -State "planned" `
+        -OperationId $operationId `
+        -Provider $providerValue `
+        -Engine $engine `
+        -Gpu $gpu `
+        -AppPort $appPort `
+        -Accepted:$true
+
+    return [pscustomobject]@{
+        Accepted = $true
+        State = "planned"
+        Reason = ""
+        OperationId = $operationId
+        OperationType = "provider_tls_repair"
+        Provider = $providerValue
+        Engine = $engine
+        Gpu = $gpu
+        AppPort = $appPort
+        TimeoutSeconds = $script:TowerScoutHostHelperOperationTimeoutSeconds
+        Confirmation = $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+        InternalCommands = [pscustomobject]@{
+            Repair = [pscustomobject]@{
+                Script = "scripts\repair-provider-tls.cmd"
+                Arguments = @("-Provider", $providerValue, "-Engine", "docker", "-Gpu", $gpu, "-Apply")
+            }
+            Stop = [pscustomobject]@{
+                Script = "scripts\stop.cmd"
+                Arguments = @("-Engine", "docker")
+            }
+            Start = [pscustomobject]@{
+                Script = "start.bat"
+                Arguments = @("-Engine", "docker", "-Gpu", $gpu, "-Port", "$appPort", "-NoBrowser", "-TimeoutSeconds", "180")
+            }
+        }
+        PublicStatus = $publicStatus
+    }
+}
+
+function Get-TowerScoutHostHelperOperationLockPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile
+    )
+
+    $packageRoot = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "PackageRoot"
+    $sessionId = Resolve-TowerScoutHostHelperSessionId -SessionId (Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "HelperSessionId")
+    $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $packageRoot
+    New-Item -ItemType Directory -Path $stateDirectory -Force | Out-Null
+    return (Join-Path $stateDirectory ("operation-{0}.json" -f $sessionId))
+}
+
+function Get-TowerScoutHostHelperOperationLock {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile
+    )
+
+    $lockPath = Get-TowerScoutHostHelperOperationLockPath -Profile $Profile
+    if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf)) {
+        return $null
+    }
+
+    try {
+        return (Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json)
+    }
+    catch {
+        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+        return $null
+    }
+}
+
+function Test-TowerScoutHostHelperOperationLockActive {
+    param(
+        [object] $Lock
+    )
+
+    if ($null -eq $Lock) {
+        return $false
+    }
+
+    [datetime] $expiresAtUtc = [datetime]::MinValue
+    $expiresText = Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "expires_at_utc"
+    if (-not [datetime]::TryParse($expiresText, [ref] $expiresAtUtc)) {
+        return $false
+    }
+
+    return ($expiresAtUtc.ToUniversalTime() -gt (Get-Date).ToUniversalTime())
+}
+
+function New-TowerScoutHostHelperOperationBusyResult {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Lock
+    )
+
+    [int] $appPort = 0
+    [int]::TryParse((Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "app_port"), [ref] $appPort) | Out-Null
+    return [pscustomobject]@{
+        Acquired = $false
+        State = "operation_busy"
+        OperationId = Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "operation_id"
+        PublicStatus = (New-TowerScoutHostHelperPublicOperationStatus `
+            -State "operation_busy" `
+            -OperationId (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "operation_id") `
+            -Provider (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "provider") `
+            -Engine (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "engine") `
+            -Gpu (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "gpu") `
+            -AppPort $appPort `
+            -Accepted:$true `
+            -ExistingOperation:$true)
+    }
+}
+
+function New-TowerScoutHostHelperOperationLock {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [object] $Plan,
+
+        [string] $OperationNonce = ""
+    )
+
+    if (-not [bool] $Plan.Accepted) {
+        return [pscustomobject]@{
+            Acquired = $false
+            State = [string] $Plan.State
+            OperationId = ""
+            PublicStatus = $Plan.PublicStatus
+        }
+    }
+
+    $lockPath = Get-TowerScoutHostHelperOperationLockPath -Profile $Profile
+    $existingLock = Get-TowerScoutHostHelperOperationLock -Profile $Profile
+    if (Test-TowerScoutHostHelperOperationLockActive -Lock $existingLock) {
+        return New-TowerScoutHostHelperOperationBusyResult -Lock $existingLock
+    }
+    if ($null -ne $existingLock -and (Test-Path -LiteralPath $lockPath -PathType Leaf)) {
+        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+    }
+
+    $createdAtUtc = (Get-Date).ToUniversalTime()
+    $expiresAtUtc = $createdAtUtc.AddSeconds($script:TowerScoutHostHelperOperationTimeoutSeconds)
+    $lock = [pscustomobject]@{
+        operation_id = [string] $Plan.OperationId
+        operation_type = [string] $Plan.OperationType
+        state = "planned"
+        provider = [string] $Plan.Provider
+        engine = [string] $Plan.Engine
+        gpu = [string] $Plan.Gpu
+        app_port = [int] $Plan.AppPort
+        created_at_utc = $createdAtUtc.ToString("o")
+        expires_at_utc = $expiresAtUtc.ToString("o")
+        nonce_fingerprint = Get-TowerScoutHostHelperValueFingerprint -Value $OperationNonce
+    }
+    $json = $lock | ConvertTo-Json -Depth 8
+    $bytes = [System.Text.Encoding]::ASCII.GetBytes($json)
+
+    $stream = $null
+    try {
+        $stream = [System.IO.File]::Open($lockPath, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+        $stream.Write($bytes, 0, $bytes.Length)
+    }
+    catch [System.IO.IOException] {
+        $raceLock = Get-TowerScoutHostHelperOperationLock -Profile $Profile
+        if (Test-TowerScoutHostHelperOperationLockActive -Lock $raceLock) {
+            return New-TowerScoutHostHelperOperationBusyResult -Lock $raceLock
+        }
+        throw
+    }
+    finally {
+        if ($null -ne $stream) {
+            $stream.Dispose()
+        }
+    }
+
+    return [pscustomobject]@{
+        Acquired = $true
+        State = "operation_locked"
+        OperationId = [string] $Plan.OperationId
+        PublicStatus = $Plan.PublicStatus
+    }
+}
+
+function Clear-TowerScoutHostHelperOperationLock {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile
+    )
+
+    $lockPath = Get-TowerScoutHostHelperOperationLockPath -Profile $Profile
+    $cleared = 0
+    if (Test-Path -LiteralPath $lockPath -PathType Leaf) {
+        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+        $cleared = 1
+    }
+
+    return [pscustomobject]@{
+        cleared = $cleared
+        state = "operation_lock_cleared"
     }
 }
 
@@ -722,9 +1087,51 @@ function Invoke-TowerScoutHostHelperSelfTest {
         -Name "SessionPath" `
         -Value (Join-Path (Get-TowerScoutHostHelperStateDirectory) "missing-session.json")
 
-    $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Parse("127.0.0.1"), 0)
-    $listener.Start()
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-host-helper-selftest-{0}" -f (New-TowerScoutHostHelperSessionId))
+    New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+    $listener = $null
     try {
+        $operationProfile = New-TowerScoutHostHelperRuntimeProfile `
+            -Engine "docker" `
+            -Gpu "off" `
+            -AppPort 5000 `
+            -PackageRoot $tempRoot `
+            -PackageFlavor "self-test"
+        $podmanProfile = New-TowerScoutHostHelperRuntimeProfile `
+            -Engine "podman" `
+            -Gpu "off" `
+            -AppPort 5000 `
+            -PackageRoot $tempRoot `
+            -PackageFlavor "self-test"
+
+        $acceptedPlan = New-TowerScoutProviderTlsRepairOperationPlan `
+            -Profile $operationProfile `
+            -Provider "google" `
+            -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+        $podmanPlan = New-TowerScoutProviderTlsRepairOperationPlan `
+            -Profile $podmanProfile `
+            -Provider "google" `
+            -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+        $badConfirmationPlan = New-TowerScoutProviderTlsRepairOperationPlan `
+            -Profile $operationProfile `
+            -Provider "google" `
+            -Confirmation "restart_now"
+        $badProviderPlan = New-TowerScoutProviderTlsRepairOperationPlan `
+            -Profile $operationProfile `
+            -Provider "google;Start-Process" `
+            -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+
+        $lockResult = New-TowerScoutHostHelperOperationLock `
+            -Profile $operationProfile `
+            -Plan $acceptedPlan `
+            -OperationNonce (New-TowerScoutHostHelperToken)
+        $duplicateLockResult = New-TowerScoutHostHelperOperationLock `
+            -Profile $operationProfile `
+            -Plan $acceptedPlan `
+            -OperationNonce (New-TowerScoutHostHelperToken)
+
+        $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Parse("127.0.0.1"), 0)
+        $listener.Start()
         $results = @(
             [pscustomobject]@{
                 Scenario = "authorized_health"
@@ -757,32 +1164,97 @@ function Invoke-TowerScoutHostHelperSelfTest {
                 Expected = 410
             }
         )
-    }
-    finally {
-        $listener.Stop()
-    }
 
-    foreach ($result in $results) {
-        if ($result.Response.StatusCode -ne $result.Expected) {
-            throw "Host helper self-test scenario '$($result.Scenario)' returned $($result.Response.StatusCode); expected $($result.Expected)."
+        foreach ($result in $results) {
+            if ($result.Response.StatusCode -ne $result.Expected) {
+                throw "Host helper self-test scenario '$($result.Scenario)' returned $($result.Response.StatusCode); expected $($result.Expected)."
+            }
+        }
+        $corsPreflight = @($results | Where-Object { $_.Scenario -eq "cors_preflight" } | Select-Object -First 1)
+        if ($corsPreflight.Count -ne 1 -or [string] $corsPreflight[0].Response.Headers["access-control-allow-methods"] -ne "GET, OPTIONS") {
+            throw "Host helper self-test did not return the expected GET-only CORS method policy."
+        }
+
+        if (-not $acceptedPlan.Accepted -or $acceptedPlan.State -ne "planned") {
+            throw "Host helper operation plan did not accept the Docker provider TLS repair case."
+        }
+        if ([string] $acceptedPlan.InternalCommands.Repair.Script -ne "scripts\repair-provider-tls.cmd") {
+            throw "Host helper operation plan did not select the allowlisted TLS repair wrapper."
+        }
+        $expectedRepairArguments = @("-Provider", "google", "-Engine", "docker", "-Gpu", "off", "-Apply")
+        if ([string]::Join(" ", $acceptedPlan.InternalCommands.Repair.Arguments) -ne [string]::Join(" ", $expectedRepairArguments)) {
+            throw "Host helper operation plan did not use the expected repair arguments."
+        }
+        if ([string]::Join(" ", $acceptedPlan.InternalCommands.Start.Arguments) -notmatch "-NoBrowser") {
+            throw "Host helper operation plan did not preserve the no-browser restart guard."
+        }
+        if ($podmanPlan.State -ne "unsupported_runtime") {
+            throw "Host helper operation plan accepted Podman in the Docker-only first slice."
+        }
+        if ($badConfirmationPlan.State -ne "rejected_confirmation") {
+            throw "Host helper operation plan accepted a missing fixed confirmation value."
+        }
+        if ($badProviderPlan.State -ne "rejected_unknown_provider") {
+            throw "Host helper operation plan accepted a non-allowlisted provider."
+        }
+        if (-not $lockResult.Acquired -or $lockResult.State -ne "operation_locked") {
+            throw "Host helper operation lock was not acquired for the first operation."
+        }
+        if ($duplicateLockResult.Acquired -or $duplicateLockResult.State -ne "operation_busy") {
+            throw "Host helper operation lock did not reject a duplicate active operation."
+        }
+
+        $publicOperationJson = $acceptedPlan.PublicStatus | ConvertTo-Json -Depth 8 -Compress
+        if ($publicOperationJson -match "repair-provider-tls|scripts\\\\|start\.bat|stop\.cmd|token|secret|thumbprint|certificate") {
+            throw "Host helper public operation status exposed support-sensitive command or credential details."
+        }
+
+        Clear-TowerScoutHostHelperOperationLock -Profile $operationProfile | Out-Null
+
+        return [pscustomobject]@{
+            result = "passed"
+            helper_version = $script:TowerScoutHostHelperVersion
+            listener = "loopback"
+            scenarios = @($results | ForEach-Object {
+                [pscustomobject]@{
+                    name = $_.Scenario
+                    status_code = $_.Response.StatusCode
+                    state = if ($null -ne $_.Response.Body) { [string] $_.Response.Body.state } else { "" }
+                }
+            })
+            operation_scenarios = @(
+                [pscustomobject]@{
+                    name = "provider_tls_repair_docker_plan"
+                    state = [string] $acceptedPlan.PublicStatus.state
+                    provider = [string] $acceptedPlan.PublicStatus.provider
+                    runtime = [string] $acceptedPlan.PublicStatus.runtime.engine
+                },
+                [pscustomobject]@{
+                    name = "provider_tls_repair_podman_blocked"
+                    state = [string] $podmanPlan.PublicStatus.state
+                },
+                [pscustomobject]@{
+                    name = "provider_tls_repair_confirmation_required"
+                    state = [string] $badConfirmationPlan.PublicStatus.state
+                },
+                [pscustomobject]@{
+                    name = "provider_tls_repair_provider_allowlist"
+                    state = [string] $badProviderPlan.PublicStatus.state
+                },
+                [pscustomobject]@{
+                    name = "provider_tls_repair_single_operation_lock"
+                    state = [string] $duplicateLockResult.PublicStatus.state
+                }
+            )
+            redaction_check = "no tokens, helper listener ports, local paths, provider keys, certificate details, raw subprocess output, or command paths returned"
         }
     }
-    $corsPreflight = @($results | Where-Object { $_.Scenario -eq "cors_preflight" } | Select-Object -First 1)
-    if ($corsPreflight.Count -ne 1 -or [string] $corsPreflight[0].Response.Headers["access-control-allow-methods"] -ne "GET, OPTIONS") {
-        throw "Host helper self-test did not return the expected GET-only CORS method policy."
-    }
-
-    return [pscustomobject]@{
-        result = "passed"
-        helper_version = $script:TowerScoutHostHelperVersion
-        listener = "loopback"
-        scenarios = @($results | ForEach-Object {
-            [pscustomobject]@{
-                name = $_.Scenario
-                status_code = $_.Response.StatusCode
-                state = if ($null -ne $_.Response.Body) { [string] $_.Response.Body.state } else { "" }
-            }
-        })
-        redaction_check = "no tokens, helper listener ports, local paths, provider keys, certificate details, or raw subprocess output returned"
+    finally {
+        if ($null -ne $listener) {
+            $listener.Stop()
+        }
+        if (Test-Path -LiteralPath $tempRoot) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 }

@@ -875,6 +875,69 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Docker TLS Operation Boundary Slice
+
+**Objective**: Add the first non-mutating provider TLS repair operation
+contract before exposing any repair/restart endpoint.
+
+**Context**: The visible helper window is now locally viable, and the next
+reviewer-approved direction is to move toward a support-guided Docker CPU/CUDA
+repair MVP without product UI or Podman installer exposure. The remaining risk
+is browser-controlled host mutation, so the helper needs an allowlisted
+operation boundary before it can run the `TASK-086` repair path.
+
+**Decision**: Add a Docker-only provider TLS repair operation plan and
+package-local operation lock, but keep `provider_tls_repair` capability
+advertised as unavailable and do not add a mutating POST endpoint yet. The plan
+accepts only `provider=google|azure`, the fixed confirmation value
+`repair_tls_and_restart`, and the captured runtime profile. It derives repair,
+stop, and restart commands internally, rejects Podman for the first slice, and
+returns only sanitized public states.
+
+**Execution**: Extended `scripts\lib\TowerScoutHostHelper.ps1` with operation
+planning, fixed confirmation validation, Docker-only runtime gating, one active
+operation lock per helper session, nonce fingerprinting without storing raw
+operation credentials, and stop-path cleanup for active operation lock files.
+The helper self-test now proves the Docker plan is accepted, Podman is blocked,
+bad confirmation is rejected, non-allowlisted providers are rejected, duplicate
+starts return `operation_busy`, and public operation status does not expose
+command paths, helper tokens, local paths, certificate details, or raw
+subprocess output.
+
+**Phase 1 Evidence - 2026-07-02 - Docker Operation Boundary**
+
+**Gate**: Gate 2 Security Proof, non-mutating operation-contract slice
+**Environment**: Windows source/package-like script context, Docker CPU profile
+shape, public-safe validation labels only
+**Objective**: Validate allowlisted provider TLS operation planning, Docker-only
+first-slice gating, fixed confirmation enforcement, single-operation locking,
+and public-status redaction before adding repair/restart execution.
+**Command Category**: operation plan / allowlist rejection / confirmation
+rejection / duplicate-operation lock / helper self-test
+**Inputs**: `provider=google`, `engine=docker`, `gpu=off`,
+`confirmation=repair_tls_and_restart`, plus negative Podman, confirmation, and
+provider inputs
+**Observed States**: `planned`, `unsupported_runtime`,
+`rejected_confirmation`, `rejected_unknown_provider`, `operation_busy`
+**Result**: PASS for non-mutating operation boundary proof. Product UI,
+mutating endpoints, actual TLS repair execution, restart orchestration, and
+Podman provider remediation remain blocked.
+**Redaction Check**: No helper token, helper listener port, local path, provider
+key, certificate detail, raw subprocess output, command path, thumbprint, or
+operation credential was returned in public self-test output.
+
+**Validation**: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+scripts\host-helper.ps1 -SelfTest` passed. `.venv\Scripts\python.exe -m pytest
+tests\unit\test_task_087_host_helper.py -q -p no:cacheprovider` passed with 2
+tests. The unqualified system `python -m pytest ...` failed before test
+execution because that interpreter does not have `pytest` installed; the
+project virtualenv was used for validation.
+
+**Next**: Add bounded POST-body parsing, short-lived operation authorization,
+asynchronous sanitized operation status, execution timeout/cleanup, and
+script-exit mapping before enabling the helper to run `repair-provider-tls.cmd`
+or restart TowerScout.
+
 ### 2026-07-02 - Visible Helper Lifecycle Proof
 
 **Objective**: Validate the reviewer-approved visible helper-window lifecycle
