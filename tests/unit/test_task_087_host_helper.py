@@ -67,6 +67,12 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert '"operation-*.json"' in script
     assert "operation_files_cleared" in script
     assert "provider_tls_repair = $false" in script
+    assert "$script:TowerScoutHostHelperExecutionEnabledByDefault = $false" in script
+    assert "function Resolve-TowerScoutHostHelperControlledCommand" in script
+    assert "function Invoke-TowerScoutHostHelperControlledCommand" in script
+    assert "function Invoke-TowerScoutProviderTlsRepairControlledExecution" in script
+    assert "function Get-TowerScoutHostHelperBatchInterpreterPath" in script
+    assert 'Interpreter = "cmd.exe"' in script
     assert "function Get-TowerScoutHostHelperAllowedMethodsForPath" in script
     assert '"Access-Control-Allow-Methods: $AccessControlAllowMethods"' in script
     assert 'return "GET, OPTIONS"' in script
@@ -107,7 +113,10 @@ def test_host_helper_provider_tls_repair_operation_api_is_bounded_and_non_mutati
     assert '"tls_repair_completed"' in script
     assert '"readiness_timeout"' in script
     assert '"operation_timeout"' in script
-    assert "-ExecutionEnabled:$true" not in script
+    assert "classification = $Classification" in script
+    assert "next_action = $NextAction" in script
+    assert "RedirectStandardOutput = $true" in script
+    assert "RedirectStandardError = $true" in script
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
@@ -214,6 +223,127 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
             "timed_out": "operation_timeout",
         },
     }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_controlled_runner_is_gated_and_sanitized():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout task087 runner {{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path (Join-Path $root "scripts") -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $root "scripts\\repair-provider-tls.cmd") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
+        Set-Content -LiteralPath (Join-Path $root "scripts\\stop.cmd") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
+        Set-Content -LiteralPath (Join-Path $root "start.bat") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
+        try {{
+            $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "runner-probe"
+            $plan = New-TowerScoutProviderTlsRepairOperationPlan -Profile $profile -Provider "google" -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+            $repairCommand = Resolve-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $plan -Step "repair"
+            $actualRepair = Invoke-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $plan -Step "repair"
+
+            $badPlan = $plan | ConvertTo-Json -Depth 12 | ConvertFrom-Json
+            $badPlan.InternalCommands.Start.Arguments = @("-Engine", "docker", "-Gpu", "off", "-Port", "9999", "-NoBrowser", "-TimeoutSeconds", "180")
+            $badArgumentRejected = $false
+            try {{
+                Resolve-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $badPlan -Step "start" | Out-Null
+            }}
+            catch {{
+                $badArgumentRejected = $true
+            }}
+
+            $script:fakeCalls = @()
+            $successInvoker = {{
+                param($Command)
+                $script:fakeCalls += [string] $Command.Step
+                [pscustomobject]@{{
+                    ExitCode = 0
+                    TimedOut = $false
+                    Stdout = "provider_key=SECRET_VALUE"
+                    Stderr = "C:\\private\\certificate\\thumbprint"
+                }}
+            }}
+
+            $lock = New-TowerScoutHostHelperOperationLock -Profile $profile -Plan $plan -OperationNonce (New-TowerScoutHostHelperToken)
+            $success = Invoke-TowerScoutProviderTlsRepairControlledExecution -Profile $profile -Plan $plan -ExecutionEnabled:$true -CommandInvoker $successInvoker
+            $status = Get-TowerScoutHostHelperOperationStatus -Profile $profile -OperationId ([string] $plan.OperationId)
+
+            $timeoutProfile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "runner-probe"
+            $timeoutPlan = New-TowerScoutProviderTlsRepairOperationPlan -Profile $timeoutProfile -Provider "azure" -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+            New-TowerScoutHostHelperOperationLock -Profile $timeoutProfile -Plan $timeoutPlan -OperationNonce (New-TowerScoutHostHelperToken) | Out-Null
+            $timeoutInvoker = {{
+                param($Command)
+                [pscustomobject]@{{
+                    ExitCode = 1
+                    TimedOut = $true
+                    Stdout = "raw stdout with SECRET_VALUE"
+                    Stderr = "C:\\private\\certificate\\thumbprint"
+                }}
+            }}
+            $timeout = Invoke-TowerScoutProviderTlsRepairControlledExecution -Profile $timeoutProfile -Plan $timeoutPlan -ExecutionEnabled:$true -CommandInvoker $timeoutInvoker
+            $timeoutPoll = Get-TowerScoutHostHelperOperationStatus -Profile $timeoutProfile -OperationId ([string] $timeoutPlan.OperationId)
+
+            $publicJson = @($success, $status.Body, $timeout, $timeoutPoll.Body) | ConvertTo-Json -Depth 12 -Compress
+            [pscustomobject]@{{
+                repair_script = [string] $repairCommand.Script
+                repair_interpreter = [System.IO.Path]::GetFileName([string] $repairCommand.InterpreterPath)
+                repair_arguments = @($repairCommand.Arguments)
+                actual_repair_state = [string] $actualRepair.State
+                bad_argument_rejected = $badArgumentRejected
+                success_state = [string] $success.state
+                success_classification = [string] $success.classification
+                success_terminal = [bool] $success.terminal
+                success_step = [string] $success.current_step
+                success_execution_enabled = [bool] $success.execution_enabled
+                status_state = [string] $status.Body.state
+                calls = @($script:fakeCalls)
+                timeout_state = [string] $timeout.state
+                timeout_classification = [string] $timeout.classification
+                timeout_terminal = [bool] $timeout.terminal
+                timeout_poll_status = [int] $timeoutPoll.StatusCode
+                timeout_poll_state = [string] $timeoutPoll.Body.state
+                public_status_safe = -not ($publicJson -match "SECRET_VALUE|private|repair-provider-tls|scripts\\\\|start\\.bat|stop\\.cmd|certificate|thumbprint|token|secret")
+            }} | ConvertTo-Json -Depth 12 -Compress
+        }}
+        finally {{
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload["repair_script"] == "scripts\\repair-provider-tls.cmd"
+    assert payload["repair_interpreter"].lower() == "cmd.exe"
+    assert payload["repair_arguments"] == [
+        "-Provider",
+        "google",
+        "-Engine",
+        "docker",
+        "-Gpu",
+        "off",
+        "-Apply",
+    ]
+    assert payload["actual_repair_state"] == "tls_repair_completed"
+    assert payload["bad_argument_rejected"] is True
+    assert payload["success_state"] == "ready"
+    assert payload["success_classification"] == "terminal_success"
+    assert payload["success_terminal"] is True
+    assert payload["success_step"] == "start"
+    assert payload["success_execution_enabled"] is True
+    assert payload["status_state"] == "ready"
+    assert payload["calls"] == ["repair", "stop", "start"]
+    assert payload["timeout_state"] == "operation_timeout"
+    assert payload["timeout_classification"] == "terminal_timeout"
+    assert payload["timeout_terminal"] is True
+    assert payload["timeout_poll_status"] == 410
+    assert payload["timeout_poll_state"] == "operation_expired"
+    assert payload["public_status_safe"] is True
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")

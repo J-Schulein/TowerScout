@@ -9,6 +9,17 @@ $script:TowerScoutHostHelperMaxBodyBytes = 4096
 $script:TowerScoutHostHelperProviderTlsRepairConfirmation = "repair_tls_and_restart"
 $script:TowerScoutHostHelperOperationTimeoutSeconds = 900
 $script:TowerScoutHostHelperOperationAuthorizationPattern = "^[A-Za-z0-9_-]{32,128}$"
+$script:TowerScoutHostHelperExecutionEnabledByDefault = $false
+$script:TowerScoutHostHelperOperationStepTimeoutSeconds = @{
+    repair = 300
+    stop = 120
+    start = 180
+}
+$script:TowerScoutHostHelperOperationCommandScripts = @{
+    repair = "scripts\repair-provider-tls.cmd"
+    stop = "scripts\stop.cmd"
+    start = "start.bat"
+}
 
 function New-TowerScoutHostHelperToken {
     $bytes = New-Object byte[] 32
@@ -338,6 +349,114 @@ function ConvertTo-TowerScoutHostHelperPublicRuntimeProfile {
     }
 }
 
+function Get-TowerScoutHostHelperOperationStatePolicy {
+    param(
+        [string] $State = ""
+    )
+
+    switch ($State) {
+        "planned" {
+            return [pscustomobject]@{
+                Classification = "pending"
+                Terminal = $false
+                NextAction = "await_controlled_execution"
+            }
+        }
+        "operation_busy" {
+            return [pscustomobject]@{
+                Classification = "active"
+                Terminal = $false
+                NextAction = "poll_existing_operation"
+            }
+        }
+        "tls_repair_completed" {
+            return [pscustomobject]@{
+                Classification = "intermediate_success"
+                Terminal = $false
+                NextAction = "continue_to_runtime_stop"
+            }
+        }
+        "runtime_stopped" {
+            return [pscustomobject]@{
+                Classification = "intermediate_success"
+                Terminal = $false
+                NextAction = "continue_to_runtime_start"
+            }
+        }
+        "ready" {
+            return [pscustomobject]@{
+                Classification = "terminal_success"
+                Terminal = $true
+                NextAction = "retry_provider_validation"
+            }
+        }
+        "runtime_stop_failed" {
+            return [pscustomobject]@{
+                Classification = "retryable_failure_with_support_review"
+                Terminal = $true
+                NextAction = "review_runtime_state_before_retry"
+            }
+        }
+        "readiness_timeout" {
+            return [pscustomobject]@{
+                Classification = "terminal_timeout"
+                Terminal = $true
+                NextAction = "use_startup_fallback_guidance"
+            }
+        }
+        "operation_timeout" {
+            return [pscustomobject]@{
+                Classification = "terminal_timeout"
+                Terminal = $true
+                NextAction = "clear_or_reauthorize_after_timeout"
+            }
+        }
+        "tls_repair_selection_required" {
+            return [pscustomobject]@{
+                Classification = "terminal_support_escalation"
+                Terminal = $true
+                NextAction = "use_manual_dry_run_support_selection"
+            }
+        }
+        "tls_repair_failed" {
+            return [pscustomobject]@{
+                Classification = "terminal_support_escalation"
+                Terminal = $true
+                NextAction = "use_manual_tls_repair_fallback"
+            }
+        }
+        "runtime_start_failed" {
+            return [pscustomobject]@{
+                Classification = "terminal_support_escalation"
+                Terminal = $true
+                NextAction = "use_manual_start_fallback"
+            }
+        }
+        "readiness_failed" {
+            return [pscustomobject]@{
+                Classification = "terminal_support_escalation"
+                Terminal = $true
+                NextAction = "use_status_and_log_guidance"
+            }
+        }
+        "operation_expired" {
+            return [pscustomobject]@{
+                Classification = "terminal_timeout"
+                Terminal = $true
+                NextAction = "new_authorization_required"
+            }
+        }
+        default {
+            $classification = if ($State -like "rejected_*" -or $State -eq "unsupported_runtime") { "rejected" } else { "unknown" }
+            return [pscustomobject]@{
+                Classification = $classification
+                Terminal = $true
+                NextAction = "support_review_required"
+            }
+        }
+    }
+}
+
 function New-TowerScoutHostHelperPublicOperationStatus {
     param(
         [string] $State,
@@ -358,8 +477,30 @@ function New-TowerScoutHostHelperPublicOperationStatus {
 
         [bool] $ExistingOperation = $false,
 
-        [bool] $ExecutionEnabled = $false
+        [bool] $ExecutionEnabled = $false,
+
+        [string] $Step = "",
+
+        [string] $Classification = "",
+
+        [bool] $Terminal = $false,
+
+        [string] $NextAction = ""
     )
+
+    $policy = Get-TowerScoutHostHelperOperationStatePolicy -State $State
+    if ([string]::IsNullOrWhiteSpace($Classification)) {
+        $Classification = [string] $policy.Classification
+    }
+    if ([string]::IsNullOrWhiteSpace($NextAction)) {
+        $NextAction = [string] $policy.NextAction
+    }
+    if (-not $Terminal) {
+        $Terminal = [bool] $policy.Terminal
+    }
+    if ([string]::IsNullOrWhiteSpace($Step)) {
+        $Step = if ($State -eq "planned") { "planned" } else { "" }
+    }
 
     return [pscustomobject]@{
         state = $State
@@ -369,6 +510,10 @@ function New-TowerScoutHostHelperPublicOperationStatus {
         accepted = $Accepted
         existing_operation = $ExistingOperation
         execution_enabled = $ExecutionEnabled
+        current_step = $Step
+        classification = $Classification
+        terminal = $Terminal
+        next_action = $NextAction
         runtime = [pscustomobject]@{
             engine = $Engine
             gpu = $Gpu
@@ -433,6 +578,15 @@ function ConvertTo-TowerScoutHostHelperOperationStatusFromLock {
     else {
         $State
     }
+    $step = Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "current_step"
+    $classification = Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "classification"
+    $nextAction = Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "next_action"
+    $terminalText = Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "terminal"
+    [bool] $terminal = $false
+    [bool]::TryParse($terminalText, [ref] $terminal) | Out-Null
+    $executionEnabledText = Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "execution_enabled"
+    [bool] $executionEnabled = $false
+    [bool]::TryParse($executionEnabledText, [ref] $executionEnabled) | Out-Null
 
     return New-TowerScoutHostHelperPublicOperationStatus `
         -State $operationState `
@@ -443,7 +597,12 @@ function ConvertTo-TowerScoutHostHelperOperationStatusFromLock {
         -Gpu (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "gpu") `
         -AppPort $appPort `
         -Accepted:$true `
-        -ExistingOperation:$ExistingOperation
+        -ExistingOperation:$ExistingOperation `
+        -ExecutionEnabled:$executionEnabled `
+        -Step $step `
+        -Classification $classification `
+        -Terminal:$terminal `
+        -NextAction $nextAction
 }
 
 function New-TowerScoutHostHelperRejectedOperationPlan {
@@ -705,10 +864,16 @@ function New-TowerScoutHostHelperOperationLock {
 
     $createdAtUtc = (Get-Date).ToUniversalTime()
     $expiresAtUtc = $createdAtUtc.AddSeconds($script:TowerScoutHostHelperOperationTimeoutSeconds)
+    $policy = Get-TowerScoutHostHelperOperationStatePolicy -State "planned"
     $lock = [pscustomobject]@{
         operation_id = [string] $Plan.OperationId
         operation_type = [string] $Plan.OperationType
         state = "planned"
+        current_step = "planned"
+        classification = [string] $policy.Classification
+        terminal = [bool] $policy.Terminal
+        next_action = [string] $policy.NextAction
+        execution_enabled = $false
         provider = [string] $Plan.Provider
         engine = [string] $Plan.Engine
         gpu = [string] $Plan.Gpu
@@ -746,7 +911,7 @@ function New-TowerScoutHostHelperOperationLock {
         Acquired = $true
         State = "operation_locked"
         OperationId = [string] $Plan.OperationId
-        PublicStatus = $Plan.PublicStatus
+        PublicStatus = (ConvertTo-TowerScoutHostHelperOperationStatusFromLock -Lock $lock)
     }
 }
 
@@ -832,6 +997,349 @@ function ConvertTo-TowerScoutHostHelperScriptExitState {
     }
 }
 
+function Get-TowerScoutHostHelperStepTimeoutSeconds {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("repair", "stop", "start")]
+        [string] $Step
+    )
+
+    return [int] $script:TowerScoutHostHelperOperationStepTimeoutSeconds[$Step]
+}
+
+function Get-TowerScoutHostHelperBatchInterpreterPath {
+    $systemDirectory = [string] [System.Environment]::SystemDirectory
+    if ([string]::IsNullOrWhiteSpace($systemDirectory)) {
+        throw "Windows system directory could not be resolved for the helper command interpreter."
+    }
+
+    $cmdPath = Join-Path $systemDirectory "cmd.exe"
+    if (-not (Test-Path -LiteralPath $cmdPath -PathType Leaf)) {
+        throw "The fixed Windows command interpreter was not found."
+    }
+
+    return (Resolve-Path -LiteralPath $cmdPath).Path
+}
+
+function ConvertTo-TowerScoutHostHelperCmdArgument {
+    param(
+        [string] $Value = ""
+    )
+
+    return '"' + (([string] $Value).Replace('"', '\"')) + '"'
+}
+
+function Assert-TowerScoutHostHelperExpectedArguments {
+    param(
+        [string[]] $Actual = @(),
+
+        [string[]] $Expected = @()
+    )
+
+    if ($Actual.Count -ne $Expected.Count) {
+        throw "The helper operation plan arguments did not match the controlled runner contract."
+    }
+
+    for ($index = 0; $index -lt $Expected.Count; $index += 1) {
+        if (-not [string]::Equals([string] $Actual[$index], [string] $Expected[$index], [System.StringComparison]::Ordinal)) {
+            throw "The helper operation plan arguments did not match the controlled runner contract."
+        }
+    }
+}
+
+function Resolve-TowerScoutHostHelperPackageCommandPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RelativeScriptPath
+    )
+
+    if ([System.IO.Path]::IsPathRooted($RelativeScriptPath)) {
+        throw "The helper operation plan selected a rooted command path."
+    }
+
+    $packageRoot = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "PackageRoot"
+    if ([string]::IsNullOrWhiteSpace($packageRoot)) {
+        throw "The helper runtime profile did not include a package root."
+    }
+
+    $resolvedRoot = (Resolve-Path -LiteralPath $packageRoot).Path
+    $rootFullPath = [System.IO.Path]::GetFullPath($resolvedRoot).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+    $candidatePath = [System.IO.Path]::GetFullPath((Join-Path $rootFullPath $RelativeScriptPath))
+    $rootPrefix = $rootFullPath + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $candidatePath.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "The helper operation plan selected a command path outside the package root."
+    }
+    if (-not (Test-Path -LiteralPath $candidatePath -PathType Leaf)) {
+        throw "The helper operation plan selected a missing package-local command wrapper."
+    }
+
+    return (Resolve-Path -LiteralPath $candidatePath).Path
+}
+
+function Resolve-TowerScoutHostHelperControlledCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [object] $Plan,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("repair", "stop", "start")]
+        [string] $Step
+    )
+
+    if (-not [bool] $Plan.Accepted) {
+        throw "The helper controlled runner requires an accepted operation plan."
+    }
+    if ([string] $Plan.Engine -ne "docker") {
+        throw "The helper controlled runner is Docker-only for this slice."
+    }
+    if ([string] $Plan.Provider -notin @("google", "azure")) {
+        throw "The helper controlled runner rejected a non-allowlisted provider."
+    }
+    if ([string] $Plan.Gpu -notin @("off", "auto", "on")) {
+        throw "The helper controlled runner rejected an invalid GPU mode."
+    }
+    if ([int] $Plan.AppPort -lt 1 -or [int] $Plan.AppPort -gt 65535) {
+        throw "The helper controlled runner rejected an invalid app port."
+    }
+
+    $command = switch ($Step) {
+        "repair" { $Plan.InternalCommands.Repair }
+        "stop" { $Plan.InternalCommands.Stop }
+        "start" { $Plan.InternalCommands.Start }
+    }
+    $expectedScript = [string] $script:TowerScoutHostHelperOperationCommandScripts[$Step]
+    if (-not [string]::Equals([string] $command.Script, $expectedScript, [System.StringComparison]::Ordinal)) {
+        throw "The helper operation plan selected a non-allowlisted command wrapper."
+    }
+
+    $expectedArguments = switch ($Step) {
+        "repair" { @("-Provider", [string] $Plan.Provider, "-Engine", "docker", "-Gpu", [string] $Plan.Gpu, "-Apply") }
+        "stop" { @("-Engine", "docker") }
+        "start" { @("-Engine", "docker", "-Gpu", [string] $Plan.Gpu, "-Port", "$([int] $Plan.AppPort)", "-NoBrowser", "-TimeoutSeconds", "180") }
+    }
+    Assert-TowerScoutHostHelperExpectedArguments -Actual @($command.Arguments) -Expected $expectedArguments
+
+    $scriptPath = Resolve-TowerScoutHostHelperPackageCommandPath -Profile $Profile -RelativeScriptPath $expectedScript
+    $interpreterPath = Get-TowerScoutHostHelperBatchInterpreterPath
+
+    return [pscustomobject]@{
+        Step = $Step
+        Script = $expectedScript
+        ScriptPath = $scriptPath
+        Arguments = @($expectedArguments)
+        Interpreter = "cmd.exe"
+        InterpreterPath = $interpreterPath
+        InterpreterArguments = @("/d", "/s", "/c")
+        WorkingDirectory = (Resolve-Path -LiteralPath (Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "PackageRoot")).Path
+        TimeoutSeconds = (Get-TowerScoutHostHelperStepTimeoutSeconds -Step $Step)
+    }
+}
+
+function Invoke-TowerScoutHostHelperProcessCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Command
+    )
+
+    $process = New-Object System.Diagnostics.Process
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = [string] $Command.InterpreterPath
+    $scriptAndArguments = @(
+        (ConvertTo-TowerScoutHostHelperCmdArgument -Value ([string] $Command.ScriptPath))
+    ) + @($Command.Arguments | ForEach-Object { ConvertTo-TowerScoutHostHelperCmdArgument -Value ([string] $_) })
+    $commandLine = [string]::Join(" ", $scriptAndArguments)
+    $startInfo.Arguments = ([string]::Join(" ", @($Command.InterpreterArguments))) + ' "' + $commandLine + '"'
+    $startInfo.WorkingDirectory = [string] $Command.WorkingDirectory
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+    $process.StartInfo = $startInfo
+
+    $started = $process.Start()
+    if (-not $started) {
+        throw "The helper controlled runner could not start the fixed command interpreter."
+    }
+
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $timedOut = -not $process.WaitForExit(([int] $Command.TimeoutSeconds) * 1000)
+    if ($timedOut) {
+        try {
+            $process.Kill()
+        }
+        catch {
+            # Best effort cleanup; public state remains operation_timeout.
+        }
+    }
+    else {
+        $process.WaitForExit()
+    }
+
+    $stdout = ""
+    $stderr = ""
+    try { $stdout = [string] $stdoutTask.Result } catch { $stdout = "" }
+    try { $stderr = [string] $stderrTask.Result } catch { $stderr = "" }
+    $exitCode = if ($timedOut) { 1 } else { [int] $process.ExitCode }
+    $process.Dispose()
+
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        TimedOut = $timedOut
+        StdoutByteCount = [System.Text.Encoding]::UTF8.GetByteCount($stdout)
+        StderrByteCount = [System.Text.Encoding]::UTF8.GetByteCount($stderr)
+    }
+}
+
+function Set-TowerScoutHostHelperOperationLockState {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [string] $OperationId,
+
+        [Parameter(Mandatory = $true)]
+        [string] $State,
+
+        [string] $Step = "",
+
+        [bool] $ExecutionEnabled = $false
+    )
+
+    $lockPath = Get-TowerScoutHostHelperOperationLockPath -Profile $Profile
+    $lock = Get-TowerScoutHostHelperOperationLock -Profile $Profile
+    if ($null -eq $lock -or -not [string]::Equals((Get-TowerScoutHostHelperObjectValue -InputObject $lock -Name "operation_id"), $OperationId, [System.StringComparison]::Ordinal)) {
+        throw "The helper operation lock was not available for status update."
+    }
+
+    $policy = Get-TowerScoutHostHelperOperationStatePolicy -State $State
+    Set-TowerScoutHostHelperObjectValue -InputObject $lock -Name "state" -Value $State
+    Set-TowerScoutHostHelperObjectValue -InputObject $lock -Name "current_step" -Value $Step
+    Set-TowerScoutHostHelperObjectValue -InputObject $lock -Name "classification" -Value ([string] $policy.Classification)
+    Set-TowerScoutHostHelperObjectValue -InputObject $lock -Name "terminal" -Value ([bool] $policy.Terminal)
+    Set-TowerScoutHostHelperObjectValue -InputObject $lock -Name "next_action" -Value ([string] $policy.NextAction)
+    Set-TowerScoutHostHelperObjectValue -InputObject $lock -Name "execution_enabled" -Value $ExecutionEnabled
+    Set-TowerScoutHostHelperObjectValue -InputObject $lock -Name "updated_at_utc" -Value ((Get-Date).ToUniversalTime().ToString("o"))
+    if ([bool] $policy.Terminal) {
+        Set-TowerScoutHostHelperObjectValue -InputObject $lock -Name "completed_at_utc" -Value ((Get-Date).ToUniversalTime().ToString("o"))
+    }
+    if ($State -eq "operation_timeout") {
+        Set-TowerScoutHostHelperObjectValue -InputObject $lock -Name "expires_at_utc" -Value ((Get-Date).ToUniversalTime().ToString("o"))
+    }
+
+    $lock | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $lockPath -Encoding ASCII
+    return ConvertTo-TowerScoutHostHelperOperationStatusFromLock -Lock $lock
+}
+
+function Invoke-TowerScoutHostHelperControlledCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [object] $Plan,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("repair", "stop", "start")]
+        [string] $Step,
+
+        [scriptblock] $CommandInvoker = $null
+    )
+
+    $command = Resolve-TowerScoutHostHelperControlledCommand -Profile $Profile -Plan $Plan -Step $Step
+    $processResult = if ($null -ne $CommandInvoker) {
+        & $CommandInvoker $command
+    }
+    else {
+        Invoke-TowerScoutHostHelperProcessCommand -Command $command
+    }
+    $timedOutText = Get-TowerScoutHostHelperObjectValue -InputObject $processResult -Name "TimedOut"
+    [bool] $timedOut = $false
+    [bool]::TryParse($timedOutText, [ref] $timedOut) | Out-Null
+    [int] $exitCode = 1
+    [int]::TryParse((Get-TowerScoutHostHelperObjectValue -InputObject $processResult -Name "ExitCode"), [ref] $exitCode) | Out-Null
+    $state = ConvertTo-TowerScoutHostHelperScriptExitState -Step $Step -ExitCode $exitCode -TimedOut:$timedOut
+    $policy = Get-TowerScoutHostHelperOperationStatePolicy -State $state
+
+    return [pscustomobject]@{
+        Step = $Step
+        State = $state
+        Classification = [string] $policy.Classification
+        Terminal = [bool] $policy.Terminal
+        NextAction = [string] $policy.NextAction
+        TimedOut = $timedOut
+        ExitCode = $exitCode
+    }
+}
+
+function Invoke-TowerScoutProviderTlsRepairControlledExecution {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [object] $Plan,
+
+        [bool] $ExecutionEnabled = $script:TowerScoutHostHelperExecutionEnabledByDefault,
+
+        [scriptblock] $CommandInvoker = $null
+    )
+
+    if (-not $ExecutionEnabled) {
+        return Set-TowerScoutHostHelperOperationLockState `
+            -Profile $Profile `
+            -OperationId ([string] $Plan.OperationId) `
+            -State "planned" `
+            -Step "planned" `
+            -ExecutionEnabled:$false
+    }
+
+    $lastStatus = $null
+    foreach ($step in @("repair", "stop", "start")) {
+        try {
+            $result = Invoke-TowerScoutHostHelperControlledCommand `
+                -Profile $Profile `
+                -Plan $Plan `
+                -Step $step `
+                -CommandInvoker $CommandInvoker
+        }
+        catch {
+            $failureState = switch ($step) {
+                "repair" { "tls_repair_failed" }
+                "stop" { "runtime_stop_failed" }
+                "start" { "runtime_start_failed" }
+            }
+            return Set-TowerScoutHostHelperOperationLockState `
+                -Profile $Profile `
+                -OperationId ([string] $Plan.OperationId) `
+                -State $failureState `
+                -Step $step `
+                -ExecutionEnabled:$true
+        }
+        $lastStatus = Set-TowerScoutHostHelperOperationLockState `
+            -Profile $Profile `
+            -OperationId ([string] $Plan.OperationId) `
+            -State ([string] $result.State) `
+            -Step $step `
+            -ExecutionEnabled:$true
+        if ([bool] $result.Terminal) {
+            return $lastStatus
+        }
+    }
+
+    return $lastStatus
+}
+
 function Read-TowerScoutProviderTlsRepairRequestBody {
     param(
         [Parameter(Mandatory = $true)]
@@ -914,7 +1422,11 @@ function New-TowerScoutProviderTlsRepairOperationPlanResponse {
         [object] $Profile,
 
         [Parameter(Mandatory = $true)]
-        [object] $Request
+        [object] $Request,
+
+        [bool] $ExecutionEnabled = $script:TowerScoutHostHelperExecutionEnabledByDefault,
+
+        [scriptblock] $CommandInvoker = $null
     )
 
     $payload = Read-TowerScoutProviderTlsRepairRequestBody -Request $Request -Profile $Profile
@@ -947,6 +1459,18 @@ function New-TowerScoutProviderTlsRepairOperationPlanResponse {
             -StatusCode 409 `
             -Reason "Conflict" `
             -Body $lockResult.PublicStatus
+    }
+
+    if ([bool] $lockResult.Acquired -and $ExecutionEnabled) {
+        $executionStatus = Invoke-TowerScoutProviderTlsRepairControlledExecution `
+            -Profile $Profile `
+            -Plan $plan `
+            -ExecutionEnabled:$true `
+            -CommandInvoker $CommandInvoker
+        return New-TowerScoutHostHelperHttpResult `
+            -StatusCode 202 `
+            -Reason "Accepted" `
+            -Body $executionStatus
     }
 
     return New-TowerScoutHostHelperHttpResult `

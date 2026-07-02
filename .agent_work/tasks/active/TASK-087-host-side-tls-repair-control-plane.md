@@ -500,6 +500,10 @@ Controlled command runner contract:
   escape that root.
 - Build process invocations from structured argument arrays only. Do not build
   shell command strings from browser input.
+- Treat Windows `.cmd` and `.bat` execution as an explicit interpreter boundary:
+  the helper must select a fixed local Windows command interpreter, keep that
+  interpreter non-browser-selectable, and test that browser input cannot alter
+  interpreter path or interpreter flags.
 - Use one package-root working directory for all steps.
 - Capture stdout/stderr only for internal marker parsing and support-safe
   diagnostics. Do not return raw subprocess output to the browser, readiness,
@@ -536,6 +540,8 @@ Execution-runner tests required before enabling execution:
 
 - Prove browser input cannot alter script path, command path, engine, GPU mode,
   app port, provider argument order, `-Apply`, `-NoBrowser`, or timeout values.
+- Prove browser input cannot alter the fixed `.cmd`/`.bat` interpreter path or
+  interpreter flags.
 - Prove raw stdout/stderr, local paths, certificate details, provider keys, and
   helper tokens are absent from public operation status.
 - Prove timeouts produce `operation_timeout` without leaving concurrent active
@@ -945,6 +951,74 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-02 - Controlled Runner Execution Slice Added
+
+**Objective**: Implement the first controlled execution-design slice behind the
+existing host-helper operation plan while keeping product UI exposure,
+`provider_tls_repair=true`, Podman remediation, and default mutating execution
+blocked.
+
+**Context**: The reviewer accepted `bb0ef3b` as an acceptable controlled
+execution design scope and requested one follow-up before merge: explicitly
+account for the Windows `.cmd`/`.bat` interpreter boundary. The next slice was
+allowed only as command-runner control implementation, not user-facing repair
+enablement.
+
+**Decision**: Keep execution disabled by default and add a gated controlled
+runner that can be invoked directly by tests. The runner validates the accepted
+operation plan, exact wrapper names, fixed wrapper arguments, package-root path
+containment, fixed `cmd.exe` interpreter selection, fixed interpreter flags,
+per-step timeouts, and support-safe public status before any command can run.
+
+**Execution**:
+
+- Updated `scripts/lib/TowerScoutHostHelper.ps1` with support-safe state
+  classification, persisted operation status metadata, explicit step timeouts,
+  package-local command resolution, fixed Windows command-interpreter handling,
+  structured argument validation, subprocess timeout cleanup, and a gated
+  controlled execution path.
+- Updated `tests/unit/test_task_087_host_helper.py` to prove the runner remains
+  gated, rejects mutated command arguments, uses fixed `cmd.exe`, executes only
+  harmless temp wrappers during tests, handles a package root with spaces,
+  maps timeout to `operation_timeout`, expires timeout locks on poll, and keeps
+  fake raw stdout/stderr/local path/certificate details out of public status.
+- Updated this Task-087 document to record the `.cmd`/`.bat` interpreter-boundary
+  requirement and test gate.
+
+**Observed Status Codes / Labels**:
+
+- `planned`
+- `tls_repair_completed`
+- `runtime_stopped`
+- `ready`
+- `operation_timeout`
+- `operation_expired`
+
+**Gate**: Gate 2 controlled execution implementation, still pre-product-UI and
+pre-default-mutation.
+
+**Result**: PASS for the controlled runner slice. The implementation can run the
+allowlisted command sequence only when explicitly invoked with execution enabled
+from internal code/tests; the browser operation endpoint still uses the default
+planning-only path and capabilities continue to report `provider_tls_repair=false`.
+
+**Validation**:
+
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_task_087_host_helper.py -q -p no:cacheprovider`
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_config.py tests\unit\test_error_sanitization.py -q -p no:cacheprovider`
+- PASS: `python .agent_work\scripts\validate_agent_work.py`
+- PASS:
+  `python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`
+- PASS: `git diff --check`
+- PASS:
+  `python .agents\skills\towerscout-secret-and-provider-key-safety\scripts\scan_for_sensitive_terms.py scripts\lib`
+
+**Next**: Request reviewer feedback on the controlled runner implementation
+before exposing any product UI path, setting `provider_tls_repair=true`, enabling
+default browser-triggered mutation, or adding Podman remediation.
 
 ### 2026-07-02 - Mutating Execution Design Review Scope Added
 
