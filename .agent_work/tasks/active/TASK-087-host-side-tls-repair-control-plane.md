@@ -481,6 +481,70 @@ states such as `inspecting_certificate_chain`, `ca_candidate_selected`,
 `ca_candidate_ambiguous`, `importing_bundle`, `provider_tls_verified`,
 `restarting`, `readiness_waiting`, `ready`, and `failed`.
 
+#### Controlled Execution Design Review Target
+
+The first mutating execution design must remain Docker CPU/CUDA only and must
+not expose product UI or Podman remediation. The helper may execute only the
+internally generated operation plan from `New-TowerScoutProviderTlsRepairOperationPlan`.
+Browser input must never change script path, command path, engine, GPU mode,
+app port, provider argument order, `-Apply`, `-NoBrowser`, timeout values, or
+working directory.
+
+Controlled command runner contract:
+
+- Accept only the already accepted operation plan and runtime profile.
+- Reject any plan whose `InternalCommands` script paths are not the exact
+  allowlisted package-local wrappers:
+  `scripts\repair-provider-tls.cmd`, `scripts\stop.cmd`, and `start.bat`.
+- Resolve command paths under the captured package root and reject paths that
+  escape that root.
+- Build process invocations from structured argument arrays only. Do not build
+  shell command strings from browser input.
+- Use one package-root working directory for all steps.
+- Capture stdout/stderr only for internal marker parsing and support-safe
+  diagnostics. Do not return raw subprocess output to the browser, readiness,
+  status, logs intended for normal users, task evidence, or PR evidence.
+- Map each step outcome to the public state table below and persist only
+  support-safe state, step, timestamps, operation id, provider enum, runtime
+  summary, timeout metadata, and next action.
+- Enforce per-step timeouts and the existing overall operation timeout. If a
+  step hangs, mark `operation_timeout`, clean up the child process if possible,
+  and leave restart fallback guidance.
+- Keep same-authorization requests idempotent while an operation is active or
+  terminal-but-retained. Different authorization while active returns
+  `operation_busy`.
+- Permit a new authorization only after terminal failure is retained and the
+  prior operation is explicitly cleared, expires, or stop cleanup invalidates the
+  helper session. Do not automatically retry without user/support confirmation.
+
+Script-exit public-state policy:
+
+| Public state | Source step | Classification | Retry / next action |
+|---|---|---|---|
+| `tls_repair_completed` | repair exit 0 | Intermediate success | Continue to runtime stop. |
+| `tls_repair_selection_required` | repair exit 2 | Terminal support-escalation | Do not retry automatically; use manual dry-run/support selection. |
+| `tls_repair_failed` | repair nonzero other than 2 | Terminal support-escalation | Allow new authorization only after status review or timeout/cleanup; keep manual command fallback. |
+| `runtime_stopped` | stop exit 0 | Intermediate success | Continue to restart. |
+| `runtime_stop_failed` | stop nonzero | Terminal retryable with support review | Do not start runtime; allow retry only after user/support confirms runtime state. |
+| `ready` | start/readiness success | Terminal success when readiness passes | Return repair complete and ask user to retry provider validation. |
+| `readiness_timeout` | start/readiness exit 2 | Terminal timeout | Provide fallback guidance; allow new authorization after timeout/cleanup if app remains unavailable. |
+| `runtime_start_failed` | start nonzero other than 2 | Terminal support-escalation | Keep manual start command fallback; do not retry automatically. |
+| `readiness_failed` | readiness nonzero other than 2 | Terminal support-escalation | Keep manual status/log guidance; do not retry automatically. |
+| `operation_timeout` | any timed-out step | Terminal timeout | Kill/cleanup child process if possible, clear or expire lock according to timeout policy, and require new authorization for retry. |
+
+Execution-runner tests required before enabling execution:
+
+- Prove browser input cannot alter script path, command path, engine, GPU mode,
+  app port, provider argument order, `-Apply`, `-NoBrowser`, or timeout values.
+- Prove raw stdout/stderr, local paths, certificate details, provider keys, and
+  helper tokens are absent from public operation status.
+- Prove timeouts produce `operation_timeout` without leaving concurrent active
+  operation locks.
+- Prove same authorization remains idempotent and different authorization remains
+  `operation_busy` during each active execution step.
+- Prove terminal success, retryable failure, support-escalation failure, and
+  timeout states follow the table above.
+
 ### 5. Podman Compose Provider Preflight And Remediation
 
 If included, Podman Compose provider remediation should reuse the current
@@ -881,6 +945,64 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-02 - Mutating Execution Design Review Scope Added
+
+**Objective**: Record the handoff criteria for the first mutating repair/restart
+execution design review without enabling script execution, product UI exposure,
+or Podman remediation.
+
+**Context**: The reviewer accepted `84d6e49` as sufficient for the
+operation-control checkpoint and recommended moving to a narrowly scoped
+execution-design review. The accepted boundary remains Docker CPU/CUDA only.
+`provider_tls_repair=true`, product UI entry points, and Podman Compose provider
+remediation remain blocked until later checkpoints explicitly approve them.
+
+**Decision**: Add a design-only controlled runner contract, explicit script-exit
+to public-state mapping, timeout/retry semantics, and required execution-runner
+tests. The browser may only authorize the internally generated operation plan;
+it must not influence script path, command path, engine, GPU mode, app port,
+provider argument order, `-Apply`, `-NoBrowser`, timeout values, or working
+directory.
+
+**Execution**: Updated the restart orchestration section with the first
+controlled execution design review target. The section requires package-local
+allowlisted wrappers, package-root path containment, structured argument arrays,
+support-safe public status, timeout handling, idempotent same-authorization
+behavior, `operation_busy` for different active authorization, and terminal state
+classification before any execution code is enabled.
+
+**Observed Status Codes / Labels**:
+
+- `tls_repair_completed`
+- `tls_repair_selection_required`
+- `tls_repair_failed`
+- `runtime_stopped`
+- `runtime_stop_failed`
+- `ready`
+- `readiness_timeout`
+- `runtime_start_failed`
+- `readiness_failed`
+- `operation_timeout`
+
+**Gate**: Gate 2 Security Proof to controlled execution-design handoff.
+
+**Result**: Documentation-only PASS. The task now states the expected mutating
+execution design review scope, but no mutating command runner, product UI
+entry point, Podman remediation path, or `provider_tls_repair=true` exposure has
+been implemented.
+
+**Validation**:
+
+- PASS:
+  `python .agent_work\scripts\validate_agent_work.py`
+- PASS:
+  `python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`
+- PASS: `git diff --check`
+
+**Next**: Ask the reviewer to verify the execution design scope before
+implementation proceeds. The next implementation slice should still be reviewed
+as execution-design work first, not product UI enablement.
 
 ### 2026-07-02 - Operation-Control Hardening Follow-Up
 
