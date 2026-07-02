@@ -875,6 +875,60 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Gate 1 Loopback Helper Proof Started
+
+**Objective**: Add the first package-local host helper proof for Gate 1/Gate 2
+transport primitives before any product UI or restart orchestration work.
+
+**Context**: Task-087 requires a browser-reachable host helper that binds only
+to loopback, avoids administrator URL ACL setup, accepts TowerScout localhost
+origins only, requires a per-run token, and returns sanitized states. The first
+implementation slice is intentionally limited to transport/security proof; it
+does not expose a repair button, run TLS repair, run the Podman provider
+installer, or restart TowerScout.
+
+**Decision**: Use a PowerShell `TcpListener` proof instead of `HttpListener` for
+the first helper transport because `TcpListener` binds directly to
+`127.0.0.1` and avoids Windows URL ACL registration. Add a self-test mode so
+the listener, origin check, token check, endpoint allowlist, and CORS preflight
+handling can be validated without leaving a background helper process running.
+
+**Execution**: Added `scripts\lib\TowerScoutHostHelper.ps1`,
+`scripts\host-helper.ps1`, and `scripts\host-helper.cmd`. The helper proof
+creates an internal runtime profile, generates an in-memory token, exposes
+sanitized `GET /health` and `GET /runtime-profile` responses, rejects unknown
+endpoints, rejects bad origins, rejects missing/wrong tokens, and supports
+browser CORS preflight for the allowlisted endpoints.
+
+**Phase 1 Evidence - 2026-07-02 - Loopback Self-Test**
+
+**Gate**: Gate 1 Helper Transport Proof / Gate 2 Security Proof
+**Environment**: Windows source/package-like script context, Docker CPU profile
+shape, public-safe self-test labels only
+**Objective**: Validate loopback listener feasibility, TowerScout localhost
+origin enforcement, token enforcement, endpoint allowlist rejection, and
+sanitized helper responses.
+**Command Category**: helper start / health check / origin-token check /
+allowlist rejection
+**Inputs**: `engine=docker`, `gpu=off`, sanitized self-test runtime profile,
+valid token scenario, wrong token scenario, wrong origin scenario, unknown
+endpoint scenario
+**Observed States**: `ready`, `rejected_token`, `rejected_origin`,
+`rejected_unknown_endpoint`, `cors_preflight_ok`
+**Result**: PASS
+**Redaction Check**: No tokens, helper listener ports, local paths, provider
+keys, certificate details, raw subprocess output, `.env` values, or support
+logs were recorded.
+**Follow-Up**: Add lifecycle/runtime-profile file handling, stop cleanup, and
+allowlisted script-invocation proof before product UI integration.
+
+**Validation**: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+scripts\host-helper.ps1 -SelfTest` passed. `git diff --check` passed.
+
+**Next**: Extend the proof toward runtime-profile persistence, helper
+lifecycle/stop cleanup, and allowlisted script invocation while keeping product
+UI integration blocked behind Gates 1 and 2.
+
 ### 2026-07-02 - Reviewer Minor Follow-Up Added
 
 **Objective**: Incorporate the reviewer's non-blocking follow-up suggestions
