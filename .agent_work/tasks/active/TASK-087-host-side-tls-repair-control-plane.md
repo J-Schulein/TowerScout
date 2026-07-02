@@ -1,12 +1,12 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: PLANNED_NOT_STARTED_REVIEWER_FEEDBACK_INCORPORATED  
-**Type**: B/C (Runtime Support / Setup UX / TLS Trust)  
-**Priority**: MEDIUM-HIGH  
-**Estimated Effort**: 4-7 days (32-56 hours), plus package validation on a managed TLS-inspected network  
-**Target Sprint**: Post-`TASK-086` / rc7 follow-up unless selected as a release blocker  
-**Created**: 2026-06-29  
-**Owner**: TBD  
+**Status**: IN_PROGRESS - selected as Sprint 7 active work during Sprint 6 closeout
+**Type**: B/C (Runtime Support / Setup UX / TLS Trust)
+**Priority**: MEDIUM-HIGH
+**Estimated Effort**: 4-7 days (32-56 hours), plus package validation on a managed TLS-inspected network
+**Target Sprint**: Sprint 07
+**Created**: 2026-06-29
+**Owner**: TowerScout release owner / active agent support
 **Depends On**: `TASK-086`; package launcher/runtime profile; provider setup error classification; Docker CPU/CUDA package paths
 
 ## Objective
@@ -58,14 +58,13 @@ The host helper should:
 
 ## Recommended Release Position
 
-Do not make `TASK-087` a default rc7 blocker unless the team decides the
-first-cohort tester workflow requires one-click repair before user-facing rc7
-publication.
+Do not treat `TASK-087` as part of the validated RC7.1 baseline unless the team
+decides later tester workflow evidence requires one-click repair before the next
+user-facing package.
 
-`TASK-086` remains the validated repair baseline for rc7. `TASK-087` should be
-treated as a follow-on support UX improvement unless upcoming tester evidence
-shows that the command-based repair path is not usable enough for the planned
-cohort.
+`TASK-086` remains the validated repair baseline for RC7.1. `TASK-087` is now
+the active Sprint 7 follow-on support UX improvement, but the command-based
+repair path remains the fallback until the helper gates pass.
 
 ## Required Go/No-Go Gates
 
@@ -443,9 +442,10 @@ Exit criteria:
 
 - Include helper artifacts in CPU and CUDA packages.
 - Exclude runtime profile/token/log artifacts from source and release packages.
-- Build an internal validation package before any user-facing rc7+ package.
+- Build an internal validation package before any user-facing package
+  inclusion.
 - Validate on a managed TLS-inspected network.
-- Decide whether the feature is ready for rc7, rc7 patch, or later release.
+- Decide whether the feature is ready for the next RC patch or a later release.
 
 Exit criteria:
 
@@ -514,6 +514,20 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Selected For Sprint 7
+
+**Objective**: Promote Task-087 from post-RC7.1 follow-up planning into the active Sprint 7 lane.
+
+**Context**: Sprint 6 closed with RC7.1 validated for tester-facing use and `TASK-086` established as the command-based managed-network TLS repair baseline. The team selected the host-side TLS repair control plane as the next active sprint focus.
+
+**Decision**: Keep Task-086 as the validated fallback while starting Task-087 with the gated helper transport proof. Product UI integration remains blocked until the helper transport and security gates pass.
+
+**Execution**: Updated task status and Sprint target during Sprint 6 closeout. Kept this task file in `.agent_work/tasks/active/` while completed Sprint 6 task files moved to `.agent_work/tasks/completed/`.
+
+**Validation**: Closeout validation will run after tracker updates and file moves.
+
+**Next**: Start Gate 1 with a package-local helper transport proof that validates loopback binding, token/origin checks, helper lifetime, and script invocation behavior on the target Windows environment.
+
 ### 2026-06-29 - Initial Plan Created
 
 **Objective**: Capture the proposed one-click managed-network TLS repair path as
@@ -522,12 +536,12 @@ a scoped follow-on to `TASK-086`.
 **Decision**: Plan around a trusted package-local Windows host helper with a
 narrow loopback API, per-launch token, explicit user confirmation, and strict
 reuse of the validated `repair-provider-tls.cmd` plus stop/start flow. Keep the
-manual command path as the support baseline and do not make this a default rc7
-blocker unless user-testing evidence requires it.
+manual command path as the support baseline and do not make this a default
+RC7.1 baseline requirement unless user-testing evidence requires it.
 
 **Next**: Review the plan with the team, decide whether `TASK-087` is selected
-for active implementation before or after rc7, then run a helper transport proof
-of concept before product UI work begins.
+for active implementation before or after RC7.1, then run a helper transport
+proof of concept before product UI work begins.
 
 ### 2026-06-29 - Reviewer Feedback Incorporated
 
@@ -566,5 +580,5 @@ private-network behavior in the target Windows environment.
 after the Task-087 plan and current-task index updates.
 
 **Next**: Validate task tracker hygiene, then decide whether to keep Task-087 as
-post-rc7 follow-up or authorize only the Phase 1 helper transport proof of
-concept while rc7 materials proceed from the validated Task-086 baseline.
+post-RC7.1 follow-up or authorize only the Phase 1 helper transport proof of
+concept while RC7.1 materials proceed from the validated Task-086 baseline.
