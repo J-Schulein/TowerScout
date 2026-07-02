@@ -875,6 +875,69 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Visible Helper Lifecycle Proof
+
+**Objective**: Validate the reviewer-approved visible helper-window lifecycle
+candidate before adding any mutating repair/restart endpoint.
+
+**Context**: The PR #45 follow-up reviewer accepted the Gate 1 hardening and
+recommended validating `scripts\host-helper-visible.cmd` next. The visible
+helper model is intended to avoid the hidden detached PowerShell pattern that
+triggered endpoint protection/AMSI while still proving that a helper can survive
+the launching wrapper process and be invalidated by the package stop path.
+
+**Decision**: Treat the visible helper window as a viable Gate 1 lifecycle proof
+candidate based on local validation, but keep product UI, TLS repair operation
+endpoints, restart orchestration, and Podman remediation blocked until the team
+confirms the visible-window UX and endpoint-policy behavior are acceptable for
+the target managed Windows environment.
+
+**Execution**: Created a temporary sanitized validation harness under
+`.agent_work\tmp\` and ran it outside the sandbox boundary so the visible helper
+PowerShell window could open. The harness cleared stale helper sessions, launched
+`scripts\host-helper-visible.cmd`, waited for package-local session metadata,
+used the token internally without printing it, called the loopback `/health`
+endpoint, invalidated the helper through `scripts\host-helper.ps1 -Stop`,
+verified session/token files were removed, and verified the helper endpoint was
+no longer reachable after stop cleanup.
+
+**Phase 1 Evidence - 2026-07-02 - Visible Helper Lifecycle**
+
+**Gate**: Gate 1 Helper Transport Proof / Gate 2 Security Proof
+**Environment**: Windows source/package-like script context, Docker CPU profile
+shape, public-safe validation labels only
+**Objective**: Validate visible helper launch, wrapper-process return,
+loopback health reachability, package-local session/token creation, stop-path
+invalidation, and post-stop listener cleanup.
+**Command Category**: visible helper start / health check / origin-token check /
+stop cleanup / lifecycle validation
+**Inputs**: `engine=docker`, `gpu=off`, `package_flavor=self-test-visible`,
+sanitized health request, stop invalidation request
+**Observed States**: `started`, `returned`, `created`, `ready`, `cleared`,
+`reachable_after_stop=false`
+**Result**: PASS for local visible-helper lifecycle proof; target managed
+endpoint UX/policy confirmation still required before product integration.
+**Redaction Check**: No helper token, helper listener port, local path, provider
+key, certificate detail, raw subprocess output, `.env` value, or support log was
+recorded.
+**Follow-Up**: Confirm with the user/reviewer whether the visible helper window
+is acceptable UX and whether any endpoint-protection prompt or alert appeared
+during validation. If acceptable, continue to the first support-guided Docker
+CPU/CUDA repair MVP design. If not acceptable, pivot to a native or supervised
+helper before any mutating endpoint is added.
+
+**Validation**: The temporary visible-helper harness returned `result=passed`,
+`visible_window_launch=started`, `wrapper_process=returned`,
+`session_metadata=created`, `token_file=created_then_removed`,
+`health_check=ready`, `stop_invalidation=cleared`, and
+`reachable_after_stop=false`. A follow-up session-directory check found no
+remaining helper session/token files.
+
+**Next**: Remove the temporary harness, rerun task/document validators, commit
+the evidence update, and then decide whether to proceed into the Docker-only
+repair operation slice or pause for reviewer/user confirmation on the visible
+window UX.
+
 ### 2026-07-02 - Reviewer Gate 1 Hardening Follow-Up
 
 **Objective**: Incorporate the PR #45 Gate 1 reviewer feedback that can be
