@@ -430,6 +430,13 @@ Operation lifecycle rules:
   window.
 - Stop cleanup must terminate or invalidate active operations and helper
   credentials whenever `scripts\stop.cmd` is used for the selected engine.
+- For the non-mutating control-plane slice, `planned` operations remain active
+  until their operation timeout; after timeout, status polling returns
+  `operation_expired` with HTTP 410 and clears the operation lock.
+- Before mutating execution is enabled, each script-exit state must be classified
+  as success, retryable failure, support-escalation failure, or timeout. Retrying
+  with a new authorization must be allowed only after the prior operation reaches
+  a terminal state or is cleared by timeout/stop cleanup.
 
 ### 4. Restart Orchestration
 
@@ -874,6 +881,89 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-02 - Operation-Control Hardening Follow-Up
+
+**Objective**: Address reviewer follow-ups that should be complete before the
+first mutating repair/restart execution design is reviewed.
+
+**Context**: The reviewer accepted `1342f0b` as a non-mutating checkpoint but
+recommended endpoint-specific CORS/method handling, byte-exact or explicitly
+ASCII-only POST body handling, full script-exit mapping tests, and deterministic
+terminal/retry/cleanup semantics before moving toward execution.
+
+**Decision**: Keep the helper non-mutating and narrow the request surface now.
+Use byte-level request parsing with explicit ASCII-only request bodies for this
+JSON schema, because accepted provider/confirmation/authorization fields are
+ASCII by contract. Return CORS allowed methods based on the resolved endpoint:
+`GET, OPTIONS` for health/runtime/status endpoints and `POST, OPTIONS` only for
+`/operations/provider-tls-repair`.
+
+**Execution**: Replaced the helper request-body read path with raw byte reads
+through the header/body boundary, ASCII validation, and exact `Content-Length`
+body reads. Added endpoint-level allowed-method resolution, preflight method
+validation, and endpoint-specific CORS response headers. Extended the helper
+self-test with minimal preflight coverage for health, provider-operation POST,
+operation-status GET, and wrong-method rejection. Extended the focused pytest
+PowerShell probe to cover every script-exit mapping row.
+
+**Gate**: Gate 2 Security Proof, non-mutating hardening before execution design
+**Observed States**: `cors_preflight_ok`, `rejected_method`, `planned`,
+`operation_busy`, `tls_repair_completed`, `tls_repair_selection_required`,
+`tls_repair_failed`, `runtime_stopped`, `runtime_stop_failed`, `ready`,
+`runtime_start_failed`, `readiness_timeout`, `readiness_failed`,
+`operation_timeout`
+**Result**: PASS for the hardening follow-up. Product UI, mutating
+repair/restart execution, Podman remediation, and `provider_tls_repair=true`
+remain blocked.
+**Redaction Check**: No helper tokens, operation authorizations, local paths,
+command paths, provider keys, certificate details, or raw subprocess output are
+returned in public helper self-test output.
+
+**Validation**: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+scripts\host-helper.ps1 -SelfTest` passed. `.venv\Scripts\python.exe -m pytest
+tests\unit\test_task_087_host_helper.py -q -p no:cacheprovider` passed with 4
+tests.
+
+**Next**: Run full repo/task hygiene checks, push PR #45, update the PR body to
+match the implemented operation-control slice, and ask for reviewer feedback
+before preparing the first mutating execution design.
+
+### 2026-07-02 - Reviewer Operation-Control Checkpoint Reviewed
+
+**Objective**: Record reviewer feedback for PR #45 at `1342f0b` before moving
+from the bounded non-mutating operation-control slice toward execution design.
+
+**Context**: The reviewer accepted `1342f0b` as an acceptable Gate 1/Gate 2
+checkpoint. The slice now includes bounded `POST /operations/provider-tls-repair`
+request parsing, required `operation_authorization`, same-authorization
+idempotency, different-authorization `operation_busy`, sanitized
+`GET /operations/{operation_id}` status polling, `execution_enabled=false`, and
+script-exit-to-public-state mapping. Product UI, mutating repair/restart
+execution, and Podman remediation remain blocked.
+
+**Decision**: Treat the checkpoint as accepted, but require another
+non-mutating hardening pass before any first mutating repair/restart execution
+slice. The required follow-ups are endpoint-specific CORS/method responses,
+byte-exact or explicitly ASCII-only POST body handling, script-exit mapping test
+coverage, deterministic terminal/retry/cleanup semantics, and an updated PR body
+that no longer describes the implemented operation-control slice as future work.
+
+**Execution**: Verified the reviewer feedback against the branch state and PR
+metadata. The PR body still described bounded POST parsing, short-lived
+operation authorization, sanitized status, cleanup, and script-exit mapping as
+the next intended slice even though `1342f0b` implements that work.
+
+**Gate**: Gate 2 Security Proof, reviewer checkpoint before execution design
+**Observed States**: `planned`, `operation_busy`, `rejected_unexpected_field`,
+`rejected_operation_authorization`, `execution_enabled=false`
+**Result**: PASS for the non-mutating operation-control checkpoint. Mutating
+execution remains blocked until the follow-ups above are complete and reviewed.
+
+**Validation**: Review-only checkpoint. No code changed for this entry.
+
+**Next**: Implement the non-mutating hardening follow-up, validate, push to PR
+#45, and update the PR body before requesting the next reviewer pass.
 
 ### 2026-07-02 - Bounded Operation Request Control Slice
 

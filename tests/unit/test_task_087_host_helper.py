@@ -67,7 +67,10 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert '"operation-*.json"' in script
     assert "operation_files_cleared" in script
     assert "provider_tls_repair = $false" in script
-    assert '"Access-Control-Allow-Methods: GET, POST, OPTIONS"' in script
+    assert "function Get-TowerScoutHostHelperAllowedMethodsForPath" in script
+    assert '"Access-Control-Allow-Methods: $AccessControlAllowMethods"' in script
+    assert 'return "GET, OPTIONS"' in script
+    assert 'return "POST, OPTIONS"' in script
 
 
 def test_host_helper_provider_tls_repair_operation_api_is_bounded_and_non_mutating():
@@ -82,9 +85,13 @@ def test_host_helper_provider_tls_repair_operation_api_is_bounded_and_non_mutati
     assert "function New-TowerScoutProviderTlsRepairOperationPlanResponse" in script
     assert "function Get-TowerScoutHostHelperOperationStatus" in script
     assert "function ConvertTo-TowerScoutHostHelperScriptExitState" in script
+    assert "function Test-TowerScoutHostHelperAsciiBytes" in script
     assert 'if ($method -eq "POST")' in script
     assert '"The helper POST request did not include a content length."' in script
     assert '"The helper request body was too large."' in script
+    assert '"The helper request body must be ASCII."' in script
+    assert "New-Object byte[] $contentLength" in script
+    assert "New-Object char[] $contentLength" not in script
     assert "$contentTypeBase -ne \"application/json\"" in script
     assert "[System.Text.Encoding]::UTF8.GetByteCount($bodyText)" in script
     assert '"json_body_too_large"' in script
@@ -137,6 +144,20 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
                 BodyText = (@{{ provider = "google"; confirmation = $script:TowerScoutHostHelperProviderTlsRepairConfirmation; operation_authorization = "short" }} | ConvertTo-Json -Compress)
             }}
             $badAuthorization = New-TowerScoutProviderTlsRepairOperationPlanResponse -Profile $profile -Request $badAuthorizationRequest
+            $exitStates = [pscustomobject]@{{
+                repair_success = ConvertTo-TowerScoutHostHelperScriptExitState -Step "repair" -ExitCode 0
+                repair_selection_required = ConvertTo-TowerScoutHostHelperScriptExitState -Step "repair" -ExitCode 2
+                repair_failed = ConvertTo-TowerScoutHostHelperScriptExitState -Step "repair" -ExitCode 1
+                stop_success = ConvertTo-TowerScoutHostHelperScriptExitState -Step "stop" -ExitCode 0
+                stop_failed = ConvertTo-TowerScoutHostHelperScriptExitState -Step "stop" -ExitCode 1
+                start_success = ConvertTo-TowerScoutHostHelperScriptExitState -Step "start" -ExitCode 0
+                start_timeout = ConvertTo-TowerScoutHostHelperScriptExitState -Step "start" -ExitCode 2
+                start_failed = ConvertTo-TowerScoutHostHelperScriptExitState -Step "start" -ExitCode 1
+                readiness_success = ConvertTo-TowerScoutHostHelperScriptExitState -Step "readiness" -ExitCode 0
+                readiness_timeout = ConvertTo-TowerScoutHostHelperScriptExitState -Step "readiness" -ExitCode 2
+                readiness_failed = ConvertTo-TowerScoutHostHelperScriptExitState -Step "readiness" -ExitCode 1
+                timed_out = ConvertTo-TowerScoutHostHelperScriptExitState -Step "repair" -ExitCode 1 -TimedOut:$true
+            }}
             [pscustomobject]@{{
                 planned_status = $planned.StatusCode
                 planned_state = [string] $planned.Body.state
@@ -150,6 +171,7 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
                 unexpected_state = [string] $unexpected.Body.state
                 bad_authorization = $badAuthorization.StatusCode
                 bad_authorization_state = [string] $badAuthorization.Body.state
+                exit_states = $exitStates
             }} | ConvertTo-Json -Compress
         }}
         finally {{
@@ -177,6 +199,20 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
         "unexpected_state": "rejected_unexpected_field",
         "bad_authorization": 400,
         "bad_authorization_state": "rejected_operation_authorization",
+        "exit_states": {
+            "repair_success": "tls_repair_completed",
+            "repair_selection_required": "tls_repair_selection_required",
+            "repair_failed": "tls_repair_failed",
+            "stop_success": "runtime_stopped",
+            "stop_failed": "runtime_stop_failed",
+            "start_success": "ready",
+            "start_timeout": "readiness_timeout",
+            "start_failed": "runtime_start_failed",
+            "readiness_success": "ready",
+            "readiness_timeout": "readiness_timeout",
+            "readiness_failed": "readiness_failed",
+            "timed_out": "operation_timeout",
+        },
     }
 
 

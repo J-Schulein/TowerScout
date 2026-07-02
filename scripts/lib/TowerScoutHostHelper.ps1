@@ -995,14 +995,103 @@ function Test-TowerScoutHostHelperOrigin {
     return $false
 }
 
+function Test-TowerScoutHostHelperAsciiBytes {
+    param(
+        [byte[]] $Bytes = @()
+    )
+
+    foreach ($value in $Bytes) {
+        if ($value -gt 127) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function Get-TowerScoutHostHelperAllowedMethodsForPath {
+    param(
+        [string] $Path = ""
+    )
+
+    if ($Path -in @("/health", "/runtime-profile")) {
+        return "GET, OPTIONS"
+    }
+    if ($Path -eq "/operations/provider-tls-repair") {
+        return "POST, OPTIONS"
+    }
+    if ($Path -match "^/operations/[a-f0-9]{32}$") {
+        return "GET, OPTIONS"
+    }
+
+    return ""
+}
+
+function Test-TowerScoutHostHelperMethodAllowed {
+    param(
+        [string] $AllowedMethods = "",
+
+        [string] $Method = ""
+    )
+
+    if ([string]::IsNullOrWhiteSpace($AllowedMethods) -or [string]::IsNullOrWhiteSpace($Method)) {
+        return $false
+    }
+
+    $normalizedMethod = $Method.Trim().ToUpperInvariant()
+    foreach ($allowedMethod in $AllowedMethods.Split([char[]] @(","), [System.StringSplitOptions]::RemoveEmptyEntries)) {
+        if ([string]::Equals($allowedMethod.Trim().ToUpperInvariant(), $normalizedMethod, [System.StringComparison]::Ordinal)) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Read-TowerScoutHostHelperRequest {
     param(
         [Parameter(Mandatory = $true)]
         [System.IO.Stream] $Stream
     )
 
-    $reader = New-Object System.IO.StreamReader($Stream, [System.Text.Encoding]::ASCII, $false, 1024, $true)
-    $requestLine = $reader.ReadLine()
+    $headerStream = New-Object System.IO.MemoryStream
+    while ($true) {
+        $value = $Stream.ReadByte()
+        if ($value -lt 0) {
+            throw "The helper request headers ended early."
+        }
+        $headerStream.WriteByte([byte] $value)
+        if ($headerStream.Length -gt $script:TowerScoutHostHelperMaxHeaderBytes) {
+            throw "The helper request headers were too large."
+        }
+
+        if ($headerStream.Length -ge 4) {
+            $headerBuffer = $headerStream.ToArray()
+            $lastIndex = $headerBuffer.Length - 1
+            if ($headerBuffer[$lastIndex - 3] -eq 13 -and $headerBuffer[$lastIndex - 2] -eq 10 -and $headerBuffer[$lastIndex - 1] -eq 13 -and $headerBuffer[$lastIndex] -eq 10) {
+                break
+            }
+        }
+    }
+
+    $rawHeaderBytes = $headerStream.ToArray()
+    $headerByteCount = $rawHeaderBytes.Length - 4
+    if ($headerByteCount -le 0) {
+        throw "The helper request was empty."
+    }
+    $headerBytes = New-Object byte[] $headerByteCount
+    [System.Array]::Copy($rawHeaderBytes, 0, $headerBytes, 0, $headerByteCount)
+    if (-not (Test-TowerScoutHostHelperAsciiBytes -Bytes $headerBytes)) {
+        throw "The helper request headers must be ASCII."
+    }
+
+    $headerText = [System.Text.Encoding]::ASCII.GetString($headerBytes)
+    $headerLines = @($headerText -split "`r`n")
+    if ($headerLines.Count -lt 1 -or $headerLines.Count -gt ($script:TowerScoutHostHelperMaxHeaderLines + 1)) {
+        throw "The helper request header count was invalid."
+    }
+
+    $requestLine = [string] $headerLines[0]
     if ([string]::IsNullOrWhiteSpace($requestLine)) {
         throw "The helper request was empty."
     }
@@ -1017,19 +1106,10 @@ function Read-TowerScoutHostHelperRequest {
     $method = ([string] $parts[0]).ToUpperInvariant()
 
     $headers = @{}
-    $headerLines = 0
-    $headerBytes = 0
-    while ($true) {
-        $line = $reader.ReadLine()
-        if ($null -eq $line -or $line.Length -eq 0) {
-            break
+    foreach ($line in @($headerLines | Select-Object -Skip 1)) {
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
         }
-        $headerLines += 1
-        $headerBytes += [System.Text.Encoding]::ASCII.GetByteCount($line)
-        if ($headerLines -gt $script:TowerScoutHostHelperMaxHeaderLines -or $headerBytes -gt $script:TowerScoutHostHelperMaxHeaderBytes) {
-            throw "The helper request headers were too large."
-        }
-
         $separatorIndex = $line.IndexOf(":")
         if ($separatorIndex -le 0) {
             continue
@@ -1057,16 +1137,19 @@ function Read-TowerScoutHostHelperRequest {
             throw "The helper POST request did not include a content length."
         }
         if ($contentLength -gt 0) {
-            $buffer = New-Object char[] $contentLength
+            $buffer = New-Object byte[] $contentLength
             $totalRead = 0
             while ($totalRead -lt $contentLength) {
-                $read = $reader.Read($buffer, $totalRead, $contentLength - $totalRead)
+                $read = $Stream.Read($buffer, $totalRead, $contentLength - $totalRead)
                 if ($read -le 0) {
                     throw "The helper request body ended early."
                 }
                 $totalRead += $read
             }
-            $bodyText = -join $buffer
+            if (-not (Test-TowerScoutHostHelperAsciiBytes -Bytes $buffer)) {
+                throw "The helper request body must be ASCII."
+            }
+            $bodyText = [System.Text.Encoding]::ASCII.GetString($buffer)
         }
     }
     elseif ($contentLength -gt 0) {
@@ -1094,7 +1177,9 @@ function Write-TowerScoutHostHelperResponse {
 
         [object] $Body = @{},
 
-        [string] $AccessControlAllowOrigin = ""
+        [string] $AccessControlAllowOrigin = "",
+
+        [string] $AccessControlAllowMethods = "GET, OPTIONS"
     )
 
     $json = ($Body | ConvertTo-Json -Depth 8 -Compress)
@@ -1111,7 +1196,7 @@ function Write-TowerScoutHostHelperResponse {
         $lines += @(
             "Access-Control-Allow-Origin: $AccessControlAllowOrigin",
             "Access-Control-Allow-Headers: X-TowerScout-Helper-Token, Content-Type",
-            "Access-Control-Allow-Methods: GET, POST, OPTIONS",
+            "Access-Control-Allow-Methods: $AccessControlAllowMethods",
             "Vary: Origin"
         )
     }
@@ -1163,6 +1248,7 @@ function Invoke-TowerScoutHostHelperRequest {
 
         $path = ([string] $request.Path).Split([char[]] @("?"), 2)[0]
         $operationStatusPathPattern = "^/operations/([a-f0-9]{32})$"
+        $allowedMethods = Get-TowerScoutHostHelperAllowedMethodsForPath -Path $path
         $origin = [string] $request.Headers["origin"]
         $originAllowed = Test-TowerScoutHostHelperOrigin -Profile $Profile -Origin $origin
         $corsOrigin = if ($originAllowed) { $origin } else { "" }
@@ -1182,18 +1268,30 @@ function Invoke-TowerScoutHostHelperRequest {
                 -StatusCode 410 `
                 -Reason "Gone" `
                 -Body @{ state = "session_invalidated" } `
-                -AccessControlAllowOrigin $corsOrigin
+                -AccessControlAllowOrigin $corsOrigin `
+                -AccessControlAllowMethods $allowedMethods
             return
         }
 
         if ($request.Method -eq "OPTIONS") {
-            if ($path -notin @("/health", "/runtime-profile", "/operations/provider-tls-repair") -and $path -notmatch $operationStatusPathPattern) {
+            if ([string]::IsNullOrWhiteSpace($allowedMethods)) {
                 Write-TowerScoutHostHelperResponse `
                     -Stream $stream `
                     -StatusCode 404 `
                     -Reason "Not Found" `
-                    -Body @{ state = "rejected_unknown_endpoint" } `
-                    -AccessControlAllowOrigin $corsOrigin
+                    -Body @{ state = "rejected_unknown_endpoint" }
+                return
+            }
+
+            $preflightMethod = [string] $request.Headers["access-control-request-method"]
+            if (-not (Test-TowerScoutHostHelperMethodAllowed -AllowedMethods $allowedMethods -Method $preflightMethod)) {
+                Write-TowerScoutHostHelperResponse `
+                    -Stream $stream `
+                    -StatusCode 405 `
+                    -Reason "Method Not Allowed" `
+                    -Body @{ state = "rejected_method" } `
+                    -AccessControlAllowOrigin $corsOrigin `
+                    -AccessControlAllowMethods $allowedMethods
                 return
             }
 
@@ -1202,7 +1300,8 @@ function Invoke-TowerScoutHostHelperRequest {
                 -StatusCode 200 `
                 -Reason "OK" `
                 -Body @{ state = "cors_preflight_ok" } `
-                -AccessControlAllowOrigin $corsOrigin
+                -AccessControlAllowOrigin $corsOrigin `
+                -AccessControlAllowMethods $allowedMethods
             return
         }
 
@@ -1213,18 +1312,23 @@ function Invoke-TowerScoutHostHelperRequest {
                 -StatusCode 401 `
                 -Reason "Unauthorized" `
                 -Body @{ state = "rejected_token" } `
-                -AccessControlAllowOrigin $corsOrigin
+                -AccessControlAllowOrigin $corsOrigin `
+                -AccessControlAllowMethods $allowedMethods
             return
         }
 
         if ($request.Method -eq "POST") {
             if ($path -ne "/operations/provider-tls-repair") {
+                $statusCode = if ([string]::IsNullOrWhiteSpace($allowedMethods)) { 404 } else { 405 }
+                $reason = if ($statusCode -eq 404) { "Not Found" } else { "Method Not Allowed" }
+                $state = if ($statusCode -eq 404) { "rejected_unknown_endpoint" } else { "rejected_method" }
                 Write-TowerScoutHostHelperResponse `
                     -Stream $stream `
-                    -StatusCode 404 `
-                    -Reason "Not Found" `
-                    -Body @{ state = "rejected_unknown_endpoint" } `
-                    -AccessControlAllowOrigin $corsOrigin
+                    -StatusCode $statusCode `
+                    -Reason $reason `
+                    -Body @{ state = $state } `
+                    -AccessControlAllowOrigin $corsOrigin `
+                    -AccessControlAllowMethods $allowedMethods
                 return
             }
 
@@ -1236,7 +1340,8 @@ function Invoke-TowerScoutHostHelperRequest {
                 -StatusCode $operationResult.StatusCode `
                 -Reason $operationResult.Reason `
                 -Body $operationResult.Body `
-                -AccessControlAllowOrigin $corsOrigin
+                -AccessControlAllowOrigin $corsOrigin `
+                -AccessControlAllowMethods $allowedMethods
             return
         }
 
@@ -1246,7 +1351,8 @@ function Invoke-TowerScoutHostHelperRequest {
                 -StatusCode 405 `
                 -Reason "Method Not Allowed" `
                 -Body @{ state = "rejected_method" } `
-                -AccessControlAllowOrigin $corsOrigin
+                -AccessControlAllowOrigin $corsOrigin `
+                -AccessControlAllowMethods $allowedMethods
             return
         }
 
@@ -1257,7 +1363,8 @@ function Invoke-TowerScoutHostHelperRequest {
                     -StatusCode 200 `
                     -Reason "OK" `
                     -Body (ConvertTo-TowerScoutHostHelperPublicRuntimeProfile -Profile $Profile) `
-                    -AccessControlAllowOrigin $corsOrigin
+                    -AccessControlAllowOrigin $corsOrigin `
+                    -AccessControlAllowMethods $allowedMethods
                 return
             }
             "/runtime-profile" {
@@ -1266,7 +1373,8 @@ function Invoke-TowerScoutHostHelperRequest {
                     -StatusCode 200 `
                     -Reason "OK" `
                     -Body (ConvertTo-TowerScoutHostHelperPublicRuntimeProfile -Profile $Profile) `
-                    -AccessControlAllowOrigin $corsOrigin
+                    -AccessControlAllowOrigin $corsOrigin `
+                    -AccessControlAllowMethods $allowedMethods
                 return
             }
             default {
@@ -1279,7 +1387,8 @@ function Invoke-TowerScoutHostHelperRequest {
                         -StatusCode $operationResult.StatusCode `
                         -Reason $operationResult.Reason `
                         -Body $operationResult.Body `
-                        -AccessControlAllowOrigin $corsOrigin
+                        -AccessControlAllowOrigin $corsOrigin `
+                        -AccessControlAllowMethods $allowedMethods
                     return
                 }
 
@@ -1288,7 +1397,8 @@ function Invoke-TowerScoutHostHelperRequest {
                     -StatusCode 404 `
                     -Reason "Not Found" `
                     -Body @{ state = "rejected_unknown_endpoint" } `
-                    -AccessControlAllowOrigin $corsOrigin
+                    -AccessControlAllowOrigin $corsOrigin `
+                    -AccessControlAllowMethods $allowedMethods
             }
         }
     }
@@ -1547,6 +1657,21 @@ function Invoke-TowerScoutHostHelperSelfTest {
                 Expected = 200
             },
             [pscustomobject]@{
+                Scenario = "cors_preflight_post_endpoint"
+                Response = (Invoke-TowerScoutHostHelperSelfTestRequest -Listener $listener -Profile $profile -ServerToken $token -Path "/operations/provider-tls-repair" -Method "OPTIONS" -PreflightMethod "POST")
+                Expected = 200
+            },
+            [pscustomobject]@{
+                Scenario = "cors_preflight_status_endpoint"
+                Response = (Invoke-TowerScoutHostHelperSelfTestRequest -Listener $listener -Profile $profile -ServerToken $token -Path "/operations/$($acceptedPlan.OperationId)" -Method "OPTIONS" -PreflightMethod "GET")
+                Expected = 200
+            },
+            [pscustomobject]@{
+                Scenario = "cors_preflight_wrong_method"
+                Response = (Invoke-TowerScoutHostHelperSelfTestRequest -Listener $listener -Profile $profile -ServerToken $token -Path "/operations/provider-tls-repair" -Method "OPTIONS" -PreflightMethod "GET")
+                Expected = 405
+            },
+            [pscustomobject]@{
                 Scenario = "invalidated_session"
                 Response = (Invoke-TowerScoutHostHelperSelfTestRequest -Listener $listener -Profile $invalidatedProfile -ServerToken $token -RequestToken $token)
                 Expected = 410
@@ -1559,8 +1684,20 @@ function Invoke-TowerScoutHostHelperSelfTest {
             }
         }
         $corsPreflight = @($results | Where-Object { $_.Scenario -eq "cors_preflight" } | Select-Object -First 1)
-        if ($corsPreflight.Count -ne 1 -or [string] $corsPreflight[0].Response.Headers["access-control-allow-methods"] -ne "GET, POST, OPTIONS") {
-            throw "Host helper self-test did not return the expected bounded POST CORS method policy."
+        if ($corsPreflight.Count -ne 1 -or [string] $corsPreflight[0].Response.Headers["access-control-allow-methods"] -ne "GET, OPTIONS") {
+            throw "Host helper self-test did not return the expected health CORS method policy."
+        }
+        $expectedCorsMethods = @{
+            cors_preflight = "GET, OPTIONS"
+            cors_preflight_post_endpoint = "POST, OPTIONS"
+            cors_preflight_status_endpoint = "GET, OPTIONS"
+            cors_preflight_wrong_method = "POST, OPTIONS"
+        }
+        foreach ($entry in $expectedCorsMethods.GetEnumerator()) {
+            $scenarioResult = @($results | Where-Object { $_.Scenario -eq $entry.Key } | Select-Object -First 1)
+            if ($scenarioResult.Count -ne 1 -or [string] $scenarioResult[0].Response.Headers["access-control-allow-methods"] -ne [string] $entry.Value) {
+                throw "Host helper self-test returned unexpected CORS methods for '$($entry.Key)'."
+            }
         }
 
         if (-not $acceptedPlan.Accepted -or $acceptedPlan.State -ne "planned") {
