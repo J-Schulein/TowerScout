@@ -9,6 +9,13 @@
 **Owner**: TowerScout release owner / active agent support
 **Depends On**: `TASK-086`; package launcher/runtime profile; provider setup error classification; Docker CPU/CUDA package paths; existing Podman Compose provider installer and approved-provider catalog if Podman remediation is included
 
+## Canonical Source Note
+
+This Sprint 7 task file on the active PR branch supersedes the older Task-087
+copy that may still be visible on the GitHub default branch until the Sprint 6
+closeout PR is merged. Review and implementation should use this file as the
+canonical plan unless the team explicitly replaces it with a newer revision.
+
 ## Objective
 
 Design and implement a support-safe host-side repair control plane that lets
@@ -70,6 +77,20 @@ repair, limited to captured `engine=podman` runtime profiles, and require
 explicit user confirmation before running the existing package-local installer.
 It must not silently install a Compose provider as a side effect of TLS repair.
 
+## First Implementation Slice Boundary
+
+The first user-facing implementation slice should focus on Docker CPU/CUDA
+provider TLS repair and restart only. That slice may include sanitized Podman
+Compose provider preflight status if needed to protect Podman restarts, but it
+should not run the Podman Compose provider installer from the product UI until
+the helper transport, security model, operation lifecycle, and Docker reconnect
+UX are proven.
+
+Podman Compose provider remediation remains valid scope for Task-087, but it is
+a separate later slice unless the team explicitly approves it after Gates 1 and
+2 pass. The first-slice success criterion is a support-safe Docker CPU repair
+and restart path that preserves the manual `TASK-086` command fallback.
+
 ## Recommended Release Position
 
 Do not treat `TASK-087` as part of the validated RC7.1 baseline unless the team
@@ -93,6 +114,10 @@ Proceed only if a package-local helper can:
 - Accept browser calls from the current TowerScout localhost origin with strict
   token and origin checks.
 - Survive the TowerScout container stop/start sequence.
+- Survive `setup-towerscout.ps1`, `bootstrap.ps1`, and `launch.ps1` process
+  exit when needed for first-run UX, while still self-terminating through TTL,
+  package-instance heartbeat, container-exit detection, or explicit stop
+  cleanup.
 - Launch package-local scripts reliably.
 - Inspect Podman Compose provider status through the existing approved-provider
   checks when the captured runtime profile uses `engine=podman`.
@@ -118,6 +143,13 @@ Proceed only if tests and review prove:
   support bundles, browser console output, or DOM attributes.
 - Helper progress is emitted as sanitized operation states, not raw subprocess
   output.
+- The durable helper token never goes to the frontend. Browser-visible code may
+  receive only a short-lived operation credential or one-time operation nonce
+  that expires quickly and is not rendered into static HTML, DOM attributes,
+  readiness payloads, status payloads, logs, or support bundles.
+- The helper allows at most one active host operation per package instance.
+  Duplicate starts, reloads, and double-clicks return the existing operation or
+  a support-safe busy state instead of launching a second repair/install action.
 
 ### Gate 3: Product Integration Proof
 
@@ -129,6 +161,9 @@ Proceed only if frontend/backend tests prove:
 - Setup Wizard preserves structured validation details end-to-end, including
   `category`, `provider`, `repairable`, `support_action`, `repair_command`, and
   `helper_available`.
+- Setup Wizard retains the last structured validation failure object per
+  provider for repair-button rendering and does not collapse repairable
+  failures into booleans plus message strings.
 - Podman Compose provider remediation, if exposed in product UI or launcher UI,
   appears only for captured `engine=podman` runtime profiles and
   missing/unapproved/multiple-provider states.
@@ -183,9 +218,11 @@ confirms:
 1. User starts TowerScout from the CPU or CUDA application package.
 2. The launcher records the runtime profile: engine, GPU mode, port, package
    root, image/package identity, and any support-safe launch metadata needed for
-   restart.
+   restart. Runtime profile generation should come from a shared launcher helper
+   used by setup and direct start/launch paths, not from setup-only code.
 3. The launcher starts a package-local host helper bound to `127.0.0.1` on a
-   random available port with a one-time random token.
+   random available port with a durable package-local token that never reaches
+   the frontend directly.
 4. User reaches Setup Wizard and enters a Google Maps key.
 5. Provider validation detects a repairable TLS certificate trust failure.
 6. Setup Wizard shows the current support command fallback and, when the helper
@@ -244,6 +281,12 @@ profile should contain only support-safe, non-secret values:
 - Current container/service identity when available, so the helper can detect a
   stale or wrong-package operation before repairing or restarting.
 
+Runtime profile generation belongs in a shared launcher helper that is called
+by setup/bootstrap/start/launch entry points. It must not live only in
+`setup-towerscout.ps1`, because direct `start.bat` / `scripts\launch.ps1`
+sessions need the same profile freshness, identity checks, and restart
+metadata.
+
 The runtime profile should be ignored by git and excluded from release source
 artifacts unless it is generated at package runtime.
 
@@ -270,6 +313,11 @@ The proof of concept must confirm:
   validation environment.
 - The helper can remain available while Docker/Podman stops and restarts the
   TowerScout container.
+- The helper can survive launcher/setup process exit through a deliberate
+  detached, supervised, or heartbeat-based lifecycle model.
+- The helper self-terminates when its TTL expires, the package-instance
+  heartbeat disappears, the active container exits and is not being restarted,
+  or the package stop cleanup explicitly asks it to stop.
 - The helper exits cleanly when the package runtime is stopped.
 
 If PowerShell `HttpListener` requires admin URL ACL setup or proves brittle,
@@ -301,7 +349,9 @@ Expose only narrow, allowlisted operations:
     `podman compose version` output or full local provider paths.
 - `POST /operations/provider-tls-repair`
   - Accepts a validated provider enum such as `google` or `azure`.
-  - Optionally accepts `restart: true`.
+  - Accepts only a fixed confirmation value such as
+    `repair_tls_and_restart`; restart behavior is derived from the operation
+    type and runtime profile, not from a browser-selected restart mode.
   - Creates an operation id and starts the repair asynchronously.
 - `POST /operations/podman-compose-provider-repair`
   - Available only when the captured runtime profile uses `engine=podman`.
@@ -329,6 +379,18 @@ The helper must reject:
 - Stale helper tokens or runtime profiles.
 - Requests that cannot be associated with the active TowerScout package
   instance.
+
+Operation lifecycle rules:
+
+- The helper must allow only one active mutating operation per package instance.
+- Duplicate-clicks, page reloads, and repeated POSTs with the same operation
+  nonce should return the existing operation id and status when safe.
+- A different operation request while one is active should return a sanitized
+  `operation_busy` state.
+- Each operation must have a timeout, terminal state, cleanup path, and safe
+  retry rule after terminal failure.
+- Terminal-state polling must continue to work across the TowerScout restart
+  window.
 
 ### 4. Restart Orchestration
 
@@ -411,6 +473,11 @@ Backend responsibilities:
 - Preserve existing TLS-vs-invalid-key categorization.
 - Report whether a TLS failure is repairable.
 - Report whether the host helper is available, without logging the helper token.
+- Mediate short-lived helper operation authorization when browser-visible code
+  needs to call the helper. The durable helper token should remain
+  package-local and should not be emitted through config/status/readiness
+  routes, hidden DOM fields, inline script state, browser console output, or
+  logs.
 - Keep the manual `repair_command` fallback visible in the structured details.
 - Avoid treating a repairable TLS certificate failure as a bad provider key.
 - Preserve and return helper-specific structured fields without exposing token
@@ -421,6 +488,10 @@ Frontend responsibilities:
 
 - Show the repair button only when the error category is repairable TLS and the
   helper is available.
+- Preserve the last structured validation failure per provider, including
+  `category`, `provider`, `repairable`, `support_action`, `repair_command`,
+  `helper_available`, and any short-lived operation authorization metadata
+  needed to render and start a repair operation.
 - Show any Podman Compose provider remediation action only when the captured
   runtime profile is `engine=podman` and the helper reports a provider
   readiness state that is explicitly repairable by the package-local installer.
@@ -431,6 +502,8 @@ Frontend responsibilities:
 - Display progress from helper operation polling.
 - Move to a reconnecting state during restart.
 - Poll TowerScout readiness after restart and resume the provider setup flow.
+- Suppress duplicate-clicks and page-reload duplicate starts by reusing the
+  active operation id when the helper reports one.
 - Continue to show the command-based fallback when the helper is unavailable or
   the repair operation fails.
 - Treat helper-unavailable as a normal support fallback, not as a broken setup
@@ -445,6 +518,11 @@ Requirements:
 
 - Bind the helper to `127.0.0.1` only.
 - Generate a random per-launch token and require it for every mutating request.
+- Keep the durable helper token package-local. Browser-visible code may receive
+  only a short-lived operation credential or one-time operation nonce that is
+  scoped to the requested operation, expires quickly, and is never persisted in
+  static HTML, DOM attributes, readiness/status output, logs, task evidence, or
+  support bundles.
 - Use strict CORS/origin checks limited to the current TowerScout localhost
   origin.
 - Require explicit user confirmation before repair/restart.
@@ -458,6 +536,8 @@ Requirements:
   directories, or `-Force` from the UI.
 - Never expose the helper token in readiness output, status output, logs,
   support bundles, browser console output, DOM attributes, or task evidence.
+- Never expose short-lived operation credentials after their immediate use, and
+  never persist them in support evidence.
 - Never expose raw helper subprocess output in the browser UI.
 - Redact provider keys, provider URLs with keys, certificate subjects,
   thumbprints, environment variables, and raw HTTP responses from helper logs.
@@ -475,6 +555,12 @@ Automated coverage:
 - Unit tests for stale, expired, wrong-package, and multi-instance runtime
   profile rejection.
 - Unit tests for provider/engine/GPU enum validation.
+- Unit tests proving the provider TLS repair operation accepts only provider
+  enum plus the fixed confirmation value and rejects browser-selected restart
+  modes.
+- Unit tests for helper operation locking, duplicate-click idempotency,
+  operation timeout, terminal-state cleanup, and safe retry after terminal
+  failure.
 - Unit tests for Podman Compose provider preflight states if that operation is
   included: approved, missing, unapproved, multiple, version failed, and
   install failed.
@@ -483,11 +569,12 @@ Automated coverage:
   install directory, Python path, force flag, command path, or arbitrary args
   from browser input.
 - Unit tests for sanitized progress and failure messages.
-- Unit tests proving helper tokens are not emitted into status/readiness/log/UI
-  surfaces.
+- Unit tests proving durable helper tokens and short-lived operation credentials
+  are not emitted into status/readiness/log/UI/support-bundle surfaces.
 - Backend tests for repairable TLS categories and helper availability metadata.
-- Frontend tests for repair button visibility, confirmation, progress, failure,
-  and reconnect states.
+- Frontend tests for structured provider-failure retention, repair button
+  visibility, confirmation, duplicate-click suppression, progress, failure, and
+  reconnect states.
 - Package-generation tests confirming helper scripts are included and runtime
   profile/token artifacts are excluded.
 - Package-generation tests confirming `.env`, `.env.backup.*`, runtime
@@ -503,6 +590,8 @@ Manual validation:
 - Helper-unavailable path still shows the documented manual commands.
 - Repair failure path gives actionable, sanitized support guidance.
 - Restart preserves port and CPU/GPU mode.
+- Duplicate-click and page-reload behavior does not start concurrent repair or
+  install operations.
 - Ambiguous CA candidate selection blocks one-click apply and directs support to
   the manual dry-run path.
 - Setup Wizard resumes and Google Maps validation succeeds after repair.
@@ -526,15 +615,26 @@ Optional validation:
 
 #### Phase 1: Design Spike
 
+- Treat Docker CPU/CUDA TLS repair and restart as the first implementation
+  slice. Podman installer remediation is held until after Gates 1 and 2 unless
+  separately approved.
 - Decide whether the UI calls the helper directly over loopback or the backend
   brokers the helper request.
 - Build a minimal loopback helper proof of concept.
 - Confirm PowerShell listener feasibility without admin URL ACL setup.
 - Define the runtime profile file shape and token handling.
+- Define the shared runtime-profile generation helper and the setup/bootstrap/
+  start/launch call sites that must refresh it.
+- Define the helper lifecycle model that survives launcher exit but terminates
+  through TTL, heartbeat, container-exit detection, or stop cleanup.
 - Define runtime profile identity checks, stale-profile rejection, and
   multi-instance behavior.
 - Decide whether Podman Compose provider remediation belongs in the first slice,
   and whether it is surfaced through launcher preflight, helper API, or both.
+- Define short-lived operation authorization so the durable helper token never
+  reaches frontend code.
+- Define single-operation locking, idempotency keys or operation nonces,
+  timeouts, terminal states, cleanup, and safe retry behavior.
 - Define sanitized Podman provider status states and failure mapping.
 - Define sanitized operation states and the mapping from repair/restart script
   results to those states.
@@ -550,10 +650,13 @@ Exit criteria:
 #### Phase 2: Host Helper MVP
 
 - Add package-local helper script and `.cmd` wrapper.
-- Add runtime profile generation in the launcher path.
+- Add runtime profile generation through the shared launcher helper used by
+  setup/bootstrap/start/launch paths.
 - Add token generation and helper lifecycle management.
 - Add health/runtime-profile endpoint.
 - Add asynchronous repair operation endpoint using existing scripts.
+- Add single-operation locking, duplicate-start idempotency, operation timeout,
+  terminal-state cleanup, and safe retry handling.
 - Optionally add a separate Podman Compose provider preflight and remediation
   operation using the fixed package-local installer command.
 - Add support-safe progress output.
@@ -563,6 +666,13 @@ Exit criteria:
 
 - From a local browser or scripted client, the helper can repair and restart a
   Docker CPU package using the captured runtime profile.
+- The helper can survive launcher/setup process exit during the repair/restart
+  flow and still self-terminate when the package runtime is no longer active.
+- The durable helper token is never exposed to frontend-visible surfaces; only a
+  short-lived operation credential or one-time operation nonce is used when
+  browser-visible code initiates an operation.
+- Concurrent repair/install attempts are rejected or deduplicated through a
+  support-safe operation status.
 - If Podman remediation is included, a scripted client can prove the separate
   operation uses only the fixed installer command, requires confirmation, and
   never accepts caller-supplied installer arguments.
@@ -574,6 +684,9 @@ Exit criteria:
 
 - Extend backend structured provider setup payloads with helper availability.
 - Add Setup Wizard repair button, confirmation, progress, and reconnect states.
+- Preserve structured provider validation failures per provider so repair UI
+  uses the actual failure category and support fields, not only booleans and
+  message text.
 - If Podman provider remediation is included in product UI, add a separate
   runtime-preflight action and confirmation path that is not tied to invalid-key
   or TLS error categories.
@@ -586,6 +699,8 @@ Exit criteria:
   available.
 - Invalid-key, quota, provider-disabled, or network-unavailable failures do not
   show the host repair action.
+- Duplicate-clicks, reloads, and repeated operation starts do not create
+  concurrent host-side operations.
 - Gate 3 passes.
 
 #### Phase 4: Package And Validation
@@ -616,6 +731,10 @@ Exit criteria:
 - The action requires explicit user confirmation before host-side repair begins.
 - The helper runs the validated `TASK-086` repair flow with the captured engine,
   GPU mode, package root, and port.
+- The first user-facing slice repairs and restarts Docker CPU/CUDA package
+  profiles only; Podman provider installation is not product-exposed until the
+  helper transport, security, and Docker reconnect path are proven and
+  separately approved.
 - TowerScout restarts in the same CPU/GPU mode the user originally selected.
 - The UI enters a reconnecting state and resumes provider setup after readiness
   returns.
@@ -631,8 +750,18 @@ Exit criteria:
 - Helper tokens do not appear in readiness output, status output, browser
   console output, DOM attributes, support bundles, helper logs, or task
   evidence.
+- Browser-visible code receives only a short-lived operation credential or
+  one-time operation nonce, and operation credentials are not persisted in
+  logs, support bundles, DOM attributes, readiness/status output, or task
+  evidence.
+- The helper allows only one active host operation per package instance and
+  handles duplicate starts, timeouts, terminal cleanup, and safe retry with
+  sanitized states.
 - Runtime profiles include enough identity to reject stale, expired,
   wrong-package, wrong-container, and ambiguous multi-instance operations.
+- Runtime profile generation is shared by setup/bootstrap/start/launch paths so
+  direct `start.bat` sessions and first-run setup sessions get the same profile
+  freshness and restart metadata.
 - Ambiguous CA candidate selection blocks one-click apply and directs support to
   the manual dry-run path.
 - If the runtime profile uses `engine=podman` and no approved Compose provider
@@ -691,6 +820,43 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-02 - Reviewer Boundary And Security Follow-Up Added
+
+**Objective**: Incorporate reviewer feedback on Task-087's first-slice scope,
+helper lifecycle, token delivery, operation locking, restart request shape,
+runtime-profile generation, and frontend validation-state handling.
+
+**Context**: The reviewer approved the gated helper direction but recommended
+holding Podman Compose provider remediation out of the first user-facing slice
+until the Docker CPU/CUDA helper proof validates the transport, security model,
+and reconnect UX. Local code review confirmed that current setup validation
+already carries structured TLS categories, but Setup Wizard state collapses
+provider validation to booleans, launcher scripts exit after readiness, and
+Podman provider scripts print local paths/version/installer details that must
+not be streamed to browser-visible helper output.
+
+**Decision**: Keep Podman Compose provider remediation in Task-087 as a valid
+later slice, but define Docker CPU/CUDA provider TLS repair and restart as the
+first implementation target. Add explicit design requirements for detached or
+heartbeat-based helper lifecycle, short-lived operation authorization instead
+of frontend exposure to durable helper tokens, one active host operation per
+package instance, fixed `repair_tls_and_restart` confirmation semantics, shared
+runtime-profile generation across setup/bootstrap/start/launch paths, and
+structured provider failure retention in Setup Wizard.
+
+**Execution**: Added a canonical-source note for the active PR branch, a first
+implementation slice boundary, Gate 1 and Gate 2 additions, helper API operation
+lifecycle rules, backend/frontend responsibilities, security/privacy
+requirements, test-plan coverage, phase-plan updates, and acceptance criteria.
+
+**Validation**: `python .agent_work\scripts\validate_agent_work.py`,
+`python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`,
+and `git diff --check -- .agent_work\tasks\active\TASK-087-host-side-tls-repair-control-plane.md`
+passed.
+
+**Next**: Run `.agent_work` validators and `git diff --check`, then ask the
+reviewer to re-review the active PR branch plan before implementation begins.
 
 ### 2026-07-02 - Podman Compose Provider Remediation Scope Added
 
