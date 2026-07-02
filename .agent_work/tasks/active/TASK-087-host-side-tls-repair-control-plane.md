@@ -7,7 +7,7 @@
 **Target Sprint**: Sprint 07
 **Created**: 2026-06-29
 **Owner**: TowerScout release owner / active agent support
-**Depends On**: `TASK-086`; package launcher/runtime profile; provider setup error classification; Docker CPU/CUDA package paths
+**Depends On**: `TASK-086`; package launcher/runtime profile; provider setup error classification; Docker CPU/CUDA package paths; existing Podman Compose provider installer and approved-provider catalog if Podman remediation is included
 
 ## Objective
 
@@ -40,6 +40,14 @@ container cannot inspect the Windows certificate store or control the host
 Docker/Podman runtime by itself. Any one-click UX therefore needs a narrow,
 explicit, host-side control plane launched by the trusted package scripts.
 
+Podman users have a related host-side setup risk: `podman compose version` can
+fail or resolve to an unapproved Compose provider. The existing package already
+contains an approved-provider gate and the
+`scripts\install-podman-compose-provider.cmd -Apply` command, but users still
+have to run that path manually when the Podman runtime profile is otherwise
+selected. If Task-087 includes Podman runtime remediation, it should be treated
+as a separate helper operation, not as part of the TLS repair command itself.
+
 ## Planning Decision
 
 Implement this as a package-local Windows host helper, not as arbitrary command
@@ -55,6 +63,12 @@ The host helper should:
 - Preserve the captured runtime profile when restarting.
 - Emit support-safe status messages without API keys, certificate thumbprints,
   certificate subjects, raw provider responses, or environment dumps.
+
+The same helper framework may also expose a Podman Compose provider preflight
+and remediation operation. That operation must be separate from provider TLS
+repair, limited to captured `engine=podman` runtime profiles, and require
+explicit user confirmation before running the existing package-local installer.
+It must not silently install a Compose provider as a side effect of TLS repair.
 
 ## Recommended Release Position
 
@@ -80,6 +94,8 @@ Proceed only if a package-local helper can:
   token and origin checks.
 - Survive the TowerScout container stop/start sequence.
 - Launch package-local scripts reliably.
+- Inspect Podman Compose provider status through the existing approved-provider
+  checks when the captured runtime profile uses `engine=podman`.
 - Exit cleanly when the package runtime exits.
 - Work on the intended managed-network Windows validation environment.
 
@@ -92,6 +108,12 @@ Proceed only if tests and review prove:
   extra arguments are rejected.
 - Process invocations use validated argument arrays, not caller-supplied command
   strings.
+- Podman provider remediation, if included, never accepts provider ids,
+  install directories, Python paths, force flags, command paths, or extra
+  arguments from the browser.
+- The helper never changes `PODMAN_COMPOSE_PROVIDER` or installs a Compose
+  provider without explicit user confirmation for a separate Podman remediation
+  operation.
 - Helper tokens are never written to readiness output, status output, logs,
   support bundles, browser console output, or DOM attributes.
 - Helper progress is emitted as sanitized operation states, not raw subprocess
@@ -107,6 +129,12 @@ Proceed only if frontend/backend tests prove:
 - Setup Wizard preserves structured validation details end-to-end, including
   `category`, `provider`, `repairable`, `support_action`, `repair_command`, and
   `helper_available`.
+- Podman Compose provider remediation, if exposed in product UI or launcher UI,
+  appears only for captured `engine=podman` runtime profiles and
+  missing/unapproved/multiple-provider states.
+- Podman Compose provider remediation is not shown for Docker runs, invalid
+  provider keys, quota failures, provider-disabled failures, or generic
+  provider HTTP failures.
 - Helper-unavailable is treated as a normal fallback path, not a broken setup
   state.
 
@@ -117,10 +145,14 @@ confirms:
 
 - The guided button path works.
 - The documented command fallback still works.
+- If Podman remediation is included, the package validates the approved
+  provider check, user-confirmed installer path, sanitized failure states, and
+  manual fallback instructions on a Podman-assigned validation host.
 - CPU and CUDA package variants include helper artifacts.
 - CPU and CUDA package variants exclude helper token files, runtime profiles,
-  helper logs unless explicitly support-safe, `.env`, TLS bundle material, and
-  local certificate exports.
+  helper logs unless explicitly support-safe, `.env`, `.env.backup.*`, TLS
+  bundle material, local certificate exports, and Podman provider install
+  caches unless intentionally packaged.
 
 ## Non-Goals
 
@@ -134,6 +166,12 @@ confirms:
 - Do not move provider validation to the host as the primary product path.
 - Do not require an admin-installed Windows service for the first slice unless
   the loopback helper proof of concept fails.
+- Do not silently install or reconfigure a Podman Compose provider.
+- Do not let the browser choose a Podman provider id, install directory, Python
+  executable, force flag, provider path, command path, or installer arguments.
+- Do not treat a successful Podman Compose provider install as proof that the
+  Podman machine, GPU CDI path, image pull path, or managed-network access is
+  otherwise ready.
 - Do not record raw certificate subjects, raw thumbprints, API keys, or provider
   response bodies in task docs, user-visible UI, support bundles, or package
   evidence.
@@ -163,6 +201,25 @@ confirms:
 11. Setup Wizard resumes and revalidates the provider key without presenting the
     TLS failure as an invalid key.
 
+Optional Podman Compose provider remediation flow:
+
+1. User starts TowerScout with a captured `engine=podman` runtime profile, or
+   support selects the Podman runtime path before launch.
+2. The launcher/helper checks the existing approved-provider rules:
+   `PODMAN_COMPOSE_PROVIDER`, approved providers on `PATH`, and
+   `podman compose version` output.
+3. If no approved provider is present, multiple approved providers are present,
+   or the resolved provider is disallowed, the helper reports a sanitized
+   Podman provider status and keeps the manual command fallback visible.
+4. User explicitly confirms installing the package-local approved provider.
+5. The helper runs only `.\scripts\install-podman-compose-provider.cmd -Apply`
+   with no browser-supplied installer arguments.
+6. The helper reports sanitized operation states and, on success, reruns the
+   provider check before any Podman restart attempt.
+7. If installation fails because Python, download access, hash validation, or
+   environment policy blocks the installer, the helper shows support-safe
+   fallback guidance instead of raw installer output.
+
 ## Architecture Plan
 
 ### 1. Runtime Profile Capture
@@ -176,6 +233,9 @@ profile should contain only support-safe, non-secret values:
 - Package root path.
 - Package flavor: CPU or CUDA 12.1.
 - Compose project name if needed to target the active container.
+- Podman Compose provider status when `engine=podman`: `approved`, `missing`,
+  `unapproved`, `multiple`, or `unknown`, plus a support-safe provider label
+  when one can be shown without exposing full local paths.
 - Image tag/digest or package manifest identity when available.
 - Host helper port and token location, with the token stored outside logs.
 - Helper session id and runtime profile creation timestamp.
@@ -235,10 +295,22 @@ Expose only narrow, allowlisted operations:
   - Returns engine, GPU mode, package flavor, port, and package/image identity.
   - Must not return provider keys, environment dumps, certificate subjects, or
     thumbprints.
+- `GET /runtime-preflight`
+  - Returns sanitized host-runtime readiness for the captured profile.
+  - For Podman, includes approved Compose provider status without raw
+    `podman compose version` output or full local provider paths.
 - `POST /operations/provider-tls-repair`
   - Accepts a validated provider enum such as `google` or `azure`.
   - Optionally accepts `restart: true`.
   - Creates an operation id and starts the repair asynchronously.
+- `POST /operations/podman-compose-provider-repair`
+  - Available only when the captured runtime profile uses `engine=podman`.
+  - Accepts only an explicit confirmation boolean or equivalent CSRF-safe
+    acknowledgement.
+  - Runs the fixed package-local installer command
+    `scripts\install-podman-compose-provider.cmd -Apply`.
+  - Must not accept provider id, install path, Python path, force flag,
+    provider path, command path, or arbitrary arguments from the caller.
 - `GET /operations/{operation_id}`
   - Returns sanitized progress, terminal status, and support-safe next action.
 
@@ -249,6 +321,8 @@ The helper must reject:
 - Unexpected ports or package roots.
 - Caller-supplied command paths.
 - Caller-supplied arbitrary arguments.
+- Caller-supplied Podman provider ids, install roots, Python executables, force
+  flags, provider paths, or installer arguments.
 - Non-loopback requests.
 - Requests without the one-time token.
 - Requests from unexpected origins.
@@ -271,6 +345,15 @@ runtime profile, not from the browser request. It should preserve the user's
 original CPU/CUDA package intent and respect the existing CPU-package
 `-Gpu on` guardrail.
 
+When `<engine>` is `podman`, the helper should run the approved Compose
+provider preflight before stopping the current app or attempting restart. If
+the provider is missing, unapproved, ambiguous, or `podman compose version`
+does not complete, the TLS repair operation should block with a sanitized
+Podman-provider-required state and offer the separate Podman remediation path
+or the manual command fallback. It should not stop a running TowerScout
+container when the captured restart path is likely to fail because the Compose
+provider is not approved.
+
 Restart progress should distinguish:
 
 - Certificate candidate selection failed.
@@ -290,7 +373,36 @@ states such as `inspecting_certificate_chain`, `ca_candidate_selected`,
 `ca_candidate_ambiguous`, `importing_bundle`, `provider_tls_verified`,
 `restarting`, `readiness_waiting`, `ready`, and `failed`.
 
-### 5. Backend And Setup Wizard Integration
+### 5. Podman Compose Provider Preflight And Remediation
+
+If included, Podman Compose provider remediation should reuse the current
+approved-provider implementation rather than inventing a second validation
+model:
+
+- Use the same approved-provider catalog that backs
+  `scripts\install-podman-compose-provider.cmd`.
+- Reuse the existing checks for `PODMAN_COMPOSE_PROVIDER`, approved providers
+  on `PATH`, Docker Desktop provider rejection, and
+  `podman compose version` inspection.
+- Treat `missing`, `unapproved`, `multiple`, `version_failed`, and
+  `install_failed` as support-safe states.
+- Run only `scripts\install-podman-compose-provider.cmd -Apply` after explicit
+  confirmation.
+- Recheck provider status after install before continuing.
+- Redact or omit full local provider paths, Python paths, install directories,
+  `.env` backup paths, download URLs, and raw installer output from browser UI
+  and task evidence.
+- Preserve the manual command fallback:
+
+```powershell
+.\scripts\install-podman-compose-provider.cmd -Apply
+```
+
+This operation is host-runtime remediation, not provider-key validation and
+not TLS certificate repair. It should be safe to skip without weakening the
+validated `TASK-086` command fallback.
+
+### 6. Backend And Setup Wizard Integration
 
 Extend the existing structured provider validation error path from `TASK-086`.
 
@@ -309,7 +421,13 @@ Frontend responsibilities:
 
 - Show the repair button only when the error category is repairable TLS and the
   helper is available.
+- Show any Podman Compose provider remediation action only when the captured
+  runtime profile is `engine=podman` and the helper reports a provider
+  readiness state that is explicitly repairable by the package-local installer.
 - Show a confirmation modal before starting host repair/restart.
+- Use a separate confirmation modal for Podman provider installation because it
+  downloads an approved package, creates a package-local environment, backs up
+  `.env`, and updates `PODMAN_COMPOSE_PROVIDER`.
 - Display progress from helper operation polling.
 - Move to a reconnecting state during restart.
 - Poll TowerScout readiness after restart and resume the provider setup flow.
@@ -318,7 +436,7 @@ Frontend responsibilities:
 - Treat helper-unavailable as a normal support fallback, not as a broken setup
   state.
 
-### 6. Security And Privacy Requirements
+### 7. Security And Privacy Requirements
 
 This task changes the trust boundary because a browser-facing UI will initiate a
 host-side runtime operation. Treat that as the central design constraint.
@@ -330,10 +448,14 @@ Requirements:
 - Use strict CORS/origin checks limited to the current TowerScout localhost
   origin.
 - Require explicit user confirmation before repair/restart.
+- Require explicit user confirmation before Podman provider installation or
+  `PODMAN_COMPOSE_PROVIDER` changes.
 - Validate all request inputs as enums or booleans.
 - Build process invocations with argument arrays, not string-concatenated shell
   commands.
 - Never accept command text, script paths, or arbitrary arguments from the UI.
+- Never accept installer options, provider paths, Python paths, install
+  directories, or `-Force` from the UI.
 - Never expose the helper token in readiness output, status output, logs,
   support bundles, browser console output, DOM attributes, or task evidence.
 - Never expose raw helper subprocess output in the browser UI.
@@ -341,9 +463,11 @@ Requirements:
   thumbprints, environment variables, and raw HTTP responses from helper logs.
 - Keep helper logs package-local and support-safe.
 - Ensure support bundles and release packages do not include helper token files,
-  local runtime profiles, `.env`, or TLS bundle material.
+  local runtime profiles, `.env`, `.env.backup.*`, TLS bundle material, or
+  generated Podman provider install caches unless those caches are deliberately
+  included as release artifacts.
 
-### 7. Test Plan
+### 8. Test Plan
 
 Automated coverage:
 
@@ -351,7 +475,13 @@ Automated coverage:
 - Unit tests for stale, expired, wrong-package, and multi-instance runtime
   profile rejection.
 - Unit tests for provider/engine/GPU enum validation.
+- Unit tests for Podman Compose provider preflight states if that operation is
+  included: approved, missing, unapproved, multiple, version failed, and
+  install failed.
 - Unit tests proving the helper never exposes arbitrary command execution.
+- Unit tests proving the Podman provider operation cannot receive provider id,
+  install directory, Python path, force flag, command path, or arbitrary args
+  from browser input.
 - Unit tests for sanitized progress and failure messages.
 - Unit tests proving helper tokens are not emitted into status/readiness/log/UI
   surfaces.
@@ -360,6 +490,9 @@ Automated coverage:
   and reconnect states.
 - Package-generation tests confirming helper scripts are included and runtime
   profile/token artifacts are excluded.
+- Package-generation tests confirming `.env`, `.env.backup.*`, runtime
+  profiles, helper tokens, helper logs, and generated Podman provider install
+  caches are excluded unless explicitly intended.
 - Secret-safety tests or assertions covering API-key and certificate redaction.
 
 Manual validation:
@@ -373,6 +506,11 @@ Manual validation:
 - Ambiguous CA candidate selection blocks one-click apply and directs support to
   the manual dry-run path.
 - Setup Wizard resumes and Google Maps validation succeeds after repair.
+- If included, Podman Compose provider remediation succeeds only after explicit
+  confirmation and the helper revalidates `podman compose version` through an
+  approved provider before restart.
+- If included, Podman provider install failure due to Python, download access,
+  hash verification, or policy restrictions returns sanitized fallback guidance.
 - Logs and support artifacts contain no API keys, certificate subjects, raw
   thumbprints, or helper tokens.
 - Multi-instance behavior is explicitly tested or blocked with a clear
@@ -380,10 +518,11 @@ Manual validation:
 
 Optional validation:
 
-- Podman CPU path if selected for the same release train.
+- Podman CPU path if selected for the same release train, including approved
+  Compose provider check/remediation when that scope is included.
 - Multi-instance behavior when another TowerScout package is already running.
 
-### 8. Implementation Phases
+### 9. Implementation Phases
 
 #### Phase 1: Design Spike
 
@@ -394,6 +533,9 @@ Optional validation:
 - Define the runtime profile file shape and token handling.
 - Define runtime profile identity checks, stale-profile rejection, and
   multi-instance behavior.
+- Decide whether Podman Compose provider remediation belongs in the first slice,
+  and whether it is surfaced through launcher preflight, helper API, or both.
+- Define sanitized Podman provider status states and failure mapping.
 - Define sanitized operation states and the mapping from repair/restart script
   results to those states.
 - Document the security model and rejection cases before product integration.
@@ -412,6 +554,8 @@ Exit criteria:
 - Add token generation and helper lifecycle management.
 - Add health/runtime-profile endpoint.
 - Add asynchronous repair operation endpoint using existing scripts.
+- Optionally add a separate Podman Compose provider preflight and remediation
+  operation using the fixed package-local installer command.
 - Add support-safe progress output.
 - Add stale-profile, wrong-package, and multi-instance rejection.
 
@@ -419,6 +563,9 @@ Exit criteria:
 
 - From a local browser or scripted client, the helper can repair and restart a
   Docker CPU package using the captured runtime profile.
+- If Podman remediation is included, a scripted client can prove the separate
+  operation uses only the fixed installer command, requires confirmation, and
+  never accepts caller-supplied installer arguments.
 - No arbitrary command execution surface exists.
 - Helper progress is sanitized and helper tokens are absent from observable
   output surfaces.
@@ -427,6 +574,9 @@ Exit criteria:
 
 - Extend backend structured provider setup payloads with helper availability.
 - Add Setup Wizard repair button, confirmation, progress, and reconnect states.
+- If Podman provider remediation is included in product UI, add a separate
+  runtime-preflight action and confirmation path that is not tied to invalid-key
+  or TLS error categories.
 - Preserve the manual command fallback in all failure/unavailable cases.
 - Add frontend/backend tests for structured behavior.
 
@@ -442,6 +592,8 @@ Exit criteria:
 
 - Include helper artifacts in CPU and CUDA packages.
 - Exclude runtime profile/token/log artifacts from source and release packages.
+- Exclude `.env`, `.env.backup.*`, generated Podman provider caches, and raw
+  installer logs from source and release packages unless deliberately included.
 - Build an internal validation package before any user-facing package
   inclusion.
 - Validate on a managed TLS-inspected network.
@@ -450,6 +602,8 @@ Exit criteria:
 Exit criteria:
 
 - CPU and CUDA package variants include the helper.
+- Podman-assigned validation proves the approved-provider check and separate
+  installer path if Podman remediation is included.
 - Managed-network validation proves the button path and fallback command path.
 - Task evidence records sanitized outcomes only.
 - Gate 4 passes.
@@ -481,6 +635,17 @@ Exit criteria:
   wrong-package, wrong-container, and ambiguous multi-instance operations.
 - Ambiguous CA candidate selection blocks one-click apply and directs support to
   the manual dry-run path.
+- If the runtime profile uses `engine=podman` and no approved Compose provider
+  is available, the helper blocks guided restart with a sanitized Podman
+  provider-required state rather than stopping the current runtime.
+- If Podman Compose provider remediation is included, it requires explicit user
+  confirmation, runs only `scripts\install-podman-compose-provider.cmd -Apply`,
+  and revalidates the approved provider before restart.
+- Podman Compose provider remediation is never run automatically as a side
+  effect of provider TLS repair.
+- Browser input cannot select Podman provider ids, install directories, Python
+  executables, force flags, command paths, provider paths, or arbitrary
+  installer arguments.
 - CPU and CUDA package variants pass package-generation checks and managed
   network validation, or the release notes clearly state any package-variant
   validation boundary.
@@ -498,6 +663,12 @@ Exit criteria:
   different ports?
 - Should Podman support be included in the first implementation slice or held as
   a follow-up after Docker CPU/CUDA validation?
+- If Podman support is included, should Compose provider remediation be exposed
+  through the launcher before the app starts, through the loopback helper after
+  the app starts, or both?
+- Should the first Podman remediation slice run the connected installer, or only
+  surface preflight status and manual instructions until managed-network
+  download/proxy behavior is validated?
 
 ## Risks
 
@@ -511,8 +682,47 @@ Exit criteria:
   runtime profile identity is weak.
 - Over-automating repair could make certificate trust changes feel opaque to
   users; confirmation and fallback documentation are required.
+- Mixing Podman provider installation with TLS repair could obscure the actual
+  failure if the helper does not keep those operations separate.
+- The Podman provider installer depends on Python and connected package
+  download/hash verification, so managed-network or restricted-network policy
+  can block the remediation even when TLS repair would otherwise work.
+- Podman provider paths, Python paths, `.env` backup paths, and installer output
+  can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-02 - Podman Compose Provider Remediation Scope Added
+
+**Objective**: Incorporate the proposed Podman Compose provider check and
+installer path into the Task-087 design before reviewer feedback.
+
+**Context**: The package already validates Podman Compose provider selection and
+includes `scripts\install-podman-compose-provider.cmd -Apply` for connected
+support/setup use. The new host helper framework could reduce Podman support
+friction, but the provider installer changes `.env`, creates a package-local
+provider environment, and may require network/Python access. It should not be
+hidden inside TLS repair.
+
+**Decision**: Treat Podman Compose provider remediation as an optional,
+separately confirmed runtime-preflight operation within the Task-087 helper
+framework. Keep provider TLS repair and Podman provider installation separate,
+derive all runtime context from the trusted launcher profile, and reject all
+browser-supplied installer arguments.
+
+**Execution**: Updated the Task-087 problem statement, gates, helper API,
+runtime profile, restart orchestration, security requirements, test plan,
+acceptance criteria, open questions, and risks to include the optional Podman
+Compose provider remediation path.
+
+**Validation**: `python .agent_work\scripts\validate_agent_work.py`,
+`python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`,
+and `git diff --check -- .agent_work\tasks\active\TASK-087-host-side-tls-repair-control-plane.md`
+passed.
+
+**Next**: Ask the reviewer to assess whether Podman Compose provider
+remediation should be included in the first Task-087 implementation slice or
+held behind the Docker CPU/CUDA helper proof.
 
 ### 2026-07-02 - Selected For Sprint 7
 
