@@ -32,6 +32,41 @@ function Get-TowerScoutHostHelperObjectValue {
     return [string] $InputObject.PSObject.Properties[$Name].Value
 }
 
+function Set-TowerScoutHostHelperObjectValue {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $InputObject,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Name,
+
+        [object] $Value
+    )
+
+    $InputObject | Add-Member -NotePropertyName $Name -NotePropertyValue $Value -Force
+}
+
+function New-TowerScoutHostHelperSessionId {
+    return [guid]::NewGuid().ToString("N")
+}
+
+function Resolve-TowerScoutHostHelperSessionId {
+    param(
+        [string] $SessionId = ""
+    )
+
+    if ([string]::IsNullOrWhiteSpace($SessionId)) {
+        return New-TowerScoutHostHelperSessionId
+    }
+
+    $normalized = $SessionId.Trim().ToLowerInvariant()
+    if ($normalized -notmatch "^[a-f0-9]{32}$") {
+        throw "HelperSessionId must be a 32-character hexadecimal value."
+    }
+
+    return $normalized
+}
+
 function Get-TowerScoutHostHelperPackageRootIdentity {
     param(
         [Parameter(Mandatory = $true)]
@@ -63,18 +98,72 @@ function Get-TowerScoutHostHelperStateDirectory {
     return (Join-Path $resolvedRoot ".towerscout-runtime\host-helper")
 }
 
+function Save-TowerScoutHostHelperLaunchProfile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("docker", "podman")]
+        [string] $Engine,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("off", "auto", "on")]
+        [string] $Gpu,
+
+        [Parameter(Mandatory = $true)]
+        [int] $AppPort,
+
+        [string] $RootPath = $(Resolve-Path (Join-Path $PSScriptRoot "..\..")),
+
+        [string] $PackageFlavor = "source"
+    )
+
+    if ($AppPort -lt 1 -or $AppPort -gt 65535) {
+        throw "AppPort must be between 1 and 65535."
+    }
+
+    $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
+    $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $resolvedRoot
+    New-Item -ItemType Directory -Path $stateDirectory -Force | Out-Null
+
+    $profilePath = Join-Path $stateDirectory "launch-profile.json"
+    $launchProfile = [pscustomobject]@{
+        helper_version = $script:TowerScoutHostHelperVersion
+        created_at_utc = (Get-Date).ToUniversalTime().ToString("o")
+        engine = $Engine
+        gpu = $Gpu
+        app_port = $AppPort
+        base_url = "http://localhost:$AppPort"
+        package_flavor = $PackageFlavor
+        package_root_identity = Get-TowerScoutHostHelperPackageRootIdentity -PackageRoot $resolvedRoot
+        state = "profile_captured"
+    }
+
+    $launchProfile | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $profilePath -Encoding ASCII
+    return $profilePath
+}
+
 function Save-TowerScoutHostHelperSession {
     param(
         [Parameter(Mandatory = $true)]
         [object] $Profile,
 
-        [string] $RootPath = $(Resolve-Path (Join-Path $PSScriptRoot "..\.."))
+        [string] $RootPath = $(Resolve-Path (Join-Path $PSScriptRoot "..\..")),
+
+        [string] $Token = ""
     )
 
     $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $RootPath
     New-Item -ItemType Directory -Path $stateDirectory -Force | Out-Null
 
     $sessionPath = Join-Path $stateDirectory ("session-{0}.json" -f $Profile.HelperSessionId)
+    $tokenFileName = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "TokenFileName"
+    if (-not [string]::IsNullOrWhiteSpace($Token)) {
+        $tokenFileName = "token-{0}.secret" -f $Profile.HelperSessionId
+        $tokenPath = Join-Path $stateDirectory $tokenFileName
+        Set-Content -LiteralPath $tokenPath -Value $Token -Encoding ASCII -NoNewline
+        Set-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "TokenFileName" -Value $tokenFileName
+        Set-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "TokenPath" -Value $tokenPath
+    }
+
     $session = [pscustomobject]@{
         helper_version = [string] $Profile.HelperVersion
         helper_session_id = [string] $Profile.HelperSessionId
@@ -82,8 +171,10 @@ function Save-TowerScoutHostHelperSession {
         engine = [string] $Profile.Engine
         gpu = [string] $Profile.Gpu
         app_port = [int] $Profile.AppPort
+        helper_port = [int] $Profile.HelperPort
         package_flavor = [string] $Profile.PackageFlavor
         package_root_identity = Get-TowerScoutHostHelperPackageRootIdentity -PackageRoot $Profile.PackageRoot
+        token_file = $tokenFileName
         state = "active"
     }
 
@@ -107,14 +198,18 @@ function Clear-TowerScoutHostHelperSession {
         }
     }
 
-    $filter = if ([string]::IsNullOrWhiteSpace($SessionId)) { "session-*.json" } else { "session-$SessionId.json" }
-    $files = @(Get-ChildItem -LiteralPath $stateDirectory -Filter $filter -File -ErrorAction SilentlyContinue)
-    foreach ($file in $files) {
+    $normalizedSessionId = if ([string]::IsNullOrWhiteSpace($SessionId)) { "" } else { Resolve-TowerScoutHostHelperSessionId -SessionId $SessionId }
+    $sessionFilter = if ([string]::IsNullOrWhiteSpace($normalizedSessionId)) { "session-*.json" } else { "session-$normalizedSessionId.json" }
+    $tokenFilter = if ([string]::IsNullOrWhiteSpace($normalizedSessionId)) { "token-*.secret" } else { "token-$normalizedSessionId.secret" }
+    $sessionFiles = @(Get-ChildItem -LiteralPath $stateDirectory -Filter $sessionFilter -File -ErrorAction SilentlyContinue)
+    $tokenFiles = @(Get-ChildItem -LiteralPath $stateDirectory -Filter $tokenFilter -File -ErrorAction SilentlyContinue)
+    foreach ($file in @($sessionFiles + $tokenFiles)) {
         Remove-Item -LiteralPath $file.FullName -Force -ErrorAction SilentlyContinue
     }
 
     return [pscustomobject]@{
-        cleared = $files.Count
+        cleared = $sessionFiles.Count
+        token_files_cleared = $tokenFiles.Count
         state = "invalidated"
     }
 }
@@ -152,7 +247,9 @@ function New-TowerScoutHostHelperRuntimeProfile {
 
         [string[]] $AllowedOrigins = @(),
 
-        [int] $HelperPort = 0
+        [int] $HelperPort = 0,
+
+        [string] $HelperSessionId = ""
     )
 
     if ($AppPort -lt 1 -or $AppPort -gt 65535) {
@@ -169,10 +266,11 @@ function New-TowerScoutHostHelperRuntimeProfile {
             "http://127.0.0.1:$AppPort"
         )
     }
+    $resolvedSessionId = Resolve-TowerScoutHostHelperSessionId -SessionId $HelperSessionId
 
     return [pscustomobject]@{
         HelperVersion = $script:TowerScoutHostHelperVersion
-        HelperSessionId = [guid]::NewGuid().ToString("N")
+        HelperSessionId = $resolvedSessionId
         CreatedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
         Engine = $Engine
         Gpu = $Gpu
@@ -472,14 +570,18 @@ function Start-TowerScoutHostHelper {
     $handled = 0
     try {
         $listener.Start()
-        if ($MaxRequests -eq 0) {
-            while ($true) {
-                $client = $listener.AcceptTcpClient()
-                Invoke-TowerScoutHostHelperRequest -Client $client -Profile $Profile -Token $Token
-            }
+        $boundPort = ([System.Net.IPEndPoint] $listener.LocalEndpoint).Port
+        Set-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "HelperPort" -Value $boundPort
+        if (-not [string]::IsNullOrWhiteSpace((Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "SessionPath"))) {
+            Save-TowerScoutHostHelperSession -Profile $Profile | Out-Null
         }
 
-        while ($handled -lt $MaxRequests) {
+        while (($MaxRequests -eq 0 -or $handled -lt $MaxRequests) -and (Test-TowerScoutHostHelperSessionActive -Profile $Profile)) {
+            if (-not $listener.Pending()) {
+                Start-Sleep -Milliseconds 200
+                continue
+            }
+
             $client = $listener.AcceptTcpClient()
             Invoke-TowerScoutHostHelperRequest -Client $client -Profile $Profile -Token $Token
             $handled += 1
@@ -578,6 +680,15 @@ function Invoke-TowerScoutHostHelperSelfTest {
         -Gpu "off" `
         -AppPort 5000 `
         -PackageFlavor "self-test"
+    $invalidatedProfile = New-TowerScoutHostHelperRuntimeProfile `
+        -Engine "docker" `
+        -Gpu "off" `
+        -AppPort 5000 `
+        -PackageFlavor "self-test"
+    Set-TowerScoutHostHelperObjectValue `
+        -InputObject $invalidatedProfile `
+        -Name "SessionPath" `
+        -Value (Join-Path (Get-TowerScoutHostHelperStateDirectory) "missing-session.json")
 
     $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Parse("127.0.0.1"), 0)
     $listener.Start()
@@ -607,6 +718,11 @@ function Invoke-TowerScoutHostHelperSelfTest {
                 Scenario = "cors_preflight"
                 Response = (Invoke-TowerScoutHostHelperSelfTestRequest -Listener $listener -Profile $profile -ServerToken $token -Method "OPTIONS")
                 Expected = 200
+            },
+            [pscustomobject]@{
+                Scenario = "invalidated_session"
+                Response = (Invoke-TowerScoutHostHelperSelfTestRequest -Listener $listener -Profile $invalidatedProfile -ServerToken $token -RequestToken $token)
+                Expected = 410
             }
         )
     }

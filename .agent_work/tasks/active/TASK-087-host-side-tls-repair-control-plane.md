@@ -875,6 +875,73 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Launch Profile Capture And Endpoint Protection Finding
+
+**Objective**: Continue Gate 1 by double-checking the initial helper proof,
+adding shared launcher runtime-profile capture, and testing whether a detached
+PowerShell helper path is viable.
+
+**Context**: The first helper proof validated loopback binding, origin/token
+checks, endpoint allowlisting, sanitized responses, and basic session
+invalidation. The next Gate 1 question was whether the PowerShell helper could
+move toward launcher-exit survival without weakening the security model or
+leaving stale helper sessions behind.
+
+**Decision**: Keep support-safe launch-profile capture and invalidated-session
+handling, but do not keep the hidden detached PowerShell process attempt. During
+double-check validation, the local endpoint protection/AMSI path blocked the
+helper library when the detached helper implementation embedded a hidden
+PowerShell child-process launch. That is a valid Gate 1 feasibility finding, so
+the AV-triggering detached code was removed before committing. Detached
+lifecycle remains open and should be redesigned rather than forced through a
+pattern endpoint protection rejects.
+
+**Execution**: Added `Save-TowerScoutHostHelperLaunchProfile` and called it from
+`scripts\launch.ps1` after the effective engine and port are known, so
+setup/bootstrap/start/launch paths refresh a shared package-local runtime
+profile through the launcher. The profile records only support-safe metadata:
+engine, GPU mode, app port/base URL, package flavor, helper version, timestamp,
+and package-root identity hash. Added helper-session ID validation, package-local
+token-file cleanup, helper-port refresh in session metadata, and listener-loop
+session checks so invalidated sessions return `session_invalidated` and the
+listener can exit once the session is cleared. Added an `invalidated_session`
+self-test scenario.
+
+**Phase 1 Evidence - 2026-07-02 - Launch Profile And Invalidation Handling**
+
+**Gate**: Gate 1 Helper Transport Proof / Gate 2 Security Proof
+**Environment**: Windows source/package-like script context, Docker CPU profile
+shape, public-safe self-test labels only
+**Objective**: Validate launcher runtime-profile capture, token/session cleanup,
+invalidated-session response handling, and endpoint-protection feasibility for
+the proposed detached PowerShell lifecycle.
+**Command Category**: runtime profile capture / helper start / origin-token
+check / stop cleanup / endpoint protection feasibility
+**Inputs**: `engine=docker`, `gpu=off`, sanitized self-test runtime profile,
+launch-profile metadata, session cleanup metadata
+**Observed States**: `profile_captured`, `ready`, `rejected_token`,
+`rejected_origin`, `rejected_unknown_endpoint`, `cors_preflight_ok`,
+`session_invalidated`, `blocked_by_endpoint_protection`
+**Result**: PARTIAL
+**Redaction Check**: No helper tokens, helper listener ports, local paths,
+provider keys, certificate details, raw subprocess output, `.env` values, or
+support logs were recorded.
+**Follow-Up**: Redesign helper launch/lifecycle without the rejected hidden
+PowerShell child-process pattern. Candidate follow-ups include a safer
+package-local supervisor pattern, a small native helper proof, or another
+endpoint-policy-approved process model before product UI integration.
+
+**Validation**: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+scripts\host-helper.ps1 -SelfTest`, `powershell.exe -NoProfile -ExecutionPolicy
+Bypass -File scripts\host-helper.ps1 -Stop`, focused launch-profile and
+session/token cleanup checks, `python .agent_work\scripts\validate_agent_work.py`,
+and `git diff --check` passed after removing the AV-triggering detached process
+attempt.
+
+**Next**: Continue Gate 1 with lifecycle design alternatives that can survive
+launcher exit without triggering endpoint protection, then prove package-local
+script invocation only after the lifecycle model is accepted.
+
 ### 2026-07-02 - Helper Session Invalidation Scaffold Added
 
 **Objective**: Add the first package-local helper session invalidation path so

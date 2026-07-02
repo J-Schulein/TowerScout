@@ -13,6 +13,8 @@ param(
 
     [string] $PackageFlavor = "source",
 
+    [string] $HelperSessionId = "",
+
     [switch] $SelfTest,
 
     [switch] $Stop
@@ -38,11 +40,12 @@ $profile = New-TowerScoutHostHelperRuntimeProfile `
     -Gpu $Gpu `
     -AppPort $AppPort `
     -PackageFlavor $PackageFlavor `
-    -HelperPort $HelperPort
-$sessionPath = Save-TowerScoutHostHelperSession -Profile $profile
+    -HelperPort $HelperPort `
+    -HelperSessionId $HelperSessionId
+Save-TowerScoutHostHelperSession -Profile $profile -Token $token | Out-Null
 
 Write-Host "TowerScout host helper proof is starting on loopback only."
-Write-Host "Helper token generated and retained in process memory only."
+Write-Host "Helper token generated and stored in the package-local helper secret file."
 Write-Host "Helper session metadata recorded without token material."
 Write-Host "This Gate 1 entry point is not yet wired into product UI or restart orchestration."
 try {
