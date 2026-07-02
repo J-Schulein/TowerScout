@@ -15,6 +15,124 @@ function New-TowerScoutHostHelperToken {
     return ([Convert]::ToBase64String($bytes).TrimEnd("=") -replace "\+", "-" -replace "/", "_")
 }
 
+function Get-TowerScoutHostHelperObjectValue {
+    param(
+        [object] $InputObject,
+
+        [string] $Name
+    )
+
+    if ($null -eq $InputObject) {
+        return ""
+    }
+    if ($InputObject.PSObject.Properties.Name -notcontains $Name) {
+        return ""
+    }
+
+    return [string] $InputObject.PSObject.Properties[$Name].Value
+}
+
+function Get-TowerScoutHostHelperPackageRootIdentity {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $PackageRoot
+    )
+
+    $normalizedRoot = ([System.IO.Path]::GetFullPath($PackageRoot)).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    ).ToLowerInvariant()
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($normalizedRoot)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $sha256.ComputeHash($bytes)
+    }
+    finally {
+        $sha256.Dispose()
+    }
+
+    return (($hashBytes | ForEach-Object { $_.ToString("x2") }) -join "").Substring(0, 16)
+}
+
+function Get-TowerScoutHostHelperStateDirectory {
+    param(
+        [string] $RootPath = $(Resolve-Path (Join-Path $PSScriptRoot "..\.."))
+    )
+
+    $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
+    return (Join-Path $resolvedRoot ".towerscout-runtime\host-helper")
+}
+
+function Save-TowerScoutHostHelperSession {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [string] $RootPath = $(Resolve-Path (Join-Path $PSScriptRoot "..\.."))
+    )
+
+    $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $RootPath
+    New-Item -ItemType Directory -Path $stateDirectory -Force | Out-Null
+
+    $sessionPath = Join-Path $stateDirectory ("session-{0}.json" -f $Profile.HelperSessionId)
+    $session = [pscustomobject]@{
+        helper_version = [string] $Profile.HelperVersion
+        helper_session_id = [string] $Profile.HelperSessionId
+        created_at_utc = [string] $Profile.CreatedAtUtc
+        engine = [string] $Profile.Engine
+        gpu = [string] $Profile.Gpu
+        app_port = [int] $Profile.AppPort
+        package_flavor = [string] $Profile.PackageFlavor
+        package_root_identity = Get-TowerScoutHostHelperPackageRootIdentity -PackageRoot $Profile.PackageRoot
+        state = "active"
+    }
+
+    $session | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $sessionPath -Encoding ASCII
+    $Profile | Add-Member -NotePropertyName "SessionPath" -NotePropertyValue $sessionPath -Force
+    return $sessionPath
+}
+
+function Clear-TowerScoutHostHelperSession {
+    param(
+        [string] $RootPath = $(Resolve-Path (Join-Path $PSScriptRoot "..\..")),
+
+        [string] $SessionId = ""
+    )
+
+    $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $RootPath
+    if (-not (Test-Path -LiteralPath $stateDirectory -PathType Container)) {
+        return [pscustomobject]@{
+            cleared = 0
+            state = "no_sessions"
+        }
+    }
+
+    $filter = if ([string]::IsNullOrWhiteSpace($SessionId)) { "session-*.json" } else { "session-$SessionId.json" }
+    $files = @(Get-ChildItem -LiteralPath $stateDirectory -Filter $filter -File -ErrorAction SilentlyContinue)
+    foreach ($file in $files) {
+        Remove-Item -LiteralPath $file.FullName -Force -ErrorAction SilentlyContinue
+    }
+
+    return [pscustomobject]@{
+        cleared = $files.Count
+        state = "invalidated"
+    }
+}
+
+function Test-TowerScoutHostHelperSessionActive {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile
+    )
+
+    $sessionPath = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "SessionPath"
+    if ([string]::IsNullOrWhiteSpace($sessionPath)) {
+        return $true
+    }
+
+    return (Test-Path -LiteralPath $sessionPath -PathType Leaf)
+}
+
 function New-TowerScoutHostHelperRuntimeProfile {
     param(
         [Parameter(Mandatory = $true)]
@@ -241,6 +359,16 @@ function Invoke-TowerScoutHostHelperRequest {
                 -StatusCode 403 `
                 -Reason "Forbidden" `
                 -Body @{ state = "rejected_origin" }
+            return
+        }
+
+        if (-not (Test-TowerScoutHostHelperSessionActive -Profile $Profile)) {
+            Write-TowerScoutHostHelperResponse `
+                -Stream $stream `
+                -StatusCode 410 `
+                -Reason "Gone" `
+                -Body @{ state = "session_invalidated" } `
+                -AccessControlAllowOrigin $corsOrigin
             return
         }
 

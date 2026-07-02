@@ -13,7 +13,9 @@ param(
 
     [string] $PackageFlavor = "source",
 
-    [switch] $SelfTest
+    [switch] $SelfTest,
+
+    [switch] $Stop
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,6 +26,12 @@ if ($SelfTest) {
     exit 0
 }
 
+if ($Stop) {
+    $result = Clear-TowerScoutHostHelperSession
+    Write-Host "TowerScout host helper sessions invalidated: $($result.cleared)"
+    exit 0
+}
+
 $token = New-TowerScoutHostHelperToken
 $profile = New-TowerScoutHostHelperRuntimeProfile `
     -Engine $Engine `
@@ -31,8 +39,15 @@ $profile = New-TowerScoutHostHelperRuntimeProfile `
     -AppPort $AppPort `
     -PackageFlavor $PackageFlavor `
     -HelperPort $HelperPort
+$sessionPath = Save-TowerScoutHostHelperSession -Profile $profile
 
 Write-Host "TowerScout host helper proof is starting on loopback only."
 Write-Host "Helper token generated and retained in process memory only."
+Write-Host "Helper session metadata recorded without token material."
 Write-Host "This Gate 1 entry point is not yet wired into product UI or restart orchestration."
-Start-TowerScoutHostHelper -Profile $profile -Token $token -HelperPort $HelperPort -MaxRequests $MaxRequests
+try {
+    Start-TowerScoutHostHelper -Profile $profile -Token $token -HelperPort $HelperPort -MaxRequests $MaxRequests
+}
+finally {
+    Clear-TowerScoutHostHelperSession -SessionId $profile.HelperSessionId | Out-Null
+}

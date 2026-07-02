@@ -875,6 +875,55 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Helper Session Invalidation Scaffold Added
+
+**Objective**: Add the first package-local helper session invalidation path so
+`scripts\stop.ps1` can invalidate helper metadata before stopping the selected
+container runtime.
+
+**Context**: Gate 1 requires the helper to self-terminate or be invalidated
+when the package runtime stops whenever practical. The initial loopback proof
+did not write durable token material, but it also did not give the stop path
+any helper-session state to clear.
+
+**Decision**: Add ignored package-local helper session metadata under
+`.towerscout-runtime\host-helper\` and keep token material out of the metadata.
+Use support-safe package-root identity hashing rather than recording full local
+paths in helper session JSON. Treat this as invalidation scaffolding only; full
+helper detachment, heartbeat, process termination, and container-exit detection
+remain later Gate 1 work.
+
+**Execution**: Added session metadata save/clear helpers, a `scripts\host-helper.ps1
+-Stop` invalidation mode, `.towerscout-runtime/` git ignore coverage, and
+`scripts\stop.ps1` cleanup before Compose shutdown. Active helper request
+handling now returns a sanitized `session_invalidated` state if its session
+metadata has been cleared.
+
+**Phase 1 Evidence - 2026-07-02 - Session Invalidation**
+
+**Gate**: Gate 1 Helper Transport Proof / Gate 2 Security Proof
+**Environment**: Windows source/package-like script context, Docker CPU profile
+shape, public-safe self-test labels only
+**Objective**: Validate helper session metadata can be saved without token
+material and invalidated by the stop-style cleanup path.
+**Command Category**: stop cleanup / session invalidation
+**Inputs**: `engine=docker`, `gpu=off`, sanitized self-test runtime profile
+**Observed States**: `active`, `invalidated`, `session_invalidated`
+**Result**: PASS
+**Redaction Check**: No helper tokens, helper listener ports, local paths,
+provider keys, certificate details, raw subprocess output, `.env` values, or
+support logs were recorded.
+**Follow-Up**: Add detached helper start, launcher profile refresh, heartbeat
+or TTL, and process termination/cleanup proof before product UI integration.
+
+**Validation**: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+scripts\host-helper.ps1 -SelfTest`, `powershell.exe -NoProfile -ExecutionPolicy
+Bypass -File scripts\host-helper.ps1 -Stop`, a focused PowerShell
+save/clear/active-state check, and `git diff --check` passed.
+
+**Next**: Continue Gate 1 with detached helper lifecycle and trusted
+launcher-generated runtime profile refresh across setup/bootstrap/start/launch.
+
 ### 2026-07-02 - Gate 1 Loopback Helper Proof Started
 
 **Objective**: Add the first package-local host helper proof for Gate 1/Gate 2
