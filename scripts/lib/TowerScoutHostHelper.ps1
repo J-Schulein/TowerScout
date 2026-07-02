@@ -1,6 +1,10 @@
 Set-StrictMode -Version Latest
 
 $script:TowerScoutHostHelperVersion = "0.1.0-gate1"
+$script:TowerScoutHostHelperReadTimeoutMs = 5000
+$script:TowerScoutHostHelperMaxRequestLineLength = 4096
+$script:TowerScoutHostHelperMaxHeaderLines = 64
+$script:TowerScoutHostHelperMaxHeaderBytes = 16384
 
 function New-TowerScoutHostHelperToken {
     $bytes = New-Object byte[] 32
@@ -338,6 +342,9 @@ function Read-TowerScoutHostHelperRequest {
     if ([string]::IsNullOrWhiteSpace($requestLine)) {
         throw "The helper request was empty."
     }
+    if ($requestLine.Length -gt $script:TowerScoutHostHelperMaxRequestLineLength) {
+        throw "The helper request line was too large."
+    }
 
     $parts = $requestLine.Split([char[]] @(" "), [System.StringSplitOptions]::RemoveEmptyEntries)
     if ($parts.Count -lt 3) {
@@ -345,10 +352,17 @@ function Read-TowerScoutHostHelperRequest {
     }
 
     $headers = @{}
+    $headerLines = 0
+    $headerBytes = 0
     while ($true) {
         $line = $reader.ReadLine()
         if ($null -eq $line -or $line.Length -eq 0) {
             break
+        }
+        $headerLines += 1
+        $headerBytes += [System.Text.Encoding]::ASCII.GetByteCount($line)
+        if ($headerLines -gt $script:TowerScoutHostHelperMaxHeaderLines -or $headerBytes -gt $script:TowerScoutHostHelperMaxHeaderBytes) {
+            throw "The helper request headers were too large."
         }
 
         $separatorIndex = $line.IndexOf(":")
@@ -398,7 +412,7 @@ function Write-TowerScoutHostHelperResponse {
         $lines += @(
             "Access-Control-Allow-Origin: $AccessControlAllowOrigin",
             "Access-Control-Allow-Headers: X-TowerScout-Helper-Token, Content-Type",
-            "Access-Control-Allow-Methods: GET, POST, OPTIONS",
+            "Access-Control-Allow-Methods: GET, OPTIONS",
             "Vary: Origin"
         )
     }
@@ -423,6 +437,8 @@ function Invoke-TowerScoutHostHelperRequest {
     )
 
     try {
+        $Client.ReceiveTimeout = $script:TowerScoutHostHelperReadTimeoutMs
+        $Client.SendTimeout = $script:TowerScoutHostHelperReadTimeoutMs
         $stream = $Client.GetStream()
         $remoteEndpoint = $Client.Client.RemoteEndPoint
         if ($null -eq $remoteEndpoint -or -not [System.Net.IPAddress]::IsLoopback($remoteEndpoint.Address)) {
@@ -653,6 +669,21 @@ function Invoke-TowerScoutHostHelperSelfTestRequest {
         $statusCode = [int] $Matches[1]
     }
 
+    $headers = @{}
+    $headerEnd = $raw.IndexOf("`r`n`r`n")
+    if ($headerEnd -ge 0) {
+        $headerText = $raw.Substring(0, $headerEnd)
+        foreach ($line in @($headerText -split "`r`n" | Select-Object -Skip 1)) {
+            $separatorIndex = ([string] $line).IndexOf(":")
+            if ($separatorIndex -le 0) {
+                continue
+            }
+            $name = ([string] $line).Substring(0, $separatorIndex).Trim().ToLowerInvariant()
+            $value = ([string] $line).Substring($separatorIndex + 1).Trim()
+            $headers[$name] = $value
+        }
+    }
+
     $body = $null
     $bodyStart = $raw.IndexOf("`r`n`r`n")
     if ($bodyStart -ge 0) {
@@ -669,6 +700,7 @@ function Invoke-TowerScoutHostHelperSelfTestRequest {
 
     return [pscustomobject]@{
         StatusCode = $statusCode
+        Headers = $headers
         Body = $body
     }
 }
@@ -734,6 +766,10 @@ function Invoke-TowerScoutHostHelperSelfTest {
         if ($result.Response.StatusCode -ne $result.Expected) {
             throw "Host helper self-test scenario '$($result.Scenario)' returned $($result.Response.StatusCode); expected $($result.Expected)."
         }
+    }
+    $corsPreflight = @($results | Where-Object { $_.Scenario -eq "cors_preflight" } | Select-Object -First 1)
+    if ($corsPreflight.Count -ne 1 -or [string] $corsPreflight[0].Response.Headers["access-control-allow-methods"] -ne "GET, OPTIONS") {
+        throw "Host helper self-test did not return the expected GET-only CORS method policy."
     }
 
     return [pscustomobject]@{

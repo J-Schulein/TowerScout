@@ -875,6 +875,68 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Reviewer Gate 1 Hardening Follow-Up
+
+**Objective**: Incorporate the PR #45 Gate 1 reviewer feedback that can be
+addressed before repair/restart operation work begins.
+
+**Context**: The reviewer accepted the loopback `TcpListener` transport proof
+but recommended blocking product UI and mutating operations until the helper
+lifecycle model is redesigned without the hidden detached PowerShell pattern
+that triggered endpoint protection. The reviewer also identified low-risk
+hardening: narrow CORS methods to the implemented API, add HTTP request
+hardening before future POST operations, avoid hardcoded package flavor in
+launch profiles, and preserve package artifact hygiene.
+
+**Decision**: Accept the low-risk hardening now and keep lifecycle work in Gate
+1. Use a transparent visible helper command as the next lifecycle proof
+candidate instead of reintroducing hidden detached PowerShell. Do not wire this
+visible helper command into product UI or automatic launcher behavior yet; it is
+for reviewer/manual endpoint-policy validation before selecting the final
+helper lifecycle model.
+
+**Execution**: Tightened helper CORS from `GET, POST, OPTIONS` to `GET,
+OPTIONS`, added basic helper request timeouts plus request-line/header-count/
+header-byte limits, extended the helper self-test to assert the GET-only CORS
+policy, changed launcher profile capture to use the real package PyTorch flavor
+when available, added `scripts\host-helper-visible.cmd` as an explicit visible
+helper-window entry point, and updated `scripts\package-release.ps1` to include
+the helper scripts/library so release package generation does not copy a
+`launch.ps1` that dot-sources a missing helper library.
+
+**Phase 1 Evidence - 2026-07-02 - Reviewer Hardening Follow-Up**
+
+**Gate**: Gate 1 Helper Transport Proof / Gate 2 Security Proof
+**Environment**: Windows source/package-like script context, Docker CPU profile
+shape, public-safe self-test labels only
+**Objective**: Validate GET-only CORS policy, bounded request parsing, helper
+artifact package inclusion, and the next transparent lifecycle proof candidate.
+**Command Category**: health check / origin-token check / allowlist rejection /
+stop cleanup / release-package hygiene / lifecycle design
+**Inputs**: `engine=docker`, `gpu=off`, sanitized self-test runtime profile,
+valid token scenario, wrong token scenario, wrong origin scenario, unknown
+endpoint scenario, CORS preflight scenario, invalidated-session scenario
+**Observed States**: `ready`, `rejected_token`, `rejected_origin`,
+`rejected_unknown_endpoint`, `cors_preflight_ok`, `session_invalidated`
+**Result**: PARTIAL
+**Redaction Check**: No helper tokens, helper listener ports, local paths,
+provider keys, certificate details, raw subprocess output, `.env` values, or
+support logs were recorded.
+**Follow-Up**: Manually validate the visible helper-window entry point on the
+target Windows endpoint-policy environment, then either accept that lifecycle
+model for the first product slice or replace it with a native/supervised helper
+before adding repair/restart operations.
+
+**Validation**: PowerShell parser checks passed for
+`scripts\lib\TowerScoutHostHelper.ps1`, `scripts\launch.ps1`, and
+`scripts\package-release.ps1`. `powershell.exe -NoProfile -ExecutionPolicy
+Bypass -File scripts\host-helper.ps1 -SelfTest` passed with the existing loopback
+security scenarios and the new GET-only CORS assertion.
+
+**Next**: Run full `.agent_work` and diff validation, then decide whether to
+ask the reviewer to manually test the visible helper lifecycle proof before
+continuing into any mutating helper operation.
+
 ### 2026-07-02 - Launch Profile Capture And Endpoint Protection Finding
 
 **Objective**: Continue Gate 1 by double-checking the initial helper proof,

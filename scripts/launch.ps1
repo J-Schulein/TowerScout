@@ -249,6 +249,10 @@ Initialize-TowerScoutEnvFile -RootPath $repoRoot
 
 $composeCommand = Get-TowerScoutComposeCommand -Engine $Engine
 $effectiveEngine = [string] $composeCommand["Executable"]
+$packageFlavor = Get-TowerScoutPackagePytorchFlavor -RootPath $repoRoot
+if ([string]::IsNullOrWhiteSpace($packageFlavor)) {
+    $packageFlavor = "source"
+}
 $env:TOWERSCOUT_CONTAINER_ENGINE = $effectiveEngine
 $env:TOWERSCOUT_PORT = "$Port"
 Save-TowerScoutHostHelperLaunchProfile `
@@ -256,7 +260,7 @@ Save-TowerScoutHostHelperLaunchProfile `
     -Gpu $Gpu `
     -AppPort $Port `
     -RootPath $repoRoot `
-    -PackageFlavor "source" | Out-Null
+    -PackageFlavor $packageFlavor | Out-Null
 
 Write-Host "Starting TowerScout with $effectiveEngine on $appUrl..."
 Write-TowerScoutComposeProviderSummary -Engine $effectiveEngine
