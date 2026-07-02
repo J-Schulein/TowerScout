@@ -90,6 +90,9 @@ Podman Compose provider remediation remains valid scope for Task-087, but it is
 a separate later slice unless the team explicitly approves it after Gates 1 and
 2 pass. The first-slice success criterion is a support-safe Docker CPU repair
 and restart path that preserves the manual `TASK-086` command fallback.
+Any product UI that exposes the Podman Compose provider installer requires
+explicit release-owner sign-off after the first Docker helper proof succeeds,
+even if sanitized Podman preflight status is implemented earlier.
 
 ## Recommended Release Position
 
@@ -118,6 +121,8 @@ Proceed only if a package-local helper can:
   exit when needed for first-run UX, while still self-terminating through TTL,
   package-instance heartbeat, container-exit detection, or explicit stop
   cleanup.
+- Integrate with the stop path so `scripts\stop.cmd` terminates or invalidates
+  the helper session whenever practical.
 - Launch package-local scripts reliably.
 - Inspect Podman Compose provider status through the existing approved-provider
   checks when the captured runtime profile uses `engine=podman`.
@@ -167,6 +172,8 @@ Proceed only if frontend/backend tests prove:
 - Podman Compose provider remediation, if exposed in product UI or launcher UI,
   appears only for captured `engine=podman` runtime profiles and
   missing/unapproved/multiple-provider states.
+- Product UI exposure for the Podman Compose provider installer is blocked
+  until the release owner signs off after the Docker CPU/CUDA helper proof.
 - Podman Compose provider remediation is not shown for Docker runs, invalid
   provider keys, quota failures, provider-disabled failures, or generic
   provider HTTP failures.
@@ -188,6 +195,33 @@ confirms:
   helper logs unless explicitly support-safe, `.env`, `.env.backup.*`, TLS
   bundle material, local certificate exports, and Podman provider install
   caches unless intentionally packaged.
+
+## Phase 1 Evidence Template
+
+Use this template for Gate 1 and Gate 2 evidence before product UI work starts.
+Record sanitized outcomes only. Do not include local listener ports, helper
+tokens, operation credentials, certificate subjects, certificate thumbprints,
+provider keys, raw provider responses, raw subprocess output, full local paths,
+browser network traces, screenshots, `.env` values, or support logs.
+
+```markdown
+### Phase 1 Evidence - [YYYY-MM-DD] - [Scenario]
+
+**Gate**: Gate 1 Helper Transport Proof / Gate 2 Security Proof
+**Environment**: Windows package context, engine, GPU mode, package flavor, and
+managed-network status using public-safe labels only
+**Objective**: [What the proof validates]
+**Command Category**: [helper start / health check / origin-token check /
+allowlist rejection / script invocation / restart survival / stop cleanup]
+**Inputs**: Provider enum, engine enum, GPU enum, confirmation value, and
+sanitized operation state only
+**Observed States**: [sanitized helper states such as ready, operation_busy,
+restarting, readiness_waiting, rejected_unknown_provider, failed]
+**Result**: PASS / FAIL / PARTIAL
+**Redaction Check**: Confirm no tokens, credentials, certificate details, raw
+output, local paths, `.env` values, or support logs were recorded
+**Follow-Up**: [Next action or blocker]
+```
 
 ## Non-Goals
 
@@ -318,6 +352,9 @@ The proof of concept must confirm:
 - The helper self-terminates when its TTL expires, the package-instance
   heartbeat disappears, the active container exits and is not being restarted,
   or the package stop cleanup explicitly asks it to stop.
+- `scripts\stop.cmd` terminates the helper process or invalidates the helper
+  session whenever practical, so a stopped package cannot retain a usable
+  browser-to-host operation credential.
 - The helper exits cleanly when the package runtime is stopped.
 
 If PowerShell `HttpListener` requires admin URL ACL setup or proves brittle,
@@ -391,6 +428,8 @@ Operation lifecycle rules:
   retry rule after terminal failure.
 - Terminal-state polling must continue to work across the TowerScout restart
   window.
+- Stop cleanup must terminate or invalidate active operations and helper
+  credentials whenever `scripts\stop.cmd` is used for the selected engine.
 
 ### 4. Restart Orchestration
 
@@ -463,6 +502,11 @@ model:
 This operation is host-runtime remediation, not provider-key validation and
 not TLS certificate repair. It should be safe to skip without weakening the
 validated `TASK-086` command fallback.
+
+Product UI exposure for this installer operation requires explicit
+release-owner sign-off after the Docker CPU/CUDA helper proof succeeds. Until
+that sign-off exists, product UI may surface sanitized Podman preflight status
+and the manual command fallback, but it must not start the installer operation.
 
 ### 6. Backend And Setup Wizard Integration
 
@@ -627,6 +671,8 @@ Optional validation:
   start/launch call sites that must refresh it.
 - Define the helper lifecycle model that survives launcher exit but terminates
   through TTL, heartbeat, container-exit detection, or stop cleanup.
+- Define how `scripts\stop.cmd` terminates the helper process or invalidates
+  the helper session.
 - Define runtime profile identity checks, stale-profile rejection, and
   multi-instance behavior.
 - Decide whether Podman Compose provider remediation belongs in the first slice,
@@ -638,6 +684,7 @@ Optional validation:
 - Define sanitized Podman provider status states and failure mapping.
 - Define sanitized operation states and the mapping from repair/restart script
   results to those states.
+- Use the Phase 1 evidence template for Gate 1 and Gate 2 proof notes.
 - Document the security model and rejection cases before product integration.
 
 Exit criteria:
@@ -653,6 +700,8 @@ Exit criteria:
 - Add runtime profile generation through the shared launcher helper used by
   setup/bootstrap/start/launch paths.
 - Add token generation and helper lifecycle management.
+- Add stop-path cleanup so `scripts\stop.cmd` terminates or invalidates helper
+  sessions whenever practical.
 - Add health/runtime-profile endpoint.
 - Add asynchronous repair operation endpoint using existing scripts.
 - Add single-operation locking, duplicate-start idempotency, operation timeout,
@@ -690,6 +739,8 @@ Exit criteria:
 - If Podman provider remediation is included in product UI, add a separate
   runtime-preflight action and confirmation path that is not tied to invalid-key
   or TLS error categories.
+- Require release-owner sign-off before product UI can expose the Podman
+  Compose provider installer operation.
 - Preserve the manual command fallback in all failure/unavailable cases.
 - Add frontend/backend tests for structured behavior.
 
@@ -757,6 +808,8 @@ Exit criteria:
 - The helper allows only one active host operation per package instance and
   handles duplicate starts, timeouts, terminal cleanup, and safe retry with
   sanitized states.
+- `scripts\stop.cmd` terminates the helper process or invalidates the helper
+  session whenever practical, including any active operation credentials.
 - Runtime profiles include enough identity to reject stale, expired,
   wrong-package, wrong-container, and ambiguous multi-instance operations.
 - Runtime profile generation is shared by setup/bootstrap/start/launch paths so
@@ -769,7 +822,8 @@ Exit criteria:
   provider-required state rather than stopping the current runtime.
 - If Podman Compose provider remediation is included, it requires explicit user
   confirmation, runs only `scripts\install-podman-compose-provider.cmd -Apply`,
-  and revalidates the approved provider before restart.
+  revalidates the approved provider before restart, and is exposed in product
+  UI only after explicit release-owner sign-off.
 - Podman Compose provider remediation is never run automatically as a side
   effect of provider TLS repair.
 - Browser input cannot select Podman provider ids, install directories, Python
@@ -820,6 +874,33 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-02 - Reviewer Minor Follow-Up Added
+
+**Objective**: Incorporate the reviewer's non-blocking follow-up suggestions
+before merging the Sprint 6 closeout / Task-087 planning PR.
+
+**Context**: The reviewer approved the updated Task-087 direction and suggested
+three implementation-support additions: a sanitized Phase 1 evidence template,
+explicit `scripts\stop.cmd` helper-session cleanup, and release-owner sign-off
+before any product UI exposes the Podman Compose provider installer operation.
+
+**Decision**: Accept all three suggestions as documentation refinements because
+they reduce implementation ambiguity without changing the approved first-slice
+scope. Keep the first user-facing slice limited to Docker CPU/CUDA TLS repair
+and restart while allowing sanitized Podman preflight status only.
+
+**Execution**: Added the Phase 1 evidence template, explicit stop-path helper
+termination/invalidation requirements, and release-owner sign-off language for
+any future Podman installer UI exposure.
+
+**Validation**: `python .agent_work\scripts\validate_agent_work.py`,
+`python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`,
+and `git diff --check -- .agent_work\tasks\active\TASK-087-host-side-tls-repair-control-plane.md`
+passed.
+
+**Next**: Push the final Task-087 planning update to PR #44 for merge
+readiness, then start implementation from a fresh post-merge Task-087 branch.
 
 ### 2026-07-02 - Reviewer Boundary And Security Follow-Up Added
 
