@@ -71,8 +71,11 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert "function Resolve-TowerScoutHostHelperControlledCommand" in script
     assert "function Invoke-TowerScoutHostHelperControlledCommand" in script
     assert "function Invoke-TowerScoutProviderTlsRepairControlledExecution" in script
+    assert "function Test-TowerScoutHostHelperRealWrapperContract" in script
     assert "function Get-TowerScoutHostHelperBatchInterpreterPath" in script
     assert 'Interpreter = "cmd.exe"' in script
+    assert '"real_wrapper_contract_validated"' in script
+    assert "executed = $false" in script
     assert "function Get-TowerScoutHostHelperAllowedMethodsForPath" in script
     assert '"Access-Control-Allow-Methods: $AccessControlAllowMethods"' in script
     assert 'return "GET, OPTIONS"' in script
@@ -392,6 +395,58 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_real_wrapper_contract_is_non_mutating_and_sanitized():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    repo_root = str(REPO_ROOT).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $root = '{repo_root}'
+        $contract = Test-TowerScoutHostHelperRealWrapperContract -RootPath $root -Provider "google" -Gpu "off" -AppPort 5000
+        $contractJson = $contract | ConvertTo-Json -Depth 12 -Compress
+        $outputSafe = -not (
+            $contractJson -match ([regex]::Escape($root)) -or
+            $contractJson -match "repair-provider-tls|scripts\\\\|start\\.bat|stop\\.cmd|certificate|thumbprint|token|secret"
+        )
+        [pscustomobject]@{{
+            state = [string] $contract.state
+            provider = [string] $contract.provider
+            execution_enabled = [bool] $contract.execution_enabled
+            executed = [bool] $contract.executed
+            runtime_engine = [string] $contract.runtime.engine
+            runtime_gpu = [string] $contract.runtime.gpu
+            runtime_port = [int] $contract.runtime.app_port
+            step_count = [int] $contract.step_count
+            step_names = @($contract.steps | ForEach-Object {{ [string] $_.step }})
+            argument_counts = @($contract.steps | ForEach-Object {{ [int] $_.argument_count }})
+            timeout_seconds = @($contract.steps | ForEach-Object {{ [int] $_.timeout_seconds }})
+            output_safe = $outputSafe
+        }} | ConvertTo-Json -Depth 12 -Compress
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload == {
+        "state": "real_wrapper_contract_validated",
+        "provider": "google",
+        "execution_enabled": False,
+        "executed": False,
+        "runtime_engine": "docker",
+        "runtime_gpu": "off",
+        "runtime_port": 5000,
+        "step_count": 3,
+        "step_names": ["repair", "stop", "start"],
+        "argument_counts": [7, 2, 9],
+        "timeout_seconds": [300, 120, 180],
+        "output_safe": True,
+    }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
 def test_host_helper_self_test_covers_provider_tls_operation_contract():
     powershell = _powershell_executable()
     if powershell is None:
@@ -439,6 +494,11 @@ def test_host_helper_self_test_covers_provider_tls_operation_contract():
         scenarios["provider_tls_repair_single_operation_lock"]["state"]
         == "operation_busy"
     )
+    assert (
+        scenarios["provider_tls_repair_real_wrapper_contract"]["state"]
+        == "real_wrapper_contract_validated"
+    )
+    assert scenarios["provider_tls_repair_real_wrapper_contract"]["executed"] is False
     assert "repair-provider-tls" not in result.stdout
     assert "scripts\\" not in result.stdout
     assert "start.bat" not in result.stdout

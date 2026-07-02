@@ -1144,6 +1144,79 @@ function Resolve-TowerScoutHostHelperControlledCommand {
     }
 }
 
+function Test-TowerScoutHostHelperRealWrapperContract {
+    param(
+        [string] $RootPath = $(Resolve-Path (Join-Path $PSScriptRoot "..\..")),
+
+        [ValidateSet("google", "azure")]
+        [string] $Provider = "google",
+
+        [ValidateSet("off", "auto", "on")]
+        [string] $Gpu = "off",
+
+        [int] $AppPort = 5000
+    )
+
+    $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
+    $profile = New-TowerScoutHostHelperRuntimeProfile `
+        -Engine "docker" `
+        -Gpu $Gpu `
+        -AppPort $AppPort `
+        -PackageRoot $resolvedRoot `
+        -PackageFlavor "real-wrapper-contract"
+    $plan = New-TowerScoutProviderTlsRepairOperationPlan `
+        -Profile $profile `
+        -Provider $Provider `
+        -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+    if (-not [bool] $plan.Accepted) {
+        throw "The real-wrapper contract check could not create an accepted provider TLS repair plan."
+    }
+
+    $validatedSteps = @()
+    foreach ($step in @("repair", "stop", "start")) {
+        $command = Resolve-TowerScoutHostHelperControlledCommand `
+            -Profile $profile `
+            -Plan $plan `
+            -Step $step
+        $expectedScript = [string] $script:TowerScoutHostHelperOperationCommandScripts[$step]
+        $expectedLeaf = [System.IO.Path]::GetFileName($expectedScript)
+        $actualLeaf = [System.IO.Path]::GetFileName([string] $command.ScriptPath)
+        if (-not [string]::Equals($actualLeaf, $expectedLeaf, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "The real-wrapper contract check resolved an unexpected command wrapper."
+        }
+        if (-not [string]::Equals([string] $command.Interpreter, "cmd.exe", [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "The real-wrapper contract check resolved an unexpected command interpreter."
+        }
+        if ([string]::Join(" ", @($command.InterpreterArguments)) -ne "/d /s /c") {
+            throw "The real-wrapper contract check resolved unexpected command interpreter arguments."
+        }
+        if (-not [string]::Equals([string] $command.WorkingDirectory, $resolvedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "The real-wrapper contract check resolved an unexpected working directory."
+        }
+
+        $validatedSteps += [pscustomobject]@{
+            step = $step
+            argument_count = @($command.Arguments).Count
+            timeout_seconds = [int] $command.TimeoutSeconds
+        }
+    }
+
+    return [pscustomobject]@{
+        state = "real_wrapper_contract_validated"
+        operation_type = "provider_tls_repair"
+        provider = $Provider
+        execution_enabled = $false
+        executed = $false
+        runtime = [pscustomobject]@{
+            engine = "docker"
+            gpu = $Gpu
+            app_port = $AppPort
+        }
+        step_count = $validatedSteps.Count
+        steps = @($validatedSteps)
+    }
+}
+
 function Invoke-TowerScoutHostHelperProcessCommand {
     param(
         [Parameter(Mandatory = $true)]
@@ -2142,6 +2215,10 @@ function Invoke-TowerScoutHostHelperSelfTest {
             -Profile $operationProfile `
             -Provider "google;process-start" `
             -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+        $realWrapperContract = Test-TowerScoutHostHelperRealWrapperContract `
+            -Provider "google" `
+            -Gpu "off" `
+            -AppPort 5000
 
         $lockResult = New-TowerScoutHostHelperOperationLock `
             -Profile $operationProfile `
@@ -2301,6 +2378,11 @@ function Invoke-TowerScoutHostHelperSelfTest {
                 [pscustomobject]@{
                     name = "provider_tls_repair_single_operation_lock"
                     state = [string] $duplicateLockResult.PublicStatus.state
+                },
+                [pscustomobject]@{
+                    name = "provider_tls_repair_real_wrapper_contract"
+                    state = [string] $realWrapperContract.state
+                    executed = [bool] $realWrapperContract.executed
                 }
             )
             redaction_check = "no tokens, operation authorizations, helper listener ports, local paths, provider keys, certificate details, raw subprocess output, or command paths returned"

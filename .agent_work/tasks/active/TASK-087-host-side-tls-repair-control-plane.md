@@ -952,6 +952,65 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Non-Mutating Real Wrapper Contract Proof Added
+
+**Objective**: Continue from the reviewer recommendation toward internal
+real-wrapper validation without running the mutating repair/stop/start sequence
+by default.
+
+**Context**: The reviewer accepted the controlled runner for internal
+validation, with user-facing enablement still blocked. The prior
+pre-default-mutation follow-ups were addressed in `186224d`. The remaining
+milestone is real-wrapper validation, but the real sequence includes
+`repair-provider-tls.cmd -Apply`, `stop.cmd`, and `start.bat`, so live execution
+must be handled as a deliberate validation window rather than an incidental
+unit-test side effect.
+
+**Decision**: Add a non-mutating real-wrapper contract proof first. The proof
+resolves the actual package-local wrappers from the current checkout, validates
+the fixed command contract, and returns only support-safe metadata with
+`executed=false`. Product UI exposure, `provider_tls_repair=true`, default
+browser-triggered mutation, live repair execution, and Podman remediation remain
+blocked.
+
+**Execution**:
+
+- Added `Test-TowerScoutHostHelperRealWrapperContract` to resolve the real
+  Docker first-slice wrappers and validate fixed step order, argument counts,
+  timeouts, `cmd.exe`, fixed interpreter flags, and working directory without
+  executing any wrapper.
+- Added a sanitized self-test scenario,
+  `provider_tls_repair_real_wrapper_contract`, that reports
+  `real_wrapper_contract_validated` and `executed=false` without command paths,
+  wrapper names, helper tokens, local paths, certificate details, or raw output.
+- Added focused pytest coverage proving the contract result is non-mutating,
+  Docker/off/port-specific, ordered as repair/stop/start, and support-safe.
+
+**Gate**: Gate 2 controlled-runner to internal real-wrapper validation handoff,
+still pre-product-UI and pre-default-mutation.
+
+**Result**: PASS for the non-mutating real-wrapper contract proof. Actual
+wrapper execution remains pending explicit internal validation with the selected
+Docker package/runtime state.
+
+**Validation**:
+
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_task_087_host_helper.py -q -p no:cacheprovider`
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_config.py tests\unit\test_error_sanitization.py -q -p no:cacheprovider`
+- PASS:
+  `python .agents\skills\towerscout-secret-and-provider-key-safety\scripts\scan_for_sensitive_terms.py scripts\lib`
+- PASS: `python .agent_work\scripts\validate_agent_work.py`
+- PASS:
+  `python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`
+- PASS: `git diff --check`
+
+**Next**: Request reviewer feedback on the non-mutating real-wrapper contract
+proof. If accepted, schedule an explicit internal live-wrapper validation window
+for Docker CPU/CUDA where repair, stop, start, readiness polling, and reconnect
+state can be observed without enabling product UI or Podman remediation.
+
 ### 2026-07-02 - Controlled Runner Review Hardening Tests Added
 
 **Objective**: Close the reviewer follow-ups from `5a73075` before any
