@@ -875,6 +875,56 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-02 - Bounded Operation Request Control Slice
+
+**Objective**: Add the next non-mutating host-helper operation controls before
+any TLS repair, restart, or Podman remediation execution is exposed.
+
+**Context**: The reviewer approved continuing beyond the Gate 1/Gate 2
+checkpoint into bounded POST parsing, short-lived operation authorization,
+sanitized async status, timeout cleanup, and script-exit mapping tables while
+keeping product UI, mutating scripts, and Podman installer remediation blocked.
+
+**Decision**: Allow only one browser-posted operation endpoint,
+`POST /operations/provider-tls-repair`, with a small JSON body, fixed field
+allowlist, required `operation_authorization`, and public status polling through
+`GET /operations/{operation_id}`. Same authorization returns the existing
+operation, different authorization returns `operation_busy`, and public status
+continues to report `execution_enabled=false` until the mutating repair slice is
+explicitly authorized.
+
+**Execution**: Added bounded POST body parsing, content-type and content-length
+checks, `operation_authorization` validation, operation-status polling,
+same-authorization idempotency, existing-operation busy handling, timeout/expired
+status cleanup, and script-exit-to-public-state mapping. Kept
+`provider_tls_repair=false`, left `repair-provider-tls.cmd`, `stop.cmd`, and
+`start.bat` unexecuted, and kept Podman remediation out of the browser API.
+
+**Gate**: Gate 2 Security Proof, non-mutating operation-control slice
+**Observed States**: `planned`, `operation_busy`, `rejected_unexpected_field`,
+`rejected_operation_authorization`, `tls_repair_completed`,
+`readiness_timeout`, `operation_timeout`
+**Result**: PASS for bounded request/control-plane behavior. Product UI,
+mutating TLS repair/restart execution, and Podman provider installation remain
+blocked.
+**Redaction Check**: Public operation responses omit helper tokens, operation
+authorizations, command paths, local paths, certificate details, provider keys,
+and raw subprocess output. Rejected invalid providers still collapse to
+`provider=unknown`.
+
+**Validation**: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+scripts\host-helper.ps1 -SelfTest` passed. `.venv\Scripts\python.exe -m pytest
+tests\unit\test_task_087_host_helper.py -q -p no:cacheprovider` passed with 4
+tests, including a direct PowerShell probe for plan/status/idempotency/busy
+behavior plus unexpected-field and invalid-authorization rejection. Endpoint
+protection rejected an earlier large PowerShell self-test
+fixture, so the integrated self-test remains focused on stable transport proof
+and the expanded operation API assertions live in the Python test module.
+
+**Next**: Run repository hygiene checks, push the PR #45 update, and request
+reviewer feedback before deciding whether to begin the first mutating
+repair/restart execution slice.
+
 ### 2026-07-02 - Rejected Provider Reflection Hardening
 
 **Objective**: Address the PR #45 reviewer finding that rejected provider

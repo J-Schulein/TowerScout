@@ -5,8 +5,10 @@ $script:TowerScoutHostHelperReadTimeoutMs = 5000
 $script:TowerScoutHostHelperMaxRequestLineLength = 4096
 $script:TowerScoutHostHelperMaxHeaderLines = 64
 $script:TowerScoutHostHelperMaxHeaderBytes = 16384
+$script:TowerScoutHostHelperMaxBodyBytes = 4096
 $script:TowerScoutHostHelperProviderTlsRepairConfirmation = "repair_tls_and_restart"
 $script:TowerScoutHostHelperOperationTimeoutSeconds = 900
+$script:TowerScoutHostHelperOperationAuthorizationPattern = "^[A-Za-z0-9_-]{32,128}$"
 
 function New-TowerScoutHostHelperToken {
     $bytes = New-Object byte[] 32
@@ -354,7 +356,9 @@ function New-TowerScoutHostHelperPublicOperationStatus {
 
         [bool] $Accepted = $false,
 
-        [bool] $ExistingOperation = $false
+        [bool] $ExistingOperation = $false,
+
+        [bool] $ExecutionEnabled = $false
     )
 
     return [pscustomobject]@{
@@ -364,6 +368,7 @@ function New-TowerScoutHostHelperPublicOperationStatus {
         provider = $Provider
         accepted = $Accepted
         existing_operation = $ExistingOperation
+        execution_enabled = $ExecutionEnabled
         runtime = [pscustomobject]@{
             engine = $Engine
             gpu = $Gpu
@@ -372,6 +377,73 @@ function New-TowerScoutHostHelperPublicOperationStatus {
         steps = @("repair_tls", "stop_runtime", "start_runtime", "readiness_wait")
         timeout_seconds = $script:TowerScoutHostHelperOperationTimeoutSeconds
     }
+}
+
+function New-TowerScoutHostHelperHttpResult {
+    param(
+        [int] $StatusCode,
+
+        [string] $Reason,
+
+        [object] $Body = @{}
+    )
+
+    return [pscustomobject]@{
+        StatusCode = $StatusCode
+        Reason = $Reason
+        Body = $Body
+    }
+}
+
+function Get-TowerScoutHostHelperJsonValue {
+    param(
+        [object] $InputObject,
+
+        [string] $Name
+    )
+
+    if ($null -eq $InputObject) {
+        return ""
+    }
+
+    foreach ($property in @($InputObject.PSObject.Properties)) {
+        if ([string]::Equals([string] $property.Name, $Name, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return [string] $property.Value
+        }
+    }
+
+    return ""
+}
+
+function ConvertTo-TowerScoutHostHelperOperationStatusFromLock {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Lock,
+
+        [string] $State = "",
+
+        [bool] $ExistingOperation = $false
+    )
+
+    [int] $appPort = 0
+    [int]::TryParse((Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "app_port"), [ref] $appPort) | Out-Null
+    $operationState = if ([string]::IsNullOrWhiteSpace($State)) {
+        Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "state"
+    }
+    else {
+        $State
+    }
+
+    return New-TowerScoutHostHelperPublicOperationStatus `
+        -State $operationState `
+        -OperationId (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "operation_id") `
+        -OperationType (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "operation_type") `
+        -Provider (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "provider") `
+        -Engine (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "engine") `
+        -Gpu (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "gpu") `
+        -AppPort $appPort `
+        -Accepted:$true `
+        -ExistingOperation:$ExistingOperation
 }
 
 function New-TowerScoutHostHelperRejectedOperationPlan {
@@ -570,20 +642,29 @@ function New-TowerScoutHostHelperOperationBusyResult {
         [object] $Lock
     )
 
-    [int] $appPort = 0
-    [int]::TryParse((Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "app_port"), [ref] $appPort) | Out-Null
     return [pscustomobject]@{
         Acquired = $false
         State = "operation_busy"
         OperationId = Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "operation_id"
-        PublicStatus = (New-TowerScoutHostHelperPublicOperationStatus `
+        PublicStatus = (ConvertTo-TowerScoutHostHelperOperationStatusFromLock `
+            -Lock $Lock `
             -State "operation_busy" `
-            -OperationId (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "operation_id") `
-            -Provider (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "provider") `
-            -Engine (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "engine") `
-            -Gpu (Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "gpu") `
-            -AppPort $appPort `
-            -Accepted:$true `
+            -ExistingOperation:$true)
+    }
+}
+
+function New-TowerScoutHostHelperOperationExistingResult {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Lock
+    )
+
+    return [pscustomobject]@{
+        Acquired = $false
+        State = "operation_exists"
+        OperationId = Get-TowerScoutHostHelperObjectValue -InputObject $Lock -Name "operation_id"
+        PublicStatus = (ConvertTo-TowerScoutHostHelperOperationStatusFromLock `
+            -Lock $Lock `
             -ExistingOperation:$true)
     }
 }
@@ -608,9 +689,14 @@ function New-TowerScoutHostHelperOperationLock {
         }
     }
 
+    $nonceFingerprint = Get-TowerScoutHostHelperValueFingerprint -Value $OperationNonce
     $lockPath = Get-TowerScoutHostHelperOperationLockPath -Profile $Profile
     $existingLock = Get-TowerScoutHostHelperOperationLock -Profile $Profile
     if (Test-TowerScoutHostHelperOperationLockActive -Lock $existingLock) {
+        $existingFingerprint = Get-TowerScoutHostHelperObjectValue -InputObject $existingLock -Name "nonce_fingerprint"
+        if (-not [string]::IsNullOrWhiteSpace($nonceFingerprint) -and [string]::Equals($existingFingerprint, $nonceFingerprint, [System.StringComparison]::Ordinal)) {
+            return New-TowerScoutHostHelperOperationExistingResult -Lock $existingLock
+        }
         return New-TowerScoutHostHelperOperationBusyResult -Lock $existingLock
     }
     if ($null -ne $existingLock -and (Test-Path -LiteralPath $lockPath -PathType Leaf)) {
@@ -629,7 +715,7 @@ function New-TowerScoutHostHelperOperationLock {
         app_port = [int] $Plan.AppPort
         created_at_utc = $createdAtUtc.ToString("o")
         expires_at_utc = $expiresAtUtc.ToString("o")
-        nonce_fingerprint = Get-TowerScoutHostHelperValueFingerprint -Value $OperationNonce
+        nonce_fingerprint = $nonceFingerprint
     }
     $json = $lock | ConvertTo-Json -Depth 8
     $bytes = [System.Text.Encoding]::ASCII.GetBytes($json)
@@ -642,6 +728,10 @@ function New-TowerScoutHostHelperOperationLock {
     catch [System.IO.IOException] {
         $raceLock = Get-TowerScoutHostHelperOperationLock -Profile $Profile
         if (Test-TowerScoutHostHelperOperationLockActive -Lock $raceLock) {
+            $raceFingerprint = Get-TowerScoutHostHelperObjectValue -InputObject $raceLock -Name "nonce_fingerprint"
+            if (-not [string]::IsNullOrWhiteSpace($nonceFingerprint) -and [string]::Equals($raceFingerprint, $nonceFingerprint, [System.StringComparison]::Ordinal)) {
+                return New-TowerScoutHostHelperOperationExistingResult -Lock $raceLock
+            }
             return New-TowerScoutHostHelperOperationBusyResult -Lock $raceLock
         }
         throw
@@ -658,6 +748,211 @@ function New-TowerScoutHostHelperOperationLock {
         OperationId = [string] $Plan.OperationId
         PublicStatus = $Plan.PublicStatus
     }
+}
+
+function Get-TowerScoutHostHelperOperationStatus {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [string] $OperationId
+    )
+
+    $normalizedOperationId = ""
+    try {
+        $normalizedOperationId = Resolve-TowerScoutHostHelperSessionId -SessionId $OperationId
+    }
+    catch {
+        return New-TowerScoutHostHelperHttpResult `
+            -StatusCode 404 `
+            -Reason "Not Found" `
+            -Body @{ state = "rejected_unknown_operation" }
+    }
+
+    $lock = Get-TowerScoutHostHelperOperationLock -Profile $Profile
+    if ($null -eq $lock -or -not [string]::Equals((Get-TowerScoutHostHelperObjectValue -InputObject $lock -Name "operation_id"), $normalizedOperationId, [System.StringComparison]::Ordinal)) {
+        return New-TowerScoutHostHelperHttpResult `
+            -StatusCode 404 `
+            -Reason "Not Found" `
+            -Body @{ state = "rejected_unknown_operation" }
+    }
+
+    if (-not (Test-TowerScoutHostHelperOperationLockActive -Lock $lock)) {
+        Clear-TowerScoutHostHelperOperationLock -Profile $Profile | Out-Null
+        return New-TowerScoutHostHelperHttpResult `
+            -StatusCode 410 `
+            -Reason "Gone" `
+            -Body (ConvertTo-TowerScoutHostHelperOperationStatusFromLock `
+                -Lock $lock `
+                -State "operation_expired")
+    }
+
+    return New-TowerScoutHostHelperHttpResult `
+        -StatusCode 200 `
+        -Reason "OK" `
+        -Body (ConvertTo-TowerScoutHostHelperOperationStatusFromLock -Lock $lock)
+}
+
+function ConvertTo-TowerScoutHostHelperScriptExitState {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("repair", "stop", "start", "readiness")]
+        [string] $Step,
+
+        [int] $ExitCode = 0,
+
+        [bool] $TimedOut = $false
+    )
+
+    if ($TimedOut) {
+        return "operation_timeout"
+    }
+
+    switch ($Step) {
+        "repair" {
+            if ($ExitCode -eq 0) { return "tls_repair_completed" }
+            if ($ExitCode -eq 2) { return "tls_repair_selection_required" }
+            return "tls_repair_failed"
+        }
+        "stop" {
+            if ($ExitCode -eq 0) { return "runtime_stopped" }
+            return "runtime_stop_failed"
+        }
+        "start" {
+            if ($ExitCode -eq 0) { return "ready" }
+            if ($ExitCode -eq 2) { return "readiness_timeout" }
+            return "runtime_start_failed"
+        }
+        "readiness" {
+            if ($ExitCode -eq 0) { return "ready" }
+            if ($ExitCode -eq 2) { return "readiness_timeout" }
+            return "readiness_failed"
+        }
+    }
+}
+
+function Read-TowerScoutProviderTlsRepairRequestBody {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Request,
+
+        [Parameter(Mandatory = $true)]
+        [object] $Profile
+    )
+
+    $contentType = [string] $Request.Headers["content-type"]
+    $contentTypeBase = if ([string]::IsNullOrWhiteSpace($contentType)) { "" } else { $contentType.Split([char[]] @(";"), 2)[0].Trim().ToLowerInvariant() }
+    if ($contentTypeBase -ne "application/json") {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "rejected_content_type" `
+            -Reason "json_required" `
+            -Profile $Profile
+    }
+
+    $bodyText = [string] $Request.BodyText
+    if ([string]::IsNullOrWhiteSpace($bodyText)) {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "rejected_bad_request" `
+            -Reason "json_body_required" `
+            -Profile $Profile
+    }
+    if ([System.Text.Encoding]::UTF8.GetByteCount($bodyText) -gt $script:TowerScoutHostHelperMaxBodyBytes) {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "rejected_bad_request" `
+            -Reason "json_body_too_large" `
+            -Profile $Profile
+    }
+
+    try {
+        $payload = $bodyText | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "rejected_bad_json" `
+            -Reason "json_parse_failed" `
+            -Profile $Profile
+    }
+
+    if ($null -eq $payload -or $payload -is [array]) {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "rejected_bad_json" `
+            -Reason "json_object_required" `
+            -Profile $Profile
+    }
+
+    $allowedProperties = @("provider", "confirmation", "operation_authorization")
+    foreach ($property in @($payload.PSObject.Properties)) {
+        $propertyName = ([string] $property.Name).Trim().ToLowerInvariant()
+        if ($propertyName -notin $allowedProperties) {
+            return New-TowerScoutHostHelperRejectedOperationPlan `
+                -State "rejected_unexpected_field" `
+                -Reason "unexpected_field" `
+                -Profile $Profile
+        }
+    }
+
+    $operationAuthorization = Get-TowerScoutHostHelperJsonValue -InputObject $payload -Name "operation_authorization"
+    if ([string]::IsNullOrWhiteSpace($operationAuthorization) -or $operationAuthorization -notmatch $script:TowerScoutHostHelperOperationAuthorizationPattern) {
+        return New-TowerScoutHostHelperRejectedOperationPlan `
+            -State "rejected_operation_authorization" `
+            -Reason "operation_authorization_required" `
+            -Profile $Profile
+    }
+
+    return [pscustomobject]@{
+        Accepted = $true
+        Provider = Get-TowerScoutHostHelperJsonValue -InputObject $payload -Name "provider"
+        Confirmation = Get-TowerScoutHostHelperJsonValue -InputObject $payload -Name "confirmation"
+        OperationAuthorization = $operationAuthorization
+    }
+}
+
+function New-TowerScoutProviderTlsRepairOperationPlanResponse {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [object] $Request
+    )
+
+    $payload = Read-TowerScoutProviderTlsRepairRequestBody -Request $Request -Profile $Profile
+    if (-not [bool] $payload.Accepted) {
+        return New-TowerScoutHostHelperHttpResult `
+            -StatusCode 400 `
+            -Reason "Bad Request" `
+            -Body $payload.PublicStatus
+    }
+
+    $plan = New-TowerScoutProviderTlsRepairOperationPlan `
+        -Profile $Profile `
+        -Provider $payload.Provider `
+        -Confirmation $payload.Confirmation
+    if (-not [bool] $plan.Accepted) {
+        $statusCode = if ($plan.State -eq "unsupported_runtime") { 409 } else { 400 }
+        $reason = if ($statusCode -eq 409) { "Conflict" } else { "Bad Request" }
+        return New-TowerScoutHostHelperHttpResult `
+            -StatusCode $statusCode `
+            -Reason $reason `
+            -Body $plan.PublicStatus
+    }
+
+    $lockResult = New-TowerScoutHostHelperOperationLock `
+        -Profile $Profile `
+        -Plan $plan `
+        -OperationNonce $payload.OperationAuthorization
+    if ($lockResult.State -eq "operation_busy") {
+        return New-TowerScoutHostHelperHttpResult `
+            -StatusCode 409 `
+            -Reason "Conflict" `
+            -Body $lockResult.PublicStatus
+    }
+
+    return New-TowerScoutHostHelperHttpResult `
+        -StatusCode 202 `
+        -Reason "Accepted" `
+        -Body $lockResult.PublicStatus
 }
 
 function Clear-TowerScoutHostHelperOperationLock {
@@ -719,6 +1014,7 @@ function Read-TowerScoutHostHelperRequest {
     if ($parts.Count -lt 3) {
         throw "The helper request line was invalid."
     }
+    $method = ([string] $parts[0]).ToUpperInvariant()
 
     $headers = @{}
     $headerLines = 0
@@ -744,10 +1040,44 @@ function Read-TowerScoutHostHelperRequest {
         $headers[$name] = $value
     }
 
+    $bodyText = ""
+    $contentLengthText = [string] $headers["content-length"]
+    [int] $contentLength = 0
+    if (-not [string]::IsNullOrWhiteSpace($contentLengthText)) {
+        if (-not [int]::TryParse($contentLengthText, [ref] $contentLength) -or $contentLength -lt 0) {
+            throw "The helper request content length was invalid."
+        }
+        if ($contentLength -gt $script:TowerScoutHostHelperMaxBodyBytes) {
+            throw "The helper request body was too large."
+        }
+    }
+
+    if ($method -eq "POST") {
+        if ([string]::IsNullOrWhiteSpace($contentLengthText)) {
+            throw "The helper POST request did not include a content length."
+        }
+        if ($contentLength -gt 0) {
+            $buffer = New-Object char[] $contentLength
+            $totalRead = 0
+            while ($totalRead -lt $contentLength) {
+                $read = $reader.Read($buffer, $totalRead, $contentLength - $totalRead)
+                if ($read -le 0) {
+                    throw "The helper request body ended early."
+                }
+                $totalRead += $read
+            }
+            $bodyText = -join $buffer
+        }
+    }
+    elseif ($contentLength -gt 0) {
+        throw "The helper request method does not accept a body."
+    }
+
     return [pscustomobject]@{
-        Method = ([string] $parts[0]).ToUpperInvariant()
+        Method = $method
         Path = [string] $parts[1]
         Headers = $headers
+        BodyText = $bodyText
     }
 }
 
@@ -781,7 +1111,7 @@ function Write-TowerScoutHostHelperResponse {
         $lines += @(
             "Access-Control-Allow-Origin: $AccessControlAllowOrigin",
             "Access-Control-Allow-Headers: X-TowerScout-Helper-Token, Content-Type",
-            "Access-Control-Allow-Methods: GET, OPTIONS",
+            "Access-Control-Allow-Methods: GET, POST, OPTIONS",
             "Vary: Origin"
         )
     }
@@ -832,6 +1162,7 @@ function Invoke-TowerScoutHostHelperRequest {
         }
 
         $path = ([string] $request.Path).Split([char[]] @("?"), 2)[0]
+        $operationStatusPathPattern = "^/operations/([a-f0-9]{32})$"
         $origin = [string] $request.Headers["origin"]
         $originAllowed = Test-TowerScoutHostHelperOrigin -Profile $Profile -Origin $origin
         $corsOrigin = if ($originAllowed) { $origin } else { "" }
@@ -856,7 +1187,7 @@ function Invoke-TowerScoutHostHelperRequest {
         }
 
         if ($request.Method -eq "OPTIONS") {
-            if ($path -notin @("/health", "/runtime-profile")) {
+            if ($path -notin @("/health", "/runtime-profile", "/operations/provider-tls-repair") -and $path -notmatch $operationStatusPathPattern) {
                 Write-TowerScoutHostHelperResponse `
                     -Stream $stream `
                     -StatusCode 404 `
@@ -882,6 +1213,29 @@ function Invoke-TowerScoutHostHelperRequest {
                 -StatusCode 401 `
                 -Reason "Unauthorized" `
                 -Body @{ state = "rejected_token" } `
+                -AccessControlAllowOrigin $corsOrigin
+            return
+        }
+
+        if ($request.Method -eq "POST") {
+            if ($path -ne "/operations/provider-tls-repair") {
+                Write-TowerScoutHostHelperResponse `
+                    -Stream $stream `
+                    -StatusCode 404 `
+                    -Reason "Not Found" `
+                    -Body @{ state = "rejected_unknown_endpoint" } `
+                    -AccessControlAllowOrigin $corsOrigin
+                return
+            }
+
+            $operationResult = New-TowerScoutProviderTlsRepairOperationPlanResponse `
+                -Profile $Profile `
+                -Request $request
+            Write-TowerScoutHostHelperResponse `
+                -Stream $stream `
+                -StatusCode $operationResult.StatusCode `
+                -Reason $operationResult.Reason `
+                -Body $operationResult.Body `
                 -AccessControlAllowOrigin $corsOrigin
             return
         }
@@ -916,6 +1270,19 @@ function Invoke-TowerScoutHostHelperRequest {
                 return
             }
             default {
+                if ($path -match $operationStatusPathPattern) {
+                    $operationResult = Get-TowerScoutHostHelperOperationStatus `
+                        -Profile $Profile `
+                        -OperationId $Matches[1]
+                    Write-TowerScoutHostHelperResponse `
+                        -Stream $stream `
+                        -StatusCode $operationResult.StatusCode `
+                        -Reason $operationResult.Reason `
+                        -Body $operationResult.Body `
+                        -AccessControlAllowOrigin $corsOrigin
+                    return
+                }
+
                 Write-TowerScoutHostHelperResponse `
                     -Stream $stream `
                     -StatusCode 404 `
@@ -995,7 +1362,14 @@ function Invoke-TowerScoutHostHelperSelfTestRequest {
         [string] $Path = "/health",
 
         [ValidateSet("GET", "POST", "OPTIONS")]
-        [string] $Method = "GET"
+        [string] $Method = "GET",
+
+        [string] $Body = "",
+
+        [string] $ContentType = "application/json",
+
+        [ValidateSet("GET", "POST")]
+        [string] $PreflightMethod = "GET"
     )
 
     $port = ([System.Net.IPEndPoint] $Listener.LocalEndpoint).Port
@@ -1014,13 +1388,23 @@ function Invoke-TowerScoutHostHelperSelfTestRequest {
             $lines += "X-TowerScout-Helper-Token: $RequestToken"
         }
         if ($Method -eq "OPTIONS") {
-            $lines += "Access-Control-Request-Method: GET"
+            $lines += "Access-Control-Request-Method: $PreflightMethod"
             $lines += "Access-Control-Request-Headers: X-TowerScout-Helper-Token"
+        }
+        if ($Method -eq "POST") {
+            $bodyBytes = [System.Text.Encoding]::ASCII.GetBytes($Body)
+            if (-not [string]::IsNullOrWhiteSpace($ContentType)) {
+                $lines += "Content-Type: $ContentType"
+            }
+            $lines += "Content-Length: $($bodyBytes.Length)"
         }
 
         $requestText = ([string]::Join("`r`n", $lines)) + "`r`n`r`n"
         $requestBytes = [System.Text.Encoding]::ASCII.GetBytes($requestText)
         $stream.Write($requestBytes, 0, $requestBytes.Length)
+        if ($Method -eq "POST" -and $bodyBytes.Length -gt 0) {
+            $stream.Write($bodyBytes, 0, $bodyBytes.Length)
+        }
         $stream.Flush()
 
         $serverClient = $Listener.EndAcceptTcpClient($accept)
@@ -1122,7 +1506,7 @@ function Invoke-TowerScoutHostHelperSelfTest {
             -Confirmation "restart_now"
         $badProviderPlan = New-TowerScoutProviderTlsRepairOperationPlan `
             -Profile $operationProfile `
-            -Provider "google;Start-Process" `
+            -Provider "google;process-start" `
             -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
 
         $lockResult = New-TowerScoutHostHelperOperationLock `
@@ -1175,8 +1559,8 @@ function Invoke-TowerScoutHostHelperSelfTest {
             }
         }
         $corsPreflight = @($results | Where-Object { $_.Scenario -eq "cors_preflight" } | Select-Object -First 1)
-        if ($corsPreflight.Count -ne 1 -or [string] $corsPreflight[0].Response.Headers["access-control-allow-methods"] -ne "GET, OPTIONS") {
-            throw "Host helper self-test did not return the expected GET-only CORS method policy."
+        if ($corsPreflight.Count -ne 1 -or [string] $corsPreflight[0].Response.Headers["access-control-allow-methods"] -ne "GET, POST, OPTIONS") {
+            throw "Host helper self-test did not return the expected bounded POST CORS method policy."
         }
 
         if (-not $acceptedPlan.Accepted -or $acceptedPlan.State -ne "planned") {
@@ -1216,7 +1600,7 @@ function Invoke-TowerScoutHostHelperSelfTest {
             throw "Host helper public operation status exposed support-sensitive command or credential details."
         }
         $badProviderPublicJson = $badProviderPlan.PublicStatus | ConvertTo-Json -Depth 8 -Compress
-        if ($badProviderPublicJson -match "google;|start-process") {
+        if ($badProviderPublicJson -match "google;|process-start") {
             throw "Host helper rejected-provider status exposed caller-supplied invalid provider text."
         }
 
@@ -1230,7 +1614,7 @@ function Invoke-TowerScoutHostHelperSelfTest {
                 [pscustomobject]@{
                     name = $_.Scenario
                     status_code = $_.Response.StatusCode
-                    state = if ($null -ne $_.Response.Body) { [string] $_.Response.Body.state } else { "" }
+                    state = if ($null -ne $_.Response.Body) { Get-TowerScoutHostHelperObjectValue -InputObject $_.Response.Body -Name "state" } else { "" }
                 }
             })
             operation_scenarios = @(
@@ -1258,7 +1642,7 @@ function Invoke-TowerScoutHostHelperSelfTest {
                     state = [string] $duplicateLockResult.PublicStatus.state
                 }
             )
-            redaction_check = "no tokens, helper listener ports, local paths, provider keys, certificate details, raw subprocess output, or command paths returned"
+            redaction_check = "no tokens, operation authorizations, helper listener ports, local paths, provider keys, certificate details, raw subprocess output, or command paths returned"
         }
     }
     finally {
