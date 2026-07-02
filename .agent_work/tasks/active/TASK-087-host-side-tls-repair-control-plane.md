@@ -920,11 +920,12 @@ endpoint UX/policy confirmation still required before product integration.
 **Redaction Check**: No helper token, helper listener port, local path, provider
 key, certificate detail, raw subprocess output, `.env` value, or support log was
 recorded.
-**Follow-Up**: Confirm with the user/reviewer whether the visible helper window
-is acceptable UX and whether any endpoint-protection prompt or alert appeared
-during validation. If acceptable, continue to the first support-guided Docker
-CPU/CUDA repair MVP design. If not acceptable, pivot to a native or supervised
-helper before any mutating endpoint is added.
+**Follow-Up**: User confirmed in-session that the visible helper window was
+observable during the slower manual check and no endpoint-protection alert,
+warning, quarantine, or suspicious-process notification appeared. Continue to
+the first support-guided Docker CPU/CUDA repair MVP design, while keeping
+product UI and mutating endpoints blocked until operation locking,
+authorization, timeout/cleanup, and sanitized progress are implemented.
 
 **Validation**: The temporary visible-helper harness returned `result=passed`,
 `visible_window_launch=started`, `wrapper_process=returned`,
