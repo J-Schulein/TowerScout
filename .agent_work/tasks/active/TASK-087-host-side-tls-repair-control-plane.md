@@ -1038,6 +1038,36 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-06 - Live Wrapper Evidence Note Prepared
+
+**Objective**: Prepare the run-specific evidence note requested before the
+first internal live-wrapper validation window.
+
+**Context**: The reviewer cleared `0132b13` for internal Docker CPU/off
+live-wrapper validation only, while keeping product UI,
+`provider_tls_repair=true`, browser-triggered default mutation, Podman
+remediation, and tester-facing guided repair packaging blocked.
+
+**Decision**: Create a task-local proof note under the owning Task-087 support
+folder rather than recording run-specific evidence in `.agent_work/context/`.
+Keep the note support-safe and concrete enough to use before execution.
+
+**Execution**: Added
+`.agent_work/tasks/active/TASK-087/live-wrapper-validation-2026-07-06.md` with
+planned PR head, Docker CPU/off runtime profile, provider, port, wrapper
+sequence, timeout budget, fallback commands, pre-run checklist, sanitized
+evidence fields, abort conditions, and post-run gate.
+
+**Validation**:
+
+- PASS: `python .agent_work\scripts\validate_agent_work.py`
+- PASS:
+  `python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`
+- PASS: `git diff --check`
+
+**Next**: Request explicit approval before running any live command that repairs
+TLS trust or stops/restarts the Docker runtime.
+
 ### 2026-07-02 - Internal Live Wrapper Validation Runbook Added
 
 **Objective**: Incorporate the reviewer's `e0bb8b5` feedback before running any
