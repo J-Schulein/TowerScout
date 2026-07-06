@@ -129,6 +129,32 @@ command here before running the live sequence.
 - Do not rerun the mutating Docker CPU/off validation until the release owner
   gives fresh explicit approval for the patched `7177cc1` branch.
 
+## Rerun Outcome - 2026-07-06
+
+- Patched PR head executed: `c55814b`.
+- Run result: PASS.
+- Runtime initial state: stopped / not reachable.
+- Operation states observed: terminal helper state `ready`, current step
+  `start`, terminal classification `terminal_success`.
+- Actual terminal state: `ready`.
+- Step order observed: helper-controlled repair, stop, start sequence completed
+  according to the allowlisted operation contract.
+- Readiness returned: yes; the application responded on port `5000`.
+- Runtime health after rerun: Docker service running / healthy.
+- Runtime image after rerun: `towerscout:local`.
+- Provider setup could be retried: yes; the application returned to the setup
+  flow and the helper response directed provider validation retry.
+- Fallback command needed: no.
+- Product UI repair path: still blocked.
+- `provider_tls_repair=true`: still blocked.
+- Browser-triggered default mutation: still blocked.
+- Podman remediation: still blocked.
+- Tester-facing guided repair packaging: still blocked.
+- Sanitization check: no raw subprocess output, helper token, operation
+  credential, `.env` content, certificate subject, certificate thumbprint,
+  provider key, full local path, browser network trace, screenshot, support log,
+  raw Docker JSON, or container labels were recorded.
+
 ## Sanitized Evidence To Record After Execution
 
 - Run result: PASS / FAIL / PARTIAL / BLOCKED

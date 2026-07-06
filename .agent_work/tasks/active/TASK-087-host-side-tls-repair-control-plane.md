@@ -1038,6 +1038,40 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-06 - Patched Live Wrapper Rerun Passed
+
+**Objective**: Rerun the approved internal Docker CPU/off provider TLS repair
+validation against patched PR head `c55814b`.
+
+**Context**: The previous live run was `PARTIAL` because ordinary stop cleanup
+cleared helper operation metadata before the controlled runner could persist
+stop status and continue to start. The `7177cc1` fix preserved ordinary stop
+cleanup while allowing helper-controlled stop to defer session invalidation.
+The source-checkout Docker image prerequisite was prepared before rerun.
+
+**Decision**: Execute the internal helper-controlled repair, stop, start
+sequence only after fresh release-owner approval. Keep product UI,
+`provider_tls_repair=true`, browser-triggered default mutation, Podman
+remediation, and tester-facing packaging blocked.
+
+**Execution**: Ran the approved internal live Docker CPU/off validation for
+`google` on port `5000`. The helper-controlled operation returned terminal
+state `ready`, current step `start`, and classification `terminal_success`.
+Post-run checks confirmed the app was reachable on port `5000` and the Docker
+service was running / healthy with `towerscout:local`.
+
+**Validation**:
+
+- PASS: helper-controlled operation returned `ready`.
+- PASS: readiness returned on port `5000`.
+- PASS: Docker service state was running / healthy.
+- PASS: no fallback command was needed.
+- PASS: sanitized evidence recorded in
+  `.agent_work/tasks/active/TASK-087/live-wrapper-validation-2026-07-06.md`.
+
+**Next**: Ask the reviewer to assess the patched live-run evidence before
+starting any Gate 3 product integration design or user-facing enablement.
+
 ### 2026-07-06 - Docker Rerun Prerequisite Prepared
 
 **Objective**: Prepare the Docker runtime prerequisite needed before requesting
