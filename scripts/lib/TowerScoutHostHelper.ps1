@@ -1130,6 +1130,10 @@ function Resolve-TowerScoutHostHelperControlledCommand {
 
     $scriptPath = Resolve-TowerScoutHostHelperPackageCommandPath -Profile $Profile -RelativeScriptPath $expectedScript
     $interpreterPath = Get-TowerScoutHostHelperBatchInterpreterPath
+    $environmentVariables = @{}
+    if ([string]::Equals($Step, "stop", [System.StringComparison]::Ordinal)) {
+        $environmentVariables["TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION"] = "1"
+    }
 
     return [pscustomobject]@{
         Step = $Step
@@ -1141,6 +1145,7 @@ function Resolve-TowerScoutHostHelperControlledCommand {
         InterpreterArguments = @("/d", "/s", "/c")
         WorkingDirectory = (Resolve-Path -LiteralPath (Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "PackageRoot")).Path
         TimeoutSeconds = (Get-TowerScoutHostHelperStepTimeoutSeconds -Step $Step)
+        EnvironmentVariables = $environmentVariables
     }
 }
 
@@ -1236,6 +1241,16 @@ function Invoke-TowerScoutHostHelperProcessCommand {
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.CreateNoWindow = $true
+    $commandEnvironmentVariables = $null
+    if ($Command.PSObject.Properties.Name -contains "EnvironmentVariables") {
+        $commandEnvironmentVariables = $Command.PSObject.Properties["EnvironmentVariables"].Value
+    }
+    if ($commandEnvironmentVariables -is [System.Collections.IDictionary]) {
+        $controlledOperationMarker = [string] $commandEnvironmentVariables["TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION"]
+        if ([string]::Equals($controlledOperationMarker, "1", [System.StringComparison]::Ordinal)) {
+            $startInfo.EnvironmentVariables.Set_Item("TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION", "1")
+        }
+    }
     $process.StartInfo = $startInfo
 
     $started = $process.Start()

@@ -2,8 +2,9 @@
 
 ## Purpose
 
-Prepare the first explicit internal live-wrapper validation window for Task-087
-after reviewer approval of PR #45 at `0132b13`.
+Prepare and record the first explicit internal live-wrapper validation window
+for Task-087 after reviewer approval of PR #45 at `0132b13` and the pre-run
+note at `4139993`.
 
 This note is task-local evidence. Record sanitized states only. Do not record
 raw subprocess output, helper tokens, operation credentials, `.env` contents,
@@ -12,7 +13,7 @@ browser network traces, screenshots, or support logs.
 
 ## Planned Run Scope
 
-- PR / branch head: `0132b13`
+- PR / branch head before execution: `4139993`
 - Branch: `feature/task-087-helper-transport`
 - Package / checkout label: local PR #45 source checkout, path omitted
 - Validation mode: internal live-wrapper controlled validation
@@ -64,15 +65,53 @@ command here before running the live sequence.
 - [x] First live run is Docker CPU/off only.
 - [x] Product UI, advertised helper capability, default browser-triggered
   mutation, Podman remediation, and tester-facing packaging remain blocked.
-- [ ] Release owner confirms the validation window and accepts that the run may
+- [x] Release owner confirms the validation window and accepts that the run may
   change TLS trust material and stop/restart the Docker runtime.
 - [x] Confirm no other TowerScout package instance is using port `5000`:
   readiness was not reachable on port `5000` during the pre-run status check.
 - [x] Confirm the current runtime initial state immediately before execution:
   stopped / not reachable.
-- [ ] Confirm the internal execution path, not browser input, supplies
+- [x] Confirm the internal execution path, not browser input, supplies
   `ExecutionEnabled=true`.
-- [ ] Confirm the manual fallback commands above are available.
+- [x] Confirm the manual fallback commands above are available.
+
+## Execution Outcome - 2026-07-06
+
+- Run result: PARTIAL
+- Runtime initial state: stopped / not reachable
+- Operation states observed: repair step accepted, stop step reached, then the
+  helper operation status could not be persisted because the stop cleanup
+  invalidated the active helper session metadata.
+- Actual terminal state: no helper terminal state was available after the
+  operation lock was cleared.
+- Step order observed: repair, stop; start was not reached by the controlled
+  runner.
+- Terminal classification: validation blocker in helper-controlled stop
+  cleanup.
+- Readiness returned: no.
+- Provider setup could be retried: no, because the runtime was not reachable.
+- Fallback command needed: yes.
+- Fallback result: manual start fallback was attempted, but the local Docker
+  image for the source-checkout runtime was unavailable / pull denied, so the
+  runtime remained not reachable on port `5000`.
+- Sanitization check: no raw subprocess output, helper token, operation
+  credential, `.env` content, certificate subject, certificate thumbprint,
+  provider key, full local path, browser network trace, screenshot, or support
+  log was recorded.
+
+## Follow-Up Fix - 2026-07-06
+
+- `scripts\stop.ps1` now preserves normal stop behavior by invalidating helper
+  session metadata for ordinary user/support stops.
+- Helper-controlled stop calls now receive the internal
+  `TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION=1` process environment marker.
+- When that marker is present, `scripts\stop.ps1` defers helper-session
+  invalidation so the controlled operation can persist the stop result and
+  proceed to the start step.
+- Focused Task-087 unit coverage now asserts the marker reaches the controlled
+  stop wrapper and that normal stop cleanup remains present.
+- Because the code changed after the partial live run, do not rerun the
+  mutating Docker CPU/off validation without a fresh explicit approval.
 
 ## Sanitized Evidence To Record After Execution
 

@@ -1038,6 +1038,48 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-06 - Live Wrapper Partial Run And Stop Cleanup Fix
+
+**Objective**: Run the approved internal Docker CPU/off live-wrapper validation
+and close the helper-controlled stop cleanup gap it exposed.
+
+**Context**: The release owner approved the internal `google` provider
+validation on port `5000`, including `repair-provider-tls.cmd -Apply`,
+`stop.cmd`, and `start.bat`. Product UI exposure, `provider_tls_repair=true`,
+browser-triggered default mutation, Podman remediation, and tester-facing
+packaging remained blocked.
+
+**Decision**: Treat the run as `PARTIAL` rather than retrying automatically.
+The controlled runner reached the stop step, but normal stop cleanup cleared
+the active helper session metadata before the helper could persist the stop
+result and continue to the start step. Preserve ordinary user/support stop
+cleanup, but mark helper-controlled stop subprocesses so `stop.ps1` defers
+session invalidation only for the active controlled operation.
+
+**Execution**: Updated `scripts\stop.ps1` to skip helper-session invalidation
+only when `TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION=1` is present. Updated
+the controlled command resolver/process runner to attach that fixed environment
+marker only to the allowlisted stop wrapper. Added focused unit coverage that
+asserts the marker reaches the controlled stop wrapper and that normal stop
+cleanup remains present. Updated
+`.agent_work/tasks/active/TASK-087/live-wrapper-validation-2026-07-06.md` with
+the sanitized partial-run outcome.
+
+**Validation**:
+
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_task_087_host_helper.py -q -p no:cacheprovider`
+- PASS: PowerShell parser checks for `scripts\stop.ps1` and
+  `scripts\lib\TowerScoutHostHelper.ps1`
+- PASS: `python .agent_work\scripts\validate_agent_work.py`
+- PASS:
+  `python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`
+- PASS: `git diff --check`
+
+**Next**: Commit and push the fix, then ask for fresh explicit approval before
+rerunning the mutating Docker CPU/off live validation against the patched
+branch.
+
 ### 2026-07-06 - Live Wrapper Evidence Note Prepared
 
 **Objective**: Prepare the run-specific evidence note requested before the

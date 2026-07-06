@@ -12,6 +12,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HELPER_LIB = REPO_ROOT / "scripts" / "lib" / "TowerScoutHostHelper.ps1"
 HELPER_SCRIPT = REPO_ROOT / "scripts" / "host-helper.ps1"
+STOP_SCRIPT = REPO_ROOT / "scripts" / "stop.ps1"
 
 
 def _powershell_executable():
@@ -42,6 +43,7 @@ def _run_powershell_script(script: str) -> subprocess.CompletedProcess[str]:
 
 def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     script = HELPER_LIB.read_text(encoding="utf-8")
+    stop_script = STOP_SCRIPT.read_text(encoding="utf-8")
 
     assert (
         '$script:TowerScoutHostHelperProviderTlsRepairConfirmation = '
@@ -80,6 +82,9 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert '"Access-Control-Allow-Methods: $AccessControlAllowMethods"' in script
     assert 'return "GET, OPTIONS"' in script
     assert 'return "POST, OPTIONS"' in script
+    assert "TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION" in script
+    assert "TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION" in stop_script
+    assert "Clear-TowerScoutHostHelperSession" in stop_script
 
 
 def test_host_helper_provider_tls_repair_operation_api_is_bounded_and_non_mutating():
@@ -247,13 +252,19 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
         $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout task087 runner (&) {{0}}" -f (New-TowerScoutHostHelperSessionId))
         New-Item -ItemType Directory -Path (Join-Path $root "scripts") -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $root "scripts\\repair-provider-tls.cmd") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
-        Set-Content -LiteralPath (Join-Path $root "scripts\\stop.cmd") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
+        Set-Content -LiteralPath (Join-Path $root "scripts\\stop.cmd") -Encoding ASCII -Value "@echo off`r`nset TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION>stop-env.txt`r`nexit /b 0"
         Set-Content -LiteralPath (Join-Path $root "start.bat") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
         try {{
             $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "runner-probe"
             $plan = New-TowerScoutProviderTlsRepairOperationPlan -Profile $profile -Provider "google" -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
             $repairCommand = Resolve-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $plan -Step "repair"
             $actualRepair = Invoke-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $plan -Step "repair"
+            $actualStop = Invoke-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $plan -Step "stop"
+            $controlledStopEnv = ""
+            $stopEnvPath = Join-Path $root "stop-env.txt"
+            if (Test-Path -LiteralPath $stopEnvPath) {{
+                $controlledStopEnv = (Get-Content -LiteralPath $stopEnvPath -Raw).Trim()
+            }}
 
             $badPlan = $plan | ConvertTo-Json -Depth 12 | ConvertFrom-Json
             $badPlan.InternalCommands.Start.Arguments = @("-Engine", "docker", "-Gpu", "off", "-Port", "9999", "-NoBrowser", "-TimeoutSeconds", "180")
@@ -332,6 +343,8 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
                 repair_interpreter = [System.IO.Path]::GetFileName([string] $repairCommand.InterpreterPath)
                 repair_arguments = @($repairCommand.Arguments)
                 actual_repair_state = [string] $actualRepair.State
+                actual_stop_state = [string] $actualStop.State
+                controlled_stop_env = $controlledStopEnv
                 bad_argument_rejected = $badArgumentRejected
                 bad_repair_script_rejected = $badRepairScriptRejected
                 bad_stop_script_rejected = $badStopScriptRejected
@@ -375,6 +388,8 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
         "-Apply",
     ]
     assert payload["actual_repair_state"] == "tls_repair_completed"
+    assert payload["actual_stop_state"] == "runtime_stopped"
+    assert payload["controlled_stop_env"] == "TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION=1"
     assert payload["bad_argument_rejected"] is True
     assert payload["bad_repair_script_rejected"] is True
     assert payload["bad_stop_script_rejected"] is True
