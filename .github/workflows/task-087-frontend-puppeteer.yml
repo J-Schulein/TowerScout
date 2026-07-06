@@ -70,6 +70,15 @@ jobs:
       - name: Wait for web server
         run: npx wait-on http://localhost:5000 --timeout 30000
 
+      - name: Diagnostics - capture webserver status
+        if: always()
+        run: |
+          sleep 1
+          echo "-- process list (filtered) --"
+          ps aux | egrep 'http-server|node' | sed -n '1,200p' || true
+          echo "-- webserver.log head --"
+          test -f test-artifacts/webserver.log && head -n 200 test-artifacts/webserver.log || echo "(no webserver.log)"
+
       - name: Run live POST/poll Puppeteer template
         env:
           CI: true
@@ -186,6 +195,17 @@ jobs:
 
       - name: Wait for services
         run: npx wait-on http://localhost:5000 http://localhost:5001 --timeout 30000
+
+      - name: Diagnostics - capture helper and webserver status
+        if: always()
+        run: |
+          sleep 1
+          echo "-- process list (filtered) --"
+          ps aux | egrep 'simulated_helper|http-server|node' | sed -n '1,200p' || true
+          echo "-- simulated_helper.log head --"
+          test -f test-artifacts/simulated_helper.log && head -n 200 test-artifacts/simulated_helper.log || echo "(no simulated_helper.log)"
+          echo "-- webserver.log head --"
+          test -f test-artifacts/webserver.log && head -n 200 test-artifacts/webserver.log || echo "(no webserver.log)"
 
       - name: Run live POST/poll Puppeteer e2e
         env:
