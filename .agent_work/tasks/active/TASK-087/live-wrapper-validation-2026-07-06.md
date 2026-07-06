@@ -66,9 +66,10 @@ command here before running the live sequence.
   mutation, Podman remediation, and tester-facing packaging remain blocked.
 - [ ] Release owner confirms the validation window and accepts that the run may
   change TLS trust material and stop/restart the Docker runtime.
-- [ ] Confirm no other TowerScout package instance is using port `5000`.
-- [ ] Confirm the current runtime initial state immediately before execution:
-  running / stopped / degraded / unknown.
+- [x] Confirm no other TowerScout package instance is using port `5000`:
+  readiness was not reachable on port `5000` during the pre-run status check.
+- [x] Confirm the current runtime initial state immediately before execution:
+  stopped / not reachable.
 - [ ] Confirm the internal execution path, not browser input, supplies
   `ExecutionEnabled=true`.
 - [ ] Confirm the manual fallback commands above are available.
