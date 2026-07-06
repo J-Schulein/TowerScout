@@ -44,8 +44,11 @@ const CONFIG = {
 };
 
 async function run() {
-  const launchOptions = { headless: CONFIG.headless };
-  if (process.env.TEST_BROWSER_EXECUTABLE) {
+  const launchOptions = { headless: CONFIG.headless, args: ['--no-sandbox', '--disable-setuid-sandbox'] };
+  // Prefer a provided executable path (Playwright-installed Chromium) in CI
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  } else if (process.env.TEST_BROWSER_EXECUTABLE) {
     launchOptions.executablePath = process.env.TEST_BROWSER_EXECUTABLE;
   }
   const browser = await puppeteer.launch(launchOptions);
