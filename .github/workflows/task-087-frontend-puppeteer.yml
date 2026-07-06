@@ -167,7 +167,8 @@ jobs:
         run: |
           # allow a brief startup window, then wait up to 2 minutes for both services
           sleep 1
-          npx wait-on http://127.0.0.1:5000 http://127.0.0.1:5001 --timeout 120000
+          # allow a longer overall timeout for flaky CI hosts (5 minutes)
+          npx wait-on http://127.0.0.1:5000 http://127.0.0.1:5001 --timeout 300000
 
       - name: Diagnostics - capture helper and webserver status
         if: always()
