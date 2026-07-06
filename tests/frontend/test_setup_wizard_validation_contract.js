@@ -59,7 +59,15 @@ function createContext(options = {}) {
     azure_key_status: createElement('azure_key_status'),
     wizard_validate_button: createElement('wizard_validate_button'),
     wizard_save_button: createElement('wizard_save_button'),
-    wizard_performance_stats: createElement('wizard_performance_stats')
+    wizard_performance_stats: createElement('wizard_performance_stats'),
+    wizard_provider_tls_repair_panel: createElement('wizard_provider_tls_repair_panel'),
+    wizard_provider_tls_repair_title: createElement('wizard_provider_tls_repair_title'),
+    wizard_provider_tls_repair_message: createElement('wizard_provider_tls_repair_message'),
+    wizard_provider_tls_repair_support: createElement('wizard_provider_tls_repair_support'),
+    wizard_provider_tls_repair_command: createElement('wizard_provider_tls_repair_command'),
+    wizard_provider_tls_repair_confirm: createElement('wizard_provider_tls_repair_confirm'),
+    wizard_provider_tls_repair_button: createElement('wizard_provider_tls_repair_button'),
+    wizard_provider_tls_repair_status: createElement('wizard_provider_tls_repair_status')
   };
   const steps = [1, 2, 3, 4, 5].map(stepNumber => ({
     dataset: { step: String(stepNumber) },
@@ -216,6 +224,7 @@ async function testSecondProviderStillValidatesAfterFirstProviderNetworkFailure(
     '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off'
   );
   assert.strictEqual(context.window.SetupWizard.shouldShowProviderTlsRepair('google'), false);
+  assert.strictEqual(elements.wizard_provider_tls_repair_panel.style.display, 'none');
 
   await context.window.SetupWizard.saveAndReview();
   assert.deepStrictEqual(context.savePayload, {
@@ -226,7 +235,7 @@ async function testSecondProviderStillValidatesAfterFirstProviderNetworkFailure(
 }
 
 async function testInvalidProviderKeyDoesNotExposeRepairPredicate() {
-  const { context } = createContext({
+  const { context, elements } = createContext({
     googleValidationOk: true,
     googleValidationPayload: {
       valid: false,
@@ -250,10 +259,12 @@ async function testInvalidProviderKeyDoesNotExposeRepairPredicate() {
   assert.strictEqual(googleValidation.lastFailure.repairable, false);
   assert.strictEqual(googleValidation.lastFailure.helper_available, false);
   assert.strictEqual(context.window.SetupWizard.shouldShowProviderTlsRepair('google'), false);
+  assert.strictEqual(context.window.SetupWizard.getProviderTlsRepairViewModel('google').visible, false);
+  assert.strictEqual(elements.wizard_provider_tls_repair_panel.style.display, 'none');
 }
 
 async function testRepairPredicateRequiresRepairableTlsAndHelperAvailability() {
-  const { context } = createContext({
+  const { context, elements } = createContext({
     googleValidationPayload: {
       error: true,
       message: 'TowerScout could not verify the Google Maps TLS certificate.',
@@ -276,11 +287,158 @@ async function testRepairPredicateRequiresRepairableTlsAndHelperAvailability() {
 
   assert.strictEqual(context.window.SetupWizard.shouldShowProviderTlsRepair('google'), true);
   assert.strictEqual(context.window.SetupWizard.shouldShowProviderTlsRepair('azure'), false);
+  const viewModel = context.window.SetupWizard.getProviderTlsRepairViewModel('google');
+  assert.strictEqual(viewModel.visible, true);
+  assert.strictEqual(viewModel.authorization_ready, false);
+  assert.strictEqual(viewModel.enabled, false);
+  assert.strictEqual(viewModel.blocked_reason, 'operation_authorization_unavailable');
+  assert.strictEqual(elements.wizard_provider_tls_repair_panel.style.display, 'block');
+  assert.strictEqual(elements.wizard_provider_tls_repair_button.disabled, true);
+  assert.strictEqual(elements.wizard_provider_tls_repair_button.textContent, 'Repair unavailable');
+  assert.ok(elements.wizard_provider_tls_repair_status.textContent.includes('authorization is not available'));
+}
+
+async function testRepairPanelRejectsNonTlsHelperUnavailableAndPodmanStates() {
+  const blockedScenarios = [
+    {
+      category: 'invalid_provider_key',
+      repairable: false,
+      helper_available: true
+    },
+    {
+      category: 'provider_api_not_authorized',
+      repairable: false,
+      helper_available: true
+    },
+    {
+      category: 'provider_http_error',
+      repairable: false,
+      helper_available: true
+    },
+    {
+      category: 'provider_network_blocked',
+      repairable: false,
+      helper_available: true
+    },
+    {
+      category: 'tls_ca_untrusted',
+      repairable: true,
+      helper_available: false
+    },
+    {
+      category: 'unsupported_runtime',
+      repairable: true,
+      helper_available: true
+    },
+    {
+      category: 'podman_compose_provider_unapproved',
+      repairable: true,
+      helper_available: true
+    }
+  ];
+
+  for (const scenario of blockedScenarios) {
+    const { context, elements } = createContext({
+      googleValidationPayload: {
+        error: true,
+        message: `Google Maps validation failed with ${scenario.category}.`,
+        details: {
+          provider: 'google',
+          category: scenario.category,
+          repairable: scenario.repairable,
+          support_action: 'Use provider-specific fallback guidance.',
+          repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
+          helper_available: scenario.helper_available
+        }
+      }
+    });
+    vm.createContext(context);
+    const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
+    vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+
+    context.window.SetupWizard.showStep(2);
+    await context.window.SetupWizard.validateAndNext();
+
+    assert.strictEqual(
+      context.window.SetupWizard.shouldShowProviderTlsRepair('google'),
+      false,
+      scenario.category
+    );
+    assert.strictEqual(
+      context.window.SetupWizard.getProviderTlsRepairViewModel('google').visible,
+      false,
+      scenario.category
+    );
+    assert.strictEqual(elements.wizard_provider_tls_repair_panel.style.display, 'none', scenario.category);
+  }
+}
+
+async function testShortLivedAuthorizationDoesNotStartRepairWhileMutationGateIsClosed() {
+  const operationToken = 'short-lived-operation-token-should-not-render';
+  const { context, elements, notifications } = createContext({
+    googleValidationPayload: {
+      error: true,
+      message: 'TowerScout could not verify the Google Maps TLS certificate.',
+      details: {
+        provider: 'google',
+        category: 'tls_ca_untrusted',
+        repairable: true,
+        support_action: 'Import the trusted organization/root TLS CA into the container trust store.',
+        repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
+        helper_available: true,
+        operation_authorization: {
+          operation_type: 'provider_tls_repair',
+          expires_at: '2999-01-01T00:00:00Z',
+          operation_token: operationToken
+        }
+      }
+    }
+  });
+  vm.createContext(context);
+  const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
+  vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+
+  context.window.SetupWizard.showStep(2);
+  await context.window.SetupWizard.validateAndNext();
+
+  let viewModel = context.window.SetupWizard.getProviderTlsRepairViewModel('google');
+  const publicFailure = context.window.SetupWizard.getProviderValidationState('google').lastFailure;
+  assert.strictEqual(viewModel.visible, true);
+  assert.strictEqual(viewModel.authorization_ready, true);
+  assert.strictEqual(viewModel.enabled, false);
+  assert.strictEqual(viewModel.blocked_reason, 'browser_mutation_disabled');
+  assert.strictEqual(Object.values(viewModel).includes(operationToken), false);
+  assert.strictEqual(publicFailure.operation_authorization.operation_type, 'provider_tls_repair');
+  assert.strictEqual(publicFailure.operation_authorization.expires_at, '2999-01-01T00:00:00Z');
+  assert.strictEqual(publicFailure.operation_authorization.operation_token, undefined);
+
+  elements.wizard_provider_tls_repair_confirm.checked = true;
+  viewModel = context.window.SetupWizard.updateProviderTlsRepairControls();
+  assert.strictEqual(viewModel.enabled, false);
+  assert.strictEqual(elements.wizard_provider_tls_repair_button.disabled, true);
+  assert.ok(elements.wizard_provider_tls_repair_status.textContent.includes('browser-triggered repair remains disabled'));
+
+  const renderedText = [
+    elements.wizard_provider_tls_repair_title.textContent,
+    elements.wizard_provider_tls_repair_message.textContent,
+    elements.wizard_provider_tls_repair_support.textContent,
+    elements.wizard_provider_tls_repair_command.textContent,
+    elements.wizard_provider_tls_repair_status.textContent
+  ].join(' ');
+  assert.strictEqual(renderedText.includes(operationToken), false);
+  assert.strictEqual(context.window.SetupWizard.startProviderTlsRepair(), false);
+  assert.strictEqual(notifications[0].type, 'info');
+  assert.deepStrictEqual(
+    context.fetchCalls,
+    ['google', 'azure']
+  );
 }
 
 testSecondProviderStillValidatesAfterFirstProviderNetworkFailure()
   .then(testInvalidProviderKeyDoesNotExposeRepairPredicate)
   .then(testRepairPredicateRequiresRepairableTlsAndHelperAvailability)
+  .then(testRepairPanelRejectsNonTlsHelperUnavailableAndPodmanStates)
+  .then(testShortLivedAuthorizationDoesNotStartRepairWhileMutationGateIsClosed)
   .then(() => {
     console.log('Setup wizard validation contract PASSED');
   })

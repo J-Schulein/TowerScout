@@ -20,4 +20,7 @@ def test_setup_and_settings_preserve_provider_tls_error_details():
     assert "helper_available" in setup_source
     assert "getProviderValidationState" in setup_source
     assert "shouldShowProviderTlsRepair" in setup_source
+    assert "getProviderTlsRepairViewModel" in setup_source
+    assert "PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED = false" in setup_source
+    assert "operation_authorization" in setup_source
     assert "TLS_REPAIR_CATEGORIES" in setup_source

@@ -1038,6 +1038,47 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-06 - Gate 3 Repair UI Authorization Gate Added
+
+**Objective**: Add the next Gate 3 Setup Wizard repair UI contract without
+enabling browser-triggered host mutation.
+
+**Context**: Reviewer feedback accepted the PR #46 process-tree cleanup
+hardening and recommended proceeding to the next visible repair UI /
+host-mutation design slice, while keeping `provider_tls_repair=true`, default
+browser-triggered repair, Podman remediation, and tester-facing package
+inclusion blocked.
+
+**Decision**: Render a Setup Wizard TLS repair review panel only when the
+retained provider validation failure is a repairable TLS trust category and
+helper availability is explicitly true. Keep the repair button disabled unless
+a future short-lived operation authorization is present and the explicit browser
+mutation gate is opened. Redact operation tokens from public validation-state
+accessors and rendered DOM text.
+
+**Execution**: Added the Setup Wizard repair view-model, confirmation checkbox,
+disabled repair button, command fallback text, and browser-mutation gate. Added
+contract tests proving invalid keys, unauthorized/quota/provider HTTP failures,
+generic network failures, helper-unavailable TLS failures, unsupported runtime,
+and Podman provider states do not render the host repair action. Added a
+short-lived authorization test proving the token is not exposed through the
+public state accessor or DOM text and no helper operation request is made while
+the browser-mutation gate is closed. Rebuilt the generated frontend bundle.
+
+**Validation**:
+
+- PASS: `node tests\frontend\test_setup_wizard_validation_contract.js`
+- PASS: `node tests\frontend\test_global_contract.js`
+- PASS: `node tests\frontend\test_debug_logging_contract.js`
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_frontend_provider_tls.py tests\unit\test_config.py tests\unit\test_provider_http.py -q -p no:cacheprovider`
+- PASS:
+  `python .agents\skills\towerscout-frontend-bundle-guard\scripts\check_bundle_source_consistency.py .`
+
+**Next**: Run final `.agent_work` and diff hygiene checks, then push this
+gated UI/authorization slice to PR #46 for reviewer feedback before adding any
+real browser-to-helper operation start.
+
 ### 2026-07-06 - PR #46 Process-Tree Cleanup Path Hardened
 
 **Objective**: Address the reviewer follow-up that the timeout cleanup path
