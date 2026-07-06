@@ -22,8 +22,18 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install Node dependencies
-        run: npm install --no-audit --no-fund
+      - name: Install Puppeteer system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates fonts-liberation libasound2 libatk1.0-0 libatk-bridge2.0-0 libcups2 libgtk-3-0 libnss3 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1
+
+      - name: Install Node dependencies (lockfile)
+        env:
+          PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'false'
+        run: npm ci --no-audit --no-fund
+
+      - name: Install lightweight test utilities
+        run: npm install --no-audit --no-fund --no-save http-server wait-on
 
       - name: Start static web server for tests
         # Use a lightweight static server to avoid starting the full Python app in CI
@@ -50,13 +60,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
 
-      - name: Install Node dependencies
-        run: npm install --no-audit --no-fund
+      - name: Install Puppeteer system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates fonts-liberation libasound2 libatk1.0-0 libatk-bridge2.0-0 libcups2 libgtk-3-0 libnss3 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1
+
+      - name: Install Node dependencies (lockfile)
+        env:
+          PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'false'
+        run: npm ci --no-audit --no-fund
+
+      - name: Install lightweight test utilities
+        run: npm install --no-audit --no-fund --no-save http-server wait-on
 
       - name: Start simulated helper (port 5001)
         run: node tests/helpers/simulated_helper.js &
