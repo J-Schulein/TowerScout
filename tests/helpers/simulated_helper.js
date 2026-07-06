@@ -139,6 +139,6 @@ const server = http.createServer(async (req, res) => {
   sendJSON(res, 404, { message: 'not_found' }, origin);
 });
 
-server.listen(PORT, () => {
-  console.log(`Simulated helper listening on http://localhost:${PORT}`);
+server.listen(PORT, '127.0.0.1', () => {
+  console.log(`Simulated helper listening on http://127.0.0.1:${PORT}`);
 });
