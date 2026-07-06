@@ -25,7 +25,14 @@ async function run() {
   const page = await browser.newPage();
 
   try {
+    const USE_REAL_HELPER = (process.env.E2E_USE_SERVER === '1' || process.env.E2E_USE_SERVER === 'true' || process.env.USE_REAL_HELPER === '1');
+
     await page.goto(CONFIG.baseUrl, { waitUntil: 'networkidle2', timeout: CONFIG.timeout });
+
+    // Expose helper base URL to the page when running e2e
+    await page.evaluateOnNewDocument((hb) => {
+      try { window.__TEST_HELPER_BASE_URL = hb || '' } catch(e) {}
+    }, process.env.TEST_HELPER_BASE_URL || '');
 
     // Inject a repairable validation result as in the other template
     const future = new Date(Date.now() + 30 * 60 * 1000).toISOString();
@@ -48,10 +55,11 @@ async function run() {
       }
     }, future);
 
-    // Shim fetch to return 503 for the POST and record call count
-    await page.evaluate(() => {
+    // Shim fetch to return 503 for the POST and record call count unless running e2e
+    await page.evaluate((useReal) => {
       const orig = window.fetch;
       window.__fetchCalls = [];
+      if (useReal) return;
       window.fetch = async function(url, options) {
         window.__fetchCalls.push(String(url));
         if (typeof url === 'string' && url.endsWith('/operations/provider-tls-repair')) {
@@ -60,7 +68,7 @@ async function run() {
         }
         return orig.apply(this, arguments);
       };
-    });
+    }, USE_REAL_HELPER);
 
     // Use the builder to create POST body and then attempt a start via a small
     // injected helper so we can observe UI reaction.
@@ -69,7 +77,7 @@ async function run() {
       if (!built && window.__TEST_provider_validation) {
         const pv = window.__TEST_provider_validation;
         built = {
-          endpoint: '/operations/provider-tls-repair',
+          endpoint: (window.__TEST_HELPER_BASE_URL || '') + '/operations/provider-tls-repair',
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

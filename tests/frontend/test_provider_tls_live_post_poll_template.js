@@ -52,7 +52,15 @@ async function run() {
   const page = await browser.newPage();
 
   try {
+      // Determine whether to use a real helper server (e2e CI) or run in shimmed mode.
+      const USE_REAL_HELPER = (process.env.E2E_USE_SERVER === '1' || process.env.E2E_USE_SERVER === 'true' || process.env.USE_REAL_HELPER === '1');
+
     await page.goto(CONFIG.baseUrl, { waitUntil: 'networkidle2', timeout: CONFIG.timeout });
+
+      // If the test runner provides a helper base URL, expose it to page scripts
+      await page.evaluateOnNewDocument((hb) => {
+        try { window.__TEST_HELPER_BASE_URL = hb || '' } catch(e) {}
+      }, process.env.TEST_HELPER_BASE_URL || '');
 
     // Prepare a fake, valid short-lived authorization and inject into page state
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
@@ -86,13 +94,18 @@ async function run() {
       window.__fetchCalls.push(args);
     });
 
-    await page.evaluate(() => {
-      // Install a small fetch shim on the page to capture requests
+    // Install fetch shim only when not running in e2e mode against a real helper.
+    await page.evaluate((useReal) => {
+      if (useReal) {
+        // expose lightweight collectors but do not override fetch
+        window.__fetchCalls = [];
+        return;
+      }
+
       const orig = window.fetch;
       window.__fetchCalls = [];
       window.fetch = async function(url, options) {
         try {
-          // Record enough information for assertions
           const recorded = { url, options: { method: options && options.method, headers: options && options.headers } };
           try {
             recorded.options.body = options && options.body ? options.body : null;
@@ -101,8 +114,6 @@ async function run() {
           }
           window.__fetchCalls.push(recorded);
 
-          // Simulate helper responses depending on URL
-          // POST -> create operation
           if (typeof url === 'string' && url.endsWith('/operations/provider-tls-repair')) {
             return {
               ok: true,
@@ -111,10 +122,8 @@ async function run() {
             };
           }
 
-          // GET /operations/{id} -> simulate active then ready
           const opMatch = String(url).match(/\/operations\/(?:([a-f0-9]{32}))/i);
           if (opMatch) {
-            // Simple toggle behavior based on number of poll calls
             window.__pollCount = (window.__pollCount || 0) + 1;
             if (window.__pollCount <= 2) {
               return { ok: true, status: 200, json: async () => ({ state: 'active', classification: 'active', terminal: false }) };
@@ -122,14 +131,12 @@ async function run() {
             return { ok: true, status: 200, json: async () => ({ state: 'ready', classification: 'terminal_success', terminal: true }) };
           }
 
-          // Default: delegate to real fetch
           return orig.apply(this, arguments);
         } catch (e) {
-          // If the shim fails, fallback to original fetch
           return orig.apply(this, arguments);
         }
       };
-    });
+    }, USE_REAL_HELPER);
 
     // Create a test helper on the page that performs the start+poll flow using
     // the public builder helpers (so we don't need to toggle internal flags).
@@ -142,7 +149,7 @@ async function run() {
       if (!built && window.__TEST_provider_validation) {
         const pv = window.__TEST_provider_validation;
         built = {
-          endpoint: '/operations/provider-tls-repair',
+          endpoint: (window.__TEST_HELPER_BASE_URL || '') + '/operations/provider-tls-repair',
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
