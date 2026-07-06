@@ -1079,6 +1079,45 @@ the browser-mutation gate is closed. Rebuilt the generated frontend bundle.
 gated UI/authorization slice to PR #46 for reviewer feedback before adding any
 real browser-to-helper operation start.
 
+### 2026-07-06 - Gate 3 Review Wording And Authorization Edges
+
+**Objective**: Incorporate reviewer feedback on the gated Setup Wizard repair
+panel before continuing toward a real browser-to-helper operation start.
+
+**Context**: Reviewer feedback accepted the `1a304d8` gated UI/authorization
+slice and confirmed it is acceptable to continue Gate 3 proof work. The review
+called out one wording correction: the branch now contains a visible disabled
+repair panel/button, so PR/task wording should describe "no enabled/actionable
+repair button" rather than "no visible repair button." The review also named
+expired and malformed operation authorization handling as coverage needed
+before real mutation.
+
+**Decision**: Keep the current branch non-mutating. Treat the visible panel as a
+disabled review/fallback panel only, with no actionable repair button, no
+browser-triggered helper start, no `provider_tls_repair=true` capability flip,
+no Podman remediation, and no tester-facing package inclusion.
+
+**Execution**: Clarified the Gate 3 wording in this task log and extended the
+Setup Wizard contract tests for expired, malformed, wrong-type, and missing
+token operation authorization inputs. These inputs must leave the panel
+disabled, report authorization unavailable, avoid helper operation requests, and
+keep operation tokens out of public/DOM surfaces.
+
+**Validation**:
+
+- PASS: `node tests\frontend\test_setup_wizard_validation_contract.js`
+- PASS: `node tests\frontend\test_global_contract.js`
+- PASS: `node tests\frontend\test_debug_logging_contract.js`
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_frontend_provider_tls.py tests\unit\test_config.py tests\unit\test_provider_http.py -q -p no:cacheprovider`
+- PASS:
+  `python .agents\skills\towerscout-frontend-bundle-guard\scripts\check_bundle_source_consistency.py .`
+- PASS: `python .agent_work\scripts\validate_agent_work.py`
+
+**Next**: Push the wording and authorization-edge coverage to PR #46, then ask
+the Reviewer whether the branch is ready for the next focused start-contract
+design checkpoint.
+
 ### 2026-07-06 - PR #46 Process-Tree Cleanup Path Hardened
 
 **Objective**: Address the reviewer follow-up that the timeout cleanup path

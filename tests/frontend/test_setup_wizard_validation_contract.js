@@ -434,11 +434,111 @@ async function testShortLivedAuthorizationDoesNotStartRepairWhileMutationGateIsC
   );
 }
 
+async function testInvalidOperationAuthorizationLeavesRepairDisabled() {
+  const scenarios = [
+    {
+      name: 'expired',
+      authorization: {
+        operation_type: 'provider_tls_repair',
+        expires_at: '2000-01-01T00:00:00Z',
+        operation_token: 'expired-token-should-not-render'
+      }
+    },
+    {
+      name: 'malformed_expiry',
+      authorization: {
+        operation_type: 'provider_tls_repair',
+        expires_at: 'not-a-date',
+        operation_token: 'malformed-expiry-token-should-not-render'
+      }
+    },
+    {
+      name: 'missing_token',
+      authorization: {
+        operation_type: 'provider_tls_repair',
+        expires_at: '2999-01-01T00:00:00Z'
+      }
+    },
+    {
+      name: 'wrong_type',
+      authorization: {
+        operation_type: 'podman_provider_repair',
+        expires_at: '2999-01-01T00:00:00Z',
+        operation_token: 'wrong-type-token-should-not-render'
+      }
+    },
+    {
+      name: 'non_object',
+      authorization: 'not-an-authorization-object'
+    }
+  ];
+
+  for (const scenario of scenarios) {
+    const tokenText = typeof scenario.authorization === 'object'
+      ? scenario.authorization.operation_token
+      : '';
+    const { context, elements, notifications } = createContext({
+      googleValidationPayload: {
+        error: true,
+        message: 'TowerScout could not verify the Google Maps TLS certificate.',
+        details: {
+          provider: 'google',
+          category: 'tls_ca_untrusted',
+          repairable: true,
+          support_action: 'Import the trusted organization/root TLS CA into the container trust store.',
+          repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
+          helper_available: true,
+          operation_authorization: scenario.authorization
+        }
+      }
+    });
+    vm.createContext(context);
+    const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
+    vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+
+    context.window.SetupWizard.showStep(2);
+    await context.window.SetupWizard.validateAndNext();
+
+    const viewModel = context.window.SetupWizard.getProviderTlsRepairViewModel('google');
+    const publicFailure = context.window.SetupWizard.getProviderValidationState('google').lastFailure;
+    assert.strictEqual(viewModel.visible, true, scenario.name);
+    assert.strictEqual(viewModel.authorization_ready, false, scenario.name);
+    assert.strictEqual(viewModel.enabled, false, scenario.name);
+    assert.strictEqual(viewModel.blocked_reason, 'operation_authorization_unavailable', scenario.name);
+    assert.strictEqual(elements.wizard_provider_tls_repair_panel.style.display, 'block', scenario.name);
+    assert.strictEqual(elements.wizard_provider_tls_repair_button.disabled, true, scenario.name);
+    assert.strictEqual(elements.wizard_provider_tls_repair_button.textContent, 'Repair unavailable', scenario.name);
+    assert.ok(
+      elements.wizard_provider_tls_repair_status.textContent.includes('authorization is not available'),
+      scenario.name
+    );
+
+    if (tokenText) {
+      const publicAuthorization = publicFailure.operation_authorization || {};
+      assert.strictEqual(publicAuthorization.operation_token, undefined, scenario.name);
+      assert.strictEqual(JSON.stringify(viewModel).includes(tokenText), false, scenario.name);
+      const renderedText = [
+        elements.wizard_provider_tls_repair_title.textContent,
+        elements.wizard_provider_tls_repair_message.textContent,
+        elements.wizard_provider_tls_repair_support.textContent,
+        elements.wizard_provider_tls_repair_command.textContent,
+        elements.wizard_provider_tls_repair_status.textContent
+      ].join(' ');
+      assert.strictEqual(renderedText.includes(tokenText), false, scenario.name);
+    }
+
+    assert.strictEqual(context.window.SetupWizard.startProviderTlsRepair(), false, scenario.name);
+    assert.strictEqual(notifications[0].type, 'info', scenario.name);
+    assert.deepStrictEqual(context.fetchCalls, ['google', 'azure'], scenario.name);
+  }
+}
+
 testSecondProviderStillValidatesAfterFirstProviderNetworkFailure()
   .then(testInvalidProviderKeyDoesNotExposeRepairPredicate)
   .then(testRepairPredicateRequiresRepairableTlsAndHelperAvailability)
   .then(testRepairPanelRejectsNonTlsHelperUnavailableAndPodmanStates)
   .then(testShortLivedAuthorizationDoesNotStartRepairWhileMutationGateIsClosed)
+  .then(testInvalidOperationAuthorizationLeavesRepairDisabled)
   .then(() => {
     console.log('Setup wizard validation contract PASSED');
   })
