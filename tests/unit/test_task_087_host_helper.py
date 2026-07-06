@@ -75,11 +75,14 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert "function Invoke-TowerScoutProviderTlsRepairControlledExecution" in script
     assert "function Test-TowerScoutHostHelperRealWrapperContract" in script
     assert "function Get-TowerScoutHostHelperBatchInterpreterPath" in script
+    assert "function Get-TowerScoutHostHelperTaskkillPath" in script
     assert "$script:TowerScoutHostHelperLaunchReadinessTimeoutSeconds = 180" in script
     assert "$script:TowerScoutHostHelperStartTimeoutHeadroomSeconds = 60" in script
     assert "function Stop-TowerScoutHostHelperProcessTree" in script
     assert "function Wait-TowerScoutHostHelperOutputTask" in script
-    assert "taskkill.exe /PID $Process.Id /T /F" in script
+    assert '$taskkillPath = Get-TowerScoutHostHelperTaskkillPath' in script
+    assert '& $taskkillPath /PID $Process.Id /T /F' in script
+    assert "& taskkill.exe" not in script
     assert "$Process.Kill($true)" in script
     assert "Stop-TowerScoutHostHelperProcessTree -Process $process" in script
     assert 'Interpreter = "cmd.exe"' in script

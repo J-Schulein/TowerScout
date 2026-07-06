@@ -1032,6 +1032,20 @@ function Get-TowerScoutHostHelperBatchInterpreterPath {
     return (Resolve-Path -LiteralPath $cmdPath).Path
 }
 
+function Get-TowerScoutHostHelperTaskkillPath {
+    $systemDirectory = [string] [System.Environment]::SystemDirectory
+    if ([string]::IsNullOrWhiteSpace($systemDirectory)) {
+        throw "Windows system directory could not be resolved for helper process-tree cleanup."
+    }
+
+    $taskkillPath = Join-Path $systemDirectory "taskkill.exe"
+    if (-not (Test-Path -LiteralPath $taskkillPath -PathType Leaf)) {
+        throw "The fixed Windows taskkill utility was not found."
+    }
+
+    return (Resolve-Path -LiteralPath $taskkillPath).Path
+}
+
 function ConvertTo-TowerScoutHostHelperCmdArgument {
     param(
         [string] $Value = ""
@@ -1247,7 +1261,8 @@ function Stop-TowerScoutHostHelperProcessTree {
 
     try {
         if ($env:OS -eq "Windows_NT") {
-            & taskkill.exe /PID $Process.Id /T /F 2>$null | Out-Null
+            $taskkillPath = Get-TowerScoutHostHelperTaskkillPath
+            & $taskkillPath /PID $Process.Id /T /F 2>$null | Out-Null
         }
         else {
             try {

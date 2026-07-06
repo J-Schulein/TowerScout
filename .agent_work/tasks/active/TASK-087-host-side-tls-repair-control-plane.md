@@ -1038,6 +1038,40 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-06 - PR #46 Process-Tree Cleanup Path Hardened
+
+**Objective**: Address the reviewer follow-up that the timeout cleanup path
+should not resolve `taskkill.exe` through `PATH`.
+
+**Context**: The PR #45 bot follow-up added process-tree cleanup for controlled
+wrapper timeouts. Reviewer feedback on PR #46 correctly noted that invoking
+`taskkill.exe` by name leaves the helper dependent on `PATH` resolution during
+the cleanup path.
+
+**Decision**: Resolve the Windows system `taskkill.exe` from
+`[System.Environment]::SystemDirectory` before use, mirroring the fixed-system
+`cmd.exe` resolution already used for wrapper execution. Keep product UI
+exposure, `provider_tls_repair=true`, browser-triggered host mutation, Podman
+remediation, and tester-facing package inclusion blocked.
+
+**Execution**: Added a fixed-path `taskkill.exe` resolver to
+`scripts\lib\TowerScoutHostHelper.ps1` and updated timeout process-tree cleanup
+to call that resolved executable. Extended the Task-087 static contract test to
+assert the resolver is present and direct `PATH`-based `taskkill.exe`
+invocation is absent.
+
+**Validation**:
+
+- PASS: PowerShell parser checks for `scripts\lib\TowerScoutHostHelper.ps1`
+  and `scripts\host-helper.ps1`
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_task_087_host_helper.py -q -p no:cacheprovider`
+- PASS:
+  `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\host-helper.ps1 -SelfTest`
+
+**Next**: Run full hygiene checks, push the hardening update to PR #46, then
+request reviewer confirmation before visible host mutation/UI work.
+
 ### 2026-07-06 - PR #45 Bot Follow-Up Hardening
 
 **Objective**: Address post-merge bot findings from PR #45 before requesting
