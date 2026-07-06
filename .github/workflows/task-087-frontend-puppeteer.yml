@@ -35,9 +35,12 @@ jobs:
       - name: Install lightweight test utilities
         run: npm install --no-audit --no-fund --no-save http-server wait-on
 
+      - name: Prepare artifacts dir
+        run: mkdir -p test-artifacts
+
       - name: Start static web server for tests
         # Use a lightweight static server to avoid starting the full Python app in CI
-        run: npx http-server ./webapp -p 5000 -c-1 &
+        run: npx http-server ./webapp -p 5000 -c-1 > test-artifacts/webserver.log 2>&1 &
 
       - name: Wait for web server
         run: npx wait-on http://localhost:5000 --timeout 30000
@@ -45,12 +48,18 @@ jobs:
       - name: Run live POST/poll Puppeteer template
         env:
           CI: true
-        run: node tests/frontend/test_provider_tls_live_post_poll_template.js
+        run: node tests/frontend/test_provider_tls_live_post_poll_template.js 2>&1 | tee test-artifacts/test_provider_tls_live_post_poll_template.log
 
       - name: Run helper-unavailable Puppeteer template
         env:
           CI: true
-        run: node tests/frontend/test_provider_tls_helper_unavailable_template.js
+        run: node tests/frontend/test_provider_tls_helper_unavailable_template.js 2>&1 | tee test-artifacts/test_provider_tls_helper_unavailable_template.log
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: puppeteer-templates-logs
+          path: test-artifacts
 
   puppeteer-e2e:
     name: Run Puppeteer e2e (simulated helper)
@@ -79,11 +88,14 @@ jobs:
       - name: Install lightweight test utilities
         run: npm install --no-audit --no-fund --no-save http-server wait-on
 
+      - name: Prepare artifacts dir
+        run: mkdir -p test-artifacts
+
       - name: Start simulated helper (port 5001)
-        run: node tests/helpers/simulated_helper.js &
+        run: node tests/helpers/simulated_helper.js > test-artifacts/simulated_helper.log 2>&1 &
 
       - name: Start static web server for tests (port 5000)
-        run: npx http-server ./webapp -p 5000 -c-1 &
+        run: npx http-server ./webapp -p 5000 -c-1 > test-artifacts/webserver.log 2>&1 &
 
       - name: Wait for services
         run: npx wait-on http://localhost:5000 http://localhost:5001 --timeout 30000
@@ -93,11 +105,17 @@ jobs:
           CI: true
           TEST_HELPER_BASE_URL: http://localhost:5001
           E2E_USE_SERVER: '1'
-        run: node tests/frontend/test_provider_tls_live_post_poll_template.js
+        run: node tests/frontend/test_provider_tls_live_post_poll_template.js 2>&1 | tee test-artifacts/test_provider_tls_live_post_poll_template_e2e.log
 
       - name: Run helper-unavailable Puppeteer e2e
         env:
           CI: true
           TEST_HELPER_BASE_URL: http://localhost:5001
           E2E_USE_SERVER: '1'
-        run: node tests/frontend/test_provider_tls_helper_unavailable_template.js
+        run: node tests/frontend/test_provider_tls_helper_unavailable_template.js 2>&1 | tee test-artifacts/test_provider_tls_helper_unavailable_template_e2e.log
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: puppeteer-e2e-logs
+          path: test-artifacts
