@@ -68,7 +68,10 @@ jobs:
         run: npx http-server ./webapp -p 5000 -c-1 > test-artifacts/webserver.log 2>&1 &
 
       - name: Wait for web server
-        run: npx wait-on http://127.0.0.1:5000 --timeout 30000
+        run: |
+          # give background servers a short moment to bind, then wait longer
+          sleep 1
+          npx wait-on http://127.0.0.1:5000 --timeout 60000
 
       - name: Diagnostics - capture webserver status
         if: always()
@@ -161,7 +164,10 @@ jobs:
         run: npx http-server ./webapp -p 5000 -c-1 > test-artifacts/webserver.log 2>&1 &
 
       - name: Wait for services
-        run: npx wait-on http://127.0.0.1:5000 http://127.0.0.1:5001 --timeout 30000
+        run: |
+          # allow a brief startup window, then wait up to 2 minutes for both services
+          sleep 1
+          npx wait-on http://127.0.0.1:5000 http://127.0.0.1:5001 --timeout 120000
 
       - name: Diagnostics - capture helper and webserver status
         if: always()
