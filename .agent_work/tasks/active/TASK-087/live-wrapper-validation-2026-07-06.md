@@ -113,6 +113,22 @@ command here before running the live sequence.
 - Because the code changed after the partial live run, do not rerun the
   mutating Docker CPU/off validation without a fresh explicit approval.
 
+## Rerun Preparation - 2026-07-06
+
+- Patched PR head prepared for rerun: `7177cc1`.
+- The source-checkout runtime still resolves to the local Docker image label
+  `towerscout:local`.
+- The local image prerequisite has been prepared: `towerscout:local` now exists
+  after a source-checkout Docker build.
+- This checkout's Docker Compose project remains stopped / clear after the
+  targeted cleanup and image build.
+- A separate extracted-package TowerScout container is running on a different
+  host port and does not conflict with the planned port `5000` rerun.
+- No broad Docker prune, unrelated image deletion, or product UI validation was
+  performed.
+- Do not rerun the mutating Docker CPU/off validation until the release owner
+  gives fresh explicit approval for the patched `7177cc1` branch.
+
 ## Sanitized Evidence To Record After Execution
 
 - Run result: PASS / FAIL / PARTIAL / BLOCKED

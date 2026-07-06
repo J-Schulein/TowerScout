@@ -1038,6 +1038,37 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-06 - Docker Rerun Prerequisite Prepared
+
+**Objective**: Prepare the Docker runtime prerequisite needed before requesting
+a patched Task-087 live-wrapper rerun.
+
+**Context**: Reviewer feedback accepted the `7177cc1` stop-cleanup fix for
+internal rerun, but called out that the previous fallback start could not prove
+readiness because the source-checkout runtime expected `towerscout:local` and
+that image was not available.
+
+**Decision**: Prepare the local source-checkout image without rerunning the
+mutating helper validation. Keep product UI, `provider_tls_repair=true`,
+browser-triggered default mutation, Podman remediation, and tester-facing
+packaging blocked.
+
+**Execution**: Performed targeted Docker cleanup through the package stop path,
+confirmed the source checkout resolves to `towerscout:local`, built the local
+Docker image, and confirmed this checkout's Compose project remained stopped /
+clear afterward. No broad Docker prune or unrelated image/container cleanup was
+performed.
+
+**Validation**:
+
+- PASS: `docker image inspect towerscout:local`
+- PASS: `docker compose -f compose.yaml config --images`
+- PASS: `docker compose -f compose.yaml ps --all`
+- PASS: `git status --short --branch`
+
+**Next**: Request fresh explicit approval before rerunning the mutating Docker
+CPU/off live validation against patched head `7177cc1`.
+
 ### 2026-07-06 - Live Wrapper Partial Run And Stop Cleanup Fix
 
 **Objective**: Run the approved internal Docker CPU/off live-wrapper validation
