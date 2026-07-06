@@ -27,19 +27,21 @@ jobs:
         run: |
           sudo apt-get update
           PKGS="ca-certificates fonts-liberation libasound2 libatk1.0-0 libatk-bridge2.0-0 libcups2 libgtk-3-0 libnss3 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1"
-          echo "Checking available packages before install"
+          echo "Checking available installable packages before install"
           AVAILABLE=""
           for p in $PKGS; do
-            if apt-cache show "$p" >/dev/null 2>&1; then
+            # Use apt-cache policy to verify an installable candidate (not virtual-only)
+            CAND=$(apt-cache policy "$p" 2>/dev/null | awk '/Candidate:/ {print $2}') || CAND=""
+            if [ -n "$CAND" ] && [ "$CAND" != "(none)" ]; then
               AVAILABLE="$AVAILABLE $p"
             else
-              echo "Package not found: $p (skipping)"
+              echo "Package not installable: $p (skipping)"
             fi
           done
           if [ -n "$AVAILABLE" ]; then
             sudo apt-get install -y --no-install-recommends $AVAILABLE
           else
-            echo "No candidate packages found to install; continuing"
+            echo "No installable packages found; continuing"
           fi
 
       - name: Install Node dependencies (lockfile)
@@ -142,19 +144,21 @@ jobs:
         run: |
           sudo apt-get update
           PKGS="ca-certificates fonts-liberation libasound2 libatk1.0-0 libatk-bridge2.0-0 libcups2 libgtk-3-0 libnss3 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libxss1"
-          echo "Checking available packages before install"
+          echo "Checking available installable packages before install"
           AVAILABLE=""
           for p in $PKGS; do
-            if apt-cache show "$p" >/dev/null 2>&1; then
+            # Use apt-cache policy to verify an installable candidate (not virtual-only)
+            CAND=$(apt-cache policy "$p" 2>/dev/null | awk '/Candidate:/ {print $2}') || CAND=""
+            if [ -n "$CAND" ] && [ "$CAND" != "(none)" ]; then
               AVAILABLE="$AVAILABLE $p"
             else
-              echo "Package not found: $p (skipping)"
+              echo "Package not installable: $p (skipping)"
             fi
           done
           if [ -n "$AVAILABLE" ]; then
             sudo apt-get install -y --no-install-recommends $AVAILABLE
           else
-            echo "No candidate packages found to install; continuing"
+            echo "No installable packages found; continuing"
           fi
 
       - name: Install Node dependencies (lockfile)
