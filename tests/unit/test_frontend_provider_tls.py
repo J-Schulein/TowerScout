@@ -21,6 +21,23 @@ def test_setup_and_settings_preserve_provider_tls_error_details():
     assert "getProviderValidationState" in setup_source
     assert "shouldShowProviderTlsRepair" in setup_source
     assert "getProviderTlsRepairViewModel" in setup_source
+    assert "getProviderTlsRepairStartContract" in setup_source
+    assert "rememberProviderTlsRepairOperationStatus" in setup_source
     assert "PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED = false" in setup_source
+    assert "PROVIDER_TLS_REPAIR_ALLOWED_START_BODY_FIELDS" in setup_source
     assert "operation_authorization" in setup_source
+    assert "operation_active" in setup_source
     assert "TLS_REPAIR_CATEGORIES" in setup_source
+    assert "repair_command" in setup_source
+    assert "operation_authorization: authorization.operation_token" in setup_source
+    assert "body: JSON.stringify({" in setup_source
+    for rejected_field in (
+        "engine",
+        "gpu",
+        "app_port",
+        "restart_mode",
+        "podman_provider",
+        "script_path",
+        "durable_token",
+    ):
+        assert rejected_field in setup_source

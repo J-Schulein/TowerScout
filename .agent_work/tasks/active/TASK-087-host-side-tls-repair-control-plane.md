@@ -1038,6 +1038,51 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-06 - Gate 3 Browser Start Contract Defined
+
+**Objective**: Define the non-mutating browser-to-helper start contract before
+any live Setup Wizard helper request is enabled.
+
+**Context**: Reviewer feedback accepted the `12de100` authorization-edge slice
+and recommended one more Gate 3 checkpoint before wiring a live helper call:
+prove the browser contract sends only provider enum, fixed confirmation, and a
+scoped operation authorization; prove duplicate/reload/active-operation states
+do not launch another repair; and keep token/runtime/control fields redacted.
+
+**Decision**: Keep `PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED = false` and
+do not add any live `fetch` path for provider TLS repair. Add a sanitized
+start-contract preview and active-operation status memory so tests can prove
+the allowed request shape and operation-busy behavior without mutating host
+state. Keep helper-owned runtime values such as engine, GPU mode, port,
+restart mode, script path, Podman provider fields, and durable helper tokens
+out of the allowed browser request body.
+
+**Execution**: Added Setup Wizard helpers for `POST
+/operations/provider-tls-repair` contract inspection, sanitized
+operation-status retention, active-operation blocking, and token-redacted
+public operation summaries. Extended frontend contract tests for helper
+unavailable states, expired/malformed authorization, duplicate clicks while the
+mutation gate is closed, active `operation_busy` status after a simulated
+reload/status restore, DOM/notification/console redaction, and forbidden
+runtime/control fields. Rebuilt the generated frontend bundle.
+
+**Validation**:
+
+- PASS: `node tests\frontend\test_setup_wizard_validation_contract.js`
+- PASS: `node tests\frontend\test_global_contract.js`
+- PASS: `node tests\frontend\test_debug_logging_contract.js`
+- PASS:
+  `.\.venv\Scripts\python.exe -m pytest tests\unit\test_frontend_provider_tls.py tests\unit\test_config.py tests\unit\test_provider_http.py -q -p no:cacheprovider`
+- PASS:
+  `python .agents\skills\towerscout-frontend-bundle-guard\scripts\check_bundle_source_consistency.py .`
+- PASS: `python .agent_work\scripts\validate_agent_work.py`
+- PASS:
+  `python .agents\skills\towerscout-agent-work-hygiene\scripts\check_agent_work_quick.py .`
+- PASS: `git diff --check`
+
+**Next**: Push this start-contract checkpoint to PR #46 for reviewer feedback
+before enabling any browser-triggered helper mutation.
+
 ### 2026-07-06 - Gate 3 Repair UI Authorization Gate Added
 
 **Objective**: Add the next Gate 3 Setup Wizard repair UI contract without
