@@ -113,6 +113,14 @@ def provider_support_action(category: str | None, provider: str) -> str | None:
     return None
 
 
+def provider_repairable(category: str | None) -> bool:
+    return category in TLS_REPAIR_CATEGORIES
+
+
+def provider_helper_available(_provider: str, _category: str | None) -> bool:
+    return False
+
+
 def provider_user_message(category: str | None, provider: str) -> str:
     label = provider_display_name(provider)
     if category == TLS_CA_UNTRUSTED:
@@ -183,6 +191,8 @@ def _network_error(
     merged_details: dict[str, Any] = {
         "provider": provider,
         "category": category,
+        "repairable": provider_repairable(category),
+        "helper_available": provider_helper_available(provider, category),
         "provider_host": provider_hostname(provider),
         "method": "GET",
     }

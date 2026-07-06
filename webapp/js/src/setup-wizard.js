@@ -8,6 +8,26 @@
   };
   let validationInFlight = false;
   let saveInFlight = false;
+  const TLS_REPAIR_CATEGORIES = new Set([
+    'tls_ca_untrusted',
+    'tls_bundle_missing',
+    'tls_bundle_unusable'
+  ]);
+  const providerNames = ['google', 'azure'];
+  let providerValidationState = createEmptyProviderValidationState();
+
+  function createEmptyProviderValidationState() {
+    return {
+      google: {
+        lastResult: null,
+        lastFailure: null
+      },
+      azure: {
+        lastResult: null,
+        lastFailure: null
+      }
+    };
+  }
 
   function getWizardElement() {
     return document.getElementById('setup_wizard_div');
@@ -34,25 +54,106 @@
     return data;
   }
 
+  function normalizeProviderValidationResult(provider, payload = {}) {
+    const details = payload.details || {};
+    const category = payload.category || details.category || null;
+    const repairable = (
+      payload.repairable === true ||
+      details.repairable === true ||
+      (category !== null && TLS_REPAIR_CATEGORIES.has(category))
+    );
+    const helperAvailable = payload.helper_available === true || details.helper_available === true;
+
+    return {
+      provider: payload.provider || details.provider || provider,
+      valid: payload.valid === true,
+      message: payload.message || payload.technical_message || payload.error || 'Validation failed.',
+      category,
+      repairable,
+      support_action: payload.support_action || details.support_action || null,
+      repair_command: payload.repair_command || details.repair_command || null,
+      helper_available: repairable && helperAvailable,
+      status_code: payload.status_code || details.status_code || payload.status || null
+    };
+  }
+
+  function cloneValidationRecord(record) {
+    return record ? { ...record } : null;
+  }
+
+  function rememberProviderValidationResult(provider, payload) {
+    if (!providerNames.includes(provider)) {
+      return normalizeProviderValidationResult(provider, payload);
+    }
+
+    const normalized = normalizeProviderValidationResult(provider, payload);
+    providerValidationState[provider] = {
+      lastResult: normalized,
+      lastFailure: normalized.valid ? null : normalized
+    };
+    return normalized;
+  }
+
+  function rememberProviderValidationResults(validationResults = {}) {
+    providerNames.forEach(provider => {
+      if (validationResults[provider]) {
+        rememberProviderValidationResult(provider, validationResults[provider]);
+      }
+    });
+  }
+
+  function clearProviderValidationState(provider) {
+    if (providerNames.includes(provider)) {
+      providerValidationState[provider] = {
+        lastResult: null,
+        lastFailure: null
+      };
+    }
+  }
+
+  function resetProviderValidationState() {
+    providerValidationState = createEmptyProviderValidationState();
+  }
+
+  function getProviderValidationState(provider) {
+    const state = providerValidationState[provider] || {
+      lastResult: null,
+      lastFailure: null
+    };
+    return {
+      lastResult: cloneValidationRecord(state.lastResult),
+      lastFailure: cloneValidationRecord(state.lastFailure)
+    };
+  }
+
+  function shouldShowProviderTlsRepair(provider) {
+    const failure = getProviderValidationState(provider).lastFailure;
+    return Boolean(
+      failure &&
+      failure.repairable === true &&
+      TLS_REPAIR_CATEGORIES.has(failure.category) &&
+      failure.helper_available === true
+    );
+  }
+
   function providerFailureMessage(displayName, payload) {
     if (!payload) {
       return '';
     }
 
-    const details = payload.details || {};
-    const message = payload.message || payload.technical_message || payload.error || 'Validation failed.';
-    const category = payload.category || details.category;
-    const supportAction = payload.support_action || details.support_action;
-    const repairCommand = payload.repair_command || details.repair_command;
-    const parts = [`${displayName}: ${message}`];
-    if (category) {
-      parts.push(`Category: ${category}.`);
+    const normalized = normalizeProviderValidationResult('', payload);
+    const parts = [`${displayName}: ${normalized.message}`];
+    if (normalized.category) {
+      parts.push(`Category: ${normalized.category}.`);
     }
-    if (supportAction) {
-      parts.push(supportAction);
+    if (normalized.support_action) {
+      parts.push(normalized.support_action);
     }
-    if (repairCommand && (!supportAction || !supportAction.includes(repairCommand))) {
-      parts.push(`Suggested command: ${repairCommand}`);
+    if (
+      normalized.repair_command &&
+      (!normalized.support_action || !normalized.support_action.includes(normalized.repair_command))
+    ) {
+      parts.push(`Suggested command: ${normalized.repair_command}`);
     }
     return parts.join(' ');
   }
@@ -160,20 +261,23 @@
 
   async function validateProviderInput(provider, key, indicatorId, displayName, validationMessages) {
     if (!key) {
+      clearProviderValidationState(provider);
       return false;
     }
 
     try {
       const result = await validateKey(provider, key);
-      const isValid = result.valid === true;
+      const validation = rememberProviderValidationResult(provider, result);
+      const isValid = validation.valid === true;
       updateIndicator(indicatorId, isValid);
-      if (!isValid && result.message) {
-        validationMessages.push(providerFailureMessage(displayName, result));
+      if (!isValid && validation.message) {
+        validationMessages.push(providerFailureMessage(displayName, validation));
       }
       return isValid;
     } catch (error) {
+      const validation = rememberProviderValidationResult(provider, error.payload || error);
       updateIndicator(indicatorId, false);
-      validationMessages.push(providerFailureMessage(displayName, error.payload || error));
+      validationMessages.push(providerFailureMessage(displayName, validation));
       return false;
     }
   }
@@ -198,6 +302,7 @@
     const message = document.getElementById('wizard_validation_message');
 
     validatedKeys = { google: false, azure: false };
+    resetProviderValidationState();
     updateIndicator('google_key_status', null);
     updateIndicator('azure_key_status', null);
     validationInFlight = true;
@@ -261,6 +366,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      rememberProviderValidationResults(result.validation_results);
 
       window.needsSetup = false;
       nextStep();
@@ -279,6 +385,7 @@
         TowerScoutErrorHandler.showUserNotification('Configuration saved successfully.', 'success');
       }
     } catch (error) {
+      rememberProviderValidationResults((error.payload && error.payload.validation_results) || {});
       TowerScoutErrorHandler.showUserNotification(saveFailureMessage(error), 'error');
     } finally {
       saveInFlight = false;
@@ -347,7 +454,9 @@
     prevStep,
     validateAndNext,
     saveAndReview,
-    complete
+    complete,
+    getProviderValidationState,
+    shouldShowProviderTlsRepair
   };
 
   document.addEventListener('DOMContentLoaded', init);

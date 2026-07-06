@@ -39,7 +39,17 @@ function createElement(id, value = '') {
   };
 }
 
-function createContext() {
+function createJsonResponse(ok, status, payload) {
+  return {
+    ok,
+    status,
+    async json() {
+      return payload;
+    }
+  };
+}
+
+function createContext(options = {}) {
   const elements = {
     setup_wizard_div: createElement('setup_wizard_div'),
     wizard_google_key: createElement('wizard_google_key', 'bad-google-key'),
@@ -99,6 +109,28 @@ function createContext() {
   const fetchCalls = [];
   let savePayload = null;
   const notifications = [];
+  const googleValidationPayload = options.googleValidationPayload || {
+    error: true,
+    message: 'TowerScout could not verify the Google Maps TLS certificate.',
+    details: {
+      provider: 'google',
+      category: 'tls_ca_untrusted',
+      repairable: true,
+      support_action: 'Import the trusted organization/root TLS CA into the container trust store, then retry Google Maps.',
+      repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
+      helper_available: false
+    }
+  };
+  const googleValidationOk = options.googleValidationOk === true;
+  const googleValidationStatus = options.googleValidationStatus || (googleValidationOk ? 200 : 502);
+  const azureValidationPayload = options.azureValidationPayload || {
+    valid: true,
+    provider: 'azure',
+    category: 'tls_ok',
+    repairable: false,
+    helper_available: false,
+    message: 'Azure Maps subscription key validated successfully.'
+  };
   const context = {
     console,
     document,
@@ -117,21 +149,9 @@ function createContext() {
         const body = JSON.parse(options.body);
         fetchCalls.push(body.provider);
         if (body.provider === 'google') {
-          return {
-            ok: false,
-            status: 502,
-            async json() {
-              return { message: 'TowerScout could not reach Google Maps from the local server.' };
-            }
-          };
+          return createJsonResponse(googleValidationOk, googleValidationStatus, googleValidationPayload);
         }
-        return {
-          ok: true,
-          status: 200,
-          async json() {
-            return { valid: true, message: 'Azure Maps subscription key validated successfully.' };
-          }
-        };
+        return createJsonResponse(true, 200, azureValidationPayload);
       }
 
       if (url === '/api/config/save-keys') {
@@ -186,6 +206,16 @@ async function testSecondProviderStillValidatesAfterFirstProviderNetworkFailure(
   assert.strictEqual(providerOptions.azure.checked, true);
   assert.strictEqual(elements.wizard_validation_message.textContent, 'Validation succeeded.');
   assert.strictEqual(steps[2].style.display, 'block');
+  const googleValidation = context.window.SetupWizard.getProviderValidationState('google');
+  assert.strictEqual(googleValidation.lastFailure.provider, 'google');
+  assert.strictEqual(googleValidation.lastFailure.category, 'tls_ca_untrusted');
+  assert.strictEqual(googleValidation.lastFailure.repairable, true);
+  assert.strictEqual(googleValidation.lastFailure.helper_available, false);
+  assert.strictEqual(
+    googleValidation.lastFailure.repair_command,
+    '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off'
+  );
+  assert.strictEqual(context.window.SetupWizard.shouldShowProviderTlsRepair('google'), false);
 
   await context.window.SetupWizard.saveAndReview();
   assert.deepStrictEqual(context.savePayload, {
@@ -195,7 +225,62 @@ async function testSecondProviderStillValidatesAfterFirstProviderNetworkFailure(
   });
 }
 
+async function testInvalidProviderKeyDoesNotExposeRepairPredicate() {
+  const { context } = createContext({
+    googleValidationOk: true,
+    googleValidationPayload: {
+      valid: false,
+      provider: 'google',
+      category: 'invalid_provider_key',
+      repairable: false,
+      helper_available: false,
+      repair_command: null,
+      message: 'Google Maps key reached Google but was rejected.'
+    }
+  });
+  vm.createContext(context);
+  const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
+  vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+
+  context.window.SetupWizard.showStep(2);
+  await context.window.SetupWizard.validateAndNext();
+
+  const googleValidation = context.window.SetupWizard.getProviderValidationState('google');
+  assert.strictEqual(googleValidation.lastFailure.category, 'invalid_provider_key');
+  assert.strictEqual(googleValidation.lastFailure.repairable, false);
+  assert.strictEqual(googleValidation.lastFailure.helper_available, false);
+  assert.strictEqual(context.window.SetupWizard.shouldShowProviderTlsRepair('google'), false);
+}
+
+async function testRepairPredicateRequiresRepairableTlsAndHelperAvailability() {
+  const { context } = createContext({
+    googleValidationPayload: {
+      error: true,
+      message: 'TowerScout could not verify the Google Maps TLS certificate.',
+      details: {
+        provider: 'google',
+        category: 'tls_ca_untrusted',
+        repairable: true,
+        support_action: 'Import the trusted organization/root TLS CA into the container trust store, then retry Google Maps.',
+        repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
+        helper_available: true
+      }
+    }
+  });
+  vm.createContext(context);
+  const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
+  vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+
+  context.window.SetupWizard.showStep(2);
+  await context.window.SetupWizard.validateAndNext();
+
+  assert.strictEqual(context.window.SetupWizard.shouldShowProviderTlsRepair('google'), true);
+  assert.strictEqual(context.window.SetupWizard.shouldShowProviderTlsRepair('azure'), false);
+}
+
 testSecondProviderStillValidatesAfterFirstProviderNetworkFailure()
+  .then(testInvalidProviderKeyDoesNotExposeRepairPredicate)
+  .then(testRepairPredicateRequiresRepairableTlsAndHelperAvailability)
   .then(() => {
     console.log('Setup wizard validation contract PASSED');
   })

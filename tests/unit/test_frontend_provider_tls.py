@@ -15,3 +15,9 @@ def test_setup_and_settings_preserve_provider_tls_error_details():
         assert "payload.support_action || details.support_action" in source
         assert "details.repair_command" in source
         assert "Category:" in source
+
+    setup_source = SETUP_WIZARD.read_text(encoding="utf-8")
+    assert "helper_available" in setup_source
+    assert "getProviderValidationState" in setup_source
+    assert "shouldShowProviderTlsRepair" in setup_source
+    assert "TLS_REPAIR_CATEGORIES" in setup_source
