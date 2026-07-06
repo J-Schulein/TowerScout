@@ -159,37 +159,8 @@ jobs:
 
       - name: Start services and wait (helper + webserver)
         run: |
-          # start both services in the same shell so we can deterministically wait for them
-          set -euo pipefail
-          node tests/helpers/simulated_helper.js > test-artifacts/simulated_helper.log 2>&1 &
-          npx http-server ./webapp -p 5000 -c-1 > test-artifacts/webserver.log 2>&1 &
-
-          echo "Waiting up to 300s for helper (127.0.0.1:5001) and webserver (127.0.0.1:5000)"
-          START=$(date +%s)
-          TIMEOUT=300
-          END=$((START+TIMEOUT))
-
-          until [ $(date +%s) -ge $END ]; do
-            if curl -fsS http://127.0.0.1:5001 >/dev/null 2>&1 && curl -fsS http://127.0.0.1:5000 >/dev/null 2>&1; then
-              echo "All services are responding"
-              break
-            fi
-            sleep 1
-          done
-
-          if ! curl -fsS http://127.0.0.1:5001 >/dev/null 2>&1; then
-            echo "Timeout waiting for helper at 127.0.0.1:5001" >&2
-            echo "--- simulated_helper.log (tail) ---" >&2
-            test -f test-artifacts/simulated_helper.log && tail -n 200 test-artifacts/simulated_helper.log || true
-            exit 1
-          fi
-
-          if ! curl -fsS http://127.0.0.1:5000 >/dev/null 2>&1; then
-            echo "Timeout waiting for webserver at 127.0.0.1:5000" >&2
-            echo "--- webserver.log (tail) ---" >&2
-            test -f test-artifacts/webserver.log && tail -n 200 test-artifacts/webserver.log || true
-            exit 1
-          fi
+          # Use repository script for robust startup checks (accept non-2xx HTTP responses)
+          bash ./scripts/ci_start_services.sh
 
       - name: Diagnostics - capture helper and webserver status
         if: always()
