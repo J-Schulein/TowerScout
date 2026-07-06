@@ -61,6 +61,46 @@ jobs:
           name: puppeteer-templates-logs
           path: test-artifacts
 
+      - name: Publish test logs as repo issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/issue.json
+import os, json, glob
+repo = os.environ.get('GITHUB_REPOSITORY')
+run_id = os.environ.get('GITHUB_RUN_ID')
+title = f"CI logs: {os.environ.get('GITHUB_WORKFLOW')} - run {run_id}"
+lines = []
+lines.append(f"Repository: {repo}")
+lines.append(f"Workflow: {os.environ.get('GITHUB_WORKFLOW')}")
+lines.append(f"Run ID: {run_id}")
+lines.append(f"Job: {os.environ.get('GITHUB_JOB')}")
+lines.append(f"Commit: {os.environ.get('GITHUB_SHA')}")
+lines.append("")
+for path in sorted(glob.glob('test-artifacts/*')):
+    lines.append(f"### {path}")
+    try:
+        with open(path, 'r', encoding='utf-8', errors='replace') as fh:
+            content = fh.read(20000)
+    except Exception as e:
+        content = f'[error reading file: {e}]'
+    lines.append('```')
+    lines.append(content)
+    lines.append('```')
+    lines.append('')
+body = '\n'.join(lines)
+print(json.dumps({'title': title, 'body': body}))
+PY
+
+          resp=$(curl -s -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3+json" -d @/tmp/issue.json "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues")
+          echo "$resp" > test-artifacts/issue_response.json
+          python3 - <<'PY'
+import json
+print(json.load(open('test-artifacts/issue_response.json')).get('html_url', ''))
+PY > test-artifacts/issue_url.txt
+          echo "Created issue: $(cat test-artifacts/issue_url.txt)"
+
   puppeteer-e2e:
     name: Run Puppeteer e2e (simulated helper)
     runs-on: ubuntu-latest
@@ -119,3 +159,43 @@ jobs:
         with:
           name: puppeteer-e2e-logs
           path: test-artifacts
+
+      - name: Publish e2e logs as repo issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/issue.json
+import os, json, glob
+repo = os.environ.get('GITHUB_REPOSITORY')
+run_id = os.environ.get('GITHUB_RUN_ID')
+title = f"CI logs (e2e): {os.environ.get('GITHUB_WORKFLOW')} - run {run_id}"
+lines = []
+lines.append(f"Repository: {repo}")
+lines.append(f"Workflow: {os.environ.get('GITHUB_WORKFLOW')}")
+lines.append(f"Run ID: {run_id}")
+lines.append(f"Job: {os.environ.get('GITHUB_JOB')}")
+lines.append(f"Commit: {os.environ.get('GITHUB_SHA')}")
+lines.append("")
+for path in sorted(glob.glob('test-artifacts/*')):
+    lines.append(f"### {path}")
+    try:
+        with open(path, 'r', encoding='utf-8', errors='replace') as fh:
+            content = fh.read(20000)
+    except Exception as e:
+        content = f'[error reading file: {e}]'
+    lines.append('```')
+    lines.append(content)
+    lines.append('```')
+    lines.append('')
+body = '\n'.join(lines)
+print(json.dumps({'title': title, 'body': body}))
+PY
+
+          resp=$(curl -s -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3+json" -d @/tmp/issue.json "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues")
+          echo "$resp" > test-artifacts/issue_response.json
+          python3 - <<'PY'
+import json
+print(json.load(open('test-artifacts/issue_response.json')).get('html_url', ''))
+PY > test-artifacts/issue_url.txt
+          echo "Created issue: $(cat test-artifacts/issue_url.txt)"
