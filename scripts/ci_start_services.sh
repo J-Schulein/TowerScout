@@ -101,7 +101,8 @@ while [ $(date +%s) -lt $END ]; do
   # Quick HTTP presence check
   if helper_code=$(check_http "http://127.0.0.1:${PORT_HELPER}" 2>/dev/null) || helper_code=$(check_http "http://localhost:${PORT_HELPER}" 2>/dev/null); then
     # To avoid false positives where another server answers the port, POST-probe the helper
-    if check_helper_post "http://127.0.0.1:${PORT_HELPER}" 2>/dev/null || check_helper_post "http://localhost:${PORT_HELPER}" 2>/dev/null; then
+    # POST to the helper's operations endpoint (not the server root)
+    if check_helper_post "http://127.0.0.1:${PORT_HELPER}/operations/provider-tls-repair" 2>/dev/null || check_helper_post "http://localhost:${PORT_HELPER}/operations/provider-tls-repair" 2>/dev/null; then
       helper_ok=0
     else
       helper_ok=1
