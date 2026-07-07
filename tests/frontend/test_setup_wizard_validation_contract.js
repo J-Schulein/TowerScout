@@ -5,6 +5,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '../..');
+const API_HELPERS_PATH = path.join(ROOT, 'webapp/js/src/utils/apiHelpers.js');
 const SETUP_WIZARD_PATH = path.join(ROOT, 'webapp/js/src/setup-wizard.js');
 
 function createClassList() {
@@ -213,11 +214,17 @@ function createContext(options = {}) {
   return { context, elements, steps, providerOptions, notifications };
 }
 
+function loadSetupWizard(context) {
+  const apiHelpersSource = fs.readFileSync(API_HELPERS_PATH, 'utf8');
+  vm.runInContext(apiHelpersSource, context, { filename: API_HELPERS_PATH });
+  const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
+  vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+}
+
 async function testSecondProviderStillValidatesAfterFirstProviderNetworkFailure() {
   const { context, elements, steps, providerOptions } = createContext();
   vm.createContext(context);
-  const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
-  vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+  loadSetupWizard(context);
 
   context.window.SetupWizard.showStep(2);
   await context.window.SetupWizard.validateAndNext();
@@ -264,8 +271,7 @@ async function testInvalidProviderKeyDoesNotExposeRepairPredicate() {
     }
   });
   vm.createContext(context);
-  const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
-  vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+  loadSetupWizard(context);
 
   context.window.SetupWizard.showStep(2);
   await context.window.SetupWizard.validateAndNext();
@@ -295,8 +301,7 @@ async function testRepairPredicateRequiresRepairableTlsAndHelperAvailability() {
     }
   });
   vm.createContext(context);
-  const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
-  vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+  loadSetupWizard(context);
 
   context.window.SetupWizard.showStep(2);
   await context.window.SetupWizard.validateAndNext();
@@ -369,8 +374,7 @@ async function testRepairPanelRejectsNonTlsHelperUnavailableAndPodmanStates() {
       }
     });
     vm.createContext(context);
-    const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
-    vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+    loadSetupWizard(context);
 
     context.window.SetupWizard.showStep(2);
     await context.window.SetupWizard.validateAndNext();
@@ -421,8 +425,7 @@ async function testShortLivedAuthorizationDoesNotStartRepairWhileMutationGateIsC
     }
   });
   vm.createContext(context);
-  const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
-  vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+  loadSetupWizard(context);
 
   context.window.SetupWizard.showStep(2);
   await context.window.SetupWizard.validateAndNext();
@@ -531,8 +534,7 @@ async function testRepairStartContractHandlesActiveOperationAndRedaction() {
     }
   });
   vm.createContext(context);
-  const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
-  vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+  loadSetupWizard(context);
 
   context.window.SetupWizard.showStep(2);
   await context.window.SetupWizard.validateAndNext();
@@ -616,6 +618,55 @@ async function testRepairStartContractHandlesActiveOperationAndRedaction() {
   assert.deepStrictEqual(context.fetchCalls, ['google', 'azure']);
 }
 
+async function testRepairPanelSignalsAdditionalRepairableProviders() {
+  const { context, elements } = createContext({
+    googleValidationPayload: {
+      error: true,
+      message: 'TowerScout could not verify the Google Maps TLS certificate.',
+      details: {
+        provider: 'google',
+        category: 'tls_ca_untrusted',
+        repairable: true,
+        support_action: 'Import the trusted organization/root TLS CA into the container trust store.',
+        repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
+        helper_available: true,
+        operation_authorization: {
+          operation_type: 'provider_tls_repair',
+          expires_at: '2999-01-01T00:00:00Z',
+          operation_token: 'google-token-12345678901234567890123456789012'
+        }
+      }
+    },
+    azureValidationPayload: {
+      error: true,
+      message: 'TowerScout could not verify the Azure Maps TLS certificate.',
+      details: {
+        provider: 'azure',
+        category: 'tls_ca_untrusted',
+        repairable: true,
+        support_action: 'Import the trusted organization/root TLS CA into the container trust store.',
+        repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider azure -Engine docker -Gpu off',
+        helper_available: true,
+        operation_authorization: {
+          operation_type: 'provider_tls_repair',
+          expires_at: '2999-01-01T00:00:00Z',
+          operation_token: 'azure-token-123456789012345678901234567890123'
+        }
+      }
+    }
+  });
+  vm.createContext(context);
+  loadSetupWizard(context);
+
+  context.window.SetupWizard.showStep(2);
+  await context.window.SetupWizard.validateAndNext();
+
+  assert.strictEqual(elements.wizard_provider_tls_repair_panel.style.display, 'block');
+  assert.strictEqual(elements.wizard_provider_tls_repair_title.textContent, 'Google Maps TLS repair');
+  assert.ok(elements.wizard_provider_tls_repair_message.textContent.includes('1 additional provider also needs repair.'));
+  assert.ok(elements.wizard_provider_tls_repair_status.textContent.includes('Another provider also needs repair.'));
+}
+
 async function testInvalidOperationAuthorizationLeavesRepairDisabled() {
   const scenarios = [
     {
@@ -675,8 +726,7 @@ async function testInvalidOperationAuthorizationLeavesRepairDisabled() {
       }
     });
     vm.createContext(context);
-    const source = fs.readFileSync(SETUP_WIZARD_PATH, 'utf8');
-    vm.runInContext(source, context, { filename: SETUP_WIZARD_PATH });
+    loadSetupWizard(context);
 
     context.window.SetupWizard.showStep(2);
     await context.window.SetupWizard.validateAndNext();
@@ -731,6 +781,7 @@ testSecondProviderStillValidatesAfterFirstProviderNetworkFailure()
   .then(testRepairPanelRejectsNonTlsHelperUnavailableAndPodmanStates)
   .then(testShortLivedAuthorizationDoesNotStartRepairWhileMutationGateIsClosed)
   .then(testRepairStartContractHandlesActiveOperationAndRedaction)
+  .then(testRepairPanelSignalsAdditionalRepairableProviders)
   .then(testInvalidOperationAuthorizationLeavesRepairDisabled)
   .then(() => {
     console.log('Setup wizard validation contract PASSED');

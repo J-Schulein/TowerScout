@@ -30,11 +30,15 @@ async function run() {
   try {
     const USE_REAL_HELPER = (process.env.E2E_USE_SERVER === '1' || process.env.E2E_USE_SERVER === 'true' || process.env.USE_REAL_HELPER === '1');
 
-    await page.goto(CONFIG.baseUrl, { waitUntil: 'networkidle2', timeout: CONFIG.timeout });
-
     // Expose helper base URL to the page when running e2e
     await page.evaluateOnNewDocument((hb, real) => {
       try { window.__TEST_HELPER_BASE_URL = hb || ''; window.__E2E_USE_REAL_HELPER = !!real; } catch(e) {}
+    }, process.env.TEST_HELPER_BASE_URL || '', USE_REAL_HELPER);
+
+    await page.goto(CONFIG.baseUrl, { waitUntil: 'networkidle2', timeout: CONFIG.timeout });
+    await page.evaluate((hb, real) => {
+      window.__TEST_HELPER_BASE_URL = hb || '';
+      window.__E2E_USE_REAL_HELPER = !!real;
     }, process.env.TEST_HELPER_BASE_URL || '', USE_REAL_HELPER);
 
     // Mirror page console to node for easier diagnostics in CI
@@ -53,7 +57,7 @@ async function run() {
         operation_authorization: {
           operation_type: 'provider_tls_repair',
           expires_at: future,
-          operation_token: 'TEST_TOKEN_YYYYYYYYYYYYYYYY'
+          operation_token: 'TEST_TOKEN_' + 'Y'.repeat(32)
         }
       };
       if (typeof rememberProviderValidationResult === 'function') {

@@ -58,11 +58,15 @@ async function run() {
     // Determine whether to use a real helper server (e2e CI) or run in shimmed mode.
     const USE_REAL_HELPER = (process.env.E2E_USE_SERVER === '1' || process.env.E2E_USE_SERVER === 'true' || process.env.USE_REAL_HELPER === '1');
 
-    await page.goto(CONFIG.baseUrl, { waitUntil: 'networkidle2', timeout: CONFIG.timeout });
-
     // If the test runner provides a helper base URL, expose it to page scripts
     await page.evaluateOnNewDocument((hb, real) => {
       try { window.__TEST_HELPER_BASE_URL = hb || ''; window.__E2E_USE_REAL_HELPER = !!real; } catch(e) {}
+    }, process.env.TEST_HELPER_BASE_URL || '', USE_REAL_HELPER);
+
+    await page.goto(CONFIG.baseUrl, { waitUntil: 'networkidle2', timeout: CONFIG.timeout });
+    await page.evaluate((hb, real) => {
+      window.__TEST_HELPER_BASE_URL = hb || '';
+      window.__E2E_USE_REAL_HELPER = !!real;
     }, process.env.TEST_HELPER_BASE_URL || '', USE_REAL_HELPER);
 
     // Mirror page console to node for easier debugging in CI
@@ -87,7 +91,7 @@ async function run() {
         operation_authorization: {
           operation_type: 'provider_tls_repair',
           expires_at: future,
-          operation_token: 'TEST_TOKEN_XXXXXXXXXXXXXXXX'
+          operation_token: 'TEST_TOKEN_' + 'X'.repeat(32)
         }
       };
 
@@ -204,8 +208,10 @@ async function run() {
 
       // Perform the POST to the helper
       let postResp = null;
+      let postStatus = null;
       if (built) {
         const r = await fetch(built.endpoint, built.options);
+        postStatus = r.status;
         postResp = await (r.json ? r.json() : {});
       }
 
@@ -227,6 +233,7 @@ async function run() {
       // Return observations for assertions in the test harness
       return {
         postBody,
+        postStatus,
         fetchCalls: window.__fetchCalls || [],
         pollSequence
       };
@@ -263,6 +270,12 @@ async function run() {
 
     if (postCalls.length === 0) {
       console.error('No POST calls captured to helper endpoint');
+      process.exitCode = 2;
+      return;
+    }
+
+    if (result.postStatus !== 202) {
+      console.error('Expected helper POST to return 202, got', result.postStatus);
       process.exitCode = 2;
       return;
     }

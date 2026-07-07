@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Start the simulated helper and a static webserver, then wait for both to accept TCP
-# Accept any HTTP response code (not only 2xx) as "responsive" because some helpers
-# return 404 on GET / but are still ready to accept POSTs.
+# Start the simulated helper and a static webserver, then wait for both to report readiness.
 
 ART_DIR=test-artifacts
 mkdir -p "$ART_DIR"
@@ -36,52 +34,14 @@ check_http() {
   return 1
 }
 
-check_helper_post() {
+check_helper_health() {
   local url=$1
-  # generate a valid operation_authorization token (32 hex chars)
-  if command -v openssl >/dev/null 2>&1; then
-    token=$(openssl rand -hex 16)
-  elif command -v python3 >/dev/null 2>&1; then
-    token=$(python3 - <<'PY'
-import secrets
-print(secrets.token_hex(16))
-PY
-)
-  else
-    token=$(date +%s%N | sha256sum | head -c32)
+  local tmpbody="$ART_DIR/helper_health.json"
+  local status
+  status=$(curl -sS -w '%{http_code}' -o "$tmpbody" --connect-timeout 2 --max-time 3 "$url" || echo "000")
+  if [ "$status" = "200" ] && grep -q '"state":"ready"' "$tmpbody"; then
+    return 0
   fi
-  payload=$(printf '{"provider":"google","confirmation":"repair_tls_and_restart","operation_authorization":"%s"}' "$token")
-  # persist the last request body for triage
-  printf '%s' "$payload" > "$ART_DIR/ci_probe_last_request.json"
-
-  local tries=0
-  local max_tries=${CI_PROBE_MAX_TRIES:-10}
-  local backoff_ms=${CI_PROBE_BACKOFF_MS:-500}
-
-  while [ $tries -lt $max_tries ]; do
-    tries=$((tries + 1))
-    tmpbody="$ART_DIR/ci_probe_resp_body_${tries}.txt"
-    status=$(curl -sS -w '%{http_code}' -o "$tmpbody" -X POST -H "Content-Type: application/json" -d "$payload" --connect-timeout 3 --max-time 5 "$url" || echo "000")
-
-    # capture a concise probe response summary
-    bodySnippet=$(sed -n '1,100p' "$tmpbody" 2>/dev/null | tr -d '\r' | sed -e 's/"/\\"/g')
-    printf '{"attempt":%s,"status":"%s","body":"%s"}\n' "$tries" "$status" "$bodySnippet" > "$ART_DIR/ci_probe_response.json"
-
-    echo "Probe attempt $tries -> status=$status" >&2
-    if [ -s "$tmpbody" ]; then
-      echo "Probe body (truncated):" >&2
-      sed -n '1,200p' "$tmpbody" >&2 || true
-    fi
-
-    if [ "$status" = "200" ] || [ "$status" = "202" ]; then
-      return 0
-    fi
-
-    # exponential-ish backoff (tries * base) in seconds (supports fractional via awk)
-    sleep_secs=$(awk "BEGIN {printf \"%.3f\", ($backoff_ms/1000.0) * $tries}")
-    sleep $sleep_secs
-  done
-
   return 1
 }
 
@@ -98,15 +58,8 @@ while [ $(date +%s) -lt $END ]; do
   helper_ok=1
   web_ok=1
 
-  # Quick HTTP presence check
-  if helper_code=$(check_http "http://127.0.0.1:${PORT_HELPER}" 2>/dev/null) || helper_code=$(check_http "http://localhost:${PORT_HELPER}" 2>/dev/null); then
-    # To avoid false positives where another server answers the port, POST-probe the helper
-    # POST to the helper's operations endpoint (not the server root)
-    if check_helper_post "http://127.0.0.1:${PORT_HELPER}/operations/provider-tls-repair" 2>/dev/null || check_helper_post "http://localhost:${PORT_HELPER}/operations/provider-tls-repair" 2>/dev/null; then
-      helper_ok=0
-    else
-      helper_ok=1
-    fi
+  if check_helper_health "http://127.0.0.1:${PORT_HELPER}/health" 2>/dev/null || check_helper_health "http://localhost:${PORT_HELPER}/health" 2>/dev/null; then
+    helper_ok=0
   fi
 
   if check_http "http://127.0.0.1:${PORT_WEBSERVER}" 2>/dev/null || check_http "http://localhost:${PORT_WEBSERVER}" 2>/dev/null; then

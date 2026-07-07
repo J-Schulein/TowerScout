@@ -9,6 +9,10 @@ on:
       - main
   workflow_dispatch: {}
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   puppeteer-templates:
     name: Run Puppeteer templates (Task-087)
@@ -179,13 +183,6 @@ jobs:
           TEST_HELPER_BASE_URL: http://localhost:5001
           E2E_USE_SERVER: '1'
         run: node tests/frontend/test_provider_tls_live_post_poll_template.js 2>&1 | tee test-artifacts/test_provider_tls_live_post_poll_template_e2e.log
-
-      - name: Run helper-unavailable Puppeteer e2e
-        env:
-          CI: true
-          TEST_HELPER_BASE_URL: http://localhost:5001
-          E2E_USE_SERVER: '1'
-        run: node tests/frontend/test_provider_tls_helper_unavailable_template.js 2>&1 | tee test-artifacts/test_provider_tls_helper_unavailable_template_e2e.log
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@v4

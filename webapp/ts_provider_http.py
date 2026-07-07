@@ -343,7 +343,9 @@ def classify_provider_response(
 ) -> str:
     status_code = getattr(response, "status_code", None)
     if status_code and 200 <= int(status_code) < 300:
-        if provider == "google" and body_json:
+        if provider == "google":
+            if not body_json or not isinstance(body_json, Mapping):
+                return PROVIDER_HTTP_ERROR
             google_status = str(body_json.get("status", "")).upper()
             if google_status == "OK" or google_status == "ZERO_RESULTS":
                 return TLS_OK

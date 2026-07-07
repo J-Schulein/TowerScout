@@ -72,6 +72,9 @@
   let activeProviderTlsRepairProvider = null;
   let providerTlsRepairStartInFlight = false;
   let providerTlsRepairOperationStatus = null;
+  const fetchJson = window.TowerScoutConfigApi.fetchJson;
+  const providerFailureMessage = window.TowerScoutConfigApi.providerFailureMessage;
+  const saveFailureMessage = window.TowerScoutConfigApi.saveFailureMessage;
 
   function createEmptyProviderValidationState() {
     return {
@@ -93,22 +96,6 @@
   function getSelectedDefaultProvider() {
     const selected = document.querySelector('input[name="default_provider"]:checked');
     return selected ? selected.value : 'azure';
-  }
-
-  async function fetchJson(url, options = {}) {
-    const response = await fetch(url, options);
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      const error = new Error(data.message || data.error || `Request failed with status ${response.status}`);
-      error.status = response.status;
-      error.payload = data;
-      error.details = data.details || {};
-      error.category = data.category || (data.details && data.details.category);
-      throw error;
-    }
-
-    return data;
   }
 
   function normalizeProviderValidationResult(provider, payload = {}) {
@@ -478,14 +465,15 @@
     };
   }
 
-  function firstVisibleProviderTlsRepairViewModel() {
+  function getVisibleProviderTlsRepairViewModels() {
+    const visibleViewModels = [];
     for (const provider of providerNames) {
       const viewModel = getProviderTlsRepairViewModel(provider);
       if (viewModel.visible) {
-        return viewModel;
+        visibleViewModels.push(viewModel);
       }
     }
-    return null;
+    return visibleViewModels;
   }
 
   function setText(elementId, text) {
@@ -501,7 +489,9 @@
       return null;
     }
 
-    const viewModel = firstVisibleProviderTlsRepairViewModel();
+    const visibleViewModels = getVisibleProviderTlsRepairViewModels();
+    const viewModel = visibleViewModels[0] || null;
+    const additionalVisibleCount = Math.max(visibleViewModels.length - 1, 0);
     const checkbox = document.getElementById('wizard_provider_tls_repair_confirm');
     const button = document.getElementById('wizard_provider_tls_repair_button');
 
@@ -525,9 +515,14 @@
     activeProviderTlsRepairProvider = viewModel.provider;
     panel.style.display = 'block';
     setText('wizard_provider_tls_repair_title', `${viewModel.display_name} TLS repair`);
+    const additionalRepairNotice = additionalVisibleCount === 1
+      ? ' 1 additional provider also needs repair.'
+      : additionalVisibleCount > 1
+        ? ` ${additionalVisibleCount} additional providers also need repair.`
+        : '';
     setText(
       'wizard_provider_tls_repair_message',
-      `${viewModel.display_name} failed with a repairable TLS trust error.`
+      `${viewModel.display_name} failed with a repairable TLS trust error.${additionalRepairNotice}`
     );
     setText('wizard_provider_tls_repair_support', viewModel.support_action || '');
     setText(
@@ -543,26 +538,25 @@
       button.textContent = viewModel.enabled ? 'Repair and restart TowerScout' : 'Repair unavailable';
     }
 
+    let statusMessage;
     if (operationActive) {
-      setText(
-        'wizard_provider_tls_repair_status',
-        'A host repair operation is already active. Wait for it to finish before starting another repair.'
-      );
+      statusMessage = 'A host repair operation is already active. Wait for it to finish before starting another repair.';
     } else if (!viewModel.authorization_ready) {
-      setText(
-        'wizard_provider_tls_repair_status',
-        'Host repair authorization is not available yet. Use the command fallback for this package.'
-      );
+      statusMessage = 'Host repair authorization is not available yet. Use the command fallback for this package.';
     } else if (!PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED) {
-      setText(
-        'wizard_provider_tls_repair_status',
-        'Host repair is prepared for review but browser-triggered repair remains disabled in this gate.'
-      );
+      statusMessage = 'Host repair is prepared for review but browser-triggered repair remains disabled in this gate.';
     } else if (!confirmed) {
-      setText('wizard_provider_tls_repair_status', 'Confirm the restart behavior before running repair.');
+      statusMessage = 'Confirm the restart behavior before running repair.';
     } else {
-      setText('wizard_provider_tls_repair_status', 'Ready to start the authorized repair operation.');
+      statusMessage = 'Ready to start the authorized repair operation.';
     }
+
+    if (additionalVisibleCount > 0) {
+      statusMessage += additionalVisibleCount === 1
+        ? ' Another provider also needs repair.'
+        : ` ${additionalVisibleCount} additional providers also need repair.`;
+    }
+    setText('wizard_provider_tls_repair_status', statusMessage);
 
     return viewModel;
   }
@@ -621,43 +615,6 @@
     );
     renderProviderTlsRepairState();
     return false;
-  }
-
-  function providerFailureMessage(displayName, payload) {
-    if (!payload) {
-      return '';
-    }
-
-    const normalized = normalizeProviderValidationResult('', payload);
-    const parts = [`${displayName}: ${normalized.message}`];
-    if (normalized.category) {
-      parts.push(`Category: ${normalized.category}.`);
-    }
-    if (normalized.support_action) {
-      parts.push(normalized.support_action);
-    }
-    if (
-      normalized.repair_command &&
-      (!normalized.support_action || !normalized.support_action.includes(normalized.repair_command))
-    ) {
-      parts.push(`Suggested command: ${normalized.repair_command}`);
-    }
-    return parts.join(' ');
-  }
-
-  function saveFailureMessage(error) {
-    const payload = error.payload || {};
-    const validationResults = payload.validation_results || {};
-    const messages = [];
-
-    if (validationResults.google && validationResults.google.valid !== true) {
-      messages.push(providerFailureMessage('Google Maps', validationResults.google));
-    }
-    if (validationResults.azure && validationResults.azure.valid !== true) {
-      messages.push(providerFailureMessage('Azure Maps', validationResults.azure));
-    }
-
-    return [payload.message || error.message, ...messages].filter(Boolean).join(' ');
   }
 
   function setSetupBlocked(isBlocked) {

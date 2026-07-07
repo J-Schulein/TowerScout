@@ -7,6 +7,7 @@ const { randomBytes } = require('crypto');
 const url = require('url');
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5001;
+const APP_PORT = process.env.APP_PORT ? parseInt(process.env.APP_PORT, 10) : 5000;
 
 const ops = {}; // operation_id -> { polls, state, provider }
 const tokenToOp = {}; // operation_authorization -> operation_id
@@ -51,13 +52,31 @@ function checkRate(ip) {
   return true;
 }
 
+function runtimeProfile() {
+  return {
+    helper_version: 'simulated-helper',
+    state: 'ready',
+    runtime: {
+      engine: 'simulated',
+      gpu: 'off',
+      app_port: APP_PORT,
+      package_flavor: 'test'
+    },
+    capabilities: {
+      provider_tls_repair: false,
+      podman_provider_repair: false,
+      max_active_operations: 1
+    }
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true);
   const origin = req.headers['origin'] || null;
   const ip = req.socket.remoteAddress || 'unknown';
 
   // Basic rate limiting
-  if (!checkRate(ip)) {
+  if (parsed.pathname !== '/health' && !checkRate(ip)) {
     return sendJSON(res, 429, { message: 'rate_limited' }, origin);
   }
 
@@ -70,6 +89,10 @@ const server = http.createServer(async (req, res) => {
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     }
     return res.end();
+  }
+
+  if (req.method === 'GET' && parsed.pathname === '/health') {
+    return sendJSON(res, 200, runtimeProfile(), origin);
   }
 
   if (req.method === 'POST' && parsed.pathname === '/operations/provider-tls-repair') {

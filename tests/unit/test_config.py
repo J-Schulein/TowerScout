@@ -58,6 +58,21 @@ def test_validate_api_key_google(mock_get):
 
 
 @patch("ts_config.requests.get")
+def test_validate_api_key_google_rejects_empty_geocode_json(mock_get):
+    static_response = Mock(status_code=200)
+    geocode_response = Mock(status_code=200)
+    geocode_response.json.return_value = {}
+    mock_get.side_effect = [static_response, geocode_response]
+
+    result = ts_config.validate_api_key("google", "google-test-key")
+
+    assert result["valid"] is False
+    assert result["provider"] == "google"
+    assert result["category"] == "provider_http_error"
+    assert result["message"] == "Google Maps key is not authorized for the Geocoding API. Google returned status UNKNOWN."
+
+
+@patch("ts_config.requests.get")
 def test_validate_api_key_azure(mock_get):
     mock_get.return_value = Mock(status_code=200)
 
