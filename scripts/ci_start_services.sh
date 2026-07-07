@@ -50,12 +50,38 @@ PY
   else
     token=$(date +%s%N | sha256sum | head -c32)
   fi
-
   payload=$(printf '{"provider":"google","confirmation":"repair_tls_and_restart","operation_authorization":"%s"}' "$token")
-  code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST -H "Content-Type: application/json" -d "$payload" --connect-timeout 3 --max-time 5 "$url" || echo "000")
-  if [ "$code" = "200" ] || [ "$code" = "202" ]; then
-    return 0
-  fi
+  # persist the last request body for triage
+  printf '%s' "$payload" > "$ART_DIR/ci_probe_last_request.json"
+
+  local tries=0
+  local max_tries=${CI_PROBE_MAX_TRIES:-10}
+  local backoff_ms=${CI_PROBE_BACKOFF_MS:-500}
+
+  while [ $tries -lt $max_tries ]; do
+    tries=$((tries + 1))
+    tmpbody="$ART_DIR/ci_probe_resp_body_${tries}.txt"
+    status=$(curl -sS -w '%{http_code}' -o "$tmpbody" -X POST -H "Content-Type: application/json" -d "$payload" --connect-timeout 3 --max-time 5 "$url" || echo "000")
+
+    # capture a concise probe response summary
+    bodySnippet=$(sed -n '1,100p' "$tmpbody" 2>/dev/null | tr -d '\r' | sed -e 's/"/\\"/g')
+    printf '{"attempt":%s,"status":"%s","body":"%s"}\n' "$tries" "$status" "$bodySnippet" > "$ART_DIR/ci_probe_response.json"
+
+    echo "Probe attempt $tries -> status=$status" >&2
+    if [ -s "$tmpbody" ]; then
+      echo "Probe body (truncated):" >&2
+      sed -n '1,200p' "$tmpbody" >&2 || true
+    fi
+
+    if [ "$status" = "200" ] || [ "$status" = "202" ]; then
+      return 0
+    fi
+
+    # exponential-ish backoff (tries * base) in seconds (supports fractional via awk)
+    sleep_secs=$(awk "BEGIN {printf \"%.3f\", ($backoff_ms/1000.0) * $tries}")
+    sleep $sleep_secs
+  done
+
   return 1
 }
 

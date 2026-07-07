@@ -33,9 +33,14 @@ async function run() {
     await page.goto(CONFIG.baseUrl, { waitUntil: 'networkidle2', timeout: CONFIG.timeout });
 
     // Expose helper base URL to the page when running e2e
-    await page.evaluateOnNewDocument((hb) => {
-      try { window.__TEST_HELPER_BASE_URL = hb || '' } catch(e) {}
-    }, process.env.TEST_HELPER_BASE_URL || '');
+    await page.evaluateOnNewDocument((hb, real) => {
+      try { window.__TEST_HELPER_BASE_URL = hb || ''; window.__E2E_USE_REAL_HELPER = !!real; } catch(e) {}
+    }, process.env.TEST_HELPER_BASE_URL || '', USE_REAL_HELPER);
+
+    // Mirror page console to node for easier diagnostics in CI
+    page.on('console', msg => {
+      try { console.log('PAGE:', msg.text()); } catch (e) { console.log('PAGE: (console unreadable)'); }
+    });
 
     // Inject a repairable validation result as in the other template
     const future = new Date(Date.now() + 30 * 60 * 1000).toISOString();
@@ -58,18 +63,36 @@ async function run() {
       }
     }, future);
 
-    // Shim fetch to return 503 for the POST and record call count unless running e2e
+    // Install fetch wrapper to record calls and provide controlled shim behavior
     await page.evaluate((useReal) => {
       const orig = window.fetch;
       window.__fetchCalls = [];
-      if (useReal) return;
+
       window.fetch = async function(url, options) {
         window.__fetchCalls.push(String(url));
-        if (typeof url === 'string' && url.endsWith('/operations/provider-tls-repair')) {
-          // Simulate helper unavailable
-          return { ok: false, status: 503, json: async () => ({ message: 'helper_unavailable' }) };
+        const recorded = { url: String(url), method: options && options.method ? options.method : 'GET' };
+
+        if (!useReal) {
+          if (recorded.url.endsWith('/operations/provider-tls-repair')) {
+            console.log('[TEST-SHIM] Simulate 503 for', recorded.url);
+            return { ok: false, status: 503, json: async () => ({ message: 'helper_unavailable' }) };
+          }
+          return orig.apply(this, arguments);
         }
-        return orig.apply(this, arguments);
+
+        // In real mode, forward the request but still record a small snippet
+        try {
+          const resp = await orig.apply(this, arguments);
+          let txt = null;
+          try { txt = await resp.clone().text(); if (txt && txt.length>1000) txt = txt.slice(0,1000)+'...'; } catch(e){ txt = '<non-text>'; }
+          window.__fetchCalls.push(Object.assign({}, recorded, { status: resp.status, bodySnippet: txt }));
+          console.log('[FETCH] ', recorded.method, recorded.url, '->', resp.status);
+          return resp;
+        } catch (e) {
+          window.__fetchCalls.push(Object.assign({}, recorded, { error: String(e) }));
+          console.log('[FETCH-ERROR]', recorded.method, recorded.url, e && e.message ? e.message : e);
+          throw e;
+        }
       };
     }, USE_REAL_HELPER);
 
@@ -79,8 +102,9 @@ async function run() {
       let built = typeof buildProviderTlsRepairStartRequest === 'function' ? buildProviderTlsRepairStartRequest('google') : null;
       if (!built && window.__TEST_provider_validation) {
         const pv = window.__TEST_provider_validation;
+        const helperBase = (window.__TEST_HELPER_BASE_URL || '').replace(/\/+$/, '');
         built = {
-          endpoint: (window.__TEST_HELPER_BASE_URL || '') + '/operations/provider-tls-repair',
+          endpoint: (helperBase ? helperBase : '') + '/operations/provider-tls-repair',
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -91,6 +115,13 @@ async function run() {
             })
           }
         };
+      }
+
+      if (window.__E2E_USE_REAL_HELPER || (window.__TEST_HELPER_BASE_URL && window.__TEST_HELPER_BASE_URL.length)) {
+        if (!built || !String(built.endpoint).match(/^https?:\/\//i)) {
+          console.log('[E2E-ERROR] Helper base URL not configured or builder returned a relative endpoint:', built && built.endpoint);
+          return { error: 'missing_helper_base_url', builtEndpoint: built && built.endpoint };
+        }
       }
       if (!built) {
         return { error: 'no_builder' };

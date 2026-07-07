@@ -55,15 +55,25 @@ async function run() {
   const page = await browser.newPage();
 
   try {
-      // Determine whether to use a real helper server (e2e CI) or run in shimmed mode.
-      const USE_REAL_HELPER = (process.env.E2E_USE_SERVER === '1' || process.env.E2E_USE_SERVER === 'true' || process.env.USE_REAL_HELPER === '1');
+    // Determine whether to use a real helper server (e2e CI) or run in shimmed mode.
+    const USE_REAL_HELPER = (process.env.E2E_USE_SERVER === '1' || process.env.E2E_USE_SERVER === 'true' || process.env.USE_REAL_HELPER === '1');
 
     await page.goto(CONFIG.baseUrl, { waitUntil: 'networkidle2', timeout: CONFIG.timeout });
 
-      // If the test runner provides a helper base URL, expose it to page scripts
-      await page.evaluateOnNewDocument((hb) => {
-        try { window.__TEST_HELPER_BASE_URL = hb || '' } catch(e) {}
-      }, process.env.TEST_HELPER_BASE_URL || '');
+    // If the test runner provides a helper base URL, expose it to page scripts
+    await page.evaluateOnNewDocument((hb, real) => {
+      try { window.__TEST_HELPER_BASE_URL = hb || ''; window.__E2E_USE_REAL_HELPER = !!real; } catch(e) {}
+    }, process.env.TEST_HELPER_BASE_URL || '', USE_REAL_HELPER);
+
+    // Mirror page console to node for easier debugging in CI
+    page.on('console', msg => {
+      try {
+        const text = msg.text();
+        console.log('PAGE:', text);
+      } catch (e) {
+        console.log('PAGE: (unprintable console message)');
+      }
+    });
 
     // Prepare a fake, valid short-lived authorization and inject into page state
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
@@ -91,43 +101,36 @@ async function run() {
       }
     }, future);
 
-    // Capture fetch calls made by the page so we can assert request shapes
-    await page.exposeFunction('__recordFetchCall', args => {
-      window.__fetchCalls = window.__fetchCalls || [];
-      window.__fetchCalls.push(args);
-    });
-
-    // Install fetch shim only when not running in e2e mode against a real helper.
+    // Install a fetch wrapper that records call targets and responses in the
+    // page context. We wrap in all modes (real helper or shim) so CI logs
+    // reliably show whether the browser targeted the helper or the static
+    // server (the root cause of prior flakiness).
     await page.evaluate((useReal) => {
-      if (useReal) {
-        // expose lightweight collectors but do not override fetch
-        window.__fetchCalls = [];
-        return;
-      }
-
       const orig = window.fetch;
       window.__fetchCalls = [];
+
       window.fetch = async function(url, options) {
+        const recorded = { url: String(url), method: options && options.method ? options.method : 'GET', headers: options && options.headers ? options.headers : null };
         try {
-          const recorded = { url, options: { method: options && options.method, headers: options && options.headers } };
-          try {
-            recorded.options.body = options && options.body ? options.body : null;
-          } catch (e) {
-            recorded.options.body = '<unserializable>';
-          }
+          recorded.body = options && options.body ? options.body : null;
+        } catch (e) {
+          recorded.body = '<unserializable>';
+        }
+
+        // For non-e2e mode, provide deterministic stubbed responses for the
+        // helper contract so template-mode assertions remain stable.
+        if (!useReal) {
           window.__fetchCalls.push(recorded);
 
-          if (typeof url === 'string' && url.endsWith('/operations/provider-tls-repair')) {
-            return {
-              ok: true,
-              status: 202,
-              json: async () => ({ operation_id: '0123456789abcdef0123456789abcdef', state: 'planned' })
-            };
+          if (recorded.url.endsWith('/operations/provider-tls-repair')) {
+            console.log('[TEST-SHIM] POST ->', recorded.url);
+            return { ok: true, status: 202, json: async () => ({ operation_id: '0123456789abcdef0123456789abcdef', state: 'planned' }) };
           }
 
-          const opMatch = String(url).match(/\/operations\/(?:([a-f0-9]{32}))/i);
+          const opMatch = recorded.url.match(/\/operations\/(?:([a-f0-9]{32}))/i);
           if (opMatch) {
             window.__pollCount = (window.__pollCount || 0) + 1;
+            console.log('[TEST-SHIM] POLL ->', recorded.url, 'count=', window.__pollCount);
             if (window.__pollCount <= 2) {
               return { ok: true, status: 200, json: async () => ({ state: 'active', classification: 'active', terminal: false }) };
             }
@@ -135,14 +138,36 @@ async function run() {
           }
 
           return orig.apply(this, arguments);
+        }
+
+        // In e2e mode, forward the real fetch but still record the call and
+        // log a short summary for diagnostics.
+        let resp = null;
+        try {
+          resp = await orig.apply(this, arguments);
+          // attempt to read a small snippet of body for logging without
+          // consuming it for the upstream code (best-effort)
+          let txt = null;
+          try {
+            txt = await resp.clone().text();
+            if (txt && txt.length > 1000) txt = txt.slice(0, 1000) + '...';
+          } catch (e) { txt = '<non-text body>'; }
+
+          window.__fetchCalls.push(Object.assign({}, recorded, { status: resp.status, bodySnippet: txt }));
+          console.log('[FETCH] ', recorded.method, recorded.url, '->', resp.status);
+          return resp;
         } catch (e) {
-          return orig.apply(this, arguments);
+          window.__fetchCalls.push(Object.assign({}, recorded, { error: String(e) }));
+          console.log('[FETCH-ERROR]', recorded.method, recorded.url, e && e.message ? e.message : e);
+          throw e;
         }
       };
     }, USE_REAL_HELPER);
 
     // Create a test helper on the page that performs the start+poll flow using
     // the public builder helpers (so we don't need to toggle internal flags).
+    // When running in e2e mode require that a helper base URL is set to avoid
+    // accidental relative requests to the static server.
     const result = await page.evaluate(async () => {
       // Build the POST request via the existing helper
       let built = typeof buildProviderTlsRepairStartRequest === 'function' ? buildProviderTlsRepairStartRequest('google') : null;
@@ -151,8 +176,9 @@ async function run() {
       // payload (`window.__TEST_provider_validation`).
       if (!built && window.__TEST_provider_validation) {
         const pv = window.__TEST_provider_validation;
+        const helperBase = (window.__TEST_HELPER_BASE_URL || '').replace(/\/+$/, '');
         built = {
-          endpoint: (window.__TEST_HELPER_BASE_URL || '') + '/operations/provider-tls-repair',
+          endpoint: (helperBase ? helperBase : '') + '/operations/provider-tls-repair',
           options: {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -163,6 +189,15 @@ async function run() {
             })
           }
         };
+      }
+      // Defensive check: if the test harness expects a real helper, ensure the
+      // endpoint is absolute and points to the helper base; otherwise fail fast
+      // with a clear message.
+      if (window.__E2E_USE_REAL_HELPER || (window.__TEST_HELPER_BASE_URL && window.__TEST_HELPER_BASE_URL.length)) {
+        if (!built || !String(built.endpoint).match(/^https?:\/\//i)) {
+          console.log('[E2E-ERROR] Helper base URL not configured or builder returned a relative endpoint:', built && built.endpoint);
+          return { error: 'missing_helper_base_url', builtEndpoint: built && built.endpoint };
+        }
       }
 
       const postBody = built && built.options && built.options.body ? built.options.body : null;
@@ -179,7 +214,8 @@ async function run() {
       if (postResp && postResp.operation_id) {
         const id = postResp.operation_id;
         for (let i = 0; i < 5; i++) {
-          const pr = await fetch(`/operations/${id}`);
+          const pollBase = (window.__TEST_HELPER_BASE_URL || '');
+          const pr = await fetch((pollBase ? pollBase : '') + '/operations/' + id);
           const pj = await (pr.json ? pr.json() : {});
           pollSequence.push(pj);
           if (pj && pj.terminal) break;
