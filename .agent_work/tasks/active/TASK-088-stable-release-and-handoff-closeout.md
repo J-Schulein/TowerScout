@@ -628,6 +628,23 @@ and digest-cross-check changes.
 that branch, and then cut the follow-on release build/tag sequence (`v0.1.1`)
 only after CI is green at the post-fix merge SHA.
 
+### 2026-07-08 - Post-R4 Windows Validation Re-Run Recorded For PR #47
+**Objective**: Close the remaining pre-merge evidence gap identified by the R5
+re-review by recording the post-fix Windows validation slice after the R4
+blocker fixes landed on PR #47.
+**Context**: R5 confirmed that the code/test fixes in PR #47 were merge-ready,
+but noted that the repo still lacked an explicit record that the Windows-only
+behavioral slices were rerun after the R4 blocker and follow-up fixes.
+**Decision**: Record the exact post-fix Windows validation slice in the task
+log rather than rely on the PR description alone.
+**Execution**: After applying the R4 fixes (`status.ps1` down-state handling,
+status env sync, managed NVIDIA variables, `$isMatch` rename, and artifact
+cleanup), reran the focused Windows validation slice from the PR branch.
+**Output**: TASK-088 now carries the post-fix Windows validation evidence that
+R5 asked to see before PR #47 is undrafted and merged.
+**Validation**: `./.venv/Scripts/python -m pytest tests/unit/test_task_074_bootstrap.py tests/unit/test_task_081_runtime_hardening.py tests/unit/test_import_assets_script.py tests/unit/test_release_package_script.py -q -p no:cacheprovider` -> `49 passed`; `python .agent_work/scripts/validate_agent_work.py` -> passed; `git diff --check` -> passed.
+**Next**: Undraft PR #47 once CI remains green, and merge it with **Squash and merge** so the previously committed artifact debris never lands in `main` history.
+
 ---
 
 ## Validation Results
