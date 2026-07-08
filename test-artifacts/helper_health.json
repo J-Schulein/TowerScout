@@ -1,1 +1,0 @@
-{"helper_version":"simulated-helper","state":"ready","runtime":{"engine":"simulated","gpu":"off","app_port":5000,"package_flavor":"test"},"capabilities":{"provider_tls_repair":false,"podman_provider_repair":false,"max_active_operations":1}}

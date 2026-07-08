@@ -103,6 +103,8 @@ def test_import_assets_uses_shared_copy_fallback_and_sets_gpu_environment():
     assert "Get-TowerScoutPodmanServiceContainerId" in helper
     assert "io.podman.compose.project" in helper
     assert "com.docker.compose.project" in helper
+    assert '"NVIDIA_VISIBLE_DEVICES"' in helper
+    assert '"NVIDIA_DRIVER_CAPABILITIES"' in helper
     assert "$env:TOWERSCOUT_CONTAINER_ENGINE = $effectiveEngine" in helper
     assert "Initialize-TowerScoutPodmanComposeProvider" in helper
     assert "Assert-TowerScoutPodmanComposeProviderAllowed" in helper
@@ -130,11 +132,59 @@ def test_stop_script_uses_down_without_deleting_named_volumes():
 def test_status_script_reports_engine_image_identity_and_fails_on_mismatch():
     status_script = STATUS_SCRIPT.read_text(encoding="utf-8")
 
+    assert 'Initialize-TowerScoutEnvFile -RootPath $repoRoot' in status_script
     assert "Test-TowerScoutRunningImageMatchesPackage" in status_script
     assert "Running image:" in status_script
     assert "Running image digest:" in status_script
+    assert '$imageIdentityCheck.Reason -eq "mismatch"' in status_script
+    assert '$imageIdentityCheck.Reason -eq "container_not_found"' in status_script
+    assert "No running TowerScout container found for this package." in status_script
     assert "Running container image does not match this package's pinned identity." in status_script
     assert "exit 1" in status_script
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")
+def test_status_script_preserves_down_state_when_container_is_missing():
+    temp_root = REPO_ROOT / ".agent_work" / "pytest-temp" / f"task088-status-down-{uuid.uuid4().hex}"
+    temp_root.mkdir(parents=True)
+    lib_dir = temp_root / "lib"
+    lib_dir.mkdir(parents=True)
+    status_copy = temp_root / "status.ps1"
+    status_copy.write_text(STATUS_SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")
+    (temp_root / ".env.example").write_text(
+        "TOWERSCOUT_IMAGE=ghcr.io/j-schulein/towerscout:v0.1.1-cpu@sha256:" + ("1" * 64) + "\n",
+        encoding="utf-8",
+    )
+    (temp_root / "release-manifest.v1.json").write_text(
+        json.dumps({"release_version": "v0.1.1-cpu", "pytorch_flavor": "cpu"}),
+        encoding="utf-8",
+    )
+    stub_lib = lib_dir / "TowerScoutCompose.ps1"
+    stub_lib.write_text(
+        "function Get-TowerScoutRepoRoot { return \"" + str(temp_root).replace("\\", "\\\\") + "\" }\n"
+        "function Initialize-TowerScoutEnvFile { param([string] $RootPath) }\n"
+        "function Write-TowerScoutComposeProviderSummary { param([string] $Engine) }\n"
+        "function Invoke-TowerScoutCompose { param([string] $Engine, [string[]] $ComposeArguments) $script:TowerScoutComposeExitCode = 0 }\n"
+        "function Test-TowerScoutRunningImageMatchesPackage { param([string] $Engine) return [pscustomobject]@{ Checked = $true; Matches = $false; Reason = \"container_not_found\"; ExpectedImage = \"\"; ExpectedDigest = \"\"; Identity = $null } }\n",
+        encoding="utf-8",
+    )
+
+    try:
+        result = subprocess.run(
+            [_powershell_executable(), "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(status_copy), "-Port", "5999"],
+            cwd=temp_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 2, result.stdout + result.stderr
+        combined = result.stdout + result.stderr
+        assert "No running TowerScout container found for this package." in combined
+        assert "Running container image does not match this package's pinned identity." not in combined
+        assert "TowerScout readiness endpoint is not reachable" in combined
+    finally:
+        shutil.rmtree(temp_root, ignore_errors=True)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")

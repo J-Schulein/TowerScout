@@ -8,6 +8,9 @@ param(
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\lib\TowerScoutCompose.ps1"
 
+$repoRoot = Get-TowerScoutRepoRoot
+Initialize-TowerScoutEnvFile -RootPath $repoRoot
+
 Write-TowerScoutComposeProviderSummary -Engine $Engine
 Invoke-TowerScoutCompose -Engine $Engine -ComposeArguments @("ps")
 $composeExitCode = $script:TowerScoutComposeExitCode
@@ -26,7 +29,7 @@ if ($imageIdentityCheck.Checked) {
             Write-Host "Running image digest: $($identity.ActualDigest)"
         }
     }
-    if (-not $imageIdentityCheck.Matches) {
+    if (-not $imageIdentityCheck.Matches -and $imageIdentityCheck.Reason -eq "mismatch") {
         $expectedImage = [string] $imageIdentityCheck.ExpectedImage
         $expectedDigest = [string] $imageIdentityCheck.ExpectedDigest
         Write-Warning (
@@ -34,6 +37,9 @@ if ($imageIdentityCheck.Checked) {
             "Expected image='$expectedImage' digest='$expectedDigest'."
         )
         exit 1
+    }
+    if ($imageIdentityCheck.Reason -eq "container_not_found") {
+        Write-Host "No running TowerScout container found for this package."
     }
 }
 

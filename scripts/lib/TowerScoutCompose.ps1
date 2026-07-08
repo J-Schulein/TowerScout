@@ -458,6 +458,8 @@ function Initialize-TowerScoutEnvFile {
 function Get-TowerScoutPackageManagedEnvironmentNames {
     return @(
         "COMPOSE_PROJECT_NAME",
+        "NVIDIA_DRIVER_CAPABILITIES",
+        "NVIDIA_VISIBLE_DEVICES",
         "PODMAN_COMPOSE_PROVIDER",
         "PYTORCH_INDEX_URL",
         "REQUESTS_CA_BUNDLE",
@@ -1215,13 +1217,13 @@ function Test-TowerScoutRunningImageMatchesPackage {
         }
     }
 
-    $matches = $true
+    $isMatch = $true
     if (
         [string]::IsNullOrWhiteSpace($expectedDigest) -and
         -not [string]::IsNullOrWhiteSpace($expectedImage) -and
         $identity.ConfigImage -ne $expectedImage
     ) {
-        $matches = $false
+        $isMatch = $false
     }
     if (-not [string]::IsNullOrWhiteSpace($expectedDigest)) {
         $digestMatch = $false
@@ -1232,14 +1234,14 @@ function Test-TowerScoutRunningImageMatchesPackage {
             }
         }
         if (-not $digestMatch -and $identity.ActualDigest -ne $expectedDigest) {
-            $matches = $false
+            $isMatch = $false
         }
     }
 
     return [pscustomobject]@{
         Checked = $true
-        Matches = $matches
-        Reason = if ($matches) { "match" } else { "mismatch" }
+        Matches = $isMatch
+        Reason = if ($isMatch) { "match" } else { "mismatch" }
         ExpectedImage = $expectedImage
         ExpectedDigest = $expectedDigest
         Identity = $identity
