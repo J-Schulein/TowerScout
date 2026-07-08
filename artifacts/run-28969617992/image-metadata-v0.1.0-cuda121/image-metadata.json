@@ -1,0 +1,247 @@
+{
+  "buildx.build.provenance": {
+    "builder": {
+      "id": ""
+    },
+    "buildType": "https://mobyproject.org/buildkit@v1",
+    "materials": [
+      {
+        "uri": "pkg:docker/docker/dockerfile@1",
+        "digest": {
+          "sha256": "87999aa3d42bdc6bea60565083ee17e86d1f3339802f543c0d03998580f9cb89"
+        }
+      },
+      {
+        "uri": "pkg:docker/node@18-bookworm-slim?platform=linux%2Famd64",
+        "digest": {
+          "sha256": "f9ab18e354e6855ae56ef2b290dd225c1e51a564f87584b9bd21dd651838830e"
+        }
+      },
+      {
+        "uri": "pkg:docker/python@3.11-slim-bookworm?platform=linux%2Famd64",
+        "digest": {
+          "sha256": "f5cf0344c9886ff24d34797578d5d7dd6e8911ae0fe5962bb55d0f89603ec361"
+        }
+      }
+    ],
+    "invocation": {
+      "configSource": {
+        "entryPoint": "Dockerfile"
+      },
+      "parameters": {
+        "frontend": "gateway.v0",
+        "args": {
+          "build-arg:PYTORCH_INDEX_URL": "https://download.pytorch.org/whl/cu121",
+          "build-arg:TOWERSCOUT_PYTORCH_FLAVOR": "cuda121",
+          "build-arg:TOWERSCOUT_RELEASE_VERSION": "v0.1.0",
+          "build-arg:TOWERSCOUT_SOURCE_REF": "dfe9e6b8286dd687ec837a0bebf56fa068596570",
+          "cmdline": "docker/dockerfile:1",
+          "source": "docker/dockerfile:1"
+        },
+        "locals": [
+          {
+            "name": "context"
+          },
+          {
+            "name": "dockerfile"
+          }
+        ],
+        "root": {
+          "configSource": {
+            "path": "Dockerfile"
+          },
+          "request": {
+            "args": {
+              "build-arg:PYTORCH_INDEX_URL": "https://download.pytorch.org/whl/cu121",
+              "build-arg:TOWERSCOUT_PYTORCH_FLAVOR": "cuda121",
+              "build-arg:TOWERSCOUT_RELEASE_VERSION": "v0.1.0",
+              "build-arg:TOWERSCOUT_SOURCE_REF": "dfe9e6b8286dd687ec837a0bebf56fa068596570",
+              "vcs:localdir:context": ".",
+              "vcs:localdir:dockerfile": ".",
+              "vcs:revision": "dfe9e6b8286dd687ec837a0bebf56fa068596570",
+              "vcs:source": "https://github.com/J-Schulein/TowerScout"
+            }
+          }
+        },
+        "compatibilityVersion": 20
+      },
+      "environment": {
+        "github_actor": "J-Schulein",
+        "github_actor_id": "133797930",
+        "github_event_name": "workflow_dispatch",
+        "github_event_payload": {
+          "inputs": {
+            "push_latest": "false",
+            "pytorch_flavor": "cuda121",
+            "tag": "v0.1.0"
+          },
+          "ref": "refs/tags/v0.1.0",
+          "repository": {
+            "allow_forking": true,
+            "archive_url": "https://api.github.com/repos/J-Schulein/TowerScout/{archive_format}{/ref}",
+            "archived": false,
+            "assignees_url": "https://api.github.com/repos/J-Schulein/TowerScout/assignees{/user}",
+            "blobs_url": "https://api.github.com/repos/J-Schulein/TowerScout/git/blobs{/sha}",
+            "branches_url": "https://api.github.com/repos/J-Schulein/TowerScout/branches{/branch}",
+            "clone_url": "https://github.com/J-Schulein/TowerScout.git",
+            "collaborators_url": "https://api.github.com/repos/J-Schulein/TowerScout/collaborators{/collaborator}",
+            "comments_url": "https://api.github.com/repos/J-Schulein/TowerScout/comments{/number}",
+            "commits_url": "https://api.github.com/repos/J-Schulein/TowerScout/commits{/sha}",
+            "compare_url": "https://api.github.com/repos/J-Schulein/TowerScout/compare/{base}...{head}",
+            "contents_url": "https://api.github.com/repos/J-Schulein/TowerScout/contents/{+path}",
+            "contributors_url": "https://api.github.com/repos/J-Schulein/TowerScout/contributors",
+            "created_at": "2025-11-12T14:47:28Z",
+            "default_branch": "main",
+            "deployments_url": "https://api.github.com/repos/J-Schulein/TowerScout/deployments",
+            "description": "Identifying cooling towers from satellite and aerial imagery",
+            "disabled": false,
+            "downloads_url": "https://api.github.com/repos/J-Schulein/TowerScout/downloads",
+            "events_url": "https://api.github.com/repos/J-Schulein/TowerScout/events",
+            "fork": true,
+            "forks": 0,
+            "forks_count": 0,
+            "forks_url": "https://api.github.com/repos/J-Schulein/TowerScout/forks",
+            "full_name": "J-Schulein/TowerScout",
+            "git_commits_url": "https://api.github.com/repos/J-Schulein/TowerScout/git/commits{/sha}",
+            "git_refs_url": "https://api.github.com/repos/J-Schulein/TowerScout/git/refs{/sha}",
+            "git_tags_url": "https://api.github.com/repos/J-Schulein/TowerScout/git/tags{/sha}",
+            "git_url": "git://github.com/J-Schulein/TowerScout.git",
+            "has_discussions": false,
+            "has_downloads": true,
+            "has_issues": false,
+            "has_pages": false,
+            "has_projects": true,
+            "has_pull_requests": true,
+            "has_wiki": true,
+            "homepage": "https://www.ischool.berkeley.edu/projects/2020/towerscout",
+            "hooks_url": "https://api.github.com/repos/J-Schulein/TowerScout/hooks",
+            "html_url": "https://github.com/J-Schulein/TowerScout",
+            "id": 1095067346,
+            "is_template": false,
+            "issue_comment_url": "https://api.github.com/repos/J-Schulein/TowerScout/issues/comments{/number}",
+            "issue_events_url": "https://api.github.com/repos/J-Schulein/TowerScout/issues/events{/number}",
+            "issues_url": "https://api.github.com/repos/J-Schulein/TowerScout/issues{/number}",
+            "keys_url": "https://api.github.com/repos/J-Schulein/TowerScout/keys{/key_id}",
+            "labels_url": "https://api.github.com/repos/J-Schulein/TowerScout/labels{/name}",
+            "language": "Jupyter Notebook",
+            "languages_url": "https://api.github.com/repos/J-Schulein/TowerScout/languages",
+            "license": {
+              "key": "other",
+              "name": "Other",
+              "node_id": "MDc6TGljZW5zZTA=",
+              "spdx_id": "NOASSERTION",
+              "url": null
+            },
+            "merges_url": "https://api.github.com/repos/J-Schulein/TowerScout/merges",
+            "milestones_url": "https://api.github.com/repos/J-Schulein/TowerScout/milestones{/number}",
+            "mirror_url": null,
+            "name": "TowerScout",
+            "node_id": "R_kgDOQUVm0g",
+            "notifications_url": "https://api.github.com/repos/J-Schulein/TowerScout/notifications{?since,all,participating}",
+            "open_issues": 0,
+            "open_issues_count": 0,
+            "owner": {
+              "avatar_url": "https://avatars.githubusercontent.com/u/133797930?v=4",
+              "events_url": "https://api.github.com/users/J-Schulein/events{/privacy}",
+              "followers_url": "https://api.github.com/users/J-Schulein/followers",
+              "following_url": "https://api.github.com/users/J-Schulein/following{/other_user}",
+              "gists_url": "https://api.github.com/users/J-Schulein/gists{/gist_id}",
+              "gravatar_id": "",
+              "html_url": "https://github.com/J-Schulein",
+              "id": 133797930,
+              "login": "J-Schulein",
+              "node_id": "U_kgDOB_mYKg",
+              "organizations_url": "https://api.github.com/users/J-Schulein/orgs",
+              "received_events_url": "https://api.github.com/users/J-Schulein/received_events",
+              "repos_url": "https://api.github.com/users/J-Schulein/repos",
+              "site_admin": false,
+              "starred_url": "https://api.github.com/users/J-Schulein/starred{/owner}{/repo}",
+              "subscriptions_url": "https://api.github.com/users/J-Schulein/subscriptions",
+              "type": "User",
+              "url": "https://api.github.com/users/J-Schulein",
+              "user_view_type": "public"
+            },
+            "private": false,
+            "pull_request_creation_policy": "all",
+            "pulls_url": "https://api.github.com/repos/J-Schulein/TowerScout/pulls{/number}",
+            "pushed_at": "2026-07-08T19:24:12Z",
+            "releases_url": "https://api.github.com/repos/J-Schulein/TowerScout/releases{/id}",
+            "size": 30007,
+            "ssh_url": "git@github.com:J-Schulein/TowerScout.git",
+            "stargazers_count": 0,
+            "stargazers_url": "https://api.github.com/repos/J-Schulein/TowerScout/stargazers",
+            "statuses_url": "https://api.github.com/repos/J-Schulein/TowerScout/statuses/{sha}",
+            "subscribers_url": "https://api.github.com/repos/J-Schulein/TowerScout/subscribers",
+            "subscription_url": "https://api.github.com/repos/J-Schulein/TowerScout/subscription",
+            "svn_url": "https://github.com/J-Schulein/TowerScout",
+            "tags_url": "https://api.github.com/repos/J-Schulein/TowerScout/tags",
+            "teams_url": "https://api.github.com/repos/J-Schulein/TowerScout/teams",
+            "topics": [],
+            "trees_url": "https://api.github.com/repos/J-Schulein/TowerScout/git/trees{/sha}",
+            "updated_at": "2026-07-08T18:27:55Z",
+            "url": "https://api.github.com/repos/J-Schulein/TowerScout",
+            "visibility": "public",
+            "watchers": 0,
+            "watchers_count": 0,
+            "web_commit_signoff_required": false
+          },
+          "sender": {
+            "avatar_url": "https://avatars.githubusercontent.com/u/133797930?v=4",
+            "events_url": "https://api.github.com/users/J-Schulein/events{/privacy}",
+            "followers_url": "https://api.github.com/users/J-Schulein/followers",
+            "following_url": "https://api.github.com/users/J-Schulein/following{/other_user}",
+            "gists_url": "https://api.github.com/users/J-Schulein/gists{/gist_id}",
+            "gravatar_id": "",
+            "html_url": "https://github.com/J-Schulein",
+            "id": 133797930,
+            "login": "J-Schulein",
+            "node_id": "U_kgDOB_mYKg",
+            "organizations_url": "https://api.github.com/users/J-Schulein/orgs",
+            "received_events_url": "https://api.github.com/users/J-Schulein/received_events",
+            "repos_url": "https://api.github.com/users/J-Schulein/repos",
+            "site_admin": false,
+            "starred_url": "https://api.github.com/users/J-Schulein/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/J-Schulein/subscriptions",
+            "type": "User",
+            "url": "https://api.github.com/users/J-Schulein",
+            "user_view_type": "public"
+          },
+          "workflow": ".github/workflows/container-publish.yml"
+        },
+        "github_job": "publish",
+        "github_ref": "refs/tags/v0.1.0",
+        "github_ref_name": "v0.1.0",
+        "github_ref_protected": "false",
+        "github_ref_type": "tag",
+        "github_repository": "J-Schulein/TowerScout",
+        "github_repository_id": "1095067346",
+        "github_repository_owner": "J-Schulein",
+        "github_repository_owner_id": "133797930",
+        "github_run_attempt": "1",
+        "github_run_id": "28969617992",
+        "github_run_number": "33",
+        "github_runner_arch": "X64",
+        "github_runner_environment": "github-hosted",
+        "github_runner_image_os": "ubuntu24",
+        "github_runner_image_version": "20260628.225.1",
+        "github_runner_name": "GitHub Actions 1000000974",
+        "github_runner_os": "Linux",
+        "github_runner_tracking_id": "github_15694279-22df-459b-ab55-2a63f0831a26",
+        "github_server_url": "https://github.com",
+        "github_triggering_actor": "J-Schulein",
+        "github_workflow": "TowerScout Container Publish",
+        "github_workflow_ref": "J-Schulein/TowerScout/.github/workflows/container-publish.yml@refs/tags/v0.1.0",
+        "github_workflow_sha": "dfe9e6b8286dd687ec837a0bebf56fa068596570",
+        "platform": "linux/amd64"
+      }
+    }
+  },
+  "buildx.build.ref": "builder-d765b1a5-ea62-43e4-8ee8-978a7d92492b/builder-d765b1a5-ea62-43e4-8ee8-978a7d92492b0/kwx4addnuwtvkujjbz8gdo4b0",
+  "containerimage.descriptor": {
+    "mediaType": "application/vnd.oci.image.index.v1+json",
+    "digest": "sha256:9f1563eb18eee12e0344f43d83a53072f84c9811482915f299e1c87fc5ed9c68",
+    "size": 856
+  },
+  "containerimage.digest": "sha256:9f1563eb18eee12e0344f43d83a53072f84c9811482915f299e1c87fc5ed9c68",
+  "image.name": "ghcr.io/j-schulein/towerscout:v0.1.0-cuda121"
+}

@@ -1,0 +1,3179 @@
+{
+  "errors": [],
+  "generated_at": "2026-07-06T22:19:43Z",
+  "metrics": {
+    "_totals": {
+      "CONFIDENCE.HIGH": 124,
+      "CONFIDENCE.LOW": 3,
+      "CONFIDENCE.MEDIUM": 3,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 9,
+      "SEVERITY.LOW": 108,
+      "SEVERITY.MEDIUM": 13,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 13370,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/towerscout.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 1,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 1,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 2788,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_assets.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 170,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_azure_maps.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 235,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_config.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 1,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 1,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 557,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_device.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 224,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_en.py": {
+      "CONFIDENCE.HIGH": 1,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 1,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 209,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_errors.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 217,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_events.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 20,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_geocache.py": {
+      "CONFIDENCE.HIGH": 2,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 2,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 420,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_geocoding.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 555,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_gmaps.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 15,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_imgutil.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 62,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_logging.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 237,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_maps.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 342,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_paths.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 52,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_performance.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 406,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_progress.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 151,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_provider_http.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 315,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_runtime.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 152,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_tls.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 42,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_validation.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 319,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_yolov5.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 375,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_yolov5_local.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 124,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/ts_zipcode.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 9,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/__init__.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 1,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/__init__.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 1,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/models/__init__.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 0,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/models/common.py": {
+      "CONFIDENCE.HIGH": 3,
+      "CONFIDENCE.LOW": 1,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 2,
+      "SEVERITY.MEDIUM": 2,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 928,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/models/experimental.py": {
+      "CONFIDENCE.HIGH": 1,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 1,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 98,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/models/yolo.py": {
+      "CONFIDENCE.HIGH": 3,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 3,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 415,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/utils/__init__.py": {
+      "CONFIDENCE.HIGH": 2,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 2,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 68,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/utils/augmentations.py": {
+      "CONFIDENCE.HIGH": 19,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 19,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 320,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/utils/autoanchor.py": {
+      "CONFIDENCE.HIGH": 3,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 3,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 129,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/utils/dataloaders.py": {
+      "CONFIDENCE.HIGH": 35,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 34,
+      "SEVERITY.MEDIUM": 1,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 1125,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/utils/downloads.py": {
+      "CONFIDENCE.HIGH": 10,
+      "CONFIDENCE.LOW": 2,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 1,
+      "SEVERITY.LOW": 8,
+      "SEVERITY.MEDIUM": 3,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 106,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/utils/general.py": {
+      "CONFIDENCE.HIGH": 37,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 1,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 5,
+      "SEVERITY.LOW": 31,
+      "SEVERITY.MEDIUM": 2,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 1013,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/utils/metrics.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 288,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/utils/plots.py": {
+      "CONFIDENCE.HIGH": 1,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 1,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 424,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/utils/torch_utils.py": {
+      "CONFIDENCE.HIGH": 7,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 1,
+      "SEVERITY.LOW": 6,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 391,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "webapp/vendor/yolov5_local/utils/triton.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 67,
+      "nosec": 0,
+      "skipped_tests": 0
+    }
+  },
+  "results": [
+    {
+      "code": "3569     logger.info(\"Starting Waitress server on http://localhost:5000/\")\n3570     serve(app, host='0.0.0.0', port=5000, max_request_body_size=MAX_REQUEST_BODY_SIZE)\n",
+      "col_offset": 20,
+      "end_col_offset": 29,
+      "filename": "webapp/towerscout.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 605,
+        "link": "https://cwe.mitre.org/data/definitions/605.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Possible binding to all interfaces.",
+      "line_number": 3570,
+      "line_range": [
+        3570
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b104_hardcoded_bind_all_interfaces.html",
+      "test_id": "B104",
+      "test_name": "hardcoded_bind_all_interfaces"
+    },
+    {
+      "code": "49 DEFAULT_PROVIDER_ENV_VAR = \"DEFAULT_MAP_PROVIDER\"\n50 FLASK_SECRET_KEY_ENV_VAR = \"FLASK_SECRET_KEY\"\n51 SUPPORTED_PROVIDERS = {\"google\", \"azure\"}\n",
+      "col_offset": 27,
+      "end_col_offset": 45,
+      "filename": "webapp/ts_config.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 259,
+        "link": "https://cwe.mitre.org/data/definitions/259.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Possible hardcoded password: 'FLASK_SECRET_KEY'",
+      "line_number": 50,
+      "line_range": [
+        50
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html",
+      "test_id": "B105",
+      "test_name": "hardcoded_password_string"
+    },
+    {
+      "code": "106                 except TypeError:\n107                     checkpoint = torch.load(str(path_best), **load_kwargs)\n108                 self.model.load_state_dict(checkpoint)\n",
+      "col_offset": 33,
+      "end_col_offset": 74,
+      "filename": "webapp/ts_en.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 502,
+        "link": "https://cwe.mitre.org/data/definitions/502.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Use of unsafe PyTorch load",
+      "line_number": 107,
+      "line_range": [
+        107
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b614_pytorch_load.html",
+      "test_id": "B614",
+      "test_name": "pytorch_load"
+    },
+    {
+      "code": "225         key_string = f\"geocode:{provider_key}:{cluster_lat:.8f},{cluster_lng:.8f}\"\n226         return hashlib.md5(key_string.encode()).hexdigest()\n227 \n",
+      "col_offset": 15,
+      "end_col_offset": 47,
+      "filename": "webapp/ts_geocache.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 327,
+        "link": "https://cwe.mitre.org/data/definitions/327.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "Use of weak MD5 hash for security. Consider usedforsecurity=False",
+      "line_number": 226,
+      "line_range": [
+        226
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b324_hashlib.html",
+      "test_id": "B324",
+      "test_name": "hashlib"
+    },
+    {
+      "code": "261         key_string = f\"geocode:{provider_key}:{cluster_lat:.8f},{cluster_lng:.8f}\"\n262         return hashlib.md5(key_string.encode()).hexdigest()\n263     \n",
+      "col_offset": 15,
+      "end_col_offset": 47,
+      "filename": "webapp/ts_geocache.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 327,
+        "link": "https://cwe.mitre.org/data/definitions/327.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "Use of weak MD5 hash for security. Consider usedforsecurity=False",
+      "line_number": 262,
+      "line_range": [
+        262
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b324_hashlib.html",
+      "test_id": "B324",
+      "test_name": "hashlib"
+    },
+    {
+      "code": "28 \n29     assert hasattr(ultralytics, \"__version__\")  # verify package is not directory\n30 except (ImportError, AssertionError) as exc:\n",
+      "col_offset": 4,
+      "end_col_offset": 46,
+      "filename": "webapp/vendor/yolov5_local/models/common.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 29,
+      "line_range": [
+        29
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "529             if \"stride\" in meta:\n530                 stride, names = int(meta[\"stride\"]), eval(meta[\"names\"])\n531         elif xml:  # OpenVINO\n",
+      "col_offset": 53,
+      "end_col_offset": 72,
+      "filename": "webapp/vendor/yolov5_local/models/common.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Use of possibly insecure function - consider using safer ast.literal_eval.",
+      "line_number": 530,
+      "line_range": [
+        530
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b307-eval",
+      "test_id": "B307",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "733             s = self.bindings[\"images\"].shape\n734             assert im.shape == s, f\"input size {im.shape} {'>' if self.dynamic else 'not equal to'} max model size {s}\"\n735             self.binding_addrs[\"images\"] = int(im.data_ptr())\n",
+      "col_offset": 12,
+      "end_col_offset": 119,
+      "filename": "webapp/vendor/yolov5_local/models/common.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 734,
+      "line_range": [
+        734
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "895                 if isinstance(im, (str, Path)):  # filename or uri\n896                     im, f = Image.open(requests.get(im, stream=True).raw if str(im).startswith(\"http\") else im), im\n897                     im = np.asarray(exif_transpose(im))\n",
+      "col_offset": 39,
+      "end_col_offset": 68,
+      "filename": "webapp/vendor/yolov5_local/models/common.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 400,
+        "link": "https://cwe.mitre.org/data/definitions/400.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Call to requests without timeout",
+      "line_number": 896,
+      "line_range": [
+        896
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b113_request_without_timeout.html",
+      "test_id": "B113",
+      "test_name": "request_without_timeout"
+    },
+    {
+      "code": "128     model.stride = model[torch.argmax(torch.tensor([m.stride.max() for m in model])).int()].stride  # max stride\n129     assert all(model[0].nc == m.nc for m in model), f\"Models have different class counts: {[m.nc for m in model]}\"\n130     return model\n",
+      "col_offset": 4,
+      "end_col_offset": 114,
+      "filename": "webapp/vendor/yolov5_local/models/experimental.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 129,
+      "line_range": [
+        129
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "382     if act:\n383         Conv.default_act = eval(act)  # redefine default activation, i.e. Conv.default_act = nn.SiLU()\n384         LOGGER.info(f\"{colorstr('activation:')} {act}\")  # print\n",
+      "col_offset": 27,
+      "end_col_offset": 36,
+      "filename": "webapp/vendor/yolov5_local/models/yolo.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Use of possibly insecure function - consider using safer ast.literal_eval.",
+      "line_number": 383,
+      "line_range": [
+        383
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b307-eval",
+      "test_id": "B307",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "391     for i, (f, n, m, args) in enumerate(d[\"backbone\"] + d[\"head\"]):  # from, number, module, args\n392         m = eval(m) if isinstance(m, str) else m  # eval strings\n393         for j, a in enumerate(args):\n",
+      "col_offset": 12,
+      "end_col_offset": 19,
+      "filename": "webapp/vendor/yolov5_local/models/yolo.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Use of possibly insecure function - consider using safer ast.literal_eval.",
+      "line_number": 392,
+      "line_range": [
+        392
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b307-eval",
+      "test_id": "B307",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "394             with contextlib.suppress(NameError):\n395                 args[j] = eval(a) if isinstance(a, str) else a  # eval strings\n396 \n",
+      "col_offset": 26,
+      "end_col_offset": 33,
+      "filename": "webapp/vendor/yolov5_local/models/yolo.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Use of possibly insecure function - consider using safer ast.literal_eval.",
+      "line_number": 395,
+      "line_range": [
+        395
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b307-eval",
+      "test_id": "B307",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "75     if check_requirements(\"wandb\", install=False):\n76         os.system(\"pip uninstall -y wandb\")  # eliminate unexpected account creation prompt with infinite hang\n77     if is_colab():\n",
+      "col_offset": 8,
+      "end_col_offset": 43,
+      "filename": "webapp/vendor/yolov5_local/utils/__init__.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a shell: Seems safe, but may be changed in the future, consider rewriting without shell",
+      "line_number": 76,
+      "line_range": [
+        76
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b605_start_process_with_a_shell.html",
+      "test_id": "B605",
+      "test_name": "start_process_with_a_shell"
+    },
+    {
+      "code": "75     if check_requirements(\"wandb\", install=False):\n76         os.system(\"pip uninstall -y wandb\")  # eliminate unexpected account creation prompt with infinite hang\n77     if is_colab():\n",
+      "col_offset": 8,
+      "end_col_offset": 43,
+      "filename": "webapp/vendor/yolov5_local/utils/__init__.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 76,
+      "line_range": [
+        76
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "51         \"\"\"Applies transformations to an image and labels with probability `p`, returning updated image and labels.\"\"\"\n52         if self.transform and random.random() < p:\n53             new = self.transform(image=im, bboxes=labels[:, 1:], class_labels=labels[:, 0])  # transformed\n",
+      "col_offset": 30,
+      "end_col_offset": 45,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 52,
+      "line_range": [
+        52
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "111         bh, bw = y2b - y1b, x2b - x1b\n112         yc, xc = int(random.uniform(0, h - bh)), int(random.uniform(0, w - bw))  # offset x, y\n113         x1a, y1a, x2a, y2a = [xc, yc, xc + bw, yc + bh]\n",
+      "col_offset": 21,
+      "end_col_offset": 46,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 112,
+      "line_range": [
+        112
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "111         bh, bw = y2b - y1b, x2b - x1b\n112         yc, xc = int(random.uniform(0, h - bh)), int(random.uniform(0, w - bw))  # offset x, y\n113         x1a, y1a, x2a, y2a = [xc, yc, xc + bw, yc + bh]\n",
+      "col_offset": 53,
+      "end_col_offset": 78,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 112,
+      "line_range": [
+        112
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "168     P = np.eye(3)\n169     P[2, 0] = random.uniform(-perspective, perspective)  # x perspective (about y)\n170     P[2, 1] = random.uniform(-perspective, perspective)  # y perspective (about x)\n",
+      "col_offset": 14,
+      "end_col_offset": 55,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 169,
+      "line_range": [
+        169
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "169     P[2, 0] = random.uniform(-perspective, perspective)  # x perspective (about y)\n170     P[2, 1] = random.uniform(-perspective, perspective)  # y perspective (about x)\n171 \n",
+      "col_offset": 14,
+      "end_col_offset": 55,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 170,
+      "line_range": [
+        170
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "173     R = np.eye(3)\n174     a = random.uniform(-degrees, degrees)\n175     # a += random.choice([-180, -90, 0, 90])  # add 90deg rotations to small rotations\n",
+      "col_offset": 8,
+      "end_col_offset": 41,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 174,
+      "line_range": [
+        174
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "175     # a += random.choice([-180, -90, 0, 90])  # add 90deg rotations to small rotations\n176     s = random.uniform(1 - scale, 1 + scale)\n177     # s = 2 ** random.uniform(-scale, scale)\n",
+      "col_offset": 8,
+      "end_col_offset": 44,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 176,
+      "line_range": [
+        176
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "181     S = np.eye(3)\n182     S[0, 1] = math.tan(random.uniform(-shear, shear) * math.pi / 180)  # x shear (deg)\n183     S[1, 0] = math.tan(random.uniform(-shear, shear) * math.pi / 180)  # y shear (deg)\n",
+      "col_offset": 23,
+      "end_col_offset": 52,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 182,
+      "line_range": [
+        182
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "182     S[0, 1] = math.tan(random.uniform(-shear, shear) * math.pi / 180)  # x shear (deg)\n183     S[1, 0] = math.tan(random.uniform(-shear, shear) * math.pi / 180)  # y shear (deg)\n184 \n",
+      "col_offset": 23,
+      "end_col_offset": 52,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 183,
+      "line_range": [
+        183
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "186     T = np.eye(3)\n187     T[0, 2] = random.uniform(0.5 - translate, 0.5 + translate) * width  # x translation (pixels)\n188     T[1, 2] = random.uniform(0.5 - translate, 0.5 + translate) * height  # y translation (pixels)\n",
+      "col_offset": 14,
+      "end_col_offset": 62,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 187,
+      "line_range": [
+        187
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "187     T[0, 2] = random.uniform(0.5 - translate, 0.5 + translate) * width  # x translation (pixels)\n188     T[1, 2] = random.uniform(0.5 - translate, 0.5 + translate) * height  # y translation (pixels)\n189 \n",
+      "col_offset": 14,
+      "end_col_offset": 62,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 188,
+      "line_range": [
+        188
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "243         im_new = np.zeros(im.shape, np.uint8)\n244         for j in random.sample(range(n), k=round(p * n)):\n245             l, s = labels[j], segments[j]\n",
+      "col_offset": 17,
+      "end_col_offset": 56,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 244,
+      "line_range": [
+        244
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "264     \"\"\"\n265     if random.random() < p:\n266         h, w = im.shape[:2]\n",
+      "col_offset": 7,
+      "end_col_offset": 22,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 265,
+      "line_range": [
+        265
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "268         for s in scales:\n269             mask_h = random.randint(1, int(h * s))  # create random masks\n270             mask_w = random.randint(1, int(w * s))\n",
+      "col_offset": 21,
+      "end_col_offset": 50,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 269,
+      "line_range": [
+        269
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "269             mask_h = random.randint(1, int(h * s))  # create random masks\n270             mask_w = random.randint(1, int(w * s))\n271 \n",
+      "col_offset": 21,
+      "end_col_offset": 50,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 270,
+      "line_range": [
+        270
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "272             # box\n273             xmin = max(0, random.randint(0, w) - mask_w // 2)\n274             ymin = max(0, random.randint(0, h) - mask_h // 2)\n",
+      "col_offset": 26,
+      "end_col_offset": 46,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 273,
+      "line_range": [
+        273
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "273             xmin = max(0, random.randint(0, w) - mask_w // 2)\n274             ymin = max(0, random.randint(0, h) - mask_h // 2)\n275             xmax = min(w, xmin + mask_w)\n",
+      "col_offset": 26,
+      "end_col_offset": 46,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 274,
+      "line_range": [
+        274
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "278             # apply random color mask\n279             im[ymin:ymax, xmin:xmax] = [random.randint(64, 191) for _ in range(3)]\n280 \n",
+      "col_offset": 40,
+      "end_col_offset": 63,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 279,
+      "line_range": [
+        279
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "359     \"\"\"Applies a series of transformations including center crop, ToTensor, and normalization for classification.\"\"\"\n360     assert isinstance(size, int), f\"ERROR: classify_transforms size {size} must be integer, not (list, tuple)\"\n361     # T.Compose([T.ToTensor(), T.Resize(size), T.CenterCrop(size), T.Normalize(IMAGENET_MEAN, IMAGENET_STD)])\n",
+      "col_offset": 4,
+      "end_col_offset": 110,
+      "filename": "webapp/vendor/yolov5_local/utils/augmentations.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 360,
+      "line_range": [
+        360
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "136         LOGGER.info(f\"{PREFIX}Running kmeans for {n} anchors on {len(wh)} points...\")\n137         assert n <= len(wh)  # apply overdetermined constraint\n138         s = wh.std(0)  # sigmas for whitening\n",
+      "col_offset": 8,
+      "end_col_offset": 27,
+      "filename": "webapp/vendor/yolov5_local/utils/autoanchor.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 137,
+      "line_range": [
+        137
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "139         k = kmeans(wh / s, n, iter=30)[0] * s  # points\n140         assert n == len(k)  # kmeans may return fewer points than requested if wh is insufficient or too similar\n141     except Exception:\n",
+      "col_offset": 8,
+      "end_col_offset": 26,
+      "filename": "webapp/vendor/yolov5_local/utils/autoanchor.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 140,
+      "line_range": [
+        140
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "164         while (v == 1).all():  # mutate until a change occurs (prevent duplicates)\n165             v = ((npr.random(sh) < mp) * random.random() * npr.randn(*sh) * s + 1).clip(0.3, 3.0)\n166         kg = (k.copy() * v).clip(min=2.0)\n",
+      "col_offset": 41,
+      "end_col_offset": 56,
+      "filename": "webapp/vendor/yolov5_local/utils/autoanchor.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 165,
+      "line_range": [
+        165
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "353             self.cap = None\n354         assert self.nf > 0, (\n355             f\"No images or videos found in {p}. Supported formats are:\\nimages: {IMG_FORMATS}\\nvideos: {VID_FORMATS}\"\n356         )\n357 \n",
+      "col_offset": 8,
+      "end_col_offset": 9,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 354,
+      "line_range": [
+        354,
+        355,
+        356
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "391             im0 = cv2.imread(path)  # BGR\n392             assert im0 is not None, f\"Image Not Found {path}\"\n393             s = f\"image {self.count}/{self.nf} {path}: \"\n",
+      "col_offset": 12,
+      "end_col_offset": 61,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 392,
+      "line_range": [
+        392
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "451                 s = pafy.new(s).getbest(preftype=\"mp4\").url  # YouTube URL\n452             s = eval(s) if s.isnumeric() else s  # i.e. s = '0' local webcam\n453             if s == 0:\n",
+      "col_offset": 16,
+      "end_col_offset": 23,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Use of possibly insecure function - consider using safer ast.literal_eval.",
+      "line_number": 452,
+      "line_range": [
+        452
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b307-eval",
+      "test_id": "B307",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "453             if s == 0:\n454                 assert not is_colab(), \"--source 0 webcam unsupported on Colab. Rerun command in a local environment.\"\n455                 assert not is_kaggle(), \"--source 0 webcam unsupported on Kaggle. Rerun command in a local environment.\"\n",
+      "col_offset": 16,
+      "end_col_offset": 118,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 454,
+      "line_range": [
+        454
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "454                 assert not is_colab(), \"--source 0 webcam unsupported on Colab. Rerun command in a local environment.\"\n455                 assert not is_kaggle(), \"--source 0 webcam unsupported on Kaggle. Rerun command in a local environment.\"\n456             cap = cv2.VideoCapture(s)\n",
+      "col_offset": 16,
+      "end_col_offset": 120,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 455,
+      "line_range": [
+        455
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "456             cap = cv2.VideoCapture(s)\n457             assert cap.isOpened(), f\"{st}Failed to open {s}\"\n458             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))\n",
+      "col_offset": 12,
+      "end_col_offset": 60,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 457,
+      "line_range": [
+        457
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "583             # self.img_files = sorted([x for x in f if x.suffix[1:].lower() in IMG_FORMATS])  # pathlib\n584             assert self.im_files, f\"{prefix}No images found\"\n585         except Exception as e:\n",
+      "col_offset": 12,
+      "end_col_offset": 60,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 584,
+      "line_range": [
+        584
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "592             cache, exists = np.load(cache_path, allow_pickle=True).item(), True  # load dict\n593             assert cache[\"version\"] == self.cache_version  # matches current version\n594             assert cache[\"hash\"] == get_hash(self.label_files + self.im_files)  # identical hash\n",
+      "col_offset": 12,
+      "end_col_offset": 57,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 593,
+      "line_range": [
+        593
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "593             assert cache[\"version\"] == self.cache_version  # matches current version\n594             assert cache[\"hash\"] == get_hash(self.label_files + self.im_files)  # identical hash\n595         except Exception:\n",
+      "col_offset": 12,
+      "end_col_offset": 78,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 594,
+      "line_range": [
+        594
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "604                 LOGGER.info(\"\\n\".join(cache[\"msgs\"]))  # display warnings\n605         assert nf > 0 or not augment, f\"{prefix}No labels found in {cache_path}, can not start training. {HELP_URL}\"\n606 \n",
+      "col_offset": 8,
+      "end_col_offset": 116,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 605,
+      "line_range": [
+        605
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "610         nl = len(np.concatenate(labels, 0))  # number of labels\n611         assert nl > 0 or not augment, f\"{prefix}All labels empty in {cache_path}, can not start training. {HELP_URL}\"\n612         self.labels = list(labels)\n",
+      "col_offset": 8,
+      "end_col_offset": 117,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 611,
+      "line_range": [
+        611
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "701         for _ in range(n):\n702             im = cv2.imread(random.choice(self.im_files))  # sample image\n703             ratio = self.img_size / max(im.shape[0], im.shape[1])  # max(h, w)  # ratio\n",
+      "col_offset": 28,
+      "end_col_offset": 56,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 702,
+      "line_range": [
+        702
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "770         hyp = self.hyp\n771         if mosaic := self.mosaic and random.random() < hyp[\"mosaic\"]:\n772             # Load mosaic\n",
+      "col_offset": 37,
+      "end_col_offset": 52,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 771,
+      "line_range": [
+        771
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "776             # MixUp augmentation\n777             if random.random() < hyp[\"mixup\"]:\n778                 img, labels = mixup(img, labels, *self.load_mosaic(random.choice(self.indices)))\n",
+      "col_offset": 15,
+      "end_col_offset": 30,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 777,
+      "line_range": [
+        777
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "777             if random.random() < hyp[\"mixup\"]:\n778                 img, labels = mixup(img, labels, *self.load_mosaic(random.choice(self.indices)))\n779 \n",
+      "col_offset": 67,
+      "end_col_offset": 94,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 778,
+      "line_range": [
+        778
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "816             # Flip up-down\n817             if random.random() < hyp[\"flipud\"]:\n818                 img = np.flipud(img)\n",
+      "col_offset": 15,
+      "end_col_offset": 30,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 817,
+      "line_range": [
+        817
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "822             # Flip left-right\n823             if random.random() < hyp[\"fliplr\"]:\n824                 img = np.fliplr(img)\n",
+      "col_offset": 15,
+      "end_col_offset": 30,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 823,
+      "line_range": [
+        823
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "856                 im = cv2.imread(f)  # BGR\n857                 assert im is not None, f\"Image Not Found {f}\"\n858             h0, w0 = im.shape[:2]  # orig hw\n",
+      "col_offset": 16,
+      "end_col_offset": 61,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 857,
+      "line_range": [
+        857
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "875         s = self.img_size\n876         yc, xc = (int(random.uniform(-x, 2 * s + x)) for x in self.mosaic_border)  # mosaic center x, y\n877         indices = [index] + random.choices(self.indices, k=3)  # 3 additional image indices\n",
+      "col_offset": 22,
+      "end_col_offset": 51,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 876,
+      "line_range": [
+        876
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "876         yc, xc = (int(random.uniform(-x, 2 * s + x)) for x in self.mosaic_border)  # mosaic center x, y\n877         indices = [index] + random.choices(self.indices, k=3)  # 3 additional image indices\n878         random.shuffle(indices)\n",
+      "col_offset": 28,
+      "end_col_offset": 61,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 877,
+      "line_range": [
+        877
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "937         s = self.img_size\n938         indices = [index] + random.choices(self.indices, k=8)  # 8 additional image indices\n939         random.shuffle(indices)\n",
+      "col_offset": 28,
+      "end_col_offset": 61,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 938,
+      "line_range": [
+        938
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "982         # Offset\n983         yc, xc = (int(random.uniform(0, s)) for _ in self.mosaic_border)  # mosaic center x, y\n984         img9 = img9[yc : yc + 2 * s, xc : xc + 2 * s]\n",
+      "col_offset": 22,
+      "end_col_offset": 42,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 983,
+      "line_range": [
+        983
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "1032             i *= 4\n1033             if random.random() < 0.5:\n1034                 im1 = F.interpolate(im[i].unsqueeze(0).float(), scale_factor=2.0, mode=\"bilinear\", align_corners=False)[\n",
+      "col_offset": 15,
+      "end_col_offset": 30,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 1033,
+      "line_range": [
+        1033
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "1095                     b[[1, 3]] = np.clip(b[[1, 3]], 0, h)\n1096                     assert cv2.imwrite(str(f), im[b[1] : b[3], b[0] : b[2]]), f\"box failure in {f}\"\n1097 \n",
+      "col_offset": 20,
+      "end_col_offset": 99,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1096,
+      "line_range": [
+        1096
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1111     random.seed(0)  # for reproducibility\n1112     indices = random.choices([0, 1, 2], weights=weights, k=n)  # assign each image to a split\n1113 \n",
+      "col_offset": 14,
+      "end_col_offset": 61,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 1112,
+      "line_range": [
+        1112
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "1134         shape = exif_size(im)  # image size\n1135         assert (shape[0] > 9) & (shape[1] > 9), f\"image size {shape} <10 pixels\"\n1136         assert im.format.lower() in IMG_FORMATS, f\"invalid image format {im.format}\"\n",
+      "col_offset": 8,
+      "end_col_offset": 80,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1135,
+      "line_range": [
+        1135
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1135         assert (shape[0] > 9) & (shape[1] > 9), f\"image size {shape} <10 pixels\"\n1136         assert im.format.lower() in IMG_FORMATS, f\"invalid image format {im.format}\"\n1137         if im.format.lower() in (\"jpg\", \"jpeg\"):\n",
+      "col_offset": 8,
+      "end_col_offset": 84,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1136,
+      "line_range": [
+        1136
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1154             if nl := len(lb):\n1155                 assert lb.shape[1] == 5, f\"labels require 5 columns, {lb.shape[1]} columns detected\"\n1156                 assert (lb >= 0).all(), f\"negative label values {lb[lb < 0]}\"\n",
+      "col_offset": 16,
+      "end_col_offset": 100,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1155,
+      "line_range": [
+        1155
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1155                 assert lb.shape[1] == 5, f\"labels require 5 columns, {lb.shape[1]} columns detected\"\n1156                 assert (lb >= 0).all(), f\"negative label values {lb[lb < 0]}\"\n1157                 assert (lb[:, 1:] <= 1).all(), f\"non-normalized or out of bounds coordinates {lb[:, 1:][lb[:, 1:] > 1]}\"\n",
+      "col_offset": 16,
+      "end_col_offset": 77,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1156,
+      "line_range": [
+        1156
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1156                 assert (lb >= 0).all(), f\"negative label values {lb[lb < 0]}\"\n1157                 assert (lb[:, 1:] <= 1).all(), f\"non-normalized or out of bounds coordinates {lb[:, 1:][lb[:, 1:] > 1]}\"\n1158                 _, i = np.unique(lb, axis=0, return_index=True)\n",
+      "col_offset": 16,
+      "end_col_offset": 120,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1157,
+      "line_range": [
+        1157
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1217         files = list(dir.glob(\"*.yaml\")) or list(dir.rglob(\"*.yaml\"))  # try root level first and then recursive\n1218         assert files, f\"No *.yaml file found in {dir}\"\n1219         if len(files) > 1:\n",
+      "col_offset": 8,
+      "end_col_offset": 54,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1218,
+      "line_range": [
+        1218
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1220             files = [f for f in files if f.stem == dir.stem]  # prefer *.yaml files that match dir name\n1221             assert files, f\"Multiple *.yaml files found in {dir}, only 1 *.yaml file allowed\"\n1222         assert len(files) == 1, f\"Multiple *.yaml files found: {files}, only 1 *.yaml file allowed in {dir}\"\n",
+      "col_offset": 12,
+      "end_col_offset": 93,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1221,
+      "line_range": [
+        1221
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1221             assert files, f\"Multiple *.yaml files found in {dir}, only 1 *.yaml file allowed\"\n1222         assert len(files) == 1, f\"Multiple *.yaml files found: {files}, only 1 *.yaml file allowed in {dir}\"\n1223         return files[0]\n",
+      "col_offset": 8,
+      "end_col_offset": 108,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1222,
+      "line_range": [
+        1222
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1228             return False, None, path\n1229         assert Path(path).is_file(), f\"Error unzipping {path}, file not found\"\n1230         unzip_file(path, path=path.parent)\n",
+      "col_offset": 8,
+      "end_col_offset": 78,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1229,
+      "line_range": [
+        1229
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1231         dir = path.with_suffix(\"\")  # dataset directory == zip name\n1232         assert dir.is_dir(), f\"Error unzipping {path}, {dir} not found. path/to/abc.zip MUST unzip to path/to/abc/\"\n1233         return True, str(dir), self._find_yaml(dir)  # zipped, data_dir, yaml_path\n",
+      "col_offset": 8,
+      "end_col_offset": 115,
+      "filename": "webapp/vendor/yolov5_local/utils/dataloaders.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1232,
+      "line_range": [
+        1232
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "4 import logging\n5 import subprocess\n6 import urllib\n",
+      "col_offset": 0,
+      "end_col_offset": 17,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Consider possible security implications associated with the subprocess module.",
+      "line_number": 5,
+      "line_range": [
+        5
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
+      "test_id": "B404",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "17         result = urllib.parse.urlparse(url)\n18         assert all([result.scheme, result.netloc])  # check if is url\n19         return (urllib.request.urlopen(url).getcode() == 200) if check else True  # check if exists online\n",
+      "col_offset": 8,
+      "end_col_offset": 50,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 18,
+      "line_range": [
+        18
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "18         assert all([result.scheme, result.netloc])  # check if is url\n19         return (urllib.request.urlopen(url).getcode() == 200) if check else True  # check if exists online\n20     except (AssertionError, urllib.request.HTTPError):\n",
+      "col_offset": 16,
+      "end_col_offset": 43,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 22,
+        "link": "https://cwe.mitre.org/data/definitions/22.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Audit url open for permitted schemes. Allowing use of file:/ or custom schemes is often unexpected.",
+      "line_number": 19,
+      "line_range": [
+        19
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b310-urllib-urlopen",
+      "test_id": "B310",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "28     \"\"\"\n29     output = subprocess.check_output([\"gsutil\", \"du\", url], shell=True, encoding=\"utf-8\")\n30     return int(output.split()[0]) if output else 0\n",
+      "col_offset": 13,
+      "end_col_offset": 89,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 29,
+      "line_range": [
+        29
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "28     \"\"\"\n29     output = subprocess.check_output([\"gsutil\", \"du\", url], shell=True, encoding=\"utf-8\")\n30     return int(output.split()[0]) if output else 0\n",
+      "col_offset": 13,
+      "end_col_offset": 89,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "subprocess call with shell=True identified, security issue.",
+      "line_number": 29,
+      "line_range": [
+        29
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "34     \"\"\"Returns the size in bytes of a downloadable file at a given URL; defaults to -1 if not found.\"\"\"\n35     response = requests.head(url, allow_redirects=True)\n36     return int(response.headers.get(\"content-length\", -1))\n",
+      "col_offset": 15,
+      "end_col_offset": 55,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 400,
+        "link": "https://cwe.mitre.org/data/definitions/400.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Call to requests without timeout",
+      "line_number": 35,
+      "line_range": [
+        35
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b113_request_without_timeout.html",
+      "test_id": "B113",
+      "test_name": "request_without_timeout"
+    },
+    {
+      "code": "41     silent_option = \"sS\" if silent else \"\"  # silent\n42     proc = subprocess.run(\n43         [\n44             \"curl\",\n45             \"-#\",\n46             f\"-{silent_option}L\",\n47             url,\n48             \"--output\",\n49             filename,\n50             \"--retry\",\n51             \"9\",\n52             \"-C\",\n53             \"-\",\n54         ]\n55     )\n56     return proc.returncode == 0\n",
+      "col_offset": 11,
+      "end_col_offset": 5,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 42,
+      "line_range": [
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "41     silent_option = \"sS\" if silent else \"\"  # silent\n42     proc = subprocess.run(\n43         [\n44             \"curl\",\n45             \"-#\",\n46             f\"-{silent_option}L\",\n47             url,\n48             \"--output\",\n49             filename,\n50             \"--retry\",\n51             \"9\",\n52             \"-C\",\n53             \"-\",\n54         ]\n55     )\n56     return proc.returncode == 0\n",
+      "col_offset": 11,
+      "end_col_offset": 5,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 42,
+      "line_range": [
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "70         torch.hub.download_url_to_file(url, str(file), progress=LOGGER.level <= logging.INFO)\n71         assert file.exists() and file.stat().st_size > min_bytes, assert_msg  # check\n72     except Exception as e:  # url2\n",
+      "col_offset": 8,
+      "end_col_offset": 76,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 71,
+      "line_range": [
+        71
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "93             version = f\"tags/{version}\"  # i.e. tags/v7.0\n94         response = requests.get(f\"https://api.github.com/repos/{repository}/releases/{version}\").json()  # github api\n95         return response[\"tag_name\"], [x[\"name\"] for x in response[\"assets\"]]  # tag, assets\n",
+      "col_offset": 19,
+      "end_col_offset": 96,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "LOW",
+      "issue_cwe": {
+        "id": 400,
+        "link": "https://cwe.mitre.org/data/definitions/400.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Call to requests without timeout",
+      "line_number": 94,
+      "line_range": [
+        94
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b113_request_without_timeout.html",
+      "test_id": "B113",
+      "test_name": "request_without_timeout"
+    },
+    {
+      "code": "118                 try:\n119                     tag = subprocess.check_output(\"git tag\", shell=True, stderr=subprocess.STDOUT).decode().split()[-1]\n120                 except Exception:\n",
+      "col_offset": 26,
+      "end_col_offset": 98,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 119,
+      "line_range": [
+        119
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "118                 try:\n119                     tag = subprocess.check_output(\"git tag\", shell=True, stderr=subprocess.STDOUT).decode().split()[-1]\n120                 except Exception:\n",
+      "col_offset": 26,
+      "end_col_offset": 98,
+      "filename": "webapp/vendor/yolov5_local/utils/downloads.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call with shell=True seems safe, but may be changed in the future, consider rewriting without shell",
+      "line_number": 119,
+      "line_range": [
+        119
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "16 import signal\n17 import subprocess\n18 import sys\n",
+      "col_offset": 0,
+      "end_col_offset": 17,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Consider possible security implications associated with the subprocess module.",
+      "line_number": 17,
+      "line_range": [
+        17
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
+      "test_id": "B404",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "25 from pathlib import Path\n26 from subprocess import check_output\n27 from tarfile import is_tarfile\n",
+      "col_offset": 0,
+      "end_col_offset": 35,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Consider possible security implications associated with the subprocess module.",
+      "line_number": 26,
+      "line_range": [
+        26
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
+      "test_id": "B404",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "41 \n42     assert hasattr(ultralytics, \"__version__\")  # verify package is not directory\n43 except (ImportError, AssertionError) as exc:\n",
+      "col_offset": 4,
+      "end_col_offset": 46,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 42,
+      "line_range": [
+        42
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "184         path = Path.home() / cfg.get(platform.system(), \"\")  # OS-specific config dir\n185         path = (path if is_writeable(path) else Path(\"/tmp\")) / dir  # GCP and AWS lambda fix, only /tmp is writeable\n186     path.mkdir(exist_ok=True)  # make if required\n",
+      "col_offset": 53,
+      "end_col_offset": 59,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "MEDIUM",
+      "issue_cwe": {
+        "id": 377,
+        "link": "https://cwe.mitre.org/data/definitions/377.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Probable insecure usage of temp file/directory.",
+      "line_number": 185,
+      "line_range": [
+        185
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b108_hardcoded_tmp_directory.html",
+      "test_id": "B108",
+      "test_name": "hardcoded_tmp_directory"
+    },
+    {
+      "code": "366     try:\n367         assert (Path(path) / \".git\").is_dir()\n368         return check_output(f\"git -C {path} describe --tags --long --always\", shell=True).decode()[:-1]\n",
+      "col_offset": 8,
+      "end_col_offset": 45,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 367,
+      "line_range": [
+        367
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "367         assert (Path(path) / \".git\").is_dir()\n368         return check_output(f\"git -C {path} describe --tags --long --always\", shell=True).decode()[:-1]\n369     except Exception:\n",
+      "col_offset": 15,
+      "end_col_offset": 89,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "subprocess call with shell=True identified, security issue.",
+      "line_number": 368,
+      "line_range": [
+        368
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "381     s = colorstr(\"github: \")  # string\n382     assert Path(\".git\").exists(), s + \"skipping check (not a git repository)\" + msg\n383     assert check_online(), s + \"skipping check (offline)\" + msg\n",
+      "col_offset": 4,
+      "end_col_offset": 83,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 382,
+      "line_range": [
+        382
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "382     assert Path(\".git\").exists(), s + \"skipping check (not a git repository)\" + msg\n383     assert check_online(), s + \"skipping check (offline)\" + msg\n384 \n",
+      "col_offset": 4,
+      "end_col_offset": 63,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 383,
+      "line_range": [
+        383
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "384 \n385     splits = re.split(pattern=r\"\\s\", string=check_output(\"git remote -v\", shell=True).decode())\n386     matches = [repo in s for s in splits]\n",
+      "col_offset": 44,
+      "end_col_offset": 85,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 385,
+      "line_range": [
+        385
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "384 \n385     splits = re.split(pattern=r\"\\s\", string=check_output(\"git remote -v\", shell=True).decode())\n386     matches = [repo in s for s in splits]\n",
+      "col_offset": 44,
+      "end_col_offset": 85,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call with shell=True seems safe, but may be changed in the future, consider rewriting without shell",
+      "line_number": 385,
+      "line_range": [
+        385
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "390         remote = \"ultralytics\"\n391         check_output(f\"git remote add {remote} {url}\", shell=True)\n392     check_output(f\"git fetch {remote}\", shell=True, timeout=5)  # git fetch\n",
+      "col_offset": 8,
+      "end_col_offset": 66,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "subprocess call with shell=True identified, security issue.",
+      "line_number": 391,
+      "line_range": [
+        391
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "391         check_output(f\"git remote add {remote} {url}\", shell=True)\n392     check_output(f\"git fetch {remote}\", shell=True, timeout=5)  # git fetch\n393     local_branch = check_output(\"git rev-parse --abbrev-ref HEAD\", shell=True).decode().strip()  # checked out\n",
+      "col_offset": 4,
+      "end_col_offset": 62,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "subprocess call with shell=True identified, security issue.",
+      "line_number": 392,
+      "line_range": [
+        392
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "392     check_output(f\"git fetch {remote}\", shell=True, timeout=5)  # git fetch\n393     local_branch = check_output(\"git rev-parse --abbrev-ref HEAD\", shell=True).decode().strip()  # checked out\n394     n = int(check_output(f\"git rev-list {local_branch}..{remote}/{branch} --count\", shell=True))  # commits behind\n",
+      "col_offset": 19,
+      "end_col_offset": 78,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 393,
+      "line_range": [
+        393
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "392     check_output(f\"git fetch {remote}\", shell=True, timeout=5)  # git fetch\n393     local_branch = check_output(\"git rev-parse --abbrev-ref HEAD\", shell=True).decode().strip()  # checked out\n394     n = int(check_output(f\"git rev-list {local_branch}..{remote}/{branch} --count\", shell=True))  # commits behind\n",
+      "col_offset": 19,
+      "end_col_offset": 78,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call with shell=True seems safe, but may be changed in the future, consider rewriting without shell",
+      "line_number": 393,
+      "line_range": [
+        393
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "393     local_branch = check_output(\"git rev-parse --abbrev-ref HEAD\", shell=True).decode().strip()  # checked out\n394     n = int(check_output(f\"git rev-list {local_branch}..{remote}/{branch} --count\", shell=True))  # commits behind\n395     if n > 0:\n",
+      "col_offset": 12,
+      "end_col_offset": 95,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "subprocess call with shell=True identified, security issue.",
+      "line_number": 394,
+      "line_range": [
+        394
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "432     if hard:\n433         assert result, emojis(s)  # assert min requirements met\n434     if verbose and not result:\n",
+      "col_offset": 8,
+      "end_col_offset": 32,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 433,
+      "line_range": [
+        433
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "453     try:\n454         assert not is_jupyter()\n455         assert not is_docker()\n",
+      "col_offset": 8,
+      "end_col_offset": 31,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 454,
+      "line_range": [
+        454
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "454         assert not is_jupyter()\n455         assert not is_docker()\n456         cv2.imshow(\"test\", np.zeros((1, 1, 3)))\n",
+      "col_offset": 8,
+      "end_col_offset": 30,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 455,
+      "line_range": [
+        455
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "474             if len(s):\n475                 assert s in suffix, f\"{msg}{f} acceptable suffix is {suffix}\"\n476 \n",
+      "col_offset": 16,
+      "end_col_offset": 77,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 475,
+      "line_range": [
+        475
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "496             torch.hub.download_url_to_file(url, file)\n497             assert Path(file).exists() and Path(file).stat().st_size > 0, f\"File download failed: {url}\"  # check\n498         return file\n",
+      "col_offset": 12,
+      "end_col_offset": 104,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 497,
+      "line_range": [
+        497
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "499     elif file.startswith(\"clearml://\"):  # ClearML Dataset ID\n500         assert \"clearml\" in sys.modules, (\n501             \"ClearML is not installed, so cannot use ClearML dataset. Try running 'pip install clearml'.\"\n502         )\n503         return file\n",
+      "col_offset": 8,
+      "end_col_offset": 9,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 500,
+      "line_range": [
+        500,
+        501,
+        502
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "507             files.extend(glob.glob(str(ROOT / d / \"**\" / file), recursive=True))  # find file\n508         assert len(files), f\"File not found: {file}\"  # assert file was found\n509         assert len(files) == 1, f\"Multiple files match '{file}', specify exact path: {files}\"  # assert unique\n",
+      "col_offset": 8,
+      "end_col_offset": 52,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 508,
+      "line_range": [
+        508
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "508         assert len(files), f\"File not found: {file}\"  # assert file was found\n509         assert len(files) == 1, f\"Multiple files match '{file}', specify exact path: {files}\"  # assert unique\n510         return files[0]  # return file\n",
+      "col_offset": 8,
+      "end_col_offset": 93,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 509,
+      "line_range": [
+        509
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "537     for k in \"train\", \"val\", \"names\":\n538         assert k in data, emojis(f\"data.yaml '{k}:' field missing \u274c\")\n539     if isinstance(data[\"names\"], (list, tuple)):  # old array format\n",
+      "col_offset": 8,
+      "end_col_offset": 71,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 538,
+      "line_range": [
+        538
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "540         data[\"names\"] = dict(enumerate(data[\"names\"]))  # convert to dict\n541     assert all(isinstance(k, int) for k in data[\"names\"].keys()), \"data.yaml names keys must be integers, i.e. 2: car\"\n542     data[\"nc\"] = len(data[\"names\"])\n",
+      "col_offset": 4,
+      "end_col_offset": 118,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 541,
+      "line_range": [
+        541
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "577                 LOGGER.info(f\"Running {s} ...\")\n578                 r = subprocess.run(s, shell=True)\n579             else:  # python script\n",
+      "col_offset": 20,
+      "end_col_offset": 49,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "subprocess call with shell=True identified, security issue.",
+      "line_number": 578,
+      "line_range": [
+        578
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "579             else:  # python script\n580                 r = exec(s, {\"yaml\": data})  # return None\n581             dt = f\"({round(time.time() - t, 1)}s)\"\n",
+      "col_offset": 20,
+      "end_col_offset": 43,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "MEDIUM",
+      "issue_text": "Use of exec detected.",
+      "line_number": 580,
+      "line_range": [
+        580
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b102_exec_used.html",
+      "test_id": "B102",
+      "test_name": "exec_used"
+    },
+    {
+      "code": "606     try:\n607         assert amp_allclose(deepcopy(model), im) or amp_allclose(DetectMultiBackend(\"yolov5n.pt\", device), im)\n608         LOGGER.info(f\"{prefix}checks passed \u2705\")\n",
+      "col_offset": 8,
+      "end_col_offset": 110,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 607,
+      "line_range": [
+        607
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "681             elif is_tarfile(f):\n682                 subprocess.run([\"tar\", \"xf\", f, \"--directory\", f.parent], check=True)  # unzip\n683             elif f.suffix == \".gz\":\n",
+      "col_offset": 16,
+      "end_col_offset": 85,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 682,
+      "line_range": [
+        682
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "681             elif is_tarfile(f):\n682                 subprocess.run([\"tar\", \"xf\", f, \"--directory\", f.parent], check=True)  # unzip\n683             elif f.suffix == \".gz\":\n",
+      "col_offset": 16,
+      "end_col_offset": 85,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 682,
+      "line_range": [
+        682
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "683             elif f.suffix == \".gz\":\n684                 subprocess.run([\"tar\", \"xfz\", f, \"--directory\", f.parent], check=True)  # unzip\n685             if delete:\n",
+      "col_offset": 16,
+      "end_col_offset": 86,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 684,
+      "line_range": [
+        684
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "683             elif f.suffix == \".gz\":\n684                 subprocess.run([\"tar\", \"xfz\", f, \"--directory\", f.parent], check=True)  # unzip\n685             if delete:\n",
+      "col_offset": 16,
+      "end_col_offset": 86,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 684,
+      "line_range": [
+        684
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "1024     # Checks\n1025     assert 0 <= conf_thres <= 1, f\"Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0\"\n1026     assert 0 <= iou_thres <= 1, f\"Invalid IoU {iou_thres}, valid values are between 0.0 and 1.0\"\n",
+      "col_offset": 4,
+      "end_col_offset": 115,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1025,
+      "line_range": [
+        1025
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1025     assert 0 <= conf_thres <= 1, f\"Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0\"\n1026     assert 0 <= iou_thres <= 1, f\"Invalid IoU {iou_thres}, valid values are between 0.0 and 1.0\"\n1027     if isinstance(prediction, (list, tuple)):  # YOLOv5 model in validation model, output = (inference_out, loss_out)\n",
+      "col_offset": 4,
+      "end_col_offset": 96,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 1026,
+      "line_range": [
+        1026
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "1152         if gsutil_getsize(url) > (evolve_csv.stat().st_size if evolve_csv.exists() else 0):\n1153             subprocess.run([\"gsutil\", \"cp\", f\"{url}\", f\"{save_dir}\"])  # download evolve.csv if larger than local\n1154 \n",
+      "col_offset": 12,
+      "end_col_offset": 69,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 1153,
+      "line_range": [
+        1153
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "1152         if gsutil_getsize(url) > (evolve_csv.stat().st_size if evolve_csv.exists() else 0):\n1153             subprocess.run([\"gsutil\", \"cp\", f\"{url}\", f\"{save_dir}\"])  # download evolve.csv if larger than local\n1154 \n",
+      "col_offset": 12,
+      "end_col_offset": 69,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 1153,
+      "line_range": [
+        1153
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "1191     if bucket:\n1192         subprocess.run([\"gsutil\", \"cp\", f\"{evolve_csv}\", f\"{evolve_yaml}\", f\"gs://{bucket}\"])  # upload\n1193 \n",
+      "col_offset": 8,
+      "end_col_offset": 93,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Starting a process with a partial executable path",
+      "line_number": 1192,
+      "line_range": [
+        1192
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
+      "test_id": "B607",
+      "test_name": "start_process_with_partial_path"
+    },
+    {
+      "code": "1191     if bucket:\n1192         subprocess.run([\"gsutil\", \"cp\", f\"{evolve_csv}\", f\"{evolve_yaml}\", f\"gs://{bucket}\"])  # upload\n1193 \n",
+      "col_offset": 8,
+      "end_col_offset": 93,
+      "filename": "webapp/vendor/yolov5_local/utils/general.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 1192,
+      "line_range": [
+        1192
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "438     files = list(save_dir.glob(\"results*.csv\"))\n439     assert len(files), f\"No results.csv files found in {save_dir.resolve()}, nothing to plot.\"\n440     for f in files:\n",
+      "col_offset": 4,
+      "end_col_offset": 94,
+      "filename": "webapp/vendor/yolov5_local/utils/plots.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 439,
+      "line_range": [
+        439
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "6 import platform\n7 import subprocess\n8 import time\n",
+      "col_offset": 0,
+      "end_col_offset": 17,
+      "filename": "webapp/vendor/yolov5_local/utils/torch_utils.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Consider possible security implications associated with the subprocess module.",
+      "line_number": 7,
+      "line_range": [
+        7
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
+      "test_id": "B404",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "56     \"\"\"Initializes DistributedDataParallel (DDP) for model training, respecting torch version constraints.\"\"\"\n57     assert not check_version(torch.__version__, \"1.12.0\", pinned=True), (\n58         \"torch==1.12.0 torchvision==0.13.0 DDP training is not supported due to a known issue. \"\n59         \"Please upgrade or downgrade torch to use DDP. See https://github.com/ultralytics/yolov5/issues/8395\"\n60     )\n61     if check_version(torch.__version__, \"1.11.0\"):\n",
+      "col_offset": 4,
+      "end_col_offset": 5,
+      "filename": "webapp/vendor/yolov5_local/utils/torch_utils.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 57,
+      "line_range": [
+        57,
+        58,
+        59,
+        60
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "103     \"\"\"Returns the number of available CUDA devices; works on Linux and Windows by invoking `nvidia-smi`.\"\"\"\n104     assert platform.system() in (\"Linux\", \"Windows\"), \"device_count() only supported on Linux or Windows\"\n105     try:\n",
+      "col_offset": 4,
+      "end_col_offset": 105,
+      "filename": "webapp/vendor/yolov5_local/utils/torch_utils.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 104,
+      "line_range": [
+        104
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "106         cmd = \"nvidia-smi -L | wc -l\" if platform.system() == \"Linux\" else 'nvidia-smi -L | find /c /v \"\"'  # Windows\n107         return int(subprocess.run(cmd, shell=True, capture_output=True, check=True).stdout.decode().split()[-1])\n108     except Exception:\n",
+      "col_offset": 19,
+      "end_col_offset": 83,
+      "filename": "webapp/vendor/yolov5_local/utils/torch_utils.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "HIGH",
+      "issue_text": "subprocess call with shell=True identified, security issue.",
+      "line_number": 107,
+      "line_range": [
+        107
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+      "test_id": "B602",
+      "test_name": "subprocess_popen_with_shell_equals_true"
+    },
+    {
+      "code": "121         os.environ[\"CUDA_VISIBLE_DEVICES\"] = device  # set environment variable - must be before assert is_available()\n122         assert torch.cuda.is_available() and torch.cuda.device_count() >= len(device.replace(\",\", \"\")), (\n123             f\"Invalid CUDA '--device {device}' requested, use '--device cpu' or pass valid CUDA device(s)\"\n124         )\n125 \n",
+      "col_offset": 8,
+      "end_col_offset": 9,
+      "filename": "webapp/vendor/yolov5_local/utils/torch_utils.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 122,
+      "line_range": [
+        122,
+        123,
+        124
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "129         if n > 1 and batch_size > 0:  # check batch_size is divisible by device_count\n130             assert batch_size % n == 0, f\"batch-size {batch_size} not multiple of GPU count {n}\"\n131         space = \" \" * (len(s) + 1)\n",
+      "col_offset": 12,
+      "end_col_offset": 96,
+      "filename": "webapp/vendor/yolov5_local/utils/torch_utils.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 130,
+      "line_range": [
+        130
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    },
+    {
+      "code": "404     if resume:\n405         assert start_epoch > 0, (\n406             f\"{weights} training to {epochs} epochs is finished, nothing to resume.\\n\"\n407             f\"Start a new training without --resume, i.e. 'python train.py --weights {weights}'\"\n408         )\n409         LOGGER.info(f\"Resuming training from {weights} from epoch {start_epoch} to {epochs} total epochs\")\n",
+      "col_offset": 8,
+      "end_col_offset": 9,
+      "filename": "webapp/vendor/yolov5_local/utils/torch_utils.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.",
+      "line_number": 405,
+      "line_range": [
+        405,
+        406,
+        407,
+        408
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html",
+      "test_id": "B101",
+      "test_name": "assert_used"
+    }
+  ]
+}
