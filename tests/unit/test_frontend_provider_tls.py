@@ -3,6 +3,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SETUP_WIZARD = REPO_ROOT / "webapp" / "js" / "src" / "setup-wizard.js"
+SETUP_WIZARD_BUNDLE = REPO_ROOT / "webapp" / "js" / "towerscout.js"
 SETTINGS = REPO_ROOT / "webapp" / "js" / "src" / "settings.js"
 API_HELPERS = REPO_ROOT / "webapp" / "js" / "src" / "utils" / "apiHelpers.js"
 
@@ -24,6 +25,7 @@ def test_setup_and_settings_preserve_provider_tls_error_details():
         assert "window.TowerScoutConfigApi.saveFailureMessage" in source
 
     setup_source = SETUP_WIZARD.read_text(encoding="utf-8")
+    setup_bundle = SETUP_WIZARD_BUNDLE.read_text(encoding="utf-8")
     assert "helper_available" in setup_source
     assert "getProviderValidationState" in setup_source
     assert "shouldShowProviderTlsRepair" in setup_source
@@ -31,6 +33,7 @@ def test_setup_and_settings_preserve_provider_tls_error_details():
     assert "getProviderTlsRepairStartContract" in setup_source
     assert "rememberProviderTlsRepairOperationStatus" in setup_source
     assert "PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED = false" in setup_source
+    assert "PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED = false" in setup_bundle
     assert "PROVIDER_TLS_REPAIR_ALLOWED_START_BODY_FIELDS" in setup_source
     assert "operation_authorization" in setup_source
     assert "operation_active" in setup_source

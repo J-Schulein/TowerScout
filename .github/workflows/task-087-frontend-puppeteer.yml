@@ -102,13 +102,6 @@ jobs:
           name: puppeteer-templates-logs
           path: test-artifacts
 
-      - name: Publish test logs as repo issue
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          python3 scripts/ci_publish_issue.py test-artifacts
-
   puppeteer-e2e:
     name: Run Puppeteer e2e (simulated helper)
     runs-on: ubuntu-latest
@@ -189,10 +182,3 @@ jobs:
         with:
           name: puppeteer-e2e-logs
           path: test-artifacts
-
-      - name: Publish e2e logs as repo issue
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          python3 scripts/ci_publish_issue.py test-artifacts
