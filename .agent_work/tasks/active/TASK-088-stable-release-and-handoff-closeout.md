@@ -175,6 +175,8 @@ Monday's distribution/support path and a possible July 15 handoff unambiguous.
 - [x] Reconcile the final Task-088/089 and handoff records on a clean
   `origin/main@718a564` branch without reverting PR #48 runtime/test changes.
 - [x] Keep `cdcai/TowerScout` unchanged during the feedback hold.
+- [x] Prepare a send-ready pilot message, pre-send gate, structured feedback
+  intake/triage template, and owner-custody checklist.
 
 ---
 
@@ -865,6 +867,29 @@ passed, the runtime/test diff remained clean, and
 **Next**: Select and record the feedback/support destination, confirm the backup
 owner and evidence custody, then land the final documentation safely from the
 `v0.1.2` main baseline.
+
+### 2026-07-12 - Pilot Operations Packet Prepared
+**Objective**: Complete the pilot work that does not depend on the pending
+feedback/support-channel decision.
+**Context**: The validated release and guides are ready, but Monday execution
+still needed one concise operational packet that another owner can use without
+reconstructing the handoff history.
+**Decision**: Prepare the outbound wording, pre-send checks, feedback schema,
+severity rules, daily register, and custody checklist now. Leave only the
+organization-controlled destination, backup owner, coordinator, and response
+window as explicit human-confirmed fields.
+**Execution**: Added
+`PILOT-OPERATIONS-PACKET.md` and linked it from the Handoff-Planning index. The
+packet pins the fork release URL, source ref, six filenames, normal CPU/Docker
+path, sensitive-evidence restrictions, and feedback-gated cdcai adoption rule.
+**Output**: Monday's pilot materials can be finalized by inserting the approved
+support details; no cdcai or release-asset change is required.
+**Validation**: The agent-work hygiene quick check passed;
+`python .agent_work/scripts/validate_agent_work.py` passed; and
+`git diff --check` passed.
+**Next**: On 2026-07-13, insert and verify the owner-controlled feedback
+destination and backup owner, check the final outbound material, and then send
+the pilot.
 
 ---
 

@@ -122,6 +122,20 @@ tracks preparation now and owner-approved execution later.
    path.
 7. Transfer durable backlog/handoff context and close out the fork transition.
 
+## Prepared Inputs During Feedback Hold
+
+- Candidate baseline: fork-side `v0.1.2` at
+  `718a56485a59182f060a537e8f11d4ce71a1f0d4`.
+- Candidate release: `https://github.com/J-Schulein/TowerScout/releases/tag/v0.1.2`.
+- Historical `v0.1.0` and `v0.1.1` tags are not candidate adoption releases.
+- Pilot intake, triage, and custody template:
+  `.agent_work/context/status/Handoff-Planning/PILOT-OPERATIONS-PACKET.md`.
+- Execution remains blocked by feedback review, baseline approval, repository
+  and package permissions, and the approved durable backlog destination.
+
+These inputs make the no-extension handoff migration-ready without performing
+or implying any change to `cdcai/TowerScout`.
+
 ### 2026-07-08 - Namespace Carry-Forward Decision Recorded
 **Objective**: Close the gap between Task-088's fork-side release-home decision
 and Task-089's later cdcai rebuild responsibilities before the stable tag

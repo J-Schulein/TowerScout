@@ -10,6 +10,11 @@ Read these first and use them for current action:
 4. `.agent_work/tasks/active/TASK-089-cdcai-migration-execution.md`
 5. `HANDOFF.md`
 
+For the July 13 pilot execution, use
+`PILOT-OPERATIONS-PACKET.md`. It contains the send-ready message, pre-send
+gate, feedback intake/triage template, and owner-custody checklist. Its pending
+support fields must be completed before distribution.
+
 Current decision: distribute the exact validated fork-side `v0.1.2` package as
 the pilot, keep `cdcai/TowerScout` unchanged while feedback is collected, and
 execute adoption only after the owner reviews feedback and approves the
