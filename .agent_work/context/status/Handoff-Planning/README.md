@@ -14,10 +14,14 @@ Read these first and use them for current action:
    second-round developer response incorporating the project lead's settled
    decisions and targeted corrections; input to the next iteration, not an
    approved plan
-5. `.agent_work/current-tasks.md`
-6. `.agent_work/tasks/active/TASK-088-stable-release-and-handoff-closeout.md`
-7. `.agent_work/tasks/active/TASK-089-cdcai-migration-execution.md`
-8. `HANDOFF.md`
+5. `2026-07-22-DEVELOPER-FEEDBACK-ON-CANDIDATE-OPERATIONAL-ROADMAP.md` -
+   developer recommendation to approve the candidate operational roadmap with
+   targeted authorization, scheduling, custody, and governance corrections;
+   review input, not formal approval or task authorization
+6. `.agent_work/current-tasks.md`
+7. `.agent_work/tasks/active/TASK-088-stable-release-and-handoff-closeout.md`
+8. `.agent_work/tasks/active/TASK-089-cdcai-migration-execution.md`
+9. `HANDOFF.md`
 
 `PILOT-OPERATIONS-PACKET.md` is now the completed July 13 pilot-launch and
 custody record. Feedback is maintained by the project lead in a fillable Word
