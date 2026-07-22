@@ -10,10 +10,14 @@ Read these first and use them for current action:
 3. `2026-07-22-DEVELOPER-RESPONSE-TO-COMPREHENSIVE-ROADMAP-REVIEW.md` -
    developer response, recommended revisions, and answers to Reviewer/Planner
    decision questions; input to the next iteration, not an approved plan
-4. `.agent_work/current-tasks.md`
-5. `.agent_work/tasks/active/TASK-088-stable-release-and-handoff-closeout.md`
-6. `.agent_work/tasks/active/TASK-089-cdcai-migration-execution.md`
-7. `HANDOFF.md`
+4. `2026-07-22-DEVELOPER-RESPONSE-TO-UPDATED-COMPREHENSIVE-ROADMAP-REVIEW.md` -
+   second-round developer response incorporating the project lead's settled
+   decisions and targeted corrections; input to the next iteration, not an
+   approved plan
+5. `.agent_work/current-tasks.md`
+6. `.agent_work/tasks/active/TASK-088-stable-release-and-handoff-closeout.md`
+7. `.agent_work/tasks/active/TASK-089-cdcai-migration-execution.md`
+8. `HANDOFF.md`
 
 `PILOT-OPERATIONS-PACKET.md` is now the completed July 13 pilot-launch and
 custody record. Feedback is maintained by the project lead in a fillable Word
