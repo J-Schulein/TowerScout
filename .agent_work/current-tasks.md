@@ -144,6 +144,7 @@ remains in `task-backlog.md` for the next planning iteration.
 ## Related Documentation
 
 - [Current Pilot And Adoption Plan](./context/status/Handoff-Planning/PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md)
+- [October Project Roadmap Review Draft](./context/status/Handoff-Planning/2026-07-22-OCTOBER-PROJECT-ROADMAP-REVIEW-DRAFT.md)
 - [Task Backlog](./task-backlog.md)
 - [Completed Tasks](./completed-tasks.md)
 - [Sprint 06 Retrospective](./context/analysis/SPRINT-06-RETROSPECTIVE-ANALYSIS-2026-07-02.md)
