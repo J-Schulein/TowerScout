@@ -1,8 +1,7 @@
 # TowerScout External Review — R1
 
-> **HISTORICAL REVIEW COPY**: Preserved for evidence. Current action is governed
-> by `PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md`; the maintained review series
-> is grouped under `Reviews/`.
+> **HISTORICAL REVIEW**: Preserve as evidence; do not use its forward-looking
+> schedule as current action. See `../PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md`.
 
 | | |
 |---|---|
