@@ -7,10 +7,13 @@ Read these first and use them for current action:
 1. `PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md`
 2. `2026-07-22-OCTOBER-PROJECT-ROADMAP-REVIEW-DRAFT.md` - proposed schedule
    awaiting Reviewer/Planner input; not yet an approved execution plan
-3. `.agent_work/current-tasks.md`
-4. `.agent_work/tasks/active/TASK-088-stable-release-and-handoff-closeout.md`
-5. `.agent_work/tasks/active/TASK-089-cdcai-migration-execution.md`
-6. `HANDOFF.md`
+3. `2026-07-22-DEVELOPER-RESPONSE-TO-COMPREHENSIVE-ROADMAP-REVIEW.md` -
+   developer response, recommended revisions, and answers to Reviewer/Planner
+   decision questions; input to the next iteration, not an approved plan
+4. `.agent_work/current-tasks.md`
+5. `.agent_work/tasks/active/TASK-088-stable-release-and-handoff-closeout.md`
+6. `.agent_work/tasks/active/TASK-089-cdcai-migration-execution.md`
+7. `HANDOFF.md`
 
 `PILOT-OPERATIONS-PACKET.md` is now the completed July 13 pilot-launch and
 custody record. Feedback is maintained by the project lead in a fillable Word
