@@ -7,7 +7,7 @@
 **Target Sprint**: Sprint 07
 **Created**: 2026-07-08
 **Owner**: TowerScout release owner / active agent support with cdcai maintainer participation
-**Depends On**: `TASK-088` pilot closeout; pilot feedback review; explicit cdcai-owner adoption approval; cdcai write/package permissions at execution time; approved durable feedback/backlog destination
+**Depends On**: completed `TASK-088` pilot closeout; pilot feedback review; explicit cdcai-owner adoption approval; cdcai write/package permissions at execution time; approved durable backlog destination
 
 ## Objective
 
@@ -38,9 +38,9 @@ tracks preparation now and owner-approved execution later.
 - WHEN the pilot is distributed, THE SYSTEM SHALL treat the fork-side
   `v0.1.2` release as the pilot download and SHALL NOT imply that the unchanged
   cdcai repository contains that pilot baseline.
-- WHEN pilot feedback is collected, THE SYSTEM SHALL use a durable destination
-  controlled by the cdcai owner or organization rather than depending only on
-  the current developer.
+- WHEN pilot feedback is collected, THE PROJECT SHALL maintain it in the
+  project lead's fillable Word document outside the repository and SHALL notify
+  the development team of actionable findings.
 - IF feedback requires a package fix before adoption, THEN THE SYSTEM SHALL use
   a new fork-side version identity and validate the affected release surfaces.
 - IF the project ends before adoption, THEN THE SYSTEM SHALL leave the cdcai
@@ -73,7 +73,8 @@ tracks preparation now and owner-approved execution later.
 
 - [x] The cdcai owner's feedback hold is recorded: the official repository
       remains unchanged until pilot feedback and adoption review complete.
-- [ ] The pilot feedback/support destination and backup owner are confirmed.
+- [x] The external Word-document feedback method and primary/backup support
+      coverage are confirmed with appropriate access.
 - [ ] A migration-ready handoff packet records the candidate source ref,
       selected tags, image/package choices, evidence, backlog, and verification
       sequence without executing them against cdcai.
@@ -98,8 +99,8 @@ tracks preparation now and owner-approved execution later.
 
 ## Dependencies
 
-- `TASK-088` must finish pilot distribution readiness and durable handoff
-  custody first.
+- `TASK-088` completed pilot distribution readiness and durable handoff
+  custody on 2026-07-22.
 - Pilot feedback must be collected and reviewed.
 - The cdcai owner must explicitly approve the version to adopt; technical
   access alone does not authorize migration.
@@ -270,6 +271,26 @@ passed, the runtime/test diff remained clean, and the docs route suite passed
 **Next**: Record the owner-controlled feedback destination and backup owner,
 prepare the migration-ready packet, and wait for the adoption decision.
 
+### 2026-07-22 - Pilot Prerequisites And Extension Recorded
+**Objective**: Update Task-089 prerequisites without beginning migration or
+selecting new implementation work.
+**Context**: The pilot email has been sent, feedback is maintained by the
+project lead in an external fillable Word document, primary and backup support
+contacts have appropriate access, and Task-088 is complete. The project ends
+2026-10-31.
+**Decision**: Close the feedback/support prerequisite while retaining all
+adoption, permission, package-publication, and post-transfer verification
+gates. The extension does not authorize cdcai changes.
+**Execution**: Updated the Task-089 dependency and acceptance records and linked
+them to the completed Task-088 launch/custody record.
+**Output**: Task-089 remains deferred and owner-gated for feedback review and
+explicit adoption approval.
+**Validation**: Agent-work validation and `git diff --check` passed; no runtime
+or test files changed; and the Flask docs/route contract suite passed
+(`57 passed`).
+**Next**: Wait for the project lead's actionable feedback summary and the
+cdcai owner's adoption decision.
+
 ---
 
 ## Historical Implementation Log
@@ -306,7 +327,8 @@ or migration-only step is now captured here rather than implied.
 
 ### Acceptance Criteria Validation
 - [x] **Owner feedback hold recorded**: cdcai remains unchanged during pilot
-- [ ] **Feedback/support destination confirmed**: Pending
+- [x] **Feedback/support method confirmed**: External fillable Word document;
+      primary and backup support contacts confirmed with appropriate access
 - [ ] **Migration-ready handoff packet completed**: Pending
 - [ ] **Adoption baseline approved**: Pending feedback review
 - [ ] **Execution permissions confirmed**: Pending approved execution window

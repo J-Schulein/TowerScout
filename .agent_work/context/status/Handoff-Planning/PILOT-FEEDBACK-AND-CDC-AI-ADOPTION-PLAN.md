@@ -1,11 +1,11 @@
 # TowerScout Pilot Feedback And cdcai Adoption Plan
 
-**Decision Date**: 2026-07-10
+**Decision Date**: 2026-07-10; updated 2026-07-22
 **Status**: CURRENT - canonical release-transition and ownership plan
 **Decision Owner**: TowerScout project lead with the `cdcai/TowerScout` owner
 **Pilot Baseline**: validated fork-side `v0.1.2` release
-**Expected Pilot Distribution**: Monday, 2026-07-13
-**Current Project End**: 2026-07-15, with a possible three-month extension
+**Pilot Distribution**: completed Monday, 2026-07-13
+**Project End**: 2026-10-31 (hard end date; operational closeout 2026-10-30)
 
 ## Decision
 
@@ -46,40 +46,34 @@ for the pilot. Any accepted fix must use a new version identity.
 
 ### Feedback And Support Channel
 
-- Must be controlled by the cdcai owner or an organization-controlled team,
-  not solely by the current developer.
-- Should be a shared email address, form, Teams channel, SharePoint list, or
-  another explicitly approved durable destination.
-- Must be named in the pilot communication before distribution.
-- Must identify a backup person who can receive reports if the current
-  developer is unavailable.
-- Should capture user, engine, package flavor, attempted action, observed
-  result, severity/blocking impact, and sanitized support evidence.
+- Pilot feedback is captured by the project lead in a fillable Word document
+  outside this repository.
+- Feedback intake and tracking are not duplicated in `.agent_work`.
+- The primary pilot support owner and backup contact are confirmed and have
+  appropriate access.
+- Their identities and contact details remain in the sent pilot communication
+  and access-controlled project records, not in this public repository.
 
 Do not enable cdcai Issues merely to satisfy the earlier migration plan while
 the owner wants the official repository unchanged. Issues may be enabled later
 as part of the adoption decision.
 
-## Before Pilot Distribution
+## Pilot Distribution Completion
 
-1. Freeze the existing `v0.1.2` release and preserve its six-asset checksum
-   record.
-2. Update the pilot email/setup guide to distinguish:
-   - the fork-side validated pilot download
-   - the unchanged official cdcai repository
-   - the organization-controlled feedback/support destination
-3. Confirm the backup support owner and hand over the release assets,
-   checksums, validation summary, known findings, and troubleshooting material.
-4. Finish `TASK-088` documentation/evidence custody and leave a clean,
-   reviewable repository record.
-5. Prepare the `TASK-089` migration inputs, but do not push or publish anything
-   to cdcai.
+1. The existing `v0.1.2` release and six-asset checksum record are frozen.
+2. The pilot email was sent to the user group on 2026-07-13 and identifies the
+   fork-side validated pilot rather than the unchanged cdcai repository.
+3. The primary and backup support owners are confirmed with appropriate access.
+4. Release assets, checksums, validation summaries, known findings, and
+   troubleshooting material have durable custody through the public release
+   and repository documentation.
+5. `TASK-088` is complete. `TASK-089` remains preparation-only until feedback
+   review and explicit owner adoption approval.
 
 ## During The Feedback Hold
 
-- Collect and triage pilot feedback against the exact `v0.1.2` baseline.
-- Classify findings as setup/support questions, non-blocking improvements,
-  release blockers, or security/data-integrity issues.
+- The project lead maintains feedback in the external fillable Word document
+  and will notify the development team of actionable findings.
 - Keep the cdcai repository unchanged.
 - Do not enable the dark Task-087 browser-to-host repair flow as part of pilot
   support.
@@ -106,29 +100,19 @@ If the pilot is not ready, preserve the fork, evidence, feedback, and prepared
 handoff material. The owner can resume adoption work later without changing the
 current cdcai repository.
 
-## Project Extension Branch
+## Confirmed Extension And Closeout Boundary
 
-If the project receives the three-month extension:
+The project is extended through 2026-10-31. Use 2026-10-30 as the operational
+closeout date because October 31 falls on a Saturday. This update does not
+select the next implementation work.
 
-1. Prioritize pilot feedback, installation reliability, user guidance, and
-   supportability before optional feature work.
-2. Continue pilot fixes in the fork until the owner approves an adoption
-   baseline.
-3. Use new release identities for every changed package set.
-4. Move active development and future official releases to cdcai only after
-   adoption is approved and the migrated package passes its required checks.
-
-## No-Extension Branch
-
-If the project ends on 2026-07-15:
-
-1. Freeze the fork-side pilot and documentation state.
-2. Give the cdcai owner the feedback record, release assets/checksums,
-   validation summary, known findings, backlog, and migration runbook.
-3. Prepare a reviewable comparison or draft handoff PR if the owner wants one,
-   but do not merge or modify cdcai without approval.
-4. Keep the fork available as the validated pilot and provenance archive.
-5. Leave the final adoption/merge timing with the cdcai owner.
+- Continue to use new release identities for every changed package set.
+- Keep the fork as the pilot and fix-validation surface until the owner
+  approves an adoption baseline.
+- Move official development and releases to cdcai only after approved adoption
+  and migration validation.
+- Complete final release, evidence, backlog, and operational ownership handoff
+  before the operational closeout date.
 
 ## Task Ownership
 

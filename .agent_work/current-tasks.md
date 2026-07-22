@@ -1,9 +1,9 @@
 # Current Tasks - Active Sprint
 
 **Sprint Period**: Sprint 07 begins July 2, 2026
-**Last Updated**: July 10, 2026
-**Focus**: Distribute the validated fork-side `v0.1.2` pilot, establish an owner-controlled feedback/support path, preserve a clean handoff if the project ends July 15, and defer cdcai adoption until the owner reviews pilot feedback.
-**Status**: The `v0.1.2` release passed the full four-cell Docker/Podman CPU/CUDA matrix with both Google and Azure providers and is ready for pilot distribution. `cdcai/TowerScout` remains intentionally unchanged during the feedback hold. A possible three-month extension does not change the immediate pilot-first plan.
+**Last Updated**: July 22, 2026
+**Focus**: Close the completed `v0.1.2` pilot-launch lane, preserve the feedback-gated cdcai adoption boundary, and rebaseline the handoff schedule to the hard 2026-10-31 project end date without selecting the next implementation work yet.
+**Status**: The validated fork-side `v0.1.2` pilot email has been sent. Feedback is captured by the project lead in a fillable Word document outside the repository, and the confirmed primary and backup support owners have appropriate access. `TASK-088` is complete. `cdcai/TowerScout` remains intentionally unchanged until feedback review and explicit owner approval under `TASK-089`.
 
 ---
 
@@ -39,25 +39,23 @@ Sprint 06 closeout records:
 
 ---
 
-## Sprint 07 Goal
+## Sprint 07 Transition State
 
-Deliver a proof-backed, support-safe host-side control plane that can guide managed-network TLS repair and restart from the TowerScout setup experience without exposing arbitrary host-command execution or leaking certificate/provider details.
+The pilot-transition lane is complete through distribution. The project is
+extended through 2026-10-31, with 2026-10-30 treated as the operational
+closeout date because October 31 falls on a Saturday.
 
-Sprint 07 starts with helper transport and security proof. Product UI integration and package inclusion are gated until the helper can prove loopback binding, token/origin controls, allowlisted script invocation, sanitized progress states, and correct runtime-profile targeting.
-
-Because the project end date is now close, Sprint 07 also carries a bounded
-pilot-transition lane. The exact fork-side `v0.1.2` assets will be distributed
-for user feedback while `cdcai/TowerScout` remains unchanged. `TASK-089`
-migration execution starts only after the cdcai owner reviews feedback and
-approves an adoption baseline. That work must preserve the `TASK-086` fallback
-and must not weaken the dark-control-plane guardrails.
+This Phase 1 update intentionally does not select the next implementation
+tasks. `TASK-087` retains its merged non-mutating proof but later enablement is
+paused pending a future planning decision. `TASK-089` remains owner-gated until
+pilot feedback is reviewed and an adoption baseline is explicitly approved.
 
 ---
 
-## Active Sprint 07 Tasks
+## Sprint 07 Task State
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
-**Status**: IN_PROGRESS - Gate 3 non-mutating proof merged on `main`; later helper enablement and managed-network validation remain deferred
+**Status**: PAUSED / DEFERRED - Gate 3 non-mutating proof merged on `main`; later helper enablement and managed-network validation require a future planning decision
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: MEDIUM-HIGH
 **Estimated Effort**: 4-7 days (32-56 hours), plus managed-network package validation
@@ -81,21 +79,23 @@ and must not weaken the dark-control-plane guardrails.
 Do not record provider keys, helper tokens, certificate subjects, raw thumbprints, raw provider responses, `.env` files, raw logs, browser network traces, screenshots, private AOIs, or local environment dumps in task evidence. Use sanitized operation states and public-safe summaries only.
 
 ### **TASK-088: Stable Release And Handoff Closeout**
-**Status**: IN_PROGRESS - `v0.1.2` is the frozen validated pilot baseline; remaining closeout is pilot-facing guide/support wording, owner-controlled feedback routing, evidence custody, and final handoff bookkeeping
+**Status**: COMPLETED - pilot distributed, support coverage confirmed, and release/evidence custody recorded
 **Type**: C (Release Engineering / Documentation / Handoff)
 **Priority**: HIGH
 **Estimated Effort**: 2-4 days (16-32 hours), excluding owner-gated migration follow-through
 **Target Sprint**: Sprint 07
 **Task File**: `.agent_work/tasks/active/TASK-088-stable-release-and-handoff-closeout.md`
 
-**Objective**: Close out the validated fork-side pilot release, make the Monday distribution/support path unambiguous, and leave a clean handoff record that works whether the project ends July 15 or receives the possible three-month extension.
+**Objective**: Close out the validated fork-side pilot release and leave a durable handoff record for the confirmed project extension through October 31.
 
-**Current Scope**:
-1. Formalize the reviewed handoff plan into task-tracked execution rather than leaving it only in status analysis.
-2. Record the merged PR #46 baseline and execute the pre-tag source pass required for a trustworthy stable release.
-3. Validate the rebuilt stable package set and publish the fork-side stable release under the post-fix release identity.
-4. Finalize pilot-facing guidance that distinguishes the fork download, the unchanged official cdcai repository, and the owner-controlled feedback channel.
-5. Preserve a migration-ready handoff without changing cdcai before pilot feedback and owner approval.
+**Completed Scope**:
+1. Formalized the reviewed handoff plan into task-tracked execution.
+2. Recorded the merged PR #46 baseline and completed the pre-tag source pass.
+3. Validated and published the stable `v0.1.2` package set.
+4. Sent pilot-facing guidance that distinguishes the fork download from the
+   unchanged official cdcai repository.
+5. Confirmed the external Word feedback method, support coverage, and durable
+   release/evidence custody without changing cdcai.
 
 **Important Boundaries**:
 - Keep the fork release self-consistent even if cdcai release recreation happens later.
@@ -124,17 +124,10 @@ Do not record provider keys, helper tokens, certificate subjects, raw thumbprint
 
 ---
 
-## Near-Term Backlog Watch
+## Backlog Selection Hold
 
-These are not active Sprint 07 work unless explicitly selected:
-
-| Task | Reason To Pull Forward |
-|---|---|
-| `TASK-076` Provider API Key Exposure And Restriction Policy | Needed before broader distribution if provider-key ownership/restriction policy is still informal. |
-| `TASK-068` Windows Test Portability And Script Validation | Useful if Sprint 07 helper work exposes PowerShell or runtime-script gaps that should be covered outside manual validation. |
-| `TASK-027` Enhanced Error Handling | Useful for the non-blocking v0.1.2 finding where Google mode reports a generic network error if a user clicks "Find towers" before defining a search area or boundary. |
-| `TASK-077` Public Release Manifest And Asset Import Hardening | Remaining staged/allowlist asset-activation hardening if release feedback shows import risk. |
-| `TASK-070` Restricted-Network Package Enhancements | Pull forward only if restricted-network/offline support becomes a launch requirement. |
+No new backlog task is selected by this Phase 1 update. The ordered inventory
+remains in `task-backlog.md` for the next planning iteration.
 
 ---
 

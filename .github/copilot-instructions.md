@@ -29,9 +29,9 @@ The project still carries public-health workflow expectations:
 - `TASK-067` has closed the Flask route-test timeout/isolation gap with pytest timeout safeguards and isolated test runtime paths.
 - PR #46 has merged on `main` as `d148727`, closing the non-mutating Task-087 Gate 3 proof while keeping the helper control plane dark.
 - The fork-side `v0.1.2` release is published and passed the full Docker/Podman CPU/CUDA validation matrix with both Google and Azure providers. It is the frozen validated pilot baseline.
-- `TASK-088` now owns pilot-facing distribution/support wording, evidence custody, and clean fork-side closeout.
+- `TASK-088` is complete: the pilot was distributed, support coverage was confirmed, and release/evidence custody was recorded.
 - `TASK-089` is intentionally deferred: prepare the handoff, but do not change `cdcai/TowerScout` until pilot feedback is reviewed and the owner explicitly approves an adoption baseline. Technical access alone does not authorize migration.
-- The project currently ends 2026-07-15 and may receive a three-month extension. Both outcomes use the same immediate plan: distribute the exact fork-side `v0.1.2` pilot, collect feedback through an owner-controlled channel, and keep cdcai unchanged during the hold.
+- The project is extended through 2026-10-31, with 2026-10-30 as the operational closeout date. Pilot feedback is maintained by the project lead in a fillable Word document outside the repository. No new implementation task has been selected by the Phase 1 closeout update.
 
 ### Completed Sprint 04 Summary
 
@@ -86,13 +86,13 @@ Sprint 04 materially changed what an agent should assume about the project. The 
 
 The current path is pilot distribution and feedback-gated adoption:
 
-1. Keep the six validated `v0.1.2` release assets immutable and use the fork release as the pilot download.
-2. Make pilot communication distinguish the fork-side pilot from the unchanged official cdcai repository.
-3. Confirm an organization-controlled feedback/support destination and backup owner before distribution.
-4. Finish Task-088 evidence custody and handoff documentation so a July 15 closeout does not depend on the current developer remaining available.
-5. Prepare Task-089 inputs, but do not push source/tags, create releases/issues, publish images, or change banners in cdcai until feedback review and explicit owner adoption approval.
-6. If feedback requires a fix, use a new fork-side version and validate it before adoption. If the project is extended, prioritize pilot findings and supportability before optional features.
-7. Keep `TASK-087` helper availability, browser mutation enablement, and managed-network helper-package validation deferred unless separately selected after the pilot/release transition.
+1. Keep the six distributed `v0.1.2` release assets immutable and retain the fork release as the pilot download.
+2. Treat the pilot email, external Word feedback method, and primary/backup support coverage as completed Task-088 facts.
+3. Keep `cdcai/TowerScout` unchanged until feedback review and explicit owner adoption approval.
+4. Keep Task-089 preparation reversible; do not push source/tags, create releases/issues, publish images, or change banners in cdcai before approval.
+5. If feedback requires a fix, use a new fork-side version and validate it before adoption.
+6. Do not infer the next implementation priority from the extension; select it in a later planning iteration.
+7. Keep `TASK-087` helper availability, browser mutation enablement, and managed-network helper-package validation deferred unless separately selected.
 
 `TASK-026` CPU optimization and `TASK-029` multi-provider fallback remain follow-on backlog work unless release evidence makes them release-critical.
 

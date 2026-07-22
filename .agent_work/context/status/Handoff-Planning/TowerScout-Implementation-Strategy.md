@@ -6,7 +6,8 @@
 > Its fork-side release work evolved through `v0.1.0` and `v0.1.1` into the
 > validated, published `v0.1.2` baseline. On 2026-07-10 the cdcai owner chose
 > to keep `cdcai/TowerScout` unchanged until pilot feedback is reviewed.
-> Current timing, repository roles, extension/no-extension branches, and
+> Current timing, repository roles, the confirmed extension through
+> 2026-10-31, and
 > adoption gates are defined in
 > `PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md`. Do not execute Workstreams G/H,
 > the old day-by-day migration schedule, or the `v0.1.0` migration commands

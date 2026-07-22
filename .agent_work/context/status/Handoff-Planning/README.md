@@ -10,23 +10,24 @@ Read these first and use them for current action:
 4. `.agent_work/tasks/active/TASK-089-cdcai-migration-execution.md`
 5. `HANDOFF.md`
 
-For the July 13 pilot execution, use
-`PILOT-OPERATIONS-PACKET.md`. It contains the send-ready message, pre-send
-gate, feedback intake/triage template, and owner-custody checklist. Its pending
-support fields must be completed before distribution.
+`PILOT-OPERATIONS-PACKET.md` is now the completed July 13 pilot-launch and
+custody record. Feedback is maintained by the project lead in a fillable Word
+document outside this repository; `.agent_work` does not duplicate intake or
+tracking.
 
 Current decision: distribute the exact validated fork-side `v0.1.2` package as
 the pilot, keep `cdcai/TowerScout` unchanged while feedback is collected, and
 execute adoption only after the owner reviews feedback and approves the
-baseline. The project may end on 2026-07-15 or receive a three-month extension;
-both paths use this same immediate plan.
+baseline. The project is extended through 2026-10-31, with 2026-10-30 used as
+the operational closeout date. No next implementation task is selected by this
+Phase 1 update.
 
 ## Current Release And Validation Records
 
 - `2026-07-08-v0.1.2-release-notes-draft.md` - notes source used for the
   published `v0.1.2` release
 - `2026-07-08-v0.1.2-remaining-validation-and-publication-checklist.md` -
-  completed publication record plus remaining pilot/handoff closeout
+  completed publication and pilot/handoff closeout record
 - `v0.1.2-Validation-Evidence/` - sanitized validation narrative and QA summary
 
 ## Historical Evidence - Do Not Execute As Current Plans

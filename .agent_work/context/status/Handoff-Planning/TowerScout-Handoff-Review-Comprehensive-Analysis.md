@@ -8,7 +8,8 @@
 > `cdcai/TowerScout` unchanged until pilot feedback is reviewed and an adoption
 > baseline is explicitly approved. Use
 > `PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md` plus `TASK-088`/`TASK-089` for
-> current action. Treat immediate-migration dates, `v0.1.0` commands, and cdcai
+> current action. The project is now extended through 2026-10-31. Treat
+> immediate-migration dates, `v0.1.0` commands, and cdcai
 > Issue-creation recommendations below as historical unless re-approved.
 
 | | |

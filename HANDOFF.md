@@ -20,11 +20,11 @@ repository remain unchanged until pilot users provide feedback. Therefore:
 - Migration preparation may continue, but source, tags, releases, images,
   issues, and repository banners must not be changed in cdcai until the owner
   reviews feedback and approves an adoption baseline.
-- Pilot feedback must go to a durable destination controlled by the cdcai owner
-  or organization, with a backup person able to continue support if the current
-  developer is unavailable.
+- Pilot feedback is maintained by the project lead in a fillable Word document
+  outside the repository. The confirmed primary and backup support contacts
+  have appropriate access.
 
-The canonical plan for the extension and no-extension paths is:
+The canonical plan for the confirmed extension through 2026-10-31 is:
 
 - `.agent_work/context/status/Handoff-Planning/PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md`
 
@@ -144,11 +144,11 @@ recreation rather than a normal git push:
 - collaborators and permissions
 - package visibility settings in GHCR
 
-If the project is extended, prioritize pilot findings and validate any new
-fork-side patch before asking the owner to approve adoption. If the project ends
-on 2026-07-15, give the owner the release assets/checksums, validation summary,
-feedback record, known findings, backlog, and prepared migration runbook without
-changing cdcai.
+The project ends 2026-10-31, with 2026-10-30 used as the operational closeout
+date. Before closeout, give the owner the release assets/checksums, validation
+summary, known findings, backlog, and prepared migration runbook. The external
+feedback document remains under the project lead's custody. Do not change cdcai
+without the owner's adoption approval.
 
 Keep the fork available as the pilot/provenance archive even after a later
 cdcai release path and package runtime are confirmed.

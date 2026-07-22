@@ -6,8 +6,8 @@
 
 ## Current Release-Transition Plan
 
-For the July 2026 pilot, project-end contingency, possible three-month
-extension, and feedback-gated cdcai adoption decision, read:
+For the July 2026 pilot, confirmed extension through 2026-10-31, and
+feedback-gated cdcai adoption decision, read:
 
 - `.agent_work/context/status/Handoff-Planning/PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md`
 - `.agent_work/context/status/Handoff-Planning/README.md`

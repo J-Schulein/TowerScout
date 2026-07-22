@@ -1,20 +1,20 @@
 # TASK-088: Stable Release And Handoff Closeout
 
-**Status**: IN_PROGRESS
+**Status**: COMPLETED - pilot sent, support coverage confirmed, and durable release/evidence custody recorded
 **Priority**: HIGH
 **Type**: C
 **Estimated Effort**: 2-4 days
 **Target Sprint**: Sprint 07
 **Created**: 2026-07-08
 **Owner**: TowerScout release owner / active agent support
-**Depends On**: validated `v0.1.2` package assets; pilot-facing guide/support destination; evidence custody; clean fork-side handoff state
+**Depends On**: validated `v0.1.2` package assets; completed pilot communication; confirmed support coverage; durable evidence custody; clean fork-side handoff state
 
 ## Objective
 
 Close out the validated fork-side `v0.1.2` release as the frozen pilot baseline,
-finalize the pilot distribution/support material, and leave a clean handoff
-record that works whether the project ends on 2026-07-15 or receives the
-possible three-month extension. Keep `cdcai/TowerScout` unchanged until its
+record the completed pilot distribution/support state, and leave a clean
+handoff record for the hard 2026-10-31 project end date. Keep
+`cdcai/TowerScout` unchanged until its
 owner reviews pilot feedback and approves an adoption baseline. `v0.1.0` and
 `v0.1.1` remain historical tag/image identities with no final GitHub Release
 assets.
@@ -60,7 +60,7 @@ pilot readiness.
 - IF pilot feedback requires a package change, THEN THE SYSTEM SHALL use a new
   version identity and proportionate validation rather than replacing the
   validated `v0.1.2` assets.
-- IF the project ends on 2026-07-15, THEN THE SYSTEM SHALL leave the cdcai owner
+- WHEN the project ends on 2026-10-31, THE SYSTEM SHALL leave the cdcai owner
   a durable release, evidence, feedback, backlog, and migration-preparation
   handoff that does not depend on the current developer remaining available.
 
@@ -79,11 +79,11 @@ pilot readiness.
       carried forward into `TASK-089` or backlog items.
 - [x] The `v0.1.2` GitHub Release is promoted/published as the final fork-side
       stable release with the validated six-asset set and final notes.
-- [ ] Pilot-facing communication identifies the fork-side `v0.1.2` download,
+- [x] Pilot-facing communication identifies the fork-side `v0.1.2` download,
       the unchanged official cdcai repository, and the selected feedback path.
-- [ ] A cdcai-owner-controlled feedback/support destination and backup support
-      owner are confirmed before pilot distribution.
-- [ ] Release assets, checksums, validation summary, known findings, and
+- [x] The external Word-document feedback method and primary/backup support
+      coverage are confirmed, with appropriate access.
+- [x] Release assets, checksums, validation summary, known findings, and
       troubleshooting material have durable owner-accessible custody.
 - [x] The cdcai repository is intentionally unchanged pending feedback review
       and explicit adoption approval.
@@ -93,8 +93,9 @@ pilot readiness.
 - The validated fork baseline is `v0.1.2` at
   `718a56485a59182f060a537e8f11d4ce71a1f0d4`.
 - The replayable fixture bundle and validation harness must remain available.
-- Pilot distribution requires a durable feedback/support destination controlled
-  by the cdcai owner or organization rather than only by the current developer.
+- Pilot feedback is maintained by the project lead in a fillable Word document
+  outside the repository; intake and tracking are not duplicated here.
+- Primary and backup support contacts are confirmed with appropriate access.
 - The existing `v0.1.2` assets remain immutable; fixes require a new version.
 
 ## Pre-TASK-088 Entry Checklist
@@ -130,11 +131,11 @@ execution begins. It is intentionally narrower than the full remaining
 
 ### Pilot Guide And Support Tracking
 
-- [ ] The Monday pilot email/setup guide uses the current pilot/adoption wording
+- [x] The July 13 pilot email/setup guide uses the current pilot/adoption wording
   and does not direct users to the unchanged cdcai repository for the pilot.
-- [ ] Any out-of-repo deck/docx/html supplied to pilot users is checked against
+- [x] The sent pilot material was checked against
   the `v0.1.2` filenames, commands, download location, and feedback destination.
-- [ ] A backup support owner has access to the final guide and support material.
+- [x] A backup support owner has access to the final guide and support material.
 
 ### Explicitly not a TASK-088 start gate
 
@@ -161,16 +162,16 @@ execution begins. It is intentionally narrower than the full remaining
 
 ## Current Execution Slice
 
-The current Task-088 slice is pilot-readiness and fork-side closeout. Release
-build, validation, and publication are complete; the remaining work is to make
-Monday's distribution/support path and a possible July 15 handoff unambiguous.
+The Task-088 slice is complete. Release build, validation, publication, pilot
+distribution, support coverage, and durable custody are recorded. The project
+is extended through 2026-10-31; later implementation work is outside this task.
 
 ### Immediate Checklist
 
 - [x] Freeze the existing six-asset `v0.1.2` release as the validated pilot
   baseline.
-- [ ] Finalize the pilot email/setup-guide wording and feedback destination.
-- [ ] Confirm backup support ownership and owner-accessible artifact/evidence
+- [x] Finalize the pilot email/setup-guide wording and external feedback method.
+- [x] Confirm backup support ownership and owner-accessible artifact/evidence
   custody.
 - [x] Reconcile the final Task-088/089 and handoff records on a clean
   `origin/main@718a564` branch without reverting PR #48 runtime/test changes.
@@ -891,6 +892,29 @@ support details; no cdcai or release-asset change is required.
 destination and backup owner, check the final outbound material, and then send
 the pilot.
 
+### 2026-07-22 - Pilot Launch And Task Closeout Confirmed
+**Objective**: Reconcile Task-088 with the completed pilot launch and confirmed
+project extension.
+**Context**: The pilot email was sent on 2026-07-13. The project lead maintains
+feedback in a fillable Word document outside the repository, and the primary
+and backup support contacts are confirmed with appropriate access. The project
+now has a hard 2026-10-31 end date.
+**Decision**: Close Task-088. Treat the public release, repository handoff docs,
+and validation evidence as durable custody. Do not duplicate feedback intake or
+tracking in `.agent_work`, and do not select subsequent implementation work as
+part of this closeout.
+**Execution**: Updated the canonical plan, pilot record, current-task state,
+backlog state, handoff guide, and agent context. Converted the pilot operations
+packet from a pre-send template into a completed launch and custody record.
+**Output**: All Task-088 acceptance criteria are satisfied; Task-089 remains
+owner-gated and cdcai remains unchanged.
+**Validation**: Agent-work quick check passed;
+`python .agent_work/scripts/validate_agent_work.py` passed; `git diff --check`
+passed; no runtime or test files changed; and the Flask docs/route contract
+suite passed (`57 passed`).
+**Next**: Merge the documentation branch through review, then begin a separate
+planning iteration without presuming which backlog work will be selected.
+
 ---
 
 ## Validation Results
@@ -914,16 +938,16 @@ publication.
       `.agent_work/context/status/Handoff-Planning/v0.1.2-Validation-Evidence/`
 - [x] **Release-path guidance finalized**: Completed 2026-07-08 for the
       fork-side release and package path
-- [ ] **Pilot-facing guidance finalized**: Pending final Monday distribution
-      wording, organization-controlled feedback destination, and backup support
-      owner confirmation
+- [x] **Pilot-facing guidance finalized**: Pilot email sent 2026-07-13; external
+      Word feedback method and primary/backup support coverage confirmed
 - [x] **Residual decisions closed or delegated**: Historical `v0.1.0` /
       `v0.1.1` disposition delegated to TASK-089, and non-blocking v0.1.2
       findings recorded for release notes/backlog follow-up
 - [x] **Final fork-side publication**: Completed 2026-07-09 at
       `https://github.com/J-Schulein/TowerScout/releases/tag/v0.1.2`
-- [ ] **Durable evidence and support custody**: Pending final owner-accessible
-      archive confirmation
+- [x] **Durable evidence and support custody**: Public release assets and
+      repository validation/handoff records are durable; confirmed support
+      contacts have appropriate access
 - [x] **cdcai feedback hold**: The official cdcai repository remains unchanged
       until feedback review and explicit owner adoption approval
 
@@ -949,15 +973,15 @@ publication.
 - Local `test_config.py` runs can fail if the shell carries TLS-bundle
   environment state; unsetting `REQUESTS_CA_BUNDLE` and `SSL_CERT_FILE` before
   that slice restores the expected local baseline.
-- Pilot distribution still needs a named organization-controlled feedback
-  destination and backup support owner before Task-088 can close.
-- The current documentation changes must be landed from the `v0.1.2`
-  `origin/main` baseline; the present local branch is an obsolete pre-squash
-  Task-088 branch and must not be committed wholesale.
+- Pilot distribution, external feedback handling, and backup support coverage
+  are complete. Contact details and the fillable Word document remain outside
+  this public repository.
+- The documentation closeout branch is based on the `v0.1.2`
+  `origin/main@718a564` baseline and is prepared for normal PR review.
 
 ### Sign-off
 
-Stable package validation is signed off by the 2026-07-09 full-matrix PASS, and
-the fork-side `v0.1.2` stable release is published as latest. Task-088 remains
-open for pilot-facing communication/support ownership, durable evidence custody,
-safe documentation landing, and sprint/handoff bookkeeping.
+Stable package validation is signed off by the 2026-07-09 full-matrix PASS, the
+fork-side `v0.1.2` stable release is published as latest, and the pilot was sent
+on 2026-07-13. Support coverage and durable custody are confirmed. Task-088 is
+complete pending normal review and merge of this documentation record.

@@ -1,7 +1,7 @@
 # Task Backlog - Remaining Work
 
-**Last Updated**: July 10, 2026
-**Planning State**: The fork-side `v0.1.2` package passed full-matrix validation and is the frozen pilot baseline. `cdcai/TowerScout` remains intentionally unchanged until the owner reviews user feedback and approves an adoption baseline. `TASK-087`, `TASK-088`, and `TASK-089` are tracked in `current-tasks.md`, not in the ordered backlog.
+**Last Updated**: July 22, 2026
+**Planning State**: The fork-side `v0.1.2` pilot has been distributed, the project is extended through 2026-10-31, and `cdcai/TowerScout` remains unchanged until the owner reviews feedback and approves an adoption baseline. This Phase 1 closeout does not select new backlog work. `TASK-087`, completed `TASK-088`, and owner-gated `TASK-089` remain tracked in `current-tasks.md`, not in the ordered backlog.
 **Ordering Method**: Remaining work is ordered by release/pilot risk first, then post-release architecture and maintenance value.
 
 ---
@@ -39,8 +39,8 @@
 
 | Task | Active Location | Notes |
 |---|---|---|
-| `TASK-087` Host-Side TLS Repair Control Plane | `.agent_work/current-tasks.md`; `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md` | Selected as Sprint 07 active work. Starts with helper transport and security proof before product UI integration. |
-| `TASK-088` Stable Release And Handoff Closeout | `.agent_work/current-tasks.md`; `.agent_work/tasks/active/TASK-088-stable-release-and-handoff-closeout.md` | Selected as active release-transition work. Owns the bounded pre-handoff cleanup, validated `v0.1.2` release package, guide finalization, and fork-side release publication. |
+| `TASK-087` Host-Side TLS Repair Control Plane | `.agent_work/current-tasks.md`; `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md` | Paused after the merged non-mutating proof. Later enablement requires a future planning decision. |
+| `TASK-088` Stable Release And Handoff Closeout | `.agent_work/current-tasks.md`; `.agent_work/tasks/active/TASK-088-stable-release-and-handoff-closeout.md` | Completed for pilot distribution, support coverage, and durable release/evidence custody; retained in `tasks/active/` until Sprint 07 closeout. |
 | `TASK-089` cdcai Adoption Preparation And Deferred Ownership Transfer | `.agent_work/current-tasks.md`; `.agent_work/tasks/active/TASK-089-cdcai-migration-execution.md` | Prepare the handoff now, but keep cdcai unchanged until pilot feedback is reviewed and the owner approves the adoption baseline. Technical access alone does not authorize execution. |
 
 ---
