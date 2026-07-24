@@ -1,6 +1,6 @@
 # TASK-098: Dependency Security Remediation And Release Gate
 
-**Status**: IN_PROGRESS / SLICES A-B COMPLETE; SLICE C READY
+**Status**: IN_PROGRESS / SLICES A-C COMPLETE; SLICE D/G READY
 **Priority**: HIGH
 **Type**: C (Security Remediation / Runtime Qualification)
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -291,7 +291,7 @@ Validate the exact pinned action behavior before making the new gate blocking.
 - [x] Custom-image validation rejects content-sniffed EPS, JPEG2000, McIdas,
   malformed, and oversized inputs before vulnerable Pillow decoding; valid
   JPEG/PNG/TIFF behavior, the 50 MiB cap, and rate limiting remain intact.
-- [ ] Approved Pillow, Waitress, and aiohttp targets are pinned consistently
+- [x] Approved Pillow, Waitress, and aiohttp targets are pinned consistently
   and pass their focused image, WSGI, and provider regression suites.
 - [ ] The approved torch/torchvision CPU/CUDA pair passes clean dependency
   resolution, trusted model loading, and representative YOLO/EfficientNet
@@ -677,10 +677,66 @@ redirect, timeout/retry, cancellation, and sanitized-error tests.
 
 ---
 
+### 2026-07-24 - Slice C aiohttp Provider Client Patch Completed
+
+**Objective**: Remove the release-blocking aiohttp response-header parser
+baseline while preserving Google/Azure download, retry, cancellation, TLS,
+and sanitized-error behavior.
+
+**Context**: TowerScout's live aiohttp surface is the fixed-host map-provider
+client in `webapp/ts_maps.py`. The approved target is aiohttp 3.14.2, whose
+official release history records the 3.14.1 cancellation/connector fixes and
+the July 20, 2026 3.14.2 patch:
+[aiohttp changelog](https://docs.aiohttp.org/en/stable/changes.html).
+
+**Decision**: Pin aiohttp 3.14.2 exactly without changing provider application
+code. Add maintained client tests that exercise the real aiohttp response
+parser against a loopback fixture and retain the existing shared provider TLS
+connector contract.
+
+**Execution**: Added `tests/unit/test_task_098_slice_c.py` and updated the
+aiohttp pin in `webapp/requirements.txt`. The new contracts cover Google and
+Azure redirect-following and file writes, `Retry-After` parsing and retry,
+timeout categorization, cancellation propagation, and credential redaction.
+The test-first run on aiohttp 3.9.3 produced the single expected pin failure
+while all six behavior-preservation tests passed.
+
+**Output**: Python 3.12 and Python 3.11 selected the platform wheel for aiohttp
+3.14.2, added `aiohappyeyeballs`, and passed `pip check`. No provider runtime
+code, concurrency limit, timeout, retry count, TLS policy, URL construction,
+or output file behavior changed.
+
+**Validation**:
+
+- Focused aiohttp/provider/TLS-runtime/Azure integration gate: PASS, 31 tests
+  on both Python 3.12 and containerized Python 3.11.
+- Python 3.12 full unit suite: PASS, 284 passed and 74 legacy skips.
+- Python 3.11 Docker CPU full unit suite: PASS, 237 passed and 121
+  Linux/platform-feature skips.
+- Broad integration on both versions: unchanged baseline drift, 20 passed, 2
+  skipped, and the same 4 pre-existing geocoding failures.
+- Setup Wizard and ProviderStateManager JavaScript contracts: PASS; the forced
+  Azure failure output remained the expected negative-path assertion.
+- Targeted Black and blocking Flake8: PASS.
+- Deterministic CPU model output: PASS; YOLO counts remained `[0, 0, 0]` and
+  EfficientNet scores remained `[0.8266443, 0.8266443, 0.8266443]`.
+- Same-host container comparison: startup and both inference medians improved;
+  peak RSS changed from 1,385,152,512 to 1,457,643,520 bytes, a 5.23% increase
+  below the 10% investigation threshold.
+- Docker isolation: the disposable Slice C container was removed, the unique
+  baseline image was retained, and the pre-existing RC7.1 container was not
+  reused or changed.
+
+**Next**: Create a Slice C commit checkpoint. Begin the Slice D/G coordinated
+ML compatibility spike only after confirming the exact Docker GPU profile
+needed for CPU/CUDA pair selection and model-trust qualification.
+
+---
+
 ## Validation Results
 
-**Execution Status**: IN_PROGRESS; PRE-CHANGE BASELINE AND SLICES A-B
-COMPLETE; SLICE C READY
+**Execution Status**: IN_PROGRESS; PRE-CHANGE BASELINE AND SLICES A-C
+COMPLETE; SLICE D/G READY
 
 **Planning Readiness Confidence**: 94%. The alert inventory, reachability
 evidence, proposed targets, work slices, regression obligations, stop rules,
@@ -723,6 +779,7 @@ decision and Slice D compatibility evidence, not missing task preparation.
 - Existing Docker state isolation: PASS; no pre-existing image, container,
   port, volume, or build-cache layer influenced the run.
 
-Task-098 has changed only the approved Slice A runtime/input boundaries and
-Slice B Pillow/Waitress pins plus their maintained regression contracts. No
-release asset, GitHub alert state, or external repository has been changed.
+Task-098 has changed only the approved Slice A runtime/input boundaries,
+Slice B Pillow/Waitress pins, Slice C aiohttp pin, and their maintained
+regression contracts. No release asset, GitHub alert state, or external
+repository has been changed.

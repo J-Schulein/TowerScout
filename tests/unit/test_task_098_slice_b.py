@@ -7,6 +7,7 @@ import socket
 import threading
 from pathlib import Path
 
+from waitress import wasyncore
 from waitress.server import create_server
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -14,12 +15,19 @@ REQUIREMENTS_FILE = REPO_ROOT / "webapp" / "requirements.txt"
 YOLO_RUNTIME_FILE = REPO_ROOT / "webapp" / "ts_yolov5.py"
 
 
-def _request(port: int, method: str, path: str, body: bytes | None = None):
+def _request(
+    port: int,
+    method: str,
+    path: str,
+    body: bytes | None = None,
+    *,
+    read_body: bool = True,
+):
     connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
     try:
         connection.request(method, path, body=body)
         response = connection.getresponse()
-        return response.status, response.read()
+        return response.status, response.read() if read_body else b""
     finally:
         connection.close()
 
@@ -62,6 +70,7 @@ def test_waitress_loopback_request_and_disconnect_contract():
             "POST",
             "/upload",
             body=b"x" * 2048,
+            read_body=False,
         )
         assert status == 413
         assert "/upload" not in application_calls
@@ -90,8 +99,8 @@ def test_waitress_loopback_request_and_disconnect_contract():
         assert status == 200
         assert body == b'{"status":"ok"}'
     finally:
-        server.close()
         server.task_dispatcher.shutdown()
+        wasyncore.close_all(server._map)
         server_thread.join(timeout=5)
 
     assert not server_thread.is_alive()
