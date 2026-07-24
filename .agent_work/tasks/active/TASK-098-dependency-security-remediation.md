@@ -1007,13 +1007,19 @@ vulnerabilities. With the classified residual findings removed, the separate
 critical/high gate is now merge-blocking; the all-severity SARIF generation
 and upload path remains advisory.
 
+**Blocking-ratchet verification**: Draft PR #51 workflow run `30125209209`
+validated ratchet commit `634439f`. Python 3.11, Python 3.12, frontend,
+security, standalone Trivy, and both Task-087 Puppeteer jobs passed. The
+merge-blocking critical/high step itself concluded `success` and again listed
+`webapp/requirements.txt` with `0` vulnerabilities. The Docker build job was
+correctly skipped under its existing main-branch-only condition.
+
 ---
 
 ## Validation Results
 
-**Execution Status**: IN_PROGRESS; MANDATORY SLICES A-D/G IMPLEMENTED; DOCKER
-CPU/GPU AND LIVE GOOGLE/AZURE QUALIFICATION PASSED; BRANCH SECURITY-RATCHET
-ACTIVATED; FINAL PR CHECKS PENDING
+**Execution Status**: IN_PROGRESS; IMPLEMENTATION AND QUALIFICATION COMPLETE;
+DRAFT PR #51 READY FOR PROJECT-LEAD CHECKOUT AND TASK SIGN-OFF
 
 **Planning Readiness Confidence**: 94%. The alert inventory, reachability
 evidence, proposed targets, work slices, regression obligations, stop rules,
