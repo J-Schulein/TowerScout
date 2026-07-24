@@ -102,8 +102,8 @@ investigation.
 
 ### **TASK-098: Dependency Security Remediation And Release Gate**
 
-**Status**: IN_PROGRESS - pre-change baselines and Slice A local/input
-boundaries complete; Slice B narrow Pillow/Waitress patches ready
+**Status**: IN_PROGRESS - pre-change baselines and Slices A-B complete; Slice C
+aiohttp provider-client patch ready
 **Type**: C (Security Remediation / Runtime Qualification)
 **Priority**: HIGH
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening

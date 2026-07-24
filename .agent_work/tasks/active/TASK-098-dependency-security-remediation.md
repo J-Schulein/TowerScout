@@ -1,6 +1,6 @@
 # TASK-098: Dependency Security Remediation And Release Gate
 
-**Status**: IN_PROGRESS / SLICE A COMPLETE; SLICE B READY
+**Status**: IN_PROGRESS / SLICES A-B COMPLETE; SLICE C READY
 **Priority**: HIGH
 **Type**: C (Security Remediation / Runtime Qualification)
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -618,10 +618,69 @@ Pillow/Waitress patch with clean-resolution and focused image/WSGI tests.
 
 ---
 
+### 2026-07-24 - Slice B Pillow And Waitress Patch Completed
+
+**Objective**: Apply the approved narrow Pillow and Waitress security patches
+without changing supported image behavior, WSGI readiness, model output, or
+runtime performance beyond the declared investigation threshold.
+
+**Context**: The approved Slice B baseline pinned Pillow 12.2.0 and Waitress
+3.0.0. Pillow 12.3.0 is the approved July 2026 security release, and Waitress
+3.0.2 includes the 3.0.1 half-open/request-smuggling fixes plus the subsequent
+trusted-proxy-header correction. Upstream references:
+[Pillow 12.3.0 release notes](https://pillow.readthedocs.io/en/stable/releasenotes/12.3.0.html)
+and [Waitress 3.0.2 project history](https://pypi.org/project/waitress/).
+
+**Decision**: Pin Pillow 12.3.0 and Waitress 3.0.2 exactly. Keep the existing
+torch 2.2.1+cpu / torchvision 0.17.1+cpu pair unchanged, align the YOLO runtime
+minimum with the Pillow pin, and add a maintained loopback WSGI contract before
+accepting the new versions.
+
+**Execution**: Added `tests/unit/test_task_098_slice_b.py`; updated
+`webapp/requirements.txt`, the Pillow minimum in `webapp/ts_yolov5.py`, and
+the local-loader dependency fixture. The maintained Waitress contract covers
+readiness, the request-body cap, malformed headers, a half-open client
+disconnect followed by readiness recovery, and clean server shutdown.
+
+**Output**: Clean Python 3.12 resolution selected Pillow 12.3.0 and Waitress
+3.0.2 with no broken requirements. Runtime dependencies resolved from wheels
+except the repository's pre-existing, source-only pure-Python
+`efficientnet-pytorch==0.7.1`; this was an intentional known exception rather
+than a new native source-build fallback. The disposable Python 3.11 container
+upgraded only Pillow and Waitress over the isolated clean baseline layer and
+retained the pinned CPU torch pair.
+
+**Validation**:
+
+- Focused Slice A/B, route, and YOLO loader gate: PASS, 31 tests on both
+  Python 3.12 and containerized Python 3.11.
+- Python 3.12 full unit suite: PASS, 277 passed and 74 legacy skips.
+- Python 3.11 Docker CPU full unit suite: PASS, 230 passed and 121
+  Linux/platform-feature skips.
+- Broad integration on both versions: unchanged baseline drift, 20 passed, 2
+  skipped, and the same 4 pre-existing geocoding failures.
+- Setup Wizard and ProviderStateManager JavaScript contracts: PASS; the forced
+  Azure failure output remained the expected negative-path assertion.
+- Python 3.11 `pip check`, targeted Black, and blocking Flake8: PASS.
+- Deterministic CPU model output: PASS; YOLO counts remained `[0, 0, 0]` and
+  EfficientNet scores remained `[0.8266443, 0.8266443, 0.8266443]`.
+- Same-host container comparison: startup and both inference medians improved;
+  peak RSS changed from 1,385,152,512 to 1,459,650,560 bytes, a 5.38% increase
+  below the 10% investigation threshold.
+- Docker isolation: the disposable Slice B container was removed, the unique
+  baseline image was retained for later comparison, and the pre-existing
+  RC7.1 container was not reused or changed.
+
+**Next**: Create a Slice B commit checkpoint, then begin Slice C's approved
+aiohttp 3.14.2 provider-client patch with maintained Google/Azure download,
+redirect, timeout/retry, cancellation, and sanitized-error tests.
+
+---
+
 ## Validation Results
 
-**Execution Status**: IN_PROGRESS; PRE-CHANGE BASELINE AND SLICE A COMPLETE;
-SLICE B READY
+**Execution Status**: IN_PROGRESS; PRE-CHANGE BASELINE AND SLICES A-B
+COMPLETE; SLICE C READY
 
 **Planning Readiness Confidence**: 94%. The alert inventory, reachability
 evidence, proposed targets, work slices, regression obligations, stop rules,
@@ -664,6 +723,6 @@ decision and Slice D compatibility evidence, not missing task preparation.
 - Existing Docker state isolation: PASS; no pre-existing image, container,
   port, volume, or build-cache layer influenced the run.
 
-No dependency pins, application code, runtime configuration, release assets,
-GitHub alert states, or external repositories have been changed under
-Task-098.
+Task-098 has changed only the approved Slice A runtime/input boundaries and
+Slice B Pillow/Waitress pins plus their maintained regression contracts. No
+release asset, GitHub alert state, or external repository has been changed.
