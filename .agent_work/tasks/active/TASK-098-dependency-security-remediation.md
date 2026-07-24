@@ -1,7 +1,7 @@
 # TASK-098: Dependency Security Remediation And Release Gate
 
-**Status**: IN_PROGRESS / MANDATORY SLICES A-D/G IMPLEMENTED; COMMIT-PINNED
-CUDA 12.6 QUALIFICATION PASSED; LIVE-PROVIDER AND SECURITY-RATCHET CLOSEOUT
+**Status**: IN_PROGRESS / MANDATORY SLICES A-D/G IMPLEMENTED; DOCKER CPU/GPU
+AND LIVE GOOGLE/AZURE QUALIFICATION PASSED; BRANCH SECURITY-RATCHET CLOSEOUT
 PENDING
 **Priority**: HIGH
 **Type**: C (Security Remediation / Runtime Qualification)
@@ -275,8 +275,8 @@ Validate the exact pinned action behavior before making the new gate blocking.
 
 - [x] A pre-change baseline records dependencies, fixtures, model/assets,
   output parity, workflow results, timings, and peak memory.
-- [ ] Each slice passes focused tests and the shared workflow gate before the
-  next slice begins.
+- [x] Each mandatory slice passes focused tests and the shared workflow gate
+  before the next slice begins.
 - [x] Dedicated maintained tests replace reliance on the skipped legacy
   validation and image-processing contracts for every touched path.
 - [ ] Detection state/counts, review/map/list behavior, manual tower semantics,
@@ -285,7 +285,7 @@ Validate the exact pinned action behavior before making the new gate blocking.
 - [ ] Same-host warmed median startup, inference, local detection time, and
   peak memory remain within the 10% investigation threshold unless a different
   threshold was approved before comparison.
-- [ ] Live Google and Azure workflows plus Docker CPU/GPU dependency
+- [x] Live Google and Azure workflows plus Docker CPU/GPU dependency
   compatibility pass before Task-098 sign-off; Task-097/Task-091 retain the
   final four-profile operational package matrix.
 
@@ -309,15 +309,15 @@ Validate the exact pinned action behavior before making the new gate blocking.
 
 - [x] Clean Python 3.11 and 3.12 dependency installs resolve without
   incompatible wheels or unintended source-build fallback.
-- [ ] Google and Azure provider downloads pass TLS-verified header parsing,
+- [x] Google and Azure provider downloads pass TLS-verified header parsing,
   redirect, timeout/retry, cancellation, and sanitized-error tests.
 - [ ] ZIP-code shapefile behavior and setup/settings/session behavior pass for
   every approved geospatial or web-framework hardening change.
 - [x] Rebuilt images pass dependency-focused Docker CPU and Docker GPU
   validation for the Task-098 changes. Task-097/Task-091 retain Podman CPU/GPU
   and the final four-profile operational package matrix.
-- [ ] Before each runtime stage, the user is asked to start the exact Docker
-  Desktop and/or Podman profiles needed and confirms they are running.
+- [x] Before each Task-098 runtime stage, the user is asked to start the exact
+  Docker Desktop profile needed and confirms it is running.
 
 ### Release Gate And Handoff
 
@@ -917,12 +917,56 @@ credential and local AOI fixture to Google/Azure requires explicit external
 request authorization. The disposable container was removed; the pre-existing
 RC7.1 container remained healthy and unchanged on port 5005.
 
+### 2026-07-24 - Live Google And Azure Provider Gate Passed
+
+**Objective**: Exercise the maintained estimate, detection, list/map rendering,
+progress, cancellation, and post-cancel recovery paths against both supported
+providers using the Task-098 candidate runtime.
+
+**Authorization and fixture custody**: The project lead explicitly authorized
+the configured Google/Azure requests and local AOI use before execution. The
+400-byte ignored fixture contains a five-point polygon and expected minimum of
+one detection; its SHA-256 is
+`EC2F0E45C0484384BA02F685C19578F4E16045EB3D1BD2D696D6F78EF0AE69F9`.
+Raw coordinates, provider URLs, response payloads, screenshots, and browser
+artifacts remain local and ignored.
+
+**Runtime isolation**: Ran
+`towerscout:task098-candidate-torch260-cpu` on `127.0.0.1:5006`. Existing
+provider configuration, model assets, ZIP data, and managed-network CA files
+were mounted read-only. Session, cache, log, temp, upload, and `/tmp` paths
+were disposable tmpfs mounts. The first Google attempt correctly failed TLS
+verification because the ad hoc `docker run` omitted the package's
+`SSL_CERT_FILE` and `REQUESTS_CA_BUNDLE` environment variables. After applying
+the existing non-secret CA path
+`/app/webapp/config/certs/towerscout-ca-bundle.pem`, the unchanged candidate
+passed both providers. This was a test-launch correction, not a source,
+credential, fixture, or trust-bundle change.
+
+**Sanitized results**:
+
+| Run | Estimate | Detection/recovery | Cancel | Result |
+| --- | --- | --- | --- | --- |
+| Google detect `20260724-161116-google` | 1 tile, HTTP 200, 232 ms | 8 detections; 8 selected/listed; 5 map-visible; 18.690 s | Not requested | PASS |
+| Azure detect `20260724-161151-azure` | 1 tile, HTTP 200, 78 ms | 14 detections; 14 selected/listed; 9 map-visible; 19.586 s | Not requested | PASS |
+| Google cancel `20260724-161329-google-cancel` | 1 tile, HTTP 200, 66 ms | Recovery rerun: 8 detections; 8 selected/listed; 5 map-visible; 15.116 s | HTTP 200 in 655 ms; 0 detections after cancel | PASS |
+| Azure cancel `20260724-161402-azure-cancel` | 1 tile, HTTP 200, 49 ms | Recovery rerun: 14 detections; 14 selected/listed; 9 map-visible; 10.946 s | HTTP 200 in 298 ms; 0 detections after cancel | PASS |
+
+All runs displayed progress and reported zero page errors. The only non-2xx
+network item was the existing harmless `GET /favicon.ico` HTTP 404. The
+cancel runs recorded the expected client abort message and then completed
+their recovery detection successfully.
+
+**Cleanup**: The isolated container was stopped and removed. No Task-098
+container remains; the pre-existing RC7.1 container remained healthy and
+unchanged on port 5005.
+
 ---
 
 ## Validation Results
 
-**Execution Status**: IN_PROGRESS; MANDATORY SLICES A-D/G IMPLEMENTED; CPU AND
-COMMIT-PINNED CUDA 12.6 QUALIFICATION PASSED; LIVE-PROVIDER AND SECURITY-RATCHET
+**Execution Status**: IN_PROGRESS; MANDATORY SLICES A-D/G IMPLEMENTED; DOCKER
+CPU/GPU AND LIVE GOOGLE/AZURE QUALIFICATION PASSED; BRANCH SECURITY-RATCHET
 CLOSEOUT PENDING
 
 **Planning Readiness Confidence**: 94%. The alert inventory, reachability
@@ -951,9 +995,9 @@ decision and Slice D compatibility evidence, not missing task preparation.
 - Current CI reality: unit tests block; the broad integration job, container
   image build, and Trivy SARIF path are advisory; live Google/Azure browser
   smoke and four-profile package validation are external runtime gates.
-- Live-provider smoke and branch security reconciliation remain Task-098
-  execution-time gates. Final Docker/Podman CPU/GPU operational qualification
-  remains assigned to Task-097/Task-091.
+- Branch security reconciliation and the blocking-ratchet decision remain the
+  Task-098 execution-time gate. Final Docker/Podman CPU/GPU operational
+  qualification remains assigned to Task-097/Task-091.
 
 **Docker CPU Python 3.11 Baseline**:
 
