@@ -102,8 +102,9 @@ investigation.
 
 ### **TASK-098: Dependency Security Remediation And Release Gate**
 
-**Status**: IN_PROGRESS - Slices A-C complete; Slice D/G CPU selection and
-model-trust controls complete, commit-pinned CUDA 12.6 qualification pending
+**Status**: IN_PROGRESS - mandatory Slices A-D/G implemented; CPU and
+commit-pinned CUDA 12.6 qualification passed; live-provider and
+security-ratchet closeout pending
 **Type**: C (Security Remediation / Runtime Qualification)
 **Priority**: HIGH
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -114,6 +115,15 @@ model-trust controls complete, commit-pinned CUDA 12.6 qualification pending
 **Objective**: Implement only the approved Task-090 remediation slices,
 qualify the affected dependency and runtime paths, and close the security
 release gate before Task-087 resumes.
+
+**Current Closeout Boundary**:
+
+- The external Docker CUDA qualification passed on exact source commit
+  `675bd8fabc27765522906957524d2027d931f6a1`.
+- Task-098 retains live Google/Azure smoke and branch alert/CI-ratchet
+  reconciliation.
+- Task-097/Task-091 retain Podman CPU/GPU and the final four-profile
+  operational package matrix.
 
 **Start Gate**:
 
