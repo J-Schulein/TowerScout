@@ -961,13 +961,52 @@ their recovery detection successfully.
 container remains; the pre-existing RC7.1 container remained healthy and
 unchanged on port 5005.
 
+### 2026-07-24 - Conditional Slice E Compatibility Gate Passed
+
+**Objective**: Remove the three residual critical/high Fiona and GeoPandas
+findings without changing TowerScout's qualified packaged-ZCTA reader
+behavior.
+
+**Selected pair**: Upgraded Fiona from `1.9.6` to `1.10.1` and GeoPandas from
+`0.14.3` to `1.1.2`. Because GeoPandas 1.x prefers Pyogrio when available,
+`Zipcode_Provider` now selects `engine='fiona'` explicitly. This preserves the
+existing I/O backend while adopting the fixed package pair.
+
+**Compatibility evidence**:
+
+- isolated Python 3.12 environment: Fiona `1.10.1`, GeoPandas `1.1.2`,
+  pandas `2.3.3`, Shapely `2.0.3`, and PyProj `3.7.2`; `pip check` PASS
+- focused runtime and Slice E contracts: PASS, 6 tests
+- fresh `--pull --no-cache` Linux/Python 3.11 image:
+  `towerscout:task098-slice-e-fiona1101-cpu`, image ID
+  `sha256:5dc120a32bc5b606d9653dd6a8fc218e702812d72814985e2e29321d1cc9aae1`
+- disposable read-only image validation: `pip check` PASS; the real packaged
+  ZCTA shapefile loaded through `Zipcode_Provider` with 33,791 rows, 11
+  columns, CRS `EPSG:4269`, and non-empty Polygon geometry
+- existing Docker state remained isolated: only the pre-existing RC7.1
+  container continued running and healthy on port 5005
+
+**Test-environment note**: A combined 63-test Python 3.12 run reached 57
+passes, then six Flask-route cases failed during `tmp_path` setup because the
+managed Windows host denied access to pytest's temp directory. The failure
+occurred before those test bodies and is not a Slice E application failure;
+the same route coverage had already passed before this geospatial-only change.
+
+**GPU evidence boundary**: The accepted CUDA evidence remains bound to commit
+`675bd8fabc27765522906957524d2027d931f6a1`. Slice E changes only geospatial
+pins, the ZIP-code reader's explicit backend selection, and maintained
+contracts; it does not change torch, torchvision, model loading, device
+selection, hashes, or inference code. The evidence therefore continues to
+qualify the unchanged ML slice, but it is not described as an exact-final-HEAD
+GPU image qualification.
+
 ---
 
 ## Validation Results
 
 **Execution Status**: IN_PROGRESS; MANDATORY SLICES A-D/G IMPLEMENTED; DOCKER
 CPU/GPU AND LIVE GOOGLE/AZURE QUALIFICATION PASSED; BRANCH SECURITY-RATCHET
-CLOSEOUT PENDING
+CLOSEOUT AND QUALIFIED SLICE E APPLICATION PENDING
 
 **Planning Readiness Confidence**: 94%. The alert inventory, reachability
 evidence, proposed targets, work slices, regression obligations, stop rules,
@@ -1012,6 +1051,7 @@ decision and Slice D compatibility evidence, not missing task preparation.
   port, volume, or build-cache layer influenced the run.
 
 Task-098 has changed only the approved Slice A runtime/input boundaries,
-Slice B Pillow/Waitress pins, Slice C aiohttp pin, and their maintained
-regression contracts. No release asset, GitHub alert state, or external
-repository has been changed.
+Slice B Pillow/Waitress pins, Slice C aiohttp pin, Slice D/G ML runtime pins
+and safety boundaries, qualified Slice E geospatial pins/backend selection,
+the CI security ratchet, and maintained regression/evidence records. No
+release asset, GitHub alert state, or external repository has been changed.
