@@ -12,7 +12,7 @@ work.
 
 | Order | Task | Status | Estimate | Dependencies | Required outcome |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | `TASK-098` Dependency Security Remediation And Release Gate | PENDING_TASK_090 | Estimate after Task-090; provisional patch slice plus coordinated ML/geospatial decision | Task-090 classifications and owner approval | Patchable mandatory findings pass regression/package validation; no unresolved release-blocking critical/high alert |
+| 1 | `TASK-098` Dependency Security Remediation And Release Gate | APPROVED_WITH_NON_REGRESSION_CAVEAT / READY_TO_BEGIN | Mandatory slices 4-8 days; full coordinated hardening 6-11 days, plus GPU/runtime host availability | Task-090 classification and project-lead approval complete; pre-change baseline required | Patchable mandatory findings pass regression/package validation with no unapproved feature, workflow, output, or performance regression; no unresolved release-blocking critical/high alert |
 | 2 | `TASK-096` User-Initiated Exit And Container Stop | NOT_STARTED | 2-4 days | Task-087 helper/security pattern; current stop scripts | Confirmed Exit/Stop works on Docker and Podman without deleting named volumes |
 | 3 | `TASK-097` Podman CPU/GPU Final Path Qualification | NOT_STARTED | 3-5 days plus environment validation | Tasks 090, 098, 087, and 096 | Podman CPU and GPU/CDI pass final-package qualification without Docker Desktop |
 | 4 | `TASK-091` Owner-Runnable Release Qualification | NOT_STARTED | 3-6 days | Candidate scope stable; fixture/harness custody | cdcai owner can execute or supervise the minimum release gate |
@@ -22,6 +22,9 @@ work.
 
 ### Task-098 Boundary
 
+- Task-090 identified five release-blocking alerts, one required-hardening
+  alert, and an all-interface Compose port publication that contradicts the
+  local-only runtime boundary.
 - Do not patch dependency pins ad hoc before Task-090 establishes reachability,
   compatible target versions, and required regression scope.
 - Treat Pillow, Waitress, and the client-relevant aiohttp findings as the first
@@ -31,6 +34,8 @@ work.
 - Require written owner acceptance for any residual critical/high risk.
 - Ratchet CI for new critical/high findings only after the existing baseline is
   classified and the approved remediation lands.
+- Proposed scope:
+  [`TASK-090/remediation-scope.md`](./tasks/active/TASK-090/remediation-scope.md).
 
 ### Task-096 Boundary
 
@@ -94,7 +99,8 @@ Parking lot:
 | Task | Current state |
 | --- | --- |
 | `TASK-095` Governance And AI-Ready Handoff Foundation | Active in Sprint 08; Phase A complete, Phase B continues |
-| `TASK-090` Runtime, Custom-Image, And Dependency Security Investigation | READY / NEXT in Sprint 08; includes all 62 open Trivy alerts |
+| `TASK-090` Runtime, Custom-Image, And Dependency Security Investigation | Completed; Task-098 scope approved |
+| `TASK-098` Dependency Security Remediation And Release Gate | Approved with non-regression caveat; ready to begin with the pre-change baseline |
 | `TASK-087` Host-Side TLS Repair Control Plane | Reselected in Sprint 08 after the Tasks 090/098 security gate |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until final qualification and approval |
 
