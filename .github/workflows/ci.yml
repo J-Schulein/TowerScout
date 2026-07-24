@@ -185,9 +185,8 @@ jobs:
         cat trivy-version.txt >> "$GITHUB_STEP_SUMMARY"
       continue-on-error: true
 
-    # TASK-098 transition: collect the branch result before making this
-    # blocking. The classified Fiona/GeoPandas high baseline must be upgraded
-    # or receive a narrow, expiring owner-approved exception first.
+    # TASK-098 ratchet: block new or reintroduced critical/high dependency
+    # findings. The all-severity SARIF reporting path remains advisory below.
     - name: Evaluate critical and high vulnerability gate
       uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
       with:
@@ -199,7 +198,6 @@ jobs:
         exit-code: '1'
         ignore-unfixed: 'false'
         version: 'v0.69.3'
-      continue-on-error: true
 
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61 # v4

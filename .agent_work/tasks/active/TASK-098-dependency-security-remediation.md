@@ -1000,13 +1000,20 @@ selection, hashes, or inference code. The evidence therefore continues to
 qualify the unchanged ML slice, but it is not described as an exact-final-HEAD
 GPU image qualification.
 
+**Branch security result**: Draft PR #51 workflow run `30124897804`, security
+job `89585967042`, scanned the Slice E commit `09cac7e`. The pinned Trivy
+`v0.69.3` `CRITICAL,HIGH` report listed `webapp/requirements.txt` with `0`
+vulnerabilities. With the classified residual findings removed, the separate
+critical/high gate is now merge-blocking; the all-severity SARIF generation
+and upload path remains advisory.
+
 ---
 
 ## Validation Results
 
 **Execution Status**: IN_PROGRESS; MANDATORY SLICES A-D/G IMPLEMENTED; DOCKER
 CPU/GPU AND LIVE GOOGLE/AZURE QUALIFICATION PASSED; BRANCH SECURITY-RATCHET
-CLOSEOUT AND QUALIFIED SLICE E APPLICATION PENDING
+ACTIVATED; FINAL PR CHECKS PENDING
 
 **Planning Readiness Confidence**: 94%. The alert inventory, reachability
 evidence, proposed targets, work slices, regression obligations, stop rules,

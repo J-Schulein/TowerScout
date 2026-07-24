@@ -44,7 +44,7 @@ def test_critical_high_gate_is_separate_and_does_not_ignore_unfixed() -> None:
     assert "severity: 'CRITICAL,HIGH'" in gate
     assert "exit-code: '1'" in gate
     assert "ignore-unfixed: 'false'" in gate
-    assert "continue-on-error: true" in gate
+    assert "continue-on-error" not in gate
 
 
 def test_weekly_scan_is_scheduled() -> None:
