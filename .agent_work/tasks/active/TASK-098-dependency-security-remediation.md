@@ -1,6 +1,6 @@
 # TASK-098: Dependency Security Remediation And Release Gate
 
-**Status**: IN_PROGRESS / SLICE A TEST-FIRST IMPLEMENTATION
+**Status**: IN_PROGRESS / SLICE A COMPLETE; SLICE B READY
 **Priority**: HIGH
 **Type**: C (Security Remediation / Runtime Qualification)
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -269,7 +269,7 @@ Validate the exact pinned action behavior before making the new gate blocking.
 
 ### Non-Regression Gate
 
-- [ ] A pre-change baseline records dependencies, fixtures, model/assets,
+- [x] A pre-change baseline records dependencies, fixtures, model/assets,
   output parity, workflow results, timings, and peak memory.
 - [ ] Each slice passes focused tests and the shared workflow gate before the
   next slice begins.
@@ -286,9 +286,9 @@ Validate the exact pinned action behavior before making the new gate blocking.
 
 ### Mandatory Remediation
 
-- [ ] The normal release package binds TowerScout to loopback and a contract
+- [x] The normal release package binds TowerScout to loopback and a contract
   test prevents regression to an all-interface default.
-- [ ] Custom-image validation rejects content-sniffed EPS, JPEG2000, McIdas,
+- [x] Custom-image validation rejects content-sniffed EPS, JPEG2000, McIdas,
   malformed, and oversized inputs before vulnerable Pillow decoding; valid
   JPEG/PNG/TIFF behavior, the 50 MiB cap, and rate limiting remain intact.
 - [ ] Approved Pillow, Waitress, and aiohttp targets are pinned consistently
@@ -571,10 +571,57 @@ publication and content-signature image rejection before changing behavior.
 
 ---
 
+### 2026-07-24 - Slice A Local And Input Boundary Completed
+
+**Objective**: Remove the normal package's all-interface publication and
+prevent unsupported custom-image content from selecting vulnerable Pillow
+decoders.
+
+**Context**: Compose published `${TOWERSCOUT_PORT}` on every host interface,
+and custom-image validation trusted an allowed filename extension before the
+route saved the upload and called Pillow.
+
+**Decision**: Add maintained regression tests before behavior changes. Bind the
+normal Compose package explicitly to `127.0.0.1`. Allowlist JPEG, PNG, and TIFF
+magic bytes before Pillow is called, require extension/content agreement, then
+use Pillow's `verify()` only through the selected approved decoder to reject
+malformed supported files.
+
+**Execution**: Added `tests/unit/test_task_098_slice_a.py`; changed
+`compose.yaml`; and extended `TowerScoutValidator.validate_image_file`.
+Preserved the existing 50 MiB size gate, upload rate limit, sanitized filename,
+valid-image detection path, and result drawing.
+
+**Output**: The test-first gate initially reported 9 expected failures and 7
+preservation passes. After implementation, the Slice A and current route
+hardening set passed 23 tests. Docker Compose resolved the published mapping as
+host `127.0.0.1`, port 5000, target 5000.
+
+**Validation**:
+
+- Python 3.12 full unit suite: PASS, 275 passed and 74 legacy skips.
+- Python 3.11 Docker CPU full unit suite: PASS, 228 passed and 121
+  Linux/platform-feature skips.
+- Python 3.12 broad integration: unchanged baseline drift, 20 passed, 2
+  skipped, and the same 4 geocoding failures.
+- Setup Wizard and ProviderStateManager JavaScript contracts: PASS; the forced
+  Azure failure output remained the expected negative-path assertion.
+- Blocking Flake8 and targeted Bandit: PASS.
+- Black under Python 3.11: PASS for the new maintained test file. The existing
+  whole-file `ts_validation.py` formatting drift remains the repository's
+  advisory baseline and was not expanded into an unrelated reformat.
+- Docker isolation: no Task-098 container remains; the pre-existing RC7.1
+  container remained healthy and was not changed.
+
+**Next**: Create a Slice A commit checkpoint, then begin Slice B's narrow
+Pillow/Waitress patch with clean-resolution and focused image/WSGI tests.
+
+---
+
 ## Validation Results
 
-**Execution Status**: IN_PROGRESS; PRE-CHANGE BASELINE COMPLETE; SLICE A
-TEST-FIRST IMPLEMENTATION ACTIVE
+**Execution Status**: IN_PROGRESS; PRE-CHANGE BASELINE AND SLICE A COMPLETE;
+SLICE B READY
 
 **Planning Readiness Confidence**: 94%. The alert inventory, reachability
 evidence, proposed targets, work slices, regression obligations, stop rules,
