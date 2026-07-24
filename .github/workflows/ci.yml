@@ -32,6 +32,9 @@ jobs:
         PUPPETEER_SKIP_DOWNLOAD: 'true'
       run: npm ci
 
+    - name: Audit frontend dependencies for high severity vulnerabilities
+      run: npm audit --audit-level=high
+
     - name: Rebuild frontend bundle
       run: node webapp/build.js
 

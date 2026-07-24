@@ -52,3 +52,14 @@ def test_weekly_scan_is_scheduled() -> None:
 
     assert "schedule:" in workflow
     assert "cron: '23 9 * * 1'" in workflow
+
+
+def test_frontend_high_severity_audit_is_blocking() -> None:
+    workflow = _workflow()
+
+    audit = workflow.split(
+        "- name: Audit frontend dependencies for high severity vulnerabilities",
+        maxsplit=1,
+    )[1].split("- name: Rebuild frontend bundle", maxsplit=1)[0]
+    assert "npm audit --audit-level=high" in audit
+    assert "continue-on-error" not in audit
