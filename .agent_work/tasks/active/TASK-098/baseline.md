@@ -1,6 +1,6 @@
 # Task-098 Pre-Change Baseline
 
-**Status**: PARTIAL - LOCAL PYTHON 3.12 COMPLETE; PYTHON 3.11 RUNTIME REQUIRED
+**Status**: COMPLETE - PYTHON 3.12 HOST AND PYTHON 3.11 DOCKER CPU CAPTURED
 **Baseline Date**: July 24, 2026
 **Planning Checkpoint**: `d336686`
 **Source Commit Before Task-098 Code Changes**: `350d56deec7c85545386e3120c1896d48ba20b39`
@@ -33,10 +33,36 @@ are changed.
 - Available interpreters: Python 3.12.5 and 3.13; Python 3.11 is not installed
   on the host.
 - Baseline interpreter: Python 3.12.5, 64-bit.
+- Docker CPU interpreter: Python 3.11.15, 64-bit, from a fresh CPU image built
+  from the source checkpoint.
 - Node: 24.14.0; npm: 11.10.1. CI remains on Node 18.
 - Clean environment:
   `tmp/task098-baseline/py312-clean` (ignored task scratch).
 - ML policy: CPU forced with `TOWERSCOUT_DEVICE=cpu`; debug-image capture off.
+
+### Docker CPU Isolation
+
+- Docker Engine/client: 29.5.3; Docker Compose: 5.1.4.
+- Unique baseline tag:
+  `towerscout:task098-py311-baseline-350d56d`.
+- Baseline image ID:
+  `sha256:989279ec930076e8d44a8fed30469dfc01df9032ef8faa26a47df986ce6b1f29`.
+- OCI revision label:
+  `350d56deec7c85545386e3120c1896d48ba20b39`; flavor label: `cpu`.
+- Fresh base pulls:
+  - Node 18:
+    `sha256:f9ab18e354e6855ae56ef2b290dd225c1e51a564f87584b9bd21dd651838830e`
+  - Python 3.11:
+    `sha256:b18992999dbe963a45a8a4da40ac2b1975be1a776d939d098c647482bcad5cba`
+- The image was built with `--pull --no-cache`; no pre-existing application
+  image or build-cache layer was reused.
+- Test containers used no Compose project, published ports, or named volumes.
+  Repository source and trusted models were mounted read-only. Test scratch
+  and every image-declared writable runtime path used disposable tmpfs mounts.
+- A pre-existing RC7.1 container on host port 5005 was not reused, stopped, or
+  inspected for application data and remained healthy after the baseline.
+- All Task-098 test containers and their disposable storage were removed. The
+  uniquely tagged baseline image is retained only for after-change comparison.
 
 ## Dependency Resolution
 
@@ -56,9 +82,17 @@ are changed.
 - Other runtime pins resolved as declared, including `numpy==1.26.4`,
   `opencv-python==4.9.0.80`, `pandas==2.3.3`, `psutil==7.1.3`,
   `Requests==2.33.1`, and `ultralytics==8.3.249`.
-- Python 3.11 clean resolution is pending because no local 3.11 interpreter is
-  installed. It must run in the supported Docker CPU baseline or an equivalent
-  clean 3.11 environment before Slice A changes.
+- Python 3.11 resolved the same security-relevant and runtime versions from
+  binary wheels in the fresh Docker CPU build:
+  `aiohttp==3.9.3`, `fiona==1.9.6`, `Flask==3.0.2`,
+  `geopandas==0.14.3`, `Pillow==12.2.0`, `python-dotenv==1.0.0`,
+  `torch==2.2.1+cpu`, `torchvision==0.17.1+cpu`, and
+  `waitress==3.0.0`.
+- The other recorded direct runtime resolutions also match Python 3.12:
+  `numpy==1.26.4`, `opencv-python==4.9.0.80`, `pandas==2.3.3`,
+  `psutil==7.1.3`, `Requests==2.33.1`, and
+  `ultralytics==8.3.249`.
+- Python 3.11 `pip check`: PASS; no broken requirements.
 
 ## Maintained Functional Tests
 
@@ -79,6 +113,14 @@ are changed.
   is the expected negative-path assertion.
 - Status-output contract: PASS.
 - Blocking flake8 syntax/undefined-name gate: PASS, zero findings.
+- Clean Docker CPU Python 3.11 unit suite: PASS, 212 passed and 121
+  Linux/platform-feature skips in 28.42 seconds. The lower pass count and
+  higher skip count reflect the repository's Windows-gated tests.
+- Docker CPU Python 3.11 broad integration suite: reproduced the Python 3.12
+  baseline drift exactly, with 20 passed, 2 skipped, and the same 4 geocoding
+  failures in 30.57 seconds.
+- Docker CPU Python 3.11 ML-focused gate: PASS, 8 passed across the local YOLO
+  loader and current end-to-end smoke in 26.83 seconds.
 
 ## Model, Output, And Performance Evidence
 
@@ -103,10 +145,22 @@ are changed.
   deterministic compatibility sentinel, not a claim about real-world
   detection accuracy.
 
+Docker CPU Python 3.11 used the same trusted assets and deterministic fixture:
+
+- TowerScout lazy import: 7.029895, 8.841539, 8.144371 seconds; median
+  8.144371 seconds.
+- YOLO inference: 9.053584, 4.437404, 7.094404 seconds; median 7.094404
+  seconds; detection counts `[0, 0, 0]`.
+- EfficientNet inference: 2.891212, 1.602714, 1.074042 seconds; median
+  1.602714 seconds; score `0.8266443` on all three runs.
+- Model-load times: YOLO 17.449871 seconds; EfficientNet 4.103931 seconds.
+- Process RSS after both model probes: 1,385,152,512 bytes.
+- These Docker timings form the Docker CPU after-change comparison baseline.
+  They are not compared directly with the host-Python timings because the
+  runtime profile differs.
+
 ## External Runtime Gates
 
-- Docker Desktop CPU is now required to provide the supported clean Python
-  3.11 baseline before Slice A changes.
 - Docker GPU, Podman CPU/GPU, physical-GPU model parity, and live-provider
   Google/Azure evidence are later slice/final-qualification gates and have not
   been requested yet.
@@ -115,8 +169,10 @@ are changed.
 
 ## Baseline Disposition
 
-The locally available Python 3.12 functional, dependency, model-output, and
-performance baseline is complete. Task-098 remains at the baseline gate because
-the required clean Python 3.11 evidence is unavailable on the host. No Slice A
-application, dependency, Compose, runtime, release, alert-state, or external
-repository change has been made.
+The Python 3.12 host and Python 3.11 Docker CPU functional, dependency,
+model-output, and profile-specific performance baselines are complete. Existing
+Docker images, containers, ports, volumes, and build cache did not influence
+the clean Python 3.11 evidence. The pre-change gate is closed and Slice A may
+begin. No Slice A application, dependency, Compose, runtime, release,
+alert-state, or external-repository change had been made when this baseline was
+captured.

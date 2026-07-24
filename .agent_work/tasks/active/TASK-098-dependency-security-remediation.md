@@ -1,6 +1,6 @@
 # TASK-098: Dependency Security Remediation And Release Gate
 
-**Status**: IN_PROGRESS / PYTHON 3.11 BASELINE GATE
+**Status**: IN_PROGRESS / SLICE A TEST-FIRST IMPLEMENTATION
 **Priority**: HIGH
 **Type**: C (Security Remediation / Runtime Qualification)
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -535,10 +535,46 @@ Python 3.11 baseline. Do not begin Slice A until that gate is recorded.
 
 ---
 
+### 2026-07-24 - Docker CPU Python 3.11 Baseline Completed
+
+**Objective**: Close the required pre-change baseline gate without allowing
+pre-existing Docker state to influence Task-098.
+
+**Context**: Docker Desktop was available, while a healthy older TowerScout
+container and several unrelated local images and volumes already existed.
+
+**Decision**: Build a uniquely tagged CPU image from the recorded source
+checkpoint with fresh base pulls and no build cache. Run tests with no Compose
+project or published ports, mount repository source and trusted models
+read-only, and place every writable path on disposable tmpfs.
+
+**Execution**: Built the Python 3.11 image, verified its OCI source/flavor
+labels, ran dependency checks, unit and broad integration suites, the focused
+ML gate, and the maintained three-sample CPU model/performance probe. Removed
+all Task-098 test containers and disposable storage while retaining the unique
+baseline image for after-change comparison.
+
+**Output**: Python 3.11 dependency resolution and `pip check` passed. Unit tests
+reported 212 passed and 121 platform/feature skips. The broad integration suite
+reproduced the same 20-pass, 2-skip, 4-failure geocoding drift recorded on
+Python 3.12. The focused ML gate passed 8 tests, and deterministic YOLO and
+EfficientNet outputs matched the host baseline.
+
+**Validation**: The pre-existing RC7.1 container remained healthy on its
+existing port. No Task-098 test container remains, no existing application
+image was used, and the image/test identities, exact counts, timings, and
+isolation controls are recorded in
+[`TASK-098/baseline.md`](./TASK-098/baseline.md).
+
+**Next**: Begin Slice A by adding maintained focused tests for loopback
+publication and content-signature image rejection before changing behavior.
+
+---
+
 ## Validation Results
 
-**Execution Status**: IN_PROGRESS; LOCAL PYTHON 3.12 BASELINE COMPLETE;
-PYTHON 3.11 DOCKER CPU BASELINE PENDING
+**Execution Status**: IN_PROGRESS; PRE-CHANGE BASELINE COMPLETE; SLICE A
+TEST-FIRST IMPLEMENTATION ACTIVE
 
 **Planning Readiness Confidence**: 94%. The alert inventory, reachability
 evidence, proposed targets, work slices, regression obligations, stop rules,
@@ -554,7 +590,7 @@ decision and Slice D compatibility evidence, not missing task preparation.
   PASS
 - `git diff --check`: PASS
 
-**Current Non-Runtime Baseline Review**:
+**Current Baseline Review**:
 
 - Python 3.12 affected-surface tests: 152 passed.
 - Legacy validation and image-processing modules: 46 skipped by explicit
@@ -566,9 +602,20 @@ decision and Slice D compatibility evidence, not missing task preparation.
 - Current CI reality: unit tests block; the broad integration job, container
   image build, and Trivy SARIF path are advisory; live Google/Azure browser
   smoke and four-profile package validation are external runtime gates.
-- Python 3.11/3.12 clean-resolution baseline, live provider smoke, real model
-  output/performance comparison, and Docker/Podman CPU/GPU evidence remain
-  execution-time gates.
+- Live-provider smoke, after-change model output/performance comparison, and
+  final Docker/Podman CPU/GPU qualification remain execution-time gates.
+
+**Docker CPU Python 3.11 Baseline**:
+
+- Fresh `--pull --no-cache` CPU image: PASS.
+- Dependency resolution and `pip check`: PASS.
+- Unit suite: PASS, 212 passed and 121 Linux/platform-feature skips.
+- Broad integration: BASELINE DRIFT, 20 passed, 2 skipped, and the same 4
+  pre-change geocoding failures seen on Python 3.12.
+- ML-focused gate: PASS, 8 passed.
+- Deterministic YOLO/EfficientNet output parity: PASS.
+- Existing Docker state isolation: PASS; no pre-existing image, container,
+  port, volume, or build-cache layer influenced the run.
 
 No dependency pins, application code, runtime configuration, release assets,
 GitHub alert states, or external repositories have been changed under

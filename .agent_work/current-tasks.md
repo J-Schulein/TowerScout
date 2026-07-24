@@ -102,8 +102,8 @@ investigation.
 
 ### **TASK-098: Dependency Security Remediation And Release Gate**
 
-**Status**: IN_PROGRESS - local Python 3.12 baseline complete; Docker Desktop
-CPU confirmation required for the clean Python 3.11 baseline before Slice A
+**Status**: IN_PROGRESS - Python 3.12 host and isolated Python 3.11 Docker CPU
+baselines complete; Slice A test-first implementation active
 **Type**: C (Security Remediation / Runtime Qualification)
 **Priority**: HIGH
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
