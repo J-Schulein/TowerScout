@@ -1,5 +1,6 @@
 """Task-081 Flask route hardening coverage."""
 
+import hashlib
 import io
 import json
 import shutil
@@ -73,6 +74,10 @@ def test_model_upload_uses_sanitized_filename(client, monkeypatch):
     monkeypatch.setattr(towerscout, "YOLO_MODEL_DIR", model_dir)
     monkeypatch.setattr(towerscout, "EN_MODEL_DIR", model_dir)
     monkeypatch.setattr(towerscout, "MODEL_UPLOAD_ENABLED", True)
+    monkeypatch.setenv(
+        "TOWERSCOUT_TRUSTED_MODEL_SHA256",
+        hashlib.sha256(b"fake-model-weights").hexdigest(),
+    )
 
     try:
         with patch.object(towerscout.rate_limiter, "is_allowed", return_value=True), patch(

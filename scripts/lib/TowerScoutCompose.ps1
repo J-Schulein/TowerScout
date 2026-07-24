@@ -1,7 +1,7 @@
 Set-StrictMode -Version Latest
 $script:TowerScoutComposeExitCode = 0
 $script:TowerScoutCpuPytorchIndexUrl = "https://download.pytorch.org/whl/cpu"
-$script:TowerScoutCudaPytorchIndexUrl = "https://download.pytorch.org/whl/cu121"
+$script:TowerScoutCudaPytorchIndexUrl = "https://download.pytorch.org/whl/cu126"
 $script:TowerScoutDefaultPodmanMachineName = "podman-machine-default"
 . "$PSScriptRoot\TowerScoutPodmanComposeProvider.ps1"
 
@@ -287,7 +287,7 @@ function Assert-TowerScoutPackageGpuCompatibility {
 
     $packageFlavor = Get-TowerScoutPackagePytorchFlavor -RootPath $rootPath
     if ($packageFlavor -eq "cpu") {
-        throw "This CPU TowerScout package does not support -Gpu on. Use the CUDA 12.1 package for GPU validation, or launch this CPU package with -Gpu off."
+        throw "This CPU TowerScout package does not support -Gpu on. Use the CUDA 12.6 package for GPU validation, or launch this CPU package with -Gpu off."
     }
 }
 
@@ -608,7 +608,7 @@ function Set-TowerScoutGpuEnvironment {
 
     if ($Build) {
         if ($env:PYTORCH_INDEX_URL -eq $script:TowerScoutCudaPytorchIndexUrl) {
-            $env:TOWERSCOUT_PYTORCH_FLAVOR = "cuda121"
+            $env:TOWERSCOUT_PYTORCH_FLAVOR = "cuda126"
         }
         elseif ($env:PYTORCH_INDEX_URL -eq $script:TowerScoutCpuPytorchIndexUrl) {
             $env:TOWERSCOUT_PYTORCH_FLAVOR = "cpu"

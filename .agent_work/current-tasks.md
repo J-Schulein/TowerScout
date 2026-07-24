@@ -102,8 +102,8 @@ investigation.
 
 ### **TASK-098: Dependency Security Remediation And Release Gate**
 
-**Status**: IN_PROGRESS - pre-change baselines and Slices A-C complete; Slice
-D/G coordinated ML compatibility and model-trust work ready
+**Status**: IN_PROGRESS - Slices A-C complete; Slice D/G CPU selection and
+model-trust controls complete, commit-pinned CUDA 12.6 qualification pending
 **Type**: C (Security Remediation / Runtime Qualification)
 **Priority**: HIGH
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening

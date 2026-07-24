@@ -24,6 +24,7 @@ from ts_imgutil import crop
 from ts_errors import ModelLoadError, ProcessingError
 from ts_logging import get_ml_logger
 from ts_device import DevicePolicyError, gpu_guard, select_model_device
+from ts_assets import AssetManifestError, verify_trusted_model
 from ts_yolov5_local import load_local_yolov5_model as _load_local_yolov5_model
 
 logger = get_ml_logger()
@@ -128,6 +129,16 @@ class YOLOv5_Detector:
                 )
 
             _validate_runtime_dependencies()
+            try:
+                verify_trusted_model(filename)
+                logger.info("YOLOv5 model checksum verified")
+            except AssetManifestError as e:
+                raise ModelLoadError(
+                    f"YOLOv5 model trust verification failed: {str(e)}",
+                    model_name="YOLOv5",
+                    model_path=filename,
+                    cause=e,
+                )
             
             # Model loading with error handling
             try:

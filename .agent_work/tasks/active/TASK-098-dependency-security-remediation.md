@@ -1,6 +1,7 @@
 # TASK-098: Dependency Security Remediation And Release Gate
 
-**Status**: IN_PROGRESS / SLICES A-C COMPLETE; SLICE D/G READY
+**Status**: IN_PROGRESS / SLICES A-C COMPLETE; SLICE D/G CPU COMPLETE;
+COMMIT-PINNED CUDA 12.6 QUALIFICATION PENDING
 **Priority**: HIGH
 **Type**: C (Security Remediation / Runtime Qualification)
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -264,7 +265,7 @@ Validate the exact pinned action behavior before making the new gate blocking.
 - [x] Fork-side implementation requires no separate cdcai-owner confirmation.
   Residual critical/high acceptance, changes to `cdcai/TowerScout`, and
   official cdcai adoption retain their explicit owner gates.
-- [ ] Every Task-098 change maps to an approved alert, runtime boundary, or
+- [x] Every Task-098 change maps to an approved alert, runtime boundary, or
   compensating control.
 
 ### Non-Regression Gate
@@ -273,7 +274,7 @@ Validate the exact pinned action behavior before making the new gate blocking.
   output parity, workflow results, timings, and peak memory.
 - [ ] Each slice passes focused tests and the shared workflow gate before the
   next slice begins.
-- [ ] Dedicated maintained tests replace reliance on the skipped legacy
+- [x] Dedicated maintained tests replace reliance on the skipped legacy
   validation and image-processing contracts for every touched path.
 - [ ] Detection state/counts, review/map/list behavior, manual tower semantics,
   and export/restore schemas are unchanged; numeric ML tolerances were declared
@@ -296,13 +297,13 @@ Validate the exact pinned action behavior before making the new gate blocking.
 - [ ] The approved torch/torchvision CPU/CUDA pair passes clean dependency
   resolution, trusted model loading, and representative YOLO/EfficientNet
   inference.
-- [ ] Release-model checksum enforcement is enabled by default and model
+- [x] Release-model checksum enforcement is enabled by default and model
   upload remains disabled by default; any enabled override is loopback-bound
   and restricted to trusted files.
 
 ### Compatibility And Runtime Qualification
 
-- [ ] Clean Python 3.11 and 3.12 dependency installs resolve without
+- [x] Clean Python 3.11 and 3.12 dependency installs resolve without
   incompatible wheels or unintended source-build fallback.
 - [ ] Google and Azure provider downloads pass TLS-verified header parsing,
   redirect, timeout/retry, cancellation, and sanitized-error tests.
@@ -733,10 +734,102 @@ needed for CPU/CUDA pair selection and model-trust qualification.
 
 ---
 
+### 2026-07-24 - Slice D/G CPU Selection And GPU Handoff Prepared
+
+**Objective**: Select the coordinated torch/torchvision CPU and CUDA pair,
+enforce trusted-model loading, and make the remaining physical-GPU
+qualification reproducible on another device.
+
+**Candidate decision**: Evaluated the approved minimum pair
+`torch==2.6.0` / `torchvision==0.21.0` and the current stable pair
+`torch==2.13.0` / `torchvision==0.28.0`. PyTorch's official
+[previous-version instructions](https://docs.pytorch.org/get-started/previous-versions/)
+identify the 2.6 pair, and the official
+[2.13 general-availability announcement](https://dev-discuss.pytorch.org/t/pytorch-2-13-0-general-availability/3412)
+identifies torchvision 0.28.0 as its paired release. Both pairs resolved from
+official CPU wheels and passed trusted YOLO/EfficientNet loading and exact
+deterministic output checks.
+
+The 2.13 pair was rejected under the predeclared performance stop rule:
+process RSS after both model probes was 1,586,032,640 bytes versus the
+1,385,152,512-byte Docker baseline, a 14.50% increase. The selected 2.6 pair
+used 1,388,580,864 bytes, a 0.25% increase. No threshold was widened after
+observing the result.
+
+**Selected package**:
+
+- `torch==2.6.0`
+- `torchvision==0.21.0`
+- CPU wheels from `https://download.pytorch.org/whl/cpu`
+- CUDA 12.6 wheels from `https://download.pytorch.org/whl/cu126`
+- package flavor identity `cuda126`
+
+**Model trust**: Release-model SHA-256 and byte-size checks now run by default
+in readiness and immediately before either checkpoint is deserialized. Broad
+ZIP-code/data hashing remains opt-in, preventing every readiness request from
+rehashing the 822 MiB shapefile. The model hash cache is invalidated by file
+identity, size, modification time, and change time. The model-upload route
+remains disabled by default; when explicitly enabled it authorizes only the
+actual loopback peer and accepts only a checkpoint whose digest appears in the
+local-admin SHA-256 allowlist. Forwarded headers do not grant access.
+
+**Package alignment**: Requirements, Docker build arguments, Compose build
+defaults, container publishing, Windows launcher selection, release packaging,
+release-manifest contracts, package naming, and active CPU/GPU documentation
+now use the selected pair and CUDA 12.6 flavor consistently.
+
+**CPU evidence**:
+
+- Clean Python 3.12 selected-pair resolution and `pip check`: PASS; official
+  `2.6.0+cpu` / `0.21.0+cpu` wheels selected with no broken requirements.
+- Python 3.12 selected-pair unit gate: PASS, 292 passed and 74
+  legacy/platform skips.
+- Python 3.12 selected-pair model probe: PASS; exact fixture outputs,
+  1,343,508,480-byte RSS, and trusted release hashes.
+- Python 3.11 selected-image unit gate: PASS, 245 passed and 121
+  Linux/platform skips; `pip check` reported no broken requirements.
+- Broad integration on both versions: unchanged baseline drift, 20 passed,
+  2 skipped, and the same 4 pre-existing geocoding failures.
+- Selected-image model probe: PASS; YOLO counts `[0, 0, 0]`, EfficientNet
+  scores `[0.82664418, 0.82664418, 0.82664418]`, trusted release hashes exact.
+- Selected-image warmed medians: startup 4.497028 seconds, YOLO inference
+  2.268855 seconds, EfficientNet inference 0.657228 seconds.
+- Selected-image process RSS: 1,388,580,864 bytes, 0.25% above baseline.
+- Packaged loopback startup: health `ok`, readiness `setup_required`, assets
+  `ok`, release-model hashing enabled, selected device `cpu`, torch
+  `2.6.0+cpu`.
+- Docker isolation: both candidate images used `--pull --no-cache`; every
+  Task-098 container was disposable and removed. The pre-existing RC7.1
+  container remained healthy and unchanged on port 5005.
+
+**External GPU handoff**: Added
+`scripts/task098-qualify-ml.ps1` and
+`scripts/task098_ml_qualification.py`. The wrapper refuses a dirty tracked
+worktree, records the checked-out source commit, builds a unique no-cache
+CUDA 12.6 image, publishes no port, runs the qualification container
+read-only with disposable writable paths, mounts only trusted model assets,
+and writes one sanitized JSON result under ignored `.agent_work/tmp/`.
+CUDA output parity, selected-device enforcement, model hashes, warmed
+timings, RSS, and peak allocated VRAM are blocking fields.
+
+**Remaining gate**: Check out the Slice D/G commit on a validated NVIDIA
+Docker host and run:
+
+```powershell
+.\scripts\task098-qualify-ml.ps1 -Profile cuda
+```
+
+Return the generated `qualification.json` file. Docker GPU, Podman CPU/GPU,
+live-provider smoke, alert reconciliation/CI ratchet, and any conditionally
+approved Slices E/F remain outside this CPU handoff and are not marked
+complete.
+
+---
+
 ## Validation Results
 
 **Execution Status**: IN_PROGRESS; PRE-CHANGE BASELINE AND SLICES A-C
-COMPLETE; SLICE D/G READY
+COMPLETE; SLICE D/G CPU SELECTION COMPLETE; CUDA 12.6 QUALIFICATION PENDING
 
 **Planning Readiness Confidence**: 94%. The alert inventory, reachability
 evidence, proposed targets, work slices, regression obligations, stop rules,

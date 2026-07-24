@@ -12,7 +12,7 @@ work.
 
 | Order | Task | Status | Estimate | Dependencies | Required outcome |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | `TASK-098` Dependency Security Remediation And Release Gate | IN_PROGRESS / SLICE_D_G_READY | Mandatory slices 4-8 days; full coordinated hardening 6-11 days, plus GPU/runtime host availability | Pre-change baselines and Slices A-C complete | Patchable mandatory findings pass regression/package validation with no unapproved feature, workflow, output, or performance regression; no unresolved release-blocking critical/high alert |
+| 1 | `TASK-098` Dependency Security Remediation And Release Gate | IN_PROGRESS / SLICE_D_G_GPU_QUALIFICATION_PENDING | Mandatory slices 4-8 days; full coordinated hardening 6-11 days, plus GPU/runtime host availability | Slices A-C and D/G CPU selection complete; external CUDA 12.6 host required | Patchable mandatory findings pass regression/package validation with no unapproved feature, workflow, output, or performance regression; no unresolved release-blocking critical/high alert |
 | 2 | `TASK-096` User-Initiated Exit And Container Stop | NOT_STARTED | 2-4 days | Task-087 helper/security pattern; current stop scripts | Confirmed Exit/Stop works on Docker and Podman without deleting named volumes |
 | 3 | `TASK-097` Podman CPU/GPU Final Path Qualification | NOT_STARTED | 3-5 days plus environment validation | Tasks 090, 098, 087, and 096 | Podman CPU and GPU/CDI pass final-package qualification without Docker Desktop |
 | 4 | `TASK-091` Owner-Runnable Release Qualification | NOT_STARTED | 3-6 days | Candidate scope stable; fixture/harness custody | cdcai owner can execute or supervise the minimum release gate |
@@ -100,7 +100,7 @@ Parking lot:
 | --- | --- |
 | `TASK-095` Governance And AI-Ready Handoff Foundation | Active in Sprint 08; Phase A complete, Phase B continues |
 | `TASK-090` Runtime, Custom-Image, And Dependency Security Investigation | Completed; Task-098 scope approved |
-| `TASK-098` Dependency Security Remediation And Release Gate | In progress; pre-change baselines and Slices A-C complete, Slice D/G ready |
+| `TASK-098` Dependency Security Remediation And Release Gate | In progress; Slices A-C and D/G CPU selection complete, commit-pinned CUDA 12.6 qualification pending |
 | `TASK-087` Host-Side TLS Repair Control Plane | Reselected in Sprint 08 after the Tasks 090/098 security gate |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until final qualification and approval |
 

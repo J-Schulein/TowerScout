@@ -24,6 +24,7 @@ from flask_session import Session
 from waitress import serve
 import json
 import html
+import ipaddress
 import time
 import os
 import math
@@ -45,6 +46,7 @@ from ts_performance import PerformanceMetrics
 import ts_config
 import ts_device
 import ts_runtime
+from ts_assets import AssetManifestError, verify_trusted_model
 from ts_provider_http import (
     classify_provider_response,
     provider_get,
@@ -2746,9 +2748,21 @@ def upload_model():
         return jsonify({
             'error': 'Model upload is disabled for this release. Install trusted model files through the configured model volume or enable the local-admin upload override.'
         }), 403
+
+    try:
+        if not ipaddress.ip_address(request.remote_addr or "").is_loopback:
+            api_logger.warning("Model upload rejected because the request was not loopback-local")
+            return jsonify({
+                'error': 'Model upload is restricted to a loopback-local administrator.'
+            }), 403
+    except ValueError:
+        api_logger.warning("Model upload rejected because the client address was invalid")
+        return jsonify({
+            'error': 'Model upload is restricted to a loopback-local administrator.'
+        }), 403
     
     # Rate limiting (stricter for model uploads)
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    client_ip = request.remote_addr
     if not rate_limiter.is_allowed(client_ip, max_requests=5, window_seconds=300):
         return jsonify({'error': 'Rate limit exceeded for model uploads'}), 429
     
@@ -2777,8 +2791,20 @@ def upload_model():
     # filename = secure_filename(file.filename)
     filename = file.filename
     target_dir = EN_MODEL_DIR if filename.startswith("b5") else YOLO_MODEL_DIR
-    file.save(str(target_dir / filename))
-    api_logger.info("Uploaded model file to %s", target_dir / filename)
+    target_path = target_dir / filename
+    pending_path = target_dir / f".{filename}.{secrets.token_hex(8)}.pending"
+    try:
+        file.save(str(pending_path))
+        verify_trusted_model(pending_path)
+        pending_path.replace(target_path)
+    except AssetManifestError as e:
+        pending_path.unlink(missing_ok=True)
+        api_logger.warning("Model upload rejected by trusted-file verification: %s", e)
+        return jsonify({'error': f'Model trust validation error: {e}'}), 400
+    except Exception:
+        pending_path.unlink(missing_ok=True)
+        raise
+    api_logger.info("Uploaded trusted model file to %s", target_path)
 
     add_model(filename)
 

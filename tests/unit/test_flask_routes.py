@@ -658,11 +658,14 @@ def test_uploadmodel_saves_valid_model_into_runtime_directory(client, monkeypatc
     monkeypatch.setattr(towerscout, "YOLO_MODEL_DIR", model_dir)
     monkeypatch.setattr(towerscout, "EN_MODEL_DIR", model_dir)
     monkeypatch.setattr(towerscout, "MODEL_UPLOAD_ENABLED", True)
+    monkeypatch.setattr(towerscout.secrets, "token_hex", lambda _length: "uploadtoken")
 
     with patch.object(towerscout.rate_limiter, "is_allowed", return_value=True), patch.object(
         towerscout.TowerScoutValidator,
         "validate_model_file",
         return_value=validated_file,
+    ), patch("towerscout.verify_trusted_model"), patch(
+        "pathlib.Path.replace"
     ), patch("towerscout.add_model") as mock_add_model:
         response = client.post(
             "/uploadmodel",
@@ -672,7 +675,9 @@ def test_uploadmodel_saves_valid_model_into_runtime_directory(client, monkeypatc
 
     assert response.status_code == 200
     assert response.data == b"ok"
-    validated_file.save.assert_called_once_with(str(model_dir / "custom-model.pt"))
+    validated_file.save.assert_called_once_with(
+        str(model_dir / ".custom-model.pt.uploadtoken.pending")
+    )
     mock_add_model.assert_called_once_with("custom-model.pt")
 
 

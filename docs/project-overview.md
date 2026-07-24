@@ -21,7 +21,7 @@ app Resource Links section.
 The package provides a Windows-first local pilot path:
 
 - A GitHub Release CPU Application Package ZIP for normal users.
-- A GitHub Release CUDA 12.1 Application Package ZIP for support-validated
+- A GitHub Release CUDA 12.6 Application Package ZIP for support-validated
   NVIDIA GPU workstations.
 - A shared GitHub Release Model & Data Package ZIP used by both package
   variants.

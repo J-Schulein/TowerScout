@@ -142,10 +142,10 @@ The YOLO-enabled release track is `agpl-yolo`. TowerScout-authored code may be A
 Image publication is handled by the manual GitHub Actions workflow `.github/workflows/container-publish.yml`. The workflow requires `packages: write`, pushes a Linux/AMD64 image, uploads `image-metadata.json`, and reports the digest reference in the workflow summary.
 
 The publish workflow requires an explicit PyTorch wheel flavor selection. `cpu`
-uses the CPU PyTorch wheel index. `cuda121` uses the CUDA 12.1 PyTorch wheel
+uses the CPU PyTorch wheel index. `cuda126` uses the CUDA 12.6 PyTorch wheel
 index and labels the image with `org.towerscout.pytorch.flavor`. The workflow
 publishes flavor-specific tags such as `<release-version>-cpu` and
-`<release-version>-cuda121` to avoid CPU/CUDA tag collisions. Release evidence
+`<release-version>-cuda126` to avoid CPU/CUDA tag collisions. Release evidence
 and each control package must record which flavor produced the pinned digest.
 The CPU and CUDA control packages should point to the same Model & Data Package
 filename and SHA-256 unless a release note explicitly says assets differ.
