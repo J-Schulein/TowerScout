@@ -1,7 +1,6 @@
 # TASK-098: Dependency Security Remediation And Release Gate
 
-**Status**: APPROVED WITH NON-REGRESSION CAVEAT / READY TO BEGIN /
-IMPLEMENTATION NOT STARTED
+**Status**: IN_PROGRESS / PYTHON 3.11 BASELINE GATE
 **Priority**: HIGH
 **Type**: C (Security Remediation / Runtime Qualification)
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -29,9 +28,10 @@ runtime changes.
 
 Task-090 identified five release-blocking alerts, one required-hardening alert,
 and an all-interface Compose port publication that conflicts with the
-single-user local-runtime boundary. The exact proposed target directions,
-estimates, and work slices are preserved below as the approval baseline; they
-remain proposals until the Task-098 implementation scope is approved.
+single-user local-runtime boundary. The exact target directions, estimates,
+and work slices are preserved below as the approved implementation baseline.
+Exact resolved versions and the final ML pair remain subject to the
+compatibility evidence required by each slice.
 
 ## Approval Record
 
@@ -92,10 +92,10 @@ exists.
   approved blocking CI control for new critical/high findings or unexpired,
   narrowly scoped exceptions.
 
-## Proposed Work Slices
+## Approved Work Slices
 
-The following baseline comes from Task-090 and is not yet implementation
-authorization:
+The following baseline comes from Task-090 and is authorized by the approval
+record above, subject to the non-regression contract and slice stop rules:
 
 | Slice | Current baseline | Proposed target direction | Estimate | Gate |
 | --- | --- | --- | ---: | --- |
@@ -476,10 +476,69 @@ runtimes only when reaching container-dependent baseline or validation stages.
 
 ---
 
+### 2026-07-24 - Execution Started And Baseline Gate Opened
+
+**Objective**: Begin the approved Task-098 work without changing dependencies
+or runtime behavior before the non-regression baseline is recorded.
+
+**Context**: Task-090 and the Task-098 approval record were preserved in commit
+`d336686`. Task-098 is being executed on the short-lived child branch
+`fix/task-098-dependency-security` because it depends on that unmerged planning
+checkpoint.
+
+**Decision**: Move Task-098 to `IN_PROGRESS`, treat baseline capture as the
+only active implementation phase, and defer dependency/runtime mutations until
+the available Python 3.11/3.12, model, workflow, and performance evidence is
+recorded.
+
+**Execution**: Corrected stale pending-approval wording, opened the task-local
+baseline record, and began environment and maintained-test discovery.
+
+**Output**: Task state now matches execution reality, with a known planning
+checkpoint and isolated implementation branch.
+
+**Validation**: Agent-work validation and whitespace checks are required after
+the task-state update. Baseline commands and results are recorded in
+[`TASK-098/baseline.md`](./TASK-098/baseline.md).
+
+**Next**: Complete the non-runtime baseline, identify unavailable external
+runtime evidence explicitly, and only then begin Slice A.
+
+---
+
+### 2026-07-24 - Local Python 3.12 Baseline Completed
+
+**Objective**: Capture the locally available clean-resolution, maintained-test,
+trusted-model, deterministic-output, and same-host performance evidence.
+
+**Context**: The host provides Python 3.12 and 3.13 but not the supported
+Python 3.11 baseline required by the non-regression contract.
+
+**Decision**: Complete and preserve the full local Python 3.12 baseline, record
+the broad integration failures as pre-change drift, and stop before Slice A
+until Docker Desktop CPU can provide the clean Python 3.11 environment.
+
+**Execution**: Built an isolated Python 3.12 CPU environment in ignored task
+scratch, reproduced the Docker dependency order, ran unit/integration and
+frontend contracts, verified trusted asset hashes, and ran the maintained
+three-sample CPU model/startup probe.
+
+**Output**: Unit, ML-focused, frontend-contract, flake8, dependency, asset, and
+deterministic CPU model baselines are recorded. The broad integration suite
+has four pre-existing geocoding failures and is not represented as clean.
+
+**Validation**: See [`TASK-098/baseline.md`](./TASK-098/baseline.md) for exact
+versions, counts, hashes, timings, outputs, and unresolved external gates.
+
+**Next**: Ask the user to start Docker Desktop for the exact Docker CPU /
+Python 3.11 baseline. Do not begin Slice A until that gate is recorded.
+
+---
+
 ## Validation Results
 
-**Planning Status**: APPROVED WITH NON-REGRESSION CAVEAT; READY TO BEGIN;
-EXECUTION BASELINE PENDING
+**Execution Status**: IN_PROGRESS; LOCAL PYTHON 3.12 BASELINE COMPLETE;
+PYTHON 3.11 DOCKER CPU BASELINE PENDING
 
 **Planning Readiness Confidence**: 94%. The alert inventory, reachability
 evidence, proposed targets, work slices, regression obligations, stop rules,

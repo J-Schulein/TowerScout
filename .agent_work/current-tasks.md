@@ -1,7 +1,7 @@
 # Current Tasks - Sprint 08
 
 **Sprint Period**: July 23-August 7, 2026
-**Last Updated**: July 23, 2026
+**Last Updated**: July 24, 2026
 **Focus**: Start the bounded runtime, custom-image, and dependency-security
 investigation; define any required remediation; and prepare the authorized
 universal provider TLS repair without changing the frozen pilot or cdcai.
@@ -102,8 +102,8 @@ investigation.
 
 ### **TASK-098: Dependency Security Remediation And Release Gate**
 
-**Status**: APPROVED WITH NON-REGRESSION CAVEAT / READY TO BEGIN -
-implementation has not started
+**Status**: IN_PROGRESS - local Python 3.12 baseline complete; Docker Desktop
+CPU confirmation required for the clean Python 3.11 baseline before Slice A
 **Type**: C (Security Remediation / Runtime Qualification)
 **Priority**: HIGH
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
