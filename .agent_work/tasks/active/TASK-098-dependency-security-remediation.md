@@ -1,8 +1,7 @@
 # TASK-098: Dependency Security Remediation And Release Gate
 
-**Status**: IN_PROGRESS / MANDATORY SLICES A-D/G IMPLEMENTED; DOCKER CPU/GPU
-AND LIVE GOOGLE/AZURE QUALIFICATION PASSED; BRANCH SECURITY-RATCHET CLOSEOUT
-PENDING
+**Status**: IN_PROGRESS / IMPLEMENTATION, QUALIFICATION, AND BRANCH SECURITY
+RECONCILIATION COMPLETE; DRAFT PR #51 AWAITS PROJECT-LEAD CHECKOUT AND SIGN-OFF
 **Priority**: HIGH
 **Type**: C (Security Remediation / Runtime Qualification)
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -1014,18 +1013,112 @@ merge-blocking critical/high step itself concluded `success` and again listed
 `webapp/requirements.txt` with `0` vulnerabilities. The Docker build job was
 correctly skipped under its existing main-branch-only condition.
 
+### 2026-07-24 - Independent Closeout Audit
+
+**Objective**: Re-review every Task-098 commit and affected runtime, security,
+container, frontend, documentation, and task-tracking surface before adding
+the newly available Dependabot evidence.
+
+**Result**: No application regression, unintended ML/runtime change, stale
+CUDA 12.1 package reference, source/bundle mismatch, or credential exposure
+was found. The exact pre-closeout head passed 117 focused Task-098,
+configuration, sanitization, Flask-route, and runtime-contract tests under
+Python 3.12. `pip check`, the CI workflow summary, frontend bundle consistency,
+agent-work quick/full validation, and `git diff --check` passed. The only
+credential-shaped value in the branch diff is an intentionally fake Google
+key used by the provider-error redaction test.
+
+**Corrections found and addressed**:
+
+- The runtime documentation still described all SHA-256 verification as
+  opt-in. It now distinguishes always-on model verification during readiness
+  and immediately before deserialization from optional full-asset hashing of
+  the large ZIP-code data.
+- Task tracking still described the already-passing branch critical/high gate
+  as pending. The active task and backlog now identify project-lead checkout
+  and sign-off as the remaining Task-098 gate.
+- Trivy had passed while newly published high-severity npm advisories remained
+  open. A lockfile remediation and blocking high-severity npm audit were added
+  as a complementary frontend gate.
+
+**Docker isolation**: Before the final build, the only running container was
+the pre-existing healthy RC7.1 instance
+`extracted-cpu-towerscout-1` using
+`ghcr.io/j-schulein/towerscout:v0.1.0-rc7.1-cpu` on port 5005. Every Task-098
+image had a distinct local-only tag. Final validation uses a new image tag,
+container name, and port 5006; it does not stop, replace, retag, mount into, or
+otherwise mutate the RC7.1 instance.
+
+### 2026-07-24 - Dependabot Reconciliation And Slice F Qualification
+
+**Dependabot inventory**: The 68 open alerts consist of 62 Python runtime
+alerts in `webapp/requirements.txt` and six npm development-only transitive
+alerts in `package-lock.json`. All 62 Python advisory IDs duplicate the
+Task-090 Trivy inventory, although seven GitHub severity labels differ. The
+six npm alerts are complementary findings that the existing Trivy branch gate
+did not report.
+
+**Python disposition**:
+
+- The previously qualified Slices B-E resolve 52 of the 62 Python alerts.
+- Slice F upgrades Flask `3.0.2` to `3.1.3` and python-dotenv `1.0.0` to
+  `1.2.2`, resolving two more alerts. The isolated Python 3.12 environment
+  passed `pip check` and 101 focused configuration, error-sanitization,
+  Flask-route, runtime, input-boundary, and provider-client tests.
+- The eight remaining Python alerts are the already documented,
+  non-reachable torch advisories. Their available fixes require a new
+  torch/torchvision compatibility and CPU/CUDA qualification cycle, while the
+  accepted Task-098 GPU evidence is bound to torch `2.6.0` and torchvision
+  `0.21.0`. They remain an explicit residual rather than being silently
+  upgraded beyond the qualified ML pair.
+
+**npm disposition**: `npm audit fix --package-lock-only` retained the direct
+Puppeteer `24.19.0` pin and upgraded only its transitive development
+dependencies: basic-ftp `5.2.0` to `5.3.1`, ip-address `10.1.0` to `10.2.0`,
+js-yaml `4.1.1` to `4.3.0`, and ws `8.20.0` to `8.21.1`. This resolves all six
+open npm alerts and the three related npm advisories GitHub had already
+auto-dismissed. A clean `npm ci` and `npm audit --audit-level=high` reported
+zero vulnerabilities; the setup-wizard and ProviderStateManager contracts
+passed, and a rebuilt bundle differed only by its generated timestamp.
+
+**CI coverage correction**: The frontend job now runs blocking
+`npm audit --audit-level=high` immediately after `npm ci`. This preserves the
+existing critical/high merge policy, leaves moderate findings visible but
+non-blocking, and prevents Dependabot-only high/critical npm findings from
+escaping solely because Trivy's current database did not report them.
+Maintained contracts pin the four transitive fixed versions, preserve the
+direct Puppeteer pin, and prevent the npm audit step from becoming advisory.
+
+**Final local validation**:
+
+- full Python 3.12 unit suite: PASS, 303 passed and 74 intentional
+  legacy/platform skips
+- fresh `--pull --no-cache` Linux/Python 3.11 CPU image:
+  `towerscout:task098-final-dependabot-slicef-cpu`, image ID
+  `sha256:4f9a3741e210ce3ceff6e26b1075b19447a7258b3737e764d1a25f10ec298719`
+- image dependency check: PASS; Flask `3.1.3`, python-dotenv `1.2.2`, torch
+  `2.6.0+cpu`, torchvision `0.21.0+cpu`, and no broken requirements
+- disposable read-only container on `127.0.0.1:5006`: root HTTP 200, one
+  session cookie, health `ok`, and readiness HTTP 200 with expected
+  `setup_required`/asset `degraded` state because the asset-light smoke
+  intentionally supplied no models, ZIP data, or provider credentials
+- the disposable container was removed; the pre-existing RC7.1 container
+  remained the only running container and stayed healthy on port 5005
+
 ---
 
 ## Validation Results
 
-**Execution Status**: IN_PROGRESS; IMPLEMENTATION AND QUALIFICATION COMPLETE;
-DRAFT PR #51 READY FOR PROJECT-LEAD CHECKOUT AND TASK SIGN-OFF
+**Execution Status**: IN_PROGRESS; IMPLEMENTATION, QUALIFICATION, AND BRANCH
+SECURITY RECONCILIATION COMPLETE; DRAFT PR #51 AWAITS PROJECT-LEAD CHECKOUT
+AND TASK SIGN-OFF
 
-**Planning Readiness Confidence**: 94%. The alert inventory, reachability
-evidence, proposed targets, work slices, regression obligations, stop rules,
-residual-decision packet, and CI ratchet are traceable and internally
-consistent. The remaining uncertainty is intentionally owned by the approval
-decision and Slice D compatibility evidence, not missing task preparation.
+**Closeout Confidence**: The alert inventory, reachability decisions, selected
+versions, regression obligations, CPU/GPU evidence boundaries, live-provider
+results, npm complement, and blocking CI gates are traceable and internally
+consistent. The eight residual torch advisories are explicitly documented as
+non-reachable and remain tied to a future coordinated ML compatibility cycle,
+not an unreviewed Task-098 omission.
 
 **Documentation Validation**:
 
@@ -1047,8 +1140,8 @@ decision and Slice D compatibility evidence, not missing task preparation.
 - Current CI reality: unit tests block; the broad integration job, container
   image build, and Trivy SARIF path are advisory; live Google/Azure browser
   smoke and four-profile package validation are external runtime gates.
-- Branch security reconciliation and the blocking-ratchet decision remain the
-  Task-098 execution-time gate. Final Docker/Podman CPU/GPU operational
+- Branch security reconciliation and both blocking critical/high dependency
+  gates are implemented. Final Docker/Podman CPU/GPU operational
   qualification remains assigned to Task-097/Task-091.
 
 **Docker CPU Python 3.11 Baseline**:
@@ -1066,5 +1159,7 @@ decision and Slice D compatibility evidence, not missing task preparation.
 Task-098 has changed only the approved Slice A runtime/input boundaries,
 Slice B Pillow/Waitress pins, Slice C aiohttp pin, Slice D/G ML runtime pins
 and safety boundaries, qualified Slice E geospatial pins/backend selection,
-the CI security ratchet, and maintained regression/evidence records. No
-release asset, GitHub alert state, or external repository has been changed.
+qualified Slice F Flask/python-dotenv pins, npm transitive lockfile fixes, the
+CI security ratchet, corrected model-hash documentation, and maintained
+regression/evidence records. No release asset, GitHub alert state, repository
+security setting, or external repository has been changed.

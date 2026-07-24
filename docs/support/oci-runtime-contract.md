@@ -90,7 +90,11 @@ Readiness checks:
 - required asset files exist
 - expected byte sizes match
 
-SHA-256 verification is available with `TOWERSCOUT_VERIFY_ASSET_HASHES=1` for release validation and support diagnostics.
+Manifest-listed model assets are always SHA-256 verified during readiness and
+again immediately before deserialization. Set
+`TOWERSCOUT_VERIFY_ASSET_HASHES=1` to extend readiness verification to every
+manifest asset, including the large ZIP-code geometry files, for release
+validation and support diagnostics.
 
 For release-candidate or support validation, prefer `setup-towerscout.cmd` for first setup so the package can discover the local Model & Data Package ZIP, verify checksum sidecars, reject unsafe layouts, import assets with hash verification, and launch. Manual validation can still run `scripts/import-assets.cmd -Engine docker -Source assets -VerifyHashes -RestartWaitSeconds 180` during import unless support explicitly selected another engine.
 

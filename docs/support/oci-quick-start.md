@@ -462,14 +462,17 @@ For Podman, asset import first uses the selected Compose provider's `cp`
 support. If that provider cannot copy files, the helper falls back to direct
 `podman cp` against the running TowerScout service container.
 
-Release-candidate validation should enable SHA-256 checks:
+Manifest-listed model files are always SHA-256 verified during readiness and
+again before model deserialization. Release-candidate validation should extend
+readiness verification to every manifest asset:
 
 ```powershell
 $env:TOWERSCOUT_VERIFY_ASSET_HASHES = "1"
 .\scripts\status.cmd -Engine docker
 ```
 
-Routine CI and first-run setup should not hash large assets on every readiness poll.
+Routine CI and first-run setup should not hash the large ZIP-code assets on
+every readiness poll. Model hash verification remains enabled.
 
 ## Restricted Networks
 

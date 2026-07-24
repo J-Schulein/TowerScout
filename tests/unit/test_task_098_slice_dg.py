@@ -20,6 +20,10 @@ from towerscout import app
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TORCH_VERSION = "2.6.0"
 TORCHVISION_VERSION = "0.21.0"
+RUNTIME_CONTRACT = REPO_ROOT / "docs" / "support" / "oci-runtime-contract.md"
+ASSET_CONTRACT = (
+    REPO_ROOT / "docs" / "release" / "release-asset-bundle-contract.md"
+)
 
 
 def _scratch_root() -> Path:
@@ -245,3 +249,23 @@ def test_model_upload_override_rejects_untrusted_file(client, monkeypatch):
         assert list(root.glob(".custom.pt.*.pending")) == []
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+def test_runtime_docs_distinguish_always_on_model_hashes_from_full_asset_hashes():
+    runtime_contract = RUNTIME_CONTRACT.read_text(encoding="utf-8")
+    asset_contract = ASSET_CONTRACT.read_text(encoding="utf-8")
+    normalized_runtime_contract = " ".join(runtime_contract.split())
+    normalized_asset_contract = " ".join(asset_contract.split())
+
+    assert (
+        "model assets are always SHA-256 verified"
+        in normalized_runtime_contract
+    )
+    assert (
+        "Model hash verification remains enabled."
+        in normalized_asset_contract
+    )
+    assert (
+        "model loading rejects it before deserialization"
+        in normalized_asset_contract
+    )
