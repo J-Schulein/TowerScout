@@ -66,11 +66,11 @@ through October 30.
 **Task File**:
 `.agent_work/tasks/active/TASK-090-runtime-custom-image-dependency-security.md`
 
-**Objective**: Determine whether local-only runtime reachability and
-custom-image behavior create an actionable release risk, and classify all 62
-open Trivy dependency alerts currently reported on `main`. Separate evidence,
-classification, and remediation estimates; do not hide remediation inside the
-investigation.
+**Historical Objective**: Determine whether local-only runtime reachability
+and custom-image behavior created an actionable release risk, and classify the
+62-alert Trivy dependency baseline reported on `main` on July 23. Separate
+evidence, classification, and remediation estimates; do not hide remediation
+inside the investigation.
 
 **Exit Gate**:
 
@@ -87,16 +87,16 @@ investigation.
 
 **Investigation Outcome**:
 
-- The live GitHub inventory reconciles exactly to 62 alerts with no missing or
-  extra alert numbers.
+- The July 23 live GitHub inventory reconciled exactly to 62 alerts with no
+  missing or extra alert numbers.
 - Five alerts are release-blocking, one requires hardening, and 56 are not
   reachable on the supported call paths.
-- The normal Compose port is currently published on all host interfaces,
-  contradicting the local-only assumption and making loopback binding a
-  mandatory Task-098 control.
-- The proposed Task-098 scope is 4-8 days for mandatory slices, or 6-11 days
-  for the full coordinated dependency hardening, plus required GPU/runtime
-  host availability.
+- At investigation time, the normal Compose port was published on all host
+  interfaces, contradicting the local-only assumption and making loopback
+  binding a mandatory Task-098 control.
+- The Task-090 proposal estimated Task-098 at 4-8 days for mandatory slices,
+  or 6-11 days for the full coordinated dependency hardening, plus required
+  GPU/runtime host availability.
 - No dependency pin, alert state, runtime, release asset, or external
   repository was changed.
 

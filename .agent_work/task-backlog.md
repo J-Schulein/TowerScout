@@ -58,8 +58,8 @@ work.
 
 | Order | Task | Status | Estimate | Start gate |
 | ---: | --- | --- | --- | --- |
-| 8 | `TASK-058` Background Detection Jobs And Durable Run State | CONDITIONAL | 3-5 days | Tasks 090, 098, 087, 096, and 097 pass; no pilot blocker; September 18 remains credible |
-| 9 | `TASK-059` Backend Layer Decomposition And Logging Consolidation | CONDITIONAL | 3-5 days | Task-058 accepted and remaining schedule margin is still safe |
+| 7 | `TASK-058` Background Detection Jobs And Durable Run State | CONDITIONAL | 3-5 days | Tasks 090, 098, 087, 096, and 097 pass; no pilot blocker; September 18 remains credible |
+| 8 | `TASK-059` Backend Layer Decomposition And Logging Consolidation | CONDITIONAL | 3-5 days | Task-058 accepted and remaining schedule margin is still safe |
 
 August 28 is the latest responsible Task-058 capacity checkpoint, not an
 earliest start date. Task-058 may begin earlier when all gates pass.
