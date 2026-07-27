@@ -3,6 +3,7 @@
 import hashlib
 import io
 import json
+import re
 import shutil
 import uuid
 from pathlib import Path
@@ -20,6 +21,7 @@ from towerscout import app
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TORCH_VERSION = "2.6.0"
 TORCHVISION_VERSION = "0.21.0"
+MODEL_UPLOAD_KEY = "task098-model-upload-key-1234567890"
 RUNTIME_CONTRACT = REPO_ROOT / "docs" / "support" / "oci-runtime-contract.md"
 ASSET_CONTRACT = (
     REPO_ROOT / "docs" / "release" / "release-asset-bundle-contract.md"
@@ -211,8 +213,11 @@ def client():
     return app.test_client()
 
 
-def test_model_upload_override_rejects_non_loopback(client, monkeypatch):
+def test_model_upload_override_rejects_missing_key_from_container_peer(
+    client, monkeypatch
+):
     monkeypatch.setattr(towerscout, "MODEL_UPLOAD_ENABLED", True)
+    monkeypatch.setenv("TOWERSCOUT_MODEL_UPLOAD_KEY", MODEL_UPLOAD_KEY)
 
     response = client.post(
         "/uploadmodel",
@@ -225,15 +230,35 @@ def test_model_upload_override_rejects_non_loopback(client, monkeypatch):
     )
 
     assert response.status_code == 403
-    assert "loopback" in response.get_json()["error"].lower()
+    assert "authorization" in response.get_json()["error"].lower()
 
 
-def test_model_upload_override_rejects_untrusted_file(client, monkeypatch):
+def test_model_upload_override_fails_closed_without_configured_key(client, monkeypatch):
+    monkeypatch.setattr(towerscout, "MODEL_UPLOAD_ENABLED", True)
+    monkeypatch.delenv("TOWERSCOUT_MODEL_UPLOAD_KEY", raising=False)
+
+    response = client.post(
+        "/uploadmodel",
+        data={"model": (io.BytesIO(b"model"), "custom.pt")},
+        content_type="multipart/form-data",
+        headers={"X-TowerScout-Model-Upload-Key": MODEL_UPLOAD_KEY},
+    )
+
+    assert response.status_code == 503
+    error = response.get_json()["error"].lower()
+    assert "no valid model upload key" in error
+    assert "configured" in error
+
+
+def test_model_upload_override_accepts_key_from_container_peer_then_rejects_untrusted_file(
+    client, monkeypatch
+):
     root = _scratch_root()
     try:
         monkeypatch.setattr(towerscout, "MODEL_UPLOAD_ENABLED", True)
         monkeypatch.setattr(towerscout, "YOLO_MODEL_DIR", root)
         monkeypatch.setattr(towerscout, "EN_MODEL_DIR", root)
+        monkeypatch.setenv("TOWERSCOUT_MODEL_UPLOAD_KEY", MODEL_UPLOAD_KEY)
         monkeypatch.delenv("TOWERSCOUT_TRUSTED_MODEL_SHA256", raising=False)
 
         with patch.object(towerscout.rate_limiter, "is_allowed", return_value=True):
@@ -241,6 +266,8 @@ def test_model_upload_override_rejects_untrusted_file(client, monkeypatch):
                 "/uploadmodel",
                 data={"model": (io.BytesIO(b"untrusted"), "custom.pt")},
                 content_type="multipart/form-data",
+                headers={"X-TowerScout-Model-Upload-Key": MODEL_UPLOAD_KEY},
+                environ_base={"REMOTE_ADDR": "172.17.0.1"},
             )
 
         assert response.status_code == 400
@@ -249,6 +276,91 @@ def test_model_upload_override_rejects_untrusted_file(client, monkeypatch):
         assert list(root.glob(".custom.pt.*.pending")) == []
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+def test_model_upload_container_and_frontend_contracts_require_the_dedicated_key():
+    compose = (REPO_ROOT / "compose.yaml").read_text(encoding="utf-8")
+    env_template = (REPO_ROOT / ".env.example").read_text(encoding="utf-8")
+    webapp_env_template = (REPO_ROOT / "webapp" / ".env.example").read_text(
+        encoding="utf-8"
+    )
+    template = (
+        REPO_ROOT / "webapp" / "templates" / "towerscout.html"
+    ).read_text(encoding="utf-8")
+    frontend = (
+        REPO_ROOT / "webapp" / "js" / "src" / "towerscout.js"
+    ).read_text(encoding="utf-8")
+
+    assert "127.0.0.1:${TOWERSCOUT_PORT:-5000}:5000" in compose
+    for variable in (
+        "TOWERSCOUT_ENABLE_MODEL_UPLOAD",
+        "TOWERSCOUT_MODEL_UPLOAD_KEY",
+        "TOWERSCOUT_TRUSTED_MODEL_SHA256",
+    ):
+        assert variable in compose
+        assert variable in env_template
+        assert variable in webapp_env_template
+
+    assert 'id="model_upload_key"' in template
+    assert 'type="password"' in template
+    assert 'autocomplete="off"' in template
+    assert "X-TowerScout-Model-Upload-Key" in frontend
+    assert "installed model \" + model" not in frontend
+
+
+def test_current_runtime_and_release_contracts_have_no_cuda_121_reference():
+    text_suffixes = {
+        ".bat",
+        ".cmd",
+        ".example",
+        ".html",
+        ".js",
+        ".json",
+        ".md",
+        ".ps1",
+        ".py",
+        ".sh",
+        ".txt",
+        ".yaml",
+        ".yml",
+    }
+    scan_roots = (
+        REPO_ROOT / "Dockerfile",
+        REPO_ROOT / "compose.yaml",
+        REPO_ROOT / "compose.build.yaml",
+        REPO_ROOT / "compose.gpu.yaml",
+        REPO_ROOT / "compose.gpu.podman.yaml",
+        REPO_ROOT / ".env.example",
+        REPO_ROOT / "webapp",
+        REPO_ROOT / "scripts",
+        REPO_ROOT / "docs",
+        REPO_ROOT / "tests",
+    )
+    stale_pattern = re.compile(
+        r"\b(?:cuda(?:\s+|[-_])?12\.1|cuda121|cu121)\b",
+        flags=re.IGNORECASE,
+    )
+    stale_references = []
+
+    for scan_root in scan_roots:
+        paths = (scan_root,) if scan_root.is_file() else scan_root.rglob("*")
+        for path in paths:
+            if (
+                not path.is_file()
+                or path == Path(__file__).resolve()
+                or path.suffix.lower() not in text_suffixes
+                or "legacy" in {part.lower() for part in path.parts}
+            ):
+                continue
+            content = path.read_text(encoding="utf-8", errors="replace")
+            match = stale_pattern.search(content)
+            if match:
+                line_number = content.count("\n", 0, match.start()) + 1
+                stale_references.append(
+                    f"{path.relative_to(REPO_ROOT)}:{line_number}"
+                )
+
+    assert stale_references == []
 
 
 def test_runtime_docs_distinguish_always_on_model_hashes_from_full_asset_hashes():

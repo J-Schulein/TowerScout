@@ -103,8 +103,9 @@ investigation.
 ### **TASK-098: Dependency Security Remediation And Release Gate**
 
 **Status**: IN_PROGRESS - implementation, dependency qualification, Docker
-CPU/GPU and live Google/Azure qualification, and branch security reconciliation
-complete; draft PR #51 awaits project-lead checkout and sign-off
+CPU/GPU and live Google/Azure qualification, branch security reconciliation,
+and PR #51 review remediation complete; PR #51 awaits project-lead checkout
+and sign-off
 **Type**: C (Security Remediation / Runtime Qualification)
 **Priority**: HIGH
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -122,8 +123,9 @@ release gate before Task-087 resumes.
   `675bd8fabc27765522906957524d2027d931f6a1`.
 - Live Google/Azure estimate, detect, cancel, and recovery smokes passed
   against the Task-098 candidate image.
-- Task-098 branch alert/CI-ratchet reconciliation is complete; the remaining
-  gate is project-lead checkout and sign-off on draft PR #51.
+- Task-098 branch alert/CI-ratchet reconciliation and PR review remediation are
+  complete; the remaining gate is project-lead checkout and sign-off on PR
+  #51.
 - Task-097/Task-091 retain Podman CPU/GPU and the final four-profile
   operational package matrix.
 

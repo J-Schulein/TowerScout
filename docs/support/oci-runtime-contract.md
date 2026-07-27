@@ -4,7 +4,7 @@
 **Last reviewed**: 2026-06-16
 **Audience**: Release/support users and runtime maintainers
 **Runtime scope**: The CPU Application Package is the primary path; the CUDA
-12.1 Application Package, Podman CPU, Docker GPU, and Podman GPU are
+12.6 Application Package, Podman CPU, Docker GPU, and Podman GPU are
 support-assigned paths after workstation-specific engine, Compose-provider,
 and NVIDIA validation.
 
@@ -179,7 +179,7 @@ Readiness diagnostics verify CUDA with a lightweight CUDA tensor probe when `TOW
 
 ## Upload Limit
 
-`TOWERSCOUT_MAX_REQUEST_BODY_BYTES` remains the single request-body/upload-size knob. Model upload remains disabled unless `TOWERSCOUT_ENABLE_MODEL_UPLOAD` is explicitly truthy.
+`TOWERSCOUT_MAX_REQUEST_BODY_BYTES` remains the single request-body/upload-size knob. Model upload remains disabled unless `TOWERSCOUT_ENABLE_MODEL_UPLOAD` is explicitly truthy. An enabled upload also requires a dedicated `TOWERSCOUT_MODEL_UPLOAD_KEY` of at least 32 characters, supplied through the upload dialog, plus an approved digest in `TOWERSCOUT_TRUSTED_MODEL_SHA256`. The normal Compose package remains bound to `127.0.0.1`; the key is an additional administrator capability and is never sent in a URL.
 
 `TOWERSCOUT_PILOT_MAX_TILES` is a separate UAT guard. When set, detection stops
 before imagery download or model inference if the retained tile count exceeds

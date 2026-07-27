@@ -8,7 +8,7 @@ provider TLS repair baseline, unless release notes say otherwise
 **Last reviewed**: 2026-06-29
 **Audience**: First-line support, release validation, and pilot testers
 **Runtime scope**: The CPU Application Package is the primary path; the CUDA
-12.1 Application Package, Podman CPU, Docker GPU, and Podman GPU are
+12.6 Application Package, Podman CPU, Docker GPU, and Podman GPU are
 support-assigned paths after workstation-specific engine, Compose-provider,
 and NVIDIA validation.
 

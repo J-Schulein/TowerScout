@@ -1,6 +1,6 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: July 24, 2026
+**Last Updated**: July 27, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Required release and handoff work takes priority over Task-058/059 stretch
 work.
@@ -12,7 +12,7 @@ work.
 
 | Order | Task | Status | Estimate | Dependencies | Required outcome |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | `TASK-098` Dependency Security Remediation And Release Gate | IN_PROGRESS / PROJECT_LEAD_CHECKOUT_PENDING | Mandatory slices 4-8 days; full coordinated hardening 6-11 days, plus GPU/runtime host availability | Implementation, dependency qualification, Docker CPU/GPU and live Google/Azure smokes, and branch security reconciliation complete; draft PR #51 awaits checkout/sign-off | Patchable mandatory findings pass regression/package validation with no unapproved feature, workflow, output, or performance regression; no unresolved release-blocking critical/high alert |
+| 1 | `TASK-098` Dependency Security Remediation And Release Gate | IN_PROGRESS / PROJECT_LEAD_CHECKOUT_PENDING | Mandatory slices 4-8 days; full coordinated hardening 6-11 days, plus GPU/runtime host availability | Implementation, dependency qualification, Docker CPU/GPU and live Google/Azure smokes, branch security reconciliation, and PR #51 review remediation complete; awaits checkout/sign-off | Patchable mandatory findings pass regression/package validation with no unapproved feature, workflow, output, or performance regression; no unresolved release-blocking critical/high alert |
 | 2 | `TASK-096` User-Initiated Exit And Container Stop | NOT_STARTED | 2-4 days | Task-087 helper/security pattern; current stop scripts | Confirmed Exit/Stop works on Docker and Podman without deleting named volumes |
 | 3 | `TASK-097` Podman CPU/GPU Final Path Qualification | NOT_STARTED | 3-5 days plus environment validation | Tasks 090, 098, 087, and 096 | Podman CPU and GPU/CDI pass final-package qualification without Docker Desktop |
 | 4 | `TASK-091` Owner-Runnable Release Qualification | NOT_STARTED | 3-6 days | Candidate scope stable; fixture/harness custody | cdcai owner can execute or supervise the minimum release gate |
@@ -55,6 +55,20 @@ work.
   Task-087.
 - Fix packaged-runtime blockers. Document a source-build-only limitation only
   through an explicit owner decision.
+
+### Task-092 Boundary
+
+- Add administrator instructions for the opt-in Model Upload Key before the
+  final documentation freeze.
+- Cover secure key generation, private storage, enable/disable behavior,
+  rotation, the approved SHA-256 allowlist, adding a new approved model, and
+  troubleshooting rejected uploads.
+- Make clear that normal users do not need the key, the upload feature remains
+  disabled by default, and the key must never be committed, logged, placed in
+  screenshots, or included in support artifacts.
+- Explain that loopback publication blocks other physical devices by default,
+  while another locally controlled Docker Desktop container can reach the host
+  proxy and is still denied without the key.
 
 ---
 

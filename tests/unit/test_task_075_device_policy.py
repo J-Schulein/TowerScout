@@ -210,7 +210,7 @@ def test_readiness_payload_explains_cuda_runtime_probe_failure(monkeypatch):
             "configured_policy": "cuda",
             "selected_device": "unavailable",
             "torch_version": "2.6.0+cu126",
-            "torch_cuda_build": "12.1",
+            "torch_cuda_build": "12.6",
             "torch_cuda_available": False,
             "cuda_device_name": None,
             "fallback_reason": "cuda_required_but_unavailable",

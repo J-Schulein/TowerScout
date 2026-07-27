@@ -24,7 +24,6 @@ from flask_session import Session
 from waitress import serve
 import json
 import html
-import ipaddress
 import time
 import os
 import math
@@ -1476,6 +1475,17 @@ def _get_max_request_body_size() -> int:
 MAX_REQUEST_BODY_SIZE = _get_max_request_body_size()
 TowerScoutValidator.MAX_FILE_SIZE = MAX_REQUEST_BODY_SIZE
 MODEL_UPLOAD_ENABLED = os.getenv('TOWERSCOUT_ENABLE_MODEL_UPLOAD', '').strip().lower() in {'1', 'true', 'yes', 'on'}
+MODEL_UPLOAD_KEY_ENV_VAR = 'TOWERSCOUT_MODEL_UPLOAD_KEY'
+MODEL_UPLOAD_KEY_HEADER = 'X-TowerScout-Model-Upload-Key'
+MODEL_UPLOAD_KEY_MIN_LENGTH = 32
+MODEL_UPLOAD_KEY_MAX_LENGTH = 512
+
+
+def _get_configured_model_upload_key():
+    configured_key = os.getenv(MODEL_UPLOAD_KEY_ENV_VAR, '').strip()
+    if MODEL_UPLOAD_KEY_MIN_LENGTH <= len(configured_key) <= MODEL_UPLOAD_KEY_MAX_LENGTH:
+        return configured_key
+    return None
 
 # Configure Flask from environment variables
 if os.getenv('FLASK_ENV', 'development').lower() == 'testing':
@@ -2749,22 +2759,31 @@ def upload_model():
             'error': 'Model upload is disabled for this release. Install trusted model files through the configured model volume or enable the local-admin upload override.'
         }), 403
 
-    try:
-        if not ipaddress.ip_address(request.remote_addr or "").is_loopback:
-            api_logger.warning("Model upload rejected because the request was not loopback-local")
-            return jsonify({
-                'error': 'Model upload is restricted to a loopback-local administrator.'
-            }), 403
-    except ValueError:
-        api_logger.warning("Model upload rejected because the client address was invalid")
+    configured_key = _get_configured_model_upload_key()
+    if configured_key is None:
+        api_logger.warning(
+            "Model upload rejected because TOWERSCOUT_MODEL_UPLOAD_KEY is not securely configured"
+        )
         return jsonify({
-            'error': 'Model upload is restricted to a loopback-local administrator.'
-        }), 403
+            'error': 'Model upload is enabled but no valid Model Upload Key is configured.'
+        }), 503
     
     # Rate limiting (stricter for model uploads)
-    client_ip = request.remote_addr
+    client_ip = request.remote_addr or "unknown"
     if not rate_limiter.is_allowed(client_ip, max_requests=5, window_seconds=300):
         return jsonify({'error': 'Rate limit exceeded for model uploads'}), 429
+
+    provided_key = request.headers.get(MODEL_UPLOAD_KEY_HEADER, '')
+    key_matches = (
+        len(provided_key) <= MODEL_UPLOAD_KEY_MAX_LENGTH
+        and secrets.compare_digest(
+            provided_key.encode('utf-8'),
+            configured_key.encode('utf-8'),
+        )
+    )
+    if not key_matches:
+        api_logger.warning("Model upload rejected because authorization failed")
+        return jsonify({'error': 'Model upload authorization failed.'}), 403
     
     # Input validation
     try:

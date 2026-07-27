@@ -1,7 +1,8 @@
 # TASK-098: Dependency Security Remediation And Release Gate
 
-**Status**: IN_PROGRESS / IMPLEMENTATION, QUALIFICATION, AND BRANCH SECURITY
-RECONCILIATION COMPLETE; DRAFT PR #51 AWAITS PROJECT-LEAD CHECKOUT AND SIGN-OFF
+**Status**: IN_PROGRESS / IMPLEMENTATION, QUALIFICATION, BRANCH SECURITY
+RECONCILIATION, AND PR #51 REVIEW REMEDIATION COMPLETE; PR #51 AWAITS
+PROJECT-LEAD CHECKOUT AND SIGN-OFF
 **Priority**: HIGH
 **Type**: C (Security Remediation / Runtime Qualification)
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -278,10 +279,10 @@ Validate the exact pinned action behavior before making the new gate blocking.
   before the next slice begins.
 - [x] Dedicated maintained tests replace reliance on the skipped legacy
   validation and image-processing contracts for every touched path.
-- [ ] Detection state/counts, review/map/list behavior, manual tower semantics,
+- [x] Detection state/counts, review/map/list behavior, manual tower semantics,
   and export/restore schemas are unchanged; numeric ML tolerances were declared
   before candidate evaluation and pass.
-- [ ] Same-host warmed median startup, inference, local detection time, and
+- [x] Same-host warmed median startup, inference, local detection time, and
   peak memory remain within the 10% investigation threshold unless a different
   threshold was approved before comparison.
 - [x] Live Google and Azure workflows plus Docker CPU/GPU dependency
@@ -310,7 +311,7 @@ Validate the exact pinned action behavior before making the new gate blocking.
   incompatible wheels or unintended source-build fallback.
 - [x] Google and Azure provider downloads pass TLS-verified header parsing,
   redirect, timeout/retry, cancellation, and sanitized-error tests.
-- [ ] ZIP-code shapefile behavior and setup/settings/session behavior pass for
+- [x] ZIP-code shapefile behavior and setup/settings/session behavior pass for
   every approved geospatial or web-framework hardening change.
 - [x] Rebuilt images pass dependency-focused Docker CPU and Docker GPU
   validation for the Task-098 changes. Task-097/Task-091 retain Podman CPU/GPU
@@ -320,17 +321,18 @@ Validate the exact pinned action behavior before making the new gate blocking.
 
 ### Release Gate And Handoff
 
-- [ ] No release-blocking critical/high finding remains unresolved.
-- [ ] Any residual critical/high finding has written project-lead/cdcai-owner
-  acceptance, compensating controls, an expiration date, a named owner, and a
-  follow-up disposition.
-- [ ] GitHub code-scanning state is reconciled without treating raw alert
+- [x] No release-blocking critical/high finding remains unresolved.
+- [x] The residual-risk decision packet was not invoked: the eight remaining
+  torch advisories are classified as non-reachable and non-release-blocking
+  for the supported runtime, with a future coordinated ML requalification
+  disposition rather than accepted residual product risk.
+- [x] GitHub code-scanning state is reconciled without treating raw alert
   count alone as proof of safety.
-- [ ] The approved CI ratchet fails new critical/high findings unless covered
+- [x] The approved CI ratchet fails new critical/high findings unless covered
   by a narrow, unexpired exception.
 - [ ] Requirements, design, task status, release notes, dependency notices,
   package manifests, and owner-maintenance guidance reflect the final result.
-- [ ] Task-087 remains paused until this release gate is signed off.
+- [x] Task-087 remains paused until this release gate is signed off.
 
 ## Dependencies
 
@@ -772,10 +774,13 @@ observing the result.
 in readiness and immediately before either checkpoint is deserialized. Broad
 ZIP-code/data hashing remains opt-in, preventing every readiness request from
 rehashing the 822 MiB shapefile. The model hash cache is invalidated by file
-identity, size, modification time, and change time. The model-upload route
-remains disabled by default; when explicitly enabled it authorizes only the
-actual loopback peer and accepts only a checkpoint whose digest appears in the
-local-admin SHA-256 allowlist. Forwarded headers do not grant access.
+identity, size, modification time, and change time. At this checkpoint, the
+model-upload route remained disabled by default and an enabled override
+attempted to authorize the request's loopback peer before applying the
+local-admin SHA-256 allowlist. The July 27 PR review found that Docker host
+forwarding does not preserve that loopback peer address; the later review
+remediation replaced the unreliable peer test with an administrator key while
+retaining the trusted-hash requirement.
 
 **Package alignment**: Requirements, Docker build arguments, Compose build
 defaults, container publishing, Windows launcher selection, release packaging,
@@ -1019,11 +1024,14 @@ correctly skipped under its existing main-branch-only condition.
 container, frontend, documentation, and task-tracking surface before adding
 the newly available Dependabot evidence.
 
-**Result**: No application regression, unintended ML/runtime change, stale
-CUDA 12.1 package reference, source/bundle mismatch, or credential exposure
-was found. The exact pre-closeout head passed 117 focused Task-098,
-configuration, sanitization, Flask-route, and runtime-contract tests under
-Python 3.12. `pip check`, the CI workflow summary, frontend bundle consistency,
+**Result**: This audit found no application regression, unintended ML/runtime
+change, stale CUDA 12.1 package reference, source/bundle mismatch, or
+credential exposure. The later PR review did identify stale CUDA 12.1 wording
+outside the audit's effective search and a Docker-forwarding flaw in the
+loopback-peer upload check; both are corrected in the July 27 entry below. The
+exact pre-closeout head passed 117 focused Task-098, configuration,
+sanitization, Flask-route, and runtime-contract tests under Python 3.12. The
+`pip check` result, CI workflow summary, frontend bundle consistency,
 agent-work quick/full validation, and `git diff --check` passed. The only
 credential-shaped value in the branch diff is an intentionally fake Google
 key used by the provider-error redaction test.
@@ -1107,11 +1115,88 @@ direct Puppeteer pin, and prevent the npm audit step from becoming advisory.
 
 ---
 
+### 2026-07-27 - PR #51 Review Remediation And Final Local Recheck
+
+**Review findings**: The PR review correctly identified two issues that the
+July 24 closeout audit missed:
+
+- Docker Desktop host forwarding presents the request to TowerScout through a
+  bridge/proxy address, so `request.remote_addr` cannot reliably prove that a
+  model upload originated from the host loopback interface.
+- Active documentation and one maintained test fixture still referred to CUDA
+  12.1 after the selected package moved to CUDA 12.6.
+
+**Model-upload correction**: The upload feature remains disabled by default.
+When an administrator explicitly enables it, TowerScout now fails closed
+unless `TOWERSCOUT_MODEL_UPLOAD_KEY` contains a 32-512 character secret. The
+browser asks for that key in a masked dialog and sends it only in the
+`X-TowerScout-Model-Upload-Key` request header. The backend uses a constant-time
+comparison, preserves the existing rate limit, and still requires the uploaded
+file's SHA-256 digest to appear in `TOWERSCOUT_TRUSTED_MODEL_SHA256` before
+installation. Missing or incorrect keys return HTTP 403; an enabled feature
+without a valid configured key returns HTTP 503. Logging and structured-error
+sanitizers redact both the header and environment-variable forms.
+
+Compose, both environment templates, and the Windows Compose launcher now
+carry the disabled-by-default switch, blank key, and blank trusted-hash
+allowlist. No real credential is stored in the repository. The generated
+frontend bundle was rebuilt from its source and the maintained source/bundle
+contract passes.
+
+**Docker Desktop topology evidence**: A fresh `--pull --no-cache` CPU build
+produced `towerscout:task098-pr51-model-upload-key-cpu`, image ID
+`sha256:d7b2de637b5a2d24f086a0412e6dfd16456a271101a7a7d70316c6a4a899bfc7`.
+A disposable instance published only `127.0.0.1:5006`. Host-side probes
+returned HTTP 403 for a missing key, HTTP 403 for an incorrect key, and HTTP
+200 for the temporary correct key plus an approved dummy-file digest; the
+installed dummy model then appeared in `/getengines`.
+
+Docker Desktop also allowed a sibling local container to reach the host proxy
+through `host.docker.internal`, even though the published binding was
+loopback-only. Its upload attempt without the key returned HTTP 403. The
+result sharpens the boundary: loopback publication prevents access from other
+physical devices by default, while the Model Upload Key protects the endpoint
+from other locally controlled containers on the same Docker Desktop host.
+
+**CUDA correction**: All seven active Markdown references were changed from
+CUDA 12.1 to the selected CUDA 12.6 wheel family, and the stale Task-075
+fixture was corrected. A maintained multiline repository scan now fails if
+CUDA 12.1 reappears in active runtime, script, documentation, or test surfaces.
+Historical `.agent_work` evidence is intentionally excluded from that
+current-runtime assertion.
+
+**Validation**:
+
+- disposable Linux/Python 3.11 full unit suite: PASS, 260 passed and 121
+  intentional skips
+- focused Python 3.12 review-remediation suite: PASS, 24 tests
+- frontend source and bundle syntax: PASS
+- frontend global, debug-logging, and ProviderStateManager contracts: PASS
+- bundle guard: PASS; source and generated bundle both changed while module
+  ordering remained intact
+- Windows full-suite attempts were blocked only by the existing pytest
+  temporary-directory ACL problem; the authoritative read-only Docker run
+  completed the full suite
+- `npm.cmd run test:stage-0` could not enter WSL because the repository path
+  returned `E_ACCESSDENIED`; the directly affected JavaScript contracts above
+  passed independently
+- every disposable validation container was removed; the pre-existing
+  `v0.1.0-rc7.1-cpu` container remained healthy and unchanged on port 5005
+
+**Documentation follow-up**: Detailed operator guidance is assigned to
+Task-092 and DOC-001. It must explain secure key generation, private storage,
+rotation, enable/disable behavior, approved-hash onboarding for a new model,
+normal-user impact, and troubleshooting without exposing a real key. The
+broad final-documentation acceptance item remains open until that work and the
+final release-note/owner-maintenance pass are complete.
+
+---
+
 ## Validation Results
 
-**Execution Status**: IN_PROGRESS; IMPLEMENTATION, QUALIFICATION, AND BRANCH
-SECURITY RECONCILIATION COMPLETE; DRAFT PR #51 AWAITS PROJECT-LEAD CHECKOUT
-AND TASK SIGN-OFF
+**Execution Status**: IN_PROGRESS; IMPLEMENTATION, QUALIFICATION, BRANCH
+SECURITY RECONCILIATION, AND PR #51 REVIEW REMEDIATION COMPLETE; PR #51 AWAITS
+PROJECT-LEAD CHECKOUT AND TASK SIGN-OFF
 
 **Closeout Confidence**: The alert inventory, reachability decisions, selected
 versions, regression obligations, CPU/GPU evidence boundaries, live-provider
