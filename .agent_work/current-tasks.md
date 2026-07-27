@@ -145,8 +145,10 @@ release gate before Task-087 resumes.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: READY TO RESUME - Tasks 090/098 and the mandatory security gate
-are complete; begin from current `main` after the Task-098 closeout merges
+**Status**: IN_PROGRESS - the post-Task-098 Gate 3 helper-availability,
+short-lived authorization, and guarded browser start/status polling checkpoint
+is implemented and locally validated; package and managed-network proof remain
+gated while browser mutation stays disabled
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days plus managed-network package validation

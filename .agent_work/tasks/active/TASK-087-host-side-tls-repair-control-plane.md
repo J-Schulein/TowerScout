@@ -1,7 +1,8 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: READY TO RESUME - Gate 3 non-mutating proof is merged and the
-Tasks 090/098 security gate passed
+**Status**: IN_PROGRESS - Gate 3 helper-availability, short-lived
+authorization, and browser polling checkpoint implemented and locally validated;
+package and managed-network proof remain gated
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days (32-56 hours), plus package validation on a managed TLS-inspected network
@@ -1073,6 +1074,92 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-27 - Gate 3 Authenticated Helper Bridge And Polling Checkpoint
+
+**Objective**: Reopen Task-087 from current `main` and complete the next safe,
+reviewable Gate 3 slice without enabling browser-triggered host mutation.
+
+**Context**: The merged Gate 3 baseline retained a non-mutating start-contract
+preview, but the backend always reported the helper unavailable and the Setup
+Wizard had no live discovery or polling transport. The durable helper token
+could not be exposed to Flask or browser code, and the manual Task-086 command
+fallback had to remain visible when helper discovery failed.
+
+**Decision**: Add an explicitly opt-in launcher bridge with a separate
+per-launch HMAC key. Use it to issue narrow, expiring browser authorizations
+bound to helper discovery, provider repair planning, or one operation id.
+Keep the helper's public `provider_tls_repair` capability false, controlled
+execution false by default, and
+`PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED = false`. Do not persist bridge
+credentials in `.env`, browser storage, public Setup Wizard state, DOM text,
+notifications, or console output.
+
+**Execution**:
+
+- Added the review-only launcher/session bridge and passed its generated
+  runtime values to the app container only when a maintainer explicitly opts
+  in.
+- Tightened launcher lifecycle reuse to require matching helper version,
+  engine, GPU mode, app/helper ports, package flavor, and package-root
+  identity. Disabled or mismatched inherited sessions are invalidated before
+  their environment bridge is cleared or replaced.
+- Added Flask-side signed authorization issuance after provider error logging,
+  plus an operation-bound status-authorization endpoint. Enrichment is limited
+  to allowlisted provider TLS-repair categories so unrelated network errors
+  retain their existing response shape.
+- Extended the PowerShell helper to validate signed probe, provider, and
+  status scopes while retaining its durable-token path, loopback/origin
+  controls, allowlisted operation shape, single-operation lock, timeout states,
+  and sanitized public responses.
+- Added authenticated Setup Wizard discovery, an absolute loopback start
+  request, duplicate-start suppression, status polling with one expired-
+  authorization refresh, safe reload descriptors, terminal timeout/unavailable
+  mapping, and an always-visible manual fallback for repairable TLS failures.
+- Rebuilt the committed frontend bundle and updated the host-helper support
+  note. The public guided action remains disabled.
+
+**Validation**:
+
+- PASS: full Python unit baseline, 395 collected with 321 passed and 74
+  expected dependency/platform skips.
+- PASS: final focused Task-087 rerun, 78 tests covering the launcher lifecycle,
+  bridge, real PowerShell request handler, helper operation contract, Flask
+  routes, frontend static contract, and sanitization.
+- PASS: PowerShell parser checks for the helper library, helper entry point,
+  launcher, and release packaging script.
+- PASS: non-mutating host-helper self-test, including the loopback transport,
+  CORS policy, invalidation, allowlisted repair planning, single-operation
+  lock, and real-wrapper contract.
+- PASS: Setup Wizard validation contract, including authenticated discovery,
+  exact allowlisted POST fields, duplicate suppression, operation polling,
+  authorization refresh, and credential redaction.
+- PASS: global, debug-logging, and status-output frontend contracts.
+- PASS: frontend bundle source-consistency check.
+- PASS: blocking flake8 gate reported zero syntax/undefined-name errors.
+- PASS: targeted Bandit and Python bytecode compilation for the new helper
+  bridge; `npm audit --audit-level=high` reported zero vulnerabilities.
+- PASS: `.agent_work` validator and quick hygiene check.
+- PASS: sensitive-term scan completed; changed-file matches were reviewed as
+  environment-variable identifiers or explicit dummy test credentials.
+- PASS: `git diff --check`.
+- ADVISORY FAIL: the unchanged integration suite reported 18 passed, 3
+  optional-browser skips, and 5 failures in existing environment-sensitive
+  areas: container-engine detection, geocoding request context, and cache
+  radius expectations. None of the failing files are changed in this slice;
+  the CI integration job remains advisory.
+- NOT RUN: Docker, live app startup, UAC, certificate mutation, and
+  managed-network validation. The user-required Docker confirmation gate was
+  preserved.
+- BLOCKED LOCALLY: the two optional Puppeteer template runs require a local
+  Chrome installation. Targeted Black also refuses Python 3.12.5 because of
+  its AST-safety version guard. The source-level Setup Wizard contract,
+  blocking flake8 gate, and bytecode compilation passed.
+
+**Next**: Review and commit this non-mutating checkpoint. Before any Docker
+proof, inventory the current runtime and obtain explicit user confirmation.
+After review, validate the opt-in helper lifecycle and browser discovery in a
+package without opening either public mutation gate.
 
 ### 2026-07-06 - Gate 3 Browser Start Contract Defined
 
