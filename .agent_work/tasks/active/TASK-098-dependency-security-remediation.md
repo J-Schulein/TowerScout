@@ -1190,6 +1190,22 @@ normal-user impact, and troubleshooting without exposing a real key. The
 broad final-documentation acceptance item remains open until that work and the
 final release-note/owner-maintenance pass are complete.
 
+**Post-push CI correction**: PR #51 run `30278197559` passed the main
+frontend, Python 3.11, Python 3.12, security, and Trivy jobs, but both Task-087
+Puppeteer jobs failed before test execution. Their shared workflow selected
+Node 18 and dynamically installed `playwright@latest`; the resolved Playwright
+`1.62.0` requires Node 20 or newer. This is external toolchain drift in a
+previously identified unpinned fallback, not a model-upload or application
+regression. Both jobs now use supported Node 22 and exact Playwright `1.62.0`.
+A maintained CI contract prevents either Node 18 or `playwright@latest` from
+returning. The focused six-test contract, YAML parse, pinned CLI resolution
+under local Node 24, both template-mode Puppeteer checks, the simulated-helper
+POST/poll Puppeteer check, ProviderStateManager contract, agent-work
+validators, CI workflow summary, and `git diff --check` pass. The browser tests
+used installed headless Edge plus temporary local static/helper processes that
+were removed immediately afterward. The new exact-head GitHub rerun remains
+the authoritative Node 22 browser-install and job-execution proof.
+
 ---
 
 ## Validation Results
