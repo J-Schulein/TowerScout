@@ -1,6 +1,6 @@
 Set-StrictMode -Version Latest
 
-$script:TowerScoutHostHelperVersion = "0.1.0-gate1"
+$script:TowerScoutHostHelperVersion = "0.3.0-gate3-review"
 $script:TowerScoutHostHelperReadTimeoutMs = 5000
 $script:TowerScoutHostHelperMaxRequestLineLength = 4096
 $script:TowerScoutHostHelperMaxHeaderLines = 64
@@ -8,7 +8,11 @@ $script:TowerScoutHostHelperMaxHeaderBytes = 16384
 $script:TowerScoutHostHelperMaxBodyBytes = 4096
 $script:TowerScoutHostHelperProviderTlsRepairConfirmation = "repair_tls_and_restart"
 $script:TowerScoutHostHelperOperationTimeoutSeconds = 900
-$script:TowerScoutHostHelperOperationAuthorizationPattern = "^[A-Za-z0-9_-]{32,128}$"
+$script:TowerScoutHostHelperOperationAuthorizationPattern = "^(?:[A-Za-z0-9_-]{32,128}|v1\.[A-Za-z0-9_-]{80,768}\.[A-Za-z0-9_-]{43})$"
+$script:TowerScoutHostHelperSignedAuthorizationPattern = "^v1\.[A-Za-z0-9_-]{80,768}\.[A-Za-z0-9_-]{43}$"
+$script:TowerScoutHostHelperBrowserAuthorizationAudience = "towerscout-host-helper"
+$script:TowerScoutHostHelperBrowserAuthorizationMaxTtlSeconds = 900
+$script:TowerScoutHostHelperBrowserAuthorizationClockSkewSeconds = 30
 $script:TowerScoutHostHelperExecutionEnabledByDefault = $false
 $script:TowerScoutHostHelperLaunchReadinessTimeoutSeconds = 180
 $script:TowerScoutHostHelperStartTimeoutHeadroomSeconds = 60
@@ -36,6 +40,170 @@ function New-TowerScoutHostHelperToken {
     }
 
     return ([Convert]::ToBase64String($bytes).TrimEnd("=") -replace "\+", "-" -replace "/", "_")
+}
+
+function ConvertFrom-TowerScoutHostHelperBase64Url {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Value
+    )
+
+    $normalized = $Value.Replace("-", "+").Replace("_", "/")
+    switch ($normalized.Length % 4) {
+        0 {}
+        2 { $normalized += "==" }
+        3 { $normalized += "=" }
+        default { throw "Invalid base64url value." }
+    }
+    return [Convert]::FromBase64String($normalized)
+}
+
+function Test-TowerScoutHostHelperFixedTimeEquals {
+    param(
+        [byte[]] $Expected = @(),
+
+        [byte[]] $Actual = @()
+    )
+
+    if ($Expected.Length -ne $Actual.Length) {
+        return $false
+    }
+
+    [int] $difference = 0
+    for ($index = 0; $index -lt $Expected.Length; $index++) {
+        $difference = $difference -bor ($Expected[$index] -bxor $Actual[$index])
+    }
+    return $difference -eq 0
+}
+
+function Resolve-TowerScoutHostHelperBrowserAuthorization {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [string] $Authorization = "",
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("helper_probe", "provider_tls_repair", "operation_status")]
+        [string] $ExpectedScope,
+
+        [string] $ExpectedProvider = "",
+
+        [string] $ExpectedOperationId = ""
+    )
+
+    $rejected = [pscustomobject]@{
+        Accepted = $false
+        State = "rejected_operation_authorization"
+        Provider = ""
+        Scope = ""
+        OperationId = ""
+    }
+    if ($Authorization -notmatch $script:TowerScoutHostHelperSignedAuthorizationPattern) {
+        return $rejected
+    }
+
+    $authorizationKey = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "BrowserAuthorizationKey"
+    if ($authorizationKey -notmatch "^[A-Za-z0-9_-]{43}$") {
+        return $rejected
+    }
+
+    try {
+        $segments = $Authorization.Split(".")
+        if ($segments.Count -ne 3 -or $segments[0] -ne "v1") {
+            return $rejected
+        }
+
+        $keyBytes = ConvertFrom-TowerScoutHostHelperBase64Url -Value $authorizationKey
+        if ($keyBytes.Length -ne 32) {
+            return $rejected
+        }
+        $signingInput = [System.Text.Encoding]::ASCII.GetBytes("v1.$($segments[1])")
+        $hmac = New-Object System.Security.Cryptography.HMACSHA256(,$keyBytes)
+        try {
+            $expectedSignature = $hmac.ComputeHash($signingInput)
+        }
+        finally {
+            $hmac.Dispose()
+        }
+        $actualSignature = ConvertFrom-TowerScoutHostHelperBase64Url -Value $segments[2]
+        if (-not (Test-TowerScoutHostHelperFixedTimeEquals -Expected $expectedSignature -Actual $actualSignature)) {
+            return $rejected
+        }
+
+        $payloadBytes = ConvertFrom-TowerScoutHostHelperBase64Url -Value $segments[1]
+        if (-not (Test-TowerScoutHostHelperAsciiBytes -Bytes $payloadBytes)) {
+            return $rejected
+        }
+        $payload = [System.Text.Encoding]::ASCII.GetString($payloadBytes) | ConvertFrom-Json -ErrorAction Stop
+        $audience = Get-TowerScoutHostHelperObjectValue -InputObject $payload -Name "aud"
+        $scope = Get-TowerScoutHostHelperObjectValue -InputObject $payload -Name "scope"
+        $provider = (Get-TowerScoutHostHelperObjectValue -InputObject $payload -Name "provider").Trim().ToLowerInvariant()
+        $sessionId = Get-TowerScoutHostHelperObjectValue -InputObject $payload -Name "session_id"
+        $operationId = (Get-TowerScoutHostHelperObjectValue -InputObject $payload -Name "operation_id").Trim().ToLowerInvariant()
+        $version = Get-TowerScoutHostHelperObjectValue -InputObject $payload -Name "v"
+        [long] $issuedAt = 0
+        [long] $expiresAt = 0
+        if (-not [long]::TryParse((Get-TowerScoutHostHelperObjectValue -InputObject $payload -Name "iat"), [ref] $issuedAt)) {
+            return $rejected
+        }
+        if (-not [long]::TryParse((Get-TowerScoutHostHelperObjectValue -InputObject $payload -Name "exp"), [ref] $expiresAt)) {
+            return $rejected
+        }
+
+        if ($version -ne "1" -or $audience -ne $script:TowerScoutHostHelperBrowserAuthorizationAudience) {
+            return $rejected
+        }
+        if ($scope -ne $ExpectedScope -or $provider -notin @("google", "azure")) {
+            return $rejected
+        }
+        if (-not [string]::IsNullOrWhiteSpace($ExpectedProvider) -and $provider -ne $ExpectedProvider.Trim().ToLowerInvariant()) {
+            return $rejected
+        }
+        if ($sessionId -ne (Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "HelperSessionId")) {
+            return $rejected
+        }
+        if ($operationId -and $operationId -notmatch "^[a-f0-9]{32}$") {
+            return $rejected
+        }
+        if ($ExpectedScope -eq "operation_status") {
+            if ([string]::IsNullOrWhiteSpace($ExpectedOperationId) -or $operationId -ne $ExpectedOperationId.Trim().ToLowerInvariant()) {
+                return $rejected
+            }
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($operationId)) {
+            return $rejected
+        }
+
+        $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        if ($issuedAt -gt ($now + $script:TowerScoutHostHelperBrowserAuthorizationClockSkewSeconds)) {
+            return $rejected
+        }
+        if ($expiresAt -le $now) {
+            return [pscustomobject]@{
+                Accepted = $false
+                State = "rejected_expired_authorization"
+                Provider = $provider
+                Scope = $scope
+                OperationId = $operationId
+            }
+        }
+        $ttl = $expiresAt - $issuedAt
+        if ($ttl -lt 1 -or $ttl -gt $script:TowerScoutHostHelperBrowserAuthorizationMaxTtlSeconds) {
+            return $rejected
+        }
+
+        return [pscustomobject]@{
+            Accepted = $true
+            State = "authorized"
+            Provider = $provider
+            Scope = $scope
+            OperationId = $operationId
+        }
+    }
+    catch {
+        return $rejected
+    }
 }
 
 function Get-TowerScoutHostHelperValueFingerprint {
@@ -296,7 +464,9 @@ function New-TowerScoutHostHelperRuntimeProfile {
 
         [int] $HelperPort = 0,
 
-        [string] $HelperSessionId = ""
+        [string] $HelperSessionId = "",
+
+        [string] $BrowserAuthorizationKey = ""
     )
 
     if ($AppPort -lt 1 -or $AppPort -gt 65535) {
@@ -304,6 +474,9 @@ function New-TowerScoutHostHelperRuntimeProfile {
     }
     if ($HelperPort -lt 0 -or $HelperPort -gt 65535) {
         throw "HelperPort must be 0 or between 1 and 65535."
+    }
+    if (-not [string]::IsNullOrWhiteSpace($BrowserAuthorizationKey) -and $BrowserAuthorizationKey -notmatch "^[A-Za-z0-9_-]{43}$") {
+        throw "BrowserAuthorizationKey must be a 32-byte base64url value."
     }
 
     $resolvedRoot = (Resolve-Path -LiteralPath $PackageRoot).Path
@@ -327,6 +500,7 @@ function New-TowerScoutHostHelperRuntimeProfile {
         PackageFlavor = $PackageFlavor
         AllowedOrigins = @($AllowedOrigins)
         HelperPort = $HelperPort
+        BrowserAuthorizationKey = $BrowserAuthorizationKey
     }
 }
 
@@ -446,6 +620,20 @@ function Get-TowerScoutHostHelperOperationStatePolicy {
         "operation_expired" {
             return [pscustomobject]@{
                 Classification = "terminal_timeout"
+                Terminal = $true
+                NextAction = "new_authorization_required"
+            }
+        }
+        "rejected_expired_authorization" {
+            return [pscustomobject]@{
+                Classification = "rejected"
+                Terminal = $true
+                NextAction = "new_authorization_required"
+            }
+        }
+        "rejected_operation_authorization" {
+            return [pscustomobject]@{
+                Classification = "rejected"
                 Terminal = $true
                 NextAction = "new_authorization_required"
             }
@@ -1595,7 +1783,9 @@ function New-TowerScoutProviderTlsRepairOperationPlanResponse {
 
         [bool] $ExecutionEnabled = $script:TowerScoutHostHelperExecutionEnabledByDefault,
 
-        [scriptblock] $CommandInvoker = $null
+        [scriptblock] $CommandInvoker = $null,
+
+        [bool] $RequireSignedAuthorization = $false
     )
 
     $payload = Read-TowerScoutProviderTlsRepairRequestBody -Request $Request -Profile $Profile
@@ -1604,6 +1794,23 @@ function New-TowerScoutProviderTlsRepairOperationPlanResponse {
             -StatusCode 400 `
             -Reason "Bad Request" `
             -Body $payload.PublicStatus
+    }
+
+    if ($RequireSignedAuthorization) {
+        $authorization = Resolve-TowerScoutHostHelperBrowserAuthorization `
+            -Profile $Profile `
+            -Authorization $payload.OperationAuthorization `
+            -ExpectedScope "provider_tls_repair" `
+            -ExpectedProvider $payload.Provider
+        if (-not [bool] $authorization.Accepted) {
+            $rejectedStatus = New-TowerScoutHostHelperPublicOperationStatus `
+                -State ([string] $authorization.State) `
+                -Provider ([string] $authorization.Provider)
+            return New-TowerScoutHostHelperHttpResult `
+                -StatusCode 401 `
+                -Reason "Unauthorized" `
+                -Body $rejectedStatus
+        }
     }
 
     $plan = New-TowerScoutProviderTlsRepairOperationPlan `
@@ -1888,7 +2095,7 @@ function Write-TowerScoutHostHelperResponse {
     if (-not [string]::IsNullOrWhiteSpace($AccessControlAllowOrigin)) {
         $lines += @(
             "Access-Control-Allow-Origin: $AccessControlAllowOrigin",
-            "Access-Control-Allow-Headers: X-TowerScout-Helper-Token, Content-Type",
+            "Access-Control-Allow-Headers: X-TowerScout-Helper-Token, X-TowerScout-Operation-Authorization, Content-Type",
             "Access-Control-Allow-Methods: $AccessControlAllowMethods",
             "Vary: Origin"
         )
@@ -1999,7 +2206,12 @@ function Invoke-TowerScoutHostHelperRequest {
         }
 
         $providedToken = [string] $request.Headers["x-towerscout-helper-token"]
-        if ([string]::IsNullOrWhiteSpace($providedToken) -or -not [string]::Equals($providedToken, $Token, [System.StringComparison]::Ordinal)) {
+        $durableTokenAuthorized = (
+            -not [string]::IsNullOrWhiteSpace($providedToken) -and
+            [string]::Equals($providedToken, $Token, [System.StringComparison]::Ordinal)
+        )
+        $browserAuthorizationHeader = [string] $request.Headers["x-towerscout-operation-authorization"]
+        if (-not [string]::IsNullOrWhiteSpace($providedToken) -and -not $durableTokenAuthorized) {
             Write-TowerScoutHostHelperResponse `
                 -Stream $stream `
                 -StatusCode 401 `
@@ -2027,7 +2239,8 @@ function Invoke-TowerScoutHostHelperRequest {
 
             $operationResult = New-TowerScoutProviderTlsRepairOperationPlanResponse `
                 -Profile $Profile `
-                -Request $request
+                -Request $request `
+                -RequireSignedAuthorization:(-not $durableTokenAuthorized)
             Write-TowerScoutHostHelperResponse `
                 -Stream $stream `
                 -StatusCode $operationResult.StatusCode `
@@ -2051,6 +2264,22 @@ function Invoke-TowerScoutHostHelperRequest {
 
         switch ($path) {
             "/health" {
+                if (-not $durableTokenAuthorized) {
+                    $probeAuthorization = Resolve-TowerScoutHostHelperBrowserAuthorization `
+                        -Profile $Profile `
+                        -Authorization $browserAuthorizationHeader `
+                        -ExpectedScope "helper_probe"
+                    if (-not [bool] $probeAuthorization.Accepted) {
+                        Write-TowerScoutHostHelperResponse `
+                            -Stream $stream `
+                            -StatusCode 401 `
+                            -Reason "Unauthorized" `
+                            -Body @{ state = [string] $probeAuthorization.State } `
+                            -AccessControlAllowOrigin $corsOrigin `
+                            -AccessControlAllowMethods $allowedMethods
+                        return
+                    }
+                }
                 Write-TowerScoutHostHelperResponse `
                     -Stream $stream `
                     -StatusCode 200 `
@@ -2061,6 +2290,16 @@ function Invoke-TowerScoutHostHelperRequest {
                 return
             }
             "/runtime-profile" {
+                if (-not $durableTokenAuthorized) {
+                    Write-TowerScoutHostHelperResponse `
+                        -Stream $stream `
+                        -StatusCode 401 `
+                        -Reason "Unauthorized" `
+                        -Body @{ state = "rejected_token" } `
+                        -AccessControlAllowOrigin $corsOrigin `
+                        -AccessControlAllowMethods $allowedMethods
+                    return
+                }
                 Write-TowerScoutHostHelperResponse `
                     -Stream $stream `
                     -StatusCode 200 `
@@ -2072,9 +2311,50 @@ function Invoke-TowerScoutHostHelperRequest {
             }
             default {
                 if ($path -match $operationStatusPathPattern) {
+                    $operationId = [string] $Matches[1]
+                    $statusAuthorization = $null
+                    if (-not $durableTokenAuthorized) {
+                        $statusAuthorization = Resolve-TowerScoutHostHelperBrowserAuthorization `
+                            -Profile $Profile `
+                            -Authorization $browserAuthorizationHeader `
+                            -ExpectedScope "operation_status" `
+                            -ExpectedOperationId $operationId
+                        if (-not [bool] $statusAuthorization.Accepted) {
+                            Write-TowerScoutHostHelperResponse `
+                                -Stream $stream `
+                                -StatusCode 401 `
+                                -Reason "Unauthorized" `
+                                -Body @{ state = [string] $statusAuthorization.State } `
+                                -AccessControlAllowOrigin $corsOrigin `
+                                -AccessControlAllowMethods $allowedMethods
+                            return
+                        }
+                    }
                     $operationResult = Get-TowerScoutHostHelperOperationStatus `
                         -Profile $Profile `
-                        -OperationId $Matches[1]
+                        -OperationId $operationId
+                    $operationProvider = Get-TowerScoutHostHelperObjectValue `
+                        -InputObject $operationResult.Body `
+                        -Name "provider"
+                    if (
+                        -not $durableTokenAuthorized -and
+                        $null -ne $operationResult.Body -and
+                        -not [string]::IsNullOrWhiteSpace($operationProvider) -and
+                        -not [string]::Equals(
+                            $operationProvider,
+                            ([string] $statusAuthorization.Provider),
+                            [System.StringComparison]::Ordinal
+                        )
+                    ) {
+                        Write-TowerScoutHostHelperResponse `
+                            -Stream $stream `
+                            -StatusCode 401 `
+                            -Reason "Unauthorized" `
+                            -Body @{ state = "rejected_operation_authorization" } `
+                            -AccessControlAllowOrigin $corsOrigin `
+                            -AccessControlAllowMethods $allowedMethods
+                        return
+                    }
                     Write-TowerScoutHostHelperResponse `
                         -Stream $stream `
                         -StatusCode $operationResult.StatusCode `
@@ -2085,6 +2365,16 @@ function Invoke-TowerScoutHostHelperRequest {
                     return
                 }
 
+                if (-not $durableTokenAuthorized) {
+                    Write-TowerScoutHostHelperResponse `
+                        -Stream $stream `
+                        -StatusCode 401 `
+                        -Reason "Unauthorized" `
+                        -Body @{ state = "rejected_token" } `
+                        -AccessControlAllowOrigin $corsOrigin `
+                        -AccessControlAllowMethods $allowedMethods
+                    return
+                }
                 Write-TowerScoutHostHelperResponse `
                     -Stream $stream `
                     -StatusCode 404 `
@@ -2160,6 +2450,8 @@ function Invoke-TowerScoutHostHelperSelfTestRequest {
 
         [string] $RequestToken = "",
 
+        [string] $BrowserAuthorization = "",
+
         [string] $Origin = "http://localhost:5000",
 
         [string] $Path = "/health",
@@ -2190,9 +2482,12 @@ function Invoke-TowerScoutHostHelperSelfTestRequest {
         if (-not [string]::IsNullOrWhiteSpace($RequestToken)) {
             $lines += "X-TowerScout-Helper-Token: $RequestToken"
         }
+        if (-not [string]::IsNullOrWhiteSpace($BrowserAuthorization)) {
+            $lines += "X-TowerScout-Operation-Authorization: $BrowserAuthorization"
+        }
         if ($Method -eq "OPTIONS") {
             $lines += "Access-Control-Request-Method: $PreflightMethod"
-            $lines += "Access-Control-Request-Headers: X-TowerScout-Helper-Token"
+            $lines += "Access-Control-Request-Headers: X-TowerScout-Helper-Token, X-TowerScout-Operation-Authorization"
         }
         if ($Method -eq "POST") {
             $bodyBytes = [System.Text.Encoding]::ASCII.GetBytes($Body)

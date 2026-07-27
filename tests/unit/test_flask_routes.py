@@ -517,6 +517,84 @@ def test_provider_tls_status_route_uses_keyless_provider_probe(client):
     mock_status.assert_called_once_with("google")
 
 
+def test_repairable_validation_adds_review_only_helper_bridge(client, monkeypatch):
+    monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_ENABLED", "1")
+    monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_PORT", "50123")
+    monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_SESSION_ID", "a" * 32)
+    monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_SESSION_KEY", "A" * 43)
+    tls_error = NetworkError(
+        "google validation request failed TLS verification",
+        user_message="TowerScout could not verify the Google Maps TLS certificate.",
+        details={
+            "provider": "google",
+            "category": "tls_ca_untrusted",
+            "repairable": True,
+            "helper_available": False,
+            "repair_command": (
+                ".\\scripts\\repair-provider-tls.cmd "
+                "-Provider google -Engine docker -Gpu off"
+            ),
+        },
+    )
+
+    with patch.object(towerscout.rate_limiter, "is_allowed", return_value=True), patch.object(
+        towerscout.ts_config,
+        "validate_api_key",
+        side_effect=tls_error,
+    ):
+        response = client.post(
+            "/api/config/validate-key",
+            json={"provider": "google", "key": "google-test-key"},
+        )
+
+    assert response.status_code == 502
+    payload = response.get_json()
+    details = payload["details"]
+    assert details["helper_available"] is False
+    assert details["helper_bridge"]["base_url"] == "http://127.0.0.1:50123"
+    assert details["helper_bridge"]["provider_tls_repair_capability"] is False
+    assert details["helper_bridge"]["operation_authorization"][
+        "operation_token"
+    ].startswith("v1.")
+    assert details["repair_command"].startswith(
+        ".\\scripts\\repair-provider-tls.cmd"
+    )
+    assert "helper_token" not in str(payload).lower()
+
+
+def test_provider_tls_repair_status_authorization_is_operation_bound(client, monkeypatch):
+    monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_ENABLED", "1")
+    monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_PORT", "50123")
+    monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_SESSION_ID", "a" * 32)
+    monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_SESSION_KEY", "A" * 43)
+
+    with patch.object(towerscout.rate_limiter, "is_allowed", return_value=True):
+        response = client.post(
+            "/api/config/provider-tls-repair-status-authorization",
+            json={"provider": "azure", "operation_id": "b" * 32},
+        )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["base_url"] == "http://127.0.0.1:50123"
+    assert payload["operation_id"] == "b" * 32
+    assert payload["status_authorization"]["scope"] == "operation_status"
+    assert payload["status_authorization"]["authorization"].startswith("v1.")
+
+
+def test_provider_tls_repair_status_authorization_rejects_invalid_operation(
+    client,
+):
+    with patch.object(towerscout.rate_limiter, "is_allowed", return_value=True):
+        response = client.post(
+            "/api/config/provider-tls-repair-status-authorization",
+            json={"provider": "google", "operation_id": "../invalid"},
+        )
+
+    assert response.status_code == 400
+    assert response.get_json()["state"] == "rejected_unknown_operation"
+
+
 def test_key_routes_do_not_log_key_previews(client, monkeypatch):
     google_key = "AIzaSyEXAMPLE1234567890abcdefghijklmno"
     azure_key = "azure-key-example-value-that-should-not-be-logged"

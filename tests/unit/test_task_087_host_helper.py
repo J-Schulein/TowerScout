@@ -8,11 +8,16 @@ from pathlib import Path
 
 import pytest
 
+import ts_host_helper
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HELPER_LIB = REPO_ROOT / "scripts" / "lib" / "TowerScoutHostHelper.ps1"
 HELPER_SCRIPT = REPO_ROOT / "scripts" / "host-helper.ps1"
 STOP_SCRIPT = REPO_ROOT / "scripts" / "stop.ps1"
+LAUNCH_SCRIPT = REPO_ROOT / "scripts" / "launch.ps1"
+COMPOSE_FILE = REPO_ROOT / "compose.yaml"
+ENV_EXAMPLE = REPO_ROOT / ".env.example"
 
 
 def _powershell_executable():
@@ -97,14 +102,210 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert "Clear-TowerScoutHostHelperSession" in stop_script
 
 
+def test_host_helper_review_bridge_is_explicit_and_does_not_persist_session_key():
+    launch_script = LAUNCH_SCRIPT.read_text(encoding="utf-8")
+    compose = COMPOSE_FILE.read_text(encoding="utf-8")
+    env_example = ENV_EXAMPLE.read_text(encoding="utf-8")
+
+    assert "function Test-TowerScoutHostHelperReviewEnabled" in launch_script
+    assert "TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED" in launch_script
+    assert "Initialize-TowerScoutHostHelperReviewSession" in launch_script
+    assert (
+        "function Test-TowerScoutHostHelperSessionMetadataMatchesProfile"
+        in launch_script
+    )
+    for profile_field in (
+        '"state"',
+        '"helper_version"',
+        '"engine"',
+        '"gpu"',
+        '"app_port"',
+        '"helper_port"',
+        '"package_flavor"',
+        '"package_root_identity"',
+    ):
+        assert profile_field in launch_script
+    assert "Get-TowerScoutHostHelperPackageRootIdentity" in launch_script
+    assert "-SessionId $disabledSessionId | Out-Null" in launch_script
+    assert "-SessionId $existingSessionId | Out-Null" in launch_script
+    assert "host-helper-visible.cmd" in launch_script
+    assert "TOWERSCOUT_HOST_HELPER_SESSION_KEY" in launch_script
+    assert "Clear-TowerScoutHostHelperBridgeEnvironment" in launch_script
+    assert (
+        "TOWERSCOUT_HOST_HELPER_ENABLED: ${TOWERSCOUT_HOST_HELPER_ENABLED:-0}"
+        in compose
+    )
+    assert (
+        "TOWERSCOUT_HOST_HELPER_SESSION_KEY: "
+        "${TOWERSCOUT_HOST_HELPER_SESSION_KEY:-}"
+        in compose
+    )
+    assert "TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED=0" in env_example
+    assert "TOWERSCOUT_HOST_HELPER_SESSION_KEY=" not in env_example
+    assert "do not put those values in" in env_example
+
+
+def test_host_helper_validates_python_issued_browser_authorization():
+    session_key = "A" * 43
+    session_id = "a" * 32
+    config = ts_host_helper.HostHelperBridgeConfig(
+        helper_port=50123,
+        helper_session_id=session_id,
+        session_authorization_key=session_key,
+    )
+    authorization = ts_host_helper.issue_browser_authorization(
+        config,
+        scope="provider_tls_repair",
+        provider="google",
+        ttl_seconds=120,
+    )["authorization"]
+    script = textwrap.dedent(
+        f"""
+        $ErrorActionPreference = "Stop"
+        . "{HELPER_LIB}"
+        $profile = New-TowerScoutHostHelperRuntimeProfile `
+            -Engine "docker" `
+            -Gpu "off" `
+            -AppPort 5000 `
+            -PackageRoot "{REPO_ROOT}" `
+            -HelperSessionId "{session_id}" `
+            -BrowserAuthorizationKey "{session_key}"
+        $result = Resolve-TowerScoutHostHelperBrowserAuthorization `
+            -Profile $profile `
+            -Authorization "{authorization}" `
+            -ExpectedScope "provider_tls_repair" `
+            -ExpectedProvider "google"
+        $result | ConvertTo-Json -Compress
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["Accepted"] is True
+    assert payload["State"] == "authorized"
+    assert payload["Provider"] == "google"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_accepts_python_issued_probe_through_loopback_request_handler():
+    session_key = "B" * 43
+    session_id = "b" * 32
+    config = ts_host_helper.HostHelperBridgeConfig(
+        helper_port=50124,
+        helper_session_id=session_id,
+        session_authorization_key=session_key,
+    )
+    authorization = ts_host_helper.issue_browser_authorization(
+        config,
+        scope="helper_probe",
+        provider="google",
+        ttl_seconds=60,
+    )["authorization"]
+    unknown_operation_id = "c" * 32
+    status_authorization = ts_host_helper.issue_browser_authorization(
+        config,
+        scope="operation_status",
+        provider="google",
+        operation_id=unknown_operation_id,
+        ttl_seconds=120,
+    )["authorization"]
+    start_authorization = ts_host_helper.issue_browser_authorization(
+        config,
+        scope="provider_tls_repair",
+        provider="google",
+        ttl_seconds=120,
+    )["authorization"]
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ErrorActionPreference = "Stop"
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-browser-probe-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $listener = $null
+        try {{
+            $profile = New-TowerScoutHostHelperRuntimeProfile `
+                -Engine "docker" `
+                -Gpu "off" `
+                -AppPort 5000 `
+                -PackageRoot $root `
+                -HelperSessionId "{session_id}" `
+                -BrowserAuthorizationKey "{session_key}"
+            $serverToken = New-TowerScoutHostHelperToken
+            Save-TowerScoutHostHelperSession -Profile $profile -Token $serverToken | Out-Null
+            $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $response = Invoke-TowerScoutHostHelperSelfTestRequest `
+                -Listener $listener `
+                -Profile $profile `
+                -ServerToken $serverToken `
+                -BrowserAuthorization "{authorization}"
+            $rejected = Invoke-TowerScoutHostHelperSelfTestRequest `
+                -Listener $listener `
+                -Profile $profile `
+                -ServerToken $serverToken `
+                -BrowserAuthorization "v1.invalid.invalid"
+            $unknownOperation = Invoke-TowerScoutHostHelperSelfTestRequest `
+                -Listener $listener `
+                -Profile $profile `
+                -ServerToken $serverToken `
+                -Path "/operations/{unknown_operation_id}" `
+                -BrowserAuthorization "{status_authorization}"
+            $startBody = @{{
+                provider = "google"
+                confirmation = "repair_tls_and_restart"
+                operation_authorization = "{start_authorization}"
+            }} | ConvertTo-Json -Compress
+            $startOperation = Invoke-TowerScoutHostHelperSelfTestRequest `
+                -Listener $listener `
+                -Profile $profile `
+                -ServerToken $serverToken `
+                -Path "/operations/provider-tls-repair" `
+                -Method "POST" `
+                -Body $startBody
+            [pscustomobject]@{{
+                status_code = [int] $response.StatusCode
+                cors_origin = [string] $response.Headers["access-control-allow-origin"]
+                rejected_status_code = [int] $rejected.StatusCode
+                unknown_operation_status_code = [int] $unknownOperation.StatusCode
+                start_operation_status_code = [int] $startOperation.StatusCode
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if ($null -ne $listener) {{
+                $listener.Stop()
+            }}
+            Clear-TowerScoutHostHelperSession -RootPath $root -SessionId "{session_id}" | Out-Null
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload == {
+        "status_code": 200,
+        "cors_origin": "http://localhost:5000",
+        "rejected_status_code": 401,
+        "unknown_operation_status_code": 404,
+        "start_operation_status_code": 202,
+    }
+
+
 def test_host_helper_provider_tls_repair_operation_api_is_bounded_and_non_mutating():
     script = HELPER_LIB.read_text(encoding="utf-8")
 
     assert "$script:TowerScoutHostHelperMaxBodyBytes = 4096" in script
-    assert (
-        '$script:TowerScoutHostHelperOperationAuthorizationPattern = '
-        '"^[A-Za-z0-9_-]{32,128}$"'
-    ) in script
+    assert "$script:TowerScoutHostHelperOperationAuthorizationPattern" in script
+    assert "$script:TowerScoutHostHelperSignedAuthorizationPattern" in script
+    assert "function Resolve-TowerScoutHostHelperBrowserAuthorization" in script
+    assert "X-TowerScout-Operation-Authorization" in script
     assert "function Read-TowerScoutProviderTlsRepairRequestBody" in script
     assert "function New-TowerScoutProviderTlsRepairOperationPlanResponse" in script
     assert "function Get-TowerScoutHostHelperOperationStatus" in script

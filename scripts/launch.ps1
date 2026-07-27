@@ -43,6 +43,204 @@ function Get-TowerScoutPropertyValue {
     return $InputObject.PSObject.Properties[$Name].Value
 }
 
+function Test-TowerScoutHostHelperReviewEnabled {
+    $value = ([string] $env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED).Trim().ToLowerInvariant()
+    return $value -in @("1", "true", "yes", "on")
+}
+
+function Clear-TowerScoutHostHelperBridgeEnvironment {
+    $env:TOWERSCOUT_HOST_HELPER_ENABLED = "0"
+    Remove-Item Env:TOWERSCOUT_HOST_HELPER_PORT -ErrorAction SilentlyContinue
+    Remove-Item Env:TOWERSCOUT_HOST_HELPER_SESSION_ID -ErrorAction SilentlyContinue
+    Remove-Item Env:TOWERSCOUT_HOST_HELPER_SESSION_KEY -ErrorAction SilentlyContinue
+}
+
+function Get-TowerScoutHostHelperSessionMetadata {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $SessionId,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath
+    )
+
+    $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $RootPath
+    $sessionPath = Join-Path $stateDirectory ("session-{0}.json" -f $SessionId)
+    if (-not (Test-Path -LiteralPath $sessionPath -PathType Leaf)) {
+        return $null
+    }
+    try {
+        return (Get-Content -LiteralPath $sessionPath -Raw | ConvertFrom-Json)
+    }
+    catch {
+        return $null
+    }
+}
+
+function Test-TowerScoutHostHelperSessionMetadataMatchesProfile {
+    param(
+        [object] $Metadata,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("docker", "podman")]
+        [string] $EngineName,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("off", "auto", "on")]
+        [string] $GpuMode,
+
+        [Parameter(Mandatory = $true)]
+        [int] $AppPort,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+
+        [Parameter(Mandatory = $true)]
+        [string] $PackageFlavor
+    )
+
+    if ($null -eq $Metadata) {
+        return $false
+    }
+
+    [int] $metadataAppPort = 0
+    [int] $metadataHelperPort = 0
+    $expectedRootIdentity = Get-TowerScoutHostHelperPackageRootIdentity -PackageRoot $RootPath
+    return (
+        (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "state") -eq "active" -and
+        (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "helper_version") -eq $script:TowerScoutHostHelperVersion -and
+        (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "engine") -eq $EngineName -and
+        (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "gpu") -eq $GpuMode -and
+        [int]::TryParse(
+            ([string] (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "app_port")),
+            [ref] $metadataAppPort
+        ) -and
+        $metadataAppPort -eq $AppPort -and
+        [int]::TryParse(
+            ([string] (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "helper_port")),
+            [ref] $metadataHelperPort
+        ) -and
+        $metadataHelperPort -ge 1 -and
+        $metadataHelperPort -le 65535 -and
+        (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "package_flavor") -eq $PackageFlavor -and
+        (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "package_root_identity") -eq $expectedRootIdentity
+    )
+}
+
+function Initialize-TowerScoutHostHelperReviewSession {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("docker", "podman")]
+        [string] $EngineName,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("off", "auto", "on")]
+        [string] $GpuMode,
+
+        [Parameter(Mandatory = $true)]
+        [int] $AppPort,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+
+        [Parameter(Mandatory = $true)]
+        [string] $PackageFlavor
+    )
+
+    if (-not (Test-TowerScoutHostHelperReviewEnabled)) {
+        $disabledSessionId = ([string] $env:TOWERSCOUT_HOST_HELPER_SESSION_ID).Trim().ToLowerInvariant()
+        if ($disabledSessionId -match "^[a-f0-9]{32}$") {
+            Clear-TowerScoutHostHelperSession `
+                -RootPath $RootPath `
+                -SessionId $disabledSessionId | Out-Null
+        }
+        Clear-TowerScoutHostHelperBridgeEnvironment
+        return ""
+    }
+
+    $existingSessionId = ([string] $env:TOWERSCOUT_HOST_HELPER_SESSION_ID).Trim().ToLowerInvariant()
+    $existingSessionKey = ([string] $env:TOWERSCOUT_HOST_HELPER_SESSION_KEY).Trim()
+    if (
+        $existingSessionId -match "^[a-f0-9]{32}$" -and
+        $existingSessionKey -match "^[A-Za-z0-9_-]{43}$"
+    ) {
+        $existingMetadata = Get-TowerScoutHostHelperSessionMetadata `
+            -SessionId $existingSessionId `
+            -RootPath $RootPath
+        [int] $existingHelperPort = 0
+        if (
+            (Test-TowerScoutHostHelperSessionMetadataMatchesProfile `
+                -Metadata $existingMetadata `
+                -EngineName $EngineName `
+                -GpuMode $GpuMode `
+                -AppPort $AppPort `
+                -RootPath $RootPath `
+                -PackageFlavor $PackageFlavor) -and
+            [int]::TryParse(
+                ([string] (Get-TowerScoutPropertyValue -InputObject $existingMetadata -Name "helper_port")),
+                [ref] $existingHelperPort
+            )
+        ) {
+            $env:TOWERSCOUT_HOST_HELPER_ENABLED = "1"
+            $env:TOWERSCOUT_HOST_HELPER_PORT = "$existingHelperPort"
+            Write-Host "Reusing the active TowerScout host helper review session."
+            return $existingSessionId
+        }
+    }
+
+    if ($existingSessionId -match "^[a-f0-9]{32}$") {
+        Clear-TowerScoutHostHelperSession `
+            -RootPath $RootPath `
+            -SessionId $existingSessionId | Out-Null
+    }
+    Clear-TowerScoutHostHelperBridgeEnvironment
+
+    $sessionId = New-TowerScoutHostHelperSessionId
+    $sessionKey = New-TowerScoutHostHelperToken
+    $env:TOWERSCOUT_HOST_HELPER_SESSION_ID = $sessionId
+    $env:TOWERSCOUT_HOST_HELPER_SESSION_KEY = $sessionKey
+    $env:TOWERSCOUT_HOST_HELPER_ENABLED = "1"
+
+    $visibleHelper = Join-Path $PSScriptRoot "host-helper-visible.cmd"
+    & $visibleHelper `
+        -Engine $EngineName `
+        -Gpu $GpuMode `
+        -AppPort $AppPort `
+        -PackageFlavor $PackageFlavor `
+        -HelperSessionId $sessionId
+    if ($LASTEXITCODE -ne 0) {
+        Clear-TowerScoutHostHelperSession -RootPath $RootPath -SessionId $sessionId | Out-Null
+        Clear-TowerScoutHostHelperBridgeEnvironment
+        throw "The TowerScout host helper review session could not be started."
+    }
+
+    $deadline = (Get-Date).AddSeconds(10)
+    while ((Get-Date) -lt $deadline) {
+        $metadata = Get-TowerScoutHostHelperSessionMetadata `
+            -SessionId $sessionId `
+            -RootPath $RootPath
+        [int] $helperPort = 0
+        if (
+            $null -ne $metadata -and
+            [int]::TryParse(
+                ([string] (Get-TowerScoutPropertyValue -InputObject $metadata -Name "helper_port")),
+                [ref] $helperPort
+            ) -and
+            $helperPort -ge 1 -and
+            $helperPort -le 65535
+        ) {
+            $env:TOWERSCOUT_HOST_HELPER_PORT = "$helperPort"
+            Write-Host "TowerScout host helper review session is ready."
+            return $sessionId
+        }
+        Start-Sleep -Milliseconds 200
+    }
+
+    Clear-TowerScoutHostHelperSession -RootPath $RootPath -SessionId $sessionId | Out-Null
+    Clear-TowerScoutHostHelperBridgeEnvironment
+    throw "The TowerScout host helper review session did not become ready."
+}
+
 function Get-TowerScoutReadiness {
     param(
         [Parameter(Mandatory = $true)]
@@ -261,6 +459,12 @@ Save-TowerScoutHostHelperLaunchProfile `
     -AppPort $Port `
     -RootPath $repoRoot `
     -PackageFlavor $packageFlavor | Out-Null
+$hostHelperReviewSessionId = Initialize-TowerScoutHostHelperReviewSession `
+    -EngineName $effectiveEngine `
+    -GpuMode $Gpu `
+    -AppPort $Port `
+    -RootPath $repoRoot `
+    -PackageFlavor $packageFlavor
 
 Write-Host "Starting TowerScout with $effectiveEngine on $appUrl..."
 Write-TowerScoutComposeProviderSummary -Engine $effectiveEngine
@@ -279,6 +483,12 @@ Invoke-TowerScoutCompose `
     -PodmanMachineName $PodmanMachineName `
     -ComposeArguments $composeArgs
 if ($script:TowerScoutComposeExitCode -ne 0) {
+    if (-not [string]::IsNullOrWhiteSpace($hostHelperReviewSessionId)) {
+        Clear-TowerScoutHostHelperSession `
+            -RootPath $repoRoot `
+            -SessionId $hostHelperReviewSessionId | Out-Null
+        Clear-TowerScoutHostHelperBridgeEnvironment
+    }
     Write-Host "TowerScout container startup failed. Check the selected engine, Compose provider, and local permissions."
     Write-TowerScoutHostDiagnostics -EngineName $effectiveEngine
     exit $script:TowerScoutComposeExitCode

@@ -44,6 +44,7 @@ from ts_logging import (
 from ts_performance import PerformanceMetrics
 import ts_config
 import ts_device
+import ts_host_helper
 import ts_runtime
 from ts_assets import AssetManifestError, verify_trusted_model
 from ts_provider_http import (
@@ -1523,7 +1524,10 @@ Session(app)
 def handle_towerscout_error(error):
     """Handle all TowerScout custom exceptions with structured responses."""
     api_logger.error(f"TowerScout error: {error.message}", exc_info=True)
-    response = jsonify(error.to_dict())
+    payload = error.to_dict()
+    if isinstance(error, NetworkError):
+        payload = ts_host_helper.enrich_provider_tls_repair_payload(payload)
+    response = jsonify(payload)
     if isinstance(error, ValidationError):
         response.status_code = 400
     elif isinstance(error, NetworkError):
@@ -1978,21 +1982,21 @@ def save_api_keys():
         try:
             validation_results['google'] = ts_config.validate_api_key('google', merged_google)
         except NetworkError as error:
-            validation_results['google'] = {
+            validation_results['google'] = ts_host_helper.enrich_provider_tls_repair_payload({
                 **error.to_dict(),
                 'valid': False,
                 'provider': 'google',
-            }
+            })
 
     if merged_azure and not ts_config.is_placeholder(merged_azure):
         try:
             validation_results['azure'] = ts_config.validate_api_key('azure', merged_azure)
         except NetworkError as error:
-            validation_results['azure'] = {
+            validation_results['azure'] = ts_host_helper.enrich_provider_tls_repair_payload({
                 **error.to_dict(),
                 'valid': False,
                 'provider': 'azure',
-            }
+            })
 
     if not validation_results:
         return jsonify({
@@ -2076,12 +2080,55 @@ def get_provider_tls_status():
     requested_provider = request.args.get('provider')
     if requested_provider:
         provider = TowerScoutValidator.validate_provider(requested_provider)
-        return jsonify(ts_config.check_provider_tls_status(provider))
+        payload = ts_config.check_provider_tls_status(provider)
+        return jsonify(ts_host_helper.enrich_provider_tls_repair_payload(payload))
 
     return jsonify({
-        'google': ts_config.check_provider_tls_status('google'),
-        'azure': ts_config.check_provider_tls_status('azure'),
+        'google': ts_host_helper.enrich_provider_tls_repair_payload(
+            ts_config.check_provider_tls_status('google')
+        ),
+        'azure': ts_host_helper.enrich_provider_tls_repair_payload(
+            ts_config.check_provider_tls_status('azure')
+        ),
     })
+
+
+@app.route('/api/config/provider-tls-repair-status-authorization', methods=['POST'])
+def get_provider_tls_repair_status_authorization():
+    """Issue a short-lived, operation-bound helper polling credential."""
+    client_ip = _get_client_ip()
+    if not rate_limiter.is_allowed(
+        f"provider-tls-repair-status-authorization:{client_ip}",
+        max_requests=30,
+        window_seconds=300,
+    ):
+        return jsonify({
+            'state': 'rate_limited',
+            'message': 'Wait before refreshing host repair status.',
+        }), 429
+
+    data = request.get_json(silent=True) or {}
+    provider = TowerScoutValidator.validate_provider(data.get('provider'))
+    operation_id = TowerScoutValidator.sanitize_string(
+        data.get('operation_id', ''),
+        max_length=32,
+    ).strip().lower()
+    if not re.fullmatch(r'[a-f0-9]{32}', operation_id):
+        return jsonify({
+            'state': 'rejected_unknown_operation',
+            'message': 'The host repair operation id was invalid.',
+        }), 400
+
+    bridge = ts_host_helper.build_operation_status_bridge(
+        provider,
+        operation_id,
+    )
+    if bridge is None:
+        return jsonify({
+            'state': 'helper_unavailable',
+            'message': 'Host repair status authorization is unavailable.',
+        }), 404
+    return jsonify(bridge)
 
 
 @app.route('/api/config/reset-session', methods=['POST'])

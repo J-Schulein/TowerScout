@@ -41,13 +41,14 @@ $profile = New-TowerScoutHostHelperRuntimeProfile `
     -AppPort $AppPort `
     -PackageFlavor $PackageFlavor `
     -HelperPort $HelperPort `
-    -HelperSessionId $HelperSessionId
+    -HelperSessionId $HelperSessionId `
+    -BrowserAuthorizationKey ([string] $env:TOWERSCOUT_HOST_HELPER_SESSION_KEY)
 Save-TowerScoutHostHelperSession -Profile $profile -Token $token | Out-Null
 
-Write-Host "TowerScout host helper proof is starting on loopback only."
+Write-Host "TowerScout host helper review transport is starting on loopback only."
 Write-Host "Helper token generated and stored in the package-local helper secret file."
 Write-Host "Helper session metadata recorded without token material."
-Write-Host "This Gate 1 entry point is not yet wired into product UI or restart orchestration."
+Write-Host "The public repair capability and browser-triggered mutation remain disabled."
 try {
     Start-TowerScoutHostHelper -Profile $profile -Token $token -HelperPort $HelperPort -MaxRequests $MaxRequests
 }
