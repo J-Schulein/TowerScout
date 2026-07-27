@@ -16,6 +16,10 @@
   const PROVIDER_TLS_REPAIR_CONFIRMATION = 'repair_tls_and_restart';
   const PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED = false;
   const PROVIDER_TLS_REPAIR_OPERATION_ENDPOINT = '/operations/provider-tls-repair';
+  const PROVIDER_TLS_REPAIR_STATUS_AUTHORIZATION_ENDPOINT = '/api/config/provider-tls-repair-status-authorization';
+  const PROVIDER_TLS_REPAIR_ACTIVE_OPERATION_STORAGE_KEY = 'towerscout.providerTlsRepair.activeOperation';
+  const PROVIDER_TLS_REPAIR_POLL_INTERVAL_MS = 1000;
+  const PROVIDER_TLS_REPAIR_POLL_TIMEOUT_MS = 15 * 60 * 1000;
   const PROVIDER_TLS_REPAIR_ALLOWED_START_BODY_FIELDS = Object.freeze([
     'provider',
     'confirmation',
@@ -72,6 +76,7 @@
   let activeProviderTlsRepairProvider = null;
   let providerTlsRepairStartInFlight = false;
   let providerTlsRepairOperationStatus = null;
+  let providerTlsRepairPollingPromise = null;
   const fetchJson = window.TowerScoutConfigApi.fetchJson;
   const providerFailureMessage = window.TowerScoutConfigApi.providerFailureMessage;
   const saveFailureMessage = window.TowerScoutConfigApi.saveFailureMessage;
@@ -98,6 +103,68 @@
     return selected ? selected.value : 'azure';
   }
 
+  function normalizeProviderTlsRepairBaseUrl(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^http:\/\/(?:127\.0\.0\.1|localhost):(\d{1,5})$/i);
+    if (!match) {
+      return '';
+    }
+    const port = Number(match[1]);
+    return Number.isInteger(port) && port >= 1 && port <= 65535 ? text.replace(/\/+$/, '') : '';
+  }
+
+  function normalizeProviderTlsRepairCredential(rawCredential, expectedScope) {
+    if (!rawCredential || typeof rawCredential !== 'object') {
+      return null;
+    }
+    const scope = String(rawCredential.scope || '').trim();
+    const expiresAt = String(rawCredential.expires_at || rawCredential.expiresAt || '').trim();
+    const authorization = String(
+      rawCredential.authorization ||
+      rawCredential.operation_token ||
+      rawCredential.token ||
+      ''
+    ).trim();
+    if (scope !== expectedScope || !expiresAt || !authorization) {
+      return null;
+    }
+    return {
+      scope,
+      expires_at: expiresAt,
+      authorization
+    };
+  }
+
+  function normalizeProviderTlsRepairBridge(payload, details) {
+    const rawBridge = payload.helper_bridge || details.helper_bridge || null;
+    if (!rawBridge || typeof rawBridge !== 'object') {
+      return null;
+    }
+    const baseUrl = normalizeProviderTlsRepairBaseUrl(rawBridge.base_url);
+    const rawProbe = rawBridge.probe || {};
+    const probe = normalizeProviderTlsRepairCredential(rawProbe, 'helper_probe');
+    const operationAuthorization = normalizeProviderTlsRepairAuthorization(
+      { operation_authorization: rawBridge.operation_authorization },
+      {}
+    );
+    if (
+      !baseUrl ||
+      !probe ||
+      rawProbe.path !== '/health'
+    ) {
+      return null;
+    }
+    return {
+      base_url: baseUrl,
+      probe: {
+        ...probe,
+        path: '/health'
+      },
+      operation_authorization: operationAuthorization,
+      provider_tls_repair_capability: rawBridge.provider_tls_repair_capability === true
+    };
+  }
+
   function normalizeProviderValidationResult(provider, payload = {}) {
     const details = payload.details || {};
     const category = payload.category || details.category || null;
@@ -107,6 +174,7 @@
       (category !== null && TLS_REPAIR_CATEGORIES.has(category))
     );
     const helperAvailable = payload.helper_available === true || details.helper_available === true;
+    const helperBridge = repairable ? normalizeProviderTlsRepairBridge(payload, details) : null;
     const operationAuthorization = normalizeProviderTlsRepairAuthorization(payload, details);
 
     return {
@@ -119,6 +187,7 @@
       repair_command: payload.repair_command || details.repair_command || null,
       helper_available: repairable && helperAvailable,
       operation_authorization: repairable && helperAvailable ? operationAuthorization : null,
+      helper_bridge: repairable ? helperBridge : null,
       status_code: payload.status_code || details.status_code || payload.status || null
     };
   }
@@ -154,6 +223,15 @@
       cloned.operation_authorization = {
         operation_type: cloned.operation_authorization.operation_type,
         expires_at: cloned.operation_authorization.expires_at
+      };
+    }
+    if (cloned.helper_bridge) {
+      cloned.helper_bridge = {
+        base_url: cloned.helper_bridge.base_url,
+        configured: true,
+        provider_tls_repair_capability: (
+          cloned.helper_bridge.provider_tls_repair_capability === true
+        )
       };
     }
     return cloned;
@@ -223,8 +301,7 @@
     return Boolean(
       failure &&
       failure.repairable === true &&
-      TLS_REPAIR_CATEGORIES.has(failure.category) &&
-      failure.helper_available === true
+      TLS_REPAIR_CATEGORIES.has(failure.category)
     );
   }
 
@@ -253,6 +330,88 @@
     }
 
     return expiresAtMs > now;
+  }
+
+  function hasCurrentProviderTlsRepairCredential(credential, now = Date.now()) {
+    if (!credential || !credential.authorization) {
+      return false;
+    }
+    const expiresAtMs = Date.parse(credential.expires_at);
+    return Number.isFinite(expiresAtMs) && expiresAtMs > now;
+  }
+
+  function getPrivateProviderTlsRepairBridge(provider) {
+    const failure = getProviderValidationFailure(provider);
+    return failure && failure.helper_bridge ? failure.helper_bridge : null;
+  }
+
+  function getProviderTlsRepairHelperUrl(baseUrl, path) {
+    const normalizedBaseUrl = normalizeProviderTlsRepairBaseUrl(baseUrl);
+    const normalizedPath = String(path || '');
+    if (!normalizedBaseUrl || !/^\/[a-z0-9/-]+$/i.test(normalizedPath)) {
+      return '';
+    }
+    return `${normalizedBaseUrl}${normalizedPath}`;
+  }
+
+  async function refreshProviderTlsRepairHelperAvailability(provider) {
+    const failure = getProviderValidationFailure(provider);
+    const bridge = getPrivateProviderTlsRepairBridge(provider);
+    if (
+      !failure ||
+      !bridge ||
+      !hasCurrentProviderTlsRepairCredential(bridge.probe)
+    ) {
+      if (failure) {
+        failure.helper_available = false;
+        failure.operation_authorization = null;
+      }
+      renderProviderTlsRepairState();
+      return false;
+    }
+
+    const healthUrl = getProviderTlsRepairHelperUrl(bridge.base_url, bridge.probe.path);
+    if (!healthUrl) {
+      failure.helper_available = false;
+      failure.operation_authorization = null;
+      renderProviderTlsRepairState();
+      return false;
+    }
+
+    try {
+      const health = await fetchJson(healthUrl, {
+        method: 'GET',
+        headers: {
+          'X-TowerScout-Operation-Authorization': bridge.probe.authorization
+        },
+        cache: 'no-store'
+      });
+      const ready = Boolean(
+        health &&
+        health.state === 'ready' &&
+        health.capabilities &&
+        health.capabilities.max_active_operations === 1
+      );
+      failure.helper_available = ready;
+      failure.operation_authorization = ready
+        ? bridge.operation_authorization
+        : null;
+      renderProviderTlsRepairState();
+      return ready;
+    } catch (_error) {
+      failure.helper_available = false;
+      failure.operation_authorization = null;
+      renderProviderTlsRepairState();
+      return false;
+    }
+  }
+
+  async function refreshProviderTlsRepairHelperAvailabilityForResults(validationResults = {}) {
+    for (const provider of providerNames) {
+      if (validationResults[provider]) {
+        await refreshProviderTlsRepairHelperAvailability(provider);
+      }
+    }
   }
 
   function sanitizeProviderTlsRepairSymbol(value, allowedValues, fallback = '') {
@@ -360,17 +519,32 @@
         visible: false,
         enabled: false,
         provider,
-        blocked_reason: 'not_repairable_or_helper_unavailable'
+        helper_available: false,
+        blocked_reason: 'not_repairable'
       };
     }
 
-    const authorizationReady = hasCurrentProviderTlsRepairAuthorization(failure);
-    const enabled = authorizationReady && PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED;
+    const helperAvailable = failure.helper_available === true;
+    const authorizationReady = helperAvailable && hasCurrentProviderTlsRepairAuthorization(failure);
+    const bridge = getPrivateProviderTlsRepairBridge(provider);
+    const capabilityEnabled = Boolean(
+      bridge && bridge.provider_tls_repair_capability === true
+    );
+    const enabled = (
+      helperAvailable &&
+      authorizationReady &&
+      capabilityEnabled &&
+      PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED
+    );
     let blockedReason = null;
-    if (!authorizationReady) {
+    if (!helperAvailable) {
+      blockedReason = 'helper_unavailable';
+    } else if (!authorizationReady) {
       blockedReason = 'operation_authorization_unavailable';
     } else if (!PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED) {
       blockedReason = 'browser_mutation_disabled';
+    } else if (!capabilityEnabled) {
+      blockedReason = 'helper_capability_disabled';
     }
 
     return {
@@ -383,6 +557,8 @@
       support_action: failure.support_action,
       repair_command: failure.repair_command,
       confirmation: PROVIDER_TLS_REPAIR_CONFIRMATION,
+      helper_available: helperAvailable,
+      capability_enabled: capabilityEnabled,
       authorization_ready: authorizationReady,
       blocked_reason: blockedReason
     };
@@ -391,7 +567,7 @@
   function getProviderTlsRepairStartContract(provider) {
     const selectedProvider = sanitizeProviderTlsRepairProvider(provider) || activeProviderTlsRepairProvider;
     const baseContract = {
-      endpoint: PROVIDER_TLS_REPAIR_OPERATION_ENDPOINT,
+      endpoint: '',
       method: 'POST',
       content_type: 'application/json',
       provider: selectedProvider || '',
@@ -400,7 +576,7 @@
       disallowed_body_fields: [...PROVIDER_TLS_REPAIR_DISALLOWED_START_BODY_FIELDS],
       ready: false,
       enabled: false,
-      blocked_reason: 'not_repairable_or_helper_unavailable'
+      blocked_reason: 'not_repairable'
     };
 
     const viewModel = getProviderTlsRepairViewModel(selectedProvider);
@@ -419,10 +595,22 @@
     }
 
     const failure = getProviderValidationFailure(viewModel.provider);
+    const bridge = getPrivateProviderTlsRepairBridge(viewModel.provider);
+    const endpoint = bridge
+      ? getProviderTlsRepairHelperUrl(bridge.base_url, PROVIDER_TLS_REPAIR_OPERATION_ENDPOINT)
+      : '';
+    if (!viewModel.helper_available || !endpoint) {
+      return {
+        ...baseContract,
+        provider: viewModel.provider,
+        blocked_reason: 'helper_unavailable'
+      };
+    }
     const authorization = summarizeProviderTlsRepairAuthorization(failure);
     if (!authorization) {
       return {
         ...baseContract,
+        endpoint,
         provider: viewModel.provider,
         blocked_reason: 'operation_authorization_unavailable'
       };
@@ -430,6 +618,7 @@
 
     return {
       ...baseContract,
+      endpoint,
       provider: viewModel.provider,
       operation_authorization: authorization,
       request_body_schema: {
@@ -452,7 +641,7 @@
     }
 
     return {
-      endpoint: PROVIDER_TLS_REPAIR_OPERATION_ENDPOINT,
+      endpoint: contract.endpoint,
       options: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -463,6 +652,244 @@
         })
       }
     };
+  }
+
+  function clearStoredProviderTlsRepairOperation(operationId = '') {
+    try {
+      const stored = window.sessionStorage && window.sessionStorage.getItem(
+        PROVIDER_TLS_REPAIR_ACTIVE_OPERATION_STORAGE_KEY
+      );
+      if (!stored) {
+        return;
+      }
+      if (operationId) {
+        const parsed = JSON.parse(stored);
+        if (sanitizeProviderTlsRepairOperationId(parsed.operation_id) !== operationId) {
+          return;
+        }
+      }
+      window.sessionStorage.removeItem(PROVIDER_TLS_REPAIR_ACTIVE_OPERATION_STORAGE_KEY);
+    } catch (_error) {
+      // Storage is optional. Operation status remains available in memory.
+    }
+  }
+
+  function persistProviderTlsRepairOperation(descriptor) {
+    const operationId = sanitizeProviderTlsRepairOperationId(descriptor && descriptor.operation_id);
+    const provider = sanitizeProviderTlsRepairProvider(descriptor && descriptor.provider);
+    const helperBaseUrl = normalizeProviderTlsRepairBaseUrl(
+      descriptor && descriptor.helper_base_url
+    );
+    if (!operationId || !provider || !helperBaseUrl) {
+      return false;
+    }
+    try {
+      window.sessionStorage.setItem(
+        PROVIDER_TLS_REPAIR_ACTIVE_OPERATION_STORAGE_KEY,
+        JSON.stringify({
+          operation_id: operationId,
+          provider,
+          helper_base_url: helperBaseUrl
+        })
+      );
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function restoreProviderTlsRepairOperation() {
+    try {
+      const rawValue = window.sessionStorage && window.sessionStorage.getItem(
+        PROVIDER_TLS_REPAIR_ACTIVE_OPERATION_STORAGE_KEY
+      );
+      if (!rawValue) {
+        return null;
+      }
+      const parsed = JSON.parse(rawValue);
+      const descriptor = {
+        operation_id: sanitizeProviderTlsRepairOperationId(parsed.operation_id),
+        provider: sanitizeProviderTlsRepairProvider(parsed.provider),
+        helper_base_url: normalizeProviderTlsRepairBaseUrl(parsed.helper_base_url)
+      };
+      if (!descriptor.operation_id || !descriptor.provider || !descriptor.helper_base_url) {
+        clearStoredProviderTlsRepairOperation();
+        return null;
+      }
+      return descriptor;
+    } catch (_error) {
+      clearStoredProviderTlsRepairOperation();
+      return null;
+    }
+  }
+
+  function normalizeProviderTlsRepairStatusAuthorization(payload, descriptor) {
+    const statusAuthorization = payload && payload.status_authorization;
+    const baseUrl = normalizeProviderTlsRepairBaseUrl(payload && payload.base_url);
+    const operationId = sanitizeProviderTlsRepairOperationId(payload && payload.operation_id);
+    const credential = normalizeProviderTlsRepairCredential(
+      statusAuthorization,
+      'operation_status'
+    );
+    if (
+      !credential ||
+      !baseUrl ||
+      operationId !== descriptor.operation_id ||
+      baseUrl !== descriptor.helper_base_url ||
+      !statusAuthorization ||
+      statusAuthorization.operation_type !== 'provider_tls_repair'
+    ) {
+      return null;
+    }
+    return credential;
+  }
+
+  async function requestProviderTlsRepairStatusAuthorization(descriptor) {
+    const payload = await fetchJson(PROVIDER_TLS_REPAIR_STATUS_AUTHORIZATION_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: descriptor.provider,
+        operation_id: descriptor.operation_id
+      })
+    });
+    return normalizeProviderTlsRepairStatusAuthorization(payload, descriptor);
+  }
+
+  function createProviderTlsRepairTerminalStatus(descriptor, state, classification, nextAction) {
+    return {
+      state,
+      operation_id: descriptor.operation_id,
+      operation_type: 'provider_tls_repair',
+      provider: descriptor.provider,
+      accepted: false,
+      existing_operation: false,
+      execution_enabled: false,
+      current_step: '',
+      classification,
+      terminal: true,
+      next_action: nextAction
+    };
+  }
+
+  function waitForProviderTlsRepairPoll() {
+    return new Promise(resolve => {
+      window.setTimeout(resolve, PROVIDER_TLS_REPAIR_POLL_INTERVAL_MS);
+    });
+  }
+
+  async function fetchProviderTlsRepairOperationStatus(descriptor, credential) {
+    const statusUrl = getProviderTlsRepairHelperUrl(
+      descriptor.helper_base_url,
+      `/operations/${descriptor.operation_id}`
+    );
+    if (!statusUrl || !hasCurrentProviderTlsRepairCredential(credential)) {
+      const error = new Error('Host repair status authorization is unavailable.');
+      error.status = 401;
+      throw error;
+    }
+    return fetchJson(statusUrl, {
+      method: 'GET',
+      headers: {
+        'X-TowerScout-Operation-Authorization': credential.authorization
+      },
+      cache: 'no-store'
+    });
+  }
+
+  async function runProviderTlsRepairPolling(descriptor) {
+    const deadline = Date.now() + PROVIDER_TLS_REPAIR_POLL_TIMEOUT_MS;
+    let statusAuthorization = null;
+
+    while (Date.now() < deadline) {
+      try {
+        if (!hasCurrentProviderTlsRepairCredential(statusAuthorization)) {
+          statusAuthorization = await requestProviderTlsRepairStatusAuthorization(descriptor);
+          if (!statusAuthorization) {
+            throw new Error('Host repair status authorization was rejected.');
+          }
+        }
+
+        let payload;
+        try {
+          payload = await fetchProviderTlsRepairOperationStatus(descriptor, statusAuthorization);
+        } catch (error) {
+          if (error && error.status === 401) {
+            statusAuthorization = await requestProviderTlsRepairStatusAuthorization(descriptor);
+            if (!statusAuthorization) {
+              throw error;
+            }
+            payload = await fetchProviderTlsRepairOperationStatus(descriptor, statusAuthorization);
+          } else {
+            throw error;
+          }
+        }
+
+        const status = rememberProviderTlsRepairOperationStatus(payload);
+        if (!status) {
+          throw new Error('Host repair returned an invalid status.');
+        }
+        if (status.terminal) {
+          clearStoredProviderTlsRepairOperation(descriptor.operation_id);
+          return status;
+        }
+      } catch (error) {
+        if (error && (error.status === 404 || error.status === 410)) {
+          const expired = createProviderTlsRepairTerminalStatus(
+            descriptor,
+            'operation_expired',
+            'terminal_timeout',
+            'clear_or_reauthorize_after_timeout'
+          );
+          rememberProviderTlsRepairOperationStatus(expired);
+          clearStoredProviderTlsRepairOperation(descriptor.operation_id);
+          return expired;
+        }
+
+        const unavailable = createProviderTlsRepairTerminalStatus(
+          descriptor,
+          'helper_unavailable',
+          'terminal_support_escalation',
+          'use_manual_tls_repair_fallback'
+        );
+        rememberProviderTlsRepairOperationStatus(unavailable);
+        clearStoredProviderTlsRepairOperation(descriptor.operation_id);
+        TowerScoutErrorHandler.showUserNotification(
+          'Host TLS repair status is unavailable. Use the suggested command fallback.',
+          'info'
+        );
+        return unavailable;
+      }
+
+      await waitForProviderTlsRepairPoll();
+    }
+
+    const timedOut = createProviderTlsRepairTerminalStatus(
+      descriptor,
+      'operation_timeout',
+      'terminal_timeout',
+      'clear_or_reauthorize_after_timeout'
+    );
+    rememberProviderTlsRepairOperationStatus(timedOut);
+    clearStoredProviderTlsRepairOperation(descriptor.operation_id);
+    TowerScoutErrorHandler.showUserNotification(
+      'Host TLS repair status timed out. Use the suggested command fallback.',
+      'info'
+    );
+    return timedOut;
+  }
+
+  function pollProviderTlsRepairOperation(descriptor) {
+    if (providerTlsRepairPollingPromise) {
+      return providerTlsRepairPollingPromise;
+    }
+    providerTlsRepairPollingPromise = runProviderTlsRepairPolling(descriptor)
+      .finally(() => {
+        providerTlsRepairPollingPromise = null;
+        providerTlsRepairStartInFlight = false;
+        renderProviderTlsRepairState();
+      });
+    return providerTlsRepairPollingPromise;
   }
 
   function getVisibleProviderTlsRepairViewModels() {
@@ -493,6 +920,7 @@
     const viewModel = visibleViewModels[0] || null;
     const additionalVisibleCount = Math.max(visibleViewModels.length - 1, 0);
     const checkbox = document.getElementById('wizard_provider_tls_repair_confirm');
+    const confirmation = document.getElementById('wizard_provider_tls_repair_confirmation');
     const button = document.getElementById('wizard_provider_tls_repair_button');
 
     if (!viewModel) {
@@ -501,8 +929,12 @@
       if (checkbox) {
         checkbox.checked = false;
       }
+      if (confirmation) {
+        confirmation.style.display = 'none';
+      }
       if (button) {
         button.disabled = true;
+        button.style.display = 'none';
       }
       setText('wizard_provider_tls_repair_title', '');
       setText('wizard_provider_tls_repair_message', '');
@@ -533,7 +965,11 @@
     const confirmed = checkbox && checkbox.checked === true;
     const activeOperation = getProviderTlsRepairActiveOperation();
     const operationActive = activeOperation && activeOperation.provider === viewModel.provider;
+    if (confirmation) {
+      confirmation.style.display = viewModel.helper_available ? '' : 'none';
+    }
     if (button) {
+      button.style.display = viewModel.helper_available ? '' : 'none';
       button.disabled = Boolean(operationActive || providerTlsRepairStartInFlight || !(viewModel.enabled && confirmed));
       button.textContent = viewModel.enabled ? 'Repair and restart TowerScout' : 'Repair unavailable';
     }
@@ -541,10 +977,14 @@
     let statusMessage;
     if (operationActive) {
       statusMessage = 'A host repair operation is already active. Wait for it to finish before starting another repair.';
+    } else if (!viewModel.helper_available) {
+      statusMessage = 'The host helper is unavailable. Use the command fallback for this package.';
     } else if (!viewModel.authorization_ready) {
       statusMessage = 'Host repair authorization is not available yet. Use the command fallback for this package.';
     } else if (!PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED) {
       statusMessage = 'Host repair is prepared for review but browser-triggered repair remains disabled in this gate.';
+    } else if (!viewModel.capability_enabled) {
+      statusMessage = 'The helper repair capability remains disabled pending review. Use the command fallback.';
     } else if (!confirmed) {
       statusMessage = 'Confirm the restart behavior before running repair.';
     } else {
@@ -565,6 +1005,57 @@
     return renderProviderTlsRepairState();
   }
 
+  async function executeProviderTlsRepairStart(viewModel, request) {
+    const bridge = getPrivateProviderTlsRepairBridge(viewModel.provider);
+    const descriptorBase = {
+      provider: viewModel.provider,
+      helper_base_url: bridge && bridge.base_url
+    };
+
+    providerTlsRepairStartInFlight = true;
+    renderProviderTlsRepairState();
+    try {
+      let payload;
+      try {
+        payload = await fetchJson(request.endpoint, request.options);
+      } catch (error) {
+        const conflictStatus = error && error.status === 409
+          ? normalizeProviderTlsRepairOperationStatus(error.payload)
+          : null;
+        if (!conflictStatus || !conflictStatus.operation_id) {
+          throw error;
+        }
+        payload = error.payload;
+      }
+
+      const status = rememberProviderTlsRepairOperationStatus(payload);
+      if (!status || !status.operation_id) {
+        throw new Error('Host repair did not return a valid operation.');
+      }
+
+      const descriptor = {
+        ...descriptorBase,
+        operation_id: status.operation_id
+      };
+      persistProviderTlsRepairOperation(descriptor);
+      TowerScoutErrorHandler.showUserNotification(
+        status.existing_operation
+          ? 'The existing host TLS repair operation is being monitored.'
+          : 'The authorized host TLS repair operation was accepted.',
+        'info'
+      );
+      return pollProviderTlsRepairOperation(descriptor);
+    } catch (_error) {
+      providerTlsRepairStartInFlight = false;
+      renderProviderTlsRepairState();
+      TowerScoutErrorHandler.showUserNotification(
+        'Host TLS repair could not be started. Use the suggested command fallback.',
+        'info'
+      );
+      return false;
+    }
+  }
+
   function startProviderTlsRepair() {
     const viewModel = getProviderTlsRepairViewModel(activeProviderTlsRepairProvider);
     if (!viewModel.visible) {
@@ -581,7 +1072,7 @@
       return false;
     }
 
-    if (!viewModel.enabled) {
+    if (!PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED || !viewModel.enabled) {
       TowerScoutErrorHandler.showUserNotification(
         'Host TLS repair is not enabled for this package yet. Use the suggested command fallback.',
         'info'
@@ -599,6 +1090,16 @@
       return false;
     }
 
+    const confirmation = document.getElementById('wizard_provider_tls_repair_confirm');
+    if (!confirmation || confirmation.checked !== true) {
+      TowerScoutErrorHandler.showUserNotification(
+        'Confirm the restart behavior before running host TLS repair.',
+        'info'
+      );
+      renderProviderTlsRepairState();
+      return false;
+    }
+
     const request = buildProviderTlsRepairStartRequest(viewModel.provider);
     if (!request) {
       TowerScoutErrorHandler.showUserNotification(
@@ -609,12 +1110,31 @@
       return false;
     }
 
-    TowerScoutErrorHandler.showUserNotification(
-      'Host TLS repair authorization is ready, but execution is still gated pending review.',
-      'info'
-    );
-    renderProviderTlsRepairState();
-    return false;
+    return executeProviderTlsRepairStart(viewModel, request);
+  }
+
+  function resumeStoredProviderTlsRepairOperation() {
+    if (!PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED) {
+      return false;
+    }
+    const descriptor = restoreProviderTlsRepairOperation();
+    if (!descriptor) {
+      return false;
+    }
+    rememberProviderTlsRepairOperationStatus({
+      state: 'planned',
+      operation_id: descriptor.operation_id,
+      operation_type: 'provider_tls_repair',
+      provider: descriptor.provider,
+      accepted: true,
+      existing_operation: true,
+      execution_enabled: false,
+      current_step: 'awaiting_status',
+      classification: 'pending',
+      terminal: false,
+      next_action: 'poll_existing_operation'
+    });
+    return pollProviderTlsRepairOperation(descriptor);
   }
 
   function setSetupBlocked(isBlocked) {
@@ -713,6 +1233,7 @@
     try {
       const result = await validateKey(provider, key);
       const validation = rememberProviderValidationResult(provider, result);
+      await refreshProviderTlsRepairHelperAvailability(provider);
       const isValid = validation.valid === true;
       updateIndicator(indicatorId, isValid);
       if (!isValid && validation.message) {
@@ -721,6 +1242,7 @@
       return isValid;
     } catch (error) {
       const validation = rememberProviderValidationResult(provider, error.payload || error);
+      await refreshProviderTlsRepairHelperAvailability(provider);
       updateIndicator(indicatorId, false);
       validationMessages.push(providerFailureMessage(displayName, validation));
       return false;
@@ -812,6 +1334,7 @@
         body: JSON.stringify(payload)
       });
       rememberProviderValidationResults(result.validation_results);
+      await refreshProviderTlsRepairHelperAvailabilityForResults(result.validation_results);
 
       window.needsSetup = false;
       nextStep();
@@ -830,7 +1353,9 @@
         TowerScoutErrorHandler.showUserNotification('Configuration saved successfully.', 'success');
       }
     } catch (error) {
-      rememberProviderValidationResults((error.payload && error.payload.validation_results) || {});
+      const validationResults = (error.payload && error.payload.validation_results) || {};
+      rememberProviderValidationResults(validationResults);
+      await refreshProviderTlsRepairHelperAvailabilityForResults(validationResults);
       TowerScoutErrorHandler.showUserNotification(saveFailureMessage(error), 'error');
     } finally {
       saveInFlight = false;
@@ -885,6 +1410,7 @@
       if (window.needsSetup) {
         show();
       }
+      resumeStoredProviderTlsRepairOperation();
     } catch (error) {
       console.error('SetupWizard init failed:', error);
     }
@@ -901,6 +1427,7 @@
     saveAndReview,
     complete,
     getProviderValidationState,
+    refreshProviderTlsRepairHelperAvailability,
     shouldShowProviderTlsRepair,
     getProviderTlsRepairViewModel,
     getProviderTlsRepairStartContract,
