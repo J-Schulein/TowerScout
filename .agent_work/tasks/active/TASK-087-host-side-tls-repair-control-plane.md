@@ -1,8 +1,9 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - PR #63 reviewer remediation implemented and locally
-validated; release-facing mutation, live Docker/UAC/certificate, package-runtime,
-and managed-network gates remain closed
+**Status**: IN_PROGRESS - PR #63 reviewer remediation and Docker/Edge Phase 1
+lifecycle validation passed; release-facing TLS mutation, UAC/certificate,
+Chrome/Firefox, sleep/resume, live release-package, Podman/GPU, and
+managed-network gates remain closed
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days (32-56 hours), plus package validation on a managed TLS-inspected network
@@ -22,6 +23,30 @@ July 27. Task-087 resumed in draft PR #63; its first review found lifecycle,
 asynchronous execution, recovery, and terminal-flow gaps that are now addressed
 in the draft branch. The command-based Task-086 path remains the fallback until
 all Task-087 gates pass.
+
+## July 28, 2026 Phase 1 Live Validation Override
+
+This override controls current validation status wherever the July 27 review
+entry still lists all live runtime work as not run:
+
+- The Docker CPU launcher lifecycle and the Edge stop/restart browser scenario
+  passed on a dedicated, nonconflicting source-worktree project.
+- Phase 1 exposed a real launcher defect: direct invocation of the long-lived
+  helper retained the PowerShell native-command pipeline and blocked launcher
+  progress. The launcher now uses detached `Start-Process` execution, with a
+  regression assertion that rejects the blocking invocation.
+- Repeated launches, review disablement, stale-helper replacement, Compose
+  failure, readiness timeout, fatal readiness, and same-session application
+  stop/restart all completed with the expected helper and application cleanup.
+- The production backend, helper, controlled-execution, and frontend mutation
+  gates remain false. No provider TLS repair, certificate-store change, UAC
+  flow, provider-key use, or managed-network mutation was performed.
+- Chrome/Firefox, sleep/resume, Podman, GPU, release-package runtime, real
+  guided TLS mutation, and managed TLS-inspected network proof remain explicit
+  activation or candidate-inclusion blockers.
+- All dedicated containers, networks, named volumes, test images, helper state,
+  and template-derived local configuration created for Phase 1 were removed.
+  The pre-existing unrelated Docker project remained healthy and unchanged.
 
 ## July 27, 2026 PR #63 Review Remediation Override
 
@@ -1097,6 +1122,81 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-28 - PR #63 Phase 1 Live Windows Lifecycle Validation
+
+**Objective**: Execute the approved safe Phase 1 Docker/Edge validation,
+remediate any reproducible blocker, and leave PR #63 in a reviewable state
+without activating provider TLS mutation.
+
+**Context**: The July 27 reviewer remediation had passed its non-mutating
+contract and helper tests, but live launcher, failure-cleanup, and browser
+stop/restart behavior remained unverified. Docker Desktop was confirmed
+running. Edge was available; Chrome and Firefox were not installed.
+
+**Decision**: Use a unique Docker CPU image and isolated Compose projects,
+retain the existing unrelated Docker project, exercise only lifecycle and
+failure paths, and keep every production mutation gate false. Treat any
+launcher failure as a code defect rather than bypassing the package entry
+point.
+
+**Execution**:
+
+- Reproduced the visible Windows launcher hang and inspected its process tree.
+  Direct helper invocation kept the native-command pipeline open, so the
+  launcher never advanced to Compose or readiness.
+- Replaced direct invocation with detached `Start-Process` execution using a
+  fixed argument array and added a static regression assertion.
+- Repeated fresh launches with review enabled and confirmed one current helper
+  session; disabled review and confirmed helper metadata cleanup while the
+  Compose-managed application remained available.
+- Terminated the exact isolated helper process, retained its stale metadata,
+  and confirmed the next launch replaced it with one live session.
+- Exercised isolated Compose failure, readiness timeout, and fatal-readiness
+  fixtures and confirmed their documented launcher exit classifications and
+  helper cleanup behavior.
+- Added a reusable Edge headless lifecycle harness that observes the real
+  application become unavailable, recover after restart, reload in the same
+  browser session, and remain valid through both supported loopback origins.
+- Removed all Phase 1 containers, networks, named volumes, images, helper
+  state, and template-derived local configuration after validation.
+
+**Output**:
+
+- Repeated launch, review disablement, stale-helper recovery, Compose failure,
+  readiness timeout, fatal readiness, and Edge stop/restart scenarios passed.
+- Compose failure and fatal readiness returned launcher exit code 1; readiness
+  timeout returned exit code 2. Each failure path removed its helper session
+  state.
+- The focused suite now includes 95 passing tests, including the launcher
+  regression.
+- The managed Windows endpoint completed detached helper startup in under
+  2.7 seconds during the observed runs. The regression ceiling was adjusted
+  from two to four seconds, preserving at least one second of margin within
+  the frontend's five-second request timeout; three consecutive timing checks
+  passed.
+- No provider key, helper credential, certificate detail, raw network body,
+  screenshot, or private application data was captured in repository
+  evidence.
+
+**Validation**:
+
+- PASS: PowerShell parser validation and the real host-helper self-test.
+- PASS: focused helper/bridge/Flask/release-package suite, 95 passed.
+- PASS: production Setup Wizard contract validation.
+- PASS: JavaScript syntax validation for the Edge lifecycle harness.
+- PASS: real Edge same-session stop/restart and alternate-loopback-origin
+  recovery with setup-required state preserved.
+- PASS: post-run inventory confirmed that no Phase 1 Docker resources or
+  helper state remained and the unrelated pre-existing project stayed healthy.
+- NOT RUN: provider TLS/certificate mutation, UAC, Chrome/Firefox,
+  sleep/resume, Podman, GPU, release-package runtime, or managed TLS-inspected
+  network validation.
+
+**Next**: Complete final diff, secret, task-workspace, and repository hygiene
+review. Keep PR #63 draft and all production mutation gates false. Commit and
+push this remediation only after review, then schedule the remaining
+activation blockers under separate explicit approval.
 
 ### 2026-07-27 - PR #63 Reviewer Remediation
 

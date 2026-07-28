@@ -1,7 +1,7 @@
 # Current Tasks - Sprint 08
 
 **Sprint Period**: July 23-August 7, 2026
-**Last Updated**: July 27, 2026
+**Last Updated**: July 28, 2026
 **Focus**: Preserve the completed dependency-security gate and resume the
 authorized universal provider TLS repair without changing the frozen pilot or
 cdcai.
@@ -145,9 +145,10 @@ release gate before Task-087 resumes.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS - PR #63 reviewer remediation is implemented and
-locally validated; the PR remains draft and browser mutation, live package
-runtime, UAC/certificate, and managed-network proof remain gated
+**Status**: IN_PROGRESS - PR #63 reviewer remediation and Docker/Edge Phase 1
+lifecycle validation passed; the PR remains draft and release-facing TLS
+mutation, UAC/certificate, Chrome/Firefox, sleep/resume, live release-package,
+Podman/GPU, and managed-network proof remain gated
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days plus managed-network package validation

@@ -144,6 +144,9 @@ def test_host_helper_review_bridge_is_explicit_and_does_not_persist_session_key(
     assert "lease_expires_at_utc" in launch_script
     assert "Stop-TowerScoutHostHelperReviewSession -RootPath $RootPath" in launch_script
     assert "host-helper-visible.cmd" in launch_script
+    assert "-FilePath $visibleHelper" in launch_script
+    assert "-ArgumentList $visibleHelperArguments" in launch_script
+    assert "& $visibleHelper" not in launch_script
     assert "TOWERSCOUT_HOST_HELPER_SESSION_KEY" in launch_script
     assert "Clear-TowerScoutHostHelperBridgeEnvironment" in launch_script
     assert (
@@ -584,7 +587,7 @@ def test_host_helper_accepts_async_start_and_serves_live_status():
     assert payload["accepted_status"] == 202
     assert payload["accepted_terminal"] is False
     assert payload["accepted_execution_enabled"] is True
-    assert payload["elapsed_ms"] < 2000
+    assert payload["elapsed_ms"] < 4000
     assert payload["poll_status"] == 200
     assert payload["poll_state"] == "planned"
     assert payload["poll_terminal"] is False

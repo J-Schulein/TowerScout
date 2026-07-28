@@ -316,13 +316,23 @@ function Initialize-TowerScoutHostHelperReviewSession {
     $env:TOWERSCOUT_HOST_HELPER_ENABLED = "1"
 
     $visibleHelper = Join-Path $PSScriptRoot "host-helper-visible.cmd"
-    & $visibleHelper `
-        -Engine $EngineName `
-        -Gpu $GpuMode `
-        -AppPort $AppPort `
-        -PackageFlavor $PackageFlavor `
-        -HelperSessionId $sessionId
-    if ($LASTEXITCODE -ne 0) {
+    $visibleHelperArguments = @(
+        "-Engine", $EngineName,
+        "-Gpu", $GpuMode,
+        "-AppPort", "$AppPort",
+        "-PackageFlavor", $PackageFlavor,
+        "-HelperSessionId", $sessionId
+    )
+    try {
+        # Run the visible wrapper outside PowerShell's native-command pipeline.
+        # Otherwise the long-lived helper inherits the pipeline handles and can
+        # prevent the launcher from advancing after the wrapper itself exits.
+        Start-Process `
+            -FilePath $visibleHelper `
+            -ArgumentList $visibleHelperArguments `
+            -WindowStyle Hidden | Out-Null
+    }
+    catch {
         Clear-TowerScoutHostHelperSession -RootPath $RootPath -SessionId $sessionId | Out-Null
         Clear-TowerScoutHostHelperBridgeEnvironment
         throw "The TowerScout host helper review session could not be started."
