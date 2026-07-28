@@ -514,6 +514,7 @@ def test_provider_tls_status_route_uses_keyless_provider_probe(client):
 
     assert response.status_code == 200
     assert response.get_json()["category"] == "tls_ok"
+    assert "no-store" in response.headers["Cache-Control"]
     mock_status.assert_called_once_with("google")
 
 
@@ -553,9 +554,7 @@ def test_repairable_validation_adds_review_only_helper_bridge(client, monkeypatc
     assert details["helper_available"] is False
     assert details["helper_bridge"]["base_url"] == "http://127.0.0.1:50123"
     assert details["helper_bridge"]["provider_tls_repair_capability"] is False
-    assert details["helper_bridge"]["operation_authorization"][
-        "operation_token"
-    ].startswith("v1.")
+    assert "operation_authorization" not in details["helper_bridge"]
     assert details["repair_command"].startswith(
         ".\\scripts\\repair-provider-tls.cmd"
     )
@@ -567,6 +566,11 @@ def test_provider_tls_repair_status_authorization_is_operation_bound(client, mon
     monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_PORT", "50123")
     monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_SESSION_ID", "a" * 32)
     monkeypatch.setenv("TOWERSCOUT_HOST_HELPER_SESSION_KEY", "A" * 43)
+    monkeypatch.setattr(
+        towerscout.ts_host_helper,
+        "PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED",
+        True,
+    )
 
     with patch.object(towerscout.rate_limiter, "is_allowed", return_value=True):
         response = client.post(
@@ -580,6 +584,7 @@ def test_provider_tls_repair_status_authorization_is_operation_bound(client, mon
     assert payload["operation_id"] == "b" * 32
     assert payload["status_authorization"]["scope"] == "operation_status"
     assert payload["status_authorization"]["authorization"].startswith("v1.")
+    assert "no-store" in response.headers["Cache-Control"]
 
 
 def test_provider_tls_repair_status_authorization_rejects_invalid_operation(
@@ -593,6 +598,35 @@ def test_provider_tls_repair_status_authorization_rejects_invalid_operation(
 
     assert response.status_code == 400
     assert response.get_json()["state"] == "rejected_unknown_operation"
+    assert "no-store" in response.headers["Cache-Control"]
+
+
+def test_provider_tls_repair_status_authorization_rate_limit_is_not_cached(client):
+    with patch.object(towerscout.rate_limiter, "is_allowed", return_value=False):
+        response = client.post(
+            "/api/config/provider-tls-repair-status-authorization",
+            json={"provider": "google", "operation_id": "b" * 32},
+        )
+
+    assert response.status_code == 429
+    assert response.get_json()["state"] == "rate_limited"
+    assert "no-store" in response.headers["Cache-Control"]
+
+
+@pytest.mark.parametrize("payload", [[], "not-an-object", 7, None])
+def test_provider_tls_repair_status_authorization_requires_json_object(
+    client,
+    payload,
+):
+    with patch.object(towerscout.rate_limiter, "is_allowed", return_value=True):
+        response = client.post(
+            "/api/config/provider-tls-repair-status-authorization",
+            json=payload,
+        )
+
+    assert response.status_code == 400
+    assert response.get_json()["state"] == "rejected_bad_request"
+    assert "no-store" in response.headers["Cache-Control"]
 
 
 def test_key_routes_do_not_log_key_previews(client, monkeypatch):

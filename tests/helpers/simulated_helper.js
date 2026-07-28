@@ -16,10 +16,15 @@ const rate = {}; // ip -> {count, reset}
 function sendJSON(res, status, obj, origin) {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
   if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Content-Type, X-TowerScout-Operation-Authorization'
+    );
   }
   res.end(JSON.stringify(obj));
 }
@@ -57,13 +62,13 @@ function runtimeProfile() {
     helper_version: 'simulated-helper',
     state: 'ready',
     runtime: {
-      engine: 'simulated',
+      engine: 'docker',
       gpu: 'off',
       app_port: APP_PORT,
       package_flavor: 'test'
     },
     capabilities: {
-      provider_tls_repair: false,
+      provider_tls_repair: true,
       podman_provider_repair: false,
       max_active_operations: 1
     }
@@ -86,7 +91,10 @@ const server = http.createServer(async (req, res) => {
     if (origin) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader(
+        'Access-Control-Allow-Headers',
+        'Content-Type, X-TowerScout-Operation-Authorization'
+      );
     }
     return res.end();
   }
@@ -130,14 +138,51 @@ const server = http.createServer(async (req, res) => {
     // Idempotency: if token was seen, return existing operation
     if (tokenToOp[op_auth]) {
       const existing = tokenToOp[op_auth];
-      return sendJSON(res, 200, { operation_id: existing, state: 'existing' }, origin);
+      const op = ops[existing];
+      return sendJSON(res, 409, {
+        operation_id: existing,
+        operation_type: 'provider_tls_repair',
+        provider: op.provider,
+        state: op.state,
+        accepted: true,
+        existing_operation: true,
+        execution_enabled: true,
+        current_step: op.state,
+        classification: op.state === 'ready' ? 'terminal_success' : 'active',
+        terminal: op.state === 'ready',
+        next_action: op.state === 'ready' ? 'retry_provider_validation' : 'poll_existing_operation',
+        status_authorization: {
+          operation_type: 'provider_tls_repair',
+          scope: 'operation_status',
+          expires_at: '2999-01-01T00:00:00Z',
+          authorization: 'simulated-status-authorization'
+        }
+      }, origin);
     }
 
     const operation_id = randomBytes(16).toString('hex');
     tokenToOp[op_auth] = operation_id;
     ops[operation_id] = { polls: 0, state: 'planned', provider };
 
-    return sendJSON(res, 202, { operation_id, state: 'planned' }, origin);
+    return sendJSON(res, 202, {
+      operation_id,
+      operation_type: 'provider_tls_repair',
+      provider,
+      state: 'planned',
+      accepted: true,
+      existing_operation: false,
+      execution_enabled: true,
+      current_step: 'worker_start',
+      classification: 'pending',
+      terminal: false,
+      next_action: 'await_controlled_execution',
+      status_authorization: {
+        operation_type: 'provider_tls_repair',
+        scope: 'operation_status',
+        expires_at: '2999-01-01T00:00:00Z',
+        authorization: 'simulated-status-authorization'
+      }
+    }, origin);
   }
 
   // GET /operations/:id
@@ -152,10 +197,34 @@ const server = http.createServer(async (req, res) => {
     op.polls += 1;
     if (op.polls === 1) {
       op.state = 'active';
-      return sendJSON(res, 200, { operation_id: opId, state: 'active', classification: 'active', terminal: false }, origin);
+      return sendJSON(res, 200, {
+        operation_id: opId,
+        operation_type: 'provider_tls_repair',
+        provider: op.provider,
+        state: 'runtime_starting',
+        accepted: true,
+        existing_operation: false,
+        execution_enabled: true,
+        current_step: 'runtime_starting',
+        classification: 'active',
+        terminal: false,
+        next_action: 'poll_existing_operation'
+      }, origin);
     }
     op.state = 'ready';
-    return sendJSON(res, 200, { operation_id: opId, state: 'ready', classification: 'terminal_success', terminal: true }, origin);
+    return sendJSON(res, 200, {
+      operation_id: opId,
+      operation_type: 'provider_tls_repair',
+      provider: op.provider,
+      state: 'ready',
+      accepted: true,
+      existing_operation: false,
+      execution_enabled: true,
+      current_step: 'readiness_wait',
+      classification: 'terminal_success',
+      terminal: true,
+      next_action: 'retry_provider_validation'
+    }, origin);
   }
 
   // Not found

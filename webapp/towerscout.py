@@ -2081,9 +2081,12 @@ def get_provider_tls_status():
     if requested_provider:
         provider = TowerScoutValidator.validate_provider(requested_provider)
         payload = ts_config.check_provider_tls_status(provider)
-        return jsonify(ts_host_helper.enrich_provider_tls_repair_payload(payload))
+        response = jsonify(ts_host_helper.enrich_provider_tls_repair_payload(payload))
+        response.headers['Cache-Control'] = 'no-store, private'
+        response.headers['Pragma'] = 'no-cache'
+        return response
 
-    return jsonify({
+    response = jsonify({
         'google': ts_host_helper.enrich_provider_tls_repair_payload(
             ts_config.check_provider_tls_status('google')
         ),
@@ -2091,6 +2094,9 @@ def get_provider_tls_status():
             ts_config.check_provider_tls_status('azure')
         ),
     })
+    response.headers['Cache-Control'] = 'no-store, private'
+    response.headers['Pragma'] = 'no-cache'
+    return response
 
 
 @app.route('/api/config/provider-tls-repair-status-authorization', methods=['POST'])
@@ -2102,33 +2108,57 @@ def get_provider_tls_repair_status_authorization():
         max_requests=30,
         window_seconds=300,
     ):
-        return jsonify({
+        response = jsonify({
             'state': 'rate_limited',
             'message': 'Wait before refreshing host repair status.',
-        }), 429
+        })
+        response.status_code = 429
+        response.headers['Cache-Control'] = 'no-store, private'
+        response.headers['Pragma'] = 'no-cache'
+        return response
 
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        response = jsonify({
+            'state': 'rejected_bad_request',
+            'message': 'A JSON object is required.',
+        })
+        response.status_code = 400
+        response.headers['Cache-Control'] = 'no-store, private'
+        response.headers['Pragma'] = 'no-cache'
+        return response
     provider = TowerScoutValidator.validate_provider(data.get('provider'))
     operation_id = TowerScoutValidator.sanitize_string(
         data.get('operation_id', ''),
         max_length=32,
     ).strip().lower()
     if not re.fullmatch(r'[a-f0-9]{32}', operation_id):
-        return jsonify({
+        response = jsonify({
             'state': 'rejected_unknown_operation',
             'message': 'The host repair operation id was invalid.',
-        }), 400
+        })
+        response.status_code = 400
+        response.headers['Cache-Control'] = 'no-store, private'
+        response.headers['Pragma'] = 'no-cache'
+        return response
 
     bridge = ts_host_helper.build_operation_status_bridge(
         provider,
         operation_id,
     )
     if bridge is None:
-        return jsonify({
+        response = jsonify({
             'state': 'helper_unavailable',
             'message': 'Host repair status authorization is unavailable.',
-        }), 404
-    return jsonify(bridge)
+        })
+        response.status_code = 404
+        response.headers['Cache-Control'] = 'no-store, private'
+        response.headers['Pragma'] = 'no-cache'
+        return response
+    response = jsonify(bridge)
+    response.headers['Cache-Control'] = 'no-store, private'
+    response.headers['Pragma'] = 'no-cache'
+    return response
 
 
 @app.route('/api/config/reset-session', methods=['POST'])

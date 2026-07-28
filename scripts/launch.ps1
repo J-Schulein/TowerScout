@@ -127,6 +127,126 @@ function Test-TowerScoutHostHelperSessionMetadataMatchesProfile {
     )
 }
 
+function Test-TowerScoutHostHelperSessionLiveness {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Metadata,
+
+        [Parameter(Mandatory = $true)]
+        [string] $SessionId,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+
+        [Parameter(Mandatory = $true)]
+        [int] $AppPort
+    )
+
+    [int] $processId = 0
+    [int] $helperPort = 0
+    [datetime] $expectedStartUtc = [datetime]::MinValue
+    [datetime] $leaseExpiresUtc = [datetime]::MinValue
+    [datetime] $heartbeatUtc = [datetime]::MinValue
+    if (
+        -not [int]::TryParse(
+            ([string] (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "process_id")),
+            [ref] $processId
+        ) -or
+        -not [int]::TryParse(
+            ([string] (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "helper_port")),
+            [ref] $helperPort
+        ) -or
+        -not [datetime]::TryParse(
+            ([string] (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "process_start_time_utc")),
+            [ref] $expectedStartUtc
+        ) -or
+        -not [datetime]::TryParse(
+            ([string] (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "lease_expires_at_utc")),
+            [ref] $leaseExpiresUtc
+        ) -or
+        -not [datetime]::TryParse(
+            ([string] (Get-TowerScoutPropertyValue -InputObject $Metadata -Name "last_heartbeat_utc")),
+            [ref] $heartbeatUtc
+        )
+    ) {
+        return $false
+    }
+    $nowUtc = (Get-Date).ToUniversalTime()
+    if (
+        $leaseExpiresUtc.ToUniversalTime() -le $nowUtc -or
+        $heartbeatUtc.ToUniversalTime() -lt $nowUtc.AddSeconds(-10)
+    ) {
+        return $false
+    }
+    try {
+        $process = Get-Process -Id $processId -ErrorAction Stop
+        if (
+            [Math]::Abs(
+                ($process.StartTime.ToUniversalTime() - $expectedStartUtc.ToUniversalTime()).TotalSeconds
+            ) -gt 2
+        ) {
+            return $false
+        }
+    }
+    catch {
+        return $false
+    }
+
+    $tokenFileName = [string] (
+        Get-TowerScoutPropertyValue -InputObject $Metadata -Name "token_file"
+    )
+    if ($tokenFileName -ne ("token-{0}.secret" -f $SessionId)) {
+        return $false
+    }
+    $tokenPath = Join-Path `
+        (Get-TowerScoutHostHelperStateDirectory -RootPath $RootPath) `
+        $tokenFileName
+    if (-not (Test-Path -LiteralPath $tokenPath -PathType Leaf)) {
+        return $false
+    }
+    try {
+        $token = (Get-Content -LiteralPath $tokenPath -Raw).Trim()
+        $request = [System.Net.HttpWebRequest]::Create(
+            "http://127.0.0.1:$helperPort/runtime-profile"
+        )
+        $request.Method = "GET"
+        $request.Timeout = 2000
+        $request.Headers.Add("X-TowerScout-Helper-Token", $token)
+        $request.Headers.Add("Origin", "http://localhost:$AppPort")
+        $response = $request.GetResponse()
+        try {
+            $reader = New-Object System.IO.StreamReader(
+                $response.GetResponseStream()
+            )
+            try {
+                $profile = $reader.ReadToEnd() | ConvertFrom-Json
+            }
+            finally {
+                $reader.Dispose()
+            }
+        }
+        finally {
+            $response.Dispose()
+        }
+        return (
+            (Get-TowerScoutPropertyValue -InputObject $profile -Name "state") -eq "ready"
+        )
+    }
+    catch {
+        return $false
+    }
+}
+
+function Stop-TowerScoutHostHelperReviewSession {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath
+    )
+
+    Clear-TowerScoutHostHelperSession -RootPath $RootPath | Out-Null
+    Clear-TowerScoutHostHelperBridgeEnvironment
+}
+
 function Initialize-TowerScoutHostHelperReviewSession {
     param(
         [Parameter(Mandatory = $true)]
@@ -148,13 +268,7 @@ function Initialize-TowerScoutHostHelperReviewSession {
     )
 
     if (-not (Test-TowerScoutHostHelperReviewEnabled)) {
-        $disabledSessionId = ([string] $env:TOWERSCOUT_HOST_HELPER_SESSION_ID).Trim().ToLowerInvariant()
-        if ($disabledSessionId -match "^[a-f0-9]{32}$") {
-            Clear-TowerScoutHostHelperSession `
-                -RootPath $RootPath `
-                -SessionId $disabledSessionId | Out-Null
-        }
-        Clear-TowerScoutHostHelperBridgeEnvironment
+        Stop-TowerScoutHostHelperReviewSession -RootPath $RootPath
         return ""
     }
 
@@ -179,7 +293,12 @@ function Initialize-TowerScoutHostHelperReviewSession {
             [int]::TryParse(
                 ([string] (Get-TowerScoutPropertyValue -InputObject $existingMetadata -Name "helper_port")),
                 [ref] $existingHelperPort
-            )
+            ) -and
+            (Test-TowerScoutHostHelperSessionLiveness `
+                -Metadata $existingMetadata `
+                -SessionId $existingSessionId `
+                -RootPath $RootPath `
+                -AppPort $AppPort)
         ) {
             $env:TOWERSCOUT_HOST_HELPER_ENABLED = "1"
             $env:TOWERSCOUT_HOST_HELPER_PORT = "$existingHelperPort"
@@ -188,12 +307,7 @@ function Initialize-TowerScoutHostHelperReviewSession {
         }
     }
 
-    if ($existingSessionId -match "^[a-f0-9]{32}$") {
-        Clear-TowerScoutHostHelperSession `
-            -RootPath $RootPath `
-            -SessionId $existingSessionId | Out-Null
-    }
-    Clear-TowerScoutHostHelperBridgeEnvironment
+    Stop-TowerScoutHostHelperReviewSession -RootPath $RootPath
 
     $sessionId = New-TowerScoutHostHelperSessionId
     $sessionKey = New-TowerScoutHostHelperToken
@@ -484,10 +598,7 @@ Invoke-TowerScoutCompose `
     -ComposeArguments $composeArgs
 if ($script:TowerScoutComposeExitCode -ne 0) {
     if (-not [string]::IsNullOrWhiteSpace($hostHelperReviewSessionId)) {
-        Clear-TowerScoutHostHelperSession `
-            -RootPath $repoRoot `
-            -SessionId $hostHelperReviewSessionId | Out-Null
-        Clear-TowerScoutHostHelperBridgeEnvironment
+        Stop-TowerScoutHostHelperReviewSession -RootPath $repoRoot
     }
     Write-Host "TowerScout container startup failed. Check the selected engine, Compose provider, and local permissions."
     Write-TowerScoutHostDiagnostics -EngineName $effectiveEngine
@@ -509,6 +620,7 @@ while ((Get-Date) -lt $deadline) {
             if ($Gpu -eq "on" -and -not (Test-TowerScoutCudaSelected -Readiness $readiness)) {
                 Write-Host "GPU mode is on, but TowerScout readiness did not report selected_device=cuda."
                 Write-Host "Check the image flavor, NVIDIA container access, and GPU overlay before continuing."
+                Stop-TowerScoutHostHelperReviewSession -RootPath $repoRoot
                 exit 1
             }
             if (-not $NoBrowser) {
@@ -524,6 +636,7 @@ while ((Get-Date) -lt $deadline) {
         if ($readiness.State -eq "fatal") {
             Write-TowerScoutReadinessSummary -Readiness $readiness
             Write-Host "Run scripts\logs.cmd for container logs or scripts\status.cmd for the current readiness payload."
+            Stop-TowerScoutHostHelperReviewSession -RootPath $repoRoot
             exit 1
         }
     }
@@ -541,4 +654,7 @@ if ($lastReadiness -ne $null) {
     Write-TowerScoutReadinessSummary -Readiness $lastReadiness
 }
 Write-Host "Use scripts\status.cmd to inspect readiness, scripts\logs.cmd -Tail 200 for logs, or scripts\stop.cmd to stop TowerScout."
+if (-not [string]::IsNullOrWhiteSpace($hostHelperReviewSessionId)) {
+    Stop-TowerScoutHostHelperReviewSession -RootPath $repoRoot
+}
 exit 2

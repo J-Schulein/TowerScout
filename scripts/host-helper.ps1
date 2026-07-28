@@ -15,6 +15,8 @@ param(
 
     [string] $HelperSessionId = "",
 
+    [string] $PackageRoot = "",
+
     [switch] $SelfTest,
 
     [switch] $Stop
@@ -29,29 +31,49 @@ if ($SelfTest) {
 }
 
 if ($Stop) {
-    $result = Clear-TowerScoutHostHelperSession
+    $stopRoot = if ([string]::IsNullOrWhiteSpace($PackageRoot)) {
+        (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
+    }
+    else {
+        (Resolve-Path -LiteralPath $PackageRoot).Path
+    }
+    $result = Clear-TowerScoutHostHelperSession -RootPath $stopRoot
     Write-Host "TowerScout host helper sessions invalidated: $($result.cleared)"
     exit 0
 }
 
 $token = New-TowerScoutHostHelperToken
+$resolvedPackageRoot = if ([string]::IsNullOrWhiteSpace($PackageRoot)) {
+    (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
+}
+else {
+    (Resolve-Path -LiteralPath $PackageRoot).Path
+}
 $profile = New-TowerScoutHostHelperRuntimeProfile `
     -Engine $Engine `
     -Gpu $Gpu `
     -AppPort $AppPort `
+    -PackageRoot $resolvedPackageRoot `
     -PackageFlavor $PackageFlavor `
     -HelperPort $HelperPort `
     -HelperSessionId $HelperSessionId `
-    -BrowserAuthorizationKey ([string] $env:TOWERSCOUT_HOST_HELPER_SESSION_KEY)
-Save-TowerScoutHostHelperSession -Profile $profile -Token $token | Out-Null
+    -BrowserAuthorizationKey ([string] $env:TOWERSCOUT_HOST_HELPER_SESSION_KEY) `
+    -ProviderTlsRepairEnabled:$false
 
 Write-Host "TowerScout host helper review transport is starting on loopback only."
 Write-Host "Helper token generated and stored in the package-local helper secret file."
 Write-Host "Helper session metadata recorded without token material."
 Write-Host "The public repair capability and browser-triggered mutation remain disabled."
 try {
-    Start-TowerScoutHostHelper -Profile $profile -Token $token -HelperPort $HelperPort -MaxRequests $MaxRequests
+    Start-TowerScoutHostHelper `
+        -Profile $profile `
+        -Token $token `
+        -HelperPort $HelperPort `
+        -MaxRequests $MaxRequests `
+        -ExecutionEnabled:$false
 }
 finally {
-    Clear-TowerScoutHostHelperSession -SessionId $profile.HelperSessionId | Out-Null
+    Clear-TowerScoutHostHelperSession `
+        -RootPath $resolvedPackageRoot `
+        -SessionId $profile.HelperSessionId | Out-Null
 }

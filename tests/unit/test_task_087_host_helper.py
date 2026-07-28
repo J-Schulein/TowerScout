@@ -13,7 +13,9 @@ import ts_host_helper
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HELPER_LIB = REPO_ROOT / "scripts" / "lib" / "TowerScoutHostHelper.ps1"
+HELPER_STATE_LIB = REPO_ROOT / "scripts" / "lib" / "TowerScoutHostHelperState.ps1"
 HELPER_SCRIPT = REPO_ROOT / "scripts" / "host-helper.ps1"
+HELPER_WORKER_SCRIPT = REPO_ROOT / "scripts" / "host-helper-worker.ps1"
 STOP_SCRIPT = REPO_ROOT / "scripts" / "stop.ps1"
 LAUNCH_SCRIPT = REPO_ROOT / "scripts" / "launch.ps1"
 COMPOSE_FILE = REPO_ROOT / "compose.yaml"
@@ -73,8 +75,18 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert "nonce_fingerprint" in script
     assert '"operation-*.json"' in script
     assert "operation_files_cleared" in script
-    assert "provider_tls_repair = $false" in script
+    assert "provider_tls_repair = $providerTlsRepairEnabled" in script
+    assert 'State "capability_disabled"' in script
     assert "$script:TowerScoutHostHelperExecutionEnabledByDefault = $false" in script
+    assert 'return (Join-Path $stateDirectory "operation-active.json")' in script
+    assert "operation-status-{0}.json" in script
+    assert "function Enter-TowerScoutHostHelperPackageMutex" in script
+    assert "function Write-TowerScoutHostHelperJsonAtomic" in script
+    assert "function Protect-TowerScoutHostHelperStatePath" in script
+    assert "$script:TowerScoutHostHelperHeartbeatStaleSeconds = 10" in script
+    assert "process_start_time_utc" in script
+    assert "last_heartbeat_utc" in script
+    assert "function Start-TowerScoutHostHelperOperationWorker" in script
     assert "function Resolve-TowerScoutHostHelperControlledCommand" in script
     assert "function Invoke-TowerScoutHostHelperControlledCommand" in script
     assert "function Invoke-TowerScoutProviderTlsRepairControlledExecution" in script
@@ -126,8 +138,11 @@ def test_host_helper_review_bridge_is_explicit_and_does_not_persist_session_key(
     ):
         assert profile_field in launch_script
     assert "Get-TowerScoutHostHelperPackageRootIdentity" in launch_script
-    assert "-SessionId $disabledSessionId | Out-Null" in launch_script
-    assert "-SessionId $existingSessionId | Out-Null" in launch_script
+    assert "function Test-TowerScoutHostHelperSessionLiveness" in launch_script
+    assert "process_start_time_utc" in launch_script
+    assert "last_heartbeat_utc" in launch_script
+    assert "lease_expires_at_utc" in launch_script
+    assert "Stop-TowerScoutHostHelperReviewSession -RootPath $RootPath" in launch_script
     assert "host-helper-visible.cmd" in launch_script
     assert "TOWERSCOUT_HOST_HELPER_SESSION_KEY" in launch_script
     assert "Clear-TowerScoutHostHelperBridgeEnvironment" in launch_script
@@ -232,7 +247,8 @@ def test_host_helper_accepts_python_issued_probe_through_loopback_request_handle
                 -AppPort 5000 `
                 -PackageRoot $root `
                 -HelperSessionId "{session_id}" `
-                -BrowserAuthorizationKey "{session_key}"
+                -BrowserAuthorizationKey "{session_key}" `
+                -ProviderTlsRepairEnabled:$true
             $serverToken = New-TowerScoutHostHelperToken
             Save-TowerScoutHostHelperSession -Profile $profile -Token $serverToken | Out-Null
             $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, 0)
@@ -348,12 +364,14 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
         $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-api-{{0}}" -f (New-TowerScoutHostHelperSessionId))
         New-Item -ItemType Directory -Path $root -Force | Out-Null
         try {{
-            $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "api-probe"
+            $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "api-probe" -ProviderTlsRepairEnabled:$true
             $authorization = New-TowerScoutHostHelperToken
             $request = [pscustomobject]@{{
                 Headers = @{{ "content-type" = "application/json" }}
                 BodyText = (@{{ provider = "google"; confirmation = $script:TowerScoutHostHelperProviderTlsRepairConfirmation; operation_authorization = $authorization }} | ConvertTo-Json -Compress)
             }}
+            $disabledProfile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "api-probe"
+            $capabilityDisabled = New-TowerScoutProviderTlsRepairOperationPlanResponse -Profile $disabledProfile -Request $request
             $planned = New-TowerScoutProviderTlsRepairOperationPlanResponse -Profile $profile -Request $request
             $status = Get-TowerScoutHostHelperOperationStatus -Profile $profile -OperationId ([string] $planned.Body.operation_id)
             $same = New-TowerScoutProviderTlsRepairOperationPlanResponse -Profile $profile -Request $request
@@ -377,6 +395,11 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
                 BodyText = (@{{ provider = "google"; confirmation = $script:TowerScoutHostHelperProviderTlsRepairConfirmation; operation_authorization = "short" }} | ConvertTo-Json -Compress)
             }}
             $badAuthorization = New-TowerScoutProviderTlsRepairOperationPlanResponse -Profile $profile -Request $badAuthorizationRequest
+            $expiredRecord = Get-TowerScoutHostHelperOperationStatusRecord -Profile $profile -OperationId ([string] $planned.Body.operation_id)
+            Set-TowerScoutHostHelperObjectValue -InputObject $expiredRecord -Name "expires_at_utc" -Value ((Get-Date).ToUniversalTime().AddSeconds(-1).ToString("o"))
+            Write-TowerScoutHostHelperJsonAtomic -Path (Get-TowerScoutHostHelperOperationStatusPath -Profile $profile -OperationId ([string] $planned.Body.operation_id)) -Value $expiredRecord
+            Write-TowerScoutHostHelperJsonAtomic -Path (Get-TowerScoutHostHelperOperationLockPath -Profile $profile) -Value $expiredRecord
+            $expired = Get-TowerScoutHostHelperOperationStatus -Profile $profile -OperationId ([string] $planned.Body.operation_id)
             $exitStates = [pscustomobject]@{{
                 repair_success = ConvertTo-TowerScoutHostHelperScriptExitState -Step "repair" -ExitCode 0
                 repair_selection_required = ConvertTo-TowerScoutHostHelperScriptExitState -Step "repair" -ExitCode 2
@@ -392,6 +415,8 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
                 timed_out = ConvertTo-TowerScoutHostHelperScriptExitState -Step "repair" -ExitCode 1 -TimedOut:$true
             }}
             [pscustomobject]@{{
+                capability_disabled_status = $capabilityDisabled.StatusCode
+                capability_disabled_state = [string] $capabilityDisabled.Body.state
                 planned_status = $planned.StatusCode
                 planned_state = [string] $planned.Body.state
                 execution_enabled = [bool] $planned.Body.execution_enabled
@@ -409,6 +434,10 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
                 execution_enabled_field_state = [string] $executionEnabledRejected.Body.state
                 bad_authorization = $badAuthorization.StatusCode
                 bad_authorization_state = [string] $badAuthorization.Body.state
+                expired_state = [string] $expired.Body.state
+                expired_classification = [string] $expired.Body.classification
+                expired_terminal = [bool] $expired.Body.terminal
+                expired_lock_released = $null -eq (Get-TowerScoutHostHelperOperationLock -Profile $profile)
                 exit_states = $exitStates
             }} | ConvertTo-Json -Compress
         }}
@@ -425,6 +454,8 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
     assert result.returncode == 0, result.stdout + result.stderr
     payload = json.loads(next(line for line in result.stdout.splitlines() if line))
     assert payload == {
+        "capability_disabled_status": 403,
+        "capability_disabled_state": "capability_disabled",
         "planned_status": 202,
         "planned_state": "planned",
         "execution_enabled": False,
@@ -442,6 +473,10 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
         "execution_enabled_field_state": "rejected_unexpected_field",
         "bad_authorization": 400,
         "bad_authorization_state": "rejected_operation_authorization",
+        "expired_state": "operation_timeout",
+        "expired_classification": "terminal_timeout",
+        "expired_terminal": True,
+        "expired_lock_released": True,
         "exit_states": {
             "repair_success": "tls_repair_completed",
             "repair_selection_required": "tls_repair_selection_required",
@@ -460,6 +495,403 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_accepts_async_start_and_serves_live_status():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-async-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $listener = $null
+        try {{
+            $profile = New-TowerScoutHostHelperRuntimeProfile `
+                -Engine "docker" `
+                -Gpu "off" `
+                -AppPort 5000 `
+                -PackageRoot $root `
+                -PackageFlavor "async-probe" `
+                -ProviderTlsRepairEnabled:$true
+            $serverToken = New-TowerScoutHostHelperToken
+            $listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, 0)
+            $listener.Start()
+            $body = @{{
+                provider = "google"
+                confirmation = "repair_tls_and_restart"
+                operation_authorization = (New-TowerScoutHostHelperToken)
+            }} | ConvertTo-Json -Compress
+            $workerStarter = {{
+                param($WorkerProfile, $WorkerPlan)
+                Start-Process `
+                    -FilePath "powershell.exe" `
+                    -ArgumentList @("-NoProfile", "-Command", "Start-Sleep -Seconds 3") `
+                    -WindowStyle Hidden | Out-Null
+            }}
+            $watch = [System.Diagnostics.Stopwatch]::StartNew()
+            $accepted = Invoke-TowerScoutHostHelperSelfTestRequest `
+                -Listener $listener `
+                -Profile $profile `
+                -ServerToken $serverToken `
+                -RequestToken $serverToken `
+                -Path "/operations/provider-tls-repair" `
+                -Method "POST" `
+                -Body $body `
+                -ExecutionEnabled:$true `
+                -WorkerStarter $workerStarter
+            $watch.Stop()
+            $acceptedOperationId = Get-TowerScoutHostHelperObjectValue -InputObject $accepted.Body -Name "operation_id"
+            $status = if (-not [string]::IsNullOrWhiteSpace($acceptedOperationId)) {{
+                Invoke-TowerScoutHostHelperSelfTestRequest `
+                    -Listener $listener `
+                    -Profile $profile `
+                    -ServerToken $serverToken `
+                    -RequestToken $serverToken `
+                    -Path "/operations/$acceptedOperationId"
+            }}
+            else {{
+                [pscustomobject]@{{
+                    StatusCode = 0
+                    Body = [pscustomobject]@{{}}
+                }}
+            }}
+            [pscustomobject]@{{
+                accepted_status = [int] $accepted.StatusCode
+                accepted_state = [string] (Get-TowerScoutHostHelperObjectValue -InputObject $accepted.Body -Name "state")
+                accepted_terminal = [bool] $accepted.Body.terminal
+                accepted_execution_enabled = [bool] $accepted.Body.execution_enabled
+                elapsed_ms = [int] $watch.ElapsedMilliseconds
+                poll_status = [int] $status.StatusCode
+                poll_state = [string] (Get-TowerScoutHostHelperObjectValue -InputObject $status.Body -Name "state")
+                poll_terminal = [bool] $status.Body.terminal
+                poll_execution_enabled = [bool] $status.Body.execution_enabled
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if ($null -ne $listener) {{
+                $listener.Stop()
+            }}
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload["accepted_status"] == 202
+    assert payload["accepted_terminal"] is False
+    assert payload["accepted_execution_enabled"] is True
+    assert payload["elapsed_ms"] < 2000
+    assert payload["poll_status"] == 200
+    assert payload["poll_state"] == "planned"
+    assert payload["poll_terminal"] is False
+    assert payload["poll_execution_enabled"] is True
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_fixed_worker_completes_fake_allowlisted_wrappers():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    helper_state_path = str(HELPER_STATE_LIB).replace("'", "''")
+    worker_path = str(HELPER_WORKER_SCRIPT).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-worker-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path (Join-Path $root "scripts\\lib") -Force | Out-Null
+        Copy-Item -LiteralPath '{helper_path}' -Destination (Join-Path $root "scripts\\lib\\TowerScoutHostHelper.ps1")
+        Copy-Item -LiteralPath '{helper_state_path}' -Destination (Join-Path $root "scripts\\lib\\TowerScoutHostHelperState.ps1")
+        Copy-Item -LiteralPath '{worker_path}' -Destination (Join-Path $root "scripts\\host-helper-worker.ps1")
+        Set-Content -LiteralPath (Join-Path $root "scripts\\repair-provider-tls.cmd") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
+        Set-Content -LiteralPath (Join-Path $root "scripts\\stop.cmd") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
+        Set-Content -LiteralPath (Join-Path $root "start.bat") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
+        try {{
+            $profile = New-TowerScoutHostHelperRuntimeProfile `
+                -Engine "docker" `
+                -Gpu "off" `
+                -AppPort 5000 `
+                -PackageRoot $root `
+                -PackageFlavor "worker-probe" `
+                -ProviderTlsRepairEnabled:$true
+            Save-TowerScoutHostHelperSession -Profile $profile -Token (New-TowerScoutHostHelperToken) | Out-Null
+            $request = [pscustomobject]@{{
+                Headers = @{{ "content-type" = "application/json" }}
+                BodyText = (@{{
+                    provider = "google"
+                    confirmation = $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+                    operation_authorization = (New-TowerScoutHostHelperToken)
+                }} | ConvertTo-Json -Compress)
+            }}
+            $accepted = New-TowerScoutProviderTlsRepairOperationPlanResponse `
+                -Profile $profile `
+                -Request $request `
+                -ExecutionEnabled:$true
+            $operationId = [string] $accepted.Body.operation_id
+            $deadline = (Get-Date).AddSeconds(15)
+            $poll = $null
+            do {{
+                Start-Sleep -Milliseconds 100
+                $poll = Get-TowerScoutHostHelperOperationStatus `
+                    -Profile $profile `
+                    -OperationId $operationId
+            }} while (-not [bool] $poll.Body.terminal -and (Get-Date) -lt $deadline)
+            $statusPath = Get-TowerScoutHostHelperOperationStatusPath -Profile $profile -OperationId $operationId
+            $statusAcl = Get-Acl -LiteralPath $statusPath
+            [pscustomobject]@{{
+                accepted_status = [int] $accepted.StatusCode
+                accepted_execution_enabled = [bool] $accepted.Body.execution_enabled
+                terminal_status = [int] $poll.StatusCode
+                terminal_state = [string] $poll.Body.state
+                terminal = [bool] $poll.Body.terminal
+                active_lock_released = $null -eq (Get-TowerScoutHostHelperOperationLock -Profile $profile)
+                status_acl_protected = [bool] $statusAcl.AreAccessRulesProtected
+                retained_status_available = $null -ne (
+                    Get-TowerScoutHostHelperOperationStatusRecord `
+                        -Profile $profile `
+                        -OperationId $operationId
+                )
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            Clear-TowerScoutHostHelperSession -RootPath $root | Out-Null
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload == {
+        "accepted_status": 202,
+        "accepted_execution_enabled": True,
+        "terminal_status": 200,
+        "terminal_state": "ready",
+        "terminal": True,
+        "active_lock_released": True,
+        "status_acl_protected": True,
+        "retained_status_available": True,
+    }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_package_mutex_rejects_second_process():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-mutex-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $readyPath = Join-Path $root "ready"
+        $childScript = @"
+        . '{helper_path}'
+        `$mutex = Enter-TowerScoutHostHelperPackageMutex -PackageRoot '$root'
+        [System.IO.File]::WriteAllText('$readyPath', 'ready')
+        Start-Sleep -Seconds 3
+        `$mutex.ReleaseMutex()
+        `$mutex.Dispose()
+"@
+        $encoded = [Convert]::ToBase64String(
+            [System.Text.Encoding]::Unicode.GetBytes($childScript)
+        )
+        $child = Start-Process `
+            -FilePath "powershell.exe" `
+            -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encoded) `
+            -WindowStyle Hidden `
+            -PassThru
+        try {{
+            $deadline = (Get-Date).AddSeconds(5)
+            while (-not (Test-Path -LiteralPath $readyPath) -and (Get-Date) -lt $deadline) {{
+                Start-Sleep -Milliseconds 100
+            }}
+            if (-not (Test-Path -LiteralPath $readyPath)) {{
+                throw "The first helper mutex process did not become ready."
+            }}
+            $blocked = $false
+            try {{
+                $second = Enter-TowerScoutHostHelperPackageMutex `
+                    -PackageRoot $root `
+                    -WaitMilliseconds 500
+                $second.ReleaseMutex()
+                $second.Dispose()
+            }}
+            catch {{
+                $blocked = $true
+            }}
+            [pscustomobject]@{{
+                blocked = $blocked
+                first_process_alive = -not $child.HasExited
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if (-not $child.HasExited) {{
+                $child.WaitForExit(5000) | Out-Null
+            }}
+            $child.Dispose()
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload == {
+        "blocked": True,
+        "first_process_alive": True,
+    }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_session_records_liveness_acl_and_stops_on_invalidation():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    helper_script = str(HELPER_SCRIPT).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-lifecycle-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $sessionId = New-TowerScoutHostHelperSessionId
+        $env:TOWERSCOUT_HOST_HELPER_SESSION_KEY = New-TowerScoutHostHelperToken
+        $stdoutPath = Join-Path $root "helper-stdout.txt"
+        $stderrPath = Join-Path $root "helper-stderr.txt"
+        $helper = Start-Process `
+            -FilePath "powershell.exe" `
+            -ArgumentList @(
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "{helper_script}",
+                "-Engine",
+                "docker",
+                "-Gpu",
+                "off",
+                "-AppPort",
+                "5000",
+                "-PackageRoot",
+                $root,
+                "-HelperSessionId",
+                $sessionId
+            ) `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath `
+            -PassThru
+        try {{
+            $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $root
+            $sessionPath = Join-Path $stateDirectory ("session-{{0}}.json" -f $sessionId)
+            $deadline = (Get-Date).AddSeconds(10)
+            $metadata = $null
+            while ($null -eq $metadata -and (Get-Date) -lt $deadline) {{
+                if (Test-Path -LiteralPath $sessionPath) {{
+                    $metadata = Get-TowerScoutHostHelperJsonDocument -Path $sessionPath
+                }}
+                Start-Sleep -Milliseconds 100
+            }}
+            if ($null -eq $metadata) {{
+                $childStdout = if (Test-Path -LiteralPath $stdoutPath) {{ Get-Content -LiteralPath $stdoutPath -Raw }} else {{ "" }}
+                $childStderr = if (Test-Path -LiteralPath $stderrPath) {{ Get-Content -LiteralPath $stderrPath -Raw }} else {{ "" }}
+                throw "The helper session metadata did not become ready. stdout=$childStdout stderr=$childStderr"
+            }}
+            $tokenPath = Join-Path $stateDirectory ([string] $metadata.token_file)
+            $directoryAcl = Get-Acl -LiteralPath $stateDirectory
+            $sessionAcl = Get-Acl -LiteralPath $sessionPath
+            $tokenAcl = Get-Acl -LiteralPath $tokenPath
+            Clear-TowerScoutHostHelperSession -RootPath $root -SessionId $sessionId | Out-Null
+            $helper.WaitForExit(5000) | Out-Null
+            [pscustomobject]@{{
+                helper_port_ready = [int] $metadata.helper_port -gt 0
+                process_id_matches = [int] $metadata.process_id -eq [int] $helper.Id
+                process_start_recorded = -not [string]::IsNullOrWhiteSpace([string] $metadata.process_start_time_utc)
+                heartbeat_recorded = -not [string]::IsNullOrWhiteSpace([string] $metadata.last_heartbeat_utc)
+                lease_recorded = -not [string]::IsNullOrWhiteSpace([string] $metadata.lease_expires_at_utc)
+                directory_acl_protected = [bool] $directoryAcl.AreAccessRulesProtected
+                session_acl_protected = [bool] $sessionAcl.AreAccessRulesProtected
+                token_acl_protected = [bool] $tokenAcl.AreAccessRulesProtected
+                helper_exited = [bool] $helper.HasExited
+                session_removed = -not (Test-Path -LiteralPath $sessionPath)
+                token_removed = -not (Test-Path -LiteralPath $tokenPath)
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if (-not $helper.HasExited) {{
+                $helper.Kill()
+                $helper.WaitForExit(5000) | Out-Null
+            }}
+            $helper.Dispose()
+            Remove-Item Env:TOWERSCOUT_HOST_HELPER_SESSION_KEY -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert all(payload.values()), payload
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_session_active_rejects_stale_heartbeat_and_wrong_process():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-session-liveness-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        try {{
+            $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "liveness-probe"
+            Save-TowerScoutHostHelperSession -Profile $profile -Token (New-TowerScoutHostHelperToken) | Out-Null
+            $active = Test-TowerScoutHostHelperSessionActive -Profile $profile
+
+            $session = Get-TowerScoutHostHelperJsonDocument -Path $profile.SessionPath
+            $session.last_heartbeat_utc = (Get-Date).ToUniversalTime().AddSeconds(-30).ToString("o")
+            Write-TowerScoutHostHelperJsonAtomic -Path $profile.SessionPath -Value $session
+            $staleHeartbeatRejected = -not (Test-TowerScoutHostHelperSessionActive -Profile $profile)
+
+            $session.last_heartbeat_utc = (Get-Date).ToUniversalTime().ToString("o")
+            $session.process_id = 2147483647
+            Write-TowerScoutHostHelperJsonAtomic -Path $profile.SessionPath -Value $session
+            $wrongProcessRejected = -not (Test-TowerScoutHostHelperSessionActive -Profile $profile)
+
+            [pscustomobject]@{{
+                active_session_accepted = [bool] $active
+                stale_heartbeat_rejected = [bool] $staleHeartbeatRejected
+                wrong_process_rejected = [bool] $wrongProcessRejected
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert all(payload.values()), payload
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
 def test_host_helper_controlled_runner_is_gated_and_sanitized():
     helper_path = str(HELPER_LIB).replace("'", "''")
     script = textwrap.dedent(
@@ -472,7 +904,7 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
         Set-Content -LiteralPath (Join-Path $root "scripts\\stop.cmd") -Encoding ASCII -Value "@echo off`r`nset TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION>stop-env.txt`r`nexit /b 0"
         Set-Content -LiteralPath (Join-Path $root "start.bat") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
         try {{
-            $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "runner-probe"
+            $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "runner-probe" -ProviderTlsRepairEnabled:$true
             $plan = New-TowerScoutProviderTlsRepairOperationPlan -Profile $profile -Provider "google" -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
             $repairCommand = Resolve-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $plan -Step "repair"
             $actualRepair = Invoke-TowerScoutHostHelperControlledCommand -Profile $profile -Plan $plan -Step "repair"
@@ -535,9 +967,19 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
                 }}
             }}
 
-            $lock = New-TowerScoutHostHelperOperationLock -Profile $profile -Plan $plan -OperationNonce (New-TowerScoutHostHelperToken)
+            $successAuthorization = New-TowerScoutHostHelperToken
+            $lock = New-TowerScoutHostHelperOperationLock -Profile $profile -Plan $plan -OperationNonce $successAuthorization
             $success = Invoke-TowerScoutProviderTlsRepairControlledExecution -Profile $profile -Plan $plan -ExecutionEnabled:$true -CommandInvoker $successInvoker
             $status = Get-TowerScoutHostHelperOperationStatus -Profile $profile -OperationId ([string] $plan.OperationId)
+            $replayRequest = [pscustomobject]@{{
+                Headers = @{{ "content-type" = "application/json" }}
+                BodyText = (@{{
+                    provider = "google"
+                    confirmation = $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+                    operation_authorization = $successAuthorization
+                }} | ConvertTo-Json -Compress)
+            }}
+            $replay = New-TowerScoutProviderTlsRepairOperationPlanResponse -Profile $profile -Request $replayRequest
 
             $timeoutProfile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "runner-probe"
             $timeoutPlan = New-TowerScoutProviderTlsRepairOperationPlan -Profile $timeoutProfile -Provider "azure" -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
@@ -572,6 +1014,9 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
                 success_step = [string] $success.current_step
                 success_execution_enabled = [bool] $success.execution_enabled
                 status_state = [string] $status.Body.state
+                replay_status = [int] $replay.StatusCode
+                replay_existing = [bool] $replay.Body.existing_operation
+                replay_operation_id = [string] $replay.Body.operation_id
                 calls = @($script:fakeCalls)
                 timeout_state = [string] $timeout.state
                 timeout_classification = [string] $timeout.classification
@@ -620,15 +1065,18 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
     assert payload["success_step"] == "start"
     assert payload["success_execution_enabled"] is True
     assert payload["status_state"] == "ready"
+    assert payload["replay_status"] == 409
+    assert payload["replay_existing"] is True
+    assert payload["replay_operation_id"]
     assert payload["calls"] == ["repair", "stop", "start"]
     assert payload["timeout_state"] == "operation_timeout"
     assert payload["timeout_classification"] == "terminal_timeout"
     assert payload["timeout_terminal"] is True
-    assert payload["timeout_poll_status"] == 410
-    assert payload["timeout_poll_state"] == "operation_expired"
+    assert payload["timeout_poll_status"] == 200
+    assert payload["timeout_poll_state"] == "operation_timeout"
     assert payload["timeout_poll_classification"] == "terminal_timeout"
     assert payload["timeout_poll_terminal"] is True
-    assert payload["timeout_poll_next_action"] == "new_authorization_required"
+    assert payload["timeout_poll_next_action"] == "clear_or_reauthorize_after_timeout"
     assert payload["public_status_safe"] is True
 
 
@@ -678,6 +1126,70 @@ def test_host_helper_process_timeout_kills_wrapper_tree_before_output_read():
     assert result.returncode == 0, result.stdout + result.stderr
     payload = json.loads(next(line for line in result.stdout.splitlines() if line))
     assert payload["timed_out"] is True
+    assert payload["exit_code"] == 1
+    assert payload["elapsed_ms"] < 10000
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_session_invalidation_cancels_wrapper_tree():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-cancel-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $root "sleep-child.ps1") -Encoding ASCII -Value "Start-Sleep -Seconds 20"
+        Set-Content -LiteralPath (Join-Path $root "cancel-wrapper.cmd") -Encoding ASCII -Value "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File ""%~dp0sleep-child.ps1""`r`nexit /b 0"
+        $canceller = $null
+        try {{
+            $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "cancel-probe"
+            Save-TowerScoutHostHelperSession -Profile $profile -Token (New-TowerScoutHostHelperToken) | Out-Null
+            $sessionPath = [string] $profile.SessionPath
+            $cancelScript = "Start-Sleep -Milliseconds 750; Remove-Item -LiteralPath '$($sessionPath.Replace("'", "''"))' -Force"
+            $encodedCancel = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($cancelScript))
+            $canceller = Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encodedCancel) -WindowStyle Hidden -PassThru
+            $command = [pscustomobject]@{{
+                Step = "cancel_probe"
+                Script = "cancel-wrapper.cmd"
+                ScriptPath = (Join-Path $root "cancel-wrapper.cmd")
+                Arguments = @()
+                Interpreter = "cmd.exe"
+                InterpreterPath = (Get-TowerScoutHostHelperBatchInterpreterPath)
+                InterpreterArguments = @("/d", "/s", "/c")
+                WorkingDirectory = $root
+                TimeoutSeconds = 20
+                EnvironmentVariables = @{{}}
+            }}
+            $watch = [System.Diagnostics.Stopwatch]::StartNew()
+            $result = Invoke-TowerScoutHostHelperProcessCommand -Command $command -Profile $profile
+            $watch.Stop()
+            [pscustomobject]@{{
+                cancelled = [bool] $result.Cancelled
+                timed_out = [bool] $result.TimedOut
+                exit_code = [int] $result.ExitCode
+                elapsed_ms = [int] $watch.ElapsedMilliseconds
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if ($null -ne $canceller) {{
+                if (-not $canceller.HasExited) {{ $canceller.WaitForExit(5000) | Out-Null }}
+                $canceller.Dispose()
+            }}
+            Clear-TowerScoutHostHelperSession -RootPath $root | Out-Null
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload["cancelled"] is True
+    assert payload["timed_out"] is False
     assert payload["exit_code"] == 1
     assert payload["elapsed_ms"] < 10000
 

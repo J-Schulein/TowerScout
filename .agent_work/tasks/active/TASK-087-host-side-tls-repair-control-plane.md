@@ -1,8 +1,8 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - Gate 3 helper-availability, short-lived
-authorization, and browser polling checkpoint implemented and locally validated;
-package and managed-network proof remain gated
+**Status**: IN_PROGRESS - PR #63 reviewer remediation implemented and locally
+validated; release-facing mutation, live Docker/UAC/certificate, package-runtime,
+and managed-network gates remain closed
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days (32-56 hours), plus package validation on a managed TLS-inspected network
@@ -18,9 +18,32 @@ setup error classification; Docker and Podman CPU/GPU package paths
 
 This file preserves the canonical gated Task-087 design and evidence. The
 non-mutating proof is merged and the Tasks 090/098 security gate passed on
-July 27. Task-087 is ready to resume from current `main` after the Task-098
-closeout merges. The command-based Task-086 path remains the fallback until
+July 27. Task-087 resumed in draft PR #63; its first review found lifecycle,
+asynchronous execution, recovery, and terminal-flow gaps that are now addressed
+in the draft branch. The command-based Task-086 path remains the fallback until
 all Task-087 gates pass.
+
+## July 27, 2026 PR #63 Review Remediation Override
+
+This override controls current implementation status wherever older entries
+describe the first PR #63 checkpoint:
+
+- Keep PR #63 in draft; this remediation does not complete Task-087 or activate
+  browser-triggered mutation.
+- Enforce one helper and one active operation per package, with bounded
+  lifecycle metadata, atomic ACL-protected state, retained terminal outcomes,
+  and consumed-authorization replay protection.
+- Return `202 Accepted` before the fixed detached worker runs so authenticated
+  status requests remain responsive.
+- Require backend, live-helper, and frontend capability gates independently.
+- Preserve uncertain operation descriptors through bounded polling retries;
+  distinguish a changed helper session and never recommend concurrent manual
+  repair while status is ambiguous.
+- Complete terminal UI handling, readiness recovery, provider revalidation,
+  cross-provider monitoring, and stable failure guidance.
+- Ship the worker and state-reader libraries in release-package staging.
+- Retain live Docker stop/start, UAC/certificate mutation, Chrome/Firefox, and
+  managed TLS-inspected network proof as explicit activation blockers.
 
 ## July 27, 2026 Activation Update
 
@@ -1074,6 +1097,87 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-27 - PR #63 Reviewer Remediation
+
+**Objective**: Address every accepted code-level finding in the PR #63 review
+without opening any release-facing mutation gate.
+
+**Context**: The reviewer agreed with the authorization and command-allowlist
+direction but requested changes for package-wide helper lifecycle, asynchronous
+execution, trust-boundary capability enforcement, ambiguous polling recovery,
+terminal UI completion, cross-provider conflicts, terminal lock release, and
+cache/ACL/replay/browser hardening.
+
+**Decision**: Accept the review disposition. Keep PR #63 draft and keep the
+backend repair capability, helper capability, controlled-execution default, and
+frontend mutation constant false in production. Implement and test the dormant
+control-plane behavior with fixed fake wrappers and in-memory frontend gate
+activation only.
+
+**Execution**:
+
+- Added a package-root-derived named mutex, 12-hour helper lease,
+  PID/start-time metadata, two-second heartbeat, authenticated liveness probe,
+  all-session invalidation for fresh launches, and cleanup on compose/fatal/
+  timeout launch failures.
+- Hardened package-local state with explicit current-user/SYSTEM/Administrators
+  ACLs, atomic JSON replacement, bounded cross-process reads, package-global
+  active state, retained terminal status, and immediate terminal lease release.
+- Added full start-authorization fingerprints with bounded replay retention.
+  Duplicate active starts return the existing operation; terminal replay
+  returns conflict without creating another operation.
+- Added the fixed detached worker and allowlisted Docker repair/stop/start
+  reconstruction. The listener returns `202` first, remains pollable, writes
+  pre-step states, cancels child process trees when the session is invalidated,
+  and converts an overdue/crashed worker record to terminal timeout.
+- Enforced the helper-side capability before POST, stopped Flask from minting
+  start/status credentials while its capability is false, and required the
+  frontend to match backend capability, live helper capability, and the
+  expected engine/GPU/port profile.
+- Added request timeouts, bounded start retry using the same authorization,
+  bounded exponential polling backoff for timeout/network/429/5xx outcomes,
+  retained unknown-status recovery, explicit helper-session-change handling,
+  package-global frontend blocking, and operation-ID-keyed polling.
+- Added terminal readiness/provider revalidation, Setup Wizard continuation,
+  sanitized failure guidance, cross-provider 409 descriptor handling, and
+  reload recovery without persisting keys or credentials.
+- Applied `no-store`/`no-cache` to token-bearing Flask/helper responses,
+  rejected non-object JSON payloads cleanly, converted Puppeteer coverage to
+  load the production SetupWizard controller, pinned workflow actions, and
+  added both `localhost` and `127.0.0.1` app-origin coverage.
+- Added the worker and state-reader libraries to release staging and documented
+  the package inventory and replay semantics.
+
+**Validation**:
+
+- PASS: full unit suite, 407 collected with 333 passed and 74 expected
+  dependency/platform skips.
+- PASS: focused helper/bridge/Flask/release-package suite, 94 passed.
+- PASS: real Windows helper subprocess lifecycle, package mutex, PID/heartbeat/
+  lease metadata, session/token/status ACLs, explicit invalidation cleanup, and
+  process-tree cancellation.
+- PASS: real fixed worker against fake allowlisted wrappers; immediate `202`,
+  live status, terminal retention, active-lock release, replay rejection, and
+  overdue-worker terminalization.
+- PASS: release-package staging includes
+  `scripts/host-helper-worker.ps1` and
+  `scripts/lib/TowerScoutHostHelperState.ps1`.
+- PASS: production SetupWizard source contract plus Edge Puppeteer checks for
+  POST/poll, helper unavailable, simulated-helper end to end, and both supported
+  application loopback origins.
+- PASS: PowerShell parser and Windows security/AMSI load checks, Python bytecode
+  compilation, blocking flake8 syntax/undefined-name gate, reproducible
+  timestamp-normalized frontend bundle, `.agent_work` validators, sensitive
+  output review, and `git diff --check`.
+- NOT RUN: live Docker stop/start, real TLS/certificate mutation, UAC,
+  Chrome/Firefox, sleep/resume, or managed TLS-inspected network validation.
+  These remain activation and candidate-inclusion blockers; no runtime
+  permission was inferred.
+
+**Next**: Keep PR #63 draft for re-review. Do not enable any mutation gate.
+After reviewer acceptance, schedule the explicitly authorized live Windows
+package and managed-network matrix before candidate inclusion.
 
 ### 2026-07-27 - Gate 3 Authenticated Helper Bridge And Polling Checkpoint
 

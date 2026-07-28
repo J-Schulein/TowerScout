@@ -145,10 +145,9 @@ release gate before Task-087 resumes.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS - the post-Task-098 Gate 3 helper-availability,
-short-lived authorization, and guarded browser start/status polling checkpoint
-is implemented and locally validated; package and managed-network proof remain
-gated while browser mutation stays disabled
+**Status**: IN_PROGRESS - PR #63 reviewer remediation is implemented and
+locally validated; the PR remains draft and browser mutation, live package
+runtime, UAC/certificate, and managed-network proof remain gated
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days plus managed-network package validation

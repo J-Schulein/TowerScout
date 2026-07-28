@@ -8,6 +8,9 @@ SESSION_ENV = {
     "TOWERSCOUT_HOST_HELPER_PORT": "50123",
     "TOWERSCOUT_HOST_HELPER_SESSION_ID": "a" * 32,
     "TOWERSCOUT_HOST_HELPER_SESSION_KEY": "A" * 43,
+    "TOWERSCOUT_CONTAINER_ENGINE": "docker",
+    "TOWERSCOUT_GPU_MODE": "off",
+    "TOWERSCOUT_PORT": "5000",
 }
 
 
@@ -33,7 +36,14 @@ def test_host_helper_bridge_requires_complete_explicit_configuration():
     ) is None
 
 
-def test_repairable_provider_bridge_issues_scoped_short_lived_authorization():
+def test_repairable_provider_bridge_issues_scoped_short_lived_authorization(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        ts_host_helper,
+        "PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED",
+        True,
+    )
     bridge = ts_host_helper.build_provider_tls_repair_bridge(
         "google",
         "tls_ca_untrusted",
@@ -44,7 +54,12 @@ def test_repairable_provider_bridge_issues_scoped_short_lived_authorization():
     assert bridge["base_url"] == "http://127.0.0.1:50123"
     assert bridge["probe"]["path"] == "/health"
     assert bridge["probe"]["scope"] == "helper_probe"
-    assert bridge["provider_tls_repair_capability"] is False
+    assert bridge["provider_tls_repair_capability"] is True
+    assert bridge["expected_runtime"] == {
+        "engine": "docker",
+        "gpu": "off",
+        "app_port": 5000,
+    }
     operation = bridge["operation_authorization"]
     assert operation["operation_type"] == "provider_tls_repair"
     assert operation["operation_token"].startswith("v1.")
@@ -69,6 +84,25 @@ def test_bridge_is_not_issued_for_non_repairable_failures():
         "invalid_provider_key",
         environment=SESSION_ENV,
     ) is None
+
+
+def test_disabled_capability_never_issues_start_or_status_authorization():
+    bridge = ts_host_helper.build_provider_tls_repair_bridge(
+        "google",
+        "tls_ca_untrusted",
+        environment=SESSION_ENV,
+    )
+
+    assert bridge["provider_tls_repair_capability"] is False
+    assert "operation_authorization" not in bridge
+    assert (
+        ts_host_helper.build_operation_status_bridge(
+            "google",
+            "b" * 32,
+            environment=SESSION_ENV,
+        )
+        is None
+    )
     assert ts_host_helper.build_provider_tls_repair_bridge(
         "",
         "tls_ca_untrusted",
@@ -76,7 +110,12 @@ def test_bridge_is_not_issued_for_non_repairable_failures():
     ) is None
 
 
-def test_expired_and_cross_provider_authorizations_are_rejected():
+def test_expired_and_cross_provider_authorizations_are_rejected(monkeypatch):
+    monkeypatch.setattr(
+        ts_host_helper,
+        "PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED",
+        True,
+    )
     bridge = ts_host_helper.build_provider_tls_repair_bridge(
         "azure",
         "tls_bundle_missing",
@@ -104,7 +143,12 @@ def test_expired_and_cross_provider_authorizations_are_rejected():
         )
 
 
-def test_status_authorization_is_bound_to_provider_and_operation():
+def test_status_authorization_is_bound_to_provider_and_operation(monkeypatch):
+    monkeypatch.setattr(
+        ts_host_helper,
+        "PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED",
+        True,
+    )
     operation_id = "b" * 32
     bridge = ts_host_helper.build_operation_status_bridge(
         "google",

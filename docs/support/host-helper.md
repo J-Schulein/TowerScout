@@ -46,7 +46,11 @@ is eventually enabled:
 
 - package-local only
 - loopback-only listener
+- package-root-derived singleton mutex
+- bounded session lease with PID/start-time metadata and heartbeat
 - durable helper token retained in the package-local host state directory
+- explicit Windows ACLs for the state directory, session records, operation
+  records, and durable token files
 - separate per-launch HMAC key used only to issue narrow, short-lived browser
   authorizations
 - allowlisted operations only
@@ -63,8 +67,10 @@ Current package/runtime support files include:
 
 - `scripts/host-helper.cmd`
 - `scripts/host-helper.ps1`
+- `scripts/host-helper-worker.ps1`
 - `scripts/host-helper-visible.cmd`
 - `scripts/lib/TowerScoutHostHelper.ps1`
+- `scripts/lib/TowerScoutHostHelperState.ps1`
 - `scripts/lib/TowerScoutCertificateStore.ps1`
 
 These files being present does **not** mean the browser helper flow is active.
@@ -82,9 +88,23 @@ They are launcher-generated runtime values. The browser receives only
 scope-bound, expiring authorizations for helper discovery, repair planning,
 and operation polling. It never receives the durable helper token.
 
-This checkpoint supports non-mutating contract review. The helper continues to
-advertise `provider_tls_repair: false`, its controlled execution default is
-false, and the browser mutation constant remains false.
+The helper holds one package-wide active-operation record, starts only its fixed
+detached worker, and returns `202 Accepted` before controlled execution. A
+terminal transition releases the active record immediately while retaining a
+sanitized status record for bounded reload recovery. The worker rechecks the
+session lease, listener PID/start time, and heartbeat while commands run so
+explicit invalidation or loss of the supervising listener cancels the process
+tree.
+
+Start-authorization replay is idempotent only while the original operation is
+active. The helper stores a full SHA-256 fingerprint of the submitted start
+authorization for at least the authorization lifetime. Reusing that credential
+after a terminal result returns the retained operation as a conflict and never
+creates a second operation.
+
+This checkpoint still supports non-mutating contract review only. The helper
+continues to advertise `provider_tls_repair: false`, its controlled execution
+default is false, and the browser mutation constant remains false.
 
 ## What enabling would require
 

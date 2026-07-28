@@ -124,6 +124,22 @@ def _normalize_operation_id(operation_id: str | None) -> str:
     return normalized
 
 
+def _expected_runtime(environment: Mapping[str, str]) -> dict[str, Any]:
+    try:
+        app_port = int((environment.get("TOWERSCOUT_PORT") or "5000").strip())
+    except (TypeError, ValueError):
+        app_port = 0
+    return {
+        "engine": (
+            environment.get("TOWERSCOUT_CONTAINER_ENGINE", "") or ""
+        ).strip().lower(),
+        "gpu": (
+            environment.get("TOWERSCOUT_GPU_MODE", "") or ""
+        ).strip().lower(),
+        "app_port": app_port,
+    }
+
+
 def issue_browser_authorization(
     config: HostHelperBridgeConfig,
     *,
@@ -263,29 +279,32 @@ def build_provider_tls_repair_bridge(
         ttl_seconds=PROBE_AUTHORIZATION_TTL_SECONDS,
         now=now,
     )
-    operation = issue_browser_authorization(
-        config,
-        scope=PROVIDER_TLS_REPAIR_SCOPE,
-        provider=provider,
-        ttl_seconds=START_AUTHORIZATION_TTL_SECONDS,
-        now=now,
-    )
-    return {
+    env = os.environ if environment is None else environment
+    bridge = {
         "base_url": config.base_url,
         "probe": {
             "path": "/health",
             **probe,
         },
-        "operation_authorization": {
-            "operation_type": "provider_tls_repair",
-            "expires_at": operation["expires_at"],
-            "operation_token": operation["authorization"],
-        },
-        # This remains false until the control-plane contract is reviewed.
+        "expected_runtime": _expected_runtime(env),
         "provider_tls_repair_capability": (
             PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED
         ),
     }
+    if PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED:
+        operation = issue_browser_authorization(
+            config,
+            scope=PROVIDER_TLS_REPAIR_SCOPE,
+            provider=provider,
+            ttl_seconds=START_AUTHORIZATION_TTL_SECONDS,
+            now=now,
+        )
+        bridge["operation_authorization"] = {
+            "operation_type": "provider_tls_repair",
+            "expires_at": operation["expires_at"],
+            "operation_token": operation["authorization"],
+        }
+    return bridge
 
 
 def build_operation_status_bridge(
@@ -295,6 +314,8 @@ def build_operation_status_bridge(
     environment: Mapping[str, str] | None = None,
     now: int | None = None,
 ) -> dict[str, Any] | None:
+    if not PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED:
+        return None
     config = load_host_helper_bridge_config(environment)
     if config is None:
         return None

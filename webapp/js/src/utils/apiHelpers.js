@@ -23,7 +23,38 @@
   };
 
   async function fetchJson(url, options = {}) {
-    const response = await fetch(url, options);
+    const requestOptions = { ...options };
+    const timeoutMs = Number(requestOptions.timeoutMs || 0);
+    delete requestOptions.timeoutMs;
+    let timeoutId = null;
+    let controller = null;
+    if (
+      timeoutMs > 0 &&
+      typeof AbortController === 'function' &&
+      !requestOptions.signal
+    ) {
+      controller = new AbortController();
+      requestOptions.signal = controller.signal;
+      timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+    }
+
+    let response;
+    try {
+      response = await fetch(url, requestOptions);
+    } catch (error) {
+      if (controller && controller.signal.aborted) {
+        const timeoutError = new Error(`Request timed out after ${timeoutMs} ms`);
+        timeoutError.status = 0;
+        timeoutError.category = 'request_timeout';
+        throw timeoutError;
+      }
+      throw error;
+    } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    }
+
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {

@@ -12,7 +12,7 @@ const HELPER_PROBE_TOKEN = 'probe-authorization-should-not-render';
 
 function createHelperBridge(
   operationAuthorization = {},
-  providerTlsRepairCapability = false
+  providerTlsRepairCapability = true
 ) {
   return {
     base_url: HELPER_BASE_URL,
@@ -23,7 +23,12 @@ function createHelperBridge(
       authorization: HELPER_PROBE_TOKEN
     },
     operation_authorization: operationAuthorization,
-    provider_tls_repair_capability: providerTlsRepairCapability
+    provider_tls_repair_capability: providerTlsRepairCapability,
+    expected_runtime: {
+      engine: 'docker',
+      gpu: 'off',
+      app_port: 5000
+    }
   };
 }
 
@@ -178,6 +183,11 @@ function createContext(options = {}) {
     helper_available: false,
     message: 'Azure Maps subscription key validated successfully.'
   };
+  const configuredHelperBridge = (
+    (googleValidationPayload.details || {}).helper_bridge ||
+    googleValidationPayload.helper_bridge ||
+    null
+  );
   const context = {
     console: testConsole,
     consoleMessages,
@@ -241,9 +251,12 @@ function createContext(options = {}) {
           helperHealthOk
             ? {
                 state: 'ready',
-                runtime: { app_port: 5000 },
+                runtime: { engine: 'docker', gpu: 'off', app_port: 5000 },
                 capabilities: {
-                  provider_tls_repair: false,
+                  provider_tls_repair: Boolean(
+                    configuredHelperBridge &&
+                    configuredHelperBridge.provider_tls_repair_capability === true
+                  ),
                   max_active_operations: 1
                 }
               }
@@ -254,8 +267,22 @@ function createContext(options = {}) {
       if (url === '/api/config/provider-tls-repair-status-authorization') {
         const operation = JSON.parse(options.body);
         const statusToken = optionsForContext.statusAuthorizationToken || 'status-authorization-should-not-render';
+        const configuredResponses = optionsForContext.statusAuthorizationResponses;
+        if (configuredResponses && configuredResponses.length > 0) {
+          const configuredResponse = configuredResponses.shift();
+          if (configuredResponse.throwError) {
+            throw new Error(configuredResponse.throwError);
+          }
+          if (configuredResponse.status) {
+            return createJsonResponse(
+              configuredResponse.status < 400,
+              configuredResponse.status,
+              configuredResponse.payload || {}
+            );
+          }
+        }
         return createJsonResponse(true, 200, {
-          base_url: HELPER_BASE_URL,
+          base_url: optionsForContext.statusAuthorizationBaseUrl || HELPER_BASE_URL,
           operation_id: operation.operation_id,
           status_authorization: {
             operation_type: 'provider_tls_repair',
@@ -267,6 +294,7 @@ function createContext(options = {}) {
       }
 
       if (url === `${HELPER_BASE_URL}/operations/provider-tls-repair`) {
+        const statusToken = optionsForContext.statusAuthorizationToken || 'status-authorization-should-not-render';
         const response = optionsForContext.startResponse || {
           state: 'planned',
           operation_id: '0123456789abcdef0123456789abcdef',
@@ -278,7 +306,13 @@ function createContext(options = {}) {
           current_step: 'planned',
           classification: 'pending',
           terminal: false,
-          next_action: 'await_controlled_execution'
+          next_action: 'await_controlled_execution',
+          status_authorization: {
+            operation_type: 'provider_tls_repair',
+            scope: 'operation_status',
+            expires_at: '2999-01-01T00:00:00Z',
+            authorization: statusToken
+          }
         };
         return createJsonResponse(
           optionsForContext.startStatus ? optionsForContext.startStatus < 400 : true,
@@ -302,11 +336,20 @@ function createContext(options = {}) {
           next_action: 'retry_provider_validation'
         }];
         const response = statusResponses.shift();
+        if (response && response.throwError) {
+          throw new Error(response.throwError);
+        }
         return createJsonResponse(
           response.status ? response.status < 400 : true,
           response.status || 200,
           response.payload || response
         );
+      }
+
+      if (url === '/api/readiness') {
+        return createJsonResponse(true, 200, {
+          state: 'ready'
+        });
       }
 
       throw new Error(`Unexpected fetch URL: ${url}`);
@@ -335,6 +378,8 @@ function createContext(options = {}) {
     setTimeout(callback) {
       callback();
       return 1;
+    },
+    clearTimeout() {
     }
   };
   context.window.window = context.window;
@@ -750,7 +795,7 @@ async function testRepairStartContractHandlesActiveOperationAndRedaction() {
   assert.strictEqual(JSON.stringify(startContract).includes(operationToken), false);
   assert.strictEqual(JSON.stringify(startContract).includes(durableHelperToken), false);
   assert.strictEqual(JSON.stringify(startContract).includes(commandPath), false);
-  assert.ok(elements.wizard_provider_tls_repair_status.textContent.includes('already active'));
+  assert.ok(elements.wizard_provider_tls_repair_status.textContent.includes('is active'));
 
   assert.strictEqual(context.window.SetupWizard.startProviderTlsRepair(), false);
   assert.ok(notifications[0].message.includes('already active'));
@@ -949,11 +994,14 @@ async function testBrowserGateAloneDoesNotBypassDisabledHelperCapability() {
         support_action: 'Use the manual command if guided repair is unavailable.',
         repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
         helper_available: false,
-        helper_bridge: createHelperBridge({
-          operation_type: 'provider_tls_repair',
-          expires_at: '2999-01-01T00:00:00Z',
-          operation_token: 'capability-gate-operation-authorization'
-        })
+        helper_bridge: createHelperBridge(
+          {
+            operation_type: 'provider_tls_repair',
+            expires_at: '2999-01-01T00:00:00Z',
+            operation_token: 'capability-gate-operation-authorization'
+          },
+          false
+        )
       }
     }
   });
@@ -965,11 +1013,11 @@ async function testBrowserGateAloneDoesNotBypassDisabledHelperCapability() {
   elements.wizard_provider_tls_repair_confirm.checked = true;
   const viewModel = context.window.SetupWizard.updateProviderTlsRepairControls();
 
-  assert.strictEqual(viewModel.helper_available, true);
+  assert.strictEqual(viewModel.helper_available, false);
   assert.strictEqual(viewModel.capability_enabled, false);
   assert.strictEqual(viewModel.enabled, false);
-  assert.strictEqual(viewModel.blocked_reason, 'helper_capability_disabled');
-  assert.ok(elements.wizard_provider_tls_repair_status.textContent.includes('capability remains disabled'));
+  assert.strictEqual(viewModel.blocked_reason, 'helper_unavailable');
+  assert.ok(elements.wizard_provider_tls_repair_status.textContent.includes('helper is unavailable'));
   assert.strictEqual(context.window.SetupWizard.startProviderTlsRepair(), false);
   assert.strictEqual(
     context.fetchRequests.some(
@@ -1045,10 +1093,7 @@ async function testEnabledReviewHarnessPostsExactBodyAndPollsWithoutPersistingCr
   const statusAuthorizationRequest = context.fetchRequests.find(
     request => request.url === '/api/config/provider-tls-repair-status-authorization'
   );
-  assert.deepStrictEqual(JSON.parse(statusAuthorizationRequest.options.body), {
-    provider: 'google',
-    operation_id: operationId
-  });
+  assert.strictEqual(statusAuthorizationRequest, undefined);
   const statusRequest = context.fetchRequests.find(
     request => request.url === `${HELPER_BASE_URL}/operations/${operationId}`
   );
@@ -1140,7 +1185,7 @@ async function testExpiredStatusAuthorizationRefreshesOnceBeforeTerminalStatus()
     context.fetchRequests.filter(
       request => request.url === '/api/config/provider-tls-repair-status-authorization'
     ).length,
-    2
+    1
   );
   assert.strictEqual(
     context.fetchRequests.filter(
@@ -1149,6 +1194,351 @@ async function testExpiredStatusAuthorizationRefreshesOnceBeforeTerminalStatus()
     2
   );
   assert.strictEqual(context.sessionValues.size, 0);
+}
+
+async function testTransientPollingFailuresRetryWithoutManualFallback() {
+  const operationId = '0123456789abcdef0123456789abcdef';
+  const statusToken = 'transient-status-authorization-should-not-render';
+  const { context, elements, notifications } = createContext({
+    statusAuthorizationToken: statusToken,
+    googleValidationPayload: {
+      error: true,
+      message: 'Google Maps TLS verification failed.',
+      details: {
+        provider: 'google',
+        category: 'tls_ca_untrusted',
+        repairable: true,
+        support_action: 'Wait for guided repair status.',
+        repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
+        helper_available: false,
+        helper_bridge: createHelperBridge({
+          operation_type: 'provider_tls_repair',
+          expires_at: '2999-01-01T00:00:00Z',
+          operation_token: 'transient-start-authorization'
+        })
+      }
+    },
+    statusResponses: [
+      { status: 500, payload: { state: 'temporary_error' } },
+      { status: 429, payload: { state: 'rate_limited' } },
+      { throwError: 'temporary network interruption' },
+      {
+        state: 'ready',
+        operation_id: operationId,
+        operation_type: 'provider_tls_repair',
+        provider: 'google',
+        accepted: true,
+        existing_operation: false,
+        execution_enabled: true,
+        current_step: 'readiness_wait',
+        classification: 'terminal_success',
+        terminal: true,
+        next_action: 'retry_provider_validation'
+      }
+    ]
+  });
+  vm.createContext(context);
+  loadSetupWizard(context, { enableBrowserMutation: true });
+
+  context.window.SetupWizard.showStep(2);
+  await context.window.SetupWizard.validateAndNext();
+  elements.wizard_provider_tls_repair_confirm.checked = true;
+  const status = await context.window.SetupWizard.startProviderTlsRepair();
+
+  assert.strictEqual(status.state, 'ready');
+  assert.strictEqual(
+    context.fetchRequests.filter(
+      request => request.url === `${HELPER_BASE_URL}/operations/${operationId}`
+    ).length,
+    4
+  );
+  assert.ok(
+    notifications.some(notification => notification.message.includes('temporarily unavailable'))
+  );
+  assert.strictEqual(
+    notifications.some(notification => notification.message.includes('Use the suggested command fallback')),
+    false
+  );
+  assert.strictEqual(context.sessionValues.size, 0);
+  assert.strictEqual(JSON.stringify(notifications).includes(statusToken), false);
+}
+
+async function testStatusAuthorization404RetriesWithoutDeclaringOperationGone() {
+  const operationId = '0123456789abcdef0123456789abcdef';
+  const { context, elements, notifications } = createContext({
+    googleValidationPayload: {
+      error: true,
+      message: 'Google Maps TLS verification failed.',
+      details: {
+        provider: 'google',
+        category: 'tls_ca_untrusted',
+        repairable: true,
+        support_action: 'Wait for guided repair status.',
+        repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
+        helper_available: false,
+        helper_bridge: createHelperBridge({
+          operation_type: 'provider_tls_repair',
+          expires_at: '2999-01-01T00:00:00Z',
+          operation_token: 'authorization-retry-start-token'
+        })
+      }
+    },
+    startResponse: {
+      state: 'planned',
+      operation_id: operationId,
+      operation_type: 'provider_tls_repair',
+      provider: 'google',
+      accepted: true,
+      existing_operation: false,
+      execution_enabled: true,
+      current_step: 'worker_start',
+      classification: 'pending',
+      terminal: false,
+      next_action: 'await_controlled_execution'
+    },
+    statusAuthorizationResponses: [
+      { status: 404, payload: { state: 'helper_unavailable' } }
+    ],
+    statusResponses: [{
+      state: 'ready',
+      operation_id: operationId,
+      operation_type: 'provider_tls_repair',
+      provider: 'google',
+      accepted: true,
+      existing_operation: false,
+      execution_enabled: true,
+      current_step: 'readiness_wait',
+      classification: 'terminal_success',
+      terminal: true,
+      next_action: 'retry_provider_validation'
+    }]
+  });
+  vm.createContext(context);
+  loadSetupWizard(context, { enableBrowserMutation: true });
+
+  context.window.SetupWizard.showStep(2);
+  await context.window.SetupWizard.validateAndNext();
+  elements.wizard_provider_tls_repair_confirm.checked = true;
+  const status = await context.window.SetupWizard.startProviderTlsRepair();
+
+  assert.strictEqual(status.state, 'ready');
+  assert.strictEqual(
+    context.fetchRequests.filter(
+      request => request.url === '/api/config/provider-tls-repair-status-authorization'
+    ).length,
+    2
+  );
+  assert.strictEqual(
+    notifications.some(notification => notification.message.includes('temporarily unavailable')),
+    true
+  );
+  assert.strictEqual(
+    notifications.some(notification => notification.message.includes('status expired')),
+    false
+  );
+  assert.strictEqual(context.sessionValues.size, 0);
+}
+
+async function testChangedHelperSessionRequiresNewAuthorizationWithoutManualFallback() {
+  const operationId = '0123456789abcdef0123456789abcdef';
+  const { context, elements, notifications } = createContext({
+    googleValidationPayload: {
+      error: true,
+      message: 'Google Maps TLS verification failed.',
+      details: {
+        provider: 'google',
+        category: 'tls_ca_untrusted',
+        repairable: true,
+        support_action: 'Wait for guided repair status.',
+        repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
+        helper_available: false,
+        helper_bridge: createHelperBridge({
+          operation_type: 'provider_tls_repair',
+          expires_at: '2999-01-01T00:00:00Z',
+          operation_token: 'changed-session-start-authorization'
+        })
+      }
+    },
+    startResponse: {
+      state: 'planned',
+      operation_id: operationId,
+      operation_type: 'provider_tls_repair',
+      provider: 'google',
+      accepted: true,
+      existing_operation: false,
+      execution_enabled: true,
+      current_step: 'worker_start',
+      classification: 'pending',
+      terminal: false,
+      next_action: 'await_controlled_execution'
+    },
+    statusAuthorizationBaseUrl: 'http://127.0.0.1:5099'
+  });
+  vm.createContext(context);
+  loadSetupWizard(context, { enableBrowserMutation: true });
+
+  context.window.SetupWizard.showStep(2);
+  await context.window.SetupWizard.validateAndNext();
+  elements.wizard_provider_tls_repair_confirm.checked = true;
+  const status = await context.window.SetupWizard.startProviderTlsRepair();
+
+  assert.strictEqual(status.state, 'helper_session_changed');
+  assert.strictEqual(status.terminal, true);
+  assert.strictEqual(status.next_action, 'new_authorization_required');
+  assert.strictEqual(context.sessionValues.size, 0);
+  assert.ok(
+    notifications.some(notification => notification.message.includes('session changed'))
+  );
+  assert.strictEqual(
+    notifications.some(notification => notification.message.includes('manual repair')),
+    false
+  );
+}
+
+async function testCrossProviderConflictUsesReturnedOperationIdentity() {
+  const operationId = 'fedcba9876543210fedcba9876543210';
+  const { context, elements } = createContext({
+    googleValidationPayload: {
+      error: true,
+      message: 'Google Maps TLS verification failed.',
+      details: {
+        provider: 'google',
+        category: 'tls_ca_untrusted',
+        repairable: true,
+        support_action: 'Wait for guided repair status.',
+        repair_command: '.\\scripts\\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off',
+        helper_available: false,
+        helper_bridge: createHelperBridge({
+          operation_type: 'provider_tls_repair',
+          expires_at: '2999-01-01T00:00:00Z',
+          operation_token: 'cross-provider-start-authorization'
+        })
+      }
+    },
+    startStatus: 409,
+    startResponse: {
+      state: 'operation_busy',
+      operation_id: operationId,
+      operation_type: 'provider_tls_repair',
+      provider: 'azure',
+      accepted: true,
+      existing_operation: true,
+      execution_enabled: true,
+      current_step: 'runtime_starting',
+      classification: 'active',
+      terminal: false,
+      next_action: 'poll_existing_operation',
+      status_authorization: {
+        operation_type: 'provider_tls_repair',
+        scope: 'operation_status',
+        expires_at: '2999-01-01T00:00:00Z',
+        authorization: 'cross-provider-status-authorization'
+      }
+    },
+    statusResponses: [{
+      state: 'ready',
+      operation_id: operationId,
+      operation_type: 'provider_tls_repair',
+      provider: 'azure',
+      accepted: true,
+      existing_operation: true,
+      execution_enabled: true,
+      current_step: 'readiness_wait',
+      classification: 'terminal_success',
+      terminal: true,
+      next_action: 'retry_provider_validation'
+    }]
+  });
+  vm.createContext(context);
+  loadSetupWizard(context, { enableBrowserMutation: true });
+
+  context.window.SetupWizard.showStep(2);
+  await context.window.SetupWizard.validateAndNext();
+  elements.wizard_provider_tls_repair_confirm.checked = true;
+  const status = await context.window.SetupWizard.startProviderTlsRepair();
+
+  assert.strictEqual(status.provider, 'azure');
+  assert.deepStrictEqual(
+    JSON.parse(context.storageWrites[0].value),
+    {
+      operation_id: operationId,
+      provider: 'azure',
+      helper_base_url: HELPER_BASE_URL
+    }
+  );
+  assert.strictEqual(
+    context.fetchRequests.some(
+      request => request.url === `${HELPER_BASE_URL}/operations/${operationId}`
+    ),
+    true
+  );
+  assert.strictEqual(
+    context.fetchRequests.some(request => request.url === '/api/readiness'),
+    true
+  );
+}
+
+async function testTerminalFailuresRenderStableRecoveryGuidance() {
+  const { context, elements } = createContext();
+  vm.createContext(context);
+  loadSetupWizard(context);
+
+  context.window.SetupWizard.showStep(2);
+  await context.window.SetupWizard.validateAndNext();
+
+  const cases = [
+    ['review_runtime_state_before_retry', 'runtime status'],
+    ['use_startup_fallback_guidance', 'did not restart cleanly'],
+    ['clear_or_reauthorize_after_timeout', 'reload setup'],
+    ['use_manual_dry_run_support_selection', 'manual dry run'],
+    ['use_manual_tls_repair_fallback', 'manual repair command'],
+    ['use_status_and_log_guidance', 'sanitized logs'],
+    ['support_review_required', 'Support review']
+  ];
+  for (const [nextAction, expectedText] of cases) {
+    context.window.SetupWizard.rememberProviderTlsRepairOperationStatus({
+      state: 'terminal_failure',
+      operation_id: '00112233445566778899aabbccddeeff',
+      operation_type: 'provider_tls_repair',
+      provider: 'google',
+      accepted: true,
+      existing_operation: false,
+      execution_enabled: true,
+      current_step: 'repair',
+      classification: 'terminal_support_escalation',
+      terminal: true,
+      next_action: nextAction
+    });
+    assert.ok(
+      elements.wizard_provider_tls_repair_status.textContent.includes(expectedText),
+      `${nextAction} should render stable recovery guidance`
+    );
+  }
+}
+
+async function testValidationResetPreservesActiveOperation() {
+  const { context } = createContext();
+  vm.createContext(context);
+  loadSetupWizard(context);
+  context.window.SetupWizard.rememberProviderTlsRepairOperationStatus({
+    state: 'runtime_starting',
+    operation_id: '00112233445566778899aabbccddeeff',
+    operation_type: 'provider_tls_repair',
+    provider: 'azure',
+    accepted: true,
+    existing_operation: true,
+    execution_enabled: true,
+    current_step: 'runtime_starting',
+    classification: 'active',
+    terminal: false,
+    next_action: 'poll_existing_operation'
+  });
+
+  await context.window.SetupWizard.validateAndNext();
+
+  const active = context.window.SetupWizard.getProviderTlsRepairActiveOperation();
+  assert.strictEqual(active.operation_id, '00112233445566778899aabbccddeeff');
+  assert.strictEqual(active.provider, 'azure');
 }
 
 testSecondProviderStillValidatesAfterFirstProviderNetworkFailure()
@@ -1162,6 +1552,12 @@ testSecondProviderStillValidatesAfterFirstProviderNetworkFailure()
   .then(testBrowserGateAloneDoesNotBypassDisabledHelperCapability)
   .then(testEnabledReviewHarnessPostsExactBodyAndPollsWithoutPersistingCredentials)
   .then(testExpiredStatusAuthorizationRefreshesOnceBeforeTerminalStatus)
+  .then(testTransientPollingFailuresRetryWithoutManualFallback)
+  .then(testStatusAuthorization404RetriesWithoutDeclaringOperationGone)
+  .then(testChangedHelperSessionRequiresNewAuthorizationWithoutManualFallback)
+  .then(testCrossProviderConflictUsesReturnedOperationIdentity)
+  .then(testTerminalFailuresRenderStableRecoveryGuidance)
+  .then(testValidationResetPreservesActiveOperation)
   .then(() => {
     console.log('Setup wizard validation contract PASSED');
   })
