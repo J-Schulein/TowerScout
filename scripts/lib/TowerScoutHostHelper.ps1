@@ -15,6 +15,8 @@ $script:TowerScoutHostHelperReplayRetentionSeconds = 900
 $script:TowerScoutHostHelperSessionTtlSeconds = 43200
 $script:TowerScoutHostHelperHeartbeatIntervalSeconds = 2
 $script:TowerScoutHostHelperHeartbeatStaleSeconds = 10
+$script:TowerScoutHostHelperPackageMutexWaitMilliseconds = 5000
+$script:TowerScoutHostHelperLauncherReadinessTimeoutSeconds = 15
 $script:TowerScoutHostHelperOperationAuthorizationPattern = "^(?:[A-Za-z0-9_-]{32,128}|v1\.[A-Za-z0-9_-]{80,768}\.[A-Za-z0-9_-]{43})$"
 $script:TowerScoutHostHelperSignedAuthorizationPattern = "^v1\.[A-Za-z0-9_-]{80,768}\.[A-Za-z0-9_-]{43}$"
 $script:TowerScoutHostHelperBrowserAuthorizationAudience = "towerscout-host-helper"
@@ -688,6 +690,443 @@ function Clear-TowerScoutHostHelperSession {
         token_files_cleared = $tokenFiles.Count
         operation_files_cleared = $operationFiles.Count
         state = "invalidated"
+    }
+}
+
+function Test-TowerScoutHostHelperReviewEnabled {
+    $value = ([string] $env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED).Trim().ToLowerInvariant()
+    return $value -in @("1", "true", "yes", "on")
+}
+
+function Clear-TowerScoutHostHelperBridgeEnvironment {
+    $env:TOWERSCOUT_HOST_HELPER_ENABLED = "0"
+    Remove-Item Env:TOWERSCOUT_HOST_HELPER_PORT -ErrorAction SilentlyContinue
+    Remove-Item Env:TOWERSCOUT_HOST_HELPER_SESSION_ID -ErrorAction SilentlyContinue
+    Remove-Item Env:TOWERSCOUT_HOST_HELPER_SESSION_KEY -ErrorAction SilentlyContinue
+}
+
+function Get-TowerScoutHostHelperSessionMetadata {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $SessionId,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath
+    )
+
+    $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $RootPath
+    $sessionPath = Join-Path $stateDirectory ("session-{0}.json" -f $SessionId)
+    if (-not (Test-Path -LiteralPath $sessionPath -PathType Leaf)) {
+        return $null
+    }
+    try {
+        return Get-TowerScoutHostHelperJsonDocument -Path $sessionPath
+    }
+    catch {
+        return $null
+    }
+}
+
+function Test-TowerScoutHostHelperSessionMetadataMatchesProfile {
+    param(
+        [object] $Metadata,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("docker", "podman")]
+        [string] $EngineName,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("off", "auto", "on")]
+        [string] $GpuMode,
+
+        [Parameter(Mandatory = $true)]
+        [int] $AppPort,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+
+        [Parameter(Mandatory = $true)]
+        [string] $PackageFlavor
+    )
+
+    if ($null -eq $Metadata) {
+        return $false
+    }
+
+    [int] $metadataAppPort = 0
+    [int] $metadataHelperPort = 0
+    $expectedRootIdentity = Get-TowerScoutHostHelperPackageRootIdentity -PackageRoot $RootPath
+    return (
+        (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "state") -eq "active" -and
+        (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "helper_version") -eq $script:TowerScoutHostHelperVersion -and
+        (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "engine") -eq $EngineName -and
+        (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "gpu") -eq $GpuMode -and
+        [int]::TryParse(
+            ([string] (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "app_port")),
+            [ref] $metadataAppPort
+        ) -and
+        $metadataAppPort -eq $AppPort -and
+        [int]::TryParse(
+            ([string] (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "helper_port")),
+            [ref] $metadataHelperPort
+        ) -and
+        $metadataHelperPort -ge 1 -and
+        $metadataHelperPort -le 65535 -and
+        (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "package_flavor") -eq $PackageFlavor -and
+        (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "package_root_identity") -eq $expectedRootIdentity
+    )
+}
+
+function Test-TowerScoutHostHelperSessionLiveness {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Metadata,
+
+        [Parameter(Mandatory = $true)]
+        [string] $SessionId,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+
+        [Parameter(Mandatory = $true)]
+        [int] $AppPort
+    )
+
+    [int] $processId = 0
+    [int] $helperPort = 0
+    [datetime] $expectedStartUtc = [datetime]::MinValue
+    [datetime] $leaseExpiresUtc = [datetime]::MinValue
+    [datetime] $heartbeatUtc = [datetime]::MinValue
+    if (
+        -not [int]::TryParse(
+            ([string] (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "process_id")),
+            [ref] $processId
+        ) -or
+        -not [int]::TryParse(
+            ([string] (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "helper_port")),
+            [ref] $helperPort
+        ) -or
+        -not [datetime]::TryParse(
+            ([string] (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "process_start_time_utc")),
+            [ref] $expectedStartUtc
+        ) -or
+        -not [datetime]::TryParse(
+            ([string] (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "lease_expires_at_utc")),
+            [ref] $leaseExpiresUtc
+        ) -or
+        -not [datetime]::TryParse(
+            ([string] (Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "last_heartbeat_utc")),
+            [ref] $heartbeatUtc
+        )
+    ) {
+        return $false
+    }
+
+    $nowUtc = (Get-Date).ToUniversalTime()
+    if (
+        $leaseExpiresUtc.ToUniversalTime() -le $nowUtc -or
+        $heartbeatUtc.ToUniversalTime() -lt $nowUtc.AddSeconds(-$script:TowerScoutHostHelperHeartbeatStaleSeconds)
+    ) {
+        return $false
+    }
+
+    try {
+        $process = Get-Process -Id $processId -ErrorAction Stop
+        if (
+            [Math]::Abs(
+                ($process.StartTime.ToUniversalTime() - $expectedStartUtc.ToUniversalTime()).TotalSeconds
+            ) -gt 2
+        ) {
+            return $false
+        }
+    }
+    catch {
+        return $false
+    }
+
+    $tokenFileName = [string] (
+        Get-TowerScoutHostHelperObjectValue -InputObject $Metadata -Name "token_file"
+    )
+    if ($tokenFileName -ne ("token-{0}.secret" -f $SessionId)) {
+        return $false
+    }
+    $tokenPath = Join-Path `
+        (Get-TowerScoutHostHelperStateDirectory -RootPath $RootPath) `
+        $tokenFileName
+    if (-not (Test-Path -LiteralPath $tokenPath -PathType Leaf)) {
+        return $false
+    }
+
+    try {
+        $token = (Get-Content -LiteralPath $tokenPath -Raw).Trim()
+        $request = [System.Net.HttpWebRequest]::Create(
+            "http://127.0.0.1:$helperPort/runtime-profile"
+        )
+        $request.Method = "GET"
+        $request.Timeout = 2000
+        $request.Headers.Add("X-TowerScout-Helper-Token", $token)
+        $request.Headers.Add("Origin", "http://localhost:$AppPort")
+        $response = $request.GetResponse()
+        try {
+            $reader = New-Object System.IO.StreamReader(
+                $response.GetResponseStream()
+            )
+            try {
+                $profile = $reader.ReadToEnd() | ConvertFrom-Json
+            }
+            finally {
+                $reader.Dispose()
+            }
+        }
+        finally {
+            $response.Dispose()
+        }
+        return (
+            (Get-TowerScoutHostHelperObjectValue -InputObject $profile -Name "state") -eq "ready"
+        )
+    }
+    catch {
+        return $false
+    }
+}
+
+function Start-TowerScoutHostHelperReviewProcess {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("docker", "podman")]
+        [string] $EngineName,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("off", "auto", "on")]
+        [string] $GpuMode,
+
+        [Parameter(Mandatory = $true)]
+        [int] $AppPort,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+
+        [Parameter(Mandatory = $true)]
+        [string] $PackageFlavor,
+
+        [Parameter(Mandatory = $true)]
+        [string] $SessionId,
+
+        [int] $MutexWaitMilliseconds = $script:TowerScoutHostHelperPackageMutexWaitMilliseconds
+    )
+
+    $resolvedHelperScript = (
+        Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\host-helper.ps1")
+    ).Path
+    $resolvedPowerShell = [string] (
+        Get-Command "powershell.exe" -CommandType Application -ErrorAction Stop
+    ).Source
+    $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
+    $arguments = @(
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        $resolvedHelperScript,
+        "-Engine",
+        $EngineName,
+        "-Gpu",
+        $GpuMode,
+        "-AppPort",
+        "$AppPort",
+        "-PackageFlavor",
+        $PackageFlavor,
+        "-HelperSessionId",
+        $SessionId,
+        "-PackageRoot",
+        $resolvedRoot,
+        "-MutexWaitMilliseconds",
+        "$MutexWaitMilliseconds"
+    )
+    $argumentLine = [string]::Join(
+        " ",
+        @($arguments | ForEach-Object {
+            ConvertTo-TowerScoutHostHelperCmdArgument -Value ([string] $_)
+        })
+    )
+
+    return Start-Process `
+        -FilePath $resolvedPowerShell `
+        -ArgumentList $argumentLine `
+        -WorkingDirectory $resolvedRoot `
+        -WindowStyle Normal `
+        -PassThru
+}
+
+function Stop-TowerScoutHostHelperReviewSession {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+
+        [string] $SessionId = "",
+
+        [System.Diagnostics.Process] $Process = $null
+    )
+
+    if ($null -ne $Process) {
+        Stop-TowerScoutHostHelperProcessTree -Process $Process
+    }
+    Clear-TowerScoutHostHelperSession -RootPath $RootPath -SessionId $SessionId | Out-Null
+    Clear-TowerScoutHostHelperBridgeEnvironment
+}
+
+function Initialize-TowerScoutHostHelperReviewSession {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("docker", "podman")]
+        [string] $EngineName,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("off", "auto", "on")]
+        [string] $GpuMode,
+
+        [Parameter(Mandatory = $true)]
+        [int] $AppPort,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath,
+
+        [Parameter(Mandatory = $true)]
+        [string] $PackageFlavor,
+
+        [int] $ReadinessTimeoutSeconds = $script:TowerScoutHostHelperLauncherReadinessTimeoutSeconds,
+
+        [int] $MutexWaitMilliseconds = $script:TowerScoutHostHelperPackageMutexWaitMilliseconds
+    )
+
+    if ($ReadinessTimeoutSeconds -lt 1) {
+        throw "ReadinessTimeoutSeconds must be at least 1."
+    }
+    if ($MutexWaitMilliseconds -lt 1) {
+        throw "MutexWaitMilliseconds must be at least 1."
+    }
+
+    if (-not (Test-TowerScoutHostHelperReviewEnabled)) {
+        Stop-TowerScoutHostHelperReviewSession -RootPath $RootPath
+        return $null
+    }
+
+    $existingSessionId = ([string] $env:TOWERSCOUT_HOST_HELPER_SESSION_ID).Trim().ToLowerInvariant()
+    $existingSessionKey = ([string] $env:TOWERSCOUT_HOST_HELPER_SESSION_KEY).Trim()
+    if (
+        $existingSessionId -match "^[a-f0-9]{32}$" -and
+        $existingSessionKey -match "^[A-Za-z0-9_-]{43}$"
+    ) {
+        $existingMetadata = Get-TowerScoutHostHelperSessionMetadata `
+            -SessionId $existingSessionId `
+            -RootPath $RootPath
+        [int] $existingProcessId = 0
+        if (
+            (Test-TowerScoutHostHelperSessionMetadataMatchesProfile `
+                -Metadata $existingMetadata `
+                -EngineName $EngineName `
+                -GpuMode $GpuMode `
+                -AppPort $AppPort `
+                -RootPath $RootPath `
+                -PackageFlavor $PackageFlavor) -and
+            [int]::TryParse(
+                ([string] (Get-TowerScoutHostHelperObjectValue -InputObject $existingMetadata -Name "process_id")),
+                [ref] $existingProcessId
+            ) -and
+            (Test-TowerScoutHostHelperSessionLiveness `
+                -Metadata $existingMetadata `
+                -SessionId $existingSessionId `
+                -RootPath $RootPath `
+                -AppPort $AppPort)
+        ) {
+            $env:TOWERSCOUT_HOST_HELPER_ENABLED = "1"
+            $env:TOWERSCOUT_HOST_HELPER_PORT = [string] (
+                Get-TowerScoutHostHelperObjectValue -InputObject $existingMetadata -Name "helper_port"
+            )
+            Write-Host "Reusing the active TowerScout host helper review session."
+            return [pscustomobject]@{
+                SessionId = $existingSessionId
+                Process = Get-Process -Id $existingProcessId -ErrorAction Stop
+                StartedNewProcess = $false
+            }
+        }
+    }
+
+    Stop-TowerScoutHostHelperReviewSession -RootPath $RootPath
+
+    $sessionId = New-TowerScoutHostHelperSessionId
+    $sessionKey = New-TowerScoutHostHelperToken
+    $env:TOWERSCOUT_HOST_HELPER_SESSION_ID = $sessionId
+    $env:TOWERSCOUT_HOST_HELPER_SESSION_KEY = $sessionKey
+    $env:TOWERSCOUT_HOST_HELPER_ENABLED = "1"
+    $helperProcess = $null
+
+    try {
+        $helperProcess = Start-TowerScoutHostHelperReviewProcess `
+            -EngineName $EngineName `
+            -GpuMode $GpuMode `
+            -AppPort $AppPort `
+            -RootPath $RootPath `
+            -PackageFlavor $PackageFlavor `
+            -SessionId $sessionId `
+            -MutexWaitMilliseconds $MutexWaitMilliseconds
+
+        $deadline = (Get-Date).AddSeconds($ReadinessTimeoutSeconds)
+        while ((Get-Date) -lt $deadline) {
+            if ($helperProcess.HasExited) {
+                throw "The TowerScout host helper review process exited before it became ready."
+            }
+
+            $metadata = Get-TowerScoutHostHelperSessionMetadata `
+                -SessionId $sessionId `
+                -RootPath $RootPath
+            [int] $helperPort = 0
+            [int] $metadataProcessId = 0
+            if (
+                (Test-TowerScoutHostHelperSessionMetadataMatchesProfile `
+                    -Metadata $metadata `
+                    -EngineName $EngineName `
+                    -GpuMode $GpuMode `
+                    -AppPort $AppPort `
+                    -RootPath $RootPath `
+                    -PackageFlavor $PackageFlavor) -and
+                [int]::TryParse(
+                    ([string] (Get-TowerScoutHostHelperObjectValue -InputObject $metadata -Name "helper_port")),
+                    [ref] $helperPort
+                ) -and
+                [int]::TryParse(
+                    ([string] (Get-TowerScoutHostHelperObjectValue -InputObject $metadata -Name "process_id")),
+                    [ref] $metadataProcessId
+                ) -and
+                $metadataProcessId -eq $helperProcess.Id -and
+                (Test-TowerScoutHostHelperSessionLiveness `
+                    -Metadata $metadata `
+                    -SessionId $sessionId `
+                    -RootPath $RootPath `
+                    -AppPort $AppPort)
+            ) {
+                $env:TOWERSCOUT_HOST_HELPER_PORT = "$helperPort"
+                Write-Host "TowerScout host helper review session is ready."
+                return [pscustomobject]@{
+                    SessionId = $sessionId
+                    Process = $helperProcess
+                    StartedNewProcess = $true
+                }
+            }
+            Start-Sleep -Milliseconds 200
+        }
+
+        throw "The TowerScout host helper review session did not become ready."
+    }
+    catch {
+        Stop-TowerScoutHostHelperReviewSession `
+            -RootPath $RootPath `
+            -SessionId $sessionId `
+            -Process $helperProcess
+        if ($null -ne $helperProcess) {
+            $helperProcess.Dispose()
+        }
+        throw
     }
 }
 
@@ -3117,7 +3556,9 @@ function Start-TowerScoutHostHelper {
 
         [bool] $ExecutionEnabled = $script:TowerScoutHostHelperExecutionEnabledByDefault,
 
-        [scriptblock] $WorkerStarter = $null
+        [scriptblock] $WorkerStarter = $null,
+
+        [int] $MutexWaitMilliseconds = $script:TowerScoutHostHelperPackageMutexWaitMilliseconds
     )
 
     if ($HelperPort -lt 0 -or $HelperPort -gt 65535) {
@@ -3126,6 +3567,9 @@ function Start-TowerScoutHostHelper {
     if ($MaxRequests -lt 0) {
         throw "MaxRequests must be 0 or greater."
     }
+    if ($MutexWaitMilliseconds -lt 1) {
+        throw "MutexWaitMilliseconds must be at least 1."
+    }
 
     $address = [System.Net.IPAddress]::Parse("127.0.0.1")
     $listener = New-Object System.Net.Sockets.TcpListener($address, $HelperPort)
@@ -3133,7 +3577,8 @@ function Start-TowerScoutHostHelper {
     $packageMutex = $null
     try {
         $packageMutex = Enter-TowerScoutHostHelperPackageMutex `
-            -PackageRoot ([string] $Profile.PackageRoot)
+            -PackageRoot ([string] $Profile.PackageRoot) `
+            -WaitMilliseconds $MutexWaitMilliseconds
         $listener.Start()
         $boundPort = ([System.Net.IPEndPoint] $listener.LocalEndpoint).Port
         Set-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "HelperPort" -Value $boundPort

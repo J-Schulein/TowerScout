@@ -1,9 +1,10 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - PR #63 reviewer remediation and Docker/Edge Phase 1
-lifecycle validation passed; release-facing TLS mutation, UAC/certificate,
-Chrome/Firefox, sleep/resume, live release-package, Podman/GPU, and
-managed-network gates remain closed
+**Status**: IN_PROGRESS - PR #63 Phase 1 re-review hardening is implemented;
+repeatable Windows launcher and isolated Docker/Edge reruns are blocked by the
+current endpoint's Defender/AMSI helper-load policy.
+Release-facing TLS mutation, UAC/certificate, Chrome/Firefox, sleep/resume,
+live release-package, Podman/GPU, and managed-network gates remain closed
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days (32-56 hours), plus package validation on a managed TLS-inspected network
@@ -47,6 +48,31 @@ entry still lists all live runtime work as not run:
 - All dedicated containers, networks, named volumes, test images, helper state,
   and template-derived local configuration created for Phase 1 were removed.
   The pre-existing unrelated Docker project remained healthy and unchanged.
+
+## July 28, 2026 Phase 1 Re-review Remediation Override
+
+This override narrows the Phase 1 evidence and controls the current PR #63
+disposition:
+
+- The short-lived visible wrapper did not give the launcher an owning handle
+  for the long-lived helper, so timeout cleanup could race a late helper start.
+  PR #63 remains draft while the launcher is changed to retain and supervise
+  the actual PowerShell process.
+- The prior four-second regression bound measures operation acceptance with a
+  test-only worker starter. It is not launcher-discovery timing, production
+  worker timing, or proof of margin against the frontend request timeout.
+- The Phase 1 Edge run observed `setup_required` before and after the externally
+  orchestrated Docker restart, but the committed observer at `5ae9f76` did not
+  assert state equality or browser-session storage retention. Those assertions
+  and bounded readiness fetches are required before the evidence can claim
+  same-session preservation.
+- The JavaScript observer did not select or mutate Docker resources. Docker
+  stop/start was manually orchestrated. Repeatable evidence requires a separate
+  driver constrained to one explicit Compose project, service label, container
+  id, and loopback port.
+- The project remains single-user by design; shared-VDI/multi-session mutex
+  behavior is not a PR #63 merge blocker and remains outside the supported
+  deployment scope.
 
 ## July 27, 2026 PR #63 Review Remediation Override
 
@@ -1123,6 +1149,72 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-07-28 - PR #63 Phase 1 Re-review Hardening
+
+**Objective**: Address the accepted Phase 1 re-review findings without
+activating provider TLS mutation or overstating the prior live evidence.
+
+**Decision**: Replace the short-lived wrapper with launcher ownership of the
+actual long-lived PowerShell process. Require matching metadata plus
+authenticated liveness before discovery succeeds, keep all post-helper launcher
+work inside failure-safe cleanup, harden the Edge observer, and add a separate
+Docker driver that refuses to act outside one explicitly named Task-087
+project.
+
+**Execution**:
+
+- Moved the review-session lifecycle into the shared host-helper library and
+  removed `host-helper-visible.cmd` from source, package staging, and current
+  support documentation.
+- Changed launcher startup to retain the real helper process handle, use a
+  five-second package-mutex wait within a fifteen-second discovery deadline,
+  detect early process exit, and kill the exact process tree before clearing
+  the exact failed session.
+- Required matching engine, GPU mode, app port, package flavor/root identity,
+  PID/start time, lease/heartbeat, token file, and authenticated loopback
+  liveness before the helper is exported to the container.
+- Moved helper initialization after launcher preflight and wrapped every
+  subsequent Compose/readiness path in `try/finally`. Any exception or
+  non-success launcher exit removes the owned process/session; browser-open
+  failure is downgraded to manual-open guidance after the app is healthy.
+- Added Windows tests for real long-lived startup from a package root containing
+  spaces, process-start failure, early exit, and late-start timeout cleanup.
+  Existing package-mutex coverage remains the focused concurrent-process proof.
+- Renamed the Edge script as an observer, restricted it to explicit
+  `localhost`/`127.0.0.1` origins on one port, removed sandbox-disabling flags,
+  bounded readiness fetches with `AbortController`, and asserted expected-state
+  equality plus same-origin `sessionStorage` retention.
+- Added an isolated Docker driver that requires a
+  `towerscout-task087-*` project, verifies Compose labels/container id and the
+  exact loopback port, uses only service `stop`/`start`, restores a stopped
+  service on failure, and cleans only its GUID-named temporary files.
+- Corrected the Phase 1 evidence so the test-only operation-acceptance timing
+  is not represented as launcher or production-worker timing.
+
+**Validation**:
+
+- PASS: PowerShell parser checks for every edited PowerShell file.
+- PASS: Edge observer JavaScript syntax and constrained-URL self-test.
+- PASS: host-helper bridge suite, 8 passed.
+- PASS: release-package staging suite, 5 passed.
+- PASS: new static launcher/Edge/Docker contracts, 2 passed.
+- PASS: Setup Wizard validation contract, Python bytecode compilation,
+  `.agent_work` validators, sensitive-term scan, and `git diff --check`.
+- BLOCKED BY HOST POLICY: the Windows dynamic helper suite cannot load
+  `TowerScoutHostHelper.ps1` because Defender/AMSI currently reports
+  `ScriptContainedMaliciousContent`. The same block reproduces against the
+  unchanged `5ae9f76` helper content, so it is not attributed as a new-code
+  assertion failure. The new Windows lifecycle tests remain unclaimed until
+  they run on an approved compatible endpoint.
+- NOT RERUN: the hardened Edge observer/Docker driver against a live isolated
+  project, because the helper cannot start while the endpoint policy block is
+  active.
+
+**Next**: Keep PR #63 draft and all mutation gates false. Review the final diff,
+then commit/push the hardening and update the PR description with the corrected
+evidence. Before merge, run the Windows lifecycle tests and isolated
+Docker/Edge driver on an approved endpoint where the helper library can load.
+
 ### 2026-07-28 - PR #63 Phase 1 Live Windows Lifecycle Validation
 
 **Objective**: Execute the approved safe Phase 1 Docker/Edge validation,
@@ -1146,7 +1238,9 @@ point.
   Direct helper invocation kept the native-command pipeline open, so the
   launcher never advanced to Compose or readiness.
 - Replaced direct invocation with detached `Start-Process` execution using a
-  fixed argument array and added a static regression assertion.
+  short-lived visible wrapper and added a static regression assertion. The
+  later re-review correctly identified that this did not retain an owning
+  handle for the long-lived helper.
 - Repeated fresh launches with review enabled and confirmed one current helper
   session; disabled review and confirmed helper metadata cleanup while the
   Compose-managed application remained available.
@@ -1155,9 +1249,10 @@ point.
 - Exercised isolated Compose failure, readiness timeout, and fatal-readiness
   fixtures and confirmed their documented launcher exit classifications and
   helper cleanup behavior.
-- Added a reusable Edge headless lifecycle harness that observes the real
+- Added a reusable Edge headless lifecycle observer that observes the real
   application become unavailable, recover after restart, reload in the same
-  browser session, and remain valid through both supported loopback origins.
+  browser process, and remain valid through both supported loopback origins.
+  Docker stop/start remained external to the observer.
 - Removed all Phase 1 containers, networks, named volumes, images, helper
   state, and template-derived local configuration after validation.
 
@@ -1168,13 +1263,14 @@ point.
 - Compose failure and fatal readiness returned launcher exit code 1; readiness
   timeout returned exit code 2. Each failure path removed its helper session
   state.
-- The focused suite now includes 95 passing tests, including the launcher
-  regression.
-- The managed Windows endpoint completed detached helper startup in under
-  2.7 seconds during the observed runs. The regression ceiling was adjusted
-  from two to four seconds, preserving at least one second of margin within
-  the frontend's five-second request timeout; three consecutive timing checks
-  passed.
+- At commit `5ae9f76`, the focused suite included 95 passing tests. Its
+  launcher regression was static; it did not dynamically execute the
+  production launcher/helper discovery path.
+- The earlier statement that detached helper startup completed in under 2.7
+  seconds with a four-second regression ceiling was unsupported by the
+  committed timing test and is withdrawn. That test measures operation
+  acceptance with a test-only worker starter, not helper startup or production
+  controlled execution.
 - No provider key, helper credential, certificate detail, raw network body,
   screenshot, or private application data was captured in repository
   evidence.
@@ -1185,8 +1281,9 @@ point.
 - PASS: focused helper/bridge/Flask/release-package suite, 95 passed.
 - PASS: production Setup Wizard contract validation.
 - PASS: JavaScript syntax validation for the Edge lifecycle harness.
-- PASS: real Edge same-session stop/restart and alternate-loopback-origin
-  recovery with setup-required state preserved.
+- OBSERVED: real Edge stop/restart and alternate-loopback-origin recovery
+  reported `setup_required`; the `5ae9f76` observer did not assert state
+  equality or `sessionStorage` preservation.
 - PASS: post-run inventory confirmed that no Phase 1 Docker resources or
   helper state remained and the unrelated pre-existing project stayed healthy.
 - NOT RUN: provider TLS/certificate mutation, UAC, Chrome/Firefox,

@@ -17,6 +17,8 @@ param(
 
     [string] $PackageRoot = "",
 
+    [int] $MutexWaitMilliseconds = 5000,
+
     [switch] $SelfTest,
 
     [switch] $Stop
@@ -65,12 +67,17 @@ Write-Host "Helper token generated and stored in the package-local helper secret
 Write-Host "Helper session metadata recorded without token material."
 Write-Host "The public repair capability and browser-triggered mutation remain disabled."
 try {
+    $Host.UI.RawUI.WindowTitle = "TowerScout host helper - keep this window open"
+}
+catch {}
+try {
     Start-TowerScoutHostHelper `
         -Profile $profile `
         -Token $token `
         -HelperPort $HelperPort `
         -MaxRequests $MaxRequests `
-        -ExecutionEnabled:$false
+        -ExecutionEnabled:$false `
+        -MutexWaitMilliseconds $MutexWaitMilliseconds
 }
 finally {
     Clear-TowerScoutHostHelperSession `

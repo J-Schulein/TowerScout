@@ -20,6 +20,18 @@ STOP_SCRIPT = REPO_ROOT / "scripts" / "stop.ps1"
 LAUNCH_SCRIPT = REPO_ROOT / "scripts" / "launch.ps1"
 COMPOSE_FILE = REPO_ROOT / "compose.yaml"
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
+EDGE_RESTART_OBSERVER = (
+    REPO_ROOT
+    / "tests"
+    / "frontend"
+    / "test_task_087_docker_restart_edge_observer.js"
+)
+DOCKER_RESTART_DRIVER = (
+    REPO_ROOT
+    / "tests"
+    / "frontend"
+    / "invoke_task_087_docker_restart_observer.ps1"
+)
 
 
 def _powershell_executable():
@@ -116,15 +128,16 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
 
 def test_host_helper_review_bridge_is_explicit_and_does_not_persist_session_key():
     launch_script = LAUNCH_SCRIPT.read_text(encoding="utf-8")
+    helper_library = HELPER_LIB.read_text(encoding="utf-8")
     compose = COMPOSE_FILE.read_text(encoding="utf-8")
     env_example = ENV_EXAMPLE.read_text(encoding="utf-8")
 
-    assert "function Test-TowerScoutHostHelperReviewEnabled" in launch_script
-    assert "TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED" in launch_script
+    assert "function Test-TowerScoutHostHelperReviewEnabled" in helper_library
+    assert "TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED" in helper_library
     assert "Initialize-TowerScoutHostHelperReviewSession" in launch_script
     assert (
         "function Test-TowerScoutHostHelperSessionMetadataMatchesProfile"
-        in launch_script
+        in helper_library
     )
     for profile_field in (
         '"state"',
@@ -136,19 +149,25 @@ def test_host_helper_review_bridge_is_explicit_and_does_not_persist_session_key(
         '"package_flavor"',
         '"package_root_identity"',
     ):
-        assert profile_field in launch_script
-    assert "Get-TowerScoutHostHelperPackageRootIdentity" in launch_script
-    assert "function Test-TowerScoutHostHelperSessionLiveness" in launch_script
-    assert "process_start_time_utc" in launch_script
-    assert "last_heartbeat_utc" in launch_script
-    assert "lease_expires_at_utc" in launch_script
-    assert "Stop-TowerScoutHostHelperReviewSession -RootPath $RootPath" in launch_script
-    assert "host-helper-visible.cmd" in launch_script
-    assert "-FilePath $visibleHelper" in launch_script
-    assert "-ArgumentList $visibleHelperArguments" in launch_script
+        assert profile_field in helper_library
+    assert "Get-TowerScoutHostHelperPackageRootIdentity" in helper_library
+    assert "function Test-TowerScoutHostHelperSessionLiveness" in helper_library
+    assert "process_start_time_utc" in helper_library
+    assert "last_heartbeat_utc" in helper_library
+    assert "lease_expires_at_utc" in helper_library
+    assert "function Start-TowerScoutHostHelperReviewProcess" in helper_library
+    assert "-PassThru" in helper_library
+    assert "-Process $helperProcess" in helper_library
+    assert "$metadataProcessId -eq $helperProcess.Id" in helper_library
+    assert "host-helper-visible.cmd" not in helper_library
+    assert "host-helper-visible.cmd" not in launch_script
     assert "& $visibleHelper" not in launch_script
-    assert "TOWERSCOUT_HOST_HELPER_SESSION_KEY" in launch_script
-    assert "Clear-TowerScoutHostHelperBridgeEnvironment" in launch_script
+    assert "TOWERSCOUT_HOST_HELPER_SESSION_KEY" in helper_library
+    assert "Clear-TowerScoutHostHelperBridgeEnvironment" in helper_library
+    assert "finally {" in launch_script
+    assert "if (-not $launchSucceeded)" in launch_script
+    assert "-SessionId ([string] $hostHelperReviewSession.SessionId)" in launch_script
+    assert "-Process $hostHelperReviewSession.Process" in launch_script
     assert (
         "TOWERSCOUT_HOST_HELPER_ENABLED: ${TOWERSCOUT_HOST_HELPER_ENABLED:-0}"
         in compose
@@ -161,6 +180,380 @@ def test_host_helper_review_bridge_is_explicit_and_does_not_persist_session_key(
     assert "TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED=0" in env_example
     assert "TOWERSCOUT_HOST_HELPER_SESSION_KEY=" not in env_example
     assert "do not put those values in" in env_example
+
+
+def test_edge_restart_observer_and_docker_driver_are_constrained():
+    observer = EDGE_RESTART_OBSERVER.read_text(encoding="utf-8")
+    driver = DOCKER_RESTART_DRIVER.read_text(encoding="utf-8")
+
+    assert "normalizeLoopbackUrl" in observer
+    assert "new AbortController()" in observer
+    assert "sessionStorage.setItem" in observer
+    assert "assert.strictEqual(recoveredState, initialState)" in observer
+    assert "assert.strictEqual(alternateState, initialState)" in observer
+    assert "TOWERSCOUT_EXPECTED_READINESS_STATE" in observer
+    assert "--no-sandbox" not in observer
+    assert "--disable-setuid-sandbox" not in observer
+    assert "orchestration: 'external'" in observer
+
+    assert '^towerscout-task087-[a-z0-9][a-z0-9-]*$' in driver
+    assert "com.docker.compose.project=$ProjectName" in driver
+    assert "com.docker.compose.service=towerscout" in driver
+    assert "127.0.0.1:$AppPort" in driver
+    assert "compose -p $ProjectName -f $composePath stop towerscout" in driver
+    assert "compose -p $ProjectName -f $composePath start towerscout" in driver
+    assert "down" not in driver
+    assert "rm -f" not in driver
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_launcher_starts_and_supervises_the_real_long_lived_helper():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ErrorActionPreference = "Stop"
+        $ProgressPreference = "SilentlyContinue"
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("TowerScout Task 087 launcher {{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $session = $null
+        try {{
+            $env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED = "1"
+            $watch = [System.Diagnostics.Stopwatch]::StartNew()
+            $session = Initialize-TowerScoutHostHelperReviewSession `
+                -EngineName "docker" `
+                -GpuMode "off" `
+                -AppPort 5000 `
+                -RootPath $root `
+                -PackageFlavor "launcher-probe"
+            $watch.Stop()
+            $metadata = Get-TowerScoutHostHelperSessionMetadata `
+                -SessionId ([string] $session.SessionId) `
+                -RootPath $root
+            [pscustomobject]@{{
+                elapsed_ms = [int] $watch.ElapsedMilliseconds
+                started_new_process = [bool] $session.StartedNewProcess
+                process_alive = -not $session.Process.HasExited
+                metadata_process_id = [int] $metadata.process_id
+                process_id = [int] $session.Process.Id
+                profile_matches = Test-TowerScoutHostHelperSessionMetadataMatchesProfile `
+                    -Metadata $metadata `
+                    -EngineName "docker" `
+                    -GpuMode "off" `
+                    -AppPort 5000 `
+                    -RootPath $root `
+                    -PackageFlavor "launcher-probe"
+                authenticated_liveness = Test-TowerScoutHostHelperSessionLiveness `
+                    -Metadata $metadata `
+                    -SessionId ([string] $session.SessionId) `
+                    -RootPath $root `
+                    -AppPort 5000
+                helper_port_exported = [int] $env:TOWERSCOUT_HOST_HELPER_PORT -gt 0
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if ($null -ne $session) {{
+                Stop-TowerScoutHostHelperReviewSession `
+                    -RootPath $root `
+                    -SessionId ([string] $session.SessionId) `
+                    -Process $session.Process
+                $session.Process.Dispose()
+            }}
+            Remove-Item Env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(
+        next(line for line in result.stdout.splitlines() if line.startswith("{"))
+    )
+    assert payload["elapsed_ms"] < 15000
+    assert payload["started_new_process"] is True
+    assert payload["process_alive"] is True
+    assert payload["metadata_process_id"] == payload["process_id"]
+    assert payload["profile_matches"] is True
+    assert payload["authenticated_liveness"] is True
+    assert payload["helper_port_exported"] is True
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_launcher_start_failure_clears_exact_session_and_bridge_environment():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ErrorActionPreference = "Stop"
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("TowerScout Task 087 failed start {{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        try {{
+            $env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED = "1"
+            function Start-TowerScoutHostHelperReviewProcess {{
+                param(
+                    [string] $EngineName,
+                    [string] $GpuMode,
+                    [int] $AppPort,
+                    [string] $RootPath,
+                    [string] $PackageFlavor,
+                    [string] $SessionId,
+                    [int] $MutexWaitMilliseconds
+                )
+                throw "simulated process start failure"
+            }}
+            $failed = $false
+            try {{
+                Initialize-TowerScoutHostHelperReviewSession `
+                    -EngineName "docker" `
+                    -GpuMode "off" `
+                    -AppPort 5000 `
+                    -RootPath $root `
+                    -PackageFlavor "failed-start-probe" | Out-Null
+            }}
+            catch {{
+                $failed = $true
+            }}
+            $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $root
+            [pscustomobject]@{{
+                failed = $failed
+                enabled = [string] $env:TOWERSCOUT_HOST_HELPER_ENABLED
+                has_port = Test-Path Env:TOWERSCOUT_HOST_HELPER_PORT
+                has_session_id = Test-Path Env:TOWERSCOUT_HOST_HELPER_SESSION_ID
+                has_session_key = Test-Path Env:TOWERSCOUT_HOST_HELPER_SESSION_KEY
+                session_files = @(
+                    Get-ChildItem -LiteralPath $stateDirectory -Filter "session-*.json" -ErrorAction SilentlyContinue
+                ).Count
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            Remove-Item Env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(
+        next(line for line in result.stdout.splitlines() if line.startswith("{"))
+    )
+    assert payload == {
+        "failed": True,
+        "enabled": "0",
+        "has_port": False,
+        "has_session_id": False,
+        "has_session_key": False,
+        "session_files": 0,
+    }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_launcher_detects_early_helper_exit_without_waiting_for_deadline():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ErrorActionPreference = "Stop"
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("TowerScout Task 087 early exit {{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        try {{
+            $env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED = "1"
+            function Start-TowerScoutHostHelperReviewProcess {{
+                param(
+                    [string] $EngineName,
+                    [string] $GpuMode,
+                    [int] $AppPort,
+                    [string] $RootPath,
+                    [string] $PackageFlavor,
+                    [string] $SessionId,
+                    [int] $MutexWaitMilliseconds
+                )
+                return Start-Process `
+                    -FilePath "powershell.exe" `
+                    -ArgumentList @("-NoProfile", "-Command", "exit 23") `
+                    -WindowStyle Hidden `
+                    -PassThru
+            }}
+            $watch = [System.Diagnostics.Stopwatch]::StartNew()
+            $failed = $false
+            try {{
+                Initialize-TowerScoutHostHelperReviewSession `
+                    -EngineName "docker" `
+                    -GpuMode "off" `
+                    -AppPort 5000 `
+                    -RootPath $root `
+                    -PackageFlavor "early-exit-probe" `
+                    -ReadinessTimeoutSeconds 10 | Out-Null
+            }}
+            catch {{
+                $failed = $true
+            }}
+            $watch.Stop()
+            [pscustomobject]@{{
+                failed = $failed
+                elapsed_ms = [int] $watch.ElapsedMilliseconds
+                enabled = [string] $env:TOWERSCOUT_HOST_HELPER_ENABLED
+                has_port = Test-Path Env:TOWERSCOUT_HOST_HELPER_PORT
+                has_session_id = Test-Path Env:TOWERSCOUT_HOST_HELPER_SESSION_ID
+                has_session_key = Test-Path Env:TOWERSCOUT_HOST_HELPER_SESSION_KEY
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            Remove-Item Env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(
+        next(line for line in result.stdout.splitlines() if line.startswith("{"))
+    )
+    assert payload["failed"] is True
+    assert payload["elapsed_ms"] < 5000
+    assert payload["enabled"] == "0"
+    assert payload["has_port"] is False
+    assert payload["has_session_id"] is False
+    assert payload["has_session_key"] is False
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_launcher_timeout_kills_late_start_before_it_can_publish_state():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ErrorActionPreference = "Stop"
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("TowerScout Task 087 late start {{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $fakeHelper = Join-Path $root "late helper.ps1"
+        Set-Content -LiteralPath $fakeHelper -Encoding ASCII -Value @(
+            'param(',
+            '  [string] $Engine,',
+            '  [string] $Gpu,',
+            '  [int] $AppPort,',
+            '  [string] $PackageFlavor,',
+            '  [string] $HelperSessionId,',
+            '  [string] $PackageRoot,',
+            '  [int] $MutexWaitMilliseconds',
+            ')',
+            'Set-Content -LiteralPath (Join-Path $PackageRoot "late-pid.txt") -Value $PID',
+            'Start-Sleep -Milliseconds 2500',
+            'Set-Content -LiteralPath (Join-Path $PackageRoot "late-marker.txt") -Value "late"'
+        )
+        try {{
+            $env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED = "1"
+            function Start-TowerScoutHostHelperReviewProcess {{
+                param(
+                    [string] $EngineName,
+                    [string] $GpuMode,
+                    [int] $AppPort,
+                    [string] $RootPath,
+                    [string] $PackageFlavor,
+                    [string] $SessionId,
+                    [int] $MutexWaitMilliseconds
+                )
+                return Start-Process `
+                    -FilePath "powershell.exe" `
+                    -ArgumentList @(
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        $fakeHelper,
+                        "-Engine",
+                        $EngineName,
+                        "-Gpu",
+                        $GpuMode,
+                        "-AppPort",
+                        "$AppPort",
+                        "-PackageFlavor",
+                        $PackageFlavor,
+                        "-HelperSessionId",
+                        $SessionId,
+                        "-PackageRoot",
+                        $RootPath,
+                        "-MutexWaitMilliseconds",
+                        "$MutexWaitMilliseconds"
+                    ) `
+                    -WindowStyle Hidden `
+                    -PassThru
+            }}
+            $timedOut = $false
+            try {{
+                Initialize-TowerScoutHostHelperReviewSession `
+                    -EngineName "docker" `
+                    -GpuMode "off" `
+                    -AppPort 5000 `
+                    -RootPath $root `
+                    -PackageFlavor "late-start-probe" `
+                    -ReadinessTimeoutSeconds 1 `
+                    -MutexWaitMilliseconds 500 | Out-Null
+            }}
+            catch {{
+                $timedOut = $true
+            }}
+            Start-Sleep -Milliseconds 2600
+            $lateProcessAlive = $false
+            $pidPath = Join-Path $root "late-pid.txt"
+            if (Test-Path -LiteralPath $pidPath) {{
+                [int] $latePid = Get-Content -LiteralPath $pidPath -Raw
+                try {{
+                    Get-Process -Id $latePid -ErrorAction Stop | Out-Null
+                    $lateProcessAlive = $true
+                }}
+                catch {{}}
+            }}
+            $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $root
+            [pscustomobject]@{{
+                timed_out = $timedOut
+                late_process_alive = $lateProcessAlive
+                late_marker_written = Test-Path -LiteralPath (Join-Path $root "late-marker.txt")
+                enabled = [string] $env:TOWERSCOUT_HOST_HELPER_ENABLED
+                has_port = Test-Path Env:TOWERSCOUT_HOST_HELPER_PORT
+                has_session_id = Test-Path Env:TOWERSCOUT_HOST_HELPER_SESSION_ID
+                has_session_key = Test-Path Env:TOWERSCOUT_HOST_HELPER_SESSION_KEY
+                session_files = @(
+                    Get-ChildItem -LiteralPath $stateDirectory -Filter "session-*.json" -ErrorAction SilentlyContinue
+                ).Count
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            Remove-Item Env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(
+        next(line for line in result.stdout.splitlines() if line.startswith("{"))
+    )
+    assert payload == {
+        "timed_out": True,
+        "late_process_alive": False,
+        "late_marker_written": False,
+        "enabled": "0",
+        "has_port": False,
+        "has_session_id": False,
+        "has_session_key": False,
+        "session_files": 0,
+    }
 
 
 def test_host_helper_validates_python_issued_browser_authorization():
@@ -498,7 +891,7 @@ def test_host_helper_operation_request_api_direct_invocation_is_non_mutating():
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
-def test_host_helper_accepts_async_start_and_serves_live_status():
+def test_host_helper_operation_start_returns_before_test_worker_completion():
     helper_path = str(HELPER_LIB).replace("'", "''")
     script = textwrap.dedent(
         f"""
@@ -587,6 +980,8 @@ def test_host_helper_accepts_async_start_and_serves_live_status():
     assert payload["accepted_status"] == 202
     assert payload["accepted_terminal"] is False
     assert payload["accepted_execution_enabled"] is True
+    # This is an operation-acceptance regression bound, not launcher-startup
+    # or production worker timing evidence.
     assert payload["elapsed_ms"] < 4000
     assert payload["poll_status"] == 200
     assert payload["poll_state"] == "planned"

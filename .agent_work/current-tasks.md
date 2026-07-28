@@ -145,10 +145,12 @@ release gate before Task-087 resumes.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS - PR #63 reviewer remediation and Docker/Edge Phase 1
-lifecycle validation passed; the PR remains draft and release-facing TLS
-mutation, UAC/certificate, Chrome/Firefox, sleep/resume, live release-package,
-Podman/GPU, and managed-network proof remain gated
+**Status**: IN_PROGRESS - PR #63 Phase 1 re-review hardening is implemented;
+repeatable Windows launcher and isolated Docker/Edge reruns are blocked by the
+current endpoint's Defender/AMSI helper-load policy. The PR remains draft and
+release-facing TLS mutation, UAC/certificate,
+Chrome/Firefox, sleep/resume, live release-package, Podman/GPU, and
+managed-network proof remain gated
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days plus managed-network package validation

@@ -68,7 +68,6 @@ Current package/runtime support files include:
 - `scripts/host-helper.cmd`
 - `scripts/host-helper.ps1`
 - `scripts/host-helper-worker.ps1`
-- `scripts/host-helper-visible.cmd`
 - `scripts/lib/TowerScoutHostHelper.ps1`
 - `scripts/lib/TowerScoutHostHelperState.ps1`
 - `scripts/lib/TowerScoutCertificateStore.ps1`
@@ -80,8 +79,8 @@ These files being present does **not** mean the browser helper flow is active.
 The source tree includes an opt-in Gate 3 review path. When a maintainer sets
 `TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED=1` before using the Windows launcher,
 the launcher creates a per-launch helper session, starts the visible
-loopback-only helper, and passes only that session's bridge values to the app
-container.
+loopback-only PowerShell helper directly, retains its process handle through
+startup, and passes only that session's bridge values to the app container.
 
 Do not put the generated session id, session key, or helper port in `.env`.
 They are launcher-generated runtime values. The browser receives only

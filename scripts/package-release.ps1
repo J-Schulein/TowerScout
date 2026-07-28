@@ -278,7 +278,6 @@ $releaseFiles = @(
     "scripts\host-helper.cmd",
     "scripts\host-helper.ps1",
     "scripts\host-helper-worker.ps1",
-    "scripts\host-helper-visible.cmd",
     "scripts\launch.ps1",
     "scripts\start.cmd",
     "scripts\start.ps1",
