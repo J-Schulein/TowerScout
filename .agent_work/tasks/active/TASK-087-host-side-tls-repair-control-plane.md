@@ -1,12 +1,13 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - PR #63 additional reviewer corrections are
-implemented and locally validated; focused contracts and isolated Docker/Edge
-restart validation pass. The PR remains draft pending independent CI and
-re-review. A Windows CI lane now covers helper behavior that this endpoint's
-Defender/AMSI policy still blocks locally. Release-facing TLS mutation,
-UAC/certificate, Chrome/Firefox, live release-package, Podman/GPU,
-sleep/resume, and managed-network gates remain closed
+**Status**: IN_PROGRESS - PR #63 dormant checkpoint implementation, review
+remediation, independent re-review, and local merge-readiness validation are
+complete; no merge-blocking finding remains. Final test-hygiene corrections
+are included, and merge readiness remains contingent on green required checks
+at the current head plus an explicit project-lead merge decision.
+Release-facing TLS mutation, UAC/certificate, Chrome/Firefox, live
+release-package, Podman/GPU, sleep/resume, managed-network, and candidate
+inclusion gates remain closed
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days (32-56 hours), plus package validation on a managed TLS-inspected network
@@ -1150,6 +1151,62 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-30 - Final Merge-Readiness Audit And Test Hygiene
+
+**Objective**: Reconfirm whether PR #63 is safe as a dormant control-plane
+checkpoint and close the independent reviewer's remaining optional test and
+metadata gaps without enabling production mutation.
+
+**Context**: Independent re-review at `6d8c8dc` found no merge-blocking
+findings. It identified two test-hygiene issues: a late-start cleanup assertion
+searched for the obsolete `token-*.json` pattern rather than the production
+`token-*.secret` pattern, and the fixed-worker test treated a null parsed lock
+as sufficient cleanup evidence even though an unreadable active-lock file
+would also parse as null. The PR description and durable task status also
+lagged the current checkpoint.
+
+**Decision**: Correct the test-only gaps and refresh durable status. Do not add
+production behavior in this cleanup pass. Treat bounded active-lock deletion
+retry as activation-stage availability hardening, and defer behavioral CUDA
+coverage to the later runtime qualification work. Keep TLS mutation and every
+candidate-inclusion gate closed.
+
+**Execution**:
+
+- Changed the late-start cleanup probe to count the actual durable token file
+  pattern, `token-*.secret`.
+- Strengthened fixed-worker cleanup validation to wait for and directly assert
+  removal of both `operation-active.json` and the exact worker identity file,
+  while retaining the parsed-lock assertion.
+- Updated the Task-087 status to distinguish merge readiness for this dormant
+  checkpoint from the still-unmet activation and candidate qualification
+  matrix.
+
+**Validation**:
+
+- PASS: the preceding merge-readiness audit covered every changed PR file,
+  production gate defaults, package inclusion boundaries, local focused and
+  repository-level checks, secret-sensitive surfaces, and the complete diff.
+- PASS: required CI at `6d8c8dc` was green, including Python 3.11/3.12 unit
+  jobs, the Windows helper job, frontend/controller contracts, simulated
+  helper e2e, security, and Trivy.
+- PASS: all 25 helper tests collect, the three static helper/harness contract
+  tests pass, the changed Python compiles, both agent-work validators pass,
+  `git diff --check` passes, and the changed-diff secret scan is clear.
+- BASELINE: the advisory integration failures at `6d8c8dc` exactly matched
+  current `main`; they were not introduced by PR #63.
+- HOST POLICY LIMITATION: this endpoint's Defender/AMSI policy still blocks
+  the dynamic helper library before local test assertions run. The dedicated
+  Windows CI job remains the independent execution gate for the corrected
+  helper tests.
+- PENDING: all required checks must pass again at the cleanup commit before
+  the dormant checkpoint is considered merge-ready.
+
+**Next**: Push the cleanup commit, require green CI at its exact head, refresh
+the PR description with the final evidence, and obtain an explicit
+project-lead merge decision. Do not build or publish a release candidate until
+the remaining activation matrix is complete.
 
 ### 2026-07-30 - PR #63 Additional Reviewer Corrections And Live Rerun
 

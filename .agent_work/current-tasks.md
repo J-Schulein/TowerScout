@@ -145,14 +145,14 @@ release gate before Task-087 resumes.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS - PR #63 additional reviewer corrections are
-implemented and locally validated for the next PR checkpoint. Focused
-frontend/backend contracts and the isolated Docker/Edge restart rerun pass;
-Windows helper behavior now has a dedicated CI lane because this endpoint's
-Defender/AMSI policy still blocks the local dynamic helper suite. The PR
-remains draft pending independent CI and re-review; release-facing TLS
-mutation, UAC/certificate, Chrome/Firefox, live release-package, Podman/GPU,
-sleep/resume, and managed-network proof remain gated
+**Status**: IN_PROGRESS - PR #63 dormant checkpoint implementation, review
+remediation, independent re-review, and local merge-readiness validation are
+complete; no merge-blocking finding remains. Final test-hygiene corrections
+are included, and merge readiness remains contingent on green required checks
+at the current head plus an explicit project-lead merge decision.
+Release-facing TLS mutation, UAC/certificate, Chrome/Firefox, live
+release-package, Podman/GPU, sleep/resume, managed-network, and candidate
+inclusion gates remain closed
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days plus managed-network package validation

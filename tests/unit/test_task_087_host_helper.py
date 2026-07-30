@@ -601,7 +601,7 @@ def test_launcher_timeout_kills_late_start_before_it_can_publish_state():
                     Get-ChildItem -LiteralPath $stateDirectory -Filter "session-*.json" -ErrorAction SilentlyContinue
                 ).Count
                 token_files = @(
-                    Get-ChildItem -LiteralPath $stateDirectory -Filter "token-*.json" -ErrorAction SilentlyContinue
+                    Get-ChildItem -LiteralPath $stateDirectory -Filter "token-*.secret" -ErrorAction SilentlyContinue
                 ).Count
                 operation_files = @(
                     Get-ChildItem -LiteralPath $stateDirectory -Filter "operation-*.json" -ErrorAction SilentlyContinue
@@ -1318,12 +1318,27 @@ def test_host_helper_fixed_worker_completes_fake_allowlisted_wrappers():
                     -Profile $profile `
                     -OperationId $operationId
             }} while (-not [bool] $poll.Body.terminal -and (Get-Date) -lt $deadline)
+            $activeLockPath = Get-TowerScoutHostHelperOperationLockPath -Profile $profile
+            $workerIdentityPath = Get-TowerScoutHostHelperOperationWorkerPath `
+                -Profile $profile `
+                -OperationId $operationId
             $cleanupDeadline = (Get-Date).AddSeconds(5)
-            $activeLock = Get-TowerScoutHostHelperOperationLock -Profile $profile
-            while ($null -ne $activeLock -and (Get-Date) -lt $cleanupDeadline) {{
-                Start-Sleep -Milliseconds 100
+            while ((Get-Date) -lt $cleanupDeadline) {{
                 $activeLock = Get-TowerScoutHostHelperOperationLock -Profile $profile
+                $activeLockFileExists = Test-Path -LiteralPath $activeLockPath -PathType Leaf
+                $workerIdentityFileExists = Test-Path -LiteralPath $workerIdentityPath -PathType Leaf
+                if (
+                    $null -eq $activeLock -and
+                    -not $activeLockFileExists -and
+                    -not $workerIdentityFileExists
+                ) {{
+                    break
+                }}
+                Start-Sleep -Milliseconds 100
             }}
+            $activeLock = Get-TowerScoutHostHelperOperationLock -Profile $profile
+            $activeLockFileExists = Test-Path -LiteralPath $activeLockPath -PathType Leaf
+            $workerIdentityFileExists = Test-Path -LiteralPath $workerIdentityPath -PathType Leaf
             $statusPath = Get-TowerScoutHostHelperOperationStatusPath -Profile $profile -OperationId $operationId
             $statusAcl = Get-Acl -LiteralPath $statusPath
             [pscustomobject]@{{
@@ -1333,6 +1348,8 @@ def test_host_helper_fixed_worker_completes_fake_allowlisted_wrappers():
                 terminal_state = [string] $poll.Body.state
                 terminal = [bool] $poll.Body.terminal
                 active_lock_released = $null -eq $activeLock
+                active_lock_file_removed = -not $activeLockFileExists
+                worker_identity_file_removed = -not $workerIdentityFileExists
                 status_acl_protected = [bool] $statusAcl.AreAccessRulesProtected
                 retained_status_available = $null -ne (
                     Get-TowerScoutHostHelperOperationStatusRecord `
@@ -1361,6 +1378,8 @@ def test_host_helper_fixed_worker_completes_fake_allowlisted_wrappers():
         "terminal_state": "ready",
         "terminal": True,
         "active_lock_released": True,
+        "active_lock_file_removed": True,
+        "worker_identity_file_removed": True,
         "status_acl_protected": True,
         "retained_status_available": True,
     }
