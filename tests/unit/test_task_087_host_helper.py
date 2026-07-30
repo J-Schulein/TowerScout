@@ -1318,6 +1318,12 @@ def test_host_helper_fixed_worker_completes_fake_allowlisted_wrappers():
                     -Profile $profile `
                     -OperationId $operationId
             }} while (-not [bool] $poll.Body.terminal -and (Get-Date) -lt $deadline)
+            $cleanupDeadline = (Get-Date).AddSeconds(5)
+            $activeLock = Get-TowerScoutHostHelperOperationLock -Profile $profile
+            while ($null -ne $activeLock -and (Get-Date) -lt $cleanupDeadline) {{
+                Start-Sleep -Milliseconds 100
+                $activeLock = Get-TowerScoutHostHelperOperationLock -Profile $profile
+            }}
             $statusPath = Get-TowerScoutHostHelperOperationStatusPath -Profile $profile -OperationId $operationId
             $statusAcl = Get-Acl -LiteralPath $statusPath
             [pscustomobject]@{{
@@ -1326,7 +1332,7 @@ def test_host_helper_fixed_worker_completes_fake_allowlisted_wrappers():
                 terminal_status = [int] $poll.StatusCode
                 terminal_state = [string] $poll.Body.state
                 terminal = [bool] $poll.Body.terminal
-                active_lock_released = $null -eq (Get-TowerScoutHostHelperOperationLock -Profile $profile)
+                active_lock_released = $null -eq $activeLock
                 status_acl_protected = [bool] $statusAcl.AreAccessRulesProtected
                 retained_status_available = $null -ne (
                     Get-TowerScoutHostHelperOperationStatusRecord `
@@ -1589,7 +1595,7 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
         New-Item -ItemType Directory -Path (Join-Path $root "scripts") -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $root "scripts\\repair-provider-tls.cmd") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
         Set-Content -LiteralPath (Join-Path $root "scripts\\stop.cmd") -Encoding ASCII -Value "@echo off`r`nset TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION>stop-env.txt`r`nexit /b 0"
-        Set-Content -LiteralPath (Join-Path $root "start.bat") -Encoding ASCII -Value "@echo off`r`nexit /b 0"
+        Set-Content -LiteralPath (Join-Path $root "start.bat") -Encoding ASCII -Value "@echo off`r`nset TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION>start-env.txt`r`nexit /b 0"
         try {{
             $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "runner-probe" -ProviderTlsRepairEnabled:$true
             $plan = New-TowerScoutProviderTlsRepairOperationPlan -Profile $profile -Provider "google" -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
@@ -1749,7 +1755,7 @@ def test_host_helper_controlled_runner_is_gated_and_sanitized():
     ]
     assert payload["actual_repair_state"] == "tls_repair_completed"
     assert payload["actual_stop_state"] == "runtime_stopped"
-    assert payload["actual_start_state"] == "runtime_started"
+    assert payload["actual_start_state"] == "ready"
     assert payload["controlled_stop_env"] == "TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION=1"
     assert payload["controlled_start_env"] == "TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION=1"
     assert payload["bad_argument_rejected"] is True
