@@ -49,6 +49,7 @@ def test_repairable_provider_bridge_issues_scoped_short_lived_authorization(
         "tls_ca_untrusted",
         environment=SESSION_ENV,
         now=1_800_000_000,
+        include_start_authorization=True,
     )
 
     assert bridge["base_url"] == "http://127.0.0.1:50123"
@@ -110,6 +111,24 @@ def test_disabled_capability_never_issues_start_or_status_authorization():
     ) is None
 
 
+def test_probe_only_bridge_does_not_issue_start_authorization(monkeypatch):
+    monkeypatch.setattr(
+        ts_host_helper,
+        "PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED",
+        True,
+    )
+
+    bridge = ts_host_helper.build_provider_tls_repair_bridge(
+        "google",
+        "tls_ca_untrusted",
+        environment=SESSION_ENV,
+        now=1_800_000_000,
+    )
+
+    assert bridge["provider_tls_repair_capability"] is True
+    assert "operation_authorization" not in bridge
+
+
 def test_expired_and_cross_provider_authorizations_are_rejected(monkeypatch):
     monkeypatch.setattr(
         ts_host_helper,
@@ -121,6 +140,7 @@ def test_expired_and_cross_provider_authorizations_are_rejected(monkeypatch):
         "tls_bundle_missing",
         environment=SESSION_ENV,
         now=1_800_000_000,
+        include_start_authorization=True,
     )
     config = ts_host_helper.load_host_helper_bridge_config(SESSION_ENV)
     token = bridge["operation_authorization"]["operation_token"]
@@ -139,7 +159,40 @@ def test_expired_and_cross_provider_authorizations_are_rejected(monkeypatch):
             token,
             expected_scope="provider_tls_repair",
             expected_provider="azure",
-            now=1_800_000_121,
+            now=1_800_000_420,
+        )
+
+
+def test_authorization_clock_skew_is_bounded(monkeypatch):
+    monkeypatch.setattr(
+        ts_host_helper,
+        "PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED",
+        True,
+    )
+    bridge = ts_host_helper.build_provider_tls_repair_bridge(
+        "google",
+        "tls_ca_untrusted",
+        environment=SESSION_ENV,
+        now=1_800_000_000,
+        include_start_authorization=True,
+    )
+    config = ts_host_helper.load_host_helper_bridge_config(SESSION_ENV)
+    token = bridge["operation_authorization"]["operation_token"]
+
+    ts_host_helper.validate_browser_authorization(
+        config,
+        token,
+        expected_scope="provider_tls_repair",
+        expected_provider="google",
+        now=1_800_000_419,
+    )
+    with pytest.raises(ValueError, match="authorization_expired"):
+        ts_host_helper.validate_browser_authorization(
+            config,
+            token,
+            expected_scope="provider_tls_repair",
+            expected_provider="google",
+            now=1_800_000_420,
         )
 
 

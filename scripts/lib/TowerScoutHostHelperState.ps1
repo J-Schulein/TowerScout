@@ -12,7 +12,15 @@ function Get-TowerScoutHostHelperJsonDocument {
     for ($attempt = 1; $attempt -le $MaximumAttempts; $attempt++) {
         $json = Get-Content -LiteralPath $Path -Raw -ErrorAction SilentlyContinue
         if (-not [string]::IsNullOrWhiteSpace($json)) {
-            $document = $json | ConvertFrom-Json -ErrorAction SilentlyContinue
+            $document = $null
+            try {
+                $document = $json | ConvertFrom-Json -ErrorAction Stop
+            }
+            catch {
+                # Atomic replacement can expose a transient read/open race.
+                # Malformed or incomplete JSON is retried below.
+                $document = $null
+            }
             if ($null -ne $document) {
                 return $document
             }

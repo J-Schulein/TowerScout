@@ -36,10 +36,13 @@ const WEB_URL = (
 const HELPER_BASE_URL = (
   process.env.TEST_HELPER_BASE_URL || 'http://127.0.0.1:5001'
 ).replace(/\/+$/, '');
+const WEB_APP_PORT = Number(new URL(WEB_URL).port || 80);
 const USE_REAL_HELPER = ['1', 'true'].includes(
   String(process.env.E2E_USE_SERVER || '').toLowerCase()
 );
-const OPERATION_TOKEN = `TEST_${'X'.repeat(40)}`;
+const OPERATION_TOKEN = WEB_URL.includes('127.0.0.1')
+  ? `TEST_LOOPBACK_${'R'.repeat(32)}`
+  : `TEST_LOCALHOST_${'L'.repeat(32)}`;
 const PROBE_TOKEN = `PROBE_${'Y'.repeat(40)}`;
 const STATUS_TOKEN = `STATUS_${'Z'.repeat(40)}`;
 const OPERATION_ID = '0123456789abcdef0123456789abcdef';
@@ -76,7 +79,15 @@ async function installHarness(page) {
   `);
 
   await page.evaluate(
-    ({ helperBaseUrl, useRealHelper, operationToken, probeToken, statusToken, operationId }) => {
+    ({
+      helperBaseUrl,
+      useRealHelper,
+      operationToken,
+      probeToken,
+      statusToken,
+      operationId,
+      webAppPort
+    }) => {
       const response = (ok, status, payload) => ({
         ok,
         status,
@@ -112,7 +123,7 @@ async function installHarness(page) {
         expected_runtime: {
           engine: 'docker',
           gpu: 'off',
-          app_port: 5000
+          app_port: webAppPort
         }
       };
 
@@ -188,7 +199,7 @@ async function installHarness(page) {
         if (target === `${helperBaseUrl}/health`) {
           return response(true, 200, {
             state: 'ready',
-            runtime: { engine: 'docker', gpu: 'off', app_port: 5000 },
+            runtime: { engine: 'docker', gpu: 'off', app_port: webAppPort },
             capabilities: {
               provider_tls_repair: true,
               podman_provider_repair: false,
@@ -257,7 +268,8 @@ async function installHarness(page) {
       operationToken: OPERATION_TOKEN,
       probeToken: PROBE_TOKEN,
       statusToken: STATUS_TOKEN,
-      operationId: OPERATION_ID
+      operationId: OPERATION_ID,
+      webAppPort: WEB_APP_PORT
     }
   );
 
@@ -279,6 +291,43 @@ async function run() {
   const page = await browser.newPage();
   try {
     await installHarness(page);
+    if (USE_REAL_HELPER) {
+      const rejectedProbe = await page.evaluate(
+        async helperBaseUrl => {
+          const response = await fetch(`${helperBaseUrl}/health`, {
+            method: 'GET'
+          });
+          return { status: response.status, payload: await response.json() };
+        },
+        HELPER_BASE_URL
+      );
+      assert.strictEqual(rejectedProbe.status, 401);
+      assert.strictEqual(
+        rejectedProbe.payload.state,
+        'rejected_operation_authorization'
+      );
+
+      const rejectedStart = await page.evaluate(
+        async helperBaseUrl => {
+          const response = await fetch(`${helperBaseUrl}/operations/provider-tls-repair`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              provider: 'google',
+              confirmation: 'repair_tls_and_restart',
+              operation_authorization: 'invalid-start-authorization'
+            })
+          });
+          return { status: response.status, payload: await response.json() };
+        },
+        HELPER_BASE_URL
+      );
+      assert.strictEqual(rejectedStart.status, 401);
+      assert.strictEqual(
+        rejectedStart.payload.state,
+        'rejected_operation_authorization'
+      );
+    }
     const result = await page.evaluate(async () => {
       if (!window.SetupWizard || typeof window.SetupWizard.startProviderTlsRepair !== 'function') {
         throw new Error('Production SetupWizard controller was not loaded.');
@@ -309,12 +358,44 @@ async function run() {
     const startCalls = result.fetchCalls.filter(
       call => call.url === `${HELPER_BASE_URL}/operations/provider-tls-repair`
     );
+    const validStartCalls = startCalls.filter(call => {
+      try {
+        return (
+          JSON.parse(call.body || '{}').operation_authorization ===
+          OPERATION_TOKEN
+        );
+      } catch (_error) {
+        return false;
+      }
+    });
     const pollCalls = result.fetchCalls.filter(
       call => /^https?:\/\/.+\/operations\/[a-f0-9]{32}$/i.test(call.url)
     );
-    assert.strictEqual(startCalls.length, 1);
+    assert.strictEqual(validStartCalls.length, 1);
     assert.ok(pollCalls.length >= 1);
-    const startBody = JSON.parse(startCalls[0].body);
+    if (USE_REAL_HELPER) {
+      const rejectedStatus = await page.evaluate(
+        async ({ helperBaseUrl, operationId }) => {
+          const response = await fetch(`${helperBaseUrl}/operations/${operationId}`, {
+            method: 'GET',
+            headers: {
+              'X-TowerScout-Operation-Authorization': 'invalid-status-authorization'
+            }
+          });
+          return { status: response.status, payload: await response.json() };
+        },
+        {
+          helperBaseUrl: HELPER_BASE_URL,
+          operationId: result.status.operation_id
+        }
+      );
+      assert.strictEqual(rejectedStatus.status, 401);
+      assert.strictEqual(
+        rejectedStatus.payload.state,
+        'rejected_operation_authorization'
+      );
+    }
+    const startBody = JSON.parse(validStartCalls[0].body);
     assert.deepStrictEqual(Object.keys(startBody).sort(), [
       'confirmation',
       'operation_authorization',

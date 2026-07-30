@@ -8,6 +8,17 @@ const url = require('url');
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5001;
 const APP_PORT = process.env.APP_PORT ? parseInt(process.env.APP_PORT, 10) : 5000;
+const allowedOrigins = new Set([
+  `http://localhost:${APP_PORT}`,
+  `http://127.0.0.1:${APP_PORT}`
+]);
+const allowedStartAuthorizations = new Set([
+  `TEST_LOCALHOST_${'L'.repeat(32)}`,
+  `TEST_LOOPBACK_${'R'.repeat(32)}`
+]);
+const allowedProbeAuthorizations = new Set([
+  `PROBE_${'Y'.repeat(40)}`
+]);
 
 const ops = {}; // operation_id -> { polls, state, provider }
 const tokenToOp = {}; // operation_authorization -> operation_id
@@ -80,6 +91,10 @@ const server = http.createServer(async (req, res) => {
   const origin = req.headers['origin'] || null;
   const ip = req.socket.remoteAddress || 'unknown';
 
+  if (origin && !allowedOrigins.has(origin)) {
+    return sendJSON(res, 403, { state: 'rejected_origin' });
+  }
+
   // Basic rate limiting
   if (parsed.pathname !== '/health' && !checkRate(ip)) {
     return sendJSON(res, 429, { message: 'rate_limited' }, origin);
@@ -100,6 +115,15 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && parsed.pathname === '/health') {
+    if (
+      !allowedProbeAuthorizations.has(
+        req.headers['x-towerscout-operation-authorization']
+      )
+    ) {
+      return sendJSON(res, 401, {
+        state: 'rejected_operation_authorization'
+      }, origin);
+    }
     return sendJSON(res, 200, runtimeProfile(), origin);
   }
 
@@ -131,8 +155,11 @@ const server = http.createServer(async (req, res) => {
     }
 
     const op_auth = data.operation_authorization;
-    if (typeof op_auth !== 'string' || !/^[A-Za-z0-9_-]{32,128}$/.test(op_auth)) {
-      return sendJSON(res, 400, { state: 'rejected_operation_authorization', message: 'Invalid operation_authorization token' }, origin);
+    if (
+      typeof op_auth !== 'string' ||
+      !allowedStartAuthorizations.has(op_auth)
+    ) {
+      return sendJSON(res, 401, { state: 'rejected_operation_authorization', message: 'Invalid operation_authorization token' }, origin);
     }
 
     // Idempotency: if token was seen, return existing operation
@@ -155,14 +182,20 @@ const server = http.createServer(async (req, res) => {
           operation_type: 'provider_tls_repair',
           scope: 'operation_status',
           expires_at: '2999-01-01T00:00:00Z',
-          authorization: 'simulated-status-authorization'
+          authorization: op.statusAuthorization
         }
       }, origin);
     }
 
     const operation_id = randomBytes(16).toString('hex');
     tokenToOp[op_auth] = operation_id;
-    ops[operation_id] = { polls: 0, state: 'planned', provider };
+    const statusAuthorization = randomBytes(32).toString('base64url');
+    ops[operation_id] = {
+      polls: 0,
+      state: 'planned',
+      provider,
+      statusAuthorization
+    };
 
     return sendJSON(res, 202, {
       operation_id,
@@ -180,7 +213,7 @@ const server = http.createServer(async (req, res) => {
         operation_type: 'provider_tls_repair',
         scope: 'operation_status',
         expires_at: '2999-01-01T00:00:00Z',
-        authorization: 'simulated-status-authorization'
+        authorization: statusAuthorization
       }
     }, origin);
   }
@@ -194,6 +227,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     const op = ops[opId];
+    if (
+      req.headers['x-towerscout-operation-authorization'] !==
+      op.statusAuthorization
+    ) {
+      return sendJSON(res, 401, {
+        state: 'rejected_operation_authorization'
+      }, origin);
+    }
     op.polls += 1;
     if (op.polls === 1) {
       op.state = 'active';

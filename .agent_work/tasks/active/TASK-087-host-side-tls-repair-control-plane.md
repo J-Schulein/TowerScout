@@ -1,10 +1,12 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - PR #63 Phase 1 re-review hardening is implemented;
-repeatable Windows launcher and isolated Docker/Edge reruns are blocked by the
-current endpoint's Defender/AMSI helper-load policy.
-Release-facing TLS mutation, UAC/certificate, Chrome/Firefox, sleep/resume,
-live release-package, Podman/GPU, and managed-network gates remain closed
+**Status**: IN_PROGRESS - PR #63 additional reviewer corrections are
+implemented and locally validated; focused contracts and isolated Docker/Edge
+restart validation pass. The PR remains draft pending independent CI and
+re-review. A Windows CI lane now covers helper behavior that this endpoint's
+Defender/AMSI policy still blocks locally. Release-facing TLS mutation,
+UAC/certificate, Chrome/Firefox, live release-package, Podman/GPU,
+sleep/resume, and managed-network gates remain closed
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: 4-7 days (32-56 hours), plus package validation on a managed TLS-inspected network
@@ -1148,6 +1150,147 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-30 - PR #63 Additional Reviewer Corrections And Live Rerun
+
+**Objective**: Investigate the additional review against `1742186`, implement
+every accepted correction without enabling mutation, and complete the paused
+isolated Docker/Edge validation before commit preparation.
+
+**Decision**: Accept the live ACL, heartbeat/request-deadline, controlled
+restart, token-issuance, terminal recovery, readiness, malformed-status,
+rate-limit, clock-skew, fixed-time comparison, JSON retry, worker supervision,
+simulated-auth, Windows CI, artifact, token-replay-test, timing-test, process
+race, and frontend timeout/error findings. Keep the durable-token replay
+behavior, serialized atomic operation lock, continued uncertain polling, and
+wizard-close polling behavior unchanged where review did not establish a safe
+production defect or a safer bounded replacement.
+
+**Execution**:
+
+- Made ACL protection compatible with Windows PowerShell and PowerShell 7;
+  added a total request-read deadline, listener heartbeat recovery after
+  sleep/resume, worker-side session re-verification, five-minute bounded clock
+  skew, fixed-time durable-token comparison, JSON parse retry under stop error
+  preference, exact worker PID/start-time supervision, and benign
+  process-exit-race handling.
+- Marked both controlled stop and start, and made nested controlled launch skip
+  helper reinitialization so the worker cannot remove its supervisor.
+- Restricted start authorization to explicit provider-validation/save POST
+  paths; unauthenticated TLS-status GET remains probe-only. Removed untrusted
+  forwarding-header use and bounded/serialized the in-memory rate limiter.
+- Restored same-provider terminal recovery, validated start/status descriptors
+  before state mutation, added bounded readiness retry, continued low-frequency
+  polling after the uncertainty threshold, preserved request timeouts through
+  response-body reads and caller abort signals, added error-specific start
+  guidance, and handled stored-operation resume rejection.
+- Enforced exact probe/start/status authentication and allowed origins in the
+  simulated helper, used distinct localhost/loopback start tokens, added
+  negative-auth e2e checks, retained artifacts on failure, and added a pinned
+  `windows-latest` helper-contract job.
+- Fixed live-harness issues found during validation: synchronized the Edge
+  observer process before reading its exit code, emitted only sanitized failure
+  classes, and derived expected runtime port from the tested web origin.
+
+**Validation**:
+
+- PASS: two review audits, Python/JavaScript/PowerShell parsers, workflow YAML,
+  `git diff --check`, and deterministic bundle rebuild after normalizing the
+  generated build timestamp.
+- PASS: Setup Wizard validation, API-helper body-timeout/caller-abort, and Edge
+  observer configuration contracts.
+- PASS: host-helper bridge and bounded rate-limiter tests; the two corrected
+  source/JSON helper tests also pass.
+- PASS: all three new Flask security/issuance tests. The complete Flask route
+  run reached 62 passing tests before six unrelated archive fixtures hit this
+  endpoint's inaccessible pytest temp root.
+- HOST POLICY LIMITATION: dynamic helper-library tests continue to stop at
+  `ScriptContainedMaliciousContent`; they do not reach code assertions. The new
+  Windows CI job runs the focused helper file and self-test on an independent
+  runner.
+- PASS: the isolated `towerscout-task087-pr63-rereview` Edge run observed the
+  exact container stop/restart, preserved `setup_required` and same-origin
+  `sessionStorage`, and validated the alternate loopback origin.
+- PASS: authenticated simulated-helper POST/poll e2e passed from both
+  `localhost` and `127.0.0.1`, including invalid probe/start/status rejection
+  and origin-distinct fresh operations.
+- PASS: the dedicated container, network, named volumes, browser profile,
+  signals, and test processes were removed. The unrelated `extracted-cpu`
+  project remained running and healthy.
+- PASS: all production mutation gates and review opt-in default remain false.
+
+**Next**: Monitor the pushed checkpoint's CI and obtain focused re-review.
+Keep remaining activation and candidate-inclusion gates explicit.
+
+### 2026-07-30 - PR #63 Interrupted Re-review Correction Recovery
+
+**Objective**: Reconstruct the uncommitted PR #63 correction pass after the
+weekly usage-limit interruption, complete every safe non-runtime validation,
+and preserve an exact handoff for the remaining live run.
+
+**Context**: The isolated Task-087 worktree remained at pushed commit
+`1742186` with five modified files. The interrupted pass had accepted the
+reviewer's exact-process, late-start-test, launcher-matrix, and Docker/Edge
+cleanup findings. Live Docker validation stopped after its first attempt
+exposed a Windows Docker Go-template quoting defect; that defect had been
+replaced with JSON inspection but not rerun.
+
+**Decision**: Keep PR #63 draft and every mutation gate false. Make process
+termination a verified result, test the actual launcher runtime function
+without loading the endpoint-blocked helper library, make the isolated browser
+harness transactional, and do not claim the Docker rerun until Docker Desktop
+is available again.
+
+**Execution**:
+
+- Changed helper process-tree cleanup to capture native `taskkill` status,
+  attempt the managed fallback when necessary, verify the boolean
+  `WaitForExit` result, and throw when strict cleanup cannot confirm exit.
+  Launcher-owned helper cleanup and controlled-operation timeout/cancellation
+  use strict mode; exact session and bridge state are cleared both before and
+  after termination to cover late publication.
+- Reworked the late-start fixture to use production-equivalent argument
+  quoting, require the child to publish its exact PID before the launcher
+  readiness deadline begins, keep the child alive long enough to require
+  cleanup, and assert process exit plus zero session/token/operation state.
+  Added a taskkill-failure test that requires verified managed fallback.
+- Extracted the real protected launcher lifecycle into
+  `Invoke-TowerScoutLaunchRuntime`. Dot-sourced tests can define the real
+  launcher function without loading runtime libraries, while normal execution
+  loads the same libraries before preflight. Added a deterministic matrix for
+  Compose nonzero, Compose exception, fatal readiness, timeout, browser-open
+  failure, and success.
+- Hardened the isolated Docker/Edge harness to parse Docker inspection JSON,
+  retain restoration responsibility until the same container is verified
+  running, surface cleanup failures, restore review-only environment values,
+  use a GUID-scoped Edge profile, record the exact Edge PID, terminate verified
+  Node and Edge process trees, and remove only its exact temporary resources.
+
+**Validation**:
+
+- PASS: PowerShell parser checks for all three touched PowerShell files.
+- PASS: Edge observer JavaScript syntax and constrained-URL self-test.
+- PASS: Python bytecode compilation and `git diff --check`.
+- PASS: four focused source/driver/real-launcher-matrix tests.
+- PASS: practical helper bridge, release-package, source-contract, and
+  real-launcher-matrix set, 17 passed with 19 endpoint-dependent tests
+  deselected.
+- BLOCKED BY HOST POLICY: the late-start and taskkill-fallback dynamic tests
+  both stop at helper-library load with
+  `ScriptContainedMaliciousContent`, matching the pre-existing Defender/AMSI
+  blocker rather than reaching a code assertion.
+- PAUSED BY RUNTIME AVAILABILITY: Docker Desktop was no longer running after
+  the interruption. The previously created isolated
+  `towerscout-task087-pr63-rereview` project must be inventoried, rerun, and
+  removed when Docker Desktop is restarted. No unrelated project is in scope.
+- PASS: backend capability false, helper execution default false, frontend
+  browser mutation false, and review opt-in default `0` were reverified.
+
+**Next**: Start Docker Desktop, rerun the isolated Edge stop/restart driver,
+verify same-container restoration and no Node/Edge/temp-profile residue, then
+remove only the dedicated project. Incorporate any additional reviewer
+findings against `1742186` before final diff review, commit, push, and PR
+evidence update.
 
 ### 2026-07-28 - PR #63 Phase 1 Re-review Hardening
 

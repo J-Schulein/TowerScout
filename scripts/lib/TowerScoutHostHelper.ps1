@@ -21,7 +21,7 @@ $script:TowerScoutHostHelperOperationAuthorizationPattern = "^(?:[A-Za-z0-9_-]{3
 $script:TowerScoutHostHelperSignedAuthorizationPattern = "^v1\.[A-Za-z0-9_-]{80,768}\.[A-Za-z0-9_-]{43}$"
 $script:TowerScoutHostHelperBrowserAuthorizationAudience = "towerscout-host-helper"
 $script:TowerScoutHostHelperBrowserAuthorizationMaxTtlSeconds = 900
-$script:TowerScoutHostHelperBrowserAuthorizationClockSkewSeconds = 30
+$script:TowerScoutHostHelperBrowserAuthorizationClockSkewSeconds = 300
 $script:TowerScoutHostHelperExecutionEnabledByDefault = $false
 $script:TowerScoutHostHelperLaunchReadinessTimeoutSeconds = 180
 $script:TowerScoutHostHelperStartTimeoutHeadroomSeconds = 60
@@ -91,6 +91,19 @@ function Test-TowerScoutHostHelperFixedTimeEquals {
         $difference = $difference -bor ($Expected[$index] -bxor $Actual[$index])
     }
     return $difference -eq 0
+}
+
+function Test-TowerScoutHostHelperFixedTimeStringEquals {
+    param(
+        [string] $Expected = "",
+
+        [string] $Actual = ""
+    )
+
+    $encoding = [System.Text.Encoding]::UTF8
+    return Test-TowerScoutHostHelperFixedTimeEquals `
+        -Expected $encoding.GetBytes($Expected) `
+        -Actual $encoding.GetBytes($Actual)
 }
 
 function Resolve-TowerScoutHostHelperBrowserAuthorization {
@@ -196,7 +209,11 @@ function Resolve-TowerScoutHostHelperBrowserAuthorization {
         if ($issuedAt -gt ($now + $script:TowerScoutHostHelperBrowserAuthorizationClockSkewSeconds)) {
             return $rejected
         }
-        if ($expiresAt -le $now) {
+        if (
+            $expiresAt -le (
+                $now - $script:TowerScoutHostHelperBrowserAuthorizationClockSkewSeconds
+            )
+        ) {
             return [pscustomobject]@{
                 Accepted = $false
                 State = "rejected_expired_authorization"
@@ -444,12 +461,10 @@ function Protect-TowerScoutHostHelperStatePath {
         $security.AddAccessRule($rule)
     }
 
-    if ($Directory) {
-        [System.IO.Directory]::SetAccessControl($Path, $security)
-    }
-    else {
-        [System.IO.File]::SetAccessControl($Path, $security)
-    }
+    # Set-Acl remains available in both Windows PowerShell 5.1 and PowerShell 7.
+    # The static System.IO SetAccessControl methods are not exposed by every
+    # .NET runtime used by pwsh.
+    Set-Acl -LiteralPath $Path -AclObject $security -ErrorAction Stop
 }
 
 function Initialize-TowerScoutHostHelperStateDirectory {
@@ -968,11 +983,20 @@ function Stop-TowerScoutHostHelperReviewSession {
         [System.Diagnostics.Process] $Process = $null
     )
 
-    if ($null -ne $Process) {
-        Stop-TowerScoutHostHelperProcessTree -Process $Process
-    }
     Clear-TowerScoutHostHelperSession -RootPath $RootPath -SessionId $SessionId | Out-Null
     Clear-TowerScoutHostHelperBridgeEnvironment
+    try {
+        if ($null -ne $Process) {
+            Stop-TowerScoutHostHelperProcessTree -Process $Process -RequireExit | Out-Null
+        }
+    }
+    finally {
+        # A late-starting helper can publish state between cooperative
+        # invalidation and verified process exit, so clear the exact session
+        # again after the termination attempt.
+        Clear-TowerScoutHostHelperSession -RootPath $RootPath -SessionId $SessionId | Out-Null
+        Clear-TowerScoutHostHelperBridgeEnvironment
+    }
 }
 
 function Initialize-TowerScoutHostHelperReviewSession {
@@ -1039,15 +1063,23 @@ function Initialize-TowerScoutHostHelperReviewSession {
                 -RootPath $RootPath `
                 -AppPort $AppPort)
         ) {
-            $env:TOWERSCOUT_HOST_HELPER_ENABLED = "1"
-            $env:TOWERSCOUT_HOST_HELPER_PORT = [string] (
-                Get-TowerScoutHostHelperObjectValue -InputObject $existingMetadata -Name "helper_port"
-            )
-            Write-Host "Reusing the active TowerScout host helper review session."
-            return [pscustomobject]@{
-                SessionId = $existingSessionId
-                Process = Get-Process -Id $existingProcessId -ErrorAction Stop
-                StartedNewProcess = $false
+            # The process can exit after the authenticated liveness probe. If
+            # that happens, fall through to exact stale-session cleanup and a
+            # new helper instead of aborting the launcher.
+            $existingProcess = Get-Process `
+                -Id $existingProcessId `
+                -ErrorAction SilentlyContinue
+            if ($null -ne $existingProcess) {
+                $env:TOWERSCOUT_HOST_HELPER_ENABLED = "1"
+                $env:TOWERSCOUT_HOST_HELPER_PORT = [string] (
+                    Get-TowerScoutHostHelperObjectValue -InputObject $existingMetadata -Name "helper_port"
+                )
+                Write-Host "Reusing the active TowerScout host helper review session."
+                return [pscustomobject]@{
+                    SessionId = $existingSessionId
+                    Process = $existingProcess
+                    StartedNewProcess = $false
+                }
             }
         }
     }
@@ -1119,21 +1151,35 @@ function Initialize-TowerScoutHostHelperReviewSession {
         throw "The TowerScout host helper review session did not become ready."
     }
     catch {
-        Stop-TowerScoutHostHelperReviewSession `
-            -RootPath $RootPath `
-            -SessionId $sessionId `
-            -Process $helperProcess
-        if ($null -ne $helperProcess) {
-            $helperProcess.Dispose()
+        $initializationError = $_
+        $cleanupError = $null
+        try {
+            Stop-TowerScoutHostHelperReviewSession `
+                -RootPath $RootPath `
+                -SessionId $sessionId `
+                -Process $helperProcess
         }
-        throw
+        catch {
+            $cleanupError = $_
+        }
+        finally {
+            if ($null -ne $helperProcess) {
+                $helperProcess.Dispose()
+            }
+        }
+        if ($null -ne $cleanupError) {
+            throw $cleanupError
+        }
+        throw $initializationError
     }
 }
 
 function Test-TowerScoutHostHelperSessionActive {
     param(
         [Parameter(Mandatory = $true)]
-        [object] $Profile
+        [object] $Profile,
+
+        [switch] $IgnoreHeartbeatStaleness
     )
 
     $sessionPath = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "SessionPath"
@@ -1182,8 +1228,11 @@ function Test-TowerScoutHostHelperSessionActive {
         $nowUtc = (Get-Date).ToUniversalTime()
         if (
             $leaseExpiresAtUtc.ToUniversalTime() -le $nowUtc -or
-            $lastHeartbeatUtc.ToUniversalTime() -lt
+            (
+                -not $IgnoreHeartbeatStaleness -and
+                $lastHeartbeatUtc.ToUniversalTime() -lt
                 $nowUtc.AddSeconds(-$script:TowerScoutHostHelperHeartbeatStaleSeconds)
+            )
         ) {
             return $false
         }
@@ -1797,6 +1846,104 @@ function Get-TowerScoutHostHelperOperationStatusPath {
     return (Join-Path $stateDirectory ("operation-status-{0}.json" -f $normalizedOperationId))
 }
 
+function Get-TowerScoutHostHelperOperationWorkerPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [string] $OperationId
+    )
+
+    $packageRoot = Get-TowerScoutHostHelperObjectValue -InputObject $Profile -Name "PackageRoot"
+    $stateDirectory = Initialize-TowerScoutHostHelperStateDirectory -RootPath $packageRoot
+    $normalizedOperationId = Resolve-TowerScoutHostHelperSessionId -SessionId $OperationId
+    return (Join-Path $stateDirectory ("operation-worker-{0}.json" -f $normalizedOperationId))
+}
+
+function Save-TowerScoutHostHelperOperationWorkerIdentity {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [string] $OperationId,
+
+        [Parameter(Mandatory = $true)]
+        [System.Diagnostics.Process] $Process
+    )
+
+    $workerPath = Get-TowerScoutHostHelperOperationWorkerPath `
+        -Profile $Profile `
+        -OperationId $OperationId
+    $identity = [pscustomobject]@{
+        operation_id = Resolve-TowerScoutHostHelperSessionId -SessionId $OperationId
+        process_id = [int] $Process.Id
+        process_start_time_utc = $Process.StartTime.ToUniversalTime().ToString("o")
+    }
+    Write-TowerScoutHostHelperJsonAtomic -Path $workerPath -Value $identity
+    return $workerPath
+}
+
+function Test-TowerScoutHostHelperOperationWorkerActive {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [string] $OperationId
+    )
+
+    $workerPath = Get-TowerScoutHostHelperOperationWorkerPath `
+        -Profile $Profile `
+        -OperationId $OperationId
+    if (-not (Test-Path -LiteralPath $workerPath -PathType Leaf)) {
+        return $null
+    }
+    $identity = Get-TowerScoutHostHelperJsonDocument -Path $workerPath
+    [int] $processId = 0
+    [datetime] $expectedStartUtc = [datetime]::MinValue
+    if (
+        $null -eq $identity -or
+        -not [int]::TryParse(
+            (Get-TowerScoutHostHelperObjectValue -InputObject $identity -Name "process_id"),
+            [ref] $processId
+        ) -or
+        -not [datetime]::TryParse(
+            (Get-TowerScoutHostHelperObjectValue -InputObject $identity -Name "process_start_time_utc"),
+            [ref] $expectedStartUtc
+        )
+    ) {
+        return $false
+    }
+    try {
+        $process = Get-Process -Id $processId -ErrorAction Stop
+        return (
+            [Math]::Abs(
+                ($process.StartTime.ToUniversalTime() - $expectedStartUtc.ToUniversalTime()).TotalSeconds
+            ) -le 2
+        )
+    }
+    catch {
+        return $false
+    }
+}
+
+function Clear-TowerScoutHostHelperOperationWorkerIdentity {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object] $Profile,
+
+        [Parameter(Mandatory = $true)]
+        [string] $OperationId
+    )
+
+    $workerPath = Get-TowerScoutHostHelperOperationWorkerPath `
+        -Profile $Profile `
+        -OperationId $OperationId
+    Remove-Item -LiteralPath $workerPath -Force -ErrorAction SilentlyContinue
+}
+
 function Get-TowerScoutHostHelperOperationStatusRecord {
     param(
         [Parameter(Mandatory = $true)]
@@ -2097,6 +2244,36 @@ function Get-TowerScoutHostHelperOperationStatus {
         -Record $lock `
         -OperationId $normalizedOperationId
     if ($null -eq $publicStatus) {
+        [bool] $terminal = $false
+        [bool]::TryParse(
+            (Get-TowerScoutHostHelperObjectValue -InputObject $lock -Name "terminal"),
+            [ref] $terminal
+        ) | Out-Null
+        [bool] $executionEnabled = $false
+        [bool]::TryParse(
+            (Get-TowerScoutHostHelperObjectValue -InputObject $lock -Name "execution_enabled"),
+            [ref] $executionEnabled
+        ) | Out-Null
+        $workerActive = Test-TowerScoutHostHelperOperationWorkerActive `
+            -Profile $Profile `
+            -OperationId $normalizedOperationId
+        if (-not $terminal -and $executionEnabled -and $workerActive -eq $false) {
+            try {
+                $publicStatus = Set-TowerScoutHostHelperOperationLockState `
+                    -Profile $Profile `
+                    -OperationId $normalizedOperationId `
+                    -State "runtime_start_failed" `
+                    -Step "worker_exit" `
+                    -ExecutionEnabled:$true
+            }
+            catch {
+                $lock = Get-TowerScoutHostHelperOperationStatusRecord `
+                    -Profile $Profile `
+                    -OperationId $normalizedOperationId
+            }
+        }
+    }
+    if ($null -eq $publicStatus) {
         $publicStatus = ConvertTo-TowerScoutHostHelperOperationStatusFromLock -Lock $lock
     }
     return New-TowerScoutHostHelperHttpResult `
@@ -2291,7 +2468,10 @@ function Resolve-TowerScoutHostHelperControlledCommand {
     $scriptPath = Resolve-TowerScoutHostHelperPackageCommandPath -Profile $Profile -RelativeScriptPath $expectedScript
     $interpreterPath = Get-TowerScoutHostHelperBatchInterpreterPath
     $environmentVariables = @{}
-    if ([string]::Equals($Step, "stop", [System.StringComparison]::Ordinal)) {
+    if ($Step -in @("stop", "start")) {
+        # The controlled stop/start sequence must preserve its supervising
+        # helper. Both wrappers can otherwise re-enter normal launcher cleanup
+        # through inherited review-session environment values.
         $environmentVariables["TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION"] = "1"
     }
 
@@ -2387,17 +2567,30 @@ function Stop-TowerScoutHostHelperProcessTree {
         [Parameter(Mandatory = $true)]
         [System.Diagnostics.Process] $Process,
 
-        [int] $CleanupTimeoutMs = $script:TowerScoutHostHelperProcessTreeCleanupTimeoutMs
+        [int] $CleanupTimeoutMs = $script:TowerScoutHostHelperProcessTreeCleanupTimeoutMs,
+
+        [switch] $RequireExit
     )
 
-    if ($Process.HasExited) {
-        return
+    if ($CleanupTimeoutMs -lt 1) {
+        throw "CleanupTimeoutMs must be at least 1."
     }
 
+    if ($Process.HasExited) {
+        return [pscustomobject]@{
+            Exited = $true
+            TaskkillExitCode = $null
+            FallbackAttempted = $false
+        }
+    }
+
+    $taskkillExitCode = $null
+    $fallbackAttempted = $false
     try {
         if ($env:OS -eq "Windows_NT") {
             $taskkillPath = Get-TowerScoutHostHelperTaskkillPath
             & $taskkillPath /PID $Process.Id /T /F 2>$null | Out-Null
+            $taskkillExitCode = $LASTEXITCODE
         }
         else {
             try {
@@ -2409,19 +2602,55 @@ function Stop-TowerScoutHostHelperProcessTree {
         }
     }
     catch {
+        $fallbackAttempted = $true
+    }
+
+    try {
+        $Process.Refresh()
+    }
+    catch {
+        # The final exit check below is authoritative.
+    }
+    if (
+        -not $Process.HasExited -and
+        ($fallbackAttempted -or $env:OS -eq "Windows_NT")
+    ) {
+        $fallbackAttempted = $true
         try {
             $Process.Kill()
         }
         catch {
-            # Best effort cleanup; public state remains operation_timeout.
+            # The verified wait below decides whether cleanup succeeded.
         }
     }
 
+    $exited = $Process.HasExited
     try {
-        $Process.WaitForExit($CleanupTimeoutMs) | Out-Null
+        if (-not $exited) {
+            $exited = $Process.WaitForExit($CleanupTimeoutMs)
+        }
     }
     catch {
-        # Best effort cleanup; public state remains operation_timeout.
+        $exited = $false
+    }
+    if (-not $exited) {
+        try {
+            $Process.Refresh()
+            $exited = $Process.HasExited
+        }
+        catch {
+            $exited = $false
+        }
+    }
+
+    if ($RequireExit -and -not $exited) {
+        throw "The TowerScout host helper process tree did not exit within the cleanup timeout."
+    }
+
+    return [pscustomobject]@{
+        Exited = [bool] $exited
+        TaskkillExitCode = $taskkillExitCode
+        FallbackAttempted = [bool] $fallbackAttempted
     }
 }
 
@@ -2490,8 +2719,26 @@ function Invoke-TowerScoutHostHelperProcessCommand {
     $cancelled = $false
     while (-not $process.WaitForExit(250)) {
         if ($null -ne $Profile -and -not (Test-TowerScoutHostHelperSessionActive -Profile $Profile)) {
-            $cancelled = $true
-            break
+            # A host sleep/resume or bounded request read can temporarily age
+            # the listener heartbeat. Give the listener one full request
+            # deadline to refresh before terminating a restart command.
+            $sessionRecoveryDeadline = (Get-Date).AddMilliseconds(
+                $script:TowerScoutHostHelperReadTimeoutMs + 1000
+            )
+            while (
+                -not $process.HasExited -and
+                (Get-Date) -lt $sessionRecoveryDeadline -and
+                -not (Test-TowerScoutHostHelperSessionActive -Profile $Profile)
+            ) {
+                Start-Sleep -Milliseconds 250
+            }
+            if (
+                -not $process.HasExited -and
+                -not (Test-TowerScoutHostHelperSessionActive -Profile $Profile)
+            ) {
+                $cancelled = $true
+                break
+            }
         }
         if ((Get-Date) -ge $deadline) {
             $timedOut = $true
@@ -2499,7 +2746,13 @@ function Invoke-TowerScoutHostHelperProcessCommand {
         }
     }
     if ($timedOut -or $cancelled) {
-        Stop-TowerScoutHostHelperProcessTree -Process $process
+        try {
+            Stop-TowerScoutHostHelperProcessTree -Process $process -RequireExit | Out-Null
+        }
+        catch {
+            $process.Dispose()
+            throw
+        }
     }
     else {
         $process.WaitForExit()
@@ -2579,6 +2832,9 @@ function Set-TowerScoutHostHelperOperationLockState {
         ) {
             Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
         }
+        Clear-TowerScoutHostHelperOperationWorkerIdentity `
+            -Profile $Profile `
+            -OperationId $OperationId
     }
     else {
         Write-TowerScoutHostHelperJsonAtomic -Path $lockPath -Value $lock
@@ -2849,9 +3105,20 @@ function Start-TowerScoutHostHelperOperationWorker {
     if (-not $process.Start()) {
         throw "The fixed TowerScout host-helper worker could not be started."
     }
-    $workerProcessId = $process.Id
-    $process.Dispose()
-    return $workerProcessId
+    try {
+        Save-TowerScoutHostHelperOperationWorkerIdentity `
+            -Profile $Profile `
+            -OperationId ([string] $Plan.OperationId) `
+            -Process $process | Out-Null
+        return $process.Id
+    }
+    catch {
+        Stop-TowerScoutHostHelperProcessTree -Process $process -RequireExit | Out-Null
+        throw
+    }
+    finally {
+        $process.Dispose()
+    }
 }
 
 function New-TowerScoutProviderTlsRepairOperationPlanResponse {
@@ -3096,11 +3363,32 @@ function Test-TowerScoutHostHelperMethodAllowed {
 function Read-TowerScoutHostHelperRequest {
     param(
         [Parameter(Mandatory = $true)]
-        [System.IO.Stream] $Stream
+        [System.IO.Stream] $Stream,
+
+        [datetime] $DeadlineUtc = (
+            (Get-Date).ToUniversalTime().AddMilliseconds(
+                $script:TowerScoutHostHelperReadTimeoutMs
+            )
+        )
     )
 
     $headerStream = New-Object System.IO.MemoryStream
     while ($true) {
+        $remainingMilliseconds = [int] [Math]::Ceiling(
+            ($DeadlineUtc - (Get-Date).ToUniversalTime()).TotalMilliseconds
+        )
+        if ($remainingMilliseconds -le 0) {
+            throw "The helper request exceeded its total read deadline."
+        }
+        if ($Stream.CanTimeout) {
+            $Stream.ReadTimeout = [Math]::Max(
+                1,
+                [Math]::Min(
+                    $script:TowerScoutHostHelperReadTimeoutMs,
+                    $remainingMilliseconds
+                )
+            )
+        }
         $value = $Stream.ReadByte()
         if ($value -lt 0) {
             throw "The helper request headers ended early."
@@ -3185,6 +3473,21 @@ function Read-TowerScoutHostHelperRequest {
             $buffer = New-Object byte[] $contentLength
             $totalRead = 0
             while ($totalRead -lt $contentLength) {
+                $remainingMilliseconds = [int] [Math]::Ceiling(
+                    ($DeadlineUtc - (Get-Date).ToUniversalTime()).TotalMilliseconds
+                )
+                if ($remainingMilliseconds -le 0) {
+                    throw "The helper request exceeded its total read deadline."
+                }
+                if ($Stream.CanTimeout) {
+                    $Stream.ReadTimeout = [Math]::Max(
+                        1,
+                        [Math]::Min(
+                            $script:TowerScoutHostHelperReadTimeoutMs,
+                            $remainingMilliseconds
+                        )
+                    )
+                }
                 $read = $Stream.Read($buffer, $totalRead, $contentLength - $totalRead)
                 if ($read -le 0) {
                     throw "The helper request body ended early."
@@ -3358,7 +3661,9 @@ function Invoke-TowerScoutHostHelperRequest {
         $providedToken = [string] $request.Headers["x-towerscout-helper-token"]
         $durableTokenAuthorized = (
             -not [string]::IsNullOrWhiteSpace($providedToken) -and
-            [string]::Equals($providedToken, $Token, [System.StringComparison]::Ordinal)
+            (Test-TowerScoutHostHelperFixedTimeStringEquals `
+                -Expected $Token `
+                -Actual $providedToken)
         )
         $browserAuthorizationHeader = [string] $request.Headers["x-towerscout-operation-authorization"]
         if (-not [string]::IsNullOrWhiteSpace($providedToken) -and -not $durableTokenAuthorized) {
@@ -3590,7 +3895,12 @@ function Start-TowerScoutHostHelper {
         }
 
         $nextHeartbeat = (Get-Date)
-        while (($MaxRequests -eq 0 -or $handled -lt $MaxRequests) -and (Test-TowerScoutHostHelperSessionActive -Profile $Profile)) {
+        while (
+            ($MaxRequests -eq 0 -or $handled -lt $MaxRequests) -and
+            (Test-TowerScoutHostHelperSessionActive `
+                -Profile $Profile `
+                -IgnoreHeartbeatStaleness)
+        ) {
             if ((Get-Date) -ge $nextHeartbeat) {
                 if (-not (Update-TowerScoutHostHelperSessionHeartbeat -Profile $Profile)) {
                     if (-not (Test-TowerScoutHostHelperSessionActive -Profile $Profile)) {

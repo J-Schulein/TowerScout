@@ -22,6 +22,9 @@
   const PROVIDER_TLS_REPAIR_POLL_TIMEOUT_MS = 15 * 60 * 1000;
   const PROVIDER_TLS_REPAIR_REQUEST_TIMEOUT_MS = 5000;
   const PROVIDER_TLS_REPAIR_MAX_RETRY_DELAY_MS = 10000;
+  const PROVIDER_TLS_REPAIR_AUTHORIZATION_CLOCK_SKEW_MS = 5 * 60 * 1000;
+  const PROVIDER_TLS_REPAIR_READINESS_MAX_ATTEMPTS = 6;
+  const PROVIDER_TLS_REPAIR_READINESS_MAX_RETRY_DELAY_MS = 5000;
   const PROVIDER_TLS_REPAIR_ALLOWED_START_BODY_FIELDS = Object.freeze([
     'provider',
     'confirmation',
@@ -269,6 +272,13 @@
       lastResult: normalized,
       lastFailure: normalized.valid ? null : normalized
     };
+    if (
+      providerTlsRepairOperationStatus &&
+      providerTlsRepairOperationStatus.terminal === true &&
+      providerTlsRepairOperationStatus.provider === provider
+    ) {
+      providerTlsRepairOperationStatus = null;
+    }
     renderProviderTlsRepairState();
     return normalized;
   }
@@ -287,12 +297,22 @@
         lastResult: null,
         lastFailure: null
       };
+      if (
+        providerTlsRepairOperationStatus &&
+        providerTlsRepairOperationStatus.terminal === true &&
+        providerTlsRepairOperationStatus.provider === provider
+      ) {
+        providerTlsRepairOperationStatus = null;
+      }
       renderProviderTlsRepairState();
     }
   }
 
   function resetProviderValidationState() {
     providerValidationState = createEmptyProviderValidationState();
+    if (!isProviderTlsRepairOperationActive(providerTlsRepairOperationStatus)) {
+      providerTlsRepairOperationStatus = null;
+    }
     renderProviderTlsRepairState();
   }
 
@@ -345,7 +365,7 @@
       return false;
     }
 
-    return expiresAtMs > now;
+    return expiresAtMs + PROVIDER_TLS_REPAIR_AUTHORIZATION_CLOCK_SKEW_MS > now;
   }
 
   function hasCurrentProviderTlsRepairCredential(credential, now = Date.now()) {
@@ -353,7 +373,10 @@
       return false;
     }
     const expiresAtMs = Date.parse(credential.expires_at);
-    return Number.isFinite(expiresAtMs) && expiresAtMs > now;
+    return (
+      Number.isFinite(expiresAtMs) &&
+      expiresAtMs + PROVIDER_TLS_REPAIR_AUTHORIZATION_CLOCK_SKEW_MS > now
+    );
   }
 
   function getPrivateProviderTlsRepairBridge(provider) {
@@ -860,8 +883,9 @@
     const deadline = Date.now() + PROVIDER_TLS_REPAIR_POLL_TIMEOUT_MS;
     let statusAuthorization = descriptor.status_authorization || null;
     let transientFailures = 0;
+    let unresolvedNotified = false;
 
-    while (Date.now() < deadline) {
+    while (true) {
       try {
         if (!hasCurrentProviderTlsRepairCredential(statusAuthorization)) {
           statusAuthorization = await requestProviderTlsRepairStatusAuthorization(descriptor);
@@ -882,7 +906,7 @@
           }
         }
 
-        const status = rememberProviderTlsRepairOperationStatus(payload);
+        const status = normalizeProviderTlsRepairOperationStatus(payload);
         if (
           !status ||
           status.operation_id !== descriptor.operation_id ||
@@ -890,6 +914,7 @@
         ) {
           throw new Error('Host repair returned an invalid status.');
         }
+        rememberProviderTlsRepairOperationStatus(status);
         if (status.terminal) {
           clearStoredProviderTlsRepairOperation(descriptor.operation_id);
           return status;
@@ -936,34 +961,41 @@
         }
       }
 
+      if (Date.now() >= deadline && !unresolvedNotified) {
+        unresolvedNotified = true;
+        const uncertain = {
+          state: 'status_unavailable',
+          operation_id: descriptor.operation_id,
+          operation_type: 'provider_tls_repair',
+          provider: descriptor.provider,
+          accepted: true,
+          existing_operation: true,
+          execution_enabled: true,
+          current_step: 'awaiting_status',
+          classification: 'active',
+          terminal: false,
+          next_action: 'poll_existing_operation'
+        };
+        rememberProviderTlsRepairOperationStatus(uncertain);
+        TowerScoutErrorHandler.showUserNotification(
+          'Host TLS repair is still unresolved. TowerScout will continue low-frequency authenticated status checks; do not run the command fallback until the helper reports a terminal result or the operation is confirmed gone.',
+          'info'
+        );
+      }
+
       const retryDelay = transientFailures > 0
         ? Math.min(
           PROVIDER_TLS_REPAIR_POLL_INTERVAL_MS * (2 ** Math.min(transientFailures - 1, 4)),
           PROVIDER_TLS_REPAIR_MAX_RETRY_DELAY_MS
         )
         : PROVIDER_TLS_REPAIR_POLL_INTERVAL_MS;
-      await new Promise(resolve => window.setTimeout(resolve, retryDelay));
+      await new Promise(resolve => window.setTimeout(
+        resolve,
+        unresolvedNotified
+          ? Math.max(retryDelay, PROVIDER_TLS_REPAIR_MAX_RETRY_DELAY_MS)
+          : retryDelay
+      ));
     }
-
-    const uncertain = {
-      state: 'status_unavailable',
-      operation_id: descriptor.operation_id,
-      operation_type: 'provider_tls_repair',
-      provider: descriptor.provider,
-      accepted: true,
-      existing_operation: true,
-      execution_enabled: true,
-      current_step: 'awaiting_status',
-      classification: 'active',
-      terminal: false,
-      next_action: 'poll_existing_operation'
-    };
-    rememberProviderTlsRepairOperationStatus(uncertain);
-    TowerScoutErrorHandler.showUserNotification(
-      'Host TLS repair is still unresolved. Its recovery record was retained; do not run the command fallback until the helper reports a terminal result or the operation is confirmed gone.',
-      'info'
-    );
-    return uncertain;
   }
 
   function pollProviderTlsRepairOperation(descriptor) {
@@ -1137,6 +1169,25 @@
     }
   }
 
+  function getProviderTlsRepairStartErrorMessage(error) {
+    if (error && error.category === 'request_timeout') {
+      return 'Host TLS repair start timed out before TowerScout could confirm acceptance. TowerScout retained the recovery guard; wait for authenticated status before using the command fallback.';
+    }
+    if (error && error.status === 401) {
+      return 'Host TLS repair authorization was rejected or expired. Revalidate the provider to obtain a new authorization before retrying.';
+    }
+    if (error && error.status === 403) {
+      return 'The host TLS repair capability is not enabled for this runtime. Use the reviewed command fallback.';
+    }
+    if (error && error.status === 429) {
+      return 'Host TLS repair start is rate limited. Wait before revalidating and retrying; do not repeatedly submit the operation.';
+    }
+    if (error && error.message === 'Host repair did not return a valid operation.') {
+      return 'The host helper returned an invalid operation descriptor. TowerScout did not clear any active-operation guard; review helper status before retrying.';
+    }
+    return 'Host TLS repair start could not be confirmed after a bounded retry. Do not run the command fallback until the helper outcome is confirmed.';
+  }
+
   async function executeProviderTlsRepairStart(viewModel, request) {
     const bridge = getPrivateProviderTlsRepairBridge(viewModel.provider);
     const descriptorBase = {
@@ -1176,13 +1227,14 @@
         throw lastError || new Error('Host repair start outcome is unknown.');
       }
 
-      const status = rememberProviderTlsRepairOperationStatus(payload);
+      const status = normalizeProviderTlsRepairOperationStatus(payload);
       if (!status || !status.operation_id) {
         throw new Error('Host repair did not return a valid operation.');
       }
       if (!status.existing_operation && status.provider !== descriptorBase.provider) {
         throw new Error('Host repair returned an inconsistent provider descriptor.');
       }
+      rememberProviderTlsRepairOperationStatus(status);
 
       const descriptor = {
         ...descriptorBase,
@@ -1200,11 +1252,11 @@
       const terminalStatus = await pollProviderTlsRepairOperation(descriptor);
       await handleProviderTlsRepairTerminalStatus(terminalStatus);
       return terminalStatus;
-    } catch (_error) {
+    } catch (error) {
       providerTlsRepairStartInFlight = false;
       renderProviderTlsRepairState();
       TowerScoutErrorHandler.showUserNotification(
-        'Host TLS repair start could not be confirmed after a bounded retry. Do not run the command fallback until the helper outcome is confirmed.',
+        getProviderTlsRepairStartErrorMessage(error),
         'info'
       );
       return false;
@@ -1228,12 +1280,39 @@
     }
 
     try {
-      const readiness = await fetchJson('/api/readiness', {
-        cache: 'no-store',
-        timeoutMs: PROVIDER_TLS_REPAIR_REQUEST_TIMEOUT_MS
-      });
-      if (!readiness || !['setup_required', 'degraded', 'ready'].includes(readiness.state)) {
-        throw new Error('TowerScout readiness has not recovered yet.');
+      let readiness = null;
+      let readinessError = null;
+      for (
+        let attempt = 0;
+        attempt < PROVIDER_TLS_REPAIR_READINESS_MAX_ATTEMPTS;
+        attempt += 1
+      ) {
+        try {
+          readiness = await fetchJson('/api/readiness', {
+            cache: 'no-store',
+            timeoutMs: PROVIDER_TLS_REPAIR_REQUEST_TIMEOUT_MS
+          });
+          if (
+            readiness &&
+            ['setup_required', 'degraded', 'ready'].includes(readiness.state)
+          ) {
+            break;
+          }
+          readinessError = new Error('TowerScout readiness has not recovered yet.');
+        } catch (error) {
+          readinessError = error;
+        }
+        readiness = null;
+        if (attempt < PROVIDER_TLS_REPAIR_READINESS_MAX_ATTEMPTS - 1) {
+          const retryDelay = Math.min(
+            1000 * (2 ** attempt),
+            PROVIDER_TLS_REPAIR_READINESS_MAX_RETRY_DELAY_MS
+          );
+          await new Promise(resolve => window.setTimeout(resolve, retryDelay));
+        }
+      }
+      if (!readiness) {
+        throw readinessError || new Error('TowerScout readiness has not recovered yet.');
       }
       const provider = status.provider;
       const keyElement = document.getElementById(`wizard_${provider}_key`);
@@ -1640,7 +1719,16 @@
       if (window.needsSetup) {
         show();
       }
-      resumeStoredProviderTlsRepairOperation();
+      const resumedOperation = resumeStoredProviderTlsRepairOperation();
+      if (resumedOperation && typeof resumedOperation.catch === 'function') {
+        resumedOperation.catch(error => {
+          console.error('SetupWizard host repair resume failed:', error);
+          TowerScoutErrorHandler.showUserNotification(
+            'TowerScout could not resume host repair status automatically. Reload setup to retry authenticated status recovery.',
+            'info'
+          );
+        });
+      }
     } catch (error) {
       console.error('SetupWizard init failed:', error);
     }

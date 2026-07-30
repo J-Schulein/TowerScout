@@ -861,7 +861,7 @@ def _run_detection_request():
         return jsonify({'error': 'Tile limit for this session exceeded. Please close browser to continue.'}), 400
 
     start = time.time()
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    client_ip = _get_client_ip()
     if not rate_limiter.is_allowed(client_ip, max_requests=30, window_seconds=60):
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
@@ -1526,7 +1526,12 @@ def handle_towerscout_error(error):
     api_logger.error(f"TowerScout error: {error.message}", exc_info=True)
     payload = error.to_dict()
     if isinstance(error, NetworkError):
-        payload = ts_host_helper.enrich_provider_tls_repair_payload(payload)
+        payload = ts_host_helper.enrich_provider_tls_repair_payload(
+            payload,
+            include_start_authorization=(
+                request.endpoint == 'validate_api_key_endpoint'
+            ),
+        )
     response = jsonify(payload)
     if isinstance(error, ValidationError):
         response.status_code = 400
@@ -1916,7 +1921,10 @@ def get_providers():
 
 
 def _get_client_ip():
-    return request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', '127.0.0.1'))
+    # TowerScout is published directly on loopback and has no trusted reverse
+    # proxy in its supported runtime contract. Do not trust caller-controlled
+    # forwarding headers for security or rate-limiting decisions.
+    return request.remote_addr or '127.0.0.1'
 
 
 def _mask_key_preview(key: str) -> str:
@@ -1982,21 +1990,27 @@ def save_api_keys():
         try:
             validation_results['google'] = ts_config.validate_api_key('google', merged_google)
         except NetworkError as error:
-            validation_results['google'] = ts_host_helper.enrich_provider_tls_repair_payload({
-                **error.to_dict(),
-                'valid': False,
-                'provider': 'google',
-            })
+            validation_results['google'] = ts_host_helper.enrich_provider_tls_repair_payload(
+                {
+                    **error.to_dict(),
+                    'valid': False,
+                    'provider': 'google',
+                },
+                include_start_authorization=True,
+            )
 
     if merged_azure and not ts_config.is_placeholder(merged_azure):
         try:
             validation_results['azure'] = ts_config.validate_api_key('azure', merged_azure)
         except NetworkError as error:
-            validation_results['azure'] = ts_host_helper.enrich_provider_tls_repair_payload({
-                **error.to_dict(),
-                'valid': False,
-                'provider': 'azure',
-            })
+            validation_results['azure'] = ts_host_helper.enrich_provider_tls_repair_payload(
+                {
+                    **error.to_dict(),
+                    'valid': False,
+                    'provider': 'azure',
+                },
+                include_start_authorization=True,
+            )
 
     if not validation_results:
         return jsonify({
@@ -2188,7 +2202,7 @@ def forward_geocode():
     """Convert address to coordinates using available providers"""
     try:
         # Rate limiting check
-        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', '127.0.0.1'))
+        client_ip = _get_client_ip()
         if not rate_limiter.is_allowed(client_ip, max_requests=30, window_seconds=600):  # 10 minutes
             return jsonify({'error': 'Rate limit exceeded. Please wait before trying again.'}), 429
             
@@ -2238,7 +2252,7 @@ def reverse_geocode():
     """Convert coordinates to address using available providers"""
     try:
         # Rate limiting check
-        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', '127.0.0.1'))
+        client_ip = _get_client_ip()
         if not rate_limiter.is_allowed(client_ip, max_requests=30, window_seconds=600):  # 10 minutes
             return jsonify({'error': 'Rate limit exceeded. Please wait before trying again.'}), 429
             
@@ -2346,7 +2360,7 @@ def map_proxy(provider, service):
         config = MAP_PROXY_CONFIG[provider][service]
         
         # Rate limiting check with service-specific limits
-        client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', '127.0.0.1'))
+        client_ip = _get_client_ip()
         max_requests, window_seconds = config['rate_limit']
         if not rate_limiter.is_allowed(client_ip, max_requests=max_requests, window_seconds=window_seconds):
             return jsonify({'error': f'Rate limit exceeded for {provider}/{service}. Please wait before trying again.'}), 429
@@ -2613,7 +2627,7 @@ def estimate_detection_tiles():
             'estimatedSeconds': 0.0
         })
 
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    client_ip = _get_client_ip()
     if not rate_limiter.is_allowed(client_ip, max_requests=30, window_seconds=60):
         return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
@@ -2750,7 +2764,7 @@ def get_objects_custom():
     session_id = _get_session_run_id()
     
     # Rate limiting
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    client_ip = _get_client_ip()
     if not rate_limiter.is_allowed(client_ip, max_requests=10, window_seconds=60):
         return jsonify({'error': 'Rate limit exceeded for image uploads'}), 429
     
@@ -3437,7 +3451,7 @@ def upload_dataset():
     
     # Rate limiting (more lenient for local development/testing)
     # TASK-033 Phase 3: Increased limit for manual verification testing
-    client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ['REMOTE_ADDR'])
+    client_ip = _get_client_ip()
     if not rate_limiter.is_allowed(client_ip, max_requests=10, window_seconds=60):
         return jsonify({'error': 'Rate limit exceeded for dataset uploads'}), 429
     

@@ -34,6 +34,7 @@ PROBE_AUTHORIZATION_TTL_SECONDS = 60
 START_AUTHORIZATION_TTL_SECONDS = 120
 STATUS_AUTHORIZATION_TTL_SECONDS = 900
 MAX_AUTHORIZATION_TTL_SECONDS = STATUS_AUTHORIZATION_TTL_SECONDS
+AUTHORIZATION_CLOCK_SKEW_SECONDS = 300
 
 TLS_REPAIR_CATEGORIES = frozenset(
     {
@@ -250,9 +251,9 @@ def validate_browser_authorization(
         raise ValueError("authorization_provider")
     if (payload.get("operation_id") or "") != expected_operation:
         raise ValueError("authorization_operation")
-    if issued_at > current_time + 30:
+    if issued_at > current_time + AUTHORIZATION_CLOCK_SKEW_SECONDS:
         raise ValueError("authorization_not_yet_valid")
-    if expires_at <= current_time:
+    if expires_at <= current_time - AUTHORIZATION_CLOCK_SKEW_SECONDS:
         raise ValueError("authorization_expired")
     if expires_at - issued_at < 1 or expires_at - issued_at > MAX_AUTHORIZATION_TTL_SECONDS:
         raise ValueError("authorization_ttl")
@@ -265,6 +266,7 @@ def build_provider_tls_repair_bridge(
     *,
     environment: Mapping[str, str] | None = None,
     now: int | None = None,
+    include_start_authorization: bool = False,
 ) -> dict[str, Any] | None:
     if category not in TLS_REPAIR_CATEGORIES or provider not in PROVIDERS:
         return None
@@ -291,7 +293,7 @@ def build_provider_tls_repair_bridge(
             PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED
         ),
     }
-    if PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED:
+    if PROVIDER_TLS_REPAIR_CAPABILITY_ENABLED and include_start_authorization:
         operation = issue_browser_authorization(
             config,
             scope=PROVIDER_TLS_REPAIR_SCOPE,
@@ -345,6 +347,7 @@ def enrich_provider_tls_repair_payload(
     *,
     environment: Mapping[str, str] | None = None,
     now: int | None = None,
+    include_start_authorization: bool = False,
 ) -> dict[str, Any]:
     """Attach a review-only helper bridge after logging has already occurred."""
 
@@ -362,6 +365,7 @@ def enrich_provider_tls_repair_payload(
         category,
         environment=environment,
         now=now,
+        include_start_authorization=include_start_authorization,
     )
 
     # Availability is established only by the browser's authenticated probe.

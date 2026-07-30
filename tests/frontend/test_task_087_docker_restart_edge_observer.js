@@ -8,6 +8,9 @@ const BASE_URL = process.env.TOWERSCOUT_BASE_URL || '';
 const ALT_BASE_URL = process.env.TOWERSCOUT_ALT_BASE_URL || '';
 const EXECUTABLE_PATH = process.env.TOWERSCOUT_EXECUTABLE_PATH || '';
 const READY_SIGNAL_PATH = process.env.TOWERSCOUT_BROWSER_READY_SIGNAL || '';
+const BROWSER_PID_SIGNAL_PATH =
+  process.env.TOWERSCOUT_BROWSER_PID_SIGNAL || '';
+const BROWSER_PROFILE_DIR = process.env.TOWERSCOUT_BROWSER_PROFILE_DIR || '';
 const TRANSITION_TIMEOUT_MS = Number(
   process.env.TOWERSCOUT_RESTART_TRANSITION_TIMEOUT_MS || 120000
 );
@@ -74,7 +77,9 @@ function requireConfiguration() {
   const urls = validateLoopbackPair(BASE_URL, ALT_BASE_URL);
   for (const [name, value] of [
     ['TOWERSCOUT_EXECUTABLE_PATH', EXECUTABLE_PATH],
-    ['TOWERSCOUT_BROWSER_READY_SIGNAL', READY_SIGNAL_PATH]
+    ['TOWERSCOUT_BROWSER_READY_SIGNAL', READY_SIGNAL_PATH],
+    ['TOWERSCOUT_BROWSER_PID_SIGNAL', BROWSER_PID_SIGNAL_PATH],
+    ['TOWERSCOUT_BROWSER_PROFILE_DIR', BROWSER_PROFILE_DIR]
   ]) {
     if (!value) {
       throw new Error(`${name} is required.`);
@@ -106,6 +111,23 @@ function requireConfiguration() {
   }
   if (!fs.existsSync(path.dirname(path.resolve(READY_SIGNAL_PATH)))) {
     throw new Error('The parent directory for TOWERSCOUT_BROWSER_READY_SIGNAL must exist.');
+  }
+  if (!fs.existsSync(path.dirname(path.resolve(BROWSER_PID_SIGNAL_PATH)))) {
+    throw new Error('The parent directory for TOWERSCOUT_BROWSER_PID_SIGNAL must exist.');
+  }
+  const resolvedProfileDir = path.resolve(BROWSER_PROFILE_DIR);
+  if (
+    path.dirname(resolvedProfileDir).toLowerCase() !==
+      path.resolve(require('os').tmpdir()).toLowerCase() ||
+    !/^towerscout-task087-[a-f0-9]{32}-edge-profile$/i.test(
+      path.basename(resolvedProfileDir)
+    ) ||
+    !fs.existsSync(resolvedProfileDir) ||
+    !fs.statSync(resolvedProfileDir).isDirectory()
+  ) {
+    throw new Error(
+      'TOWERSCOUT_BROWSER_PROFILE_DIR must be the dedicated Task-087 directory under the OS temp directory.'
+    );
   }
   return urls;
 }
@@ -173,10 +195,19 @@ async function run() {
   const puppeteer = require('puppeteer');
   const browser = await puppeteer.launch({
     executablePath: EXECUTABLE_PATH,
-    headless: true
+    headless: true,
+    userDataDir: BROWSER_PROFILE_DIR
   });
-  const page = await browser.newPage();
   try {
+    const browserProcess = browser.process();
+    if (!browserProcess || !Number.isInteger(browserProcess.pid)) {
+      throw new Error('Puppeteer did not expose the launched Edge process ID.');
+    }
+    fs.writeFileSync(BROWSER_PID_SIGNAL_PATH, String(browserProcess.pid), {
+      encoding: 'utf8',
+      flag: 'wx'
+    });
+    const page = await browser.newPage();
     const initialState = await assertTowerScoutShell(page, baseUrl);
     assert.strictEqual(initialState, EXPECTED_READINESS_STATE);
     const sessionSentinel = `task087-${Date.now()}-${Math.random()}`;
