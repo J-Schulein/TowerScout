@@ -1226,12 +1226,16 @@ deletion gap before enabling mutation.
 - HOST POLICY LIMITATION: Defender/AMSI still blocks dynamic loading of the
   helper library on this endpoint, so the new Windows behavior assertion needs
   the dedicated Windows CI job for independent execution.
-- PENDING: complete final diff review and require green exact-head CI before
-  any live TLS mutation.
+- PASS: draft PR #64 exact-head CI at `f07bd3d` is green. The Windows
+  host-helper contract job executed the new locked-file behavior assertion;
+  Python 3.11/3.12, frontend, security, Trivy, and both production controller
+  jobs also passed. The conditional build job correctly skipped.
+- PENDING: reviewer acceptance of PR #64. No live TLS mutation is authorized by
+  this checkpoint.
 
-**Next**: Commit/push the activation-readiness slice for exact-head CI after
-final diff review. After it is accepted, execute the isolated live matrix under
-a fresh explicit mutation authorization.
+**Next**: Request review of draft PR #64. After it is accepted and the dormant
+hardening merges, execute the isolated live matrix from fresh `main` under a
+new explicit mutation authorization.
 
 ### 2026-07-31 - Ready-For-Review Custom Host Port Correction
 
