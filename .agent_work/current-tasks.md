@@ -145,11 +145,9 @@ release gate before Task-087 resumes.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS - PR #63 dormant checkpoint implementation and review
-remediation are complete locally, including the ready-for-review custom host
-port correction. Merge readiness remains contingent on green required checks
-at the new head, resolution of the current review conversation, and an
-explicit project-lead merge decision.
+**Status**: IN_PROGRESS - PR #63's dormant control-plane checkpoint is merged
+to `main` at `4b93caf`. Activation-readiness hardening and isolated validation
+planning continue on `feature/task-087-activation-readiness`.
 Release-facing TLS mutation, UAC/certificate, Chrome/Firefox, live
 release-package, Podman/GPU, sleep/resume, managed-network, and candidate
 inclusion gates remain closed

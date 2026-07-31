@@ -94,6 +94,12 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert "operation-status-{0}.json" in script
     assert "function Enter-TowerScoutHostHelperPackageMutex" in script
     assert "function Write-TowerScoutHostHelperJsonAtomic" in script
+    assert "function Remove-TowerScoutHostHelperFileWithRetry" in script
+    assert "$script:TowerScoutHostHelperFileDeleteMaximumAttempts = 10" in script
+    assert "$script:TowerScoutHostHelperFileDeleteRetryDelayMilliseconds = 100" in script
+    assert script.count(
+        "Remove-TowerScoutHostHelperFileWithRetry -Path $lockPath"
+    ) == 3
     assert "function Protect-TowerScoutHostHelperStatePath" in script
     assert "$script:TowerScoutHostHelperHeartbeatStaleSeconds = 10" in script
     assert "process_start_time_utc" in script
@@ -143,6 +149,64 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert '"worker_exit"' in script
     assert "[datetime] $DeadlineUtc" in script
     assert "Clear-TowerScoutHostHelperSession" in stop_script
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_file_delete_retry_is_bounded_and_reports_failure():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-delete-retry-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $path = Join-Path $root "operation-active.json"
+        [System.IO.File]::WriteAllText($path, '{{"state":"planned"}}')
+        $stream = $null
+        try {{
+            $stream = [System.IO.File]::Open(
+                $path,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::ReadWrite,
+                [System.IO.FileShare]::None
+            )
+            $blocked = Remove-TowerScoutHostHelperFileWithRetry `
+                -Path $path `
+                -MaximumAttempts 2 `
+                -RetryDelayMilliseconds 1
+            $stillPresent = Test-Path -LiteralPath $path -PathType Leaf
+            $stream.Dispose()
+            $stream = $null
+            $removed = Remove-TowerScoutHostHelperFileWithRetry `
+                -Path $path `
+                -MaximumAttempts 2 `
+                -RetryDelayMilliseconds 1
+            [pscustomobject]@{{
+                blocked_result = [bool] $blocked
+                still_present = [bool] $stillPresent
+                removed_result = [bool] $removed
+                removed = -not (Test-Path -LiteralPath $path)
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if ($null -ne $stream) {{ $stream.Dispose() }}
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload == {
+        "blocked_result": False,
+        "still_present": True,
+        "removed_result": True,
+        "removed": True,
+    }
 
 
 def test_host_helper_review_bridge_is_explicit_and_does_not_persist_session_key():

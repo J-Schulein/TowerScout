@@ -1,10 +1,10 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - PR #63 dormant checkpoint implementation and review
-remediation are complete locally, including the ready-for-review custom host
-port correction. Merge readiness remains contingent on green required checks
-at the new head, resolution of the current review conversation, and an
-explicit project-lead merge decision.
+**Status**: IN_PROGRESS - PR #63's dormant control-plane checkpoint was squash
+merged to `main` at `4b93cafc522f1315d382a46a37ba4f1c0ac785d6` after exact-head
+review and CI passed. Activation-readiness hardening and isolated live
+validation planning continue from that merge on
+`feature/task-087-activation-readiness`.
 Release-facing TLS mutation, UAC/certificate, Chrome/Firefox, live
 release-package, Podman/GPU, sleep/resume, managed-network, and candidate
 inclusion gates remain closed
@@ -22,11 +22,36 @@ setup error classification; Docker and Podman CPU/GPU package paths
 ## Canonical Source Note
 
 This file preserves the canonical gated Task-087 design and evidence. The
-non-mutating proof is merged and the Tasks 090/098 security gate passed on
-July 27. Task-087 resumed in draft PR #63; its first review found lifecycle,
-asynchronous execution, recovery, and terminal-flow gaps that are now addressed
-in the draft branch. The command-based Task-086 path remains the fallback until
-all Task-087 gates pass.
+non-mutating proof is merged, the Tasks 090/098 security gate passed on July
+27, and PR #63's dormant control-plane checkpoint merged on July 31. The
+command-based Task-086 path remains the fallback until all Task-087 gates pass.
+
+## July 31, 2026 PR #63 Merge And Activation-Isolation Override
+
+This override controls current status wherever older entries describe PR #63
+as draft, awaiting review, or locally merge-ready:
+
+- PR #63 was squash merged to `main` at
+  `4b93cafc522f1315d382a46a37ba4f1c0ac785d6`; the source head was `91c1847`,
+  and the two commits have identical repository trees.
+- The post-merge main CI and Task-087 Production SetupWizard Puppeteer runs
+  passed. The merge did not activate provider TLS mutation or close any
+  release-facing validation gate.
+- Follow-on work starts from a clean worktree on
+  `feature/task-087-activation-readiness`, leaving unrelated local changes in
+  the primary checkout untouched.
+- A read-only workstation audit found older Docker and Podman named volumes,
+  images, package trees, asset ZIPs, a repository-root `.env`, and historical
+  helper metadata. None must be reused for activation validation.
+- A workstation-wide purge is unnecessary. Each live scenario must use a new
+  Compose project/volume namespace, clean package root, verified image
+  identity, clean browser profile, and isolated candidate asset staging.
+- The exact findings and mandatory preflight are recorded in
+  `.agent_work/tasks/active/TASK-087/activation-validation-isolation-2026-07-31.md`.
+- The first follow-on code change adds bounded active-operation lock deletion
+  retry. All production mutation and candidate-inclusion gates remain closed
+  until that change passes review and the gated live matrix is explicitly
+  authorized and completed.
 
 ## July 28, 2026 Phase 1 Live Validation Override
 
@@ -1151,6 +1176,62 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-31 - PR #63 Merge Checkpoint And Clean Activation Baseline
+
+**Objective**: Confirm the dormant PR #63 checkpoint merged without source
+drift, reopen Task-087 from current `main`, and prevent older workstation state
+from producing false live-validation results.
+
+**Decision**: Continue in a separate post-merge worktree. Do not purge
+unrelated or user-owned TowerScout state. Isolate each future live scenario by
+package root, Compose project/volumes, image identity, host port, browser
+profile, and candidate asset staging. Close the deferred active-operation lock
+deletion gap before enabling mutation.
+
+**Execution**:
+
+- Fetched `origin/main` and verified it is PR #63's squash-merge commit
+  `4b93cafc522f1315d382a46a37ba4f1c0ac785d6`.
+- Verified the merged tree is identical to source head `91c1847` and created
+  clean branch/worktree `feature/task-087-activation-readiness` from the merge.
+- Inventoried Docker, Podman, portable package trees, release/asset archives,
+  `.env` presence, helper state/processes, loopback listeners, and temporary
+  browser profiles without reading secrets or deleting state.
+- Recorded the findings and required clean-run contract in
+  `.agent_work/tasks/active/TASK-087/activation-validation-isolation-2026-07-31.md`.
+- Replaced silent active-operation lock deletion with ten bounded attempts
+  and explicit success/failure reporting for stale-lock acquisition, terminal
+  cleanup, and direct lock clearing. Added focused static and Windows behavior
+  coverage.
+
+**Validation**:
+
+- PASS: the old PR branch and squash-merge commit have identical trees.
+- PASS: the new worktree began without `.env`, staged assets, helper state, or
+  local webapp config/cache/temp/log directories.
+- PASS: no prior Task-087 Docker volume namespace, temporary browser profile,
+  or live helper process was found.
+- PASS: the unrelated Docker release project remained healthy on port 5005.
+- PASS: PowerShell parser validation and the static helper contract test pass
+  for the bounded deletion change.
+- PASS: 12 helper-bridge/provider-TLS tests and the Setup Wizard validation
+  contract pass; all 26 Windows helper tests collect.
+- PASS: the 86-test config/error/Flask secret-safety suite passes. The staged
+  diff has zero sensitive-term matches; the full-tree heuristic scan completed
+  with only manually reviewed baseline identifiers, placeholders, fixtures,
+  and historical documentation matches.
+- PASS: changed Python compilation, both agent-work validators, and
+  `git diff --check`.
+- HOST POLICY LIMITATION: Defender/AMSI still blocks dynamic loading of the
+  helper library on this endpoint, so the new Windows behavior assertion needs
+  the dedicated Windows CI job for independent execution.
+- PENDING: complete final diff review and require green exact-head CI before
+  any live TLS mutation.
+
+**Next**: Commit/push the activation-readiness slice for exact-head CI after
+final diff review. After it is accepted, execute the isolated live matrix under
+a fresh explicit mutation authorization.
 
 ### 2026-07-31 - Ready-For-Review Custom Host Port Correction
 
