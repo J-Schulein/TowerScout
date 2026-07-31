@@ -195,6 +195,7 @@ def test_host_helper_review_bridge_is_explicit_and_does_not_persist_session_key(
         "TOWERSCOUT_HOST_HELPER_ENABLED: ${TOWERSCOUT_HOST_HELPER_ENABLED:-0}"
         in compose
     )
+    assert "TOWERSCOUT_HOST_PORT: ${TOWERSCOUT_PORT:-5000}" in compose
     assert (
         "TOWERSCOUT_HOST_HELPER_SESSION_KEY: "
         "${TOWERSCOUT_HOST_HELPER_SESSION_KEY:-}"

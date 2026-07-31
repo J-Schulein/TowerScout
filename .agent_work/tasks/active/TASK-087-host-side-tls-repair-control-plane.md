@@ -1,10 +1,10 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - PR #63 dormant checkpoint implementation, review
-remediation, independent re-review, and local merge-readiness validation are
-complete; no merge-blocking finding remains. Final test-hygiene corrections
-are included, and merge readiness remains contingent on green required checks
-at the current head plus an explicit project-lead merge decision.
+**Status**: IN_PROGRESS - PR #63 dormant checkpoint implementation and review
+remediation are complete locally, including the ready-for-review custom host
+port correction. Merge readiness remains contingent on green required checks
+at the new head, resolution of the current review conversation, and an
+explicit project-lead merge decision.
 Release-facing TLS mutation, UAC/certificate, Chrome/Firefox, live
 release-package, Podman/GPU, sleep/resume, managed-network, and candidate
 inclusion gates remain closed
@@ -1151,6 +1151,55 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-07-31 - Ready-For-Review Custom Host Port Correction
+
+**Objective**: Correct the PR #63 review finding that made the authenticated
+helper probe appear unavailable whenever the Windows launcher used a host port
+other than `5000`.
+
+**Context**: Compose used `TOWERSCOUT_PORT` for the host-side port mapping but
+did not expose that selected host port to the application container. The
+helper therefore advertised the real launcher port while the Flask bridge
+defaulted `expected_runtime.app_port` to `5000`. The frontend's intentional
+runtime-profile equality check rejected that mismatch.
+
+**Decision**: Pass the selected port into the container under the explicit
+`TOWERSCOUT_HOST_PORT` name and make the bridge read that value. Preserve the
+container's internal port `5000`, the frontend's strict comparison, the
+default-port fallback, and every dormant activation gate.
+
+**Execution**:
+
+- Added `TOWERSCOUT_HOST_PORT: ${TOWERSCOUT_PORT:-5000}` to the application
+  container environment while retaining the existing loopback host mapping.
+- Changed the bridge runtime profile to read `TOWERSCOUT_HOST_PORT` rather
+  than the host-only launcher variable.
+- Exercised a custom `5005` expected runtime in the bridge unit contract,
+  retained explicit coverage for the default `5000` fallback, and added a
+  static Compose handoff assertion.
+
+**Validation**:
+
+- PASS: 12 focused bridge and static Compose tests.
+- PASS: 10 provider-TLS Flask-route/frontend-preservation tests.
+- PASS: Setup Wizard validation contract.
+- PASS: rendered Compose config maps host `5005` to container `5000` and
+  supplies `TOWERSCOUT_HOST_PORT=5005`; the default render supplies and
+  publishes `5000`.
+- PASS: changed Python compilation and `git diff --check`.
+- HOST LIMITATION: the broad local unit attempt remained non-authoritative
+  because Defender/AMSI blocked the existing PowerShell helper module and the
+  managed sandbox denied pytest temp-fixture ACL access. The directly affected
+  tests passed independently; exact-head GitHub CI remains required.
+- TOOLING LIMITATION: local `flake8` and `black` modules are not installed;
+  their GitHub CI steps remain the validation authority.
+- PASS: no frontend source/bundle, helper authorization, TLS mutation,
+  release asset, provider-key, or activation-gate behavior changed.
+
+**Next**: Commit and push the bounded correction, require green CI at the new
+head, then reply to and resolve the custom-port review conversation only after
+the remote evidence passes.
 
 ### 2026-07-30 - Final Merge-Readiness Audit And Test Hygiene
 

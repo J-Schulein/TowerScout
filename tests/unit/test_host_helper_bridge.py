@@ -10,7 +10,7 @@ SESSION_ENV = {
     "TOWERSCOUT_HOST_HELPER_SESSION_KEY": "A" * 43,
     "TOWERSCOUT_CONTAINER_ENGINE": "docker",
     "TOWERSCOUT_GPU_MODE": "off",
-    "TOWERSCOUT_PORT": "5000",
+    "TOWERSCOUT_HOST_PORT": "5005",
 }
 
 
@@ -59,7 +59,7 @@ def test_repairable_provider_bridge_issues_scoped_short_lived_authorization(
     assert bridge["expected_runtime"] == {
         "engine": "docker",
         "gpu": "off",
-        "app_port": 5000,
+        "app_port": 5005,
     }
     operation = bridge["operation_authorization"]
     assert operation["operation_type"] == "provider_tls_repair"
@@ -77,6 +77,20 @@ def test_repairable_provider_bridge_issues_scoped_short_lived_authorization(
     )
     assert payload["session_id"] == "a" * 32
     assert payload["operation_id"] == ""
+
+
+def test_bridge_expected_runtime_defaults_to_standard_host_port():
+    environment = dict(SESSION_ENV)
+    environment.pop("TOWERSCOUT_HOST_PORT")
+
+    bridge = ts_host_helper.build_provider_tls_repair_bridge(
+        "google",
+        "tls_ca_untrusted",
+        environment=environment,
+        now=1_800_000_000,
+    )
+
+    assert bridge["expected_runtime"]["app_port"] == 5000
 
 
 def test_bridge_is_not_issued_for_non_repairable_failures():

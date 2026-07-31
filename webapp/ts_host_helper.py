@@ -127,7 +127,9 @@ def _normalize_operation_id(operation_id: str | None) -> str:
 
 def _expected_runtime(environment: Mapping[str, str]) -> dict[str, Any]:
     try:
-        app_port = int((environment.get("TOWERSCOUT_PORT") or "5000").strip())
+        app_port = int(
+            (environment.get("TOWERSCOUT_HOST_PORT") or "5000").strip()
+        )
     except (TypeError, ValueError):
         app_port = 0
     return {
