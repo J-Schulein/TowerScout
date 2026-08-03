@@ -147,7 +147,9 @@ release gate before Task-087 resumes.
 
 **Status**: IN_PROGRESS - PR #63's dormant control-plane checkpoint is merged
 to `main` at `4b93caf`. Activation-readiness hardening and isolated validation
-planning continue on `feature/task-087-activation-readiness`.
+planning continue on `feature/task-087-activation-readiness`; PR #64
+cleanup-lifecycle review remediation is implemented locally and awaiting final
+validation plus exact-head CI.
 Release-facing TLS mutation, UAC/certificate, Chrome/Firefox, live
 release-package, Podman/GPU, sleep/resume, managed-network, and candidate
 inclusion gates remain closed

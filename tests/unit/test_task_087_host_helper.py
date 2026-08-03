@@ -99,7 +99,11 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert "$script:TowerScoutHostHelperFileDeleteRetryDelayMilliseconds = 100" in script
     assert script.count(
         "Remove-TowerScoutHostHelperFileWithRetry -Path $lockPath"
-    ) == 3
+    ) == 1
+    assert script.count("-ExpectedOperationId") == 3
+    assert "files_not_cleared = $filesNotCleared" in script
+    assert '"invalidation_incomplete"' in script
+    assert "return Remove-TowerScoutHostHelperFileWithRetry -Path $workerPath" in script
     assert "function Protect-TowerScoutHostHelperStatePath" in script
     assert "$script:TowerScoutHostHelperHeartbeatStaleSeconds = 10" in script
     assert "process_start_time_utc" in script
@@ -181,11 +185,27 @@ def test_host_helper_file_delete_retry_is_bounded_and_reports_failure():
                 -Path $path `
                 -MaximumAttempts 2 `
                 -RetryDelayMilliseconds 1
+            $removedPathAbsent = -not (Test-Path -LiteralPath $path)
+            [System.IO.File]::WriteAllText($path, '{{"operation_id":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}')
+            $mismatched = Remove-TowerScoutHostHelperFileWithRetry `
+                -Path $path `
+                -ExpectedOperationId "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" `
+                -MaximumAttempts 2 `
+                -RetryDelayMilliseconds 1
+            $mismatchedFilePresent = Test-Path -LiteralPath $path -PathType Leaf
+            $matched = Remove-TowerScoutHostHelperFileWithRetry `
+                -Path $path `
+                -ExpectedOperationId "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" `
+                -MaximumAttempts 2 `
+                -RetryDelayMilliseconds 1
             [pscustomobject]@{{
                 blocked_result = [bool] $blocked
                 still_present = [bool] $stillPresent
                 removed_result = [bool] $removed
-                removed = -not (Test-Path -LiteralPath $path)
+                removed = [bool] $removedPathAbsent
+                mismatched_result = [bool] $mismatched
+                mismatched_file_present = [bool] $mismatchedFilePresent
+                matched_result = [bool] $matched
             }} | ConvertTo-Json -Compress
         }}
         finally {{
@@ -206,6 +226,299 @@ def test_host_helper_file_delete_retry_is_bounded_and_reports_failure():
         "still_present": True,
         "removed_result": True,
         "removed": True,
+        "mismatched_result": False,
+        "mismatched_file_present": True,
+        "matched_result": True,
+    }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_operation_lock_clear_reports_absent_success_and_failure():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $script:TowerScoutHostHelperFileDeleteMaximumAttempts = 2
+        $script:TowerScoutHostHelperFileDeleteRetryDelayMilliseconds = 1
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-lock-clear-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $stream = $null
+        try {{
+            $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "lock-clear-probe"
+            $lockPath = Get-TowerScoutHostHelperOperationLockPath -Profile $profile
+            $absent = Clear-TowerScoutHostHelperOperationLock -Profile $profile
+
+            [System.IO.File]::WriteAllText($lockPath, '{{"state":"planned"}}')
+            $deletable = Clear-TowerScoutHostHelperOperationLock -Profile $profile
+
+            [System.IO.File]::WriteAllText($lockPath, '{{"state":"planned"}}')
+            $stream = [System.IO.File]::Open(
+                $lockPath,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::Read,
+                [System.IO.FileShare]::Read
+            )
+            $blocked = Clear-TowerScoutHostHelperOperationLock -Profile $profile
+            $blockedFilePresent = Test-Path -LiteralPath $lockPath -PathType Leaf
+            $stream.Dispose()
+            $stream = $null
+            $recovered = Clear-TowerScoutHostHelperOperationLock -Profile $profile
+
+            [pscustomobject]@{{
+                absent_cleared = [int] $absent.cleared
+                absent_state = [string] $absent.state
+                deletable_cleared = [int] $deletable.cleared
+                deletable_state = [string] $deletable.state
+                blocked_cleared = [int] $blocked.cleared
+                blocked_state = [string] $blocked.state
+                blocked_file_present = [bool] $blockedFilePresent
+                recovered_cleared = [int] $recovered.cleared
+                recovered_state = [string] $recovered.state
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if ($null -ne $stream) {{ $stream.Dispose() }}
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload == {
+        "absent_cleared": 0,
+        "absent_state": "operation_lock_absent",
+        "deletable_cleared": 1,
+        "deletable_state": "operation_lock_cleared",
+        "blocked_cleared": 0,
+        "blocked_state": "operation_lock_not_cleared",
+        "blocked_file_present": True,
+        "recovered_cleared": 1,
+        "recovered_state": "operation_lock_cleared",
+    }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_terminal_lock_cleanup_failure_is_fail_closed_and_recovers():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $script:TowerScoutHostHelperFileDeleteMaximumAttempts = 2
+        $script:TowerScoutHostHelperFileDeleteRetryDelayMilliseconds = 1
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-terminal-lock-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $stream = $null
+        try {{
+            $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "terminal-lock-probe"
+            $firstPlan = New-TowerScoutProviderTlsRepairOperationPlan -Profile $profile -Provider "google" -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+            New-TowerScoutHostHelperOperationLock -Profile $profile -Plan $firstPlan -OperationNonce (New-TowerScoutHostHelperToken) | Out-Null
+            $operationId = [string] $firstPlan.OperationId
+            $lockPath = Get-TowerScoutHostHelperOperationLockPath -Profile $profile
+            $workerPath = Get-TowerScoutHostHelperOperationWorkerPath -Profile $profile -OperationId $operationId
+            Write-TowerScoutHostHelperJsonAtomic -Path $workerPath -Value ([pscustomobject]@{{
+                operation_id = $operationId
+                process_id = 2147483647
+                process_start_time_utc = (Get-Date).ToUniversalTime().ToString("o")
+            }})
+
+            $stream = [System.IO.File]::Open(
+                $lockPath,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::Read,
+                [System.IO.FileShare]::Read
+            )
+            $terminalError = ""
+            try {{
+                Set-TowerScoutHostHelperOperationLockState -Profile $profile -OperationId $operationId -State "ready" -Step "start" -ExecutionEnabled:$true | Out-Null
+            }}
+            catch {{
+                $terminalError = [string] $_.Exception.Message
+            }}
+            $terminalStatus = Get-TowerScoutHostHelperOperationStatusRecord -Profile $profile -OperationId $operationId
+            $activeLockPreserved = Test-Path -LiteralPath $lockPath -PathType Leaf
+            $workerPreserved = Test-Path -LiteralPath $workerPath -PathType Leaf
+
+            $secondPlan = New-TowerScoutProviderTlsRepairOperationPlan -Profile $profile -Provider "azure" -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+            $second = New-TowerScoutHostHelperOperationLock -Profile $profile -Plan $secondPlan -OperationNonce (New-TowerScoutHostHelperToken)
+
+            $stream.Dispose()
+            $stream = $null
+            $recovered = Set-TowerScoutHostHelperOperationLockState -Profile $profile -OperationId $operationId -State "ready" -Step "start" -ExecutionEnabled:$true
+            $workerCleared = -not (Test-Path -LiteralPath $workerPath -PathType Leaf)
+
+            $thirdPlan = New-TowerScoutProviderTlsRepairOperationPlan -Profile $profile -Provider "azure" -Confirmation $script:TowerScoutHostHelperProviderTlsRepairConfirmation
+            $third = New-TowerScoutHostHelperOperationLock -Profile $profile -Plan $thirdPlan -OperationNonce (New-TowerScoutHostHelperToken)
+            Clear-TowerScoutHostHelperOperationLock -Profile $profile | Out-Null
+
+            [pscustomobject]@{{
+                terminal_error_surfaced = $terminalError -eq "The terminal helper operation lock could not be cleared."
+                terminal_status_persisted = [bool] $terminalStatus.terminal -and [string] $terminalStatus.state -eq "ready"
+                active_lock_preserved = [bool] $activeLockPreserved
+                worker_preserved = [bool] $workerPreserved
+                second_acquired = [bool] $second.Acquired
+                second_state = [string] $second.State
+                recovery_terminal = [bool] $recovered.terminal
+                worker_cleared = [bool] $workerCleared
+                third_acquired = [bool] $third.Acquired
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if ($null -ne $stream) {{ $stream.Dispose() }}
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload == {
+        "terminal_error_surfaced": True,
+        "terminal_status_persisted": True,
+        "active_lock_preserved": True,
+        "worker_preserved": True,
+        "second_acquired": False,
+        "second_state": "operation_busy",
+        "recovery_terminal": True,
+        "worker_cleared": True,
+        "third_acquired": True,
+    }
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell host helper is Windows-only")
+def test_host_helper_session_and_worker_cleanup_report_locked_files_truthfully():
+    helper_path = str(HELPER_LIB).replace("'", "''")
+    script = textwrap.dedent(
+        f"""
+        $ProgressPreference = 'SilentlyContinue'
+        . '{helper_path}'
+        $script:TowerScoutHostHelperFileDeleteMaximumAttempts = 2
+        $script:TowerScoutHostHelperFileDeleteRetryDelayMilliseconds = 1
+        $root = Join-Path ([System.IO.Path]::GetTempPath()) ("towerscout-task087-session-clear-{{0}}" -f (New-TowerScoutHostHelperSessionId))
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $stream = $null
+        try {{
+            $profile = New-TowerScoutHostHelperRuntimeProfile -Engine "docker" -Gpu "off" -AppPort 5000 -PackageRoot $root -PackageFlavor "session-clear-probe"
+            $sessionId = New-TowerScoutHostHelperSessionId
+            $operationId = New-TowerScoutHostHelperSessionId
+            $stateDirectory = Initialize-TowerScoutHostHelperStateDirectory -RootPath $root
+            $sessionPath = Join-Path $stateDirectory ("session-{{0}}.json" -f $sessionId)
+            $tokenPath = Join-Path $stateDirectory ("token-{{0}}.secret" -f $sessionId)
+            $activePath = Join-Path $stateDirectory "operation-active.json"
+            $statusPath = Join-Path $stateDirectory ("operation-status-{{0}}.json" -f $operationId)
+            [System.IO.File]::WriteAllText($sessionPath, '{{"state":"active"}}')
+            [System.IO.File]::WriteAllText($tokenPath, 'token')
+            [System.IO.File]::WriteAllText($activePath, '{{"state":"planned"}}')
+            [System.IO.File]::WriteAllText($statusPath, '{{"state":"planned"}}')
+
+            $stream = [System.IO.File]::Open(
+                $sessionPath,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::ReadWrite,
+                [System.IO.FileShare]::None
+            )
+            $blocked = Clear-TowerScoutHostHelperSession -RootPath $root -SessionId $sessionId
+            $sessionStillPresent = Test-Path -LiteralPath $sessionPath -PathType Leaf
+            $stream.Dispose()
+            $stream = $null
+            $recovered = Clear-TowerScoutHostHelperSession -RootPath $root -SessionId $sessionId
+
+            $retrySessionId = New-TowerScoutHostHelperSessionId
+            $retrySessionPath = Join-Path $stateDirectory ("session-{{0}}.json" -f $retrySessionId)
+            $retryTokenPath = Join-Path $stateDirectory ("token-{{0}}.secret" -f $retrySessionId)
+            [System.IO.File]::WriteAllText($retrySessionPath, '{{"state":"active"}}')
+            [System.IO.File]::WriteAllText($retryTokenPath, 'token')
+            [System.IO.File]::WriteAllText($activePath, ('{{"operation_id":"{{0}}"}}' -f $operationId))
+            $stream = [System.IO.File]::Open(
+                $activePath,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::Read,
+                [System.IO.FileShare]::Read
+            )
+            $operationBlocked = Clear-TowerScoutHostHelperSession -RootPath $root -SessionId $retrySessionId
+            $stream.Dispose()
+            $stream = $null
+            $operationRecovered = Clear-TowerScoutHostHelperSession `
+                -RootPath $root `
+                -SessionId $retrySessionId `
+                -IncludeOperationFiles
+
+            $workerPath = Get-TowerScoutHostHelperOperationWorkerPath -Profile $profile -OperationId $operationId
+            [System.IO.File]::WriteAllText($workerPath, ('{{"operation_id":"{{0}}"}}' -f $operationId))
+            $stream = [System.IO.File]::Open(
+                $workerPath,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::ReadWrite,
+                [System.IO.FileShare]::None
+            )
+            $workerBlocked = Clear-TowerScoutHostHelperOperationWorkerIdentity -Profile $profile -OperationId $operationId
+            $stream.Dispose()
+            $stream = $null
+            $workerRecovered = Clear-TowerScoutHostHelperOperationWorkerIdentity -Profile $profile -OperationId $operationId
+
+            [pscustomobject]@{{
+                blocked_sessions_cleared = [int] $blocked.cleared
+                blocked_tokens_cleared = [int] $blocked.token_files_cleared
+                blocked_operations_cleared = [int] $blocked.operation_files_cleared
+                blocked_files_not_cleared = [int] $blocked.files_not_cleared
+                blocked_state = [string] $blocked.state
+                session_still_present = [bool] $sessionStillPresent
+                recovered_sessions_cleared = [int] $recovered.cleared
+                recovered_files_not_cleared = [int] $recovered.files_not_cleared
+                recovered_state = [string] $recovered.state
+                operation_blocked_sessions_cleared = [int] $operationBlocked.cleared
+                operation_blocked_tokens_cleared = [int] $operationBlocked.token_files_cleared
+                operation_blocked_files_not_cleared = [int] $operationBlocked.files_not_cleared
+                operation_blocked_state = [string] $operationBlocked.state
+                operation_recovered_operations_cleared = [int] $operationRecovered.operation_files_cleared
+                operation_recovered_files_not_cleared = [int] $operationRecovered.files_not_cleared
+                operation_recovered_state = [string] $operationRecovered.state
+                worker_blocked = [bool] $workerBlocked
+                worker_recovered = [bool] $workerRecovered
+            }} | ConvertTo-Json -Compress
+        }}
+        finally {{
+            if ($null -ne $stream) {{ $stream.Dispose() }}
+            if (Test-Path -LiteralPath $root) {{
+                Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+            }}
+        }}
+        """
+    )
+
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(next(line for line in result.stdout.splitlines() if line))
+    assert payload == {
+        "blocked_sessions_cleared": 0,
+        "blocked_tokens_cleared": 1,
+        "blocked_operations_cleared": 2,
+        "blocked_files_not_cleared": 1,
+        "blocked_state": "invalidation_incomplete",
+        "session_still_present": True,
+        "recovered_sessions_cleared": 1,
+        "recovered_files_not_cleared": 0,
+        "recovered_state": "invalidated",
+        "operation_blocked_sessions_cleared": 1,
+        "operation_blocked_tokens_cleared": 1,
+        "operation_blocked_files_not_cleared": 1,
+        "operation_blocked_state": "invalidation_incomplete",
+        "operation_recovered_operations_cleared": 1,
+        "operation_recovered_files_not_cleared": 0,
+        "operation_recovered_state": "invalidated",
+        "worker_blocked": False,
+        "worker_recovered": True,
     }
 
 

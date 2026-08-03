@@ -26,6 +26,43 @@ non-mutating proof is merged, the Tasks 090/098 security gate passed on July
 27, and PR #63's dormant control-plane checkpoint merged on July 31. The
 command-based Task-086 path remains the fallback until all Task-087 gates pass.
 
+## August 3, 2026 PR #64 Cleanup-Lifecycle Review Remediation
+
+This update records the first approved follow-up step from the PR #64 review:
+
+- Added caller-level coverage for absent, deletable, and Windows-locked active
+  operation files.
+- Added a terminal-transition scenario proving that terminal status is retained,
+  deletion failure is surfaced, a second operation is not admitted, worker
+  evidence remains with the active lock, and cleanup recovers after the file
+  handle is released.
+- Active-lock deletion now revalidates the expected operation id before every
+  attempt and refuses unreadable or replaced lock state instead of overwriting
+  it.
+- Session invalidation now reports only files actually removed, returns
+  `invalidation_incomplete` with a sanitized failure count, and keeps the
+  package operation-file scope available to the post-process-exit retry even
+  after the session marker is removed. Helper stop callers surface incomplete
+  cleanup while the application stop wrapper still proceeds to runtime shutdown
+  with a generic warning.
+- Worker-identity and expired-status cleanup now use the same bounded deletion
+  primitive. Worker metadata remains operation-scoped and cannot authorize or
+  admit a new operation after the active lock is gone.
+- PowerShell parser checks, Python test collection (29 tests), four static
+  host-helper contract tests, the remaining unit suite (326 passed, 74 skipped),
+  both `.agent_work` validators, and `git diff --check` pass locally. Dynamic
+  helper tests remain blocked on this managed workstation at library load by
+  Defender/AMSI `ScriptContainedMaliciousContent`; no policy change or bypass
+  was attempted. The GitHub Windows runner remains the authoritative behavior
+  check for the eventual exact PR head.
+- Production backend, helper, controlled-execution, frontend, and candidate
+  inclusion gates remain false. No TLS mutation, certificate-store change,
+  provider-key use, live repair, or package-candidate validation was performed.
+
+**Next**: Complete the local diff and broader non-mutating validation review,
+then commit and push the remediation for exact-head PR #64 CI and reviewer
+handoff after release-owner approval.
+
 ## July 31, 2026 PR #63 Merge And Activation-Isolation Override
 
 This override controls current status wherever older entries describe PR #63
