@@ -457,7 +457,10 @@ def test_host_helper_session_and_worker_cleanup_report_locked_files_truthfully()
                 -IncludeOperationFiles
 
             $workerPath = Get-TowerScoutHostHelperOperationWorkerPath -Profile $profile -OperationId $operationId
-            [System.IO.File]::WriteAllText($workerPath, ('{{"operation_id":"{{0}}"}}' -f $operationId))
+            [System.IO.File]::WriteAllText(
+                $workerPath,
+                (@{{ operation_id = $operationId }} | ConvertTo-Json -Compress)
+            )
             $stream = [System.IO.File]::Open(
                 $workerPath,
                 [System.IO.FileMode]::Open,
