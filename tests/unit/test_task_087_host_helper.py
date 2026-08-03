@@ -438,7 +438,10 @@ def test_host_helper_session_and_worker_cleanup_report_locked_files_truthfully()
             $retryTokenPath = Join-Path $stateDirectory ("token-{{0}}.secret" -f $retrySessionId)
             [System.IO.File]::WriteAllText($retrySessionPath, '{{"state":"active"}}')
             [System.IO.File]::WriteAllText($retryTokenPath, 'token')
-            [System.IO.File]::WriteAllText($activePath, ('{{"operation_id":"{{0}}"}}' -f $operationId))
+            [System.IO.File]::WriteAllText(
+                $activePath,
+                (@{{ operation_id = $operationId }} | ConvertTo-Json -Compress)
+            )
             $stream = [System.IO.File]::Open(
                 $activePath,
                 [System.IO.FileMode]::Open,
