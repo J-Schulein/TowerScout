@@ -1,6 +1,6 @@
 # TowerScout Handoff Guide
 
-**Last Updated**: July 27, 2026
+**Last Updated**: August 6, 2026
 **Operational Closeout**: October 30, 2026
 **Hard Project End**: October 31, 2026
 
@@ -31,7 +31,9 @@ The current Pilot/cdcai hold is:
 
 - Task-090 runtime/custom-image/dependency security investigation: complete
 - Task-098 approved dependency remediation and release-risk disposition:
-  complete through PR #51 / `e499b50`
+  complete through PR #51 / `e499b50` with its exact July 27 closeout state
+- Task-099 August dependency-advisory follow-up: active for alerts `#72-#75`;
+  required before signing or candidate inclusion
 - Task-087 Google/Azure guided provider TLS repair on Docker/Podman
 - Task-096 user-confirmed Exit/Stop on Docker/Podman
 - Task-097 Podman CPU/GPU final-path qualification
@@ -63,6 +65,10 @@ The July 23 code-scanning baseline is recorded in
 Task-098's merged closeout and the eight documented medium/low torch residuals
 are recorded in
 `.agent_work/tasks/active/TASK-098-dependency-security-remediation.md`.
+Task-099 records the four advisories disclosed after that closeout and the
+current signing/candidate-inclusion gate in
+`.agent_work/tasks/active/TASK-099-august-dependency-advisory-follow-up.md`.
+Task-087 non-release work may continue while Task-099 is active.
 
 ## Runtime And Package Model
 

@@ -21,8 +21,11 @@
 - Keep `cdcai/TowerScout` unchanged until the owner-qualified final candidate
   receives explicit adoption approval.
 - Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU.
-- Task-090 alert classification and Task-098 mandatory remediation are
-  complete; Task-087 is ready to resume.
+- Task-090 alert classification and Task-098 mandatory remediation remain
+  complete as of their July 27 closeout.
+- Task-099 owns the four advisories disclosed August 4-5. Task-087 non-release
+  work may continue, but signing and candidate inclusion remain blocked until
+  Task-099 passes.
 - Complete operational closeout by October 30, 2026.
 
 ## Active Validation Record
