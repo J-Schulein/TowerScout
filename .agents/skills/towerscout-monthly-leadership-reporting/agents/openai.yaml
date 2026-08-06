@@ -1,0 +1,4 @@
+interface:
+  display_name: "TowerScout: Monthly Leadership Reporting"
+  short_description: "Draft evidence-backed monthly TSM and MSR updates"
+  default_prompt: "Use $towerscout-monthly-leadership-reporting to draft this month's TowerScout TSM and MSR leadership updates."

@@ -25,6 +25,7 @@ Pick one primary TowerScout skill and at most a small number of optional seconda
 
 | Task shape | Primary skill | Optional secondary checks |
 |---|---|---|
+| Monthly TSM/MSR, leadership status, accomplishments, upcoming milestones, or success story | `towerscout-monthly-leadership-reporting` | Agent-work hygiene, release gate, or end-user docs only when a specific claim needs a focused evidence check. |
 | Release candidate or package validation | `towerscout-release-candidate-gate` | Compliance, container runtime, docs, secret safety, agent-work hygiene only if touched. |
 | Browser smoke failure or Google/Azure workflow | `towerscout-browser-provider-smoke-triage` | Provider state review for code-level race/cleanup concerns. |
 | JavaScript source or generated bundle | `towerscout-frontend-bundle-guard` | Provider state review if ProviderStateManager or map state changed. |
