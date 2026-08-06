@@ -1,6 +1,6 @@
 # TowerScout Requirements
 
-**Last Updated**: July 23, 2026
+**Last Updated**: August 5, 2026
 **Current Planning Horizon**: October 31, 2026 hard project end
 **Operational Closeout**: October 30, 2026
 **Canonical Roadmap**:
@@ -84,11 +84,32 @@ Acceptance:
 
 - Google and Azure are supported.
 - Docker and Podman are supported.
-- The helper remains loopback-only, token-protected, allowlisted, and free of
-  arbitrary command execution.
+- The selected host mechanism is package-local, operation-allowlisted, free of
+  arbitrary command execution, and does not expose Docker or Podman control
+  sockets to the application container.
 - Provider keys, helper credentials, certificate details, and raw responses are
   not exposed in logs, UI, or evidence.
 - Managed-network validation passes before candidate inclusion.
+
+Provisional Task-087 feasibility interpretation, effective August 5, 2026:
+
+WHILE the Windows launcher feasibility checkpoint is active, THE PROJECT SHALL
+evaluate a visible package-local launcher/coordinator without enabling the
+dormant browser-to-loopback-helper mutation path.
+
+Acceptance:
+
+- The prototype binds no listener, accepts no browser-issued host operation,
+  imports no dormant host helper, uses no hidden worker or normal-path
+  PowerShell execution-policy bypass, and does not modify the Windows trust
+  store.
+- The Task-086 user-run command repair remains available and supported.
+- Functional validation may begin with an unsigned development build in an
+  approved isolated environment, while approved signing coordination proceeds
+  in parallel.
+- Candidate inclusion requires the production-shaped signed artifact to pass
+  representative managed-endpoint security validation.
+- August 14 records a proceed, conditional, or stop decision under ADR-018.
 
 ### UX-EXIT-001: User-Initiated Stop
 
@@ -156,6 +177,18 @@ Acceptance:
   ambiguous, and no-fix findings require evidence-backed disposition.
 - After the baseline is remediated, CI prevents new critical/high findings or
   requires an explicit time-bounded exception.
+
+Current result:
+
+- Task-090 classified the 62-alert baseline and Task-098 implemented the
+  approved remediation through PR #51 / merge commit `e499b50`.
+- Main CI blocks new or reintroduced critical/high dependency findings while
+  retaining all-severity reporting.
+- Dependabot reports eight open torch advisories—three medium and five low—
+  that are non-reachable on the supported paths and require a future
+  coordinated torch/torchvision CPU/CUDA qualification cycle.
+- No release-blocking critical/high finding remains; Task-087 may proceed with
+  its time-boxed launcher feasibility checkpoint.
 
 ## Qualification And Handoff Requirements
 

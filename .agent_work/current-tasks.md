@@ -1,10 +1,10 @@
 # Current Tasks - Sprint 08
 
 **Sprint Period**: July 23-August 7, 2026
-**Last Updated**: July 24, 2026
-**Focus**: Start the bounded runtime, custom-image, and dependency-security
-investigation; define any required remediation; and prepare the authorized
-universal provider TLS repair without changing the frozen pilot or cdcai.
+**Last Updated**: August 5, 2026
+**Focus**: Preserve the completed dependency-security gate and run the
+authorized, time-boxed Task-087 launcher feasibility prototype without
+changing the frozen pilot or cdcai.
 
 **Current Release State**:
 
@@ -66,11 +66,11 @@ through October 30.
 **Task File**:
 `.agent_work/tasks/active/TASK-090-runtime-custom-image-dependency-security.md`
 
-**Objective**: Determine whether local-only runtime reachability and
-custom-image behavior create an actionable release risk, and classify all 62
-open Trivy dependency alerts currently reported on `main`. Separate evidence,
-classification, and remediation estimates; do not hide remediation inside the
-investigation.
+**Historical Objective**: Determine whether local-only runtime reachability
+and custom-image behavior created an actionable release risk, and classify the
+62-alert Trivy dependency baseline reported on `main` on July 23. Separate
+evidence, classification, and remediation estimates; do not hide remediation
+inside the investigation.
 
 **Exit Gate**:
 
@@ -87,25 +87,23 @@ investigation.
 
 **Investigation Outcome**:
 
-- The live GitHub inventory reconciles exactly to 62 alerts with no missing or
-  extra alert numbers.
+- The July 23 live GitHub inventory reconciled exactly to 62 alerts with no
+  missing or extra alert numbers.
 - Five alerts are release-blocking, one requires hardening, and 56 are not
   reachable on the supported call paths.
-- The normal Compose port is currently published on all host interfaces,
-  contradicting the local-only assumption and making loopback binding a
-  mandatory Task-098 control.
-- The proposed Task-098 scope is 4-8 days for mandatory slices, or 6-11 days
-  for the full coordinated dependency hardening, plus required GPU/runtime
-  host availability.
+- At investigation time, the normal Compose port was published on all host
+  interfaces, contradicting the local-only assumption and making loopback
+  binding a mandatory Task-098 control.
+- The Task-090 proposal estimated Task-098 at 4-8 days for mandatory slices,
+  or 6-11 days for the full coordinated dependency hardening, plus required
+  GPU/runtime host availability.
 - No dependency pin, alert state, runtime, release asset, or external
   repository was changed.
 
 ### **TASK-098: Dependency Security Remediation And Release Gate**
 
-**Status**: IN_PROGRESS - implementation, dependency qualification, Docker
-CPU/GPU and live Google/Azure qualification, branch security reconciliation,
-and PR #51 review remediation complete; PR #51 awaits project-lead checkout
-and sign-off
+**Status**: COMPLETED - PR #51 merged as `e499b50`; main CI passed; Dependabot
+reconciled to eight documented non-blocking torch advisories
 **Type**: C (Security Remediation / Runtime Qualification)
 **Priority**: HIGH
 **Estimated Effort**: Mandatory slices 4-8 days; full coordinated hardening
@@ -117,15 +115,18 @@ and sign-off
 qualify the affected dependency and runtime paths, and close the security
 release gate before Task-087 resumes.
 
-**Current Closeout Boundary**:
+**Closeout Outcome**:
 
 - The external Docker CUDA qualification passed on exact source commit
   `675bd8fabc27765522906957524d2027d931f6a1`.
 - Live Google/Azure estimate, detect, cancel, and recovery smokes passed
   against the Task-098 candidate image.
-- Task-098 branch alert/CI-ratchet reconciliation and PR review remediation are
-  complete; the remaining gate is project-lead checkout and sign-off on PR
-  #51.
+- PR #51 was squash-merged as `e499b50d285b775047fb6efadcec512f7753c859`,
+  and post-merge workflow run `30284846056` passed every job.
+- Dependabot reconciled to eight open torch alerts: three medium and five low.
+  No critical/high alert remains, and no alert was manually dismissed.
+- Incompatible standalone torch PR #60 was closed with a future coordinated
+  torch/torchvision requalification disposition.
 - Task-097/Task-091 retain Podman CPU/GPU and the final four-profile
   operational package matrix.
 
@@ -144,21 +145,34 @@ release gate before Task-087 resumes.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: PLANNED / RESELECTED - resume after Tasks 090/098 and the mandatory
-security gate
+**Status**: IN_PROGRESS - time-boxed Windows launcher feasibility prototype
+authorized; August 14 go/no-go controls continuation and candidate inclusion
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: 4-7 days plus managed-network package validation
+**Estimated Effort**: Prototype through August 14; implementation estimate will
+be retained or revised only if the prototype passes
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 
-**Rebased Scope**:
+**Provisional Scope**:
 
-- Finish the existing gated helper rather than restart the design.
+- Prototype a visible, package-local Windows launcher/coordinator as an
+  alternative to the dormant browser-to-loopback helper.
 - Support Google Maps and Azure Maps.
 - Support Docker and Podman application-provider TLS repair.
+- Begin with non-mutating status and repair preview; Task-096 Stop is the
+  preferred first controlled mutation after that proof passes.
+- Keep all existing browser/helper activation gates off and place PR #64 on
+  hold during the checkpoint.
+- Keep the Task-086 user-run command repair available as the supported fallback.
+- Start approved signing-path coordination in parallel. An unsigned functional
+  test does not satisfy the operational security gate.
+- Do not merge or ship the launcher unless the production-shaped signed package
+  passes representative managed-endpoint validation.
 - Keep Podman Compose-provider installation and Podman-machine trust separate.
-- Pass managed-network validation before candidate inclusion.
+
+**Decision Record**:
+[`ADR-018`](./decisions/018-task-087-windows-launcher-feasibility-pivot.md)
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
 
@@ -181,16 +195,23 @@ security gate
 ## Sprint 08 Sequence
 
 1. Task-095 Phase A rebaseline and readiness cleanup: complete.
-2. Start Task-090 with the 62-alert inventory as a required workstream.
-3. Scope and approve Task-098 for mandatory dependency remediation.
-4. Resolve release-blocking findings and explicitly disposition the remainder.
-5. Resume Task-087 only after the Tasks 090/098 security gate passes.
-6. Re-plan the next sprint using actual security and Task-087 outcomes.
+2. Task-090 62-alert investigation and disposition: complete.
+3. Task-098 approved remediation and qualification: complete.
+4. Release-blocking findings resolved and residual torch alerts explicitly
+   dispositioned: complete.
+5. Run the reversible Task-087 launcher prototype with all existing activation
+   gates off and signing coordination in parallel.
+6. Make the Task-087 proceed/conditional/stop decision by August 14.
+7. Re-plan the next sprint using actual security and Task-087 outcomes.
+
+The August 14 Task-087 checkpoint crosses the August 7 Sprint 08 boundary. It
+should carry into the next sprint during normal closeout without weakening the
+go/no-go date or moving the September/October milestones.
 
 Task-096 and Task-097 are mandatory roadmap work but are not pulled into this
-sprint yet. Task-098 now has a current-sprint planning record because Task-090
-identified mandatory remediation and is approved to begin under its
-non-regression contract. Task-058 and Task-059 remain conditional stretch work.
+sprint yet. Task-098 remains in the current-sprint record as a completed task
+until Sprint 08 closeout. Task-058 and Task-059 remain conditional stretch
+work.
 
 ---
 

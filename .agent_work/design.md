@@ -1,6 +1,6 @@
 # TowerScout Current Technical Design
 
-**Last Updated**: July 23, 2026
+**Last Updated**: August 5, 2026
 **Scope**: Fix-first candidate development, four-profile runtime qualification,
 and cdcai handoff through October 2026
 **Archived Pre-Rebaseline Design**:
@@ -59,36 +59,54 @@ wording of the frozen `v0.1.2` pilot.
 
 ## Provider TLS Design Boundary
 
-Task-087 owns guided repair for application-provider TLS:
+ADR-018 provisionally replaces the earlier browser-to-loopback-helper
+implementation direction with a time-boxed, reversible Windows launcher proof.
+The older helper design and evidence remain preserved in the Task-087 record,
+but they do not authorize helper activation during this checkpoint.
+
+The candidate flow is:
 
 1. Setup/Settings classifies a repairable Google or Azure certificate trust
    failure.
-2. The browser may request only an allowlisted repair operation.
-3. A package-local Windows helper binds to loopback and validates origin,
-   short-lived credentials, provider, engine, GPU mode, and confirmation.
-4. The helper calls TowerScout-owned scripts with fixed argument arrays.
-5. The selected engine's persistent config volume receives the combined CA
-   bundle.
-6. TowerScout restarts with the captured runtime profile.
-7. The command-based Task-086 repair remains available.
+2. The browser directs the user to a visible TowerScout launcher; it does not
+   issue a host operation.
+3. The package-local launcher identifies the exact package, engine, runtime
+   profile, and target, then presents a fixed operation and confirmation.
+4. The first proof is non-mutating status and TLS repair preview. It uses no
+   listener, dormant helper import, hidden worker, execution-policy bypass,
+   arbitrary command input, administrator-only setup, or Windows trust-store
+   mutation.
+5. If the non-mutating proof passes, Task-096 Stop is the preferred first
+   controlled mutation. TLS repair follows only with candidate staging,
+   verification, backup, recovery, and named-volume preservation.
+6. Signing-path work proceeds in parallel. The production-shaped signed
+   artifact must pass representative managed-endpoint validation before
+   candidate inclusion.
+7. The command-based Task-086 repair remains available throughout the proof
+   and becomes the supported disposition if the launcher fails.
+
+All existing browser/helper activation gates remain off, and PR #64 is on hold
+until the August 14 proceed/conditional/stop decision.
 
 Podman-machine image-pull/build TLS is outside this application-provider flow
 and belongs to Task-097.
 
 ## Exit/Stop Design Boundary
 
-Task-096 will reuse the secured host-control pattern without exposing Docker or
-Podman sockets to the application container.
+If the Task-087 launcher proof passes, Task-096 will use the launcher as its
+first controlled mutation without exposing Docker or Podman sockets to the
+application container. If the proof fails, Task-096 must be re-planned around
+the current user-run stop path or another separately approved mechanism.
 
 Expected sequence:
 
-1. User selects Exit/Stop TowerScout.
-2. UI explains that TowerScout will stop while saved data remains.
+1. User selects Exit/Stop TowerScout in the visible launcher.
+2. The launcher explains that TowerScout will stop while saved data remains.
 3. User confirms.
-4. The host helper validates the request and captured runtime profile.
+4. The launcher validates the exact package and captured runtime profile.
 5. The package-local stop path runs for Docker or Podman.
 6. The container is removed without deleting named volumes.
-7. The browser shows a final status or manual fallback when the helper cannot
+7. The launcher shows a final status or manual fallback when it cannot
    complete.
 
 Exact endpoint and lifecycle details remain Task-096 design work.
@@ -109,24 +127,25 @@ or modify Podman-machine trust.
 
 ## Dependency Security Boundary
 
-Task-090 owns evidence and classification for the 62-alert Trivy baseline.
-Task-098 owns approved dependency changes and their regression/qualification
-cost.
+Task-090 and Task-098 completed the 62-alert Trivy baseline classification,
+approved remediation, and affected-runtime qualification. PR #51 merged as
+`e499b50`.
 
-The implementation order is:
+The current security boundary is:
 
-1. Patch-oriented upgrades with direct live use (`Pillow`, `waitress`, and the
-   client-relevant `aiohttp` path).
-2. Coordinated compatibility decisions for PyTorch/torchvision/CPU/CUDA and
-   Fiona/GeoPandas/GDAL.
-3. Unit/integration/provider/model-loading validation.
-4. Rebuilt-image and four-profile regression when runtime dependencies change.
-5. Owner-approved residual-risk documentation when a critical/high alert
-   cannot be safely removed.
-
-CI may remain advisory while the known baseline is classified. After Task-098,
-new critical/high findings must fail or receive an explicit time-bounded
-exception.
+1. Loopback publication and content-sniffed custom-image validation protect
+   the normal local runtime.
+2. Release-model hashes are enforced by default; model upload remains disabled
+   by default and requires both an administrator key and approved SHA-256 hash
+   when enabled.
+3. The selected `torch==2.6.0` / `torchvision==0.21.0` pair is qualified for
+   the Task-098 CPU/CUDA boundary.
+4. Eight medium/low torch advisories remain visible and non-reachable on
+   supported paths. A future upgrade must move torch and torchvision together
+   and repeat CPU/CUDA, model-load, output-parity, and performance validation.
+5. All-severity SARIF reporting remains advisory, while new or reintroduced
+   critical/high dependency findings are blocking unless covered by a narrow,
+   unexpired exception.
 
 ## Task Dependency Flow
 
@@ -134,13 +153,13 @@ exception.
 TASK-095 Phase A rebaseline
         |
         v
-TASK-090 bounded security investigation
+TASK-090 bounded security investigation [COMPLETE]
         |
         v
-TASK-098 dependency-security remediation/disposition gate
+TASK-098 dependency-security remediation/disposition gate [COMPLETE]
         |
         v
-TASK-087 universal provider TLS repair
+TASK-087 launcher feasibility / universal provider TLS repair [IN PROGRESS]
         |
         v
 TASK-096 user Exit/Stop

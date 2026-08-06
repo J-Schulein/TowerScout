@@ -1,12 +1,13 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: PLANNED / RESELECTED - Gate 3 non-mutating proof is merged; resume
-after the Tasks 090/098 security gate
+**Status**: IN_PROGRESS - reversible Windows launcher feasibility prototype
+authorized; August 14 go/no-go controls continuation and candidate inclusion
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: MEDIUM-HIGH
-**Estimated Effort**: 4-7 days (32-56 hours), plus package validation on a managed TLS-inspected network
-**Target Sprint**: Sprint 08 start, with managed-network completion scheduled by
-the canonical October roadmap
+**Estimated Effort**: Prototype through August 14; retain or revise the prior
+4-7 day implementation estimate only if the prototype passes
+**Target Sprint**: Sprint 08 feasibility checkpoint, with continuation governed
+by the August 14 decision and the canonical October roadmap
 **Created**: 2026-06-29
 **Owner**: TowerScout release owner / active agent support
 **Depends On**: `TASK-086`; `TASK-090` investigation; approved `TASK-098`
@@ -19,6 +20,34 @@ This file preserves the canonical gated Task-087 design and evidence. The
 non-mutating proof is merged. The July 23 fix-first roadmap authorizes
 resumption after the Tasks 090/098 security gate. The command-based Task-086
 path remains the fallback until all Task-087 gates pass.
+
+## August 5, 2026 Provisional Launcher Override
+
+This override controls wherever the older loopback-helper plan, gates,
+acceptance criteria, or implementation phases below conflict. Those sections
+remain as historical design and evidence; they do not authorize activation of
+the helper during this checkpoint.
+
+- Prototype a visible package-local Windows launcher/coordinator in one
+  selected, maintainable technology.
+- Begin with non-mutating TowerScout status and TLS repair preview. Do not bind
+  a listener, import or start the dormant helper, accept browser-issued host
+  operations, use hidden workers or normal-path execution-policy bypasses, or
+  modify the Windows trust store.
+- Keep all existing helper/browser mutation flags off. Put PR #64 on hold; do
+  not merge, close, discard, or extend its activation path before the August 14
+  disposition.
+- Keep Task-086 as the supported user-run command repair throughout the proof.
+- Start approved signing-path coordination in parallel. Unsigned or self-signed
+  development evidence can prove functionality or signing mechanics only.
+- Require the production-shaped signed artifact to pass representative
+  managed-endpoint security validation before candidate inclusion.
+- If the non-mutating proof passes, use Task-096 Stop as the preferred first
+  controlled mutation before implementing transactional TLS repair.
+- Record proceed, conditional, or stop by August 14 under
+  [`ADR-018`](../../decisions/018-task-087-windows-launcher-feasibility-pivot.md).
+- A failed proof returns to the Task-086 manual repair without changing the
+  frozen pilot, cdcai, or the September/October milestones.
 
 ## July 23, 2026 Rebaseline Override
 
@@ -1059,6 +1088,37 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-05 - Reversible Windows Launcher Prototype Authorized
+
+**Objective**: Authorize a small, reversible implementation checkpoint that
+tests the proposed visible launcher pathway without treating an unsigned
+functional prototype as release validation.
+
+**Context**: The dormant Task-087 PowerShell helper and its browser-to-loopback
+control plane raised Defender/AMSI and supportability concerns. Architecture
+review favored a visible launcher that owns fixed TowerScout operations without
+an extra listener, browser authority, hidden worker, or execution-policy
+bypass. The project lead approved building the prototype now, retaining the
+Task-086 manual fallback, and deciding whether to continue by August 14.
+
+**Decision**: Apply the August 5 override and ADR-018. Keep PR #64 and all
+activation gates on hold, build only on a reversible prototype path, and run
+signing/deployment coordination in parallel. Candidate inclusion remains
+blocked until the production-shaped signed artifact passes representative
+managed-endpoint validation.
+
+**Execution**: Updated the current sprint, backlog dependency, requirements,
+technical design, canonical roadmap, and Task-087 record. No launcher code,
+runtime, browser, container, certificate store, Defender setting, release
+asset, or external repository was changed.
+
+**Validation**: Both the quick agent-work hygiene check and canonical
+`.agent_work` validator passed. `git diff --check` also passed.
+
+**Next**: Start a new prototype session from the dated override and ADR-018,
+select one maintainable implementation technology, and build the non-mutating
+visible launcher slice before requesting any managed-endpoint execution.
 
 ### 2026-07-06 - Gate 3 Browser Start Contract Defined
 

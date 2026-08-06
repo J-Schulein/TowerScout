@@ -8,6 +8,24 @@
 **Operational Closeout**: October 30, 2026
 **Hard Project End**: October 31, 2026
 
+## August 5 Task-087 Provisional Addendum
+
+ADR-018 authorizes a reversible Windows launcher feasibility prototype instead
+of continuing directly toward activation of the dormant browser-to-loopback
+helper. This addendum controls where the July 23 Task-087 mechanism conflicts;
+the required user outcome, Task-086 fallback, runtime matrix, and final
+milestones remain unchanged.
+
+- Keep all browser/helper activation gates off and PR #64 on hold.
+- Build a thin visible launcher proof, beginning with non-mutating status and
+  TLS repair preview.
+- Start approved signing-path coordination in parallel with development.
+- Do not merge or ship the launcher until the production-shaped signed artifact
+  passes representative managed-endpoint validation.
+- Decide proceed, conditional, or stop by August 14. A failed proof returns to
+  the Task-086 user-run command repair without moving the September/October
+  milestones.
+
 ## Executive Decision
 
 Use a fix-first approach while pilot users continue testing the unchanged
@@ -58,16 +76,18 @@ runtime, documentation, or handoff work.
 ### Phase 1 - Rebaseline And Investigate
 
 **Target**: July 23-August 14; reforecast after Task-090 classification
+**Status**: COMPLETE - Task-090 and Task-098 closed July 27
 
 1. Task-095 Phase A roadmap/workspace rebaseline and readiness cleanup:
    complete July 23.
-2. Complete Task-090 as a bounded runtime, custom-image, and dependency
-   security investigation.
-3. Classify all 62 Trivy alerts open on `main` and obtain approval for the
-   separate Task-098 remediation scope.
-4. Complete Task-098 patching, compatibility decisions, regression, and
-   residual-risk disposition.
-5. Resolve release-blocking findings before runtime feature work.
+2. Task-090 bounded runtime, custom-image, and dependency security
+   investigation: complete.
+3. The 62-alert baseline was classified and the separate Task-098 scope was
+   approved.
+4. Task-098 patching, compatibility decisions, regression, and residual
+   disposition: complete through PR #51 / `e499b50`.
+5. Release-blocking findings are resolved; eight non-blocking medium/low torch
+   advisories remain visible for future coordinated ML requalification.
 
 Exit:
 
@@ -83,15 +103,23 @@ Exit:
 
 **Target**: Begin as soon as Phase 1 passes
 
-1. Resume Task-087.
-2. Support guided repair for Google and Azure.
-3. Support application-provider TLS repair on Docker and Podman.
-4. Validate on the available managed CDC network.
-5. Complete Task-096 Exit/Stop TowerScout for Docker and Podman.
+1. Run the time-boxed Task-087 launcher feasibility prototype.
+2. Begin with non-mutating status and TLS repair preview while signing-path
+   coordination proceeds in parallel.
+3. Make the proceed/conditional/stop decision by August 14.
+4. If the proof passes, support guided repair for Google and Azure on Docker
+   and Podman and validate the signed production-shaped package on the
+   available managed CDC network.
+5. Use Task-096 Exit/Stop as the preferred first controlled launcher mutation
+   and complete it for Docker and Podman.
+6. If the proof fails, retain Task-086 as the supported repair path and record
+   the resulting Task-087/Task-096 scope disposition.
 
 Exit:
 
-- Guided TLS repair passes security, product, and managed-network gates.
+- Task-087 has a recorded August 14 proceed/conditional/stop decision.
+- If selected for inclusion, guided TLS repair passes security, product,
+  signing, and managed-network gates.
 - Exit/Stop safely removes the selected application container while retaining
   named volumes.
 
@@ -176,7 +204,7 @@ Exit:
 | `TASK-087` | Universal guided Google/Azure provider TLS repair on Docker/Podman | Required |
 | `TASK-088` | Immutable `v0.1.2` pilot distribution and custody | Complete |
 | `TASK-089` | Owner-gated cdcai release/adoption and ownership transfer | Required after qualification |
-| `TASK-090` | Runtime, custom-image, and dependency-security investigation, including the 62-alert Trivy baseline | Required; investigation first |
+| `TASK-090` | Runtime, custom-image, and dependency-security investigation, including the 62-alert Trivy baseline | Complete July 23 |
 | `TASK-091` | Minimum owner-runnable release qualification | Required |
 | `TASK-092` | Documentation currentness and information architecture | Required minimum; broader redesign bounded |
 | `TASK-093` | Persistent-data lifecycle and recovery rehearsal | Required minimum |
@@ -184,7 +212,7 @@ Exit:
 | `TASK-095` | Governance and tool-neutral maintenance/handoff foundation | Required; Phase A complete, Phase B through closeout |
 | `TASK-096` | User-confirmed Exit/Stop TowerScout | Required |
 | `TASK-097` | Podman CPU/GPU final-path hardening and qualification | Required |
-| `TASK-098` | Dependency-security remediation, compatibility validation, and release disposition | Required as scoped by Task-090 |
+| `TASK-098` | Dependency-security remediation, compatibility validation, and release disposition | Complete July 27 |
 | `TASK-058` | Background jobs and durable run state | Conditional stretch |
 | `TASK-059` | Backend decomposition and logging consolidation | Conditional stretch after Task-058 |
 
@@ -192,12 +220,10 @@ No canonical task file existed for Tasks 090-095 before this rebaseline; their
 earlier mentions were provisional planning references. Tasks 096 and 097 were
 new unique identifiers at rebaseline. Task-098 was added on July 23 after the
 live 62-alert code-scanning inventory established a separate remediation need.
-A current-sprint planning record may preserve Task-090's proposed scope before
-approval, but Task-098 must not be marked `IN_PROGRESS` or change dependencies,
-runtime behavior, alert state, release assets, or external repositories until
-the project lead approves the implementation scope. cdcai-owner approval is
-reserved for residual critical/high acceptance, changes to `cdcai/TowerScout`,
-and official adoption.
+Task-098's project-lead approval gate was satisfied July 23 and the task
+completed July 27. cdcai-owner approval remains reserved for residual
+critical/high acceptance, changes to `cdcai/TowerScout`, and official
+adoption.
 
 ## Stop Rules
 
