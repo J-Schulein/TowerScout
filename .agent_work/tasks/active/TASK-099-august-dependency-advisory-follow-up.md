@@ -89,7 +89,7 @@ Excluded:
 
 ## Acceptance Criteria
 
-- [ ] `aiohttp` resolves to `3.14.3` on supported Python 3.11 and 3.12 paths,
+- [x] `aiohttp` resolves to `3.14.3` on supported Python 3.11 and 3.12 paths,
   and dependency checks report no broken requirements.
 - [x] Focused aiohttp/provider/TLS/sanitized-error contracts pass without an
   application-code change.
@@ -99,7 +99,7 @@ Excluded:
   direct Puppeteer version or adding a production dependency.
 - [x] A clean npm install, blocking high-severity audit, and maintained
   frontend contracts pass.
-- [ ] Required Python, frontend, and security CI jobs pass at the reviewed
+- [x] Required Python, frontend, and security CI jobs pass at the reviewed
   Task-099 head.
 - [ ] After the default-branch dependency graph refreshes, alerts `#72-#75`
   and `GHSA-5p4m-2wfm-xmqj` are fixed, no critical/high alert remains, and the
@@ -262,16 +262,41 @@ repository alert ID is still pending.
   and `git diff --check`: passed.
 - GitHub Actions at the new reviewed head: pending.
 
-**Next**: Commit and publish the reviewed follow-up to PR #68, refresh its
-summary, and require green exact-head CI before review or merge.
+**Next**: Obtain the required review and merge PR #68 only while its exact-head
+checks remain green, then reconcile the refreshed default-branch dependency
+inventory.
+
+---
+
+### 2026-08-07 - Exact-Head CI Gate Passed
+
+**Objective**: Prove the complete Task-099 change set, including the late
+js-yaml fix, on the repository-supported CI matrix before review.
+
+**Execution**: Published commit `84c0db2` to PR #68 and ran the standard CI/CD
+and Task-087 production SetupWizard/Puppeteer workflows against that exact
+head.
+
+**Validation**:
+
+- CI/CD run `31199160859`: Python 3.11, Python 3.12, frontend, security, and
+  Trivy checks passed. The release build correctly skipped on a pull request.
+- Task-087 run `31199160770`: production controller contracts, simulated-helper
+  end-to-end coverage, and Windows host-helper contracts passed.
+- PR #68 remained draft and unmerged; no release, signing, candidate, alert,
+  or cdcai state changed.
+
+**Next**: Record this evidence in the reviewed change set, obtain the required
+review, merge only with a green final head, and reconcile Dependabot on
+`main`.
 
 ---
 
 ## Validation Results
 
-**Status**: LOCAL DEPENDENCY/AUDIT PASS / CI AND POST-MERGE RECONCILIATION
-PENDING
+**Status**: LOCAL AND EXACT-HEAD CI PASS / REVIEW, MERGE, AND POST-MERGE
+RECONCILIATION PENDING
 
-Task-099 remains `IN_PROGRESS` until the reviewed changes land on `main`,
-required CI passes, and the refreshed dependency graph confirms that only the
-eight previously documented torch residuals remain open.
+Task-099 remains `IN_PROGRESS` until the reviewed changes land on `main` and
+the refreshed dependency graph confirms that only the eight previously
+documented torch residuals remain open.

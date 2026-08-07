@@ -45,7 +45,8 @@ The project still carries public-health workflow expectations:
 - `TASK-099` is active for Dependabot alerts `#72-#75` disclosed August 4-5
   plus npm audit finding `GHSA-5p4m-2wfm-xmqj`, detected August 7 before the
   repository inventory assigned it an alert number. The current numbered
-  inventory is two high, five medium, and five low.
+  inventory is two high, five medium, and five low. PR #68 implementation and
+  exact-head CI pass; review, merge, and default-branch reconciliation remain.
 - `TASK-087` work may continue, but signing and candidate inclusion remain
   blocked until Task-099 restores the critical/high dependency gate and the
   default-branch inventory is reconciled.

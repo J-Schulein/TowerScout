@@ -34,7 +34,8 @@ The current Pilot/cdcai hold is:
   complete through PR #51 / `e499b50` with its exact July 27 closeout state
 - Task-099 August dependency-advisory follow-up: active for alerts `#72-#75`
   and npm finding `GHSA-5p4m-2wfm-xmqj`; required before signing or candidate
-  inclusion
+  inclusion. PR #68 implementation and exact-head CI pass; review, merge, and
+  default-branch reconciliation remain
 - Task-087 Google/Azure guided provider TLS repair on Docker/Podman
 - Task-096 user-confirmed Exit/Stop on Docker/Podman
 - Task-097 Podman CPU/GPU final-path qualification

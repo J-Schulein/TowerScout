@@ -152,9 +152,9 @@ added to this completed July baseline.
 
 ### **TASK-099: August Dependency Advisory Follow-Up**
 
-**Status**: IN_PROGRESS - Dependabot alerts `#72-#75` plus the later npm audit
-finding `GHSA-5p4m-2wfm-xmqj` are release-blocking until the narrow dependency
-updates, required CI, and post-merge inventory reconciliation pass
+**Status**: IN_PROGRESS - the narrow remediation and exact-head CI are green
+on PR #68. Review, merge, and post-merge inventory reconciliation remain
+release-blocking
 **Type**: C (Security Remediation / Release Gate)
 **Priority**: HIGH
 **Estimated Effort**: 0.5-1.5 days plus CI and Dependabot reconciliation
@@ -228,8 +228,9 @@ inclusion gates remain closed
 4. Release-blocking findings resolved and residual torch alerts explicitly
    dispositioned: complete.
 5. Task-087 resumed from the completed Tasks 090/098 gate: in progress.
-6. Task-099 August advisory follow-up: in progress; signing and candidate
-   inclusion remain blocked until its critical/high gate passes.
+6. Task-099 August advisory follow-up: implementation and exact-head CI pass;
+   signing and candidate inclusion remain blocked through review, merge, and
+   post-merge inventory reconciliation.
 7. Continue non-release Task-087 work in parallel and re-plan the next sprint
    using the actual security and Task-087 outcomes.
 
