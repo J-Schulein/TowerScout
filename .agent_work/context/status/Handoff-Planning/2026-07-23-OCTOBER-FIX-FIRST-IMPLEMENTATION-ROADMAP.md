@@ -9,6 +9,62 @@
 **Operational Closeout**: October 30, 2026
 **Hard Project End**: October 31, 2026
 
+## August 5 Task-087 Provisional Addendum
+
+ADR-018 authorizes a reversible Windows launcher feasibility prototype instead
+of continuing directly toward activation of the dormant browser-to-loopback
+helper. This addendum controls where the July 23 Task-087 mechanism conflicts;
+the required user outcome, Task-086 fallback, runtime matrix, and final
+milestones remain unchanged.
+
+- Keep all browser/helper activation gates off and PR #64 on hold.
+- Build a thin visible launcher proof, beginning with non-mutating status and
+  TLS repair preview.
+- Publish the bounded proof as a Draft PR and build only
+  `Task-087-validation-<short-SHA>` from its exact commit. This artifact is not
+  a candidate and receives no tag, GitHub Release, or cdcai publication.
+- Start approved signing-path coordination in parallel with development.
+- Do not merge or ship the launcher until the production-shaped signed artifact
+  passes representative managed-endpoint validation.
+- Decide proceed, conditional, or stop by August 14. A failed proof returns to
+  the Task-086 user-run command repair without moving the September/October
+  milestones.
+
+### August 5-6 Checkpoint Status
+
+- Draft PR #67 remains the review surface; all browser/helper activation gates
+  remain off.
+- Commits `18082cf` and `4327fb6` stabilized the fixed shell-free Windows
+  runtime probe and added clean-source build provenance plus atomic validation
+  artifact publication. The assembler now distinguishes the non-runnable
+  `launcher-policy` artifact from the `full-runnable` functional package.
+- The exact-source unsigned `full-runnable` package from
+  `4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6` passed pristine sidecar/internal
+  checksum verification and fresh isolated Docker CPU setup on port 5008. It
+  reached healthy `setup_required` readiness with verified assets, CPU selected,
+  and the exact pinned image digest.
+- On August 6, reboot persistence and automatic Docker-project resume passed.
+  The exact launcher reported Docker running and reachable across three
+  consecutive refreshes, and its fixed Google/Docker preview displayed the
+  expected target, CPU/GPU-off profile, and port 5008. The preview inspected no
+  certificates, changed no trust, stopped or restarted no container, and did
+  not run the dormant helper.
+- A provider key entered only in the Setup Wizard produced the sanitized
+  expected `tls_ca_untrusted` category and Task-086 repair-command guidance.
+  No key, raw provider response, or certificate detail was captured. Normal-
+  size controls were clipped at this host's display scaling and became visible
+  when maximized; that is a non-blocking UI follow-up before the signed build.
+- The next external gate is an organization-approved signed production-shaped
+  build running under representative managed endpoint policies. The current
+  artifact remains unsigned validation-only evidence, not a release candidate
+  or release; no tag, merge, shipment, mutation, or cdcai change is authorized
+  before the applicable gates pass.
+
+Current sanitized evidence:
+[`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
+The earlier `REVIEW-EVIDENCE-2026-08-05.md` remains historical static-review
+evidence.
+
 ## Executive Decision
 
 Use a fix-first approach while pilot users continue testing the unchanged
@@ -94,15 +150,28 @@ July 27 exit evidence:
 
 **Target**: Begin as soon as Phase 1 passes
 
-1. Resume Task-087.
-2. Support guided repair for Google and Azure.
-3. Support application-provider TLS repair on Docker and Podman.
-4. Validate on the available managed CDC network.
-5. Complete Task-096 Exit/Stop TowerScout for Docker and Podman.
+1. Continue review of the preview-only Task-087 launcher proof through Draft PR
+   #67 from its isolated feature branch.
+2. Preserve the verified exact-source unsigned package, fresh Docker setup,
+   reboot auto-resume, three-refresh, preview-only, and sanitized expected
+   `tls_ca_untrusted` evidence; address the non-blocking display-scaling control
+   clipping before the signed build.
+3. Keep the Draft PR unmerged and make the proceed/conditional/stop decision by
+   August 14.
+4. If the proof passes, obtain and validate an approved signed production-
+   shaped package under representative managed endpoint policies before
+   implementing guided repair for Google and Azure on Docker and Podman.
+5. Use Task-096 Exit/Stop as the preferred first controlled launcher mutation
+   and complete it for Docker and Podman.
+6. If the proof fails, close the launcher PR unmerged, retain Task-086 as the
+   supported repair path, and record the resulting Task-087/Task-096 scope
+   disposition through a documentation-only PR based on current `main`.
 
 Exit:
 
-- Guided TLS repair passes security, product, and managed-network gates.
+- Task-087 has a recorded August 14 proceed/conditional/stop decision.
+- If selected for inclusion, guided TLS repair passes security, product,
+  signing, and managed-network gates.
 - Exit/Stop safely removes the selected application container while retaining
   named volumes.
 

@@ -64,9 +64,20 @@ The cdcai owner selected the fix-first path:
 7. Select the final cdcai tag and display title before the official build.
 8. Execute Task-089 only after explicit owner adoption approval.
 
-Task-087 may resume for the new candidate only after the Tasks 090/098 security
-gate passes. This does not change the Pilot Package and does not authorize
-enabling unvalidated behavior for pilot users.
+The Tasks 090/098 security gate passed, so Task-087 resumed in the isolated fork
+branch under ADR-018. Its exact-source unsigned `full-runnable` package passed
+pristine checksum verification and fresh isolated Docker CPU setup. On August
+6, reboot persistence/automatic resume, three reachable Docker refreshes, the
+fixed preview-only Google/Docker display, and the sanitized expected
+`tls_ca_untrusted` Setup Wizard result also passed. The provider key was entered
+only in the wizard, and no key, raw provider response, or certificate detail was
+captured; the launcher did not inspect certificates, run the dormant helper, or
+perform a mutation. Signing and representative managed-endpoint validation are
+next. This evidence is validation-only: it does not change the Pilot Package,
+authorize TLS repair or other launcher mutation, create a release candidate or
+release, authorize merge, or enable new behavior for pilot users. See the
+current sanitized
+[`Task-087 full-package validation record`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
 
 Tasks 090/098 passed on July 27 and remain completed historical records.
 GitHub disclosed four additional Dependabot advisories on August 4-5, and the

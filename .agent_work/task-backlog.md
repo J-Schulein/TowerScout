@@ -12,7 +12,7 @@ release and handoff work takes priority over Task-058/059 stretch work.
 
 | Order | Task | Status | Estimate | Dependencies | Required outcome |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | `TASK-096` User-Initiated Exit And Container Stop | NOT_STARTED | 2-4 days | Task-087 helper/security pattern; current stop scripts | Confirmed Exit/Stop works on Docker and Podman without deleting named volumes |
+| 1 | `TASK-096` User-Initiated Exit And Container Stop | NOT_STARTED | 2-4 days | Task-087 launcher feasibility gate; current stop scripts | Confirmed Exit/Stop works on Docker and Podman without deleting named volumes |
 | 2 | `TASK-097` Podman CPU/GPU Final Path Qualification | NOT_STARTED | 3-5 days plus environment validation | Tasks 090, 098, 099, 087, and 096 | Podman CPU and GPU/CDI pass final-package qualification without Docker Desktop |
 | 3 | `TASK-091` Owner-Runnable Release Qualification | NOT_STARTED | 3-6 days | Candidate scope stable; fixture/harness custody | cdcai owner can execute or supervise the minimum release gate |
 | 4 | `TASK-092` Documentation Currentness And Information Architecture | NOT_STARTED | Stage A 1-2 days; Stage B as approved | Candidate behavior and package shape | Repo docs, user docs, release notes, external Setup Guide, and demo video agree |
@@ -21,7 +21,10 @@ release and handoff work takes priority over Task-058/059 stretch work.
 
 ### Task-096 Boundary
 
-- Use a secured host helper or equally constrained host mechanism.
+- If the Task-087 launcher proof passes, use Stop as its first controlled
+  mutation; otherwise retain the current user-run stop path and re-plan the UX.
+- Use a secured, equally constrained host mechanism without browser-supplied
+  command text or runtime sockets.
 - Support Docker and Podman.
 - Require confirmation.
 - Preserve named volumes.
@@ -107,6 +110,7 @@ Parking lot:
 
 | Date | Control |
 | --- | --- |
+| August 14 | Task-087 launcher feasibility and operational-security go/no-go |
 | August 28 | Required scope and Task-058 capacity checkpoint |
 | September 18 | Code complete |
 | September 25 | Feature/package/documentation complete |

@@ -821,9 +821,9 @@ ambiguous or unavailable, support may still use the lower-level
 Do not use it as normal release configuration.
 
 The current provider TLS repair path is the guided script workflow above. The
-package now ships host-helper scaffolding for a future browser-triggered repair
-flow, but that control plane remains disabled in the current release baseline;
-see [docs/support/host-helper.md](support/host-helper.md).
+experimental browser-to-host helper remains source-only review material: it is
+not included in the release package and is not loaded by the normal launch or
+stop paths.
 
 ### Restricted Networks
 

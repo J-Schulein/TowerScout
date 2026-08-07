@@ -120,8 +120,9 @@ Key outcomes:
 
 ### Sprint 07 Carry-Forward
 
-- `TASK-087` completed its merged non-mutating proof and is reselected for the
-  fix-first candidate after `TASK-090`.
+- `TASK-087` completed its merged dormant-helper Gate 3 non-mutating proof and
+  was reselected for the fix-first candidate after `TASK-090`. That historical
+  proof is distinct from the later ADR-018 launcher feasibility work.
 - `TASK-089` remains owner-gated; preparation may continue, but cdcai must not
   be changed before final owner qualification and adoption approval.
 - `TASK-095` begins in Sprint 08 with the Phase A roadmap/workspace rebaseline.

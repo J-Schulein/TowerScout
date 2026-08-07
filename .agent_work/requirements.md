@@ -72,6 +72,27 @@ Acceptance:
 - `cdcai/TowerScout` remains unchanged until explicit owner authorization.
 - Technical access alone is not migration authorization.
 
+### REL-005: Validation-Only Artifact Boundary
+
+WHEN a Task-087 launcher artifact is built for feasibility validation, THE
+PROJECT SHALL bind it to one exact committed source identity and keep it
+separate from the candidate and release channels.
+
+Acceptance:
+
+- The artifact identity is `Task-087-validation-<short-SHA>` and records the
+  full source commit in its manifest or evidence packet.
+- The artifact receives no version tag, GitHub Release, `v0.1.3-rc.N`
+  identity, or cdcai publication.
+- The source branch is published only through a Draft PR against `main`, and
+  the PR remains unmerged while validation is incomplete.
+- Unsigned output is limited to static inspection or an explicitly approved
+  isolated functional environment. Managed-endpoint evidence uses the
+  organization-approved signed production-shaped build.
+- A failed validation closes the code PR unmerged and records the Stop decision
+  plus Task-086 fallback through a separate documentation-only PR from current
+  `main`; no code revert is required.
+
 ## Required Fix And Runtime Requirements
 
 ### TLS-001: Guided Provider TLS Repair
@@ -84,11 +105,36 @@ Acceptance:
 
 - Google and Azure are supported.
 - Docker and Podman are supported.
-- The helper remains loopback-only, token-protected, allowlisted, and free of
-  arbitrary command execution.
+- The selected host mechanism is package-local, operation-allowlisted, free of
+  arbitrary command execution, and does not expose Docker or Podman control
+  sockets to the application container.
 - Provider keys, helper credentials, certificate details, and raw responses are
   not exposed in logs, UI, or evidence.
 - Managed-network validation passes before candidate inclusion.
+
+Provisional Task-087 feasibility interpretation, effective August 5, 2026:
+
+WHILE the Windows launcher feasibility checkpoint is active, THE PROJECT SHALL
+evaluate a visible package-local launcher/coordinator without enabling the
+dormant browser-to-loopback-helper mutation path.
+
+Acceptance:
+
+- The prototype binds no listener, accepts no browser-issued host operation,
+  imports no dormant host helper, uses no hidden worker or normal-path
+  PowerShell execution-policy bypass, and does not modify the Windows trust
+  store.
+- Ordinary launch and stop do not import the dormant helper, and validation or
+  end-user release packages omit its scripts, worker, state library, and
+  support page.
+- The Task-086 user-run command repair remains available and supported.
+- Functional validation may begin with an unsigned development build in an
+  approved isolated environment, while approved signing coordination proceeds
+  in parallel.
+- Any validation-only package follows REL-005 and is not a release candidate.
+- Candidate inclusion requires the production-shaped signed artifact to pass
+  representative managed-endpoint security validation.
+- August 14 records a proceed, conditional, or stop decision under ADR-018.
 
 ### UX-EXIT-001: User-Initiated Stop
 

@@ -21,7 +21,7 @@
 - Keep `cdcai/TowerScout` unchanged until the owner-qualified final candidate
   receives explicit adoption approval.
 - Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU.
-- Task-090 alert classification and Task-098 mandatory remediation remain
+- Task-090 alert classification and Task-098 mandatory remediation are
   complete as of their July 27 closeout.
 - Task-099 completed alerts `#72-#75` plus npm finding
   `GHSA-5p4m-2wfm-xmqj` through PRs #68/#69. Alert `#74` closed without
@@ -38,6 +38,17 @@ sanitized validation record remains under:
 - [`v0.1.2-Validation-Evidence/`](./v0.1.2-Validation-Evidence/)
 
 This evidence proves the Pilot Package; it does not certify a future candidate.
+
+The separate current Task-087 functional record is:
+
+- [`../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md)
+
+That record covers an authorized unsigned development-workstation validation
+only. It does not approve release, merge, TLS mutation, or cdcai adoption. A
+signed production-shaped build on a representative managed endpoint remains
+the next external gate. Normal-size controls clipping at this host's display
+scaling, resolved during validation by maximizing the launcher, remains a
+non-blocking UI follow-up before that build.
 
 ## Archived Planning And Release History
 

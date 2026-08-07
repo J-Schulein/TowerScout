@@ -46,9 +46,48 @@ The project still carries public-health workflow expectations:
   `GHSA-5p4m-2wfm-xmqj`. PRs #68/#69 merged as `f460445`/`0133b50`; main CI
   and root graph refresh passed, alert `#74` closed without dismissal, and
   only the eight documented torch residuals remain.
-- `TASK-087` work continues with the dependency-security gate clear; signing
-  and candidate inclusion remain subject to Task-087's own package, provider,
-  signing, and representative managed-endpoint gates.
+- `TASK-087` is in progress under ADR-018. Draft PR #67 now contains the native
+  transactional Docker/Podman TLS repair engine and visible typed-confirmation
+  UI. PR #64 and every browser/helper activation gate remain on hold.
+- The unsigned `full-runnable` validation package from exact clean commit
+  `4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6` passed pristine ZIP/checksum
+  verification and fresh isolated Docker CPU setup on port 5008: the container
+  was healthy, readiness was `setup_required`, assets were `ok`, CPU was
+  selected, and the pinned image digest matched. After an August 6 Windows
+  reboot, the isolated project automatically resumed with persisted state and
+  the exact launcher reported Docker running and reachable across three
+  consecutive refreshes.
+- The Google/Docker preview displayed the expected fixed target, CPU/GPU-off
+  profile, and port 5008 while explicitly performing no certificate inspection,
+  trust change, container stop/restart, or dormant-helper execution. A provider
+  key entered only in the Setup Wizard produced the sanitized expected
+  `tls_ca_untrusted` category and Task-086 repair-command guidance. No key, raw
+  provider response, or certificate detail was captured.
+- The launcher now presents the exact public target, requires typed
+  `REPAIR TLS AND RESTART` confirmation, and exposes sanitized apply, restart,
+  success, and recovery states. The native transaction validates the exact
+  container, stages CA material transactionally, verifies the provider, updates
+  `.env` atomically, restarts the same profile, verifies readiness, and rolls
+  back on failure.
+- The current source passed 130 targeted tests and one developer-invoked
+  isolated Google/Docker repair on port 5008 while retaining all eight named
+  volumes. Podman remains fail-closed because this workstation resolves no
+  approved non-Docker-Desktop Compose provider.
+- Launcher runtime discovery is limited to fixed allowlisted Docker/Podman
+  commands with `shell=False`; Windows children use `CREATE_NO_WINDOW`, and the
+  five-second timeout/failure result is sanitized. The validation assembler
+  keeps non-runnable `launcher-policy` and functional `full-runnable` package
+  kinds distinct, verifies clean-source executable/build-tree provenance, and
+  stages the directory, ZIP, and sidecar with rollback on publication failure.
+- [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](../.agent_work/tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md)
+  is the current functional record. The earlier `REVIEW-EVIDENCE-2026-08-05.md`
+  is preserved as historical static-review evidence.
+- The exact-source launcher-policy package passed structural/archive checks.
+  Full-runnable repackaging at the latest source remains blocked locally by the
+  effective no-bypass PowerShell package-generator policy; older source will
+  not be substituted. This is not an RC or release and cannot merge or ship
+  without exact-source functional recovery plus the signed representative
+  managed-endpoint gate.
 - `TASK-096` adds user-confirmed Exit/Stop. `TASK-097` qualifies Podman CPU/GPU.
 - Docker CPU, Docker GPU, Podman CPU, and Podman GPU are required final-package
   profiles, subject to their documented prerequisites.
@@ -118,9 +157,11 @@ adoption:
 4. Preserve Task-099's completed `aiohttp==3.14.3`, transitive
    `ip-address==10.3.1`, and transitive `js-yaml==4.3.1` remediation plus its
    eight-alert torch residual baseline.
-5. Continue Task-087 guided Google/Azure provider TLS work on Docker and
-   Podman; preserve the command fallback and satisfy Task-087's remaining
-   qualification gates before signing or candidate inclusion.
+5. Produce the latest exact-source Task-087 full-runnable package in an approved
+   environment, validate Docker Google/Azure and controlled recovery, validate
+   Podman only with an approved provider, then obtain the signed
+   production-shaped representative managed-endpoint result. Preserve the
+   Task-086 fallback and do not tag, release, merge, or ship prematurely.
 6. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
 7. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
 8. Use `v0.1.3-rc.N` for immutable fork-side candidates; do not publish
@@ -762,8 +803,9 @@ The original guidance benefited from explicitly naming recent completed work. Th
 3. Preserve completed Task-099 evidence for the August Dependabot alerts and
    later js-yaml npm audit finding, including the eight documented
    non-blocking torch residuals and qualified ML pair.
-4. Continue Task-087 implementation and validation; keep signing and candidate
-   inclusion behind Task-087's remaining qualification gates.
+4. Rebuild and validate the latest exact-source Task-087 functional package,
+   then validate a signed production-shaped build on a representative managed
+   endpoint; do not tag, release, merge, or ship it before that gate passes.
 5. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
 6. Qualify Docker CPU/GPU and Podman CPU/GPU.
 7. Start Task-058 early only when all required gates, including Task-099,
@@ -784,14 +826,18 @@ An agent should leave with the following understanding:
 - `v0.1.2` remains immutable while new work uses `v0.1.3-rc.N` candidates
 - Docker CPU/GPU and Podman CPU/GPU are required final-candidate profiles
 - local/CI pytest timeout safeguards and Flask route-test isolation are merged through `TASK-067`
-- the non-mutating Task-087 Gate 3 proof is merged and the Tasks 090/098/099
-  dependency-security gates passed; Task-087 work may continue under its own
-  remaining gates
+- the dormant-helper Task-087 Gate 3 proof is merged, while the replacement
+  launcher proof is in Draft PR #67 with a native transactional repair engine,
+  typed confirmation, targeted test coverage, and an isolated Google/Docker
+  repair result; latest exact-source full-runnable packaging, Azure/recovery,
+  approved-provider Podman, signing, and representative endpoint review remain
+  open
 - filesystem sessions and disk-backed config writes are real architectural constraints
 - Google and Azure workflows are both important
 - outbreak-investigation workflows are the highest-value legacy surface to preserve
 - Tasks 090, 098, and 099 remain complete; Task-099 owns the August dependency
   disclosure evidence without reopening the earlier historical records
+- Task-086 remains the supported fallback throughout the Task-087 checkpoint
 - Task-089 execution remains blocked until final qualification and explicit
   cdcai-owner adoption approval
 

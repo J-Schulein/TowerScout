@@ -33,6 +33,27 @@ The application includes:
   `v0.1.3-rc.N` candidates.
 - `cdcai/TowerScout` remains unchanged.
 
+### During Task-087 Validation
+
+- `feature/task-087-windows-launcher-prototype` remains a short-lived branch
+  from the verified `origin/main` baseline and is reviewed through a Draft PR.
+- Validation artifacts are built only from an exact commit and use
+  `Task-087-validation-<short-SHA>` rather than the `v0.1.3-rc.N` candidate
+  line.
+- The current source-bound functional package was assembled from clean commit
+  `4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6`, after launcher/runtime fixes in
+  `18082cf` and provenance hardening in `4327fb6`.
+- No validation artifact receives a tag or GitHub Release. Executable transfer
+  uses only the organization-approved internal signing/endpoint-validation
+  channel; repository evidence contains hashes, source identity, sanitized
+  results, and no secrets or local certificate detail.
+- `main`, the frozen `v0.1.2` release, and `cdcai/TowerScout` remain unchanged
+  throughout the checkpoint.
+- Proceed makes the Draft PR eligible for normal review only after signed
+  managed-endpoint evidence passes. Conditional leaves it unmerged with a
+  named owner and short deadline. Stop closes it unmerged and records the
+  decision from a clean documentation-only branch based on current `main`.
+
 ### At Final Adoption
 
 - The cdcai owner and project lead select the official tag and display title.
@@ -59,36 +80,125 @@ wording of the frozen `v0.1.2` pilot.
 
 ## Provider TLS Design Boundary
 
-Task-087 owns guided repair for application-provider TLS:
+ADR-018 provisionally replaces the earlier browser-to-loopback-helper
+implementation direction with a time-boxed, reversible Windows launcher proof.
+The older helper design and evidence remain preserved in the Task-087 record,
+but they do not authorize helper activation during this checkpoint.
+
+The candidate flow is:
 
 1. Setup/Settings classifies a repairable Google or Azure certificate trust
    failure.
-2. The browser may request only an allowlisted repair operation.
-3. A package-local Windows helper binds to loopback and validates origin,
-   short-lived credentials, provider, engine, GPU mode, and confirmation.
-4. The helper calls TowerScout-owned scripts with fixed argument arrays.
-5. The selected engine's persistent config volume receives the combined CA
-   bundle.
-6. TowerScout restarts with the captured runtime profile.
-7. The command-based Task-086 repair remains available.
+2. The browser directs the user to a visible TowerScout launcher; it does not
+   issue a host operation.
+3. The package-local launcher identifies the exact package, engine, runtime
+   profile, and target, then presents a fixed operation and confirmation.
+4. The first proof is non-mutating status and TLS repair preview. It uses no
+   listener, dormant helper import, hidden worker, execution-policy bypass,
+   arbitrary command input, administrator-only setup, or Windows trust-store
+   mutation.
+5. If the non-mutating proof passes, Task-096 Stop is the preferred first
+   controlled mutation. TLS repair follows only with candidate staging,
+   verification, backup, recovery, and named-volume preservation.
+6. Signing-path work proceeds in parallel. The production-shaped signed
+   artifact must pass representative managed-endpoint validation before
+   candidate inclusion.
+7. The command-based Task-086 repair remains available throughout the proof
+   and becomes the supported disposition if the launcher fails.
+
+All existing browser/helper activation gates remain off, and PR #64 is on hold
+until the August 14 proceed/conditional/stop decision.
+
+The first authorized unsigned full-package run confirmed that the launcher and
+application do not need the dormant helper, but also exposed an unconditional
+helper import in ordinary PowerShell launch and stop. The validation design now
+requires normal launch/stop and Compose configuration to contain no helper
+activation dependency, and requires the end-user package to omit the helper
+scripts, state library, worker, and support page. Dormant source remains only as
+historical review material while the branch is unmerged.
+
+The rebuilt validation path has two deliberately separate package kinds:
+
+- `launcher-policy` is the small, non-runnable artifact for static launcher and
+  endpoint-policy review.
+- `full-runnable` overlays the same inspected launcher on the normal
+  digest-pinned control package for explicitly authorized functional testing.
+
+Both assemblers stage the package directory, ZIP, and adjacent checksum before
+publishing them as one artifact set, and roll back any partially published set
+if publication fails. Launcher build provenance binds a clean
+40-character source commit to the exact build-requirements hash, executable
+hash, and deterministic complete launcher-tree hash. Assembly rechecks that
+provenance and, for `full-runnable`, the base release identity, source ref,
+pinned image digest, asset identity, and existing content checksums. A policy
+artifact must never be represented as runnable, and neither package kind is a
+release candidate.
+
+Runtime discovery is also a fixed, non-mutating contract. The launcher resolves
+only its allowlisted Docker or Podman executable and arguments, invokes the
+child with `shell=False`, disconnected standard input, captured output, and a
+five-second timeout. On Windows it sets `CREATE_NO_WINDOW` so a windowed
+PyInstaller parent does not stall while attaching a console for the runtime CLI
+child. Timeout and failure messages are sanitized; no caller-supplied command,
+shell text, environment dump, or raw runtime response is displayed.
+
+The source-bound `full-runnable` package passed a fresh isolated Docker CPU
+setup on August 5. Its control/asset sidecars and all 1,012 internal checksum
+records matched; verify-only preflight passed; asset staging/import completed
+with hash verification; and the unique port-5008 project created fresh volumes
+and reached healthy `setup_required` readiness with assets `ok`, one inference
+engine, CPU selected, and the exact pinned image digest.
+
+The August 6 manual functional checkpoint also passed. After a Windows reboot,
+the isolated Docker project automatically resumed with its persisted state, and
+the exact packaged launcher reported Docker running and reachable through three
+consecutive refreshes. Its preview displayed the expected fixed identity:
+`TowerScout Task-087-validation-4327fb6288f4 (cpu)`, Docker, GPU off, port 5008,
+and Google Maps. The preview explicitly performed no certificate inspection,
+trust change, container stop/restart, or dormant-helper execution. A provider
+key entered only in the Setup Wizard produced the sanitized expected
+`tls_ca_untrusted` category and Task-086 guidance for
+`.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off`.
+No key, raw provider response, or certificate detail was captured.
+
+At this host's display scaling, the normal-size launcher window clipped its
+bottom controls; maximizing the window exposed them. This is a non-blocking UI
+follow-up to correct before the signed build. All results remain authorized
+unsigned development-workstation evidence only: the artifact is not a release
+candidate or release, the Draft PR remains unmerged, and no launcher mutation
+or cdcai change is authorized. The next gate is an organization-approved signed
+production-shaped build on a representative managed endpoint. The current
+evidence is
+[`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md);
+the earlier review packet is retained as historical static-review evidence.
+
+Prototype technology selection, August 5: use Python 3.12 with Tkinter and a
+conservative PyInstaller one-directory package (`windowed`, `UPX` disabled).
+This reuses TowerScout's maintained Python/pytest toolchain and the available
+Windows Tk runtime. The validation host has .NET desktop runtimes but no .NET
+SDK, so .NET would add an unproven build and maintenance lane during the
+time-boxed checkpoint. Revisit the selection if endpoint/deployment policy
+requires .NET or rejects Python/PyInstaller applications.
 
 Podman-machine image-pull/build TLS is outside this application-provider flow
 and belongs to Task-097.
 
 ## Exit/Stop Design Boundary
 
-Task-096 will reuse the secured host-control pattern without exposing Docker or
-Podman sockets to the application container.
+If the Task-087 launcher proof passes, Task-096 will use the launcher as its
+first controlled mutation without exposing Docker or Podman sockets to the
+application container. If the proof fails, Task-096 must be re-planned around
+the current user-run stop path or another separately approved mechanism.
 
 Expected sequence:
 
-1. User selects Exit/Stop TowerScout.
-2. UI explains that TowerScout will stop while saved data remains.
+1. User selects Exit/Stop TowerScout in the visible launcher.
+2. The launcher explains that TowerScout will stop while saved data remains.
 3. User confirms.
-4. The host helper validates the request and captured runtime profile.
+4. The launcher validates the exact package and captured runtime profile.
 5. The package-local stop path runs for Docker or Podman.
 6. The container is removed without deleting named volumes.
-7. The browser shows a final status or manual fallback when the helper cannot
+7. The launcher shows a final status or manual fallback when it cannot
    complete.
 
 Exact endpoint and lifecycle details remain Task-096 design work.
