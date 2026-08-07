@@ -27,6 +27,8 @@ $script:TowerScoutHostHelperLaunchReadinessTimeoutSeconds = 180
 $script:TowerScoutHostHelperStartTimeoutHeadroomSeconds = 60
 $script:TowerScoutHostHelperProcessTreeCleanupTimeoutMs = 10000
 $script:TowerScoutHostHelperProcessOutputDrainTimeoutMs = 5000
+$script:TowerScoutHostHelperFileDeleteMaximumAttempts = 10
+$script:TowerScoutHostHelperFileDeleteRetryDelayMilliseconds = 100
 $script:TowerScoutHostHelperOperationStepTimeoutSeconds = @{
     repair = 300
     stop = 120
@@ -515,6 +517,63 @@ function Write-TowerScoutHostHelperJsonAtomic {
     }
 }
 
+function Remove-TowerScoutHostHelperFileWithRetry {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path,
+
+        [string] $ExpectedOperationId = "",
+
+        [ValidateRange(1, 20)]
+        [int] $MaximumAttempts = $script:TowerScoutHostHelperFileDeleteMaximumAttempts,
+
+        [ValidateRange(0, 1000)]
+        [int] $RetryDelayMilliseconds = $script:TowerScoutHostHelperFileDeleteRetryDelayMilliseconds
+    )
+
+    for ($attempt = 1; $attempt -le $MaximumAttempts; $attempt++) {
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+            return $true
+        }
+        if (-not [string]::IsNullOrWhiteSpace($ExpectedOperationId)) {
+            $document = Get-TowerScoutHostHelperJsonDocument -Path $Path -MaximumAttempts 1
+            if ($null -eq $document) {
+                if ($attempt -eq $MaximumAttempts) {
+                    return $false
+                }
+                if ($RetryDelayMilliseconds -gt 0) {
+                    Start-Sleep -Milliseconds $RetryDelayMilliseconds
+                }
+                continue
+            }
+            $currentOperationId = Get-TowerScoutHostHelperObjectValue `
+                -InputObject $document `
+                -Name "operation_id"
+            if (-not [string]::Equals(
+                $currentOperationId,
+                $ExpectedOperationId,
+                [System.StringComparison]::Ordinal
+            )) {
+                return $false
+            }
+        }
+        try {
+            Remove-Item -LiteralPath $Path -Force -ErrorAction Stop
+            return $true
+        }
+        catch {
+            if ($attempt -eq $MaximumAttempts) {
+                return $false
+            }
+            if ($RetryDelayMilliseconds -gt 0) {
+                Start-Sleep -Milliseconds $RetryDelayMilliseconds
+            }
+        }
+    }
+
+    return $false
+}
+
 function Write-TowerScoutHostHelperSecret {
     param(
         [Parameter(Mandatory = $true)]
@@ -671,13 +730,18 @@ function Clear-TowerScoutHostHelperSession {
     param(
         [string] $RootPath = $(Resolve-Path (Join-Path $PSScriptRoot "..\..")),
 
-        [string] $SessionId = ""
+        [string] $SessionId = "",
+
+        [switch] $IncludeOperationFiles
     )
 
     $stateDirectory = Get-TowerScoutHostHelperStateDirectory -RootPath $RootPath
     if (-not (Test-Path -LiteralPath $stateDirectory -PathType Container)) {
         return [pscustomobject]@{
             cleared = 0
+            token_files_cleared = 0
+            operation_files_cleared = 0
+            files_not_cleared = 0
             state = "no_sessions"
         }
     }
@@ -691,20 +755,42 @@ function Clear-TowerScoutHostHelperSession {
     $operationFiles = @(
         if (
             [string]::IsNullOrWhiteSpace($normalizedSessionId) -or
+            $IncludeOperationFiles -or
             $sessionFiles.Count -gt 0
         ) {
             Get-ChildItem -LiteralPath $stateDirectory -Filter $operationFilter -File -ErrorAction SilentlyContinue
         }
     )
-    foreach ($file in @($sessionFiles + $tokenFiles + $operationFiles)) {
-        Remove-Item -LiteralPath $file.FullName -Force -ErrorAction SilentlyContinue
+    [int] $sessionFilesCleared = 0
+    [int] $tokenFilesCleared = 0
+    [int] $operationFilesCleared = 0
+    foreach ($file in $sessionFiles) {
+        if (Remove-TowerScoutHostHelperFileWithRetry -Path $file.FullName) {
+            $sessionFilesCleared++
+        }
     }
+    foreach ($file in $tokenFiles) {
+        if (Remove-TowerScoutHostHelperFileWithRetry -Path $file.FullName) {
+            $tokenFilesCleared++
+        }
+    }
+    foreach ($file in $operationFiles) {
+        if (Remove-TowerScoutHostHelperFileWithRetry -Path $file.FullName) {
+            $operationFilesCleared++
+        }
+    }
+    [int] $filesNotCleared = (
+        $sessionFiles.Count - $sessionFilesCleared +
+        $tokenFiles.Count - $tokenFilesCleared +
+        $operationFiles.Count - $operationFilesCleared
+    )
 
     return [pscustomobject]@{
-        cleared = $sessionFiles.Count
-        token_files_cleared = $tokenFiles.Count
-        operation_files_cleared = $operationFiles.Count
-        state = "invalidated"
+        cleared = $sessionFilesCleared
+        token_files_cleared = $tokenFilesCleared
+        operation_files_cleared = $operationFilesCleared
+        files_not_cleared = $filesNotCleared
+        state = if ($filesNotCleared -gt 0) { "invalidation_incomplete" } else { "invalidated" }
     }
 }
 
@@ -983,8 +1069,12 @@ function Stop-TowerScoutHostHelperReviewSession {
         [System.Diagnostics.Process] $Process = $null
     )
 
-    Clear-TowerScoutHostHelperSession -RootPath $RootPath -SessionId $SessionId | Out-Null
+    Clear-TowerScoutHostHelperSession `
+        -RootPath $RootPath `
+        -SessionId $SessionId `
+        -IncludeOperationFiles | Out-Null
     Clear-TowerScoutHostHelperBridgeEnvironment
+    $finalCleanup = $null
     try {
         if ($null -ne $Process) {
             Stop-TowerScoutHostHelperProcessTree -Process $Process -RequireExit | Out-Null
@@ -994,8 +1084,14 @@ function Stop-TowerScoutHostHelperReviewSession {
         # A late-starting helper can publish state between cooperative
         # invalidation and verified process exit, so clear the exact session
         # again after the termination attempt.
-        Clear-TowerScoutHostHelperSession -RootPath $RootPath -SessionId $SessionId | Out-Null
+        $finalCleanup = Clear-TowerScoutHostHelperSession `
+            -RootPath $RootPath `
+            -SessionId $SessionId `
+            -IncludeOperationFiles
         Clear-TowerScoutHostHelperBridgeEnvironment
+    }
+    if ($null -ne $finalCleanup -and [int] $finalCleanup.files_not_cleared -gt 0) {
+        throw "TowerScout host helper session invalidation did not clear every state file."
     }
 }
 
@@ -1941,7 +2037,7 @@ function Clear-TowerScoutHostHelperOperationWorkerIdentity {
     $workerPath = Get-TowerScoutHostHelperOperationWorkerPath `
         -Profile $Profile `
         -OperationId $OperationId
-    Remove-Item -LiteralPath $workerPath -Force -ErrorAction SilentlyContinue
+    return Remove-TowerScoutHostHelperFileWithRetry -Path $workerPath
 }
 
 function Get-TowerScoutHostHelperOperationStatusRecord {
@@ -2115,6 +2211,10 @@ function New-TowerScoutHostHelperOperationLock {
     }
     $lockPath = Get-TowerScoutHostHelperOperationLockPath -Profile $Profile
     $existingLock = Get-TowerScoutHostHelperOperationLock -Profile $Profile
+    $lockFilePresent = Test-Path -LiteralPath $lockPath -PathType Leaf
+    if ($lockFilePresent -and $null -eq $existingLock) {
+        throw "The existing helper operation lock could not be validated."
+    }
     if (Test-TowerScoutHostHelperOperationLockActive -Lock $existingLock) {
         $existingFingerprint = Get-TowerScoutHostHelperObjectValue -InputObject $existingLock -Name "nonce_fingerprint"
         if (-not [string]::IsNullOrWhiteSpace($nonceFingerprint) -and [string]::Equals($existingFingerprint, $nonceFingerprint, [System.StringComparison]::Ordinal)) {
@@ -2122,8 +2222,18 @@ function New-TowerScoutHostHelperOperationLock {
         }
         return New-TowerScoutHostHelperOperationBusyResult -Lock $existingLock
     }
-    if ($null -ne $existingLock -and (Test-Path -LiteralPath $lockPath -PathType Leaf)) {
-        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+    if ($null -ne $existingLock -and $lockFilePresent) {
+        $expiredOperationId = Get-TowerScoutHostHelperObjectValue `
+            -InputObject $existingLock `
+            -Name "operation_id"
+        if ($expiredOperationId -notmatch "^[a-f0-9]{32}$") {
+            throw "The expired helper operation lock identity could not be validated."
+        }
+        if (-not (Remove-TowerScoutHostHelperFileWithRetry `
+            -Path $lockPath `
+            -ExpectedOperationId $expiredOperationId)) {
+            throw "The expired helper operation lock could not be cleared."
+        }
     }
 
     $createdAtUtc = (Get-Date).ToUniversalTime()
@@ -2230,7 +2340,7 @@ function Get-TowerScoutHostHelperOperationStatus {
         $statusPath = Get-TowerScoutHostHelperOperationStatusPath `
             -Profile $Profile `
             -OperationId $normalizedOperationId
-        Remove-Item -LiteralPath $statusPath -Force -ErrorAction SilentlyContinue
+        Remove-TowerScoutHostHelperFileWithRetry -Path $statusPath | Out-Null
         return New-TowerScoutHostHelperHttpResult `
             -StatusCode 410 `
             -Reason "Gone" `
@@ -2822,19 +2932,30 @@ function Set-TowerScoutHostHelperOperationLockState {
     Write-TowerScoutHostHelperJsonAtomic -Path $statusPath -Value $lock
     if ([bool] $policy.Terminal) {
         $currentActive = Get-TowerScoutHostHelperOperationLock -Profile $Profile
-        if (
-            $null -ne $currentActive -and
-            [string]::Equals(
+        if (Test-Path -LiteralPath $lockPath -PathType Leaf) {
+            if ($null -eq $currentActive) {
+                throw "The terminal helper operation lock could not be validated for cleanup."
+            }
+            if (-not [string]::Equals(
                 (Get-TowerScoutHostHelperObjectValue -InputObject $currentActive -Name "operation_id"),
                 $OperationId,
                 [System.StringComparison]::Ordinal
-            )
-        ) {
-            Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+            )) {
+                throw "The terminal helper operation lock changed before cleanup."
+            }
+            if (-not (Remove-TowerScoutHostHelperFileWithRetry `
+                -Path $lockPath `
+                -ExpectedOperationId $OperationId)) {
+                throw "The terminal helper operation lock could not be cleared."
+            }
         }
+        # Active-lock removal is the admission boundary. If it failed above,
+        # the worker identity is deliberately retained with the lock. Once the
+        # lock is gone, this operation-scoped metadata cannot admit new work;
+        # retry its cleanup without changing the persisted terminal outcome.
         Clear-TowerScoutHostHelperOperationWorkerIdentity `
             -Profile $Profile `
-            -OperationId $OperationId
+            -OperationId $OperationId | Out-Null
     }
     else {
         Write-TowerScoutHostHelperJsonAtomic -Path $lockPath -Value $lock
@@ -3275,14 +3396,20 @@ function Clear-TowerScoutHostHelperOperationLock {
 
     $lockPath = Get-TowerScoutHostHelperOperationLockPath -Profile $Profile
     $cleared = 0
+    $state = "operation_lock_absent"
     if (Test-Path -LiteralPath $lockPath -PathType Leaf) {
-        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
-        $cleared = 1
+        if (Remove-TowerScoutHostHelperFileWithRetry -Path $lockPath) {
+            $cleared = 1
+            $state = "operation_lock_cleared"
+        }
+        else {
+            $state = "operation_lock_not_cleared"
+        }
     }
 
     return [pscustomobject]@{
         cleared = $cleared
-        state = "operation_lock_cleared"
+        state = $state
     }
 }
 

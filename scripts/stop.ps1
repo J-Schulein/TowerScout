@@ -16,6 +16,9 @@ $helperControlledOperation = [string]::Equals(
 if (-not $helperControlledOperation) {
     try {
         $helperCleanup = Clear-TowerScoutHostHelperSession -RootPath (Get-TowerScoutRepoRoot)
+        if ([int] $helperCleanup.files_not_cleared -gt 0) {
+            throw "one or more state files remain"
+        }
         if ($helperCleanup.cleared -gt 0) {
             Write-Host "Invalidated TowerScout host helper session metadata."
         }

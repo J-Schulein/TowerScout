@@ -40,6 +40,9 @@ if ($Stop) {
         (Resolve-Path -LiteralPath $PackageRoot).Path
     }
     $result = Clear-TowerScoutHostHelperSession -RootPath $stopRoot
+    if ([int] $result.files_not_cleared -gt 0) {
+        throw "TowerScout host helper session invalidation did not clear every state file."
+    }
     Write-Host "TowerScout host helper sessions invalidated: $($result.cleared)"
     exit 0
 }
@@ -80,7 +83,11 @@ try {
         -MutexWaitMilliseconds $MutexWaitMilliseconds
 }
 finally {
-    Clear-TowerScoutHostHelperSession `
+    $cleanupResult = Clear-TowerScoutHostHelperSession `
         -RootPath $resolvedPackageRoot `
-        -SessionId $profile.HelperSessionId | Out-Null
+        -SessionId $profile.HelperSessionId `
+        -IncludeOperationFiles
+    if ([int] $cleanupResult.files_not_cleared -gt 0) {
+        throw "TowerScout host helper session invalidation did not clear every state file."
+    }
 }
