@@ -1118,6 +1118,45 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-08-07 - Exact-Source Policy Package Rebuilt; Full Package Remains Policy-Blocked
+
+**Objective**: Rebuild the launcher from the rebased exact source and determine
+whether the normal full-runnable package path can proceed on this workstation.
+
+**Decision**: Use only the pinned launcher build and existing package-release
+path. Do not bypass PowerShell execution policy, create an ad hoc replacement
+generator, or combine the new launcher with an older-source base package.
+
+**Execution**: Installed the pinned build requirements, ran
+`launcher/build.cmd` from clean commit `4fc5390`, assembled the
+`launcher-policy` validation package with the Python validation assembler, and
+attempted the normal `scripts/package-release.ps1 -NoZip` base-package command
+without an execution-policy bypass.
+
+**Output**:
+
+- Launcher build tree SHA-256:
+  `bae70595e92f0520835bd526b80d1f6712992f961383a5f1eb5a6ef7eec4e322`.
+- Validation archive:
+  `Task-087-validation-4fc5390a3421.zip`.
+- Archive SHA-256:
+  `6bd8bd6e682e9657d3f419d83543fed0b5eb037f11583e6682732f1b4e413536`.
+- Authenticode status: `NotSigned`.
+- The normal base-package generator was rejected before execution with
+  `UnauthorizedAccess` because PowerShell script execution is disabled.
+
+**Validation**: Structural launcher inspection passed; the ZIP sidecar matched
+the computed archive hash; and the packaged executable remained alive and
+responsive during a bounded hidden-window launch against the non-runnable
+policy sentinel. No runtime, container, trust, provider, or certificate state
+was changed.
+
+**Next**: Generate the base package from `4fc5390` only in an approved
+environment where the normal PowerShell script is allowed, then assemble the
+full-runnable package and continue UI-driven Docker Google/Azure and recovery
+validation. Signing and representative managed-endpoint validation remain
+separate later gates.
+
 ### 2026-08-07 - Task-099 Merge Reconciled Into Launcher Prototype
 
 **Objective**: Rebase Draft PR #67 onto the Task-099 security-remediation merge
