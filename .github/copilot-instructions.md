@@ -42,10 +42,10 @@ The project still carries public-health workflow expectations:
 - `TASK-090` and `TASK-098` are complete. PR #51 merged the qualified
   dependency remediation as `e499b50`, post-merge CI passed, and Dependabot
   reconciled on July 27 to eight documented non-blocking torch advisories.
-- `TASK-099` is active for four advisories disclosed August 4-5: runtime
-  `aiohttp` alert `#74` and development-only transitive `ip-address` alerts
-  `#72`, `#73`, and `#75`. The current inventory is two high, five medium, and
-  five low.
+- `TASK-099` is active for Dependabot alerts `#72-#75` disclosed August 4-5
+  plus npm audit finding `GHSA-5p4m-2wfm-xmqj`, detected August 7 before the
+  repository inventory assigned it an alert number. The current numbered
+  inventory is two high, five medium, and five low.
 - `TASK-087` work may continue, but signing and candidate inclusion remain
   blocked until Task-099 restores the critical/high dependency gate and the
   default-branch inventory is reconciled.
@@ -115,9 +115,9 @@ adoption:
 2. Task-095 Phase A is complete.
 3. Preserve the completed July Task-090/098 record and the eight documented
    torch residuals for a future coordinated ML qualification cycle.
-4. Complete Task-099's narrow `aiohttp==3.14.3` and transitive
-   `ip-address==10.3.1` remediation, required CI, and post-merge Dependabot
-   reconciliation.
+4. Complete Task-099's narrow `aiohttp==3.14.3`, transitive
+   `ip-address==10.3.1`, and transitive `js-yaml==4.3.1` remediation, required
+   CI, and post-merge dependency-inventory reconciliation.
 5. Continue Task-087 guided Google/Azure provider TLS work on Docker and
    Podman; preserve the command fallback and do not sign or include a
    candidate before Task-099 passes.
@@ -759,8 +759,9 @@ The original guidance benefited from explicitly naming recent completed work. Th
 
 1. Keep `v0.1.2` immutable as the Pilot Package.
 2. Task-095 Phase A, Task-090, and Task-098 are complete.
-3. Complete Task-099 for the four August advisories while preserving the eight
-   documented non-blocking torch residuals and qualified ML pair.
+3. Complete Task-099 for the August Dependabot alerts and later js-yaml npm
+   audit finding while preserving the eight documented non-blocking torch
+   residuals and qualified ML pair.
 4. Continue Task-087 non-release implementation and validation in parallel;
    keep signing and candidate inclusion blocked until Task-099 passes.
 5. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
@@ -789,8 +790,9 @@ An agent should leave with the following understanding:
 - filesystem sessions and disk-backed config writes are real architectural constraints
 - Google and Azure workflows are both important
 - outbreak-investigation workflows are the highest-value legacy surface to preserve
-- Task-090 and Task-098 remain complete; Task-099 owns the four August
-  disclosures without reopening their historical evidence
+- Task-090 and Task-098 remain complete; Task-099 owns the August dependency
+  disclosures detected while it remains active without reopening their
+  historical evidence
 - Task-089 execution remains blocked until final qualification and explicit
   cdcai-owner adoption approval
 

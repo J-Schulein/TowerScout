@@ -69,10 +69,12 @@ gate passes. This does not change the Pilot Package and does not authorize
 enabling unvalidated behavior for pilot users.
 
 Tasks 090/098 passed on July 27 and remain completed historical records.
-GitHub disclosed four additional advisories on August 4-5; Task-099 owns that
-follow-up. Task-087 non-release implementation and validation may continue in
-parallel, but signing and candidate inclusion remain blocked until Task-099
-passes its critical/high gate and default-branch alert reconciliation.
+GitHub disclosed four additional Dependabot advisories on August 4-5, and the
+blocking npm audit added `GHSA-5p4m-2wfm-xmqj` on August 7 while Task-099 was
+still active. Task-099 owns that follow-up. Task-087 non-release implementation
+and validation may continue in parallel, but signing and candidate inclusion
+remain blocked until Task-099 passes its critical/high gate and default-branch
+inventory reconciliation.
 
 ## Release Naming Boundary
 
@@ -110,8 +112,9 @@ backlog, and migration-ready handoff without changing cdcai.
 - Task-097: Podman CPU/GPU final-path qualification.
 - Task-098: completed July 27 dependency remediation, compatibility
   validation, and release-risk disposition through PR #51 / `e499b50`.
-- Task-099: active narrow follow-up for August alerts `#72-#75`; required
-  before signing or candidate inclusion, without reopening Task-098.
+- Task-099: active narrow follow-up for alerts `#72-#75` plus npm finding
+  `GHSA-5p4m-2wfm-xmqj`; required before signing or candidate inclusion,
+  without reopening Task-098.
 
 ## Superseded Instructions
 

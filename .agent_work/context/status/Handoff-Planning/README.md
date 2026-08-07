@@ -23,9 +23,10 @@
 - Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU.
 - Task-090 alert classification and Task-098 mandatory remediation remain
   complete as of their July 27 closeout.
-- Task-099 owns the four advisories disclosed August 4-5. Task-087 non-release
-  work may continue, but signing and candidate inclusion remain blocked until
-  Task-099 passes.
+- Task-099 owns alerts `#72-#75` plus npm finding
+  `GHSA-5p4m-2wfm-xmqj`, detected while the follow-up remained active.
+  Task-087 non-release work may continue, but signing and candidate inclusion
+  remain blocked until Task-099 passes.
 - Complete operational closeout by October 30, 2026.
 
 ## Active Validation Record

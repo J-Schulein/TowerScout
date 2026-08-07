@@ -174,6 +174,10 @@ Current result:
   two high, five medium, and five low. Task-099 owns runtime `aiohttp` alert
   `#74` and development-only transitive `ip-address` alerts `#72`, `#73`, and
   `#75`.
+- The August 7 blocking npm audit additionally reports high-severity
+  `js-yaml` advisory `GHSA-5p4m-2wfm-xmqj`, fixed in `4.3.1`. The live
+  repository Dependabot inventory has not yet assigned it an alert number, so
+  Task-099 tracks it by GHSA identity without changing the 12-alert count.
 - The blocking Python and frontend audit gates correctly detected the new
   high findings. Task-087 implementation may continue, but signing, candidate
   inclusion, and final-release qualification remain blocked until Task-099

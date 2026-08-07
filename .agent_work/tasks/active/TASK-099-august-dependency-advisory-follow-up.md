@@ -9,7 +9,8 @@
 
 ## Objective
 
-Remediate the four dependency advisories disclosed after Task-098 closed,
+Remediate the dependency advisories disclosed after Task-098 closed and while
+this follow-up remains active,
 validate the affected Python provider-client and frontend-development paths,
 and restore the critical/high dependency release gate without reopening or
 rewriting the completed Task-090 and Task-098 evidence.
@@ -22,8 +23,13 @@ blocked until this task passes.
 
 Task-098 closed on July 27 with exactly eight documented non-blocking torch
 advisories: three medium and five low. GitHub disclosed four additional
-advisories on August 4-5. The August 6 inventory therefore contains 12 open
-alerts: two high, five medium, and five low.
+Dependabot alerts on August 4-5. The August 6 repository inventory therefore
+contains 12 open alerts: two high, five medium, and five low. On August 7, the
+blocking npm audit also began reporting reviewed advisory
+`GHSA-5p4m-2wfm-xmqj` against transitive development dependency
+`js-yaml==4.3.0`. GitHub had not assigned that finding a repository Dependabot
+alert number when the live inventory was reconciled, so it is tracked here by
+GHSA identity without changing the 12-alert repository count.
 
 | Alert | Package and scope | Severity | Advisory | Current | Minimum fixed | Selected target |
 | ---: | --- | --- | --- | --- | --- | --- |
@@ -31,6 +37,7 @@ alerts: two high, five medium, and five low.
 | `#73` | `ip-address`, npm development transitive | Medium | `CVE-2026-69198` / `GHSA-4xrf-jv44-h6hh` | `10.2.0` | `10.2.2` | `10.3.1` |
 | `#74` | `aiohttp`, Python runtime | High | `CVE-2026-69244` / `GHSA-cq5v-8q36-5273` | `3.14.2` | `3.14.3` | `3.14.3` |
 | `#75` | `ip-address`, npm development transitive | High | `CVE-2026-69192` / `GHSA-mwp4-54f8-5fhr` | `10.2.0` | `10.3.1` | `10.3.1` |
+| Pending repository alert ID | `js-yaml`, npm development transitive | High | `GHSA-5p4m-2wfm-xmqj` | `4.3.0` | `4.3.1` | `4.3.1` |
 
 The affected pins already exist on `main`. Task-087 changed neither
 `webapp/requirements.txt` nor `package.json`/`package-lock.json`; its PR
@@ -47,6 +54,9 @@ ratchets operated as designed.
   behavior.
 - WHEN the transitive `ip-address` package is updated, THE PROJECT SHALL retain
   the direct Puppeteer pin and update only the required npm lockfile graph.
+- WHEN a new advisory is detected while Task-099 remains active, THE PROJECT
+  SHALL add the narrow fixed dependency to Task-099 without inventing a
+  repository alert ID or rewriting the completed Task-098 baseline.
 - AFTER each dependency change, THE PROJECT SHALL run clean resolution,
   focused affected-path tests, and the existing critical/high CI gates.
 - WHILE Task-099 is active, THE PROJECT SHALL NOT change torch, torchvision,
@@ -62,6 +72,8 @@ Included:
 - Pin `aiohttp==3.14.3` in `webapp/requirements.txt`.
 - Refresh the npm lockfile so transitive development dependency
   `ip-address` resolves to `10.3.1` while Puppeteer remains unchanged.
+- Resolve transitive development dependency `js-yaml` to `4.3.1` within the
+  existing `cosmiconfig` range while Puppeteer remains unchanged.
 - Run the maintained provider-client/TLS/sanitization and frontend contracts.
 - Confirm the Python and npm critical/high security gates pass.
 - Reconcile the post-merge GitHub dependency inventory and current planning
@@ -83,13 +95,16 @@ Excluded:
   application-code change.
 - [x] `ip-address` resolves to `10.3.1` in `package-lock.json` without changing
   the direct Puppeteer version or adding a production dependency.
-- [ ] A clean npm install, blocking high-severity audit, and maintained
+- [x] `js-yaml` resolves to `4.3.1` in `package-lock.json` without changing the
+  direct Puppeteer version or adding a production dependency.
+- [x] A clean npm install, blocking high-severity audit, and maintained
   frontend contracts pass.
 - [ ] Required Python, frontend, and security CI jobs pass at the reviewed
   Task-099 head.
 - [ ] After the default-branch dependency graph refreshes, alerts `#72-#75`
-  are fixed, no critical/high alert remains, and the open inventory returns to
-  the eight documented torch residuals without manual dismissal.
+  and `GHSA-5p4m-2wfm-xmqj` are fixed, no critical/high alert remains, and the
+  open inventory returns to the eight documented torch residuals without
+  manual dismissal.
 - [x] Task tracking distinguishes the July Task-098 closeout from this August
   follow-up and passes both agent-work validators plus `git diff --check`.
 
@@ -107,7 +122,8 @@ Excluded:
 
 1. Preserve the exact August 6 advisory inventory and unchanged-manifest
    provenance.
-2. Apply the narrow aiohttp pin and npm transitive lockfile updates.
+2. Apply the narrow aiohttp pin and npm transitive lockfile updates, including
+   later disclosures detected before Task-099 closes.
 3. Run clean Python 3.11/3.12 resolution, focused provider-client tests, clean
    npm installation/audit, and frontend contracts.
 4. Run the repository quality and security gates and review the complete diff.
@@ -208,9 +224,52 @@ require green Python, frontend, and security CI before review or merge.
 
 ---
 
+### 2026-08-07 - Late Advisory Added Without Broad Dependency Churn
+
+**Objective**: Restore the newly failing frontend high-severity audit while
+preserving the already reviewed Task-099 dependency boundary.
+
+**Context**: Exact-head PR #67 CI reported `GHSA-5p4m-2wfm-xmqj` after the
+advisory entered GitHub's reviewed database on August 6. PR #68 still resolved
+transitive `js-yaml` to affected version `4.3.0`; the existing `cosmiconfig`
+range `^4.1.0` accepts patched version `4.3.1`. The August 7 live Dependabot
+inventory still contained alerts `#72-#75` plus the eight torch residuals and
+had not assigned the js-yaml finding a repository alert number.
+
+**Decision**: Extend the still-active Task-099 follow-up rather than create a
+second overlapping security task. Update only the existing js-yaml lock record
+and its dependency contract; do not move Puppeteer, cosmiconfig, application
+code, the ML pair, the frozen pilot, or cdcai.
+
+**Execution**: Verified the npm audit record, GitHub reviewed advisory, fixed
+version, registry tarball/integrity metadata, accepted cosmiconfig range, and
+live repository alert inventory before editing the lockfile.
+
+**Output**: `package-lock.json` and the maintained transitive dependency
+contract now select `js-yaml==4.3.1`. Current task sources distinguish the
+12-alert Dependabot inventory from the additional npm audit finding whose
+repository alert ID is still pending.
+
+**Validation**:
+
+- Exact `npm ci`: 98 packages installed; zero vulnerabilities.
+- Blocking `npm audit --audit-level=high`: zero findings.
+- Resolved tree: Puppeteer `24.19.0` -> cosmiconfig `9.0.1` -> js-yaml
+  `4.3.1`; Puppeteer -> socks `2.8.7` -> ip-address `10.3.1`.
+- Python dependency/provider contracts: 9 passed.
+- Setup Wizard and ProviderStateManager frontend contracts: passed.
+- Package-lock JSON parse, both agent-work validators, CI workflow summaries,
+  and `git diff --check`: passed.
+- GitHub Actions at the new reviewed head: pending.
+
+**Next**: Commit and publish the reviewed follow-up to PR #68, refresh its
+summary, and require green exact-head CI before review or merge.
+
+---
+
 ## Validation Results
 
-**Status**: LOCAL AFFECTED-SURFACE PASS / CI AND POST-MERGE RECONCILIATION
+**Status**: LOCAL DEPENDENCY/AUDIT PASS / CI AND POST-MERGE RECONCILIATION
 PENDING
 
 Task-099 remains `IN_PROGRESS` until the reviewed changes land on `main`,

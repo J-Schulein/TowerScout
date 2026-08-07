@@ -45,8 +45,8 @@ Phase B governance and final handoff maintenance continue through closeout
 - Tasks 090-097 have unique, stable rebaseline definitions; Task-098 is the
   unique follow-on security-remediation lane added by the July 23 live alert
   review.
-- Task-099 is the separately governed follow-up for four advisories disclosed
-  after the July 27 Task-098 closeout.
+- Task-099 is the separately governed follow-up for dependency advisories
+  disclosed after the July 27 Task-098 closeout and before Task-099 closes.
 - Sprint, backlog, requirements, design, pilot, handoff, and agent guidance are
   aligned.
 - Superseded planning/review material is archived rather than left in active
@@ -152,9 +152,9 @@ added to this completed July baseline.
 
 ### **TASK-099: August Dependency Advisory Follow-Up**
 
-**Status**: IN_PROGRESS - four newly disclosed advisories are release-blocking
-until the narrow dependency updates, required CI, and post-merge Dependabot
-reconciliation pass
+**Status**: IN_PROGRESS - Dependabot alerts `#72-#75` plus the later npm audit
+finding `GHSA-5p4m-2wfm-xmqj` are release-blocking until the narrow dependency
+updates, required CI, and post-merge inventory reconciliation pass
 **Type**: C (Security Remediation / Release Gate)
 **Priority**: HIGH
 **Estimated Effort**: 0.5-1.5 days plus CI and Dependabot reconciliation
@@ -167,6 +167,8 @@ Task-098 or changing the qualified ML runtime:
 - update runtime `aiohttp` from `3.14.2` to `3.14.3` for alert `#74`
 - update transitive development-only `ip-address` from `10.2.0` to `10.3.1`
   for alerts `#72`, `#73`, and `#75`
+- update transitive development-only `js-yaml` from `4.3.0` to `4.3.1` for
+  `GHSA-5p4m-2wfm-xmqj`; a repository Dependabot alert ID is not yet assigned
 - preserve the eight documented medium/low torch residuals and the selected
   torch/torchvision pair
 - restore green Python and frontend critical/high gates, then reconcile the

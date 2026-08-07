@@ -210,9 +210,10 @@ critical/high acceptance, changes to `cdcai/TowerScout`, and official
 adoption.
 
 Task-099 was added August 6 for alerts `#72-#75`, which GitHub disclosed after
-the Task-098 closeout. Its narrow `aiohttp` and transitive `ip-address`
-remediation is a required signing/candidate gate and does not reopen Task-098
-or block parallel Task-087 non-release work.
+the Task-098 closeout. While it remained active, the August 7 npm audit added
+`GHSA-5p4m-2wfm-xmqj`. Its narrow `aiohttp`, transitive `ip-address`, and
+transitive `js-yaml` remediation is a required signing/candidate gate and does
+not reopen Task-098 or block parallel Task-087 non-release work.
 
 ## Stop Rules
 

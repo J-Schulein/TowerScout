@@ -51,8 +51,9 @@ Key outcomes:
 Post-closeout note: GitHub disclosed alerts `#72-#75` on August 4-5. They do
 not reopen Task-098 or change its July evidence; the active
 [`TASK-099` follow-up](./tasks/active/TASK-099-august-dependency-advisory-follow-up.md)
-owns their remediation. Task-099 blocks signing and candidate inclusion, not
-ongoing Task-087 non-release work.
+owns their remediation together with npm audit finding
+`GHSA-5p4m-2wfm-xmqj`, detected while Task-099 remained active. Task-099 blocks
+signing and candidate inclusion, not ongoing Task-087 non-release work.
 
 Current-sprint task files remain under `tasks/active/` until Sprint 08
 closeout.

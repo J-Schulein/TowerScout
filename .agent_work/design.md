@@ -113,9 +113,10 @@ Task-090 and Task-098 completed the 62-alert Trivy baseline classification,
 approved remediation, and affected-runtime qualification. PR #51 merged as
 `e499b50`. That July 27 closeout remains historical and complete.
 
-GitHub disclosed four additional advisories on August 4-5. Task-099 is the
-separate, narrow release-gate follow-up; it does not reopen Task-098 or expand
-into the qualified ML runtime.
+GitHub disclosed four additional Dependabot advisories on August 4-5, followed
+by reviewed npm advisory `GHSA-5p4m-2wfm-xmqj` entering the blocking audit on
+August 7. Task-099 is the separate, narrow release-gate follow-up; it does not
+reopen Task-098 or expand into the qualified ML runtime.
 
 The current security boundary is:
 
@@ -133,10 +134,14 @@ The current security boundary is:
 5. Task-099 updates runtime `aiohttp` from `3.14.2` to `3.14.3` for alert
    `#74` and development-only transitive `ip-address` from `10.2.0` to
    `10.3.1` for alerts `#72`, `#73`, and `#75`.
-6. The four new alerts raise the active inventory to two high, five medium,
-   and five low. Task-087 implementation may continue, but signing and
-   candidate inclusion remain blocked until the Task-099 gate passes.
-7. All-severity SARIF reporting remains advisory, while new or reintroduced
+6. Task-099 also updates development-only transitive `js-yaml` from `4.3.0`
+   to `4.3.1` for `GHSA-5p4m-2wfm-xmqj`; the repository inventory had not
+   assigned that new audit finding an alert number at the August 7 check.
+7. The four numbered alerts leave the repository inventory at two high, five
+   medium, and five low until main refreshes. Task-087 implementation may
+   continue, but signing and candidate inclusion remain blocked until the
+   Task-099 gate passes.
+8. All-severity SARIF reporting remains advisory, while new or reintroduced
    critical/high dependency findings are blocking unless covered by a narrow,
    unexpired exception. The Task-099 discovery confirms that ratchet is
    operating as designed.
