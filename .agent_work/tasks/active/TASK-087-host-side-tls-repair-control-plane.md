@@ -1,10 +1,10 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - the final launcher implementation is reconciled with
-current `main` at rebased checkpoint `1908670`. Exact-head validation and
-publication, a new full-runnable package, packaged Google/Azure/recovery and
-approved-provider Podman coverage, signing, and representative managed-endpoint
-validation remain open
+**Status**: IN_PROGRESS - the `41cec81` exact-source CPU package passed Docker
+and approved-provider Podman Google/Azure TLS repair plus controlled recovery.
+Podman compatibility fixes are committed at `aff3cb6`; publication, exact-head
+CI and package rebuild, signing, and representative managed-endpoint validation
+remain open
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; retain or revise the prior
@@ -25,12 +25,13 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current rebased implementation checkpoint is `1908670`, built on current
-`main` commit `3932abf`. The historical exact-source full-runnable package at
-`4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6` remains evidence for that older
-source only and must not be reused. The next full-runnable package must be built
-from the accepted post-reconciliation Draft PR head. No validation artifact is
-a release candidate, release, merge signal, or substitute for the signed
+The current implementation checkpoint is `aff3cb6`, built on current `main`
+commit `3932abf`. The exact-source full-runnable CPU package at `41cec81` is
+valid evidence for the pre-fix source and exposed the two bounded Podman
+compatibility defects now corrected at `aff3cb6`; it must not be promoted or
+reused as the final exact-head artifact. The next full-runnable package must be
+built from the accepted final Draft PR head. No validation artifact is a
+release candidate, release, merge signal, or substitute for the signed
 representative managed-endpoint gate.
 
 Sanitized full-package functional evidence is recorded in
@@ -43,10 +44,17 @@ still describes non-mutating preview as the latest state:
 
 - The visible Python/Tkinter launcher and bounded native transaction are
   implemented without launching PowerShell or activating the dormant helper.
-- One separately authorized isolated Google/Docker source-adapter transaction
-  passed with same-profile restart and all eight named volumes retained.
-- The combined packaged UI flow, Azure, controlled recovery, and approved-
-  provider Podman paths remain open and require a new exact-source package.
+- The `41cec81` packaged Docker CPU UI flow passed Google and Azure repair,
+  same-profile restart, and controlled recovery with all eight named volumes
+  retained.
+- A separately assembled `41cec81` Podman CPU package passed approved-provider
+  setup, Google/Azure repair, same-profile restart, and controlled recovery.
+  The run exposed and then validated fixes for installer-selected provider
+  identity and Podman's safe tag-removal image normalization.
+- Windows could not reach the Podman machine's loopback publication through
+  normal WSL forwarding on this workstation. Validation used a temporary
+  loopback-only SSH tunnel; global WSL user-mode networking was not enabled
+  because it could disturb the concurrent validated Docker session.
 - Task-096 may reuse the fixed-target confirmation, runtime validation,
   sanitized state, and recovery pattern after the Task-087 decision; Stop is no
   longer the first controlled launcher mutation.
@@ -1136,6 +1144,66 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-11 - Docker And Approved-Provider Podman CPU Validation Passed
+
+**Objective**: Complete the exact-source managed-network package checks on
+Docker and Podman, preserve runtime state through controlled recovery, and fix
+only defects demonstrated by the Podman package path.
+
+**Context**: The project lead explicitly authorized the unsigned development-
+workstation package test and a process-scoped PowerShell execution-policy
+bypass for the normal package generator. The full-runnable CPU package was
+built from exact source `41cec81` with the pinned CPU image digest. Docker used
+the isolated port-5008 project; Podman used a separate port-5009 project and an
+explicitly installed, hash-verified `podman-compose` 1.5.0 provider. Provider
+keys were entered only in the browser and were not captured in evidence.
+
+**Decision**: Keep Docker and Podman projects and named volumes isolated. Do
+not use Docker Desktop's Compose binary for Podman, change global WSL
+networking, disable TLS verification, remove volumes, or record certificate or
+provider-key details. Treat the two Podman launcher failures as fail-closed
+compatibility defects and retain the native no-PowerShell mutation boundary.
+
+**Execution**:
+
+- Docker Google and Azure TLS repair succeeded through the packaged native
+  launcher. A controlled down/up recovery retained all eight named volumes,
+  the CA bundle, provider configuration, assets, and exact image digest.
+- The separate Podman package passed checksum, asset, disk, port, runtime,
+  approved-provider, and pinned-image preflight. Asset import succeeded and the
+  container was healthy internally. Normal Windows-to-WSL localhost forwarding
+  did not expose port 5009, so the bounded UI validation used a temporary
+  loopback-only SSH tunnel rather than changing shared WSL networking.
+- The provider installer initially selected its `.cmd` wrapper, which the
+  launcher's native mutation boundary intentionally rejects. Commit `aff3cb6`
+  keeps the wrapper for manual use but records the approved virtual-environment
+  executable for native launcher validation.
+- Podman records a digest-pinned running image as `repository@digest` even when
+  the package confirms `repository:tag@digest`. Commit `aff3cb6` accepts only
+  that narrow tag-removal normalization while continuing to reject a different
+  repository or digest.
+- A validation-only launcher containing the same `aff3cb6` source changes
+  completed Google and Azure Podman TLS repair. Controlled Podman down/up
+  recovery recreated the container while retaining the original timestamps of
+  all eight volumes, both CA bundle paths, both provider configurations,
+  healthy assets, and the exact CPU image digest. Docker remained ready.
+- NVIDIA prerequisite discovery found an RTX PRO 500 Blackwell laptop GPU,
+  Docker's NVIDIA runtime, and GPU visibility inside the Podman WSL machine.
+  Podman CDI is not configured and no published `v0.1.2-cuda126` image exists;
+  this is local capability evidence, not Task-097 final qualification.
+
+**Validation**: Launcher, runtime-hardening, and release-package coverage passed
+`69` tests; launcher Python compilation and `git diff --check` passed. Runtime
+readiness reported both providers configured, assets and ML runtime healthy,
+and the exact pinned digest after recovery. No provider key, certificate
+identity, local provider path, screenshot, or raw support log was committed.
+
+**Next**: Publish `aff3cb6` plus this sanitized evidence, require exact-head CI,
+then rebuild the launcher and full-runnable package from the final accepted
+head and repeat the bounded Podman regression. Keep signing, representative
+managed-endpoint validation, candidate inclusion, merge, and final Task-097
+GPU qualification as separate gates.
 
 ### 2026-08-11 - Sprint 09 Main Reconciliation Completed
 

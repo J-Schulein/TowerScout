@@ -67,10 +67,11 @@ subject to Task-087's own package, signing, and managed-endpoint gates.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS - Draft PR #67 contains the visible Windows launcher
-and controlled native TLS-repair prototype. Its implementation is reconciled
-locally with current `main` at `3932abf`; validation and publication of the new
-exact head are required before a new package or merge decision.
+**Status**: IN_PROGRESS - the exact-source `41cec81` CPU package passed
+Docker and approved-provider Podman Google/Azure TLS repair plus controlled
+recovery on the development workstation. Two Podman compatibility fixes are
+committed at `aff3cb6`; publication, exact-head CI/package rebuild, signing,
+and representative managed-endpoint validation remain open.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; proceed, revise, or stop at
@@ -82,13 +83,18 @@ that decision gate
 
 - Preserve the visible Python/Tkinter launcher and bounded native transaction
   on top of the current security and Sprint 09 tracking history.
-- Generate the full-runnable validation package from the accepted
-  post-reconciliation commit in an approved environment; local PowerShell
-  policy blocks the normal base-package generator on this workstation.
-- Run UI-driven Docker Google Maps, Azure Maps, and controlled
-  recovery/rollback validation while preserving named volumes.
-- Configure an approved non-Docker-Desktop Podman Compose provider separately
-  before any Podman mutation; do not silently install or select a provider.
+- Publish the `aff3cb6` Podman fixes, require exact-head CI, and rebuild the
+  full-runnable validation package from the final accepted branch head.
+- Preserve the passed Docker and Podman CPU Google/Azure/recovery results as
+  unsigned development-workstation evidence; repeat the bounded Podman slice
+  from the rebuilt exact-source package.
+- Keep the separately installed approved Podman Compose provider explicit.
+  Track the workstation's missing Windows-to-WSL localhost forwarding as a
+  supportability gap; do not change global WSL networking while Docker is in
+  the validated test session.
+- Treat NVIDIA discovery as local prerequisite evidence only until an exact
+  CUDA 12.6 image/package is built and the separate Task-097 final GPU path is
+  selected.
 - Keep signing, representative managed-endpoint validation, candidate
   inclusion, and merge as separate later gates.
 - Record proceed, conditional, or stop by August 14 under ADR-018.
