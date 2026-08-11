@@ -67,11 +67,10 @@ subject to Task-087's own package, signing, and managed-endpoint gates.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS - Draft PR #67 contains the current visible Windows
-launcher and controlled TLS-repair prototype. Its prior exact-head checks are
-green, but the PR now conflicts with current `main` after the Task-099 graph and
-tracking follow-ups. Reconciliation with current `main` is required before a
-new exact-source package or merge decision.
+**Status**: IN_PROGRESS - Draft PR #67 contains the visible Windows launcher
+and controlled native TLS-repair prototype. Its implementation is reconciled
+locally with current `main` at `3932abf`; validation and publication of the new
+exact head are required before a new package or merge decision.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; proceed, revise, or stop at
@@ -82,7 +81,7 @@ that decision gate
 **Current Scope And Gates**:
 
 - Preserve the visible Python/Tkinter launcher and bounded native transaction
-  while reconciling the branch with current security and tracking history.
+  on top of the current security and Sprint 09 tracking history.
 - Generate the full-runnable validation package from the accepted
   post-reconciliation commit in an approved environment; local PowerShell
   policy blocks the normal base-package generator on this workstation.

@@ -21,8 +21,8 @@ The project still carries public-health workflow expectations:
 
 ### Current State
 
-- Sprint 08 is the active planning and execution lane.
-- Sprint 04 through Sprint 07 are completed background context.
+- Sprint 09 is the active planning and execution lane.
+- Sprint 04 through Sprint 08 are completed background context.
 - Setup Wizard and Settings are implemented in the repo.
 - Detection progress, estimate/detect separation, and cancel handling are implemented in the repo.
 - `TASK-025` Docker-compatible / OCI containerization is merged on `main`: the repo now has a `Dockerfile`, Compose configuration, health/readiness endpoints, persistent runtime volume contract, release-package helper scripts, GHCR publish workflow, asset/TLS import helpers, and OCI runtime documentation.

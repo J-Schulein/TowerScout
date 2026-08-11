@@ -71,11 +71,14 @@ pristine checksum verification and fresh isolated Docker CPU setup. On August
 fixed preview-only Google/Docker display, and the sanitized expected
 `tls_ca_untrusted` Setup Wizard result also passed. The provider key was entered
 only in the wizard, and no key, raw provider response, or certificate detail was
-captured; the launcher did not inspect certificates, run the dormant helper, or
-perform a mutation. Signing and representative managed-endpoint validation are
-next. This evidence is validation-only: it does not change the Pilot Package,
-authorize TLS repair or other launcher mutation, create a release candidate or
-release, authorize merge, or enable new behavior for pilot users. See the
+captured; that preview did not inspect certificates, run the dormant helper, or
+perform a mutation. A later separately authorized source-adapter run completed
+one isolated Google/Docker native repair while preserving all eight volumes;
+the combined packaged UI, Azure, controlled recovery, and approved-provider
+Podman paths remain open. This evidence is validation-only: it does not change
+the Pilot Package, authorize additional launcher mutation, create a release
+candidate or release, authorize merge, or enable new behavior for pilot users.
+Signing and representative managed-endpoint validation remain later gates. See the
 current sanitized
 [`Task-087 full-package validation record`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
 

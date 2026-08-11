@@ -1,16 +1,16 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - the exact-source unsigned full-runnable validation
-package at `4327fb6` passed pristine verification, fresh Docker CPU setup,
-reboot persistence, three launcher refreshes, preview-only output, and the
-expected sanitized provider-TLS classification; the signed representative
-managed-endpoint gate remains open
+**Status**: IN_PROGRESS - the final launcher implementation is reconciled with
+current `main` at rebased checkpoint `1908670`. Exact-head validation and
+publication, a new full-runnable package, packaged Google/Azure/recovery and
+approved-provider Podman coverage, signing, and representative managed-endpoint
+validation remain open
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; retain or revise the prior
 4-7 day implementation estimate only if the prototype passes
-**Target Sprint**: Sprint 08 feasibility checkpoint, with continuation governed
-by the August 14 decision and the canonical October roadmap
+**Target Sprint**: Sprint 09 continuation, governed by the August 14 decision
+and the canonical October roadmap
 **Created**: 2026-06-29
 **Owner**: TowerScout release owner / active agent support
 **Depends On**: `TASK-086`; `TASK-090` investigation; approved `TASK-098`
@@ -25,17 +25,35 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current exact-source checkpoint is commit
-`4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6`, which includes the launcher
-runtime correction from `18082cf`. Its full-runnable package is an unsigned,
-validation-only functional artifact. It is not a release candidate, release,
-merge signal, or substitute for the signed representative managed-endpoint
-gate.
+The current rebased implementation checkpoint is `1908670`, built on current
+`main` commit `3932abf`. The historical exact-source full-runnable package at
+`4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6` remains evidence for that older
+source only and must not be reused. The next full-runnable package must be built
+from the accepted post-reconciliation Draft PR head. No validation artifact is
+a release candidate, release, merge signal, or substitute for the signed
+representative managed-endpoint gate.
 
 Sanitized full-package functional evidence is recorded in
 [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
 
-## August 5, 2026 Provisional Launcher Override
+## August 11, 2026 Current Launcher Override
+
+This current override controls where the August 5 provisional sequence below
+still describes non-mutating preview as the latest state:
+
+- The visible Python/Tkinter launcher and bounded native transaction are
+  implemented without launching PowerShell or activating the dormant helper.
+- One separately authorized isolated Google/Docker source-adapter transaction
+  passed with same-profile restart and all eight named volumes retained.
+- The combined packaged UI flow, Azure, controlled recovery, and approved-
+  provider Podman paths remain open and require a new exact-source package.
+- Task-096 may reuse the fixed-target confirmation, runtime validation,
+  sanitized state, and recovery pattern after the Task-087 decision; Stop is no
+  longer the first controlled launcher mutation.
+- Task-086 remains the supported fallback. Signing, representative managed-
+  endpoint validation, candidate inclusion, and merge remain separate gates.
+
+## Historical August 5, 2026 Provisional Launcher Override
 
 This override controls wherever the older loopback-helper plan, gates,
 acceptance criteria, or implementation phases below conflict. Those sections
@@ -56,8 +74,9 @@ the helper during this checkpoint.
   development evidence can prove functionality or signing mechanics only.
 - Require the production-shaped signed artifact to pass representative
   managed-endpoint security validation before candidate inclusion.
-- If the non-mutating proof passes, use Task-096 Stop as the preferred first
-  controlled mutation before implementing transactional TLS repair.
+- The original sequence preferred Task-096 Stop as the first controlled
+  mutation. The August 11 current override records that the separately
+  authorized native TLS source-adapter proof occurred first.
 - Record proceed, conditional, or stop by August 14 under
   [`ADR-018`](../../decisions/018-task-087-windows-launcher-feasibility-pivot.md).
 - Publish the bounded source through a Draft PR, then build only
@@ -1117,6 +1136,43 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-11 - Sprint 09 Main Reconciliation Completed
+
+**Objective**: Reconcile Draft PR #67 with the post-Task-099 and Sprint 09
+tracking state without changing the accepted launcher/runtime implementation.
+
+**Decision**: Rebase the two Task-087 commits onto merged `main` checkpoint
+`3932abf`, preserve the old `54c1a77` head on the existing migration safety
+branch, and resolve tracking conflicts in favor of the completed Task-099 and
+current Sprint 09 state. No package generation, container launch, host TLS
+mutation, volume mutation, or provider-key handling was authorized for this
+reconciliation.
+
+**Execution**: The rebase produced implementation checkpoint `1908670`. The
+launcher, compose/runtime, package-script, and focused test trees are
+byte-for-byte identical to the previously accepted `54c1a77` head. The
+semantic audit also corrected stale Sprint 08, alert #74, historical package,
+and "first controlled mutation" wording across the active Task-087 records,
+roadmap, ADR, backlog, and contributor guidance.
+
+**Validation**:
+
+- exact implementation-tree comparison against `54c1a77`: pass;
+- launcher and release-package unit tests: `49 passed`;
+- Flask/config/container-publish regression tests: `86 passed`;
+- launcher Python compile check: pass;
+- combined suite including the dormant PowerShell helper: `55 passed`, with
+  the same 19 documented AMSI `ScriptContainedMaliciousContent` failures in
+  `scripts/lib/TowerScoutHostHelper.ps1`; that helper remains outside the
+  native launcher, stop, and package paths;
+- `.agent_work` quick and full validators: pass;
+- `git diff --check`: pass.
+
+**Next**: Commit and publish this reconciliation as the new exact PR #67 head,
+verify exact-head GitHub checks, then build the full-runnable package only in an
+approved environment where the normal package generator can run. The packaged
+UI-driven Google/Azure/recovery and approved Podman-provider gates remain open.
 
 ### 2026-08-07 - Exact-Source Policy Package Rebuilt; Full Package Remains Policy-Blocked
 

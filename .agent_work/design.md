@@ -36,13 +36,17 @@ The application includes:
 ### During Task-087 Validation
 
 - `feature/task-087-windows-launcher-prototype` remains a short-lived branch
-  from the verified `origin/main` baseline and is reviewed through a Draft PR.
+  reconciled with verified `main` commit `3932abf` and reviewed through Draft
+  PR #67. Rebased implementation checkpoint `1908670` preserves the accepted
+  launcher/runtime tree while retaining the Sprint 09 and Task-099 history.
 - Validation artifacts are built only from an exact commit and use
   `Task-087-validation-<short-SHA>` rather than the `v0.1.3-rc.N` candidate
   line.
-- The current source-bound functional package was assembled from clean commit
+- The historical source-bound functional package was assembled from clean commit
   `4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6`, after launcher/runtime fixes in
-  `18082cf` and provenance hardening in `4327fb6`.
+  `18082cf` and provenance hardening in `4327fb6`. It is evidence for that
+  historical source only; a new full-runnable package must use the accepted
+  post-reconciliation PR head.
 - No validation artifact receives a tag or GitHub Release. Executable transfer
   uses only the organization-approved internal signing/endpoint-validation
   channel; repository evidence contains hashes, source identity, sanitized
@@ -97,9 +101,10 @@ The candidate flow is:
    listener, dormant helper import, hidden worker, execution-policy bypass,
    arbitrary command input, administrator-only setup, or Windows trust-store
    mutation.
-5. If the non-mutating proof passes, Task-096 Stop is the preferred first
-   controlled mutation. TLS repair follows only with candidate staging,
-   verification, backup, recovery, and named-volume preservation.
+5. After the non-mutating proof passed, the project lead authorized one
+   isolated native Google/Docker TLS transaction. It passed candidate staging,
+   verification, backup/recovery controls, same-profile restart, and named-
+   volume preservation; the combined packaged UI flow remains unvalidated.
 6. Signing-path work proceeds in parallel. The production-shaped signed
    artifact must pass representative managed-endpoint validation before
    candidate inclusion.
@@ -149,7 +154,7 @@ with hash verification; and the unique port-5008 project created fresh volumes
 and reached healthy `setup_required` readiness with assets `ok`, one inference
 engine, CPU selected, and the exact pinned image digest.
 
-The August 6 manual functional checkpoint also passed. After a Windows reboot,
+The August 6 manual preview checkpoint also passed. After a Windows reboot,
 the isolated Docker project automatically resumed with its persisted state, and
 the exact packaged launcher reported Docker running and reachable through three
 consecutive refreshes. Its preview displayed the expected fixed identity:
@@ -159,15 +164,19 @@ trust change, container stop/restart, or dormant-helper execution. A provider
 key entered only in the Setup Wizard produced the sanitized expected
 `tls_ca_untrusted` category and Task-086 guidance for
 `.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off`.
-No key, raw provider response, or certificate detail was captured.
+No key, raw provider response, or certificate detail was captured. A later,
+separately authorized source-adapter run performed one isolated Google/Docker
+repair and retained all eight named volumes; that result does not substitute
+for exact-source packaged UI, Azure, recovery-injection, or Podman validation.
 
 At this host's display scaling, the normal-size launcher window clipped its
 bottom controls; maximizing the window exposed them. This is a non-blocking UI
 follow-up to correct before the signed build. All results remain authorized
 unsigned development-workstation evidence only: the artifact is not a release
-candidate or release, the Draft PR remains unmerged, and no launcher mutation
-or cdcai change is authorized. The next gate is an organization-approved signed
-production-shaped build on a representative managed endpoint. The current
+candidate or release, the Draft PR remains unmerged, and no additional runtime
+or cdcai mutation is authorized by that evidence. The next gates are an exact-
+source full-runnable package, remaining functional coverage, and an organization-
+approved signed production-shaped build on a representative managed endpoint. The current
 evidence is
 [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md);
 the earlier review packet is retained as historical static-review evidence.
@@ -185,10 +194,11 @@ and belongs to Task-097.
 
 ## Exit/Stop Design Boundary
 
-If the Task-087 launcher proof passes, Task-096 will use the launcher as its
-first controlled mutation without exposing Docker or Podman sockets to the
-application container. If the proof fails, Task-096 must be re-planned around
-the current user-run stop path or another separately approved mechanism.
+If the Task-087 launcher proof passes, Task-096 will reuse the launcher's
+fixed-target confirmation, runtime validation, sanitized state, and recovery
+pattern without exposing Docker or Podman sockets to the application container.
+If the proof fails, Task-096 must be re-planned around the current user-run stop
+path or another separately approved mechanism.
 
 Expected sequence:
 

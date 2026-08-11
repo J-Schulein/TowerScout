@@ -9,7 +9,27 @@
 **Operational Closeout**: October 30, 2026
 **Hard Project End**: October 31, 2026
 
-## August 5 Task-087 Provisional Addendum
+## August 11 Task-087 Current Override
+
+Draft PR #67 is reconciled locally with current `main` at `3932abf`, preserving
+the Sprint 09/Task-099 closeout and the final Task-087 implementation tree. The
+native Python/Tkinter transaction and typed-confirmation UI are implemented.
+One separately authorized isolated Google/Docker source-adapter repair passed
+while preserving all eight named volumes; it did not validate the combined
+full-runnable packaged UI. This override controls the older August 5-6 wording
+below where it describes preview-only behavior as the latest state.
+
+- Publish and require green checks at the new exact PR head.
+- Generate a new exact-source full-runnable package in an approved environment;
+  do not reuse the historical `4327fb6` or `4fc5390` artifacts.
+- Validate packaged UI-driven Docker Google, Azure, and controlled recovery.
+- Validate Podman only after an approved non-Docker-Desktop Compose provider is
+  configured separately.
+- Keep Task-086 as the supported fallback and keep signing, representative
+  managed-endpoint validation, candidate inclusion, and merge as later gates.
+- Record proceed, conditional, or stop by August 14.
+
+## Historical August 5 Task-087 Provisional Addendum
 
 ADR-018 authorizes a reversible Windows launcher feasibility prototype instead
 of continuing directly toward activation of the dormant browser-to-loopback
@@ -30,7 +50,7 @@ milestones remain unchanged.
   the Task-086 user-run command repair without moving the September/October
   milestones.
 
-### August 5-6 Checkpoint Status
+### Historical August 5-6 Checkpoint Status
 
 - Draft PR #67 remains the review surface; all browser/helper activation gates
   remain off.
@@ -57,8 +77,9 @@ milestones remain unchanged.
 - The next external gate is an organization-approved signed production-shaped
   build running under representative managed endpoint policies. The current
   artifact remains unsigned validation-only evidence, not a release candidate
-  or release; no tag, merge, shipment, mutation, or cdcai change is authorized
-  before the applicable gates pass.
+  or release. The later isolated source-adapter transaction is governed by the
+  August 11 override and does not authorize tag, merge, shipment, additional
+  mutation, or cdcai change before the applicable gates pass.
 
 Current sanitized evidence:
 [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
@@ -161,8 +182,9 @@ July 27 exit evidence:
 4. If the proof passes, obtain and validate an approved signed production-
    shaped package under representative managed endpoint policies before
    implementing guided repair for Google and Azure on Docker and Podman.
-5. Use Task-096 Exit/Stop as the preferred first controlled launcher mutation
-   and complete it for Docker and Podman.
+5. If Task-087 proceeds, reuse its fixed-target confirmation, runtime
+   validation, sanitized state, and recovery pattern for Task-096 Exit/Stop on
+   Docker and Podman.
 6. If the proof fails, close the launcher PR unmerged, retain Task-086 as the
    supported repair path, and record the resulting Task-087/Task-096 scope
    disposition through a documentation-only PR based on current `main`.

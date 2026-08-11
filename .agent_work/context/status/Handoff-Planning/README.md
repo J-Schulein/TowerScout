@@ -43,12 +43,13 @@ The separate current Task-087 functional record is:
 
 - [`../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md)
 
-That record covers an authorized unsigned development-workstation validation
-only. It does not approve release, merge, TLS mutation, or cdcai adoption. A
-signed production-shaped build on a representative managed endpoint remains
-the next external gate. Normal-size controls clipping at this host's display
-scaling, resolved during validation by maximizing the launcher, remains a
-non-blocking UI follow-up before that build.
+That record covers authorized unsigned development-workstation validation only,
+including one later isolated Google/Docker source-adapter repair. It does not
+approve release, merge, additional mutation, or cdcai adoption. Exact-source
+packaged UI coverage plus a signed production-shaped build on a representative
+managed endpoint remain open. Normal-size controls clipping at this host's
+display scaling, resolved in the later UI source by increasing the window
+height, remains part of the packaged UI check.
 
 ## Archived Planning And Release History
 

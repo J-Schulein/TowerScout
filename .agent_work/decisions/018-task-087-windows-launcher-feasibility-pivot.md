@@ -23,6 +23,16 @@ Keep all existing browser/helper activation gates off. Place PR #64 on hold:
 do not merge, close, discard, or extend its activation path until the August 14
 decision records whether evidence should be retained, adapted, or superseded.
 
+### August 11 Evidence Update
+
+After the non-mutating proof passed, the project lead separately authorized one
+isolated native Google/Docker source-adapter transaction. It passed exact-target
+validation, transactional staging, provider verification, same-profile restart,
+and named-volume preservation. This changes the evidence sequence—Task-096 Stop
+is no longer the first controlled launcher mutation—but does not weaken the
+package, signing, representative managed-endpoint, candidate, merge, or August
+14 decision gates.
+
 ## Prototype Boundary
 
 The prototype may implement a thin end-to-end pathway in one selected and
@@ -121,8 +131,8 @@ dates.
 - Task-087 changes from “finish the existing loopback helper” to a time-boxed
   launcher feasibility prototype.
 - Browser-to-host mutation remains disabled during the prototype.
-- Task-096 Stop becomes the preferred first controlled mutation after the
-  non-mutating launcher proof passes.
+- Task-096 may reuse the accepted fixed-target confirmation, runtime validation,
+  sanitized state, and recovery pattern if the launcher proof proceeds.
 - No released `v0.1.2` asset or `cdcai/TowerScout` state changes.
 - The four-profile runtime requirement and existing final milestones do not
   move.

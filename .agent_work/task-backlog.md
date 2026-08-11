@@ -21,8 +21,9 @@ release and handoff work takes priority over Task-058/059 stretch work.
 
 ### Task-096 Boundary
 
-- If the Task-087 launcher proof passes, use Stop as its first controlled
-  mutation; otherwise retain the current user-run stop path and re-plan the UX.
+- If the Task-087 launcher proof passes, reuse its fixed-target confirmation,
+  runtime validation, sanitized state, and recovery pattern for Stop; otherwise
+  retain the current user-run stop path and re-plan the UX.
 - Use a secured, equally constrained host mechanism without browser-supplied
   command text or runtime sockets.
 - Support Docker and Podman.
