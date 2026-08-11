@@ -68,10 +68,11 @@ subject to Task-087's own package, signing, and managed-endpoint gates.
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS - the exact-source `7ef879c` full-runnable CPU package
-passed Docker Google/Azure TLS repair plus controlled recovery. The package
-publication retry, Podman fixes, and secure build-CA path have green exact-head
-CI. Exact-head Podman regression, signing, and representative managed-endpoint
-validation remain open.
+passed Docker and approved-provider Podman Google/Azure TLS repair plus
+controlled recovery. The package publication retry, Podman fixes, and secure
+build-CA path have green exact-head CI. Technical/security review, signing,
+representative managed-endpoint validation, and disposition of the connected
+Podman-provider installer dependency drift remain open.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; proceed, revise, or stop at
@@ -84,12 +85,16 @@ that decision gate
 - Preserve the visible Python/Tkinter launcher and bounded native transaction
   on top of the current security and Sprint 09 tracking history.
 - Preserve the verified full-runnable package from accepted implementation head
-  `7ef879c`; its required CI and exact-head Docker functional gate are green.
-- Preserve the passed exact-head Docker and earlier Podman CPU
-  Google/Azure/recovery results as unsigned development-workstation evidence;
-  repeat the bounded Podman slice from the rebuilt exact-source package.
-- Keep the separately installed approved Podman Compose provider explicit.
-  Track the workstation's missing Windows-to-WSL localhost forwarding as a
+  `7ef879c`; its required CI and exact-head Docker and Podman CPU functional
+  gates are green.
+- Preserve the passed exact-head Docker and approved-provider Podman
+  Google/Azure/recovery results as unsigned development-workstation evidence.
+- Keep the separately installed approved Podman Compose provider explicit. The
+  exact-head connected installer failed closed before runtime binding because
+  its catalog pins `PyYAML==6.0.2` while the connected index exposed `6.0.3`.
+  Resolve or explicitly disposition that reproducibility/supportability gap
+  before a candidate claim.
+- Track the workstation's missing Windows-to-WSL localhost forwarding as a
   supportability gap; do not change global WSL networking while Docker is in
   the validated test session.
 - Record the NVIDIA result accurately: the workstation passed Docker GPU and
@@ -131,12 +136,14 @@ that decision gate
 3. Exact-head checks through implementation checkpoint `7ef879c` are green.
 4. The exact-source full-runnable Task-087 package was generated and verified
    in the approved development environment.
-5. Docker Google/Azure and controlled recovery validation passed; repeat the
-   approved-provider Podman coverage from the exact-head package.
-6. Complete technical/security review, signing-path coordination, and
+5. Docker and approved-provider Podman Google/Azure plus controlled recovery
+   validation passed from exact-head packages.
+6. Resolve or explicitly disposition the connected Podman-provider installer
+   dependency drift and Windows localhost-forwarding supportability gap.
+7. Complete technical/security review, signing-path coordination, and
    representative managed-endpoint validation as applicable.
-7. Record the August 14 Task-087 proceed/conditional/stop decision.
-8. If Task-087 proceeds, select Task-096 next, followed by Task-097. Keep Tasks
+8. Record the August 14 Task-087 proceed/conditional/stop decision.
+9. If Task-087 proceeds, select Task-096 next, followed by Task-097. Keep Tasks
    091-093 behind the stable candidate/runtime boundary.
 
 Task-058 and Task-059 remain conditional stretch work. Task-094 remains

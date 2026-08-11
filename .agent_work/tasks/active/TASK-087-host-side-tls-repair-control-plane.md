@@ -1153,6 +1153,62 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-08-11 - Exact-Head Approved-Provider Podman Regression Passed
+
+**Objective**: Repeat Google/Azure launcher repair and controlled recovery from
+an exact-implementation-head Podman CPU package without weakening provider,
+image, TLS, or persistence controls.
+
+**Context**: The separate full-runnable Podman validation archive was built
+from source `7ef879c9a70243fe3c81769d1dd17dc86c7f54f0` for CPU/off on isolated port
+5011. Its ZIP SHA-256 is
+`b560e43ed3c37d4adcaaf986090ac905d5c7cd9a6600b558d26b000cf5979d77`;
+the package remains unsigned, non-candidate, and unauthorized for managed-
+endpoint evidence or merge.
+
+**Decision**: Keep the provider allowlist and catalog pins fail closed. Do not
+substitute Docker Desktop Compose, accept an unreviewed dependency version,
+disable TLS verification, change global WSL networking, or remove volumes. An
+already installed `podman-compose` 1.5.0 provider could be reused only after it
+passed the exact-head package's own approval checks.
+
+**Execution**:
+
+- The connected package-local provider installer verified its provider wheel
+  but stopped before `.env` binding because the catalog requires
+  `PyYAML==6.0.2` and the connected index exposed `6.0.3`. It did not silently
+  upgrade or select an unapproved provider.
+- The previously installed `podman-compose` 1.5.0 executable passed the exact-
+  head package allowlist and was explicitly bound for this validation session.
+- Package setup imported the verified asset bundle and created an isolated
+  eight-volume project. The container was healthy internally. Because normal
+  Windows-to-WSL localhost forwarding did not expose port 5011, browser and
+  launcher validation used a loopback-only SSH tunnel rather than a global
+  networking change.
+- Google setup reproduced the managed-network TLS trust error. The exact-head
+  native launcher repair completed, restarted the matching Podman profile, and
+  established the combined CA bundle. Re-entered Google configuration then
+  saved successfully. Azure configuration succeeded from Settings without a
+  second repair. Provider keys remained browser-only.
+- The package's scoped stop path removed the container without removing named
+  volumes. Same-profile start recreated the container, returned readiness to
+  `ready`, and restored health to `healthy`.
+
+**Validation**: Post-recovery assets/config remained `ok`; Google and Azure
+remained configured; engine/device/flavor remained Podman/CPU/CPU; the exact
+image digest remained
+`sha256:86c54bd723ff970f70f0883397a1f2f804db796507a461a5718aeab57258afe8`;
+the CA bundle and both CA environment paths persisted; and all eight volume
+creation timestamps were unchanged. No provider key, certificate identity or
+content, local path, screenshot, raw installer output, or support log was
+committed.
+
+**Next**: Resolve or explicitly disposition the provider-installer dependency
+drift and Windows localhost-forwarding supportability gap. Then obtain
+technical/security review, signing-path evidence, and representative managed-
+endpoint validation before the August 14 conditional/proceed/stop decision or
+merge of PR #67.
+
 ### 2026-08-11 - Exact-Head Full Package And Docker Regression Passed
 
 **Objective**: Produce the final exact-implementation-head full-runnable CPU
