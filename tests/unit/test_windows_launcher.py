@@ -49,6 +49,7 @@ from towerscout_launcher.repair import (  # noqa: E402
     RepairError,
     RepairState,
     _find_unique_trusted_root,
+    _image_reference_matches,
     build_repair_target,
 )
 from build_provenance import (  # noqa: E402
@@ -755,6 +756,23 @@ def test_launcher_source_contains_only_fixed_mutation_boundary() -> None:
     assert "shell=false" in sources["repair.py"]
     assert '"sh", "-c"' not in sources["repair.py"]
     assert '"down", "-v"' not in sources["repair.py"]
+
+
+def test_native_repair_accepts_only_safe_podman_image_normalization() -> None:
+    digest = "sha256:" + "a" * 64
+    expected = f"ghcr.io/example/towerscout:v0.1.2-cpu@{digest}"
+
+    assert _image_reference_matches(
+        expected, f"ghcr.io/example/towerscout@{digest}", digest
+    )
+    assert not _image_reference_matches(
+        expected, f"ghcr.io/example/other@{digest}", digest
+    )
+    assert not _image_reference_matches(
+        expected,
+        "ghcr.io/example/towerscout@sha256:" + "b" * 64,
+        digest,
+    )
 
 
 class _FakeRepairRuntime:

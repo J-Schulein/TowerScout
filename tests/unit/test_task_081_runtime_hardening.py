@@ -89,6 +89,11 @@ def test_podman_compose_provider_installer_uses_isolated_venv_and_pinned_deps():
     assert "--only-binary" in installer
     assert "foreach ($dependency in @($provider.dependencies))" in installer
     assert "\"%~dp0.venv\\Scripts\\podman-compose.exe\" %*" in installer
+    assert (
+        "Set-TowerScoutPodmanComposeProviderEnv -ProviderPath $venvProviderPath"
+        in installer
+    )
+    assert "-ProviderPath $wrapperPath -RootPath $repoRoot" not in installer
     assert "System.IO.Compression.ZipFile" not in installer
     assert "podman_compose.py" not in installer
 

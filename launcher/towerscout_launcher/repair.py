@@ -418,6 +418,27 @@ def _is_docker_desktop_provider(value: str) -> bool:
     )
 
 
+def _image_reference_matches(expected: str, observed: str, digest: str) -> bool:
+    if observed == expected:
+        return True
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+        return False
+    suffix = f"@{digest}"
+    if not expected.endswith(suffix) or not observed.endswith(suffix):
+        return False
+
+    def repository(reference: str) -> str:
+        name = reference[: -len(suffix)].strip()
+        last_slash = name.rfind("/")
+        last_colon = name.rfind(":")
+        if last_colon > last_slash:
+            name = name[:last_colon]
+        return name.lower()
+
+    expected_repository = repository(expected)
+    return bool(expected_repository) and repository(observed) == expected_repository
+
+
 class NativeRepairAdapter:
     """Native boundary for the visible launcher repair transaction."""
 
@@ -720,7 +741,11 @@ class NativeRepairAdapter:
         if (
             target.compose_project not in projects
             or "towerscout" not in services
-            or str(config.get("Image", "")) != target.image
+            or not _image_reference_matches(
+                target.image,
+                str(config.get("Image", "")),
+                target.image_digest,
+            )
             or environment.get("TOWERSCOUT_CONTAINER_ENGINE") != target.engine
             or environment.get("TOWERSCOUT_GPU_MODE") != target.gpu_mode
             or environment.get("TOWERSCOUT_IMAGE_DIGEST", "") != target.image_digest

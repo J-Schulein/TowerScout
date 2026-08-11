@@ -205,4 +205,4 @@ if (-not $check.Accepted) {
     throw "Installed provider did not pass the approved-provider check: $($check.Reason)"
 }
 
-Set-TowerScoutPodmanComposeProviderEnv -ProviderPath $wrapperPath -RootPath $repoRoot -Apply:$Apply | Out-Null
+Set-TowerScoutPodmanComposeProviderEnv -ProviderPath $venvProviderPath -RootPath $repoRoot -Apply:$Apply | Out-Null
