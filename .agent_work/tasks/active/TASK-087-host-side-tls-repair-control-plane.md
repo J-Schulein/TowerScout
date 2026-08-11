@@ -1,9 +1,9 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - the `41cec81` exact-source CPU package passed Docker
-and approved-provider Podman Google/Azure TLS repair plus controlled recovery.
-Podman compatibility and secure build-CA fixes are published through `4314295`
-with green exact-head CI; package rebuild, signing, and representative managed-
+**Status**: IN_PROGRESS - the `7ef879c` exact-source full-runnable CPU package
+passed Docker Google/Azure TLS repair plus controlled recovery. Package
+publication, Podman compatibility, and secure build-CA fixes have green exact-
+head CI; exact-head Podman regression, signing, and representative managed-
 endpoint validation remain open
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
@@ -25,14 +25,12 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current implementation checkpoint is `4314295`, built on current `main`
-commit `3932abf`. The exact-source full-runnable CPU package at `41cec81` is
-valid evidence for the pre-fix source and exposed the two bounded Podman
-compatibility defects now corrected on the branch; it must not be promoted or
-reused as the final exact-head artifact. The next full-runnable package must be
-built from accepted exact head `4314295` or a later reviewed head. No validation
-artifact is a release candidate, release, merge signal, or substitute for the
-signed representative managed-endpoint gate.
+The current implementation checkpoint is `7ef879c`, built on current `main`
+commit `3932abf`. Its full-runnable CPU package passed the exact-head Docker
+functional gate. The older `41cec81` package remains valid pre-fix evidence but
+must not be promoted or reused as the final artifact. No validation artifact is
+a release candidate, release, merge signal, or substitute for the signed
+representative managed-endpoint gate.
 
 Sanitized full-package functional evidence is recorded in
 [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
@@ -51,6 +49,11 @@ still describes non-mutating preview as the latest state:
   setup, Google/Azure repair, same-profile restart, and controlled recovery.
   The run exposed and then validated fixes for installer-selected provider
   identity and Podman's safe tag-removal image normalization.
+- The rebuilt `7ef879c` full-runnable Docker CPU package passed archive,
+  checksum, source, digest, asset, Google/Azure, launcher repair, and controlled
+  recovery checks. All eight named volumes, both provider configurations, CA
+  bundle paths, assets, and the exact image digest survived container
+  recreation.
 - Windows could not reach the Podman machine's loopback publication through
   normal WSL forwarding on this workstation. Validation used a temporary
   loopback-only SSH tunnel; global WSL user-mode networking was not enabled
@@ -1149,6 +1152,60 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-11 - Exact-Head Full Package And Docker Regression Passed
+
+**Objective**: Produce the final exact-implementation-head full-runnable CPU
+package, repeat Docker Google/Azure launcher validation, and prove controlled
+recovery without losing runtime state.
+
+**Context**: Exact-head CI was green after the secure build-CA change. The
+first final-package assembly validated its staged tree but Windows endpoint
+scanning denied the atomic directory publication twice. The previous assembler
+made one publication attempt before deleting its staging tree. No partial
+published package remained.
+
+**Decision**: Preserve atomic staging and rollback. Retry only transient
+`PermissionError` from final publication with bounded capped backoff; do not
+copy around validation, weaken archive checks, exclude the launcher from
+endpoint scanning, or reuse the older package.
+
+**Execution**:
+
+- Commit `7ef879c` added the bounded publication retry and a deterministic
+  injected-lock regression. All `46` launcher/package tests passed, and PR #67
+  exact-head runs `31530029726` and `31530029735` passed.
+- The launcher build recorded source
+  `7ef879c9a70243fe3c81769d1dd17dc86c7f54f0` and build-tree SHA-256
+  `537c860416563035c0465599faf60f31cdf325c8dce219d4c1e7a0f0baf4214a`.
+- The normal package generator ran under the previously authorized process-
+  scoped execution-policy bypass. The full-runnable validation archive
+  `towerscout-Task-087-validation-7ef879c9a702.zip` has SHA-256
+  `46984d688939dddcbe5afe4bd82b423a69af09277fada5db6ff8a33363e433b6`.
+- Independent verification matched the sidecar, all `1,018` internal payload
+  checksums, archive membership, source ref, CPU flavor, and exact v0.1.2 image
+  digest. No certificate/key material was present. The launcher is unsigned;
+  both release-candidate and managed-endpoint authorization remain false.
+- The isolated Docker project started on port 5010 with all assets verified.
+  Google setup reproduced the managed-network TLS error, then the packaged
+  native launcher repair succeeded. Azure configuration then succeeded without
+  another repair because the combined organization CA bundle already covered
+  that provider. Keys were entered only in TowerScout's browser UI.
+- Controlled package `down --remove-orphans` followed by same-profile start
+  recreated the container. Readiness returned `ready`; assets/config remained
+  `ok`; Google and Azure remained configured; the CA bundle and both CA
+  environment paths persisted; the exact CPU digest remained selected; and all
+  eight volume creation timestamps were unchanged.
+
+**Validation**: Archive, checksum, provenance, signature-status, setup,
+readiness, provider-state, CA-path, container-health, exact-digest, and volume-
+retention checks passed. No provider key, certificate identity/content, local
+path, screenshot, or raw support log was committed.
+
+**Next**: Repeat the approved-provider Podman CPU regression from the rebuilt
+exact source. Then obtain technical/security review, signing-path evidence, and
+representative managed-endpoint validation before recording the final
+conditional/proceed/stop decision or merging PR #67.
 
 ### 2026-08-11 - Blackwell GPU Feasibility Passed; Current CUDA Profile Stopped
 
