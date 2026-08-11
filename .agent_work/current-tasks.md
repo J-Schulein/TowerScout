@@ -69,8 +69,8 @@ subject to Task-087's own package, signing, and managed-endpoint gates.
 
 **Status**: IN_PROGRESS - the exact-source `41cec81` CPU package passed
 Docker and approved-provider Podman Google/Azure TLS repair plus controlled
-recovery on the development workstation. Two Podman compatibility fixes are
-committed at `aff3cb6`; publication, exact-head CI/package rebuild, signing,
+recovery. The Podman fixes and secure build-CA path are published through
+`4314295`, whose exact-head CI is green. Exact-head package rebuild, signing,
 and representative managed-endpoint validation remain open.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
@@ -83,8 +83,8 @@ that decision gate
 
 - Preserve the visible Python/Tkinter launcher and bounded native transaction
   on top of the current security and Sprint 09 tracking history.
-- Publish the `aff3cb6` Podman fixes, require exact-head CI, and rebuild the
-  full-runnable validation package from the final accepted branch head.
+- Rebuild the full-runnable validation package from accepted exact head
+  `4314295`; its required CI is green.
 - Preserve the passed Docker and Podman CPU Google/Azure/recovery results as
   unsigned development-workstation evidence; repeat the bounded Podman slice
   from the rebuilt exact-source package.
@@ -92,9 +92,12 @@ that decision gate
   Track the workstation's missing Windows-to-WSL localhost forwarding as a
   supportability gap; do not change global WSL networking while Docker is in
   the validated test session.
-- Treat NVIDIA discovery as local prerequisite evidence only until an exact
-  CUDA 12.6 image/package is built and the separate Task-097 final GPU path is
-  selected.
+- Record the NVIDIA result accurately: the workstation passed Docker GPU and
+  Blackwell model execution, but the selected PyTorch 2.6/CUDA 12.6 release
+  profile cannot execute compute capability 12.0. A non-release PyTorch
+  2.7/CUDA 12.8 feasibility image passed the deterministic model harness.
+  Keep dependency/profile selection and final Docker/Podman GPU package
+  qualification in Task-097 rather than expanding the Task-087 release claim.
 - Keep signing, representative managed-endpoint validation, candidate
   inclusion, and merge as separate later gates.
 - Record proceed, conditional, or stop by August 14 under ADR-018.
@@ -123,9 +126,9 @@ that decision gate
 
 1. Close Sprint 08 and attribute the August 11 Task-099 completion to Sprint
    09: complete through this tracking follow-up.
-2. Reconcile Draft PR #67 with current `main` while retaining both the Task-099
-   closeout and the final Task-087 implementation state.
-3. Require green checks at the new exact head.
+2. Draft PR #67 is reconciled with current `main` while retaining both the
+   Task-099 closeout and the current Task-087 implementation state.
+3. Exact-head checks through `4314295` are green.
 4. Generate and verify the exact-source full-runnable Task-087 package in an
    approved environment.
 5. Complete the Docker Google/Azure and controlled recovery validation, then

@@ -2,9 +2,9 @@
 
 **Status**: IN_PROGRESS - the `41cec81` exact-source CPU package passed Docker
 and approved-provider Podman Google/Azure TLS repair plus controlled recovery.
-Podman compatibility fixes are committed at `aff3cb6`; publication, exact-head
-CI and package rebuild, signing, and representative managed-endpoint validation
-remain open
+Podman compatibility and secure build-CA fixes are published through `4314295`
+with green exact-head CI; package rebuild, signing, and representative managed-
+endpoint validation remain open
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; retain or revise the prior
@@ -25,14 +25,14 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current implementation checkpoint is `aff3cb6`, built on current `main`
+The current implementation checkpoint is `4314295`, built on current `main`
 commit `3932abf`. The exact-source full-runnable CPU package at `41cec81` is
 valid evidence for the pre-fix source and exposed the two bounded Podman
-compatibility defects now corrected at `aff3cb6`; it must not be promoted or
+compatibility defects now corrected on the branch; it must not be promoted or
 reused as the final exact-head artifact. The next full-runnable package must be
-built from the accepted final Draft PR head. No validation artifact is a
-release candidate, release, merge signal, or substitute for the signed
-representative managed-endpoint gate.
+built from accepted exact head `4314295` or a later reviewed head. No validation
+artifact is a release candidate, release, merge signal, or substitute for the
+signed representative managed-endpoint gate.
 
 Sanitized full-package functional evidence is recorded in
 [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
@@ -55,6 +55,11 @@ still describes non-mutating preview as the latest state:
   normal WSL forwarding on this workstation. Validation used a temporary
   loopback-only SSH tunnel; global WSL user-mode networking was not enabled
   because it could disturb the concurrent validated Docker session.
+- Docker exposed the RTX PRO 500 Blackwell GPU to containers, but the selected
+  PyTorch 2.6/CUDA 12.6 package profile cannot execute its compute capability
+  12.0 kernels. A separate non-release PyTorch 2.7/CUDA 12.8 feasibility image
+  passed both TowerScout model probes on CUDA. This validates the workstation,
+  not the current release profile; final GPU packaging remains in Task-097.
 - Task-096 may reuse the fixed-target confirmation, runtime validation,
   sanitized state, and recovery pattern after the Task-087 decision; Stop is no
   longer the first controlled launcher mutation.
@@ -1144,6 +1149,59 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-11 - Blackwell GPU Feasibility Passed; Current CUDA Profile Stopped
+
+**Objective**: Test Docker and Podman NVIDIA prerequisites on the new laptop,
+run the selected CUDA 12.6 model gate, and distinguish host capability from
+release-profile compatibility.
+
+**Context**: The host has an NVIDIA RTX PRO 500 Blackwell Generation Laptop
+GPU with compute capability 12.0, driver 596.08, and approximately 6 GiB of
+VRAM. The selected TowerScout dependency profile is PyTorch 2.6.0,
+torchvision 0.21.0, and CUDA 12.6. The managed network also intercepts the
+`pypi.nvidia.com` wheel path used during CUDA image builds.
+
+**Decision**: Keep TLS verification enabled. Add an optional BuildKit secret
+for a build-time CA bundle instead of copying a certificate into the image,
+using a trusted-host bypass, or persisting local certificate details. Treat a
+different PyTorch/CUDA pair only as feasibility evidence; do not relabel or
+promote it as the selected package profile.
+
+**Execution**:
+
+- NVIDIA's disposable Docker smoke saw the correct GPU, driver, memory, and
+  compute capability. The Podman WSL machine also saw the GPU.
+- The first exact-source CUDA 12.6 build stopped on managed-network CA trust at
+  `pypi.nvidia.com`. Commit `4314295` added optional BuildKit-secret CA support
+  to the Dockerfile and qualification wrapper. The CA is available only during
+  the package-install layer and is not copied into the image.
+- The secure exact-source PyTorch 2.6/CUDA 12.6 image then built successfully,
+  but the model gate failed closed: the installed wheel advertised kernels
+  through `sm_90`, not this workstation's `sm_120`, and YOLO stopped with no
+  compatible kernel image.
+- A separate same-source feasibility image using PyTorch 2.7.0,
+  torchvision 0.22.0, and CUDA 12.8 advertised `sm_120`, passed a CUDA tensor
+  kernel, and passed the unchanged deterministic TowerScout model harness.
+  Both YOLO and EfficientNet selected CUDA; both release-model hashes matched;
+  YOLO counts and EfficientNet scores met the declared tolerance. Peak
+  allocated CUDA memory was 814,291,968 bytes and process RSS was
+  1,962,360,832 bytes.
+- Podman `-VerifyOnly` confirmed machine and GPU visibility but stopped because
+  `nvidia-ctk` and an NVIDIA CDI specification are absent. No toolkit install,
+  CDI generation, machine-resource change, or Podman GPU workload occurred.
+
+**Validation**: The focused dependency, launcher-GPU, and container-publish
+suite passed `16` tests; PowerShell parsing, Dockerfile `--check`, and
+`git diff --check` passed. PR #67 exact-head runs `31526991477` and
+`31526991499` passed. The experimental CUDA 12.8 result is sanitized local
+feasibility evidence only; no provider key, certificate content, local path,
+raw support log, or screenshot was committed.
+
+**Next**: Rebuild the exact-head CPU launcher/package and keep Task-087's
+Google/Azure repair decision on the validated CPU scope. Route a reviewed
+Blackwell-capable dependency/profile decision plus final Docker/Podman GPU
+package matrix to Task-097 before making a current GPU release claim.
 
 ### 2026-08-11 - Docker And Approved-Provider Podman CPU Validation Passed
 
