@@ -1211,6 +1211,37 @@ def test_validation_package_archive_failure_leaves_no_partial_outputs(
     assert list(output.iterdir()) == []
 
 
+def test_validation_package_publish_retries_transient_permission_error(
+    launcher_tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source_ref = "9" * 40
+    build = _write_test_launcher_build(launcher_tmp_path, source_ref=source_ref)
+    original_replace = os.replace
+    replace_calls = 0
+    sleep_calls: list[float] = []
+
+    def transient_replace(staged: Path, destination: Path) -> None:
+        nonlocal replace_calls
+        replace_calls += 1
+        if replace_calls == 1:
+            raise PermissionError("injected endpoint-scanner lock")
+        original_replace(staged, destination)
+
+    monkeypatch.setattr("package_validation.os.replace", transient_replace)
+    monkeypatch.setattr("package_validation.time.sleep", sleep_calls.append)
+
+    result = assemble_validation_package(
+        repo_root=ROOT,
+        launcher_build_dir=build,
+        output_dir=launcher_tmp_path / "output",
+        source_ref=source_ref,
+    )
+
+    assert result.package_dir.is_dir()
+    assert replace_calls == 4
+    assert sleep_calls == [0.5]
+
+
 def test_full_validation_package_composes_verified_runnable_base_atomically(
     launcher_tmp_path: Path,
 ) -> None:

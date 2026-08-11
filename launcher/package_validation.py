@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 import zipfile
 from dataclasses import dataclass
@@ -468,10 +469,22 @@ def _write_archive(package_dir: Path, archive_path: Path) -> None:
 def _publish_staged_artifacts(
     artifacts: tuple[tuple[Path, Path], ...],
 ) -> None:
+    def replace_with_retry(staged: Path, destination: Path) -> None:
+        delay_seconds = 0.5
+        for attempt in range(8):
+            try:
+                os.replace(staged, destination)
+                return
+            except PermissionError:
+                if attempt == 7:
+                    raise
+                time.sleep(delay_seconds)
+                delay_seconds = min(delay_seconds * 2, 4.0)
+
     published: list[Path] = []
     try:
         for staged, destination in artifacts:
-            os.replace(staged, destination)
+            replace_with_retry(staged, destination)
             published.append(destination)
     except OSError:
         for destination in reversed(published):
