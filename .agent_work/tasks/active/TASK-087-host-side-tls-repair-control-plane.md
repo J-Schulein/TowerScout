@@ -1,10 +1,11 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - the `7ef879c` exact-source full-runnable CPU package
-passed Docker Google/Azure TLS repair plus controlled recovery. Package
-publication, Podman compatibility, and secure build-CA fixes have green exact-
-head CI; exact-head Podman regression, signing, and representative managed-
-endpoint validation remain open
+**Status**: IN_PROGRESS - the `7ef879c` exact-source full-runnable CPU packages
+passed Docker and approved-provider Podman Google/Azure TLS repair plus
+controlled recovery. Follow-up head `3990bc0` closes the Podman-provider
+installer reproducibility gap and passed exact-head CI, fresh packaged install,
+setup, and recovery; localhost-forwarding disposition, signing, and
+representative managed-endpoint validation remain open
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; retain or revise the prior
@@ -25,17 +26,19 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current implementation checkpoint is `7ef879c`, built on current `main`
-commit `3932abf`. Its full-runnable CPU package passed the exact-head Docker
-functional gate. The older `41cec81` package remains valid pre-fix evidence but
-must not be promoted or reused as the final artifact. No validation artifact is
-a release candidate, release, merge signal, or substitute for the signed
-representative managed-endpoint gate.
+The current implementation checkpoint is `3990bc0`, built on current `main`
+commit `3932abf`. Its exact-source full-runnable Podman CPU package passed fresh
+provider installation, setup, and controlled recovery. The `7ef879c` packages
+remain the accepted exact-head Google/Azure repair evidence; the older
+`41cec81` package remains valid pre-fix evidence but must not be promoted or
+reused as the final artifact. No validation artifact is a release candidate,
+release, merge signal, or substitute for the signed representative managed-
+endpoint gate.
 
 Sanitized full-package functional evidence is recorded in
 [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
 
-## August 11, 2026 Current Launcher Override
+## August 12, 2026 Current Launcher Override
 
 This current override controls where the August 5 provisional sequence below
 still describes non-mutating preview as the latest state:
@@ -54,6 +57,10 @@ still describes non-mutating preview as the latest state:
   recovery checks. All eight named volumes, both provider configurations, CA
   bundle paths, assets, and the exact image digest survived container
   recreation.
+- Follow-up head `3990bc0` replaced the connected Podman provider installer's
+  live dependency resolution with a hash-approved package-local wheelhouse.
+  Fresh packaged install, exact-version validation, approved-provider binding,
+  setup, and controlled recovery passed without reusing a prior provider.
 - Windows could not reach the Podman machine's loopback publication through
   normal WSL forwarding on this workstation. Validation used a temporary
   loopback-only SSH tunnel; global WSL user-mode networking was not enabled
@@ -1152,6 +1159,69 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-12 - Exact-Head Podman Provider Installer Gate Passed
+
+**Objective**: Close the live-index dependency drift without weakening the
+approved-provider boundary, then validate a fresh provider installation and
+runtime recovery from the resulting exact-source package.
+
+**Context**: The prior installer verified the selected provider wheel but asked
+the connected package index to resolve its dependencies. It failed closed when
+the catalog required `PyYAML==6.0.2` and the index exposed `6.0.3`. The
+`7ef879c` Google/Azure TLS repair evidence remains valid; this follow-up is
+limited to provider installation reproducibility and the affected Podman
+runtime path.
+
+**Decision**: Use a package-local, hash-approved wheelhouse rather than live
+dependency resolution. Pin direct artifact URLs and SHA-256 values for
+`podman-compose==1.5.0`, `python-dotenv==1.1.1`, and supported Windows AMD64
+`PyYAML==6.0.3` wheels. Select only the exact running Python ABI, install from
+the verified cache with index and dependency resolution disabled, run package
+consistency and exact-version checks, and require the existing provider
+allowlist before binding. Preserve the prior provider on replacement failure.
+
+**Execution**:
+
+- Commit `3990bc0` implements the bounded wheelhouse, supported Windows/Python
+  tag selection, exact post-install checks, transactional replacement, and
+  sanitized operator output. Unsupported tags and unsafe forced replacement
+  targets continue to fail closed.
+- Clean connected installs passed with Python 3.14 and Python 3.12. A managed-
+  cache forced replacement passed, while a forced target outside that cache was
+  rejected. Focused tests passed 72 checks and the applicable broader suite
+  passed 82 checks. All required exact-head CI checks, including the Windows
+  host-helper and production-controller contracts, are green.
+- The exact launcher build used source
+  `3990bc0152e2e6951036a14a2eb5f483fb9fa026` and build-tree SHA-256
+  `6fb3a2e44cd17b75dde7d66016c870bda6d33f0dcb595f6246d670f607bf4f26`.
+  The resulting Podman CPU archive has SHA-256
+  `50460576890ed3d1c455c82df6e6bd60989525c888614a5453d895b5f4bc2655`.
+  Independent verification passed all 1,018 payload hashes and found no
+  environment file, backup, key, or certificate material.
+- The exact packaged installer completed a fresh package-local install without
+  reusing an older provider. Package setup imported and verified the approved
+  asset bundle, reached `setup_required`, and reported the exact CPU image
+  digest. Scoped stop/start recreated the container while retaining all eight
+  volume creation timestamps, the provider installation, assets, runtime
+  profile, and image digest; final health returned to `healthy`.
+- Normal Windows-to-WSL localhost forwarding remained absent on this
+  workstation. Validation used a temporary loopback-only SSH tunnel after the
+  package's port preflight, and the tunnel and exact validation container were
+  removed afterward without removing named volumes.
+
+**Validation**: The exact installed provider versions were
+`podman-compose==1.5.0`, `python-dotenv==1.1.1`, and `PyYAML==6.0.3`; the image
+digest remained
+`sha256:86c54bd723ff970f70f0883397a1f2f804db796507a461a5718aeab57258afe8`.
+No provider key, certificate identity or content, local path, screenshot, raw
+installer output, or support log was committed. The package remains unsigned,
+non-candidate, and unauthorized for representative managed-endpoint evidence.
+
+**Next**: Explicitly disposition Windows localhost-forwarding supportability,
+then obtain technical/security review, signing-path evidence, and
+representative managed-endpoint validation before the August 14
+conditional/proceed/stop decision or merge of PR #67.
 
 ### 2026-08-11 - Exact-Head Approved-Provider Podman Regression Passed
 

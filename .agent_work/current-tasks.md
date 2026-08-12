@@ -1,7 +1,7 @@
 # Current Tasks - Sprint 09
 
 **Sprint Period**: August 8-August 21, 2026
-**Last Updated**: August 11, 2026
+**Last Updated**: August 12, 2026
 **Focus**: Reconcile the Task-087 launcher prototype with current `main`,
 complete its exact-source package and managed-endpoint decision gates, and keep
 the frozen pilot and cdcai boundaries unchanged.
@@ -67,12 +67,14 @@ subject to Task-087's own package, signing, and managed-endpoint gates.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS - the exact-source `7ef879c` full-runnable CPU package
+**Status**: IN_PROGRESS - the exact-source `7ef879c` full-runnable CPU packages
 passed Docker and approved-provider Podman Google/Azure TLS repair plus
-controlled recovery. The package publication retry, Podman fixes, and secure
-build-CA path have green exact-head CI. Technical/security review, signing,
-representative managed-endpoint validation, and disposition of the connected
-Podman-provider installer dependency drift remain open.
+controlled recovery. Follow-up implementation head `3990bc0` closes the
+connected Podman-provider installer dependency drift with a hash-approved
+offline wheelhouse; its exact-head CI, fresh packaged install, setup, and
+controlled recovery gates are green. Technical/security review, signing,
+representative managed-endpoint validation, and the Windows-to-WSL localhost-
+forwarding disposition remain open.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; proceed, revise, or stop at
@@ -84,16 +86,18 @@ that decision gate
 
 - Preserve the visible Python/Tkinter launcher and bounded native transaction
   on top of the current security and Sprint 09 tracking history.
-- Preserve the verified full-runnable package from accepted implementation head
-  `7ef879c`; its required CI and exact-head Docker and Podman CPU functional
-  gates are green.
+- Preserve the Google/Azure functional evidence from accepted implementation
+  head `7ef879c` and the provider-installer reproducibility evidence from
+  follow-up head `3990bc0`; their applicable exact-head CI and CPU package gates
+  are green.
 - Preserve the passed exact-head Docker and approved-provider Podman
   Google/Azure/recovery results as unsigned development-workstation evidence.
-- Keep the separately installed approved Podman Compose provider explicit. The
-  exact-head connected installer failed closed before runtime binding because
-  its catalog pins `PyYAML==6.0.2` while the connected index exposed `6.0.3`.
-  Resolve or explicitly disposition that reproducibility/supportability gap
-  before a candidate claim.
+- Keep the approved Podman Compose provider explicit. Head `3990bc0` replaces
+  live dependency resolution with exact per-artifact URLs and SHA-256 pins,
+  installs only from the verified local wheel cache with dependencies disabled,
+  checks the environment and exact versions, and binds it only after approval.
+  Fresh packaged installation and managed replacement passed; no unapproved
+  provider or dependency was accepted.
 - Track the workstation's missing Windows-to-WSL localhost forwarding as a
   supportability gap; do not change global WSL networking while Docker is in
   the validated test session.
@@ -133,13 +137,13 @@ that decision gate
    09: complete through this tracking follow-up.
 2. Draft PR #67 is reconciled with current `main` while retaining both the
    Task-099 closeout and the current Task-087 implementation state.
-3. Exact-head checks through implementation checkpoint `7ef879c` are green.
+3. Exact-head checks through implementation checkpoint `3990bc0` are green.
 4. The exact-source full-runnable Task-087 package was generated and verified
    in the approved development environment.
 5. Docker and approved-provider Podman Google/Azure plus controlled recovery
    validation passed from exact-head packages.
-6. Resolve or explicitly disposition the connected Podman-provider installer
-   dependency drift and Windows localhost-forwarding supportability gap.
+6. Podman-provider installer dependency drift is resolved. Explicitly
+   disposition the Windows localhost-forwarding supportability gap.
 7. Complete technical/security review, signing-path coordination, and
    representative managed-endpoint validation as applicable.
 8. Record the August 14 Task-087 proceed/conditional/stop decision.
