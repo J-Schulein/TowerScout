@@ -267,6 +267,13 @@ def test_windows_podman_rootless_preflight_fails_closed_without_mutation():
     . "{COMPOSE_LIB}"
     $env:OS = "Windows_NT"
 
+    if ((Get-TowerScoutPodmanWindowsMachineMode -Machine ([pscustomobject]@{{ Rootful = $false }})) -ne "rootless") {{
+        throw "A Boolean Rootful=false value was not recognized as rootless."
+    }}
+    if ((Get-TowerScoutPodmanWindowsMachineMode -Machine ([pscustomobject]@{{ Rootful = $true }})) -ne "rootful") {{
+        throw "A Boolean Rootful=true value was not recognized as rootful."
+    }}
+
     function Invoke-TowerScoutPodmanCommand {{
         param([string[]] $Arguments, [int] $TimeoutSeconds)
         return [pscustomobject]@{{

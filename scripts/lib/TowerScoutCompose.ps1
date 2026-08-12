@@ -855,7 +855,7 @@ function Get-TowerScoutPodmanWindowsMachineMode {
         return "unknown"
     }
 
-    $rootful = (Get-TowerScoutObjectPropertyValue -InputObject $Machine -Name "Rootful").Trim().ToLowerInvariant()
+    $rootful = ([string](Get-TowerScoutObjectPropertyValue -InputObject $Machine -Name "Rootful")).Trim().ToLowerInvariant()
     if ($rootful -in @("false", "0")) {
         return "rootless"
     }
