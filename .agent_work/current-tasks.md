@@ -69,12 +69,13 @@ subject to Task-087's own package, signing, and managed-endpoint gates.
 
 **Status**: IN_PROGRESS - the exact-source `7ef879c` full-runnable CPU packages
 passed Docker and approved-provider Podman Google/Azure TLS repair plus
-controlled recovery. Follow-up implementation head `3990bc0` closes the
-connected Podman-provider installer dependency drift with a hash-approved
-offline wheelhouse; its exact-head CI, fresh packaged install, setup, and
-controlled recovery gates are green. Technical/security review, signing,
-representative managed-endpoint validation, and the Windows-to-WSL localhost-
-forwarding boundary remain open.
+controlled recovery. Follow-up head `3990bc0` closes provider-installer
+dependency drift with a hash-approved offline wheelhouse. Head `5737a58`
+enforces the selected Windows rootless-Podman boundary; its exact-source
+package rejected rootful mode before provider discovery or container mutation
+while preserving the user's machine mode and volumes. Technical/security
+review, signing, representative managed-endpoint validation, and the August 14
+disposition remain open.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; proceed, revise, or stop at
@@ -103,8 +104,9 @@ that decision gate
   reachability across scoped restart in rootless mode. Rootful mode remained
   healthy only inside the Podman WSL distribution and did not expose Windows
   localhost, with Docker fully exited; user-mode networking did not fix it.
-  Add a fail-closed preflight or equally explicit package guidance before any
-  Podman candidate claim. Do not switch a user's Podman mode automatically.
+  Head `5737a58` now rejects rootful Windows Podman before Compose-provider
+  discovery or container mutation, explains the separate rootful/rootless
+  stores, and never switches the user's machine mode automatically.
 - Record the NVIDIA result accurately: the workstation passed Docker GPU and
   Blackwell model execution, but the selected PyTorch 2.6/CUDA 12.6 release
   profile cannot execute compute capability 12.0. A non-release PyTorch
@@ -141,14 +143,15 @@ that decision gate
    09: complete through this tracking follow-up.
 2. Draft PR #67 is reconciled with current `main` while retaining both the
    Task-099 closeout and the current Task-087 implementation state.
-3. Exact-head checks through implementation checkpoint `3990bc0` are green.
+3. Exact-head checks through implementation checkpoint `5737a58` are green
+   locally; its current Draft PR CI run is tracked separately until complete.
 4. The exact-source full-runnable Task-087 package was generated and verified
    in the approved development environment.
 5. Docker and approved-provider Podman Google/Azure plus controlled recovery
    validation passed from exact-head packages.
 6. Podman-provider installer dependency drift is resolved. Rootless Podman CPU
-   is the provisional native-forwarding boundary; enforce or document that
-   boundary before a candidate claim.
+   is the provisional native-forwarding boundary, and the exact-source package
+   now enforces that boundary without changing machine mode or runtime state.
 7. Complete technical/security review, signing-path coordination, and
    representative managed-endpoint validation as applicable.
 8. Record the August 14 Task-087 proceed/conditional/stop decision.

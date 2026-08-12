@@ -3,10 +3,10 @@
 **Status**: IN_PROGRESS - the `7ef879c` exact-source full-runnable CPU packages
 passed Docker and approved-provider Podman Google/Azure TLS repair plus
 controlled recovery. Follow-up head `3990bc0` closes the Podman-provider
-installer reproducibility gap and passed exact-head CI, fresh packaged install,
-setup, and recovery. Rootless Podman CPU is the provisional native-forwarding
-boundary; package enforcement, signing, and representative managed-endpoint
-validation remain open
+installer reproducibility gap. Head `5737a58` enforces the Windows rootless-
+Podman boundary and passed exact-source packaged rootful rejection without
+machine, container, or volume mutation. Signing, representative managed-
+endpoint validation, and the August 14 disposition remain open
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; retain or revise the prior
@@ -27,10 +27,12 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current implementation checkpoint is `3990bc0`, built on current `main`
-commit `3932abf`. Its exact-source full-runnable Podman CPU package passed fresh
-provider installation, setup, and controlled recovery. The `7ef879c` packages
-remain the accepted exact-head Google/Azure repair evidence; the older
+The current implementation checkpoint is `5737a58`, built on current `main`
+commit `3932abf`. Its exact-source full-runnable Podman CPU package enforces the
+selected rootless Windows boundary and rejected rootful mode before provider
+discovery or container mutation. Checkpoint `3990bc0` remains the accepted
+fresh provider-install/setup/recovery evidence, and the `7ef879c` packages
+remain the accepted exact-head Google/Azure repair evidence. The older
 `41cec81` package remains valid pre-fix evidence but must not be promoted or
 reused as the final artifact. No validation artifact is a release candidate,
 release, merge signal, or substitute for the signed representative managed-
@@ -69,8 +71,9 @@ still describes non-mutating preview as the latest state:
 - A later isolated comparison with Docker fully exited reproduced the rootful
   failure, while the unchanged package reached native Windows localhost and
   survived scoped restart in rootless mode. Rootless Podman CPU is therefore
-  the provisional candidate boundary; the package must detect or clearly gate
-  rootful mode rather than silently changing a user's Podman configuration.
+  the provisional candidate boundary. Head `5737a58` now detects and rejects
+  rootful Windows Podman before provider discovery or container mutation,
+  explains the separate stores, and does not change the user's configuration.
 - Docker exposed the RTX PRO 500 Blackwell GPU to containers, but the selected
   PyTorch 2.6/CUDA 12.6 package profile cannot execute its compute capability
   12.0 kernels. A separate non-release PyTorch 2.7/CUDA 12.8 feasibility image
@@ -1165,6 +1168,53 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-12 - Exact-Package Rootless Podman Preflight Gate Passed
+
+**Objective**: Enforce the selected rootless Windows Podman support boundary
+before provider discovery or runtime mutation and prove it from an exact-source
+full-runnable package.
+
+**Context**: Unit and source-level checks for the initial preflight were green,
+but the first exact package exposed that real `podman machine inspect` JSON
+returns `Rootful` as a Boolean. The parser attempted string trimming before
+normalizing that value. The package still failed closed and made no runtime
+change, but it stopped on the parser error instead of the intended rootful
+guidance.
+
+**Decision**: Normalize the machine-mode property explicitly to a string before
+comparison and retain the fail-closed requirement. Enforce rootless mode only
+on Windows launch/setup paths; keep status, logs, and stop available so support
+can inspect or clean an unsupported rootful installation. Never change Podman
+machine mode automatically.
+
+**Execution**:
+
+- Commit `5737a58` fixes Boolean mode normalization and adds a regression test
+  for real `Rootful=true` and `Rootful=false` property shapes. The applicable
+  local runtime, bootstrap, launcher, package, publish-workflow, and Podman GPU
+  suite passed 101 tests.
+- The exact launcher and full-runnable Podman CPU package record source
+  `5737a58fcbf27395c1025c672bcf3c737bf34fe2`. The package archive SHA-256 is
+  `24ef6e7e2aa6662d5f1f26b8e09fbfccc25c8a11e796571f022f978b9352f49b`;
+  the ZIP sidecar and all 1,018 embedded payload hashes passed independent
+  verification.
+- With the workstation machine intentionally left rootful, packaged
+  verify-only bootstrap rejected the configuration with the Windows-localhost
+  requirement, explained the separate rootful/rootless container and volume
+  stores, and confirmed TowerScout did not change the machine.
+- Before and after comparison confirmed rootful mode remained enabled, the
+  package's Compose project had no container, and all 24 pre-existing volumes
+  remained present.
+
+**Validation**: The package remains unsigned, validation-only, and outside any
+candidate or managed-endpoint claim. No provider key, certificate identity or
+content, local path, private network address, screenshot, or raw runtime output
+was committed.
+
+**Next**: Complete exact-head Draft PR CI, obtain technical/security review and
+the approved signing path, then run the signed artifact under representative
+managed-endpoint policy before the August 14 proceed/conditional/stop decision.
 
 ### 2026-08-12 - Rootless Podman Native Forwarding Boundary Selected
 
