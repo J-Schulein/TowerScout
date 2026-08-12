@@ -81,13 +81,37 @@ def test_podman_compose_provider_installer_uses_isolated_venv_and_pinned_deps():
 
     requirements = {dependency["requirement"] for dependency in provider["dependencies"]}
     assert provider["requires_python"] == ">=3.9"
-    assert requirements == {"python-dotenv==1.1.1", "PyYAML==6.0.2"}
+    assert requirements == {"python-dotenv==1.1.1", "PyYAML==6.0.3"}
+    dependency_artifacts = {
+        dependency["name"]: dependency["artifacts"]
+        for dependency in provider["dependencies"]
+    }
+    assert {
+        artifact["python_tag"]
+        for artifact in dependency_artifacts["PyYAML"]
+    } == {"cp39", "cp310", "cp311", "cp312", "cp313", "cp314", "cp314t"}
+    assert {
+        artifact["platform_tag"]
+        for artifact in dependency_artifacts["PyYAML"]
+    } == {"win_amd64"}
+    assert dependency_artifacts["python-dotenv"][0]["python_tag"] == "py3"
+    assert dependency_artifacts["python-dotenv"][0]["platform_tag"] == "any"
+    for artifacts in dependency_artifacts.values():
+        for artifact in artifacts:
+            assert artifact["source_url"].startswith("https://files.pythonhosted.org/")
+            assert len(artifact["sha256"]) == 64
+            assert artifact["source_url"].endswith(artifact["filename"])
     assert "Join-Path $InstallDir \".venv\"" in installer
     assert "@(\"-m\", \"venv\", $venvDir)" in installer
     assert "\"pip\"" in installer
     assert "\"install\"" in installer
-    assert "--only-binary" in installer
+    assert '"--no-index"' in installer
+    assert '"--no-deps"' in installer
+    assert '@("-m", "pip", "check", "--disable-pip-version-check")' in installer
     assert "foreach ($dependency in @($provider.dependencies))" in installer
+    assert "Resolve-TowerScoutInstallerDependencyArtifact" in installer
+    assert "Invoke-TowerScoutInstallerVerifiedDownload" in installer
+    assert "Assert-TowerScoutInstallerPackageVersion" in installer
     assert "\"%~dp0.venv\\Scripts\\podman-compose.exe\" %*" in installer
     assert (
         "Set-TowerScoutPodmanComposeProviderEnv -ProviderPath $venvProviderPath"
