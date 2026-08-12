@@ -357,7 +357,10 @@ if ($SessionMaxHours -lt 0) {
 
 Initialize-TowerScoutEnvFile -RootPath $repoRoot
 
-$composeCommand = Get-TowerScoutComposeCommand -Engine $Engine
+$composeCommand = Get-TowerScoutComposeCommand `
+    -Engine $Engine `
+    -RequireWindowsRootless `
+    -PodmanMachineName $PodmanMachineName
 $effectiveEngine = [string] $composeCommand["Executable"]
 $packageFlavor = Get-TowerScoutPackagePytorchFlavor -RootPath $repoRoot
 if ([string]::IsNullOrWhiteSpace($packageFlavor)) {

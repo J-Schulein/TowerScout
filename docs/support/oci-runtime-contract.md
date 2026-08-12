@@ -216,11 +216,18 @@ v5.1.4 selected explicitly through `PODMAN_COMPOSE_PROVIDER` rather than Docker
 Desktop's bundled `docker-compose.exe`.
 
 Release qualification for Podman should include the selected Compose provider
-explicitly. The supported Podman path requires a running Podman machine and an
-approved non-Docker-Desktop Compose provider that can talk to the Podman socket.
+explicitly. The supported Windows Podman path requires a running rootless
+Podman machine and an approved non-Docker-Desktop Compose provider that can talk
+to the Podman socket.
 When `PODMAN_COMPOSE_PROVIDER` is blank, TowerScout auto-detects exactly one
 approved provider from `PATH`; if none or multiple approved providers are
 found, it fails with a clear next action.
+
+Package preflight must inspect the selected Windows Podman machine and fail
+closed unless it can verify `Rootful=false`. It must explain that rootful and
+rootless stores are separate and must not change the machine mode automatically.
+This rootless requirement is a localhost-forwarding boundary, not independent
+qualification of a CPU or GPU release profile.
 
 The launcher reports Compose-provider information before startup. For Podman, a `PODMAN_COMPOSE_PROVIDER` override is checked before Compose is invoked so a mistyped or unapproved provider path fails early with an actionable message. The package includes `scripts\install-podman-compose-provider.cmd` for connected support/setup use; `-Apply` installs the approved provider into a package-local isolated environment and updates only `PODMAN_COMPOSE_PROVIDER` in `.env`.
 

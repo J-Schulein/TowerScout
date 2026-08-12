@@ -261,6 +261,77 @@ def test_auto_engine_selection_prefers_reachable_podman_when_docker_is_down():
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")
+def test_windows_podman_rootless_preflight_fails_closed_without_mutation():
+    command = f"""
+    $ErrorActionPreference = "Stop"
+    . "{COMPOSE_LIB}"
+    $env:OS = "Windows_NT"
+
+    function Invoke-TowerScoutPodmanCommand {{
+        param([string[]] $Arguments, [int] $TimeoutSeconds)
+        return [pscustomobject]@{{
+            ExitCode = 0
+            TimedOut = $false
+            StdOut = $script:MachineInspectJson
+            StdErr = ""
+        }}
+    }}
+
+    $script:MachineInspectJson = '[{{"Name":"podman-machine-default","Rootful":false}}]'
+    Assert-TowerScoutPodmanWindowsRootlessMode -MachineName "podman-machine-default"
+
+    $script:MachineInspectJson = '[{{"Name":"podman-machine-default","Rootful":true}}]'
+    function Initialize-TowerScoutPodmanComposeProvider {{
+        throw "Provider discovery ran before rootless preflight."
+    }}
+    try {{
+        Assert-TowerScoutPodmanWindowsRootlessMode -MachineName "podman-machine-default"
+        throw "Rootful Podman was accepted."
+    }}
+    catch {{
+        if ($_.Exception.Message -notmatch "requires a rootless Podman machine") {{
+            throw
+        }}
+        if ($_.Exception.Message -notmatch "separate containers and volumes") {{
+            throw "Rootful guidance omitted the storage boundary."
+        }}
+        if ($_.Exception.Message -notmatch "did not change the Podman machine") {{
+            throw "Rootful guidance did not preserve explicit user control."
+        }}
+    }}
+
+    try {{
+        Get-TowerScoutComposeCommand `
+            -Engine podman `
+            -RequireWindowsRootless `
+            -PodmanMachineName "podman-machine-default" | Out-Null
+        throw "Rootful Podman reached provider discovery."
+    }}
+    catch {{
+        if ($_.Exception.Message -notmatch "requires a rootless Podman machine") {{
+            throw
+        }}
+    }}
+
+    $script:MachineInspectJson = '[{{"Name":"podman-machine-default"}}]'
+    try {{
+        Assert-TowerScoutPodmanWindowsRootlessMode -MachineName "podman-machine-default"
+        throw "Unknown Podman mode was accepted."
+    }}
+    catch {{
+        if ($_.Exception.Message -notmatch "could not verify") {{
+            throw
+        }}
+    }}
+    "ok"
+    """
+    result = _run_powershell(command)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "ok" in result.stdout
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")
 def test_compose_invocation_allows_successful_provider_stderr_banner():
     command = f"""
     $ErrorActionPreference = "Stop"
