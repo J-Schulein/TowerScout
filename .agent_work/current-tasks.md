@@ -74,7 +74,7 @@ connected Podman-provider installer dependency drift with a hash-approved
 offline wheelhouse; its exact-head CI, fresh packaged install, setup, and
 controlled recovery gates are green. Technical/security review, signing,
 representative managed-endpoint validation, and the Windows-to-WSL localhost-
-forwarding disposition remain open.
+forwarding boundary remain open.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; proceed, revise, or stop at
@@ -98,9 +98,13 @@ that decision gate
   checks the environment and exact versions, and binds it only after approval.
   Fresh packaged installation and managed replacement passed; no unapproved
   provider or dependency was accepted.
-- Track the workstation's missing Windows-to-WSL localhost forwarding as a
-  supportability gap; do not change global WSL networking while Docker is in
-  the validated test session.
+- Treat rootless Podman CPU as the provisional Windows support boundary. The
+  unchanged exact package reached native Windows localhost and retained that
+  reachability across scoped restart in rootless mode. Rootful mode remained
+  healthy only inside the Podman WSL distribution and did not expose Windows
+  localhost, with Docker fully exited; user-mode networking did not fix it.
+  Add a fail-closed preflight or equally explicit package guidance before any
+  Podman candidate claim. Do not switch a user's Podman mode automatically.
 - Record the NVIDIA result accurately: the workstation passed Docker GPU and
   Blackwell model execution, but the selected PyTorch 2.6/CUDA 12.6 release
   profile cannot execute compute capability 12.0. A non-release PyTorch
@@ -142,8 +146,9 @@ that decision gate
    in the approved development environment.
 5. Docker and approved-provider Podman Google/Azure plus controlled recovery
    validation passed from exact-head packages.
-6. Podman-provider installer dependency drift is resolved. Explicitly
-   disposition the Windows localhost-forwarding supportability gap.
+6. Podman-provider installer dependency drift is resolved. Rootless Podman CPU
+   is the provisional native-forwarding boundary; enforce or document that
+   boundary before a candidate claim.
 7. Complete technical/security review, signing-path coordination, and
    representative managed-endpoint validation as applicable.
 8. Record the August 14 Task-087 proceed/conditional/stop decision.

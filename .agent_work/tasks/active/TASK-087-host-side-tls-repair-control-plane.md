@@ -4,8 +4,9 @@
 passed Docker and approved-provider Podman Google/Azure TLS repair plus
 controlled recovery. Follow-up head `3990bc0` closes the Podman-provider
 installer reproducibility gap and passed exact-head CI, fresh packaged install,
-setup, and recovery; localhost-forwarding disposition, signing, and
-representative managed-endpoint validation remain open
+setup, and recovery. Rootless Podman CPU is the provisional native-forwarding
+boundary; package enforcement, signing, and representative managed-endpoint
+validation remain open
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Prototype through August 14; retain or revise the prior
@@ -65,6 +66,11 @@ still describes non-mutating preview as the latest state:
   normal WSL forwarding on this workstation. Validation used a temporary
   loopback-only SSH tunnel; global WSL user-mode networking was not enabled
   because it could disturb the concurrent validated Docker session.
+- A later isolated comparison with Docker fully exited reproduced the rootful
+  failure, while the unchanged package reached native Windows localhost and
+  survived scoped restart in rootless mode. Rootless Podman CPU is therefore
+  the provisional candidate boundary; the package must detect or clearly gate
+  rootful mode rather than silently changing a user's Podman configuration.
 - Docker exposed the RTX PRO 500 Blackwell GPU to containers, but the selected
   PyTorch 2.6/CUDA 12.6 package profile cannot execute its compute capability
   12.0 kernels. A separate non-release PyTorch 2.7/CUDA 12.8 feasibility image
@@ -1159,6 +1165,58 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-12 - Rootless Podman Native Forwarding Boundary Selected
+
+**Objective**: Determine whether the previously required loopback-only tunnel
+was caused by Docker/WSL contention, Podman networking mode, or TowerScout.
+
+**Context**: The unchanged exact-source `3990bc0` Podman CPU package was tested
+on the same managed Windows workstation. No provider key, certificate, asset
+import, or application configuration was required for this networking-only
+comparison.
+
+**Decision**: Use rootless Podman CPU as the provisional Windows candidate
+boundary. Do not automatically change a user's Podman rootful/rootless or WSL
+networking configuration. Before a candidate claim, add a fail-closed rootful
+preflight or equally explicit package guidance. Keep rootful Podman outside the
+candidate support claim unless later representative evidence proves native
+Windows localhost forwarding.
+
+**Execution**:
+
+- Pausing Docker did not isolate it: Docker's Windows backend and WSL
+  distribution remained active. After Docker Desktop was fully exited, the
+  rootful package still timed out on Windows localhost.
+- In rootful mode, the exact container was healthy, the pinned image digest and
+  `127.0.0.1` port mapping were correct, and the health endpoint responded from
+  inside the Podman WSL distribution. Windows had no corresponding listener and
+  could not reach the published port. Enabling Podman's user-mode networking
+  did not change that result and was reverted.
+- A full WSL restart regenerated a transiently missing resolver after the host
+  restart. The rootful result then reproduced with Docker fully absent, so
+  Docker contention, resolver state, TowerScout health, image identity, and the
+  Compose provider are not the forwarding cause.
+- The idle machine was switched temporarily to Podman's default rootless mode.
+  The unchanged package pulled the same pinned image, reached Windows localhost
+  with HTTP 200, reported `setup_required`, and retained native reachability
+  after scoped container recreation. The rootless test created eight isolated
+  volumes; they were removed after the test because they contained no imported
+  assets or provider configuration.
+- The machine was restored to its original rootful mode. The eight pre-existing
+  rootful validation volumes remained present, and no validation container was
+  left running.
+
+**Validation**: Native Windows localhost forwarding passed only in rootless
+mode in this comparison. The package image digest remained
+`sha256:86c54bd723ff970f70f0883397a1f2f804db796507a461a5718aeab57258afe8`.
+No provider key, certificate identity or content, local path, private network
+address, screenshot, or raw runtime log was committed.
+
+**Next**: Implement and test the selected rootless Podman CPU support boundary
+in package preflight and user guidance. Then obtain technical/security review,
+signing-path evidence, and representative managed-endpoint validation before
+the August 14 conditional/proceed/stop decision or merge of PR #67.
 
 ### 2026-08-12 - Exact-Head Podman Provider Installer Gate Passed
 
