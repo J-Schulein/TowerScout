@@ -1193,7 +1193,9 @@ machine mode automatically.
 - Commit `5737a58` fixes Boolean mode normalization and adds a regression test
   for real `Rootful=true` and `Rootful=false` property shapes. The applicable
   local runtime, bootstrap, launcher, package, publish-workflow, and Podman GPU
-  suite passed 101 tests.
+  suite passed 101 tests. All required Draft PR checks, including both Python
+  versions, Windows host-helper contracts, production-controller contracts and
+  e2e, frontend, security, and Trivy, are green on evidence head `ae78b06`.
 - The exact launcher and full-runnable Podman CPU package record source
   `5737a58fcbf27395c1025c672bcf3c737bf34fe2`. The package archive SHA-256 is
   `24ef6e7e2aa6662d5f1f26b8e09fbfccc25c8a11e796571f022f978b9352f49b`;
@@ -1212,9 +1214,9 @@ candidate or managed-endpoint claim. No provider key, certificate identity or
 content, local path, private network address, screenshot, or raw runtime output
 was committed.
 
-**Next**: Complete exact-head Draft PR CI, obtain technical/security review and
-the approved signing path, then run the signed artifact under representative
-managed-endpoint policy before the August 14 proceed/conditional/stop decision.
+**Next**: Obtain technical/security review and the approved signing path, then
+run the signed artifact under representative managed-endpoint policy before
+the August 14 proceed/conditional/stop decision.
 
 ### 2026-08-12 - Rootless Podman Native Forwarding Boundary Selected
 

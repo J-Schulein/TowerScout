@@ -144,7 +144,8 @@ that decision gate
 2. Draft PR #67 is reconciled with current `main` while retaining both the
    Task-099 closeout and the current Task-087 implementation state.
 3. Exact-head checks through implementation checkpoint `5737a58` are green
-   locally; its current Draft PR CI run is tracked separately until complete.
+   locally, and all required Draft PR checks are green on evidence head
+   `ae78b06`.
 4. The exact-source full-runnable Task-087 package was generated and verified
    in the approved development environment.
 5. Docker and approved-provider Podman Google/Azure plus controlled recovery
