@@ -107,6 +107,35 @@ Markdown links resolved across the changed files.
 `#76`, bring the accepted result into PR #67, and then resume Task-087 from its
 preserved checkpoint.
 
+### 2026-08-19 - Task-101 Quality Review Gate Reconciled
+
+**Objective**: Keep the Task-101 evidence and Task-087 resume boundary
+unambiguous after PR #72's independent quality review.
+
+**Context**: The implementation head passed its main CI and all three Task-087
+compatibility jobs. The review found the committed evidence state lagged those
+runs and several current sources could be read as resuming Task-087 before PR
+#67's new exact-head validation.
+
+**Decision**: Record implementation head `a87ab53`, CI/CD run `32300398378`,
+and Task-087 run `32300398377`. Standardize the downstream order as PR #72
+merge, alert `#76` closure without dismissal, PR #67 semantic integration,
+green PR #67 exact-head checks, and only then Task-087 resumption. Keep final
+PR #72 check evidence in the PR description so an evidence-only commit does
+not invalidate its own claim.
+
+**Execution**: Reconciled the current task, backlog, requirement, design, ADR,
+roadmap, Task-087, handoff, and Copilot sources. The CI quality ratchet also
+adds a blocking Docker frontend-stage PR job and focused semantic contract.
+
+**Validation**: The focused suite passed `12` tests; the uncached Docker
+frontend-stage build, CI workflow summary, both agent-work validators, and
+`git diff --check` passed. No raw log, provider data, certificate detail, or
+local path was added to repository evidence.
+
+**Next**: Require the review-remediation commit's exact-head PR checks, then
+preserve the ordered post-merge gates without resuming Task-087 early.
+
 ### 2026-07-23 - Phase A Rebaseline
 
 **Objective**: Replace the pre-decision planning state with one executable

@@ -78,7 +78,10 @@ torch residuals. GitHub opened high-severity development-transitive
 `extract-zip` alert `#76` afterward; active Task-101 owns that separate focused
 remediation and release-gate disposition. Task-087's evidence remains valid and
 reviewer input may continue, but new implementation, PR #67 merge, and
-candidate publication remain paused while the blocking frontend audit is red.
+candidate publication remain paused. The PR #72 implementation-head audit and
+compatibility jobs pass; final PR #72 checks, merge/default-branch alert
+closure, PR #67 integration, and green PR #67 exact-head checks still precede
+Task-087 resumption.
 
 ## Release Naming Boundary
 

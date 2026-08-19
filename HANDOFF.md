@@ -37,7 +37,8 @@ The current Pilot/cdcai hold is:
   alert `#74` closed without dismissal, and its August 11 closeout inventory
   contained the eight documented torch residuals
 - Task-101 high-severity development-transitive `extract-zip` remediation and
-  release-gate disposition: active before Task-087 resumes
+  release-gate disposition: PR #72 implementation-head checks pass; final PR,
+  default-branch alert, and PR #67 gates remain active before Task-087 resumes
 - Task-087 Google/Azure guided provider TLS repair on Docker/Podman: paused on
   Task-101 while Draft PR #67 remains open for reviewer input
 - Task-096 user-confirmed Exit/Stop on Docker/Podman
@@ -76,9 +77,10 @@ the later js-yaml npm audit finding and root graph reconciliation, in
 Alert `#76` opened after that closeout and is owned by active Task-101 in
 `.agent_work/tasks/active/TASK-101-extract-zip-advisory-release-gate.md`.
 Task-087 remains preserved and reviewable in PR #67, but new implementation,
-merge, and candidate publication wait for Task-101 acceptance. Its other
-package, signing, provider/recovery, Podman, and representative managed-
-endpoint gates remain closed.
+merge, and candidate publication wait for PR #72 merge, alert `#76` closure
+without dismissal, semantic integration into PR #67, and green checks at that
+branch's new exact head. Its other package, signing, provider/recovery, Podman,
+and representative managed-endpoint gates remain closed.
 
 ## Runtime And Package Model
 

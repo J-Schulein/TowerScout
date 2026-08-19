@@ -99,12 +99,15 @@ July 27 exit evidence:
    compatibility matrix.
 2. Keep Draft PR #67 open for reviewer input while new Task-087 implementation
    is paused.
-3. After Task-101 passes, bring the accepted change into PR #67 and resume
-   Task-087.
-4. Support guided repair for Google and Azure.
-5. Support application-provider TLS repair on Docker and Podman.
-6. Validate on the available managed CDC network.
-7. Complete Task-096 Exit/Stop TowerScout for Docker and Podman.
+3. After PR #72's final exact-head checks pass, merge it and confirm alert
+   `#76` closes on the default branch without dismissal, then bring the
+   accepted change into PR #67.
+4. Require PR #67's new exact-head matrix to pass, then explicitly resume
+   Task-087 from its preserved checkpoint.
+5. Support guided repair for Google and Azure.
+6. Support application-provider TLS repair on Docker and Podman.
+7. Validate on the available managed CDC network.
+8. Complete Task-096 Exit/Stop TowerScout for Docker and Podman.
 
 Exit:
 
@@ -229,9 +232,13 @@ candidate inclusion; Task-087's own gates still apply.
 Task-101 was created and selected August 19 for Dependabot alert `#76` /
 `GHSA-jmr9-qjv8-65gv` in development-transitive `extract-zip==2.0.1`. Its
 preferred remediation is a tested Node 22.12+/Puppeteer 25.x dependency
-ratchet that removes the vulnerable path; no exception is approved. Task-087
-is paused without invalidating its recorded evidence and resumes only after
-Task-101 passes and alert reconciliation completes.
+ratchet that removes the vulnerable path; no exception is approved. CI/CD run
+`32300398378` and Task-087 compatibility run `32300398377` pass at PR #72
+implementation head `a87ab53`; any later PR #72 head still requires final
+checks before merge. Task-087 is paused without invalidating its recorded
+evidence and resumes only after PR #72 merges, alert reconciliation completes,
+the accepted change is integrated into PR #67, and that branch's new exact-
+head matrix passes.
 
 ## Stop Rules
 

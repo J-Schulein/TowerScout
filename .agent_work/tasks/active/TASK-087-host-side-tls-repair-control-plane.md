@@ -3,8 +3,10 @@
 **Status**: PAUSED / DEPENDENCY-GATED - Draft PR #67 and the Task-087 evidence
 recorded on that branch remain preserved and reviewable. No new launcher or
 package implementation, merge, or publication proceeds until active Task-101
-restores the blocking frontend dependency gate. After Task-101 passes, bring
-the accepted change into PR #67 and resume from the preserved checkpoint.
+restores the blocking frontend dependency gate. After PR #72 merges and alert
+`#76` closes without dismissal, bring the accepted change into PR #67, require
+green checks at its new exact head, and only then resume from the preserved
+checkpoint.
 Release-facing TLS mutation, UAC/certificate, Chrome/Firefox, live package,
 Podman/GPU, sleep/resume, managed-network, and candidate-inclusion gates remain
 closed
@@ -32,8 +34,9 @@ all Task-087 gates pass.
 ## August 19, 2026 Task-101 Pause Override
 
 This override controls the immediate execution order while high-severity
-development-transitive `extract-zip` alert `#76` keeps the blocking frontend
-audit red:
+development-transitive `extract-zip` alert `#76` keeps the Task-101 release
+gate open. PR #72's implementation-head audit and compatibility jobs pass,
+while final PR/default-branch and PR #67 gates remain:
 
 - Preserve Draft PR #67, the current Task-087 implementation, and its recorded
   evidence. The dependency finding does not invalidate artifact-specific
@@ -49,7 +52,8 @@ audit red:
   the task resumes rather than expanding Task-101.
 - After the focused Task-101 change merges from current `main` and GitHub alert
   reconciliation passes without dismissal, bring that accepted change into PR
-  #67 and resume from the preserved Task-087 checkpoint.
+  #67. Require its new exact-head matrix to pass before resuming from the
+  preserved Task-087 checkpoint.
 
 ## July 28, 2026 Phase 1 Live Validation Override
 
@@ -1189,9 +1193,9 @@ it. The existing Task-087 evidence remains valid for the bytes it evaluated.
 
 **Decision**: Pause new Task-087 implementation, package integration, merge,
 and publication. Keep PR #67 open for reviewer input and read-only review.
-Resume only after Task-101's focused remediation merges, the blocking audit and
-compatibility matrix pass, and alert reconciliation completes without
-dismissal.
+Resume only after Task-101's focused remediation merges, alert reconciliation
+completes without dismissal, the accepted change is integrated into PR #67,
+and that branch's new exact-head matrix passes.
 
 **Execution**: Updated the Task-087 status, dependency list, and current
 execution override. No Task-087 source, workflow, package, runtime, release, or
@@ -1205,9 +1209,10 @@ TowerScout quick workspace checker and canonical `.agent_work` validator
 passed, and `git diff --check` found no whitespace errors. No Task-087 runtime
 or package validation was rerun or required for this documentation-only pause.
 
-**Next**: Accept reviewer context without beginning new implementation, then
-bring the accepted Task-101 result into PR #67 and resume from the current
-checkpoint.
+**Next**: Accept reviewer context without beginning new implementation. After
+PR #72 merges and alert `#76` closes without dismissal, bring the accepted
+Task-101 result into PR #67, require green exact-head checks, and only then
+resume from the current checkpoint.
 
 ### 2026-07-31 - Ready-For-Review Custom Host Port Correction
 

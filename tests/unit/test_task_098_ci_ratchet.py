@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import yaml
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
@@ -9,6 +11,10 @@ TASK_087_PUPPETEER_WORKFLOW = (
     REPO_ROOT / ".github" / "workflows" / "task-087-frontend-puppeteer.yml"
 )
 DOCKERFILE = REPO_ROOT / "Dockerfile"
+CHECKOUT_ACTION = (
+    "actions/checkout@"
+    "93cb6efe18208431cddfb8368fd83d5badbf9bfd"
+)
 TRIVY_ACTION = (
     "aquasecurity/trivy-action@"
     "57a97c7e7821a5776cebc9bb87c984fa69cba8f1"
@@ -92,6 +98,37 @@ def test_task_101_docker_frontend_uses_node_22() -> None:
 
     assert "FROM node:22-bookworm-slim AS frontend" in dockerfile
     assert "FROM node:18" not in dockerfile
+
+
+def test_task_101_pr_ci_builds_docker_frontend_stage_as_blocking_job() -> None:
+    workflow = yaml.safe_load(_workflow())
+    triggers = workflow.get("on", workflow.get(True))
+    assert triggers["pull_request"]["branches"] == ["main"]
+
+    job = workflow["jobs"]["frontend-container-build"]
+
+    assert job["name"] == "Docker frontend stage"
+    assert job["runs-on"] == "ubuntu-latest"
+    assert job["timeout-minutes"] == 15
+    assert "if" not in job
+    assert "continue-on-error" not in job
+
+    action_steps = [step for step in job["steps"] if "uses" in step]
+    assert action_steps == [{"uses": CHECKOUT_ACTION}]
+
+    build_steps = [
+        step
+        for step in job["steps"]
+        if step.get("name") == "Build Docker frontend stage"
+    ]
+    assert len(build_steps) == 1
+    build_step = build_steps[0]
+    assert (
+        build_step["run"]
+        == "docker build --target frontend --tag towerscout-frontend:test ."
+    )
+    assert "if" not in build_step
+    assert "continue-on-error" not in build_step
 
 
 def test_task_087_puppeteer_uses_supported_node_and_pinned_playwright() -> None:

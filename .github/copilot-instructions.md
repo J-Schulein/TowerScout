@@ -49,8 +49,11 @@ The project still carries public-health workflow expectations:
   residuals.
 - `TASK-101` has implemented and locally validated the Node 22 / Puppeteer
   25.8.0 remediation for high-severity development-transitive `extract-zip`
-  alert `#76`. The finding is not shipped in the product runtime. Exact-head
-  PR checks and default-branch alert reconciliation remain open.
+  alert `#76`. The finding is not shipped in the product runtime. PR #72 CI/CD
+  run `32300398378` and Task-087 run `32300398377` pass at implementation head
+  `a87ab53`; any later PR #72 head still requires final checks before merge.
+  Default-branch alert reconciliation and PR #67 integration/exact-head
+  validation remain open.
 - `TASK-087` is paused on Task-101. Draft PR #67 remains open for reviewer
   input; new implementation, merge, and candidate publication wait for
   Task-101 acceptance.
@@ -123,12 +126,13 @@ adoption:
 4. Preserve Task-099's completed `aiohttp==3.14.3`, transitive
    `ip-address==10.3.1`, and transitive `js-yaml==4.3.1` remediation plus its
    eight-alert torch residual baseline.
-5. Complete active Task-101's exact-head CI and default-branch reconciliation
-   for the locally validated Node/Puppeteer remediation without weakening or
-   dismissing the blocking audit.
-6. Keep Draft PR #67 reviewable; after Task-101 passes, bring the accepted
-   change into that branch and resume Task-087 from its preserved checkpoint.
-7. Complete Task-087 guided Google/Azure provider TLS work on Docker and
+5. Require final exact-head checks after any later PR #72 commit, merge the
+   accepted Node/Puppeteer remediation, and confirm alert `#76` closes on the
+   default branch without dismissal.
+6. Keep Draft PR #67 reviewable; after that reconciliation, bring the accepted
+   change into the branch and require its new exact-head matrix to pass.
+7. Resume Task-087 from its preserved checkpoint only after step 6 passes,
+   then complete guided Google/Azure provider TLS work on Docker and
    Podman; preserve the command fallback and satisfy its remaining gates.
 8. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
 9. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
@@ -558,6 +562,8 @@ Current CI includes:
 
 - frontend bundle rebuild, a CommonJS Puppeteer smoke, and
   ProviderStateManager regression coverage on maintained Node 22
+- a blocking Docker frontend-stage build on pull requests, pushes, and the
+  weekly schedule
 - Python 3.11 and 3.12
 - `flake8`
 - `black --check` as non-blocking
@@ -565,7 +571,7 @@ Current CI includes:
 - `bandit` as non-blocking
 - unit tests
 - integration tests as non-blocking
-- Docker image build check on `main` as non-blocking
+- full Docker runtime-image build check on `main` as non-blocking
 - Codecov upload as non-blocking
 - Trivy security scan and SARIF upload as non-blocking
 
@@ -779,12 +785,13 @@ The original guidance benefited from explicitly naming recent completed work. Th
 3. Preserve completed Task-099 evidence for the August Dependabot alerts and
    later js-yaml npm audit finding, including the eight documented
    non-blocking torch residuals and qualified ML pair.
-4. Complete active Task-101's exact-head CI and default-branch reconciliation
-   for the locally validated Node/Puppeteer remediation; do not weaken or
-   dismiss the blocking audit.
+4. Require final exact-head checks after any later PR #72 commit, merge the
+   accepted Node/Puppeteer remediation, and confirm alert `#76` closes without
+   dismissal.
 5. Keep PR #67 open for reviewer input, then bring the accepted Task-101 change
-   into it and resume Task-087 only after the gate passes.
-6. Complete Task-087 implementation and validation; keep signing and candidate
+   into it and require green checks at the new exact head.
+6. Resume Task-087 only after step 5 passes, then complete its implementation
+   and validation; keep signing and candidate
    inclusion behind Task-087's remaining qualification gates.
 7. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
 8. Qualify Docker CPU/GPU and Podman CPU/GPU.

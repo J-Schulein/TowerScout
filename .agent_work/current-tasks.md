@@ -2,10 +2,10 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: August 19, 2026
-**Focus**: Complete the active Task-101 dependency-security gate while new
-Task-087 implementation and package work are paused. Preserve Draft PR #67 for
-reviewer input, then resume Task-087 after the blocking audit and required
-compatibility checks pass.
+**Focus**: Land the validated Task-101 dependency-security change through its
+final PR and default-branch gates while new Task-087 implementation and package
+work are paused. Preserve Draft PR #67 for reviewer input, then integrate and
+validate the accepted change there before Task-087 resumes.
 
 **Current Release State**:
 
@@ -74,9 +74,10 @@ passes; reviewer input may continue.
 
 ### **TASK-101: extract-zip Advisory Assessment And Release-Gate Disposition**
 
-**Status**: IN_PROGRESS - implementation and local validation completed August
-19; exact-head PR checks, default-branch alert reconciliation, and PR #67
-integration remain open
+**Status**: IN_PROGRESS - implementation, local validation, and PR #72
+implementation-head CI completed August 19; any later PR #72 head still
+requires final checks before merge, while default-branch alert reconciliation
+and PR #67 integration/exact-head validation remain open
 **Type**: C (Security Remediation / CI And Release Gate)
 **Priority**: HIGH
 **Estimated Effort**: 1-2 days plus CI rerun timing
@@ -94,9 +95,14 @@ integration remain open
 - Preserve the locally validated Node `>=22.12.0` / Puppeteer `25.8.0` path,
   whose locked browser tooling removes vulnerable `extract-zip`; do not use
   `npm audit fix --force`, weaken the high-severity gate, or dismiss the alert.
+- Preserve the green PR #72 implementation-head evidence: CI/CD run
+  `32300398378` and Task-087 run `32300398377` passed at `a87ab53`.
 - Align the maintained Node baseline across CI, `package.json`, and the Docker
   frontend stage, and remove the redundant Puppeteer browser-download path
   from Task-087 workflows that already install a pinned browser separately.
+- Keep the Docker frontend-stage build blocking on pull requests; the full
+  runtime-image build remains the separately documented main-branch advisory
+  check.
 - Treat those narrowly scoped Task-101 security-workflow edits as gate work;
   they do not resume broader Task-087 implementation.
 - Require clean install/audit/lock-graph, frontend bundle/contracts, Task-087
@@ -109,8 +115,10 @@ integration remain open
 **Status**: PAUSED / DEPENDENCY-GATED - Draft PR #67 and its recorded Task-087
 implementation evidence remain preserved and reviewable. No new launcher or
 package implementation, merge, or publication proceeds until active Task-101
-restores the blocking frontend dependency gate. After Task-101 passes, bring
-the accepted change into PR #67 and resume from the preserved checkpoint.
+restores the blocking frontend dependency gate. After PR #72 merges and alert
+`#76` closes without dismissal, bring the accepted change into PR #67, require
+green checks at that branch's new exact head, and only then resume from the
+preserved checkpoint.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Remaining Estimate**: 1-2 days after Task-101 reconciliation from the
@@ -163,18 +171,19 @@ preserved PR #67 checkpoint
 2. Complete Task-101's supported Node/Puppeteer remediation and required
    clean-install, audit, lock-graph, frontend, browser, Windows-helper, and
    Docker-build validation.
-3. Reconcile alert `#76` without dismissal, then bring the accepted Task-101
-   change into Draft PR #67 and resume Task-087.
-4. Require green checks at the new exact PR #67 head.
-5. Generate and verify the exact-source full-runnable Task-087 package in an
+3. Merge PR #72 after its final exact-head checks pass, then confirm alert
+   `#76` closes without dismissal on the default branch.
+4. Bring the accepted Task-101 change into Draft PR #67 and preserve its
+   recorded ADR-019 proceed disposition during semantic reconciliation.
+5. Require green checks at the new exact PR #67 head.
+6. Explicitly resume Task-087 only after steps 3-5 pass.
+7. Generate and verify the exact-source full-runnable Task-087 package in an
    approved environment.
-6. Complete the Docker Google/Azure and controlled recovery validation, then
+8. Complete the Docker Google/Azure and controlled recovery validation, then
    the approved-provider Podman coverage.
-7. Complete technical/security review, signing-path coordination, and
+9. Complete technical/security review, signing-path coordination, and
    representative managed-endpoint validation as applicable.
-8. Preserve and semantically reconcile PR #67's recorded Task-087 proceed
-   disposition before the resumed exact-head qualification.
-9. If Task-087 proceeds, select Task-096 next, followed by Task-097. Keep Tasks
+10. If Task-087 proceeds, select Task-096 next, followed by Task-097. Keep Tasks
    091-093 behind the stable candidate/runtime boundary.
 
 Task-058 and Task-059 remain conditional stretch work. Task-094 remains

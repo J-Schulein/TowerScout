@@ -1,8 +1,9 @@
 # TASK-101: extract-zip Advisory Assessment And Release-Gate Disposition
 
-**Status**: IN_PROGRESS - implementation and local validation completed August
-19, 2026; exact-head PR checks, default-branch alert reconciliation, and PR #67
-integration remain open
+**Status**: IN_PROGRESS - implementation, local validation, and PR #72
+implementation-head CI completed August 19, 2026; any later PR #72 head still
+requires final checks before merge, while default-branch alert reconciliation
+and PR #67 integration/exact-head validation remain open
 **Priority**: HIGH
 **Type**: C (Security Remediation / CI And Release Gate)
 **Estimated Effort**: 1-2 days plus CI rerun timing
@@ -72,15 +73,18 @@ Task-087 implementation, PR #67 merge, and candidate-package work to resume.
   state regression tests pass.
 - [x] The existing CommonJS Puppeteer consumers still load successfully after
   the major-version update.
-- [ ] Task-087 production-controller, simulated-helper browser, and Windows
-  host-helper jobs pass after the dependency change.
+- [x] Task-087 production-controller, simulated-helper browser, and Windows
+  host-helper jobs pass after the dependency change in run `32300398377` at
+  PR #72 implementation head `a87ab53`.
 - [x] The Docker frontend stage builds successfully with the selected Node
   baseline and still produces the expected committed bundle.
 - [ ] GitHub alert `#76` closes through dependency reconciliation without
   dismissal, or any residual-high exception receives the explicit approvals,
   compensating controls, and expiry required by SEC-001.
 - [ ] Task-087's tracker and task file are changed from paused to resumed only
-  after the blocking gate and required regression evidence pass.
+  after PR #72 merges, alert `#76` closes without dismissal, the accepted
+  change is semantically integrated into PR #67, and that branch's required
+  exact-head matrix passes.
 
 ## Dependencies
 
@@ -104,8 +108,9 @@ Task-087 implementation, PR #67 merge, and candidate-package work to resume.
 4. Run the clean-install, audit, graph, bundle, frontend contract, browser,
    Windows helper, and Docker build validation matrix.
 5. Land the remediation as a focused Task-101 change from current `main`,
-   reconcile the GitHub alert and CI result, bring the accepted change into PR
-   #67, and resume Task-087 only when this gate passes.
+   pass its exact-head checks, merge it, and reconcile the GitHub alert without
+   dismissal. Then bring the accepted change into PR #67, pass that branch's
+   required exact-head matrix, and only then resume Task-087.
 
 ---
 
@@ -212,6 +217,48 @@ After default-branch alert reconciliation, merge Task-101 semantically into PR
 
 ---
 
+### 2026-08-19 - Quality Review Remediation And Evidence Reconciliation
+
+**Objective**: Resolve the independent PR #72 quality-review findings without
+weakening the focused security remediation or prematurely resuming Task-087.
+
+**Context**: The review found no dependency, CommonJS, browser, or runtime
+defect. It identified stale committed implementation-head evidence, an
+inconsistent sequence that could resume Task-087 before PR #67 validation, and
+the absence of an automated pull-request build for the changed Docker frontend
+stage.
+
+**Decision**: Preserve CI/CD run `32300398378` and Task-087 compatibility run
+`32300398377` as the green evidence for implementation head `a87ab53`. Use one
+ordered downstream gate everywhere: final PR #72 checks, PR #72 merge, alert
+`#76` closure without dismissal, semantic integration into PR #67, green PR
+#67 exact-head checks, and only then Task-087 resumption. Add a dedicated,
+blocking `Docker frontend stage` job while leaving the full runtime-image build
+as the existing main-branch advisory check.
+
+**Execution**: Reconciled the current task, roadmap, requirement, design,
+decision, handoff, and agent-guidance sources. Added the CI job plus a semantic
+YAML regression contract that rejects a conditional or advisory version of the
+new gate.
+
+**Validation**: The focused dependency/CI suite passed `12` tests. The CI
+workflow summary found the new job and all action references remained pinned.
+An uncached Docker frontend-stage build using the CI command with `--no-cache`
+installed `27` packages, reported zero vulnerabilities, and built the bundle
+successfully. The quick and canonical agent-work validators and
+`git diff --check` passed.
+
+**Result**: PASS locally for the review remediation. Task-101 remains
+`IN_PROGRESS`, alert `#76` remains open and undismissed until the accepted graph
+reaches the default branch, and Task-087 remains paused through the PR #67
+exact-head gate. The PR description remains the final no-later-commit evidence
+source for checks triggered by this review commit.
+
+**Next**: Push the focused review remediation, require all checks at its exact
+head, and obtain merge approval before default-branch reconciliation.
+
+---
+
 ## Validation Results
 
 ### Task Activation - August 19, 2026
@@ -231,14 +278,17 @@ open
 
 ### Focused Remediation - August 19, 2026
 
-**Test Status**: PASS locally; exact-head GitHub and default-branch gates remain
-open
+**Test Status**: PASS locally and at PR #72 implementation head `a87ab53`;
+default-branch and PR #67 gates remain open
 
 - [x] Exact Node/Puppeteer/lock graph and no-override contracts pass.
 - [x] Clean isolated install and blocking high-severity audit pass.
 - [x] CommonJS consumers and maintained frontend contracts pass.
 - [x] Docker frontend and full builds pass with equivalent generated bundles.
-- [ ] Main CI and all three Task-087 jobs pass at the pushed PR #72 head.
+- [x] A dedicated blocking PR job covers the Docker frontend-stage build, its
+  semantic workflow contract passes, and an uncached local execution succeeds.
+- [x] Main CI run `32300398378` and all three jobs in Task-087 run
+  `32300398377` pass at PR #72 implementation head `a87ab53`.
 - [ ] Alert `#76` closes through default-branch reconciliation without
   dismissal.
 - [ ] The accepted change is semantically reconciled into PR #67 and validated

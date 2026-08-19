@@ -154,9 +154,11 @@ The current security boundary is:
 10. Active Task-101 has locally validated Node `>=22.12.0`, exact
     `puppeteer@25.8.0`, and `@puppeteer/browsers@3.2.1`. The resulting lock
     and installed graphs contain no `extract-zip`, and the blocking audit is
-    clean. Exact-head CI and default-branch alert reconciliation remain open;
-    Task-087 stays preserved and paused until those gates pass and the accepted
-    change is reconciled into PR #67.
+    clean. PR #72 CI/CD run `32300398378` and Task-087 compatibility run
+    `32300398377` pass at implementation head `a87ab53`. Any later PR #72 head
+    still requires final checks before merge. Default-branch alert
+    reconciliation and PR #67 integration/exact-head validation remain open;
+    Task-087 stays preserved and paused until those gates pass.
 
 ## Task Dependency Flow
 
