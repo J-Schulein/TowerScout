@@ -70,11 +70,42 @@ optional AI-assisted development.
 
 - Project lead and cdcai owner roadmap decisions
 - Tasks 087 and 089
-- Tasks 090-097 as formalized by Phase A and Task-098 added by the July 23
-  code-scanning readiness review
+- Tasks 090-097 as formalized by Phase A, Task-098 added by the July 23
+  code-scanning readiness review, and active Task-101
 - Final candidate and handoff evidence
 
 ## Implementation Log
+
+### 2026-08-19 - Task-101 Activated And Task-087 Paused
+
+**Objective**: Reflect the project lead's decision to resolve the blocking
+dependency-security gate before continuing Task-087 implementation.
+
+**Context**: Alert `#76` is a development/browser-install exposure rather than
+an end-user runtime dependency. The frontend audit is intentionally blocking,
+and a supported upstream removal path requires a tested Node/Puppeteer change.
+
+**Decision**: Select Task-101 directly into the active Sprint 09 lane and
+pause, rather than discard, Task-087. Keep PR #67 open for reviewer input and
+preserve its evidence. Resume implementation, merge, and package work only
+after Task-101 passes.
+
+**Execution**: Created the active Type C Task-101 record, marked Task-087
+dependency-gated, and reconciled current roadmap, requirement, design, handoff,
+and agent-guidance sources. Completed Task-099 history remained unchanged.
+
+**Output**: One immediate implementation lane, an explicit paused-but-
+reviewable Task-087 state, and a testable security-gate path back to candidate
+package work.
+
+**Validation**: PASS for the lifecycle transition on August 19, 2026. The
+TowerScout quick workspace checker and canonical `.agent_work` validator
+passed, `git diff --check` found no whitespace errors, and current relative
+Markdown links resolved across the changed files.
+
+**Next**: Implement and validate Task-101 from current `main`, reconcile alert
+`#76`, bring the accepted result into PR #67, and then resume Task-087 from its
+preserved checkpoint.
 
 ### 2026-07-23 - Phase A Rebaseline
 
