@@ -11,12 +11,16 @@
 4. [`GITHUB-CODE-SCANNING-READINESS-ASSESSMENT-2026-07-23.md`](../../analysis/GITHUB-CODE-SCANNING-READINESS-ASSESSMENT-2026-07-23.md)
    - 62-alert dependency inventory, applicability, and Tasks 090/098 gate
 5. [`.agent_work/current-tasks.md`](../../../current-tasks.md)
-6. [`HANDOFF.md`](../../../../HANDOFF.md)
+6. [`ADR-019: Unsigned Preview And October Production Signing`](../../../decisions/019-unsigned-preview-and-october-production-signing.md)
+7. [`HANDOFF.md`](../../../../HANDOFF.md)
 
 ## Current Decision
 
 - Keep the six `v0.1.2` pilot assets immutable.
-- Develop owner-requested fixes in the fork under `v0.1.3-rc.N`.
+- Refine owner-requested fixes through immutable unsigned
+  `v0.1.3-preview.N` fork-side GitHub prereleases; never mark them `Latest`.
+- Reserve `v0.1.3-rc.N` for the signed production-shaped candidate produced
+  under Task-100.
 - Do not publish `v0.1.3` final prematurely.
 - Keep `cdcai/TowerScout` unchanged until the owner-qualified final candidate
   receives explicit adoption approval.
@@ -26,8 +30,10 @@
 - Task-099 completed alerts `#72-#75` plus npm finding
   `GHSA-5p4m-2wfm-xmqj` through PRs #68/#69. Alert `#74` closed without
   dismissal, and only the eight documented torch residuals remain.
-- Task-087 continues under its own package, signing, provider/recovery,
-  Podman, and representative managed-endpoint gates.
+- Task-087 proceeds through technical/security review and a newly integrated
+  normal-user preview package. Existing validation ZIPs remain nonpublishable.
+- Complete Task-100 production signing and representative managed-endpoint
+  qualification in October after the unsigned package is satisfactory.
 - Complete operational closeout by October 30, 2026.
 
 ## Active Validation Record
@@ -43,13 +49,13 @@ The separate current Task-087 functional record is:
 
 - [`../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md)
 
-That record covers authorized unsigned development-workstation validation only,
-including one later isolated Google/Docker source-adapter repair. It does not
-approve release, merge, additional mutation, or cdcai adoption. Exact-source
-packaged UI coverage plus a signed production-shaped build on a representative
-managed endpoint remain open. Normal-size controls clipping at this host's
-display scaling, resolved in the later UI source by increasing the window
-height, remains part of the packaged UI check.
+That record covers authorized unsigned development-workstation validation only
+and cannot be uploaded or renamed as a preview. Later exact-source Task-087
+evidence passed packaged Docker and approved-provider Podman Google/Azure,
+recovery, provider-install, and rootless-Podman gates. The August 19 decision
+allows technical/security review, merge, and a separate normal-user unsigned
+preview-package path. Task-100 signing and representative managed-endpoint
+qualification remain required before any signed-candidate or production claim.
 
 ## Archived Planning And Release History
 

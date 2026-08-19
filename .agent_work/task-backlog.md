@@ -1,9 +1,11 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: August 11, 2026
+**Last Updated**: August 19, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
-use. The Task-099 August advisory gate passed on August 11. Remaining required
-release and handoff work takes priority over Task-058/059 stretch work.
+use. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases until the
+normal-user package is satisfactory, then complete Task-100 production signing
+and managed-endpoint qualification in October. Required release and handoff
+work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
 
 ---
@@ -14,10 +16,11 @@ release and handoff work takes priority over Task-058/059 stretch work.
 | ---: | --- | --- | --- | --- | --- |
 | 1 | `TASK-096` User-Initiated Exit And Container Stop | NOT_STARTED | 2-4 days | Task-087 launcher feasibility gate; current stop scripts | Confirmed Exit/Stop works on Docker and Podman without deleting named volumes |
 | 2 | `TASK-097` Podman CPU/GPU Final Path Qualification | NOT_STARTED | 3-5 days plus environment validation | Tasks 090, 098, 099, 087, and 096 | Podman CPU and GPU/CDI pass final-package qualification without Docker Desktop |
-| 3 | `TASK-091` Owner-Runnable Release Qualification | NOT_STARTED | 3-6 days | Candidate scope stable; fixture/harness custody | cdcai owner can execute or supervise the minimum release gate |
-| 4 | `TASK-092` Documentation Currentness And Information Architecture | NOT_STARTED | Stage A 1-2 days; Stage B as approved | Candidate behavior and package shape | Repo docs, user docs, release notes, external Setup Guide, and demo video agree |
+| 3 | `TASK-091` Owner-Runnable Release Qualification | NOT_STARTED | 3-6 days | Stable unsigned package/preview shape; fixture/harness custody | Preview-based harness and custody rehearsal are ready for Task-100; signed acceptance completes under Task-100 |
+| 4 | `TASK-092` Documentation Currentness And Information Architecture | NOT_STARTED | Stage A 1-2 days; Stage B as approved | Stable unsigned package behavior and shape | Repo docs, user docs, release notes, external Setup Guide, and demo video agree |
 | 5 | `TASK-093` Persistent Data Lifecycle And Recovery Rehearsal | NOT_STARTED | 1-2 days minimum | Runtime profiles and package lifecycle stable | Safe owner-run upgrade, rollback, cleanup, and recovery procedure |
-| 6 | `TASK-094` Evidence-Gated Support Snapshot | EVIDENCE_GATED | 1-3 days if selected | Pilot/support evidence | Implement only if real feedback shows a support-diagnostics gap |
+| 6 | `TASK-100` Production Signing And Managed-Endpoint Qualification | NOT_STARTED | 3-5 days plus signer/endpoint scheduling | October; satisfactory unsigned preview recorded; stable source/package shape from Tasks 087/096/097; Tasks 091-093 release, docs, and lifecycle prerequisites ready; approved signer and endpoint window | Signed `v0.1.3-rc.N` verifies after packaging and passes representative managed-endpoint acceptance |
+| 7 | `TASK-094` Evidence-Gated Support Snapshot | EVIDENCE_GATED | 1-3 days if selected | Pilot/support evidence | Implement only if real feedback shows a support-diagnostics gap |
 
 ### Task-096 Boundary
 
@@ -42,6 +45,16 @@ release and handoff work takes priority over Task-058/059 stretch work.
 - Fix packaged-runtime blockers. Document a source-build-only limitation only
   through an explicit owner decision.
 
+### Task-091 Boundary
+
+- Build and rehearse the minimum owner-runnable qualification harness against
+  the stable unsigned package/preview shape before Task-100.
+- Confirm fixture, evidence, and operator custody without calling the unsigned
+  package a signed candidate or managed-endpoint-qualified release.
+- Reuse the same bounded harness for the signed `v0.1.3-rc.N` acceptance run
+  under Task-100; that signed run, not the preview rehearsal, closes final
+  candidate acceptance.
+
 ### Task-092 Boundary
 
 - Add administrator instructions for the opt-in Model Upload Key before the
@@ -56,14 +69,37 @@ release and handoff work takes priority over Task-058/059 stretch work.
   while another locally controlled Docker Desktop container can reach the host
   proxy and is still denied without the key.
 
+### Task-100 Boundary
+
+- Do not select Task-100 before October 1 or before the project lead records
+  that the unsigned normal-user package satisfies ADR-019's entry gate.
+- Consume the stable qualification harness/custody baseline from Task-091
+  without making Task-091's preparation circular; final signed acceptance
+  completes under Task-100.
+- Confirm the approved signer/operator, service, certificate/key custody,
+  timestamping, renewal/revocation, and backup ownership without storing
+  secrets or sensitive certificate identifiers in the repository.
+- Decide which launcher, installer, executable, and script surfaces in the
+  normal user path require signing. Remove, redesign, or explicitly disposition
+  endpoint-policy-incompatible execution-policy bypass behavior.
+- Build from the accepted clean source, sign and timestamp before final ZIP
+  assembly, and regenerate manifests/checksums from the signed bytes.
+- Verify signatures before packaging and after clean extraction. Qualify the
+  signed package on an approved clean machine and representative managed
+  endpoint without Defender/AMSI exclusions, execution-policy bypasses,
+  unusual policy changes, or administrator-only normal setup.
+- Publish the accepted signed package only as immutable `v0.1.3-rc.N` and keep
+  official cdcai publication behind Task-089 authorization and identity
+  selection.
+
 ---
 
 ## Conditional Architecture Work
 
 | Order | Task | Status | Estimate | Start gate |
 | ---: | --- | --- | --- | --- |
-| 7 | `TASK-058` Background Detection Jobs And Durable Run State | CONDITIONAL | 3-5 days | Tasks 090, 098, 099, 087, 096, and 097 pass; no pilot blocker; September 18 remains credible |
-| 8 | `TASK-059` Backend Layer Decomposition And Logging Consolidation | CONDITIONAL | 3-5 days | Task-058 accepted and remaining schedule margin is still safe |
+| 8 | `TASK-058` Background Detection Jobs And Durable Run State | CONDITIONAL | 3-5 days | Tasks 090, 098, 099, 087, 096, and 097 pass; no pilot blocker; September 18 remains credible |
+| 9 | `TASK-059` Backend Layer Decomposition And Logging Consolidation | CONDITIONAL | 3-5 days | Task-058 accepted and remaining schedule margin is still safe |
 
 August 28 is the latest responsible Task-058 capacity checkpoint, not an
 earliest start date. Task-058 may begin earlier when all gates pass.
@@ -102,8 +138,8 @@ Parking lot:
 | `TASK-090` Runtime, Custom-Image, And Dependency Security Investigation | Completed; Task-098 scope approved |
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and only the eight documented torch residuals remain |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress with the dependency-security gate clear; package, signing, provider/recovery, approved Podman-provider, and representative managed-endpoint gates remain |
-| `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until final qualification and approval |
+| `TASK-087` Host-Side TLS Repair Control Plane | Proceeding to technical/security review and normal-user unsigned preview integration; signing and representative managed-endpoint qualification moved to Task-100 |
+| `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---
 
@@ -111,12 +147,13 @@ Parking lot:
 
 | Date | Control |
 | --- | --- |
-| August 14 | Task-087 launcher feasibility and operational-security go/no-go |
+| August 19 | Task-087 Proceed-to-unsigned-preview decision recorded; production signing assigned to Task-100 |
 | August 28 | Required scope and Task-058 capacity checkpoint |
 | September 18 | Code complete |
-| September 25 | Feature/package/documentation complete |
-| October 9 | Final-candidate freeze |
-| October 16 | Acceptance complete |
+| September 25 | Feature/documentation complete and satisfactory unsigned-package target |
+| October 1 | Earliest Task-100 activation, only after the satisfactory-package decision |
+| October 9 | Signed `v0.1.3-rc.N` content/candidate freeze |
+| October 16 | Task-100 managed-endpoint qualification and acceptance complete |
 | October 23 | Owner-operated handoff rehearsal complete |
 | October 30 | Operational closeout |
 | October 31 | Hard project end |

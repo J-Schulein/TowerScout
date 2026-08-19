@@ -1,7 +1,7 @@
 # TowerScout Pilot Feedback And cdcai Adoption Plan
 
 **Decision Date**: July 10, 2026; rebaselined July 23, 2026
-**Last Reconciled**: August 11, 2026
+**Last Reconciled**: August 19, 2026
 **Status**: CURRENT for the Pilot Package and cdcai hold
 **Forward Development Plan**:
 [`2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md`](./2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md)
@@ -30,7 +30,8 @@ Do not rebuild, rename, replace, or silently modify these assets.
 ### `J-Schulein/TowerScout`
 
 - Hosts the immutable Pilot Package.
-- Hosts new development and `v0.1.3-rc.N` candidates.
+- Hosts new development, unsigned `v0.1.3-preview.N` GitHub prereleases, and
+  later signed `v0.1.3-rc.N` candidates.
 - Retains pilot and source-provenance history after handoff.
 
 ### `cdcai/TowerScout`
@@ -57,29 +58,28 @@ The cdcai owner selected the fix-first path:
 1. Preserve `v0.1.2`.
 2. Complete required security, TLS, Exit/Stop, Podman, qualification,
    documentation, and handoff work in the fork.
-3. Publish immutable candidates as `v0.1.3-rc.N`.
-4. Continue to accept pilot feedback; blocker feedback takes priority.
-5. Freeze a final candidate only after required gates pass.
-6. Have the project lead and cdcai owner qualify the candidate.
-7. Select the final cdcai tag and display title before the official build.
-8. Execute Task-089 only after explicit owner adoption approval.
+3. Publish and refine immutable unsigned previews as
+   `v0.1.3-preview.N` GitHub prereleases; never mark them `Latest`.
+4. Continue to accept pilot and clean-machine preview feedback; blocker
+   feedback takes priority.
+5. Record when the normal-user package satisfies ADR-019's exact-source,
+   package-integrity, documentation, functional, and runtime-boundary gate.
+6. Complete Task-100 production signing and representative managed-endpoint
+   qualification in October, producing signed `v0.1.3-rc.N` candidates.
+7. Have the project lead and cdcai owner qualify the signed candidate.
+8. Select the final cdcai tag and display title before the official build.
+9. Execute Task-089 only after explicit owner adoption approval.
 
-The Tasks 090/098 security gate passed, so Task-087 resumed in the isolated fork
-branch under ADR-018. Its exact-source unsigned `full-runnable` package passed
-pristine checksum verification and fresh isolated Docker CPU setup. On August
-6, reboot persistence/automatic resume, three reachable Docker refreshes, the
-fixed preview-only Google/Docker display, and the sanitized expected
-`tls_ca_untrusted` Setup Wizard result also passed. The provider key was entered
-only in the wizard, and no key, raw provider response, or certificate detail was
-captured; that preview did not inspect certificates, run the dormant helper, or
-perform a mutation. A later separately authorized source-adapter run completed
-one isolated Google/Docker native repair while preserving all eight volumes;
-the combined packaged UI, Azure, controlled recovery, and approved-provider
-Podman paths remain open. This evidence is validation-only: it does not change
-the Pilot Package, authorize additional launcher mutation, create a release
-candidate or release, authorize merge, or enable new behavior for pilot users.
-Signing and representative managed-endpoint validation remain later gates. See the
-current sanitized
+The Tasks 090/098 security gate passed, and Task-087's later exact-source
+packages passed Docker and approved-provider Podman Google/Azure repair plus
+controlled recovery. Follow-up evidence closes the hash-pinned Podman provider
+installer gap and enforces the selected Windows rootless-Podman boundary while
+failing closed before mutation in rootful mode. These artifacts remain
+validation-only and cannot be renamed or published. Under the August 19
+ADR-019 decision, the next work is technical/security review and a newly
+integrated normal-user unsigned preview package. Task-100 owns production
+signing and representative managed-endpoint validation in October after that
+package is satisfactory. See the current sanitized
 [`Task-087 full-package validation record`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
 
 Tasks 090/098 passed on July 27 and remain completed historical records.
@@ -92,7 +92,10 @@ Task-087 continues under its own remaining qualification gates.
 
 ## Release Naming Boundary
 
-- `v0.1.3-rc.N` is the fork candidate convention.
+- `v0.1.3-preview.N` is the unsigned fork prerelease convention for iterative
+  normal-user testing; previews are never `Latest` or managed-endpoint claims.
+- `v0.1.3-rc.N` is reserved for production-shaped packages built and signed
+  within Task-100; publish those exact bytes only after qualification passes.
 - No `v0.1.3` final release is implied or authorized by that convention.
 - The final cdcai tag and display title are decided before the official build.
 - The official image, package, manifests, checksums, filenames, and docs must
@@ -104,10 +107,12 @@ Task-089 remains blocked until:
 
 1. Pilot feedback and candidate findings are reviewed.
 2. Required four-profile qualification passes.
-3. The project lead and cdcai owner qualify the final candidate.
-4. The owner explicitly approves adoption.
-5. Repository, Actions, package, release, and backlog ownership are ready.
-6. The official identity and rebuild/verification plan are approved.
+3. Task-100 production signing and representative managed-endpoint
+   qualification pass.
+4. The project lead and cdcai owner qualify the final signed candidate.
+5. The owner explicitly approves adoption.
+6. Repository, Actions, package, release, and backlog ownership are ready.
+7. The official identity and rebuild/verification plan are approved.
 
 If the final candidate is not ready, preserve the fork, evidence, feedback,
 backlog, and migration-ready handoff without changing cdcai.
@@ -129,6 +134,9 @@ backlog, and migration-ready handoff without changing cdcai.
 - Task-099: completed August 11 for alerts `#72-#75` plus npm finding
   `GHSA-5p4m-2wfm-xmqj`; the critical/high gate and default-branch inventory
   reconciliation passed without reopening Task-098.
+- Task-100: October production signing, signed-package verification, and
+  representative managed-endpoint qualification after the satisfactory
+  unsigned-package decision.
 
 ## Superseded Instructions
 

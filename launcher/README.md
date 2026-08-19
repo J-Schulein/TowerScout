@@ -7,6 +7,31 @@ displays a non-mutating TLS repair plan for Google Maps or Azure Maps, and can
 start the controlled native repair only after exact-target preparation and a
 typed `REPAIR TLS AND RESTART` confirmation.
 
+## August 19 release sequencing
+
+The prototype's later exact-source validation packages passed packaged Docker
+and approved-provider Podman Google/Azure repair, controlled recovery,
+hash-pinned provider installation, and the selected Windows rootless-Podman
+gate. The validation assemblers documented below still produce only
+`Task-087-validation-*` artifacts. Those ZIPs must not be renamed, tagged, or
+uploaded as previews.
+
+Normal-user iteration requires a separate release-package integration path
+that includes this launcher and the intended entry points, binds exact source
+to a fresh digest-pinned image, generates current manifests/checksums/notices,
+and supplies unsigned-package guidance. Those packages use immutable
+`v0.1.3-preview.N` fork-side GitHub prereleases and are tested only on
+explicitly approved unmanaged clean Windows machines. They are not signed RCs,
+managed-endpoint evidence, or cdcai releases.
+
+Production signing is scheduled under Task-100 in October after the package is
+declared satisfactory. Task-100 owns the signing boundary for the launcher and
+any project-owned executable/script surface that remains in the normal user
+path, the build-sign-package-hash order, post-extraction signature checks, and
+representative managed-endpoint qualification. Task-100 builds/signs under a
+`v0.1.3-rc.N` identity and publishes those exact bytes only after qualification
+passes.
+
 ## Technology decision
 
 Python 3.12 with Tkinter was selected over .NET for this time-boxed proof.
@@ -86,12 +111,13 @@ sentinel. The package truthfully records native TLS mutation capability while
 keeping `execution_authorized=false`; its missing release image identity makes
 repair fail closed.
 
-A clean full-runnable package remains blocked locally because the normal
-package generator is PowerShell and ordinary no-bypass script execution is
-blocked by effective policy. Do not bypass that policy or pair the new launcher
-with an older-source base. Exact-source full-package UI repair, Docker/Azure,
-approved Podman-provider, recovered CI, signing, and representative
-managed-endpoint testing remain open.
+At the initial August 6 checkpoint, local full-runnable repackaging was blocked
+because the normal package generator is PowerShell and ordinary no-bypass
+script execution was blocked by effective policy. The project did not bypass
+that policy or pair the launcher with older source. Later exact-source packages
+were assembled in an approved environment and produced the functional results
+summarized in the August 19 section above. Normal-user release integration and
+Task-100 signing/representative managed-endpoint testing remain open.
 
 ## Source validation
 
@@ -195,11 +221,12 @@ The prototype build-tool and bundled-runtime inventory is documented in
 [`DEPENDENCY-PROVENANCE.md`](./DEPENDENCY-PROVENANCE.md). It is review evidence,
 not a release SBOM or legal approval.
 
-## Signing and managed-endpoint gate
+## Task-100 signing and managed-endpoint gate
 
 The intended path is the organization-approved Windows Artifact Signing or
-equivalent code-signing service. Signing ownership is currently unresolved.
-Before managed-endpoint testing or candidate inclusion:
+equivalent code-signing service. Signing ownership must be resolved when
+Task-100 starts in October after the ADR-019 satisfactory-package decision.
+Before managed-endpoint testing or signed-candidate inclusion:
 
 1. Record the signing owner, certificate custody, timestamp service, and
    revocation/rotation procedure.
@@ -208,6 +235,8 @@ Before managed-endpoint testing or candidate inclusion:
    is finalized. Record the approved policy for provenance checking or
    re-signing the bundled third-party DLL/PYD files; the prototype produces no
    other project-owned native binary.
+   Also decide whether any project-owned installer or script in the normal
+   user path must be signed or redesigned under endpoint policy.
 4. Verify required signatures after packaging and record the signed-file
    inventory without local paths or certificate subjects/thumbprints.
 5. Run the production-shaped signed artifact under representative managed

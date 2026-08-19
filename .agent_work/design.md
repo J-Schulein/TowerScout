@@ -1,8 +1,8 @@
 # TowerScout Current Technical Design
 
-**Last Updated**: August 11, 2026
-**Scope**: Fix-first candidate development, four-profile runtime qualification,
-and cdcai handoff through October 2026
+**Last Updated**: August 19, 2026
+**Scope**: Unsigned fix-first preview iteration, four-profile runtime
+qualification, October production signing, and cdcai handoff
 **Archived Pre-Rebaseline Design**:
 [`2026-07-23-pre-rebaseline-design.md`](./context/archive/2026-07/2026-07-23-pre-rebaseline-design.md)
 
@@ -26,11 +26,13 @@ The application includes:
 
 ## Release And Repository Topology
 
-### During Candidate Development
+### During Preview And Candidate Development
 
 - `J-Schulein/TowerScout` hosts the immutable `v0.1.2` pilot.
-- The same fork is the development and validation surface for
-  `v0.1.3-rc.N` candidates.
+- The same fork publishes immutable unsigned `v0.1.3-preview.N` GitHub
+  prereleases for normal-user package refinement.
+- `v0.1.3-rc.N` is reserved for signed production-shaped candidates produced
+  through Task-100 after the package is satisfactory.
 - `cdcai/TowerScout` remains unchanged.
 
 ### During Task-087 Validation
@@ -40,8 +42,8 @@ The application includes:
   PR #67. Rebased implementation checkpoint `1908670` preserves the accepted
   launcher/runtime tree while retaining the Sprint 09 and Task-099 history.
 - Validation artifacts are built only from an exact commit and use
-  `Task-087-validation-<short-SHA>` rather than the `v0.1.3-rc.N` candidate
-  line.
+  `Task-087-validation-<short-SHA>` rather than either the
+  `v0.1.3-preview.N` or `v0.1.3-rc.N` release line.
 - The historical source-bound functional package was assembled from clean commit
   `4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6`, after launcher/runtime fixes in
   `18082cf` and provenance hardening in `4327fb6`. It is evidence for that
@@ -53,13 +55,37 @@ The application includes:
   results, and no secrets or local certificate detail.
 - `main`, the frozen `v0.1.2` release, and `cdcai/TowerScout` remain unchanged
   throughout the checkpoint.
-- Proceed makes the Draft PR eligible for normal review only after signed
-  managed-endpoint evidence passes. Conditional leaves it unmerged with a
-  named owner and short deadline. Stop closes it unmerged and records the
-  decision from a clean documentation-only branch based on current `main`.
+- The August 19 Proceed decision makes the Draft PR eligible for normal
+  technical/security review, merge, and separate preview-package integration.
+  Existing validation artifacts remain nonpublishable and do not themselves
+  authorize merge or release.
+
+### During Unsigned Preview Iteration
+
+The release-package integration path is separate from the Task-087 validation
+assembler:
+
+1. Build from an exact accepted commit and fresh digest-pinned image.
+2. Include the launcher and intended normal-user entry points in the real
+   control-package layout.
+3. Generate current manifests, checksums, source/SBOM/notices, release notes,
+   and unsigned/unmanaged-test-machine guidance.
+4. Publish immutable `v0.1.3-preview.N` only as a fork-side GitHub prerelease;
+   never mark it `Latest` or treat it as a signed RC.
+5. Test the actual download/extract/setup/use path on an approved clean
+   unmanaged Windows machine without security-disablement instructions.
+6. Repeat under a new preview identity until the ADR-019 satisfactory-package
+   gate is recorded.
+
+Task-100 then builds and signs the stable production-shaped package under a
+`v0.1.3-rc.N` identity in October, regenerates package metadata/checksums after
+signing, verifies the extracted signatures, and runs representative managed-
+endpoint qualification. Those exact bytes are published/frozen only after the
+Task-100 gates pass.
 
 ### At Final Adoption
 
+- Task-100's signed-candidate and managed-endpoint gate has passed.
 - The cdcai owner and project lead select the official tag and display title.
 - The official image, package, manifests, checksums, and documentation are
   built consistently for that identity.
@@ -105,14 +131,16 @@ The candidate flow is:
    isolated native Google/Docker TLS transaction. It passed candidate staging,
    verification, backup/recovery controls, same-profile restart, and named-
    volume preservation; the combined packaged UI flow remains unvalidated.
-6. Signing-path work proceeds in parallel. The production-shaped signed
-   artifact must pass representative managed-endpoint validation before
-   candidate inclusion.
+6. Unsigned preview iteration proceeds through the normal release-package path
+   after applicable technical/security review. Production signing and
+   representative managed-endpoint validation occur under Task-100 in October
+   after the package is satisfactory and before signed-candidate acceptance.
 7. The command-based Task-086 repair remains available throughout the proof
    and becomes the supported disposition if the launcher fails.
 
-All existing browser/helper activation gates remain off, and PR #64 is on hold
-until the August 14 proceed/conditional/stop decision.
+All existing browser/helper activation gates remain off, and PR #64 stays on
+hold. The August 19 Proceed decision applies to the separate launcher and
+preview-package path; it does not reactivate the dormant helper.
 
 The first authorized unsigned full-package run confirmed that the launcher and
 application do not need the dormant helper, but also exposed an unconditional
@@ -170,14 +198,15 @@ repair and retained all eight named volumes; that result does not substitute
 for exact-source packaged UI, Azure, recovery-injection, or Podman validation.
 
 At this host's display scaling, the normal-size launcher window clipped its
-bottom controls; maximizing the window exposed them. This is a non-blocking UI
-follow-up to correct before the signed build. All results remain authorized
-unsigned development-workstation evidence only: the artifact is not a release
-candidate or release, the Draft PR remains unmerged, and no additional runtime
-or cdcai mutation is authorized by that evidence. The next gates are an exact-
-source full-runnable package, remaining functional coverage, and an organization-
-approved signed production-shaped build on a representative managed endpoint. The current
-evidence is
+bottom controls; maximizing the window exposed them. This was a non-blocking UI
+follow-up for the later source. All results described in this historical
+checkpoint remain authorized unsigned development-workstation evidence only:
+the artifact is not a preview, release candidate, or release, and no cdcai
+mutation is authorized by that evidence. Later exact-source package results are
+recorded in Task-087. The current gates are technical/security review, a newly
+integrated normal-user preview package, clean unmanaged-machine feedback, and
+later Task-100 signing/representative managed-endpoint qualification. The
+current historical evidence is
 [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md);
 the earlier review packet is retained as historical static-review evidence.
 
@@ -297,12 +326,18 @@ TASK-097 Podman CPU/GPU qualification
         |          +--> TASK-059 only if remaining margin is safe
         |
         v
-TASK-091/092/093 qualification, docs, and recovery
+TASK-091 pre-sign harness + TASK-092/093 docs and recovery
         |
         +--> TASK-094 only if pilot/support evidence justifies it
         |
         v
-Final candidate freeze -> owner qualification -> TASK-089 adoption/handoff
+Satisfactory unsigned preview package
+        |
+        v
+TASK-100 production signing + representative managed-endpoint qualification
+        |
+        v
+Signed candidate freeze -> owner qualification -> TASK-089 adoption/handoff
 ```
 
 Task-095 Phase B spans the remaining work to keep governance, backlog, and
@@ -311,7 +346,8 @@ investigation cannot hide dependency upgrades, CPU/CUDA compatibility work, or
 four-profile regression effort. Task-099 preserved the same governance
 principle for post-closeout disclosures and cleared its dependency-security
 gate on August 11. Task-087 continues under its own remaining qualification
-gates.
+gates. Task-100 remains backlog work until October and the ADR-019
+satisfactory-package entry decision.
 
 ## Validation Strategy
 
@@ -338,4 +374,8 @@ runtime is needed and has confirmed Docker Desktop and/or Podman is running.
 - Do not delete named volumes during normal stop, upgrade, or container
   replacement.
 - Do not mutate `v0.1.2` or publish `v0.1.3` final prematurely.
+- Do not relabel Task-087 validation artifacts as previews, mark an unsigned
+  preview `Latest`, or give unsigned bytes a `v0.1.3-rc.N` identity.
+- Do not test unsigned previews on managed endpoints or instruct testers to
+  disable Windows security controls.
 - Do not change cdcai before explicit owner authorization.

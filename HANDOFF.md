@@ -1,6 +1,6 @@
 # TowerScout Handoff Guide
 
-**Last Updated**: August 11, 2026
+**Last Updated**: August 19, 2026
 **Operational Closeout**: October 30, 2026
 **Hard Project End**: October 31, 2026
 
@@ -13,8 +13,10 @@ The validated fork-side `v0.1.2` release is the immutable Pilot Package:
 The cdcai owner selected a fix-first path:
 
 - Keep pilot users on unchanged `v0.1.2`.
-- Develop and qualify new candidates in `J-Schulein/TowerScout`.
-- Name fork candidates `v0.1.3-rc.N`.
+- Develop and refine unsigned normal-user previews in
+  `J-Schulein/TowerScout` as `v0.1.3-preview.N` GitHub prereleases.
+- Reserve `v0.1.3-rc.N` for the production-shaped package built, signed, and
+  qualified within Task-100; publish it only after the gates pass.
 - Keep `cdcai/TowerScout` unchanged until owner qualification and explicit
   adoption approval.
 - Select the official cdcai tag and display title before the official build.
@@ -39,6 +41,8 @@ The current Pilot/cdcai hold is:
 - Task-087 Google/Azure guided provider TLS repair on Docker/Podman
 - Task-096 user-confirmed Exit/Stop on Docker/Podman
 - Task-097 Podman CPU/GPU final-path qualification
+- Task-100 October production signing and representative managed-endpoint
+  qualification after the unsigned package is satisfactory
 - Docker CPU, Docker GPU, Podman CPU, and Podman GPU qualification
 - owner-runnable qualification, documentation, recovery, governance, backlog,
   and handoff work
@@ -70,8 +74,10 @@ are recorded in
 Task-099 records the completed post-closeout advisory remediation, including
 the later js-yaml npm audit finding and root graph reconciliation, in
 `.agent_work/tasks/active/TASK-099-august-dependency-advisory-follow-up.md`.
-Task-087 continues under its own package, signing, provider/recovery, Podman,
-and representative managed-endpoint gates.
+Task-087 proceeds through technical/security review and normal-user unsigned
+preview integration. Existing Task-087 validation artifacts remain
+nonpublishable. Task-100 owns production signing, signed-candidate packaging,
+and representative managed-endpoint qualification in October.
 
 ## Runtime And Package Model
 
@@ -81,6 +87,12 @@ Normal release delivery uses:
 - digest-pinned GHCR image
 - checksummed shared Model & Data Package
 - Docker- and Podman-compatible Compose paths
+
+Unsigned iteration uses immutable `v0.1.3-preview.N` GitHub prereleases on
+approved clean unmanaged Windows machines. After the package is satisfactory,
+Task-100 builds/signs under `v0.1.3-rc.N`, qualifies those exact bytes, and
+publishes/freezes them only after the gates pass. Neither identity authorizes a
+cdcai change by itself.
 
 The final support matrix requires:
 
@@ -107,6 +119,9 @@ Static review, planning, and documentation work do not require runtime startup.
 ## Safety And Custody
 
 - Do not replace released `v0.1.2` assets.
+- Do not relabel Task-087 validation ZIPs as previews, mark unsigned previews
+  `Latest`, or give unsigned bytes an RC identity.
+- Do not ask preview testers to disable Windows security controls.
 - Do not publish `v0.1.3` final prematurely.
 - Do not modify cdcai without explicit owner authorization.
 - Do not mount Docker/Podman sockets into the application container.
@@ -123,6 +138,8 @@ release assets, SHA-256 sidecars, `webapp/asset_manifest.v1.json`, and
 Before October 30:
 
 - final candidate is qualified and accepted
+- Task-100 production signing and representative managed-endpoint
+  qualification are complete
 - official cdcai identity is selected and built consistently
 - release, rollback/reject, recovery, and cleanup are rehearsed by the owner
 - repository, Actions, package, documentation, video, and backlog custody are

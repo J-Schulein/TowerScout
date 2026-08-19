@@ -5,13 +5,15 @@ passed Docker and approved-provider Podman Google/Azure TLS repair plus
 controlled recovery. Follow-up head `3990bc0` closes the Podman-provider
 installer reproducibility gap. Head `5737a58` enforces the Windows rootless-
 Podman boundary and passed exact-source packaged rootful rejection without
-machine, container, or volume mutation. Signing, representative managed-
-endpoint validation, and the August 14 disposition remain open
+machine, container, or volume mutation. The August 19 disposition is Proceed
+to unsigned preview integration. Technical/security review and normal-release-
+package integration remain open; signing and representative managed-endpoint
+validation move to Task-100 in October
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Prototype through August 14; retain or revise the prior
-4-7 day implementation estimate only if the prototype passes
-**Target Sprint**: Sprint 09 continuation, governed by the August 14 decision
+**Estimated Effort**: Complete review and preview integration in Sprint 09;
+production signing is separately estimated under Task-100
+**Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
 and the canonical October roadmap
 **Created**: 2026-06-29
 **Owner**: TowerScout release owner / active agent support
@@ -35,11 +37,35 @@ fresh provider-install/setup/recovery evidence, and the `7ef879c` packages
 remain the accepted exact-head Google/Azure repair evidence. The older
 `41cec81` package remains valid pre-fix evidence but must not be promoted or
 reused as the final artifact. No validation artifact is a release candidate,
-release, merge signal, or substitute for the signed representative managed-
-endpoint gate.
+preview release, merge signal, or substitute for Task-100's signed
+representative managed-endpoint gate.
 
 Sanitized full-package functional evidence is recorded in
 [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
+
+## August 19, 2026 Release Sequencing Override
+
+This override controls wherever the August 5/12 sections below still make
+parallel signing, signing-before-merge, or the August 14 disposition the
+current sequence:
+
+- Record the Task-087 outcome as Proceed to unsigned preview integration under
+  [`ADR-019`](../../decisions/019-unsigned-preview-and-october-production-signing.md).
+- Complete applicable technical/security review before merge or preview
+  publication.
+- Build a new normal-user release package that integrates the launcher and
+  intended entry points. Do not rename, tag, or upload an existing
+  `Task-087-validation-*` ZIP.
+- Publish iterative unsigned packages only as immutable
+  `v0.1.3-preview.N` fork-side GitHub prereleases, with explicit unmanaged-test-
+  machine, non-production, and unsigned-publisher wording.
+- Test the actual GitHub download path on an approved clean unmanaged Windows
+  machine without security exclusions or bypass instructions.
+- Keep production signing, post-sign package/hash generation, signed
+  `v0.1.3-rc.N`, and representative managed-endpoint qualification in
+  Task-100, which starts in October only after the package-satisfaction record.
+- Keep Task-086 available for any scope not yet accepted in the preview or
+  signed candidate.
 
 ## August 12, 2026 Current Launcher Override
 
@@ -82,8 +108,10 @@ still describes non-mutating preview as the latest state:
 - Task-096 may reuse the fixed-target confirmation, runtime validation,
   sanitized state, and recovery pattern after the Task-087 decision; Stop is no
   longer the first controlled launcher mutation.
-- Task-086 remains the supported fallback. Signing, representative managed-
-  endpoint validation, candidate inclusion, and merge remain separate gates.
+- Task-086 remains the supported fallback. Technical/security review and
+  normal-user preview integration are the remaining Task-087 gates; signing
+  and representative managed-endpoint qualification are separate Task-100
+  gates.
 
 ## Historical August 5, 2026 Provisional Launcher Override
 
@@ -1168,6 +1196,42 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-19 - Proceed To Unsigned Preview Integration
+
+**Objective**: Resolve the overdue launcher disposition and separate iterative
+normal-user package refinement from October production signing.
+
+**Context**: Exact-source Docker and approved-provider Podman Google/Azure,
+controlled-recovery, provider-installer reproducibility, and rootless-Podman
+enforcement evidence has passed. The existing Task-087 assemblers still create
+explicit validation-only artifacts, and the normal release builder does not
+yet provide the launcher as an end-user entry point. Production signing on
+every refinement cycle would not answer the remaining normal-user package
+questions efficiently.
+
+**Decision**: Proceed through technical/security review, merge, and a separate
+unsigned `v0.1.3-preview.N` normal-release-package path. Preserve every
+`Task-087-validation-*` artifact as nonpublishable. Schedule production signing
+and representative managed-endpoint qualification as Task-100 in October after
+the package is declared satisfactory.
+
+**Execution**: Added ADR-019 and reconciled the current task, backlog,
+requirements, design, roadmap, adoption, launcher, and handoff documentation.
+Task-100 remains NOT_STARTED in the backlog until its October entry gate; no
+signing, package build, release publication, or cdcai mutation occurred.
+
+**Output**: Task-087 has a recorded Proceed disposition and a bounded path to
+normal-user preview feedback without weakening the later signed-candidate or
+managed-endpoint acceptance gate.
+
+**Validation**: Documentation validators and diff checks are recorded with the
+governance update after all affected sources are reconciled.
+
+**Next**: Complete technical/security review, implement the normal release-
+package launcher integration, and validate a newly published unsigned preview
+through the actual GitHub download path on an approved clean unmanaged Windows
+machine.
 
 ### 2026-08-12 - Exact-Package Rootless Podman Preflight Gate Passed
 

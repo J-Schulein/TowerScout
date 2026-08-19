@@ -3,7 +3,7 @@
 This is the primary high-context guidance file for AI coding agents working in
 the TowerScout repository. It preserves project context, guardrails, and
 workflow guidance while reflecting the current repository state as of
-2026-08-11.
+2026-08-19.
 
 ## Mission and Product Context
 
@@ -35,8 +35,9 @@ The project still carries public-health workflow expectations:
 - PR #46 has merged on `main` as `d148727`, closing the non-mutating Task-087 Gate 3 proof while keeping the helper control plane dark.
 - The fork-side `v0.1.2` release is published and passed the full Docker/Podman CPU/CUDA validation matrix with both Google and Azure providers. It is the frozen validated pilot baseline.
 - `TASK-088` is complete: the pilot was distributed, support coverage was confirmed, and release/evidence custody was recorded.
-- The cdcai owner selected a fix-first path. Keep `v0.1.2` immutable while the
-  fork develops `v0.1.3-rc.N` candidates.
+- The cdcai owner selected a fix-first path. Keep `v0.1.2` immutable; refine
+  unsigned fork packages as `v0.1.3-preview.N` GitHub prereleases; reserve
+  `v0.1.3-rc.N` for signed production-shaped candidates.
 - `TASK-095` Phase A rebaselined the roadmap and `.agent_work`; Phase B
   governance continues through handoff.
 - `TASK-090` and `TASK-098` are complete. PR #51 merged the qualified
@@ -46,33 +47,29 @@ The project still carries public-health workflow expectations:
   `GHSA-5p4m-2wfm-xmqj`. PRs #68/#69 merged as `f460445`/`0133b50`; main CI
   and root graph refresh passed, alert `#74` closed without dismissal, and
   only the eight documented torch residuals remain.
-- `TASK-087` is in progress under ADR-018. Draft PR #67 now contains the native
-  transactional Docker/Podman TLS repair engine and visible typed-confirmation
-  UI. PR #64 and every browser/helper activation gate remain on hold.
-- The unsigned `full-runnable` validation package from exact clean commit
-  `4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6` passed pristine ZIP/checksum
-  verification and fresh isolated Docker CPU setup on port 5008: the container
-  was healthy, readiness was `setup_required`, assets were `ok`, CPU was
-  selected, and the pinned image digest matched. After an August 6 Windows
-  reboot, the isolated project automatically resumed with persisted state and
-  the exact launcher reported Docker running and reachable across three
-  consecutive refreshes.
-- The Google/Docker preview displayed the expected fixed target, CPU/GPU-off
-  profile, and port 5008 while explicitly performing no certificate inspection,
-  trust change, container stop/restart, or dormant-helper execution. A provider
-  key entered only in the Setup Wizard produced the sanitized expected
-  `tls_ca_untrusted` category and Task-086 repair-command guidance. No key, raw
-  provider response, or certificate detail was captured.
-- The launcher now presents the exact public target, requires typed
-  `REPAIR TLS AND RESTART` confirmation, and exposes sanitized apply, restart,
-  success, and recovery states. The native transaction validates the exact
-  container, stages CA material transactionally, verifies the provider, updates
-  `.env` atomically, restarts the same profile, verifies readiness, and rolls
-  back on failure.
-- The current source passed 130 targeted tests and one developer-invoked
-  isolated Google/Docker repair on port 5008 while retaining all eight named
-  volumes. Podman remains fail-closed because this workstation resolves no
-  approved non-Docker-Desktop Compose provider.
+- `TASK-087` is in progress under ADR-018's launcher security boundary and
+  ADR-019's release sequence. Draft PR #67 contains the native transactional
+  Docker/Podman TLS repair engine and visible typed-confirmation UI. PR #64 and
+  every browser/helper activation gate remain on hold.
+- Exact-source `7ef879c` full-runnable CPU packages passed Docker and approved-
+  provider Podman Google/Azure repair plus controlled recovery. Follow-up head
+  `3990bc0` closes the provider-installer dependency drift with a hash-pinned
+  offline wheelhouse. Head `5737a58` enforces the Windows rootless-Podman
+  boundary and passed packaged rootful rejection without changing machine,
+  container, or volume state.
+- The August 19 decision is Proceed to unsigned preview integration. Complete
+  technical/security review and create a new normal-user release package; do
+  not rename, tag, or publish any `Task-087-validation-*` ZIP.
+- Immutable unsigned `v0.1.3-preview.N` packages are fork-side GitHub
+  prereleases for approved unmanaged clean-machine feedback and are never
+  `Latest`. Task-100 owns October production signing, post-sign package/hash
+  generation, signed `v0.1.3-rc.N`, and representative managed-endpoint
+  qualification after the package is satisfactory.
+- The launcher presents the exact target, requires typed
+  `REPAIR TLS AND RESTART` confirmation, validates the fixed container/runtime
+  identity, stages CA material transactionally, verifies the provider, updates
+  `.env` atomically, preserves named volumes, verifies readiness, and performs
+  bounded rollback on failure.
 - Launcher runtime discovery is limited to fixed allowlisted Docker/Podman
   commands with `shell=False`; Windows children use `CREATE_NO_WINDOW`, and the
   five-second timeout/failure result is sanitized. The validation assembler
@@ -82,12 +79,9 @@ The project still carries public-health workflow expectations:
 - [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](../.agent_work/tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md)
   is the current functional record. The earlier `REVIEW-EVIDENCE-2026-08-05.md`
   is preserved as historical static-review evidence.
-- The exact-source launcher-policy package passed structural/archive checks.
-  Full-runnable repackaging at the latest source remains blocked locally by the
-  effective no-bypass PowerShell package-generator policy; older source will
-  not be substituted. This is not an RC or release and cannot merge or ship
-  without exact-source functional recovery plus the signed representative
-  managed-endpoint gate.
+- Existing launcher-policy/full-runnable assemblers remain validation-only.
+  The normal release-package builder still needs explicit launcher integration
+  before any preview can be published.
 - `TASK-096` adds user-confirmed Exit/Stop. `TASK-097` qualifies Podman CPU/GPU.
 - Docker CPU, Docker GPU, Podman CPU, and Podman GPU are required final-package
   profiles, subject to their documented prerequisites.
@@ -157,19 +151,20 @@ adoption:
 4. Preserve Task-099's completed `aiohttp==3.14.3`, transitive
    `ip-address==10.3.1`, and transitive `js-yaml==4.3.1` remediation plus its
    eight-alert torch residual baseline.
-5. Produce the latest exact-source Task-087 full-runnable package in an approved
-   environment, validate Docker Google/Azure and controlled recovery, validate
-   Podman only with an approved provider, then obtain the signed
-   production-shaped representative managed-endpoint result. Preserve the
-   Task-086 fallback and do not tag, release, merge, or ship prematurely.
+5. Complete Task-087 technical/security review and integrate the launcher into
+   a new normal-user release-package path. Preserve Task-086 and every existing
+   validation-only artifact boundary.
 6. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
 7. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
-8. Use `v0.1.3-rc.N` for immutable fork-side candidates; do not publish
-   `v0.1.3` final automatically.
-9. Keep Task-089 preparation reversible and cdcai unchanged.
-10. Select the official cdcai tag/title before the official build and execute
+8. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
+   approved unmanaged clean-machine feedback; never mark them `Latest`.
+9. After the package is satisfactory, complete Task-100 production signing and
+   representative managed-endpoint qualification in October. Only signed
+   output uses `v0.1.3-rc.N`.
+10. Keep Task-089 preparation reversible and cdcai unchanged.
+11. Select the official cdcai tag/title before the official build and execute
    adoption only after owner qualification and approval.
-11. Treat Task-058/059 as conditional stretch work behind all required gates.
+12. Treat Task-058/059 as conditional stretch work behind all required gates.
 
 `TASK-026` CPU optimization and `TASK-029` multi-provider fallback remain follow-on backlog work unless release evidence makes them release-critical.
 
@@ -803,17 +798,21 @@ The original guidance benefited from explicitly naming recent completed work. Th
 3. Preserve completed Task-099 evidence for the August Dependabot alerts and
    later js-yaml npm audit finding, including the eight documented
    non-blocking torch residuals and qualified ML pair.
-4. Rebuild and validate the latest exact-source Task-087 functional package,
-   then validate a signed production-shaped build on a representative managed
-   endpoint; do not tag, release, merge, or ship it before that gate passes.
+4. Complete Task-087 technical/security review and integrate its launcher into
+   a new normal-user unsigned preview-package path. Existing validation ZIPs
+   remain nonpublishable.
 5. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
 6. Qualify Docker CPU/GPU and Podman CPU/GPU.
 7. Start Task-058 early only when all required gates, including Task-099,
    pass; keep Task-059 behind
    Task-058 acceptance and schedule margin.
-8. Complete owner-runnable qualification, documentation, recovery, governance,
-   and handoff work.
-9. Select the official cdcai identity, build it consistently, and execute
+8. Refine unsigned `v0.1.3-preview.N` GitHub prereleases on approved unmanaged
+   clean machines until the package is satisfactory.
+9. Complete Task-100 production signing and representative managed-endpoint
+   qualification in October, then freeze the signed `v0.1.3-rc.N` candidate.
+10. Complete owner-runnable qualification, documentation, recovery,
+   governance, and handoff work.
+11. Select the official cdcai identity, build it consistently, and execute
    Task-089 only after owner approval.
 
 ### Practical Agent Takeaway
@@ -823,15 +822,18 @@ An agent should leave with the following understanding:
 - the app is no longer missing setup/settings
 - the repo has a merged Docker-compatible / OCI container baseline and local launcher MVP
 - the release path uses a digest-pinned GHCR image and package-local asset import flow
-- `v0.1.2` remains immutable while new work uses `v0.1.3-rc.N` candidates
+- `v0.1.2` remains immutable; unsigned previews use
+  `v0.1.3-preview.N`; Task-100 builds/signs under `v0.1.3-rc.N` and publishes
+  those exact bytes only after qualification
 - Docker CPU/GPU and Podman CPU/GPU are required final-candidate profiles
 - local/CI pytest timeout safeguards and Flask route-test isolation are merged through `TASK-067`
 - the dormant-helper Task-087 Gate 3 proof is merged, while the replacement
   launcher proof is in Draft PR #67 with a native transactional repair engine,
-  typed confirmation, targeted test coverage, and an isolated Google/Docker
-  repair result; latest exact-source full-runnable packaging, Azure/recovery,
-  approved-provider Podman, signing, and representative endpoint review remain
-  open
+  typed confirmation, targeted test coverage, exact-source Docker/Podman
+  Google/Azure and recovery evidence, provider-installer reproducibility, and
+  a fail-closed rootless-Podman boundary; technical/security review and normal-
+  user preview integration remain open, while signing/endpoint qualification
+  belong to Task-100 in October
 - filesystem sessions and disk-backed config writes are real architectural constraints
 - Google and Azure workflows are both important
 - outbreak-investigation workflows are the highest-value legacy surface to preserve

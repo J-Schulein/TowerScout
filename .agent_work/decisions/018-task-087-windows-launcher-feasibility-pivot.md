@@ -1,9 +1,17 @@
 # ADR-018: Task-087 Windows Launcher Feasibility Pivot
 
-**Status**: Accepted - time-boxed feasibility decision
+**Status**: Accepted - feasibility decision; release sequencing superseded in
+part by ADR-019
 **Date**: August 5, 2026
 **Decision Owner**: Project lead
 **Review Date**: August 14, 2026
+
+**Supersession Note (August 19, 2026)**: ADR-019 replaces this ADR's parallel
+signing schedule, August 14 outcome mechanics, and rule that signing must
+precede merge or every user-test package. ADR-018 still controls the launcher
+security boundary and the identity/non-publication rules for existing
+`Task-087-validation-*` artifacts. Those artifacts must not be relabeled as
+previews or releases.
 
 ## Decision
 
@@ -32,6 +40,19 @@ and named-volume preservation. This changes the evidence sequence—Task-096 Sto
 is no longer the first controlled launcher mutation—but does not weaken the
 package, signing, representative managed-endpoint, candidate, merge, or August
 14 decision gates.
+
+### August 19 Disposition
+
+The project lead selected **Proceed to unsigned preview integration** after the
+functional package gates passed. Technical/security review and creation of a
+new normal-user preview package remain required before merge or publication.
+Production signing and representative managed-endpoint qualification move to
+October under Task-100, after the release package is declared satisfactory.
+
+This disposition does not declare the launcher production-ready, does not
+authorize publication of an existing validation-only ZIP, and does not change
+the cdcai hold. Current release sequencing is defined by
+[`ADR-019`](./019-unsigned-preview-and-october-production-signing.md).
 
 ## Prototype Boundary
 

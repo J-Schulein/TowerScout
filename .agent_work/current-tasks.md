@@ -1,15 +1,19 @@
 # Current Tasks - Sprint 09
 
 **Sprint Period**: August 8-August 21, 2026
-**Last Updated**: August 12, 2026
-**Focus**: Reconcile the Task-087 launcher prototype with current `main`,
-complete its exact-source package and managed-endpoint decision gates, and keep
-the frozen pilot and cdcai boundaries unchanged.
+**Last Updated**: August 19, 2026
+**Focus**: Complete Task-087 technical/security review and integrate the
+launcher into a normal-user unsigned preview package while keeping the frozen
+pilot and cdcai boundaries unchanged. Production signing is scheduled as
+Task-100 in October after the package is satisfactory.
 
 **Current Release State**:
 
 - Fork-side `v0.1.2` is the immutable pilot package.
-- New development uses immutable `v0.1.3-rc.N` candidate identities.
+- Iterative unsigned fork packages use immutable `v0.1.3-preview.N` GitHub
+  prereleases and are never marked `Latest`.
+- `v0.1.3-rc.N` is reserved for the signed production-shaped candidate created
+  under Task-100.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -62,8 +66,8 @@ exactly the eight documented torch residuals
 `.agent_work/tasks/active/TASK-099-august-dependency-advisory-follow-up.md`
 
 **Release Boundary**: Task-099 cleared the dependency-security release gate.
-Task-087 signing, candidate inclusion, and final-release qualification remain
-subject to Task-087's own package, signing, and managed-endpoint gates.
+Task-087 preview integration and Task-100 production signing/managed-endpoint
+qualification remain separate release gates.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
@@ -73,13 +77,15 @@ controlled recovery. Follow-up head `3990bc0` closes provider-installer
 dependency drift with a hash-approved offline wheelhouse. Head `5737a58`
 enforces the selected Windows rootless-Podman boundary; its exact-source
 package rejected rootful mode before provider discovery or container mutation
-while preserving the user's machine mode and volumes. Technical/security
-review, signing, representative managed-endpoint validation, and the August 14
-disposition remain open.
+while preserving the user's machine mode and volumes. The August 19 decision
+is Proceed to unsigned preview integration. Technical/security review,
+normal-release-package integration, and clean unmanaged-machine preview
+validation remain open; signing and representative managed-endpoint validation
+move to Task-100 in October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Prototype through August 14; proceed, revise, or stop at
-that decision gate
+**Estimated Effort**: Complete review and preview integration in Sprint 09;
+production signing is separately estimated under Task-100
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 
@@ -113,11 +119,18 @@ that decision gate
   2.7/CUDA 12.8 feasibility image passed the deterministic model harness.
   Keep dependency/profile selection and final Docker/Podman GPU package
   qualification in Task-097 rather than expanding the Task-087 release claim.
-- Keep signing, representative managed-endpoint validation, candidate
-  inclusion, and merge as separate later gates.
-- Record proceed, conditional, or stop by August 14 under ADR-018.
-- Keep Task-086 as the supported command-based fallback until every Task-087
-  gate passes.
+- Keep all existing `Task-087-validation-*` packages validation-only. Build a
+  new normal-user package for any `v0.1.3-preview.N` publication; do not rename
+  or upload an existing validation ZIP.
+- Complete technical/security review before merge or preview publication, then
+  test the actual GitHub download path on an approved unmanaged clean Windows
+  machine with truthful unsigned and support-boundary warnings.
+- Treat the August 19 decision as Proceed to unsigned preview integration under
+  ADR-019. Signing, `v0.1.3-rc.N`, and representative managed-endpoint
+  qualification belong to Task-100 in October after the satisfactory-package
+  gate.
+- Keep Task-086 as the supported command-based fallback until the replacement
+  launcher path is accepted for its stated preview or signed-candidate scope.
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
 
@@ -131,7 +144,10 @@ that decision gate
 **Current Boundary**:
 
 - The final cdcai tag and release title are selected before the official build.
-- `v0.1.3-rc.N` candidate names do not dictate the final cdcai identity.
+- Neither `v0.1.3-preview.N` nor `v0.1.3-rc.N` dictates the final cdcai
+  identity.
+- Task-100 must complete the signed-candidate and managed-endpoint gate before
+  official publication.
 - Execution waits for owner qualification, explicit adoption approval, and an
   approved release/package/backlog transfer plan.
 
@@ -153,14 +169,23 @@ that decision gate
 6. Podman-provider installer dependency drift is resolved. Rootless Podman CPU
    is the provisional native-forwarding boundary, and the exact-source package
    now enforces that boundary without changing machine mode or runtime state.
-7. Complete technical/security review, signing-path coordination, and
-   representative managed-endpoint validation as applicable.
-8. Record the August 14 Task-087 proceed/conditional/stop decision.
-9. If Task-087 proceeds, select Task-096 next, followed by Task-097. Keep Tasks
-   091-093 behind the stable candidate/runtime boundary.
+7. Complete technical/security review and integrate the launcher into a new
+   normal-user unsigned preview-package path with accurate manifests,
+   checksums, notices, and user guidance.
+8. Record the August 19 Proceed-to-preview decision and keep production signing
+   plus representative managed-endpoint validation scheduled as Task-100 for
+   October after package satisfaction.
+9. Test each published `v0.1.3-preview.N` through the actual GitHub download
+   path on an approved unmanaged clean Windows machine without security
+   exclusions or bypass instructions.
+10. Select Task-096 next, followed by Task-097. Keep Tasks 091-093 behind the
+    stable unsigned package/runtime-shape boundary; Task-091 prepares the
+    owner-runnable harness before Task-100, while signed acceptance occurs
+    under Task-100.
 
 Task-058 and Task-059 remain conditional stretch work. Task-094 remains
-evidence-gated. Task-099 stays in `tasks/active/` until Sprint 09 closeout.
+evidence-gated. Task-100 remains in the backlog until its October entry gate is
+met. Task-099 stays in `tasks/active/` until Sprint 09 closeout.
 
 ---
 

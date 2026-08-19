@@ -62,6 +62,8 @@ optional AI-assisted development.
 - [ ] Decide whether GitHub Issues supplement the Markdown backlog.
 - [ ] Verify repository access, release/package custody, and external guide/
   video custody.
+- [ ] Keep Task-100's satisfactory-package entry gate, October signing work,
+  and managed-endpoint acceptance synchronized across release/handoff sources.
 - [ ] Ensure final documentation identifies current, historical, and archived
   sources unambiguously.
 - [ ] Complete owner review and final sign-off by October 30.
@@ -70,11 +72,46 @@ optional AI-assisted development.
 
 - Project lead and cdcai owner roadmap decisions
 - Tasks 087 and 089
-- Tasks 090-097 as formalized by Phase A and Task-098 added by the July 23
-  code-scanning readiness review
+- Tasks 090-100 as formalized by current roadmap decisions
 - Final candidate and handoff evidence
 
 ## Implementation Log
+
+### 2026-08-19 - Preview And October Signing Rebaseline
+
+**Objective**: Turn the project lead's sequencing decision into one consistent
+release, task, and handoff policy.
+
+**Context**: Task-087's functional package evidence had passed, but active
+sources still required parallel signing and a signed managed-endpoint result
+before merge or any GitHub release. The project lead instead wants to refine a
+normal-user package first and complete signing in October once it is
+satisfactory.
+
+**Decision**: Separate immutable unsigned `v0.1.3-preview.N` GitHub
+prereleases from signed `v0.1.3-rc.N` candidates. Add Task-100 as required
+October backlog work after the ADR-019 satisfactory-package gate. Preserve all
+existing Task-087 validation artifacts as nonpublishable and keep cdcai
+owner-gated.
+
+**Execution**: Added ADR-019 and reconciled active trackers, requirements,
+design, roadmap/adoption navigation, Task-087/089 boundaries, launcher release
+guidance, agent guidance, and handoff documentation. Task-100 remains in the
+backlog until selected in October, so no premature active task file was
+created.
+
+**Output**: One documented preview-to-signing sequence with objective package
+satisfaction, signing, endpoint, naming, and adoption gates.
+
+**Validation**: PASS on August 19, 2026. The quick workspace checker and
+canonical `.agent_work` validator passed; every changed-file Markdown link
+resolved; the current-source contradiction audit found only explicitly
+superseded historical wording; the release-boundary check confirmed the
+existing Task-087 assembler remains validation-only and the normal release
+builder still requires launcher integration; and `git diff --check` passed.
+
+**Next**: Complete Task-087 review and normal release-package integration,
+then refine unsigned previews until the Task-100 entry gate can be recorded.
 
 ### 2026-07-23 - Phase A Rebaseline
 

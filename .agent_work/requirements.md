@@ -1,6 +1,6 @@
 # TowerScout Requirements
 
-**Last Updated**: August 11, 2026
+**Last Updated**: August 19, 2026
 **Current Planning Horizon**: October 31, 2026 hard project end
 **Operational Closeout**: October 30, 2026
 **Canonical Roadmap**:
@@ -34,18 +34,24 @@ Acceptance:
 - Pilot users continue to use the existing fork release.
 - Any code or package change receives a new version identity.
 
-### REL-002: Fix-First Candidate Line
+### REL-002: Fix-First Preview And Candidate Lines
 
-WHEN owner-requested fixes are implemented, THE PROJECT SHALL produce immutable
-fork-side candidates named `v0.1.3-rc.N`.
+WHEN owner-requested fixes are iterated before production signing, THE PROJECT
+SHALL produce immutable unsigned fork-side previews named
+`v0.1.3-preview.N`. WHEN production signing begins after package satisfaction,
+THE PROJECT SHALL reserve `v0.1.3-rc.N` for signed candidates.
 
 Acceptance:
 
-- Candidate tags and assets are immutable.
+- Preview and candidate tags/assets are immutable and never overwritten.
+- Preview releases are GitHub prereleases, are not marked `Latest`, and state
+  that they are unsigned and not managed-endpoint-qualified.
+- No unsigned package uses an `-rc.N` identity.
 - No `v0.1.3` final release is published before final approval.
-- Candidate packages, images, manifests, checksums, source refs, and
-  documentation agree on the candidate identity.
-- Candidate naming does not reserve or require the final cdcai version.
+- Preview/candidate packages, images, manifests, checksums, source refs, and
+  documentation agree on their exact identity.
+- Preview or candidate naming does not reserve or require the final cdcai
+  version.
 
 ### REL-003: Final cdcai Identity
 
@@ -87,11 +93,68 @@ Acceptance:
 - The source branch is published only through a Draft PR against `main`, and
   the PR remains unmerged while validation is incomplete.
 - Unsigned output is limited to static inspection or an explicitly approved
-  isolated functional environment. Managed-endpoint evidence uses the
-  organization-approved signed production-shaped build.
+  isolated functional environment. This restriction applies to the
+  validation-only artifact, not a separately assembled preview under REL-006.
+  Managed-endpoint evidence uses the organization-approved signed
+  production-shaped build.
 - A failed validation closes the code PR unmerged and records the Stop decision
   plus Task-086 fallback through a separate documentation-only PR from current
   `main`; no code revert is required.
+
+### REL-006: Unsigned Normal-User Preview Publication
+
+WHEN the project publishes a package to refine through normal-user testing,
+THE PROJECT SHALL create a new normal-release-path package and publish it only
+as an explicitly unsigned fork-side GitHub prerelease.
+
+Acceptance:
+
+- The package includes the launcher and intended normal-user entry points; it
+  is not a renamed or republished `Task-087-validation-*` artifact.
+- The package binds an exact committed source ref to a fresh digest-pinned
+  image and includes complete manifests, SHA-256 checksums, required assets,
+  source/SBOM/notice material, and accurate user documentation.
+- Release notes state the tested runtime/profile scope, known limitations,
+  unsigned publisher status, unmanaged-test-machine boundary, and supported
+  fallback.
+- The actual GitHub download/extract path is tested on an approved clean
+  unmanaged Windows machine without instructions to disable or bypass Windows
+  security controls.
+- Source merge requires applicable technical/security review and CI. Preview
+  publication additionally requires package/integrity checks; its actual
+  GitHub download is then clean-machine tested before that preview is accepted
+  as feedback evidence or contributes to package satisfaction. None of those
+  actions claims managed-endpoint or production-signing acceptance.
+
+### SIGN-001: October Production Signing And Endpoint Qualification
+
+WHEN the project lead records that the unsigned normal-user package satisfies
+[`ADR-019`](./decisions/019-unsigned-preview-and-october-production-signing.md)'s
+release-package gate, THE PROJECT SHALL select Task-100 in October and produce
+a signed production-shaped candidate before final acceptance or official cdcai
+publication.
+
+Acceptance:
+
+- The satisfactory-package record identifies the accepted source, image
+  digest, package/manifests/checksums, clean-machine results, supported profile
+  matrix, documentation, and resolved or accepted limitations.
+- The approved signing service/operator, certificate/key custody, timestamp
+  service, renewal/revocation, and backup ownership are documented without
+  secrets or sensitive certificate identifiers.
+- The signed-file boundary covers every organization-required project-owned
+  executable, installer, or script in the normal path; incompatible
+  execution-policy bypass behavior is removed, redesigned, or explicitly
+  rejected before acceptance.
+- Signing/timestamping occurs before final ZIP assembly. Manifests and
+  checksums are regenerated from the signed bytes, and required signatures
+  verify both before packaging and after clean extraction.
+- The signed `v0.1.3-rc.N` package passes normal-user clean-machine and
+  representative managed-endpoint validation without security exclusions,
+  execution-policy bypasses, unusual endpoint-policy changes, or
+  administrator-only normal setup.
+- The reproducible build/sign/verify/release procedure and custody record are
+  ready for the cdcai owner.
 
 ## Required Fix And Runtime Requirements
 
@@ -128,13 +191,16 @@ Acceptance:
   end-user release packages omit its scripts, worker, state library, and
   support page.
 - The Task-086 user-run command repair remains available and supported.
-- Functional validation may begin with an unsigned development build in an
-  approved isolated environment, while approved signing coordination proceeds
-  in parallel.
+- Functional validation and normal-user preview iteration may use explicitly
+  unsigned packages in their separately approved unmanaged environments.
 - Any validation-only package follows REL-005 and is not a release candidate.
-- Candidate inclusion requires the production-shaped signed artifact to pass
-  representative managed-endpoint security validation.
-- August 14 records a proceed, conditional, or stop decision under ADR-018.
+- Any public unsigned preview follows REL-006 and is not an RC or production
+  claim.
+- Signed-candidate inclusion requires Task-100's production-shaped artifact to
+  pass representative managed-endpoint security validation.
+- The August 19 Proceed-to-preview decision is recorded under ADR-019; Task-100
+  owns signing and managed-endpoint qualification in October after package
+  satisfaction.
 
 ### UX-EXIT-001: User-Initiated Stop
 
@@ -227,16 +293,17 @@ Current result:
   `#74` closed without dismissal, the SBOM contains only `aiohttp==3.14.3`,
   and the open inventory is exactly the eight documented torch residuals.
 - Task-099 is complete and its dependency-security release gate is clear.
-  Task-087 signing, candidate inclusion, and final-release qualification
-  remain subject to Task-087's own package, signing, and managed-endpoint
-  gates.
+  Task-087 preview integration and Task-100 signed-candidate/final-release
+  qualification remain subject to their separate package and endpoint gates.
 
 ## Qualification And Handoff Requirements
 
 ### QUAL-001: Owner-Runnable Qualification
 
-WHEN a candidate reaches qualification, THE PROJECT SHALL provide a bounded
-process the cdcai owner can execute or supervise without the outgoing developer.
+WHEN the unsigned package shape is stable, THE PROJECT SHALL prepare and
+rehearse a bounded qualification process the cdcai owner can execute or
+supervise without the outgoing developer. WHEN Task-100 produces the signed
+candidate, THE PROJECT SHALL reuse that process for final signed acceptance.
 
 ### DATA-001: Persistent Data Lifecycle
 
@@ -279,9 +346,12 @@ outgoing developer after October 31.
 - August 28 is the latest responsible Task-058 capacity checkpoint, not an
   earliest start date.
 - September 18 is the internal code-complete target.
-- September 25 is the feature/package/documentation-complete target.
-- October 9 is the final-candidate freeze target.
-- October 16 is the acceptance target.
+- September 25 is the feature/documentation-complete and satisfactory unsigned
+  package target.
+- October 1 is the earliest Task-100 activation date, and only after the
+  satisfactory-package decision is recorded.
+- October 9 is the signed `v0.1.3-rc.N` content/candidate freeze target.
+- October 16 is the Task-100 managed-endpoint and acceptance target.
 - October 23 is the owner-operated handoff rehearsal target.
 - October 30 is operational closeout.
 
