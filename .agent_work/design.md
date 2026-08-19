@@ -151,8 +151,12 @@ The current security boundary is:
    `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`.
    It is not present in the shipped Python runtime image or normal-user Windows
    package, but the maintained browser-install path can execute it.
-10. Active Task-101 owns a focused Node/Puppeteer remediation and compatibility
-    gate. Task-087 remains preserved but paused until that gate passes.
+10. Active Task-101 has locally validated Node `>=22.12.0`, exact
+    `puppeteer@25.8.0`, and `@puppeteer/browsers@3.2.1`. The resulting lock
+    and installed graphs contain no `extract-zip`, and the blocking audit is
+    clean. Exact-head CI and default-branch alert reconciliation remain open;
+    Task-087 stays preserved and paused until those gates pass and the accepted
+    change is reconciled into PR #67.
 
 ## Task Dependency Flow
 

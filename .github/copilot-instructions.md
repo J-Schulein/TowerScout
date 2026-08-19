@@ -47,9 +47,10 @@ The project still carries public-health workflow expectations:
   and root graph refresh passed, alert `#74` closed without dismissal, and
   its August 11 closeout inventory contained the eight documented torch
   residuals.
-- `TASK-101` is active for high-severity development-transitive `extract-zip`
-  alert `#76`. The finding is not shipped in the product runtime, but a
-  maintained browser-install path can execute it and the frontend audit blocks.
+- `TASK-101` has implemented and locally validated the Node 22 / Puppeteer
+  25.8.0 remediation for high-severity development-transitive `extract-zip`
+  alert `#76`. The finding is not shipped in the product runtime. Exact-head
+  PR checks and default-branch alert reconciliation remain open.
 - `TASK-087` is paused on Task-101. Draft PR #67 remains open for reviewer
   input; new implementation, merge, and candidate publication wait for
   Task-101 acceptance.
@@ -122,8 +123,9 @@ adoption:
 4. Preserve Task-099's completed `aiohttp==3.14.3`, transitive
    `ip-address==10.3.1`, and transitive `js-yaml==4.3.1` remediation plus its
    eight-alert torch residual baseline.
-5. Complete active Task-101's focused Node/Puppeteer remediation and required
-   compatibility matrix without weakening or dismissing the blocking audit.
+5. Complete active Task-101's exact-head CI and default-branch reconciliation
+   for the locally validated Node/Puppeteer remediation without weakening or
+   dismissing the blocking audit.
 6. Keep Draft PR #67 reviewable; after Task-101 passes, bring the accepted
    change into that branch and resume Task-087 from its preserved checkpoint.
 7. Complete Task-087 guided Google/Azure provider TLS work on Docker and
@@ -540,17 +542,22 @@ python towerscout.py dev
 
 ```bash
 node webapp/build.js
-npm run test:stage-0
 npm run test:browser:detect
 npm run test:browser:detect:google
 npm run test:browser:detect:azure
 ```
 
+The legacy `npm run test:stage-0` Bash wrapper is not a maintained gate; its
+mutation-count assertions are stale against the current bundle. Do not cite it
+as passing evidence unless a separately scoped follow-up repairs and revalidates
+that contract.
+
 ### CI Reality
 
 Current CI includes:
 
-- frontend bundle rebuild and ProviderStateManager regression coverage on Node 18
+- frontend bundle rebuild, a CommonJS Puppeteer smoke, and
+  ProviderStateManager regression coverage on maintained Node 22
 - Python 3.11 and 3.12
 - `flake8`
 - `black --check` as non-blocking
@@ -562,7 +569,10 @@ Current CI includes:
 - Codecov upload as non-blocking
 - Trivy security scan and SARIF upload as non-blocking
 
-Node 18 is now end-of-life. Treat migration of the frontend CI/runtime baseline to a supported Node LTS line as CI maintenance work that should be validated against the current build and Puppeteer smoke paths before changing the workflow.
+Task-101 moved the frontend tooling baseline to Node `>=22.12.0`, using the
+maintained Node 22 line in CI and the Docker frontend stage. Preserve that
+alignment and repeat the build, CommonJS Puppeteer, browser-workflow, and
+container checks when changing Node or Puppeteer.
 
 Current CI has per-job timeout limits and pytest timeout safeguards. Route-test imports are isolated from real local `.env`, logs, uploads, sessions, and cache paths through the test bootstrap. Full asset-backed package validation remains manual/advisory unless a later `TASK-067`/`TASK-074` ratchet promotes a bounded package smoke gate.
 
@@ -769,8 +779,9 @@ The original guidance benefited from explicitly naming recent completed work. Th
 3. Preserve completed Task-099 evidence for the August Dependabot alerts and
    later js-yaml npm audit finding, including the eight documented
    non-blocking torch residuals and qualified ML pair.
-4. Complete active Task-101's focused Node/Puppeteer remediation and
-   compatibility matrix; do not weaken or dismiss the blocking audit.
+4. Complete active Task-101's exact-head CI and default-branch reconciliation
+   for the locally validated Node/Puppeteer remediation; do not weaken or
+   dismiss the blocking audit.
 5. Keep PR #67 open for reviewer input, then bring the accepted Task-101 change
    into it and resume Task-087 only after the gate passes.
 6. Complete Task-087 implementation and validation; keep signing and candidate

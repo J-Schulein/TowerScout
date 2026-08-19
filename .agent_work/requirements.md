@@ -184,12 +184,15 @@ Current result:
 - Dependabot alert `#76` opened after that closeout for high-severity
   development-transitive `extract-zip==2.0.1` through
   `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`.
-- Task-101 is the active unique follow-up. The dependency is absent from the
-  shipped Python runtime image and normal-user Windows package, but a maintained
-  browser-install path can execute it and the blocking frontend audit is red.
+- Task-101 is the active unique follow-up. Its locally validated remediation
+  uses Node `>=22.12.0` and exact `puppeteer@25.8.0` /
+  `@puppeteer/browsers@3.2.1`, removes `extract-zip` from the lock and installed
+  graphs, and restores a clean blocking frontend audit. The vulnerable path was
+  absent from the shipped Python runtime image and normal-user Windows package.
 - Task-087 review may continue, but new implementation, merge, and candidate
-  publication remain paused until Task-101 removes or acceptably dispositions
-  the vulnerable path and passes proportionate compatibility validation.
+  publication remain paused until Task-101 passes exact-head CI, reaches the
+  default branch, closes alert `#76` without dismissal, and is reconciled into
+  PR #67 with proportionate compatibility validation.
 
 ## Qualification And Handoff Requirements
 

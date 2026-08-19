@@ -74,9 +74,9 @@ passes; reviewer input may continue.
 
 ### **TASK-101: extract-zip Advisory Assessment And Release-Gate Disposition**
 
-**Status**: IN_PROGRESS - selected August 19; exact dependency and supported-
-path reachability are classified, while the focused Node/Puppeteer remediation
-and regression validation remain open
+**Status**: IN_PROGRESS - implementation and local validation completed August
+19; exact-head PR checks, default-branch alert reconciliation, and PR #67
+integration remain open
 **Type**: C (Security Remediation / CI And Release Gate)
 **Priority**: HIGH
 **Estimated Effort**: 1-2 days plus CI rerun timing
@@ -91,12 +91,14 @@ and regression validation remain open
 - Treat the finding as a CI/developer-browser-install risk, not a shipped
   TowerScout runtime dependency. Do not claim exploitation or end-user runtime
   exposure without new evidence.
-- Implement and validate a supported Node/Puppeteer dependency path that
-  removes vulnerable `extract-zip`; do not use `npm audit fix --force`, weaken
-  the high-severity gate, or dismiss the alert.
+- Preserve the locally validated Node `>=22.12.0` / Puppeteer `25.8.0` path,
+  whose locked browser tooling removes vulnerable `extract-zip`; do not use
+  `npm audit fix --force`, weaken the high-severity gate, or dismiss the alert.
 - Align the maintained Node baseline across CI, `package.json`, and the Docker
   frontend stage, and remove the redundant Puppeteer browser-download path
   from Task-087 workflows that already install a pinned browser separately.
+- Treat those narrowly scoped Task-101 security-workflow edits as gate work;
+  they do not resume broader Task-087 implementation.
 - Require clean install/audit/lock-graph, frontend bundle/contracts, Task-087
   browser/Windows-helper, and Docker build validation before acceptance.
 - Keep PR #67 open for reviewer input. New Task-087 implementation, merge, and
@@ -111,8 +113,8 @@ restores the blocking frontend dependency gate. After Task-101 passes, bring
 the accepted change into PR #67 and resume from the preserved checkpoint.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Prototype through August 14; proceed, revise, or stop at
-that decision gate
+**Remaining Estimate**: 1-2 days after Task-101 reconciliation from the
+preserved PR #67 checkpoint
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 
@@ -131,7 +133,8 @@ that decision gate
   before any Podman mutation; do not silently install or select a provider.
 - Keep signing, representative managed-endpoint validation, candidate
   inclusion, and merge as separate later gates.
-- Record proceed, conditional, or stop by August 14 under ADR-018.
+- Preserve PR #67's August 19 proceed disposition under ADR-019 for semantic
+  reconciliation after Task-101; do not restate it as a new decision here.
 - Keep Task-086 as the supported command-based fallback until every Task-087
   gate passes.
 
@@ -169,7 +172,8 @@ that decision gate
    the approved-provider Podman coverage.
 7. Complete technical/security review, signing-path coordination, and
    representative managed-endpoint validation as applicable.
-8. Record the Task-087 proceed/conditional/stop decision.
+8. Preserve and semantically reconcile PR #67's recorded Task-087 proceed
+   disposition before the resumed exact-head qualification.
 9. If Task-087 proceeds, select Task-096 next, followed by Task-097. Keep Tasks
    091-093 behind the stable candidate/runtime boundary.
 

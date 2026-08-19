@@ -1,8 +1,8 @@
 # TASK-101: extract-zip Advisory Assessment And Release-Gate Disposition
 
-**Status**: IN_PROGRESS - selected August 19, 2026; exact dependency and
-supported-path reachability are classified, while the focused Node/Puppeteer
-remediation and regression validation remain open
+**Status**: IN_PROGRESS - implementation and local validation completed August
+19, 2026; exact-head PR checks, default-branch alert reconciliation, and PR #67
+integration remain open
 **Priority**: HIGH
 **Type**: C (Security Remediation / CI And Release Gate)
 **Estimated Effort**: 1-2 days plus CI rerun timing
@@ -18,12 +18,12 @@ Remove or otherwise safely disposition the high-severity development-only
 dependency-security gate, and provide the compatibility evidence required for
 Task-087 implementation, PR #67 merge, and candidate-package work to resume.
 
-## Current Evidence And Boundary
+## Triggering Baseline And Boundary
 
 - Dependabot alert `#76` maps to `GHSA-jmr9-qjv8-65gv` /
   `CVE-2026-56876`. GitHub currently lists `extract-zip<=2.0.1` as affected
   and lists no patched `extract-zip` release.
-- The exact lock graph is
+- The triggering lock graph was
   `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip@2.0.1`.
 - The dependency is development-only. It is not copied into the TowerScout
   Python runtime image or normal-user Windows release ZIP.
@@ -31,9 +31,9 @@ Task-087 implementation, PR #67 merge, and candidate-package work to resume.
   `PUPPETEER_SKIP_DOWNLOAD=true`, so that failing job does not run browser ZIP
   extraction. Its blocking `npm audit --audit-level=high` correctly stops the
   job before bundle and frontend contract tests.
-- The Task-087 Puppeteer jobs can exercise the browser-install path and also
-  install a separately pinned Playwright Chromium. Their current
-  `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false` setting must be replaced with the
+- The Task-087 Puppeteer jobs could exercise the browser-install path while
+  also installing a separately pinned Playwright Chromium. Task-101 replaces
+  their historical `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false` setting with the
   supported skip-download configuration so browser acquisition is explicit
   and non-redundant.
 - PR #67 review may continue. New Task-087 implementation, package integration,
@@ -59,22 +59,22 @@ Task-087 implementation, PR #67 merge, and candidate-package work to resume.
 
 - [x] The advisory, exact dependency graph, fixed-version availability,
   supported-path reachability, and end-user runtime boundary are documented.
-- [ ] The maintained baseline is Node 22.12+ across CI, the frontend Docker
+- [x] The maintained baseline is Node 22.12+ across CI, the frontend Docker
   build stage, and `package.json`, and is compatible with the selected exact
   Puppeteer 25.x release.
-- [ ] The exact Puppeteer/lockfile update removes vulnerable `extract-zip` from
+- [x] The exact Puppeteer/lockfile update removes vulnerable `extract-zip` from
   the installed dependency graph; no broad override or forced downgrade masks
   the advisory.
-- [ ] Task-087 browser workflows use one intentional browser-install source and
+- [x] Task-087 browser workflows use one intentional browser-install source and
   do not execute a redundant Puppeteer download path.
-- [ ] A clean lockfile install and blocking `npm audit --audit-level=high` pass.
-- [ ] Frontend bundle reproducibility, setup-wizard contracts, and provider-
+- [x] A clean lockfile install and blocking `npm audit --audit-level=high` pass.
+- [x] Frontend bundle reproducibility, setup-wizard contracts, and provider-
   state regression tests pass.
-- [ ] The existing CommonJS Puppeteer consumers still load successfully after
+- [x] The existing CommonJS Puppeteer consumers still load successfully after
   the major-version update.
 - [ ] Task-087 production-controller, simulated-helper browser, and Windows
   host-helper jobs pass after the dependency change.
-- [ ] The Docker frontend stage builds successfully with the selected Node
+- [x] The Docker frontend stage builds successfully with the selected Node
   baseline and still produces the expected committed bundle.
 - [ ] GitHub alert `#76` closes through dependency reconciliation without
   dismissal, or any residual-high exception receives the explicit approvals,
@@ -146,6 +146,72 @@ compatibility matrix, and resume Task-087 only after the blocking gate passes.
 
 ---
 
+### 2026-08-19 - Focused Remediation And Local Validation
+
+**Objective**: Remove the vulnerable transitive path without an override,
+forced downgrade, audit weakening, or alert dismissal, then validate the
+Puppeteer major and Node baseline change before publishing it for exact-head
+CI.
+
+**Decision**: Adopt ADR-020: Node `>=22.12.0`, exact
+`puppeteer@25.8.0`, locked `puppeteer-core@25.8.0`, and locked
+`@puppeteer/browsers@3.2.1`. Use maintained Node 22 aliases in CI and the
+Docker frontend stage. Retain exact `playwright@1.62.0` Chromium as the single
+Task-087 browser source while setting `PUPPETEER_SKIP_DOWNLOAD=true` for both
+lockfile installs.
+
+**Execution**: Updated `package.json`, `package-lock.json`, the main frontend
+CI job, both Task-087 Puppeteer jobs, the Docker frontend stage, and focused
+dependency/CI regression contracts. The lock graph removes `extract-zip`,
+`basic-ftp`, `ip-address`, and `js-yaml`; its remaining `ws` dependency advances
+to `8.21.3`. Added an explicit CommonJS `launch` assertion and global lockfile
+checks that reject nested `extract-zip` paths or dependency edges.
+
+**Local evidence** (workspace based on branch head `4499456`; exact pushed
+head and GitHub run identifiers remain pending):
+
+- Host Node `22.16.0` / npm `10.9.2`; Docker frontend resolved Node `22.23.2`
+  / npm `10.9.8`.
+- A clean isolated `npm ci --no-audit --no-fund` with Puppeteer download
+  skipped installed 27 packages. Blocking `npm audit --audit-level=high`
+  reported zero vulnerabilities.
+- `npm ls` resolved `puppeteer@25.8.0`, `puppeteer-core@25.8.0`, and
+  `@puppeteer/browsers@3.2.1`; `extract-zip` had no installed path.
+- CommonJS loading returned Puppeteer `25.8.0` with `launch` as a function.
+  All five maintained CommonJS consumer files passed `node --check`.
+- The focused dependency/CI suite passed `11` tests. The broader unit suite,
+  excluding only the workstation-blocked Task-087 host-helper file, passed
+  `329` tests with `74` environment/asset skips. Setup Wizard,
+  ProviderStateManager, global-contract, and debug-logging JavaScript contracts
+  passed.
+- The frontend stage and complete runtime image built successfully on Docker
+  Desktop. The committed, frontend-stage, and full-image bundles shared
+  normalized SHA-256
+  `c7502f30539041011ad8571f3d7458b6086636cb0de26d5d6323c1d312185589`
+  after replacing the bytes from `Build Date: ` through, but not including,
+  the first CR/LF with `Build Date: normalized`, preserving every other byte.
+
+**Boundaries**: The legacy `npm run test:stage-0` Bash wrapper was evaluated
+inside Node 22 and remains red because its mutation-count assertions are stale
+against `webapp/js/towerscout.js`; both the wrapper and bundle are identical to
+`main`, and this check is not a Task-101 or maintained CI gate. The broader
+local Task-087 host-helper test remains non-authoritative on this workstation:
+17 tests passed and 19 were blocked by the existing Windows security scanner's
+`ScriptContainedMaliciousContent` response. No security bypass was attempted.
+The three exact Task-087 GitHub jobs remain required evidence.
+
+**Result**: PASS for implementation and local Task-101 validation. Alert `#76`
+must remain open and undismissed until the accepted graph reaches the default
+branch. Task-087 remains paused until exact-head CI, alert reconciliation, and
+semantic integration with PR #67.
+
+**Next**: Commit and push the focused change to Draft PR #72, require the main
+CI and all three Task-087 jobs at its exact head, then obtain merge approval.
+After default-branch alert reconciliation, merge Task-101 semantically into PR
+#67 and rerun that branch's required matrix before resuming Task-087.
+
+---
+
 ## Validation Results
 
 ### Task Activation - August 19, 2026
@@ -162,3 +228,18 @@ open
   pass.
 - [x] No provider key, certificate detail, browser artifact, raw support log,
   dependency secret, or package output was added.
+
+### Focused Remediation - August 19, 2026
+
+**Test Status**: PASS locally; exact-head GitHub and default-branch gates remain
+open
+
+- [x] Exact Node/Puppeteer/lock graph and no-override contracts pass.
+- [x] Clean isolated install and blocking high-severity audit pass.
+- [x] CommonJS consumers and maintained frontend contracts pass.
+- [x] Docker frontend and full builds pass with equivalent generated bundles.
+- [ ] Main CI and all three Task-087 jobs pass at the pushed PR #72 head.
+- [ ] Alert `#76` closes through default-branch reconciliation without
+  dismissal.
+- [ ] The accepted change is semantically reconciled into PR #67 and validated
+  at its new exact head before Task-087 resumes.
