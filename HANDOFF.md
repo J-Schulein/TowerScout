@@ -36,8 +36,11 @@ The current Pilot/cdcai hold is:
   complete through PR #51 / `e499b50` with its exact July 27 closeout state
 - Task-099 August dependency-advisory follow-up: complete through PRs #68/#69
   and `f460445`/`0133b50`; main CI and the root dependency graph passed,
-  alert `#74` closed without dismissal, and only the eight documented torch
-  residuals remain
+  alert `#74` closed without dismissal, and the August 11 closeout contained
+  only the eight documented torch residuals
+- Task-101 high-severity `extract-zip` advisory assessment and release-gate
+  disposition: backlog-only; review may continue, but PR #67 merge and preview/
+  candidate publication are blocked while the frontend audit remains red
 - Task-087 Google/Azure guided provider TLS repair on Docker/Podman
 - Task-096 user-confirmed Exit/Stop on Docker/Podman
 - Task-097 Podman CPU/GPU final-path qualification
@@ -74,10 +77,12 @@ are recorded in
 Task-099 records the completed post-closeout advisory remediation, including
 the later js-yaml npm audit finding and root graph reconciliation, in
 `.agent_work/tasks/active/TASK-099-august-dependency-advisory-follow-up.md`.
-Task-087 proceeds through technical/security review and normal-user unsigned
-preview integration. Existing Task-087 validation artifacts remain
-nonpublishable. Task-100 owns production signing, signed-candidate packaging,
-and representative managed-endpoint qualification in October.
+Alert `#76`, opened after that closeout, is separately assigned to backlog
+Task-101. Task-087 technical/security review may continue, but merge and
+normal-user unsigned-preview publication wait for Task-101. Existing Task-087
+validation artifacts remain nonpublishable. Task-100 owns production signing,
+signed-candidate packaging, and representative managed-endpoint qualification
+in October.
 
 ## Runtime And Package Model
 

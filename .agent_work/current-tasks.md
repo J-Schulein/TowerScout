@@ -14,6 +14,10 @@ Task-100 in October after the package is satisfactory.
   prereleases and are never marked `Latest`.
 - `v0.1.3-rc.N` is reserved for the signed production-shaped candidate created
   under Task-100.
+- Dependabot alert `#76` is an open high-severity development-only transitive
+  `extract-zip==2.0.1` finding with no current patched version. Reviewer input
+  may continue, but Task-101 gates PR #67 merge and preview/candidate
+  publication.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -57,17 +61,19 @@ Phase B governance and final handoff maintenance continue through closeout
 **Status**: COMPLETED - PR #68 merged the narrow dependency fixes as
 `f460445`; PR #69 merged the root-manifest refresh as `0133b50`. Dynamic graph
 run `31510493332` replaced the stale snapshot, alert `#74` closed without
-dismissal, the SBOM contains only `aiohttp==3.14.3`, and the open inventory is
-exactly the eight documented torch residuals
+dismissal, the SBOM contains only `aiohttp==3.14.3`, and the August 11
+closeout inventory was exactly the eight documented torch residuals
 **Completed**: August 11, 2026
 **Type**: C (Security Remediation / Release Gate)
 **Priority**: HIGH
 **Task File**:
 `.agent_work/tasks/active/TASK-099-august-dependency-advisory-follow-up.md`
 
-**Release Boundary**: Task-099 cleared the dependency-security release gate.
-Task-087 preview integration and Task-100 production signing/managed-endpoint
-qualification remain separate release gates.
+**Release Boundary**: Task-099 cleared its scoped dependency-security release
+gate on August 11. Alert `#76` opened August 12 and belongs to backlog-only
+Task-101 rather than rewriting Task-099. The current blocking frontend gate
+prevents PR #67 merge and Task-087 preview or Task-100 candidate publication
+until Task-101 passes; technical/security review may continue.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
@@ -79,9 +85,9 @@ enforces the selected Windows rootless-Podman boundary; its exact-source
 package rejected rootful mode before provider discovery or container mutation
 while preserving the user's machine mode and volumes. The August 19 decision
 is Proceed to unsigned preview integration. Technical/security review,
-normal-release-package integration, and clean unmanaged-machine preview
-validation remain open; signing and representative managed-endpoint validation
-move to Task-100 in October.
+Task-101 dependency-gate disposition, normal-release-package integration, and
+clean unmanaged-machine preview validation remain open; signing and
+representative managed-endpoint validation move to Task-100 in October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Complete review and preview integration in Sprint 09;
@@ -122,9 +128,11 @@ production signing is separately estimated under Task-100
 - Keep all existing `Task-087-validation-*` packages validation-only. Build a
   new normal-user package for any `v0.1.3-preview.N` publication; do not rename
   or upload an existing validation ZIP.
-- Complete technical/security review before merge or preview publication, then
-  test the actual GitHub download path on an approved unmanaged clean Windows
-  machine with truthful unsigned and support-boundary warnings.
+- Continue technical/security review, but do not merge or publish a preview
+  until Task-101 dispositions alert `#76` and restores the blocking frontend
+  security gate. Then test the actual GitHub download path on an approved
+  unmanaged clean Windows machine with truthful unsigned and support-boundary
+  warnings.
 - Treat the August 19 decision as Proceed to unsigned preview integration under
   ADR-019. Signing, `v0.1.3-rc.N`, and representative managed-endpoint
   qualification belong to Task-100 in October after the satisfactory-package
@@ -160,8 +168,9 @@ production signing is separately estimated under Task-100
 2. Draft PR #67 is reconciled with current `main` while retaining both the
    Task-099 closeout and the current Task-087 implementation state.
 3. Exact-head checks through implementation checkpoint `5737a58` are green
-   locally, and all required Draft PR checks are green on evidence head
-   `ae78b06`.
+   locally, and all required Draft PR checks were green on evidence head
+   `ae78b06`. The current PR frontend test now fails on high-severity
+   Dependabot alert `#76`; Task-101 owns its separate disposition.
 4. The exact-source full-runnable Task-087 package was generated and verified
    in the approved development environment.
 5. Docker and approved-provider Podman Google/Azure plus controlled recovery
@@ -169,23 +178,26 @@ production signing is separately estimated under Task-100
 6. Podman-provider installer dependency drift is resolved. Rootless Podman CPU
    is the provisional native-forwarding boundary, and the exact-source package
    now enforces that boundary without changing machine mode or runtime state.
-7. Complete technical/security review and integrate the launcher into a new
+7. Continue technical/security review and integrate the launcher into a new
    normal-user unsigned preview-package path with accurate manifests,
-   checksums, notices, and user guidance.
+   checksums, notices, and user guidance. Do not merge or publish until
+   Task-101 restores the blocking frontend security gate.
 8. Record the August 19 Proceed-to-preview decision and keep production signing
    plus representative managed-endpoint validation scheduled as Task-100 for
    October after package satisfaction.
 9. Test each published `v0.1.3-preview.N` through the actual GitHub download
    path on an approved unmanaged clean Windows machine without security
    exclusions or bypass instructions.
-10. Select Task-096 next, followed by Task-097. Keep Tasks 091-093 behind the
-    stable unsigned package/runtime-shape boundary; Task-091 prepares the
-    owner-runnable harness before Task-100, while signed acceptance occurs
-    under Task-100.
+10. Select and pass Task-101 before PR #67 merge or preview publication, then
+    select Task-096 followed by Task-097. Keep Tasks 091-093 behind the stable
+    unsigned package/runtime-shape boundary; Task-091 prepares the owner-
+    runnable harness before Task-100, while signed acceptance occurs under
+    Task-100.
 
 Task-058 and Task-059 remain conditional stretch work. Task-094 remains
 evidence-gated. Task-100 remains in the backlog until its October entry gate is
-met. Task-099 stays in `tasks/active/` until Sprint 09 closeout.
+met. Task-101 remains backlog-only until selected and has no active task file.
+Task-099 stays in `tasks/active/` until Sprint 09 closeout.
 
 ---
 

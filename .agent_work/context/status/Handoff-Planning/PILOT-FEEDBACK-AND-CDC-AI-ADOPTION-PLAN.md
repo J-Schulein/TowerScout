@@ -87,8 +87,12 @@ GitHub disclosed four additional Dependabot advisories on August 4-5, and the
 blocking npm audit added `GHSA-5p4m-2wfm-xmqj` on August 7 while Task-099 was
 still active. Task-099 completed that follow-up on August 11 through PRs
 #68/#69, successful main CI and root graph refresh, and alert closure without
-dismissal. The inventory is back to the eight documented torch residuals.
-Task-087 continues under its own remaining qualification gates.
+dismissal. The August 11 closeout inventory contained the eight documented
+torch residuals. GitHub opened high-severity development-transitive
+`extract-zip` alert `#76` on August 12; backlog Task-101 owns that separate
+assessment and disposition. Task-087 review may continue, but PR #67 merge and
+preview/candidate publication remain gated while the blocking frontend audit
+is red.
 
 ## Release Naming Boundary
 
@@ -107,12 +111,13 @@ Task-089 remains blocked until:
 
 1. Pilot feedback and candidate findings are reviewed.
 2. Required four-profile qualification passes.
-3. Task-100 production signing and representative managed-endpoint
+3. Task-101 restores the blocking high-severity dependency gate.
+4. Task-100 production signing and representative managed-endpoint
    qualification pass.
-4. The project lead and cdcai owner qualify the final signed candidate.
-5. The owner explicitly approves adoption.
-6. Repository, Actions, package, release, and backlog ownership are ready.
-7. The official identity and rebuild/verification plan are approved.
+5. The project lead and cdcai owner qualify the final signed candidate.
+6. The owner explicitly approves adoption.
+7. Repository, Actions, package, release, and backlog ownership are ready.
+8. The official identity and rebuild/verification plan are approved.
 
 If the final candidate is not ready, preserve the fork, evidence, feedback,
 backlog, and migration-ready handoff without changing cdcai.
@@ -137,6 +142,8 @@ backlog, and migration-ready handoff without changing cdcai.
 - Task-100: October production signing, signed-package verification, and
   representative managed-endpoint qualification after the satisfactory
   unsigned-package decision.
+- Task-101: backlog-only assessment and release-gate disposition for
+  high-severity development-transitive `extract-zip` alert `#76`.
 
 ## Superseded Instructions
 

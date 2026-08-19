@@ -64,6 +64,8 @@ optional AI-assisted development.
   video custody.
 - [ ] Keep Task-100's satisfactory-package entry gate, October signing work,
   and managed-endpoint acceptance synchronized across release/handoff sources.
+- [ ] Keep newly disclosed critical/high dependency findings assigned to unique
+  follow-up tasks without rewriting completed-task history or weakening gates.
 - [ ] Ensure final documentation identifies current, historical, and archived
   sources unambiguously.
 - [ ] Complete owner review and final sign-off by October 30.
@@ -72,10 +74,43 @@ optional AI-assisted development.
 
 - Project lead and cdcai owner roadmap decisions
 - Tasks 087 and 089
-- Tasks 090-100 as formalized by current roadmap decisions
+- Tasks 090-101 as formalized by current roadmap decisions
 - Final candidate and handoff evidence
 
 ## Implementation Log
+
+### 2026-08-19 - Alert 76 Current-Gate Reconciliation
+
+**Objective**: Keep the live security inventory and release gates accurate
+after GitHub surfaced a new high-severity dependency advisory.
+
+**Context**: Pushing the ADR-019 documentation update caused the current
+blocking frontend audit to evaluate Dependabot alert `#76`. The alert opened
+August 12, after Task-099 completed on August 11, and affects development-only
+transitive `extract-zip==2.0.1` through Puppeteer. The dependency is not shipped
+in the product runtime image or end-user ZIP, but the browser-install test path
+can execute it and no patched `extract-zip` release is currently listed.
+
+**Decision**: Preserve Task-099 as a dated historical closeout and add backlog-
+only Task-101 for supported-path assessment and release-gate disposition.
+Allow reviewer feedback to continue, but hold PR #67 merge and preview/
+candidate publication behind the deliberately blocking high-severity gate.
+
+**Execution**: Reconciled the current task, backlog, requirements, design,
+roadmap, adoption, handoff, status navigation, and agent-guidance sources. No
+dependency, workflow, runtime, package, or historical Task-099 artifact was
+changed, and no remediation direction was preselected.
+
+**Output**: One current nine-alert inventory, a unique Task-101 backlog entry,
+and an explicit distinction between review continuity and merge/publication
+gates.
+
+**Validation**: PASS on August 19, 2026. The quick workspace checker and
+canonical `.agent_work` validator passed, and `git diff --check` found no
+whitespace errors after reconciliation.
+
+**Next**: Select Task-101 for bounded reachability and compatibility assessment
+before PR #67 merge or any preview/candidate publication.
 
 ### 2026-08-19 - Preview And October Signing Rebaseline
 

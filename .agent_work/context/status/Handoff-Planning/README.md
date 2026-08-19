@@ -29,9 +29,13 @@
   complete as of their July 27 closeout.
 - Task-099 completed alerts `#72-#75` plus npm finding
   `GHSA-5p4m-2wfm-xmqj` through PRs #68/#69. Alert `#74` closed without
-  dismissal, and only the eight documented torch residuals remain.
-- Task-087 proceeds through technical/security review and a newly integrated
-  normal-user preview package. Existing validation ZIPs remain nonpublishable.
+  dismissal, and the August 11 closeout contained only the eight documented
+  torch residuals.
+- High-severity development-transitive `extract-zip` alert `#76` opened after
+  that closeout. Backlog Task-101 owns its assessment; review may continue, but
+  PR #67 merge and preview/candidate publication remain gated.
+- Task-087 proceeds through technical/security review and preview-package
+  integration. Existing validation ZIPs remain nonpublishable.
 - Complete Task-100 production signing and representative managed-endpoint
   qualification in October after the unsigned package is satisfactory.
 - Complete operational closeout by October 30, 2026.
@@ -53,9 +57,10 @@ That record covers authorized unsigned development-workstation validation only
 and cannot be uploaded or renamed as a preview. Later exact-source Task-087
 evidence passed packaged Docker and approved-provider Podman Google/Azure,
 recovery, provider-install, and rootless-Podman gates. The August 19 decision
-allows technical/security review, merge, and a separate normal-user unsigned
-preview-package path. Task-100 signing and representative managed-endpoint
-qualification remain required before any signed-candidate or production claim.
+allows technical/security review and a separate normal-user unsigned preview-
+package path. Task-101 now gates merge and publication; Task-100 signing and
+representative managed-endpoint qualification remain required before any
+signed-candidate or production claim.
 
 ## Archived Planning And Release History
 

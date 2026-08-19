@@ -291,10 +291,19 @@ Current result:
   root dependency snapshot through PR #69 / `0133b50`.
 - Root graph run `31510493332` and main CI run `31510488121` passed. Alert
   `#74` closed without dismissal, the SBOM contains only `aiohttp==3.14.3`,
-  and the open inventory is exactly the eight documented torch residuals.
-- Task-099 is complete and its dependency-security release gate is clear.
-  Task-087 preview integration and Task-100 signed-candidate/final-release
-  qualification remain subject to their separate package and endpoint gates.
+  and the August 11 Task-099 closeout inventory was exactly the eight
+  documented torch residuals.
+- Dependabot alert `#76` opened August 12 against development-only transitive
+  `extract-zip==2.0.1` through
+  `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`. It is high
+  severity, has no current patched `extract-zip` version, and makes the current
+  open inventory nine alerts: `#76` plus the eight torch residuals.
+- Backlog-only Task-101 owns supported-path reachability, untrusted-archive
+  exposure, fixed-version availability, and release disposition. Remediation
+  direction remains unselected. Technical/security review may continue, but
+  the blocking frontend gate prevents PR #67 merge and unsigned-preview or
+  signed-candidate publication until Task-101 passes or the required narrow,
+  time-bounded exception is approved and implemented.
 
 ## Qualification And Handoff Requirements
 
@@ -355,6 +364,6 @@ outgoing developer after October 31.
 - October 23 is the owner-operated handoff rehearsal target.
 - October 30 is operational closeout.
 
-Task-058 may start early only after Tasks 090, 098, 099, 087, 096, and 097 have
-passed their gates. Task-059 remains optional and may start only after Task-058
-acceptance without threatening required milestones.
+Task-058 may start early only after Tasks 090, 098, 099, 101, 087, 096, and 097
+have passed their gates. Task-059 remains optional and may start only after
+Task-058 acceptance without threatening required milestones.

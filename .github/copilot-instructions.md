@@ -46,7 +46,11 @@ The project still carries public-health workflow expectations:
 - `TASK-099` is complete for Dependabot alerts `#72-#75` and npm audit finding
   `GHSA-5p4m-2wfm-xmqj`. PRs #68/#69 merged as `f460445`/`0133b50`; main CI
   and root graph refresh passed, alert `#74` closed without dismissal, and
-  only the eight documented torch residuals remain.
+  the August 11 closeout contained only the eight documented torch residuals.
+- High-severity development-transitive `extract-zip` alert `#76` opened August
+  12 with no current patched `extract-zip` version. Backlog Task-101 owns the
+  new assessment. Review may continue, but the blocking frontend audit prevents
+  PR #67 merge and preview/candidate publication until Task-101 passes.
 - `TASK-087` is in progress under ADR-018's launcher security boundary and
   ADR-019's release sequence. Draft PR #67 contains the native transactional
   Docker/Podman TLS repair engine and visible typed-confirmation UI. PR #64 and
@@ -151,20 +155,23 @@ adoption:
 4. Preserve Task-099's completed `aiohttp==3.14.3`, transitive
    `ip-address==10.3.1`, and transitive `js-yaml==4.3.1` remediation plus its
    eight-alert torch residual baseline.
-5. Complete Task-087 technical/security review and integrate the launcher into
+5. Continue Task-087 technical/security review and integrate the launcher into
    a new normal-user release-package path. Preserve Task-086 and every existing
    validation-only artifact boundary.
-6. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
-7. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
-8. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
+6. Select and pass Task-101 before PR #67 merge or preview publication; do not
+   weaken or dismiss the blocking high-severity audit without the required
+   approved residual-risk process.
+7. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
+8. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
+9. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
    approved unmanaged clean-machine feedback; never mark them `Latest`.
-9. After the package is satisfactory, complete Task-100 production signing and
+10. After the package is satisfactory, complete Task-100 production signing and
    representative managed-endpoint qualification in October. Only signed
    output uses `v0.1.3-rc.N`.
-10. Keep Task-089 preparation reversible and cdcai unchanged.
-11. Select the official cdcai tag/title before the official build and execute
+11. Keep Task-089 preparation reversible and cdcai unchanged.
+12. Select the official cdcai tag/title before the official build and execute
    adoption only after owner qualification and approval.
-12. Treat Task-058/059 as conditional stretch work behind all required gates.
+13. Treat Task-058/059 as conditional stretch work behind all required gates.
 
 `TASK-026` CPU optimization and `TASK-029` multi-provider fallback remain follow-on backlog work unless release evidence makes them release-critical.
 
@@ -798,21 +805,23 @@ The original guidance benefited from explicitly naming recent completed work. Th
 3. Preserve completed Task-099 evidence for the August Dependabot alerts and
    later js-yaml npm audit finding, including the eight documented
    non-blocking torch residuals and qualified ML pair.
-4. Complete Task-087 technical/security review and integrate its launcher into
+4. Continue Task-087 technical/security review and integrate its launcher into
    a new normal-user unsigned preview-package path. Existing validation ZIPs
    remain nonpublishable.
-5. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
-6. Qualify Docker CPU/GPU and Podman CPU/GPU.
-7. Start Task-058 early only when all required gates, including Task-099,
+5. Select and pass Task-101 before PR #67 merge or preview/candidate
+   publication; preserve Task-099 as the dated August 11 closeout.
+6. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
+7. Qualify Docker CPU/GPU and Podman CPU/GPU.
+8. Start Task-058 early only when all required gates, including Task-101,
    pass; keep Task-059 behind
    Task-058 acceptance and schedule margin.
-8. Refine unsigned `v0.1.3-preview.N` GitHub prereleases on approved unmanaged
+9. Refine unsigned `v0.1.3-preview.N` GitHub prereleases on approved unmanaged
    clean machines until the package is satisfactory.
-9. Complete Task-100 production signing and representative managed-endpoint
+10. Complete Task-100 production signing and representative managed-endpoint
    qualification in October, then freeze the signed `v0.1.3-rc.N` candidate.
-10. Complete owner-runnable qualification, documentation, recovery,
+11. Complete owner-runnable qualification, documentation, recovery,
    governance, and handoff work.
-11. Select the official cdcai identity, build it consistently, and execute
+12. Select the official cdcai identity, build it consistently, and execute
    Task-089 only after owner approval.
 
 ### Practical Agent Takeaway
@@ -837,8 +846,11 @@ An agent should leave with the following understanding:
 - filesystem sessions and disk-backed config writes are real architectural constraints
 - Google and Azure workflows are both important
 - outbreak-investigation workflows are the highest-value legacy surface to preserve
-- Tasks 090, 098, and 099 remain complete; Task-099 owns the August dependency
+- Tasks 090, 098, and 099 remain complete; Task-099 owns the August 11
   disclosure evidence without reopening the earlier historical records
+- Task-101 is the backlog-only current gate for high-severity development-
+  transitive `extract-zip` alert `#76`; review may continue, but merge and
+  preview/candidate publication wait for its disposition
 - Task-086 remains the supported fallback throughout the Task-087 checkpoint
 - Task-089 execution remains blocked until final qualification and explicit
   cdcai-owner adoption approval

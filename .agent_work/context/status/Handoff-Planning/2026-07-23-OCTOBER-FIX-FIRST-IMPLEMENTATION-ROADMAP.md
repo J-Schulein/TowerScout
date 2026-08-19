@@ -184,6 +184,13 @@ critical/high and default-branch alert-reconciliation gates on August 11
 through PRs #68/#69. Task-087 continues under its own remaining qualification
 gates.
 
+**August 19 Current-State Amendment**: GitHub opened high-severity development-
+transitive `extract-zip` alert `#76` on August 12, after Task-099 closed.
+Backlog Task-101 owns the new assessment and release-gate disposition. PR #67
+review may continue, but its blocking frontend audit, merge, preview
+publication, optional architecture work, and candidate acceptance remain gated
+until Task-101 passes or an authorized residual-high disposition is recorded.
+
 1. Task-095 Phase A roadmap/workspace rebaseline and readiness cleanup:
    complete July 23.
 2. Task-090 bounded runtime, custom-image, and dependency security
@@ -210,9 +217,9 @@ July 27 exit evidence:
 
 **Target**: Begin as soon as Phase 1 passes
 
-1. Complete technical/security review of Draft PR #67 and preserve the exact-
+1. Continue technical/security review of Draft PR #67 and preserve the exact-
    source Docker/Podman Google/Azure, recovery, provider-installer, and rootless
-   Podman evidence.
+   Podman evidence. Complete Task-101 before merge or preview publication.
 2. Record the August 19 Proceed-to-unsigned-preview disposition under ADR-019.
 3. Integrate the accepted launcher into the normal release-package path; do not
    publish or relabel any Task-087 validation-only ZIP.
@@ -228,6 +235,8 @@ July 27 exit evidence:
 Exit:
 
 - Task-087 has a recorded August 19 Proceed-to-preview decision.
+- Task-101 has restored the blocking high-severity dependency gate before PR
+  #67 merge or preview publication.
 - Guided TLS repair passes technical/security, product, package, and clean
   unmanaged-machine preview gates for its stated scope.
 - Exit/Stop safely removes the selected application container while retaining
@@ -256,6 +265,7 @@ Task-058 may begin immediately when all of the following are true:
 
 - Tasks 090 and 098 are complete.
 - Task-099 passes its August dependency-security follow-up gate.
+- Task-101 passes the current high-severity dependency gate.
 - Task-087 passes its functional/security and unsigned-preview package gates.
 - Task-096 passes Docker and Podman acceptance.
 - Task-097 passes required final-path qualification.
@@ -333,6 +343,7 @@ Exit:
 | `TASK-098` | Dependency-security remediation, compatibility validation, and release disposition | Complete July 27 |
 | `TASK-099` | August dependency-advisory remediation and release-gate reconciliation | Complete August 11 |
 | `TASK-100` | October production signing, post-sign package verification, and representative managed-endpoint qualification | Required after satisfactory unsigned package |
+| `TASK-101` | `extract-zip` advisory assessment and current dependency release-gate disposition | Required before PR #67 merge or preview/candidate publication |
 | `TASK-058` | Background jobs and durable run state | Conditional stretch |
 | `TASK-059` | Backend decomposition and logging consolidation | Conditional stretch after Task-058 |
 
@@ -349,14 +360,22 @@ Task-099 was added August 6 for alerts `#72-#75`, which GitHub disclosed after
 the Task-098 closeout. While it remained active, the August 7 npm audit added
 `GHSA-5p4m-2wfm-xmqj`. Its narrow `aiohttp`, transitive `ip-address`, and
 transitive `js-yaml` remediation plus stale root-graph refresh completed
-August 11. Alert `#74` closed without dismissal, the inventory returned to the
-eight documented torch residuals, and Task-099 no longer blocks preview or
-signed-candidate work; Task-087 and Task-100 retain their separate gates.
+August 11. Alert `#74` closed without dismissal, and the inventory returned at
+that closeout to the eight documented torch residuals. High-severity alert
+`#76` opened August 12 and is tracked separately by Task-101 rather than
+rewriting Task-099 history. Technical/security review may continue, but the
+current blocking frontend audit prevents PR #67 merge and preview/candidate
+publication until Task-101 passes.
 
 Task-100 was added August 19 after the project lead chose to refine unsigned
 normal-user previews before production signing. It stays in the backlog until
 October and the ADR-019 satisfactory-package decision, then must complete
 before signed-candidate acceptance or official cdcai publication.
+
+Task-101 was added August 19 for Dependabot alert `#76` / `GHSA-jmr9-qjv8-65gv`
+in development-transitive `extract-zip==2.0.1`. It remains backlog-only until
+selected and must not imply a remediation direction before supported-path and
+compatibility assessment.
 
 ## Stop Rules
 

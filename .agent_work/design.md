@@ -289,12 +289,22 @@ The current security boundary is:
 7. PR #68 merged the narrow fixes as `f460445`; PR #69 merged the root graph
    refresh as `0133b50`. Graph run `31510493332` removed stale
    `aiohttp==3.14.2`, alert `#74` closed without dismissal, and the repository
-   returned to the eight documented medium/low torch residuals with no open
-   critical/high alert.
+   returned on August 11 to the eight documented medium/low torch residuals
+   with no open critical/high alert at that closeout.
 8. All-severity SARIF reporting remains advisory, while new or reintroduced
    critical/high dependency findings are blocking unless covered by a narrow,
    unexpired exception. The Task-099 discovery confirms that ratchet is
    operating as designed.
+9. GitHub opened alert `#76` on August 12 for high-severity
+   `extract-zip==2.0.1` in the development-only path
+   `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip@2.0.1`.
+   The dependency is not copied into the product runtime image or end-user ZIP,
+   but the browser-install test path can execute it and the blocking npm audit
+   fails. No patched `extract-zip` release is currently listed.
+10. Backlog Task-101 owns supported-path reachability and a validated
+    remediation or authorized residual-high disposition. PR #67 review may
+    continue, but merge, preview publication, optional architecture work, and
+    candidate acceptance remain behind that gate.
 
 ## Task Dependency Flow
 
@@ -313,6 +323,9 @@ TASK-098 dependency-security remediation/disposition gate [COMPLETE]
 TASK-087 universal provider   TASK-099 August advisory
 TLS repair [IN PROGRESS]      follow-up [COMPLETE]
         |                           |
+        |                           v
+        |                     TASK-101 extract-zip
+        |                     gate [BACKLOG]
         v                           |
 TASK-096 user Exit/Stop             |
         |                           |
@@ -344,10 +357,11 @@ Task-095 Phase B spans the remaining work to keep governance, backlog, and
 handoff material current. Task-098 is separately scoped from Task-090 so the
 investigation cannot hide dependency upgrades, CPU/CUDA compatibility work, or
 four-profile regression effort. Task-099 preserved the same governance
-principle for post-closeout disclosures and cleared its dependency-security
-gate on August 11. Task-087 continues under its own remaining qualification
-gates. Task-100 remains backlog work until October and the ADR-019
-satisfactory-package entry decision.
+principle for post-closeout disclosures and cleared its scoped dependency-
+security gate on August 11. Task-087 continues under its own remaining
+qualification gates. Task-101 is the new blocking high-severity dependency
+follow-up and does not reopen the dated Task-099 record. Task-100 remains
+backlog work until October and the ADR-019 satisfactory-package entry decision.
 
 ## Validation Strategy
 

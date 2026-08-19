@@ -14,9 +14,11 @@ Current navigation:
   packages. Later entries cover packaged Docker and approved-provider Podman
   Google/Azure repair, controlled recovery, provider-installer reproducibility,
   and rootless-Podman enforcement. Those artifacts remain nonpublishable. The
-  next gates are technical/security review and a newly integrated normal-user
-  preview package; Task-100 owns October signing and representative endpoint
-  qualification.
+  next gates are technical/security review, backlog Task-101 disposition of
+  high-severity development-transitive `extract-zip` alert `#76`, and a newly
+  integrated normal-user preview package. Review may continue, but Task-101
+  gates merge/publication; Task-100 owns October signing and representative
+  endpoint qualification.
 - [`../../tasks/active/TASK-087/REVIEW-EVIDENCE-2026-08-05.md`](../../tasks/active/TASK-087/REVIEW-EVIDENCE-2026-08-05.md)
   is preserved as the historical preview-only static technical-review packet;
   it is not the current functional result.
