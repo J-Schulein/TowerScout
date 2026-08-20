@@ -1,14 +1,17 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS - the `7ef879c` exact-source full-runnable CPU packages
+**Status**: PAUSED / RECONCILIATION-GATED - the `7ef879c` exact-source
+full-runnable CPU packages
 passed Docker and approved-provider Podman Google/Azure TLS repair plus
 controlled recovery. Follow-up head `3990bc0` closes the Podman-provider
 installer reproducibility gap. Head `5737a58` enforces the Windows rootless-
 Podman boundary and passed exact-source packaged rootful rejection without
 machine, container, or volume mutation. The August 19 disposition is Proceed
-to unsigned preview integration. Technical/security review and normal-release-
-package integration remain open; signing and representative managed-endpoint
-validation move to Task-100 in October
+to unsigned preview integration. Current `main` through PR #73 / `9276084` is
+now integrated into Draft PR #67 while preserving that evidence and ADR-019;
+the branch's new exact-head CI/CD and Task-087 matrices remain pending. New
+implementation, merge, and publication stay paused through that gate. Signing
+and representative managed-endpoint validation remain Task-100 work in October
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Complete review and preview integration in Sprint 09;
@@ -18,8 +21,9 @@ and the canonical October roadmap
 **Created**: 2026-06-29
 **Owner**: TowerScout release owner / active agent support
 **Depends On**: `TASK-086`; `TASK-090` investigation; approved `TASK-098`
-dependency remediation/disposition; package launcher/runtime profile; provider setup error
-classification; Docker and Podman CPU/GPU package paths
+dependency remediation/disposition; active `TASK-101` PR #67 exact-head gate;
+package launcher/runtime profile; provider setup error classification; Docker
+and Podman CPU/GPU package paths
 
 ## Canonical Source Note
 
@@ -29,7 +33,8 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current implementation checkpoint is `5737a58`, built on current `main`
+The current implementation checkpoint is `5737a58`, built on the then-current
+`main`
 commit `3932abf`. Its exact-source full-runnable Podman CPU package enforces the
 selected rootless Windows boundary and rejected rootful mode before provider
 discovery or container mutation. Checkpoint `3990bc0` remains the accepted
@@ -39,6 +44,52 @@ remain the accepted exact-head Google/Azure repair evidence. The older
 reused as the final artifact. No validation artifact is a release candidate,
 preview release, merge signal, or substitute for Task-100's signed
 representative managed-endpoint gate.
+
+## August 20, 2026 Post-Merge Reconciliation Override
+
+This override supersedes the August 19 pause override for current execution
+order while preserving that entry as dated history:
+
+- PR #72 passed its final exact-head matrix at `820b649` and squash-merged as
+  exact-main commit `0cc189c`.
+- Exact-main CI/CD run `32310281115` and Task-087 run `32310281051` passed.
+  Dependabot alert `#76` closed as fixed through dependency reconciliation;
+  every dismissal field is null.
+- PR #73 then recorded the post-merge checkpoint and squash-merged as
+  `9276084`; exact-main CI/CD run `32377736719` and Task-087 run `32377736797`
+  passed.
+- This merge integrates current `main` through `9276084` into Draft PR #67
+  while preserving ADR-019, the Task-087 implementation, and its recorded
+  evidence.
+- Keep Task-087 paused through the integrated branch's required exact-head
+  matrix. Only after that matrix passes may a subsequent governance update
+  mark Task-101 complete and change Task-087 explicitly to resumed.
+- Full TowerScout Docker/Podman runtime, package, signing, provider/recovery,
+  and managed-network qualification remain later Task-087 gates.
+
+## August 19, 2026 Task-101 Pause Override
+
+This override controls the immediate execution order while high-severity
+development-transitive `extract-zip` alert `#76` keeps the Task-101 release
+gate open. PR #72's implementation-head audit and compatibility jobs pass,
+while final PR/default-branch and PR #67 gates remain:
+
+- Preserve Draft PR #67, the current Task-087 implementation, and its recorded
+  evidence. The dependency finding does not invalidate artifact-specific
+  results already captured on that branch.
+- Keep PR #67 open for reviewer feedback and read-only technical/security
+  review. Clarification and documentation feedback may be recorded, while
+  implementation-producing changes queue until Task-087 resumes.
+- Pause new launcher implementation, normal-package integration, merge, and
+  candidate publication until active Task-101 passes its clean-install, audit,
+  graph, frontend, browser, Windows-helper, and Docker-build gates.
+- Task-101 remains a development/build-tool remediation. Full TowerScout
+  Docker/Podman runtime and package requalification remain Task-087 work after
+  the task resumes rather than expanding Task-101.
+- After the focused Task-101 change merges from current `main` and GitHub alert
+  reconciliation passes without dismissal, bring that accepted change into PR
+  #67. Require its new exact-head matrix to pass before resuming from the
+  preserved Task-087 checkpoint.
 
 Sanitized full-package functional evidence is recorded in
 [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
@@ -1196,6 +1247,99 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-20 - Current Main Integrated; Exact-Head Validation Pending
+
+**Objective**: Integrate the accepted Task-101/default-branch state into Draft
+PR #67 without discarding its Task-087 implementation or evidence history.
+
+**Context**: PR #73 squash-merged the post-PR72 governance checkpoint as
+`9276084`, and exact-main CI/CD run `32377736719` plus Task-087 run
+`32377736797` passed. PR #67 remained at `c095389`, open, Draft, and conflicted
+against current `main`.
+
+**Decision**: Merge current `main` normally into PR #67, resolve shared
+governance files semantically, and keep Task-087 paused until the resulting
+exact head passes both required workflow matrices. Do not rebase, squash, or
+force-push the branch's evidence-bearing history.
+
+**Execution**: Integrated `main` through `9276084`, preserving ADR-019, the
+launcher/runtime implementation, Task-087 evidence, unsigned-preview boundary,
+and Task-100 signing scope while importing Node 22/Puppeteer 25, the clean
+dependency graph, blocking Docker frontend check, and current Task-101 state.
+
+**Validation**: PR #73/default-main evidence is green. Local reconciliation
+passed the broad executable unit suite, clean dependency/audit graph, bundle and
+frontend contracts, Compose parsing, Docker frontend stage, and complete image
+builds with the optional CA secret absent and present; image inspection found no
+persisted secret setting. Endpoint antivirus blocked local loading of the
+unchanged PowerShell host-helper script, so no bypass was used and the exact-
+head Windows workflow remains required. The new PR #67 workflow runs remain
+pending; no Task-087 runtime or package acceptance claim is added by this merge
+alone.
+
+**Next**: Push the merge and require green exact-head checks before the separate
+Task-101 completion/Task-087 resume transition.
+
+### 2026-08-20 - PR #72 Security Gate Passed; PR #67 Reconciliation Pending
+
+**Objective**: Advance the Task-087 pause boundary to the remaining downstream
+branch gate after the accepted dependency remediation reached `main`.
+
+**Context**: PR #72 final head `820b649` and exact-main squash commit `0cc189c`
+passed their CI/CD and Task-087 workflows. Alert `#76` is fixed without
+dismissal. Draft PR #67 remains open and conflicted at `c095389` until current
+`main` is integrated.
+
+**Decision**: Keep Task-087 paused / reconciliation-gated. The completed PR #72
+and alert gates do not authorize new launcher work, package publication, or
+resumption before PR #67's new exact head passes.
+
+**Execution**: Updated only current lifecycle and dependency language. No
+Task-087 source, workflow, runtime, package, release artifact, or accepted
+historical evidence changed.
+
+**Validation**: Exact-main CI/CD run `32310281115` and Task-087 run
+`32310281051` passed at `0cc189c`; the alert's dismissal metadata is empty.
+
+**Next**: Merge current `main` normally into PR #67, preserve ADR-019 and the
+branch's evidence during semantic conflict resolution, and validate its new
+exact head before explicitly resuming Task-087.
+
+### 2026-08-19 - Paused On Active Task-101 Security Gate
+
+**Objective**: Preserve Task-087's current implementation state while the
+newly selected dependency-security work restores PR #67's blocking frontend
+gate.
+
+**Context**: The current PR's frontend job fails before bundle and contract
+tests because npm audit detects high-severity development-only transitive
+`extract-zip==2.0.1`. The dependency is not included in the product runtime
+image or Windows release ZIP, but a maintained browser-install path can execute
+it. The existing Task-087 evidence remains valid for the bytes it evaluated.
+
+**Decision**: Pause new Task-087 implementation, package integration, merge,
+and publication. Keep PR #67 open for reviewer input and read-only review.
+Resume only after Task-101's focused remediation merges, alert reconciliation
+completes without dismissal, the accepted change is integrated into PR #67,
+and that branch's new exact-head matrix passes.
+
+**Execution**: Updated the Task-087 status, dependency list, and current
+execution override. No Task-087 source, workflow, package, runtime, release, or
+accepted evidence changed.
+
+**Output**: Task-087 is preserved rather than abandoned or restarted.
+Task-101 is the immediate implementation lane.
+
+**Validation**: PASS for the lifecycle transition on August 19, 2026. The
+TowerScout quick workspace checker and canonical `.agent_work` validator
+passed, and `git diff --check` found no whitespace errors. No Task-087 runtime
+or package validation was rerun or required for this documentation-only pause.
+
+**Next**: Accept reviewer context without beginning new implementation. After
+PR #72 merges and alert `#76` closes without dismissal, bring the accepted
+Task-101 result into PR #67, require green exact-head checks, and only then
+resume from the current checkpoint.
 
 ### 2026-08-19 - Proceed To Unsigned Preview Integration
 

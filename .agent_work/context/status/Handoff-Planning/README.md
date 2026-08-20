@@ -29,13 +29,21 @@
   complete as of their July 27 closeout.
 - Task-099 completed alerts `#72-#75` plus npm finding
   `GHSA-5p4m-2wfm-xmqj` through PRs #68/#69. Alert `#74` closed without
-  dismissal, and the August 11 closeout contained only the eight documented
-  torch residuals.
+  dismissal, and its August 11 closeout contained the eight documented torch
+  residuals.
 - High-severity development-transitive `extract-zip` alert `#76` opened after
-  that closeout. Backlog Task-101 owns its assessment; review may continue, but
-  PR #67 merge and preview/candidate publication remain gated.
-- Task-087 proceeds through technical/security review and preview-package
-  integration. Existing validation ZIPs remain nonpublishable.
+  that closeout. Task-101's focused Node/Puppeteer remediation passed final PR
+  and exact-main validation, PR #72 squash-merged as `0cc189c`, and the alert
+  closed as fixed without dismissal. PR #73 recorded the post-merge checkpoint,
+  squash-merged as `9276084`, and passed exact-main CI/CD and Task-087 checks.
+- This merge integrates `main` through `9276084` into Draft PR #67 while
+  preserving ADR-019 and its evidence. Task-101 remains in progress pending
+  PR #67's new exact-head matrix.
+- Task-087 is paused / reconciliation-gated. PR #67 remains open for reviewer
+  input, but new implementation, merge to `main`, and preview/candidate
+  publication wait for that exact-head matrix, a subsequent explicit lifecycle
+  transition, and green checks at the resulting governance head.
+- Existing Task-087 validation ZIPs remain nonpublishable.
 - Complete Task-100 production signing and representative managed-endpoint
   qualification in October after the unsigned package is satisfactory.
 - Complete operational closeout by October 30, 2026.
@@ -58,9 +66,11 @@ and cannot be uploaded or renamed as a preview. Later exact-source Task-087
 evidence passed packaged Docker and approved-provider Podman Google/Azure,
 recovery, provider-install, and rootless-Podman gates. The August 19 decision
 allows technical/security review and a separate normal-user unsigned preview-
-package path. Task-101 now gates merge and publication; Task-100 signing and
-representative managed-endpoint qualification remain required before any
-signed-candidate or production claim.
+package path. Task-101's remediation, default-branch result, and checkpoint have
+passed; PR #67 exact-head validation and the subsequent explicit Task-087
+resume now gate merge and publication. Task-100 signing and representative
+managed-endpoint qualification remain required before any signed-candidate or
+production claim.
 
 ## Archived Planning And Release History
 

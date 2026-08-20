@@ -1,6 +1,6 @@
 # TowerScout Requirements
 
-**Last Updated**: August 19, 2026
+**Last Updated**: August 20, 2026
 **Current Planning Horizon**: October 31, 2026 hard project end
 **Operational Closeout**: October 30, 2026
 **Canonical Roadmap**:
@@ -291,19 +291,28 @@ Current result:
   root dependency snapshot through PR #69 / `0133b50`.
 - Root graph run `31510493332` and main CI run `31510488121` passed. Alert
   `#74` closed without dismissal, the SBOM contains only `aiohttp==3.14.3`,
-  and the August 11 Task-099 closeout inventory was exactly the eight
-  documented torch residuals.
-- Dependabot alert `#76` opened August 12 against development-only transitive
-  `extract-zip==2.0.1` through
-  `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`. It is high
-  severity, has no current patched `extract-zip` version, and makes the current
-  open inventory nine alerts: `#76` plus the eight torch residuals.
-- Backlog-only Task-101 owns supported-path reachability, untrusted-archive
-  exposure, fixed-version availability, and release disposition. Remediation
-  direction remains unselected. Technical/security review may continue, but
-  the blocking frontend gate prevents PR #67 merge and unsigned-preview or
-  signed-candidate publication until Task-101 passes or the required narrow,
-  time-bounded exception is approved and implemented.
+  and its August 11 closeout inventory contained exactly the eight documented
+  torch residuals.
+- Dependabot alert `#76` opened after that closeout for high-severity
+  development-transitive `extract-zip==2.0.1` through
+  `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`.
+- Task-101 is the active unique follow-up. Its validated remediation uses Node
+  `>=22.12.0` and exact `puppeteer@25.8.0` /
+  `@puppeteer/browsers@3.2.1`, removes `extract-zip` from the lock and installed
+  graphs, and restores a clean blocking frontend audit. The vulnerable path was
+  absent from the shipped Python runtime image and normal-user Windows package.
+  Final PR #72 CI/CD run `32308971393` and Task-087 run `32308971392` passed at
+  `820b649`. PR #72 squash-merged as `0cc189c`; exact-main CI/CD run
+  `32310281115` and Task-087 run `32310281051` passed, and alert `#76` closed as
+  fixed without dismissal.
+- PR #73 recorded the post-merge governance checkpoint and squash-merged as
+  `9276084`; exact-main CI/CD run `32377736719` and Task-087 run `32377736797`
+  passed. This merge integrates that current `main` into Draft PR #67 while
+  preserving ADR-019 and the branch's recorded evidence.
+- Task-087 review may continue, but new implementation, PR #67 merge, unsigned
+  preview publication, and signed-candidate publication remain paused until
+  the branch's required exact-head matrix passes and Task-087 is explicitly
+  resumed.
 
 ## Qualification And Handoff Requirements
 

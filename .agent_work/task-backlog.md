@@ -1,12 +1,13 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: August 19, 2026
+**Last Updated**: August 20, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases until the
 normal-user package is satisfactory, then complete Task-100 production signing
-and managed-endpoint qualification in October. Task-101 must disposition the
-new high-severity development dependency alert before PR #67 merge or preview/
-candidate publication. Required release and handoff work takes priority over
+and managed-endpoint qualification in October. Task-099's scoped August gate
+and Task-101's PR #72/default-branch gates passed; current `main` is now
+integrated into PR #67, and Task-087 remains paused until that branch's new
+exact head passes. Required release and handoff work takes priority over
 Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
 
@@ -16,28 +17,13 @@ Task-058/059 stretch work.
 
 | Order | Task | Status | Estimate | Dependencies | Required outcome |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | NOT_STARTED | 0.5-1 day assessment; remediation/upstream timing TBD | Completed Tasks 098/099; alert `#76`; current npm lock graph; upstream fixed-version availability | Classify supported-path reachability and untrusted-archive exposure, select a validated fix/replacement or approved time-bounded exception, and restore the blocking frontend security gate |
-| 2 | `TASK-096` User-Initiated Exit And Container Stop | NOT_STARTED | 2-4 days | Task-087 launcher feasibility gate; current stop scripts | Confirmed Exit/Stop works on Docker and Podman without deleting named volumes |
-| 3 | `TASK-097` Podman CPU/GPU Final Path Qualification | NOT_STARTED | 3-5 days plus environment validation | Tasks 090, 098, 099, 101, 087, and 096 | Podman CPU and GPU/CDI pass final-package qualification without Docker Desktop |
-| 4 | `TASK-091` Owner-Runnable Release Qualification | NOT_STARTED | 3-6 days | Stable unsigned package/preview shape; fixture/harness custody | Preview-based harness and custody rehearsal are ready for Task-100; signed acceptance completes under Task-100 |
-| 5 | `TASK-092` Documentation Currentness And Information Architecture | NOT_STARTED | Stage A 1-2 days; Stage B as approved | Stable unsigned package behavior and shape | Repo docs, user docs, release notes, external Setup Guide, and demo video agree |
-| 6 | `TASK-093` Persistent Data Lifecycle And Recovery Rehearsal | NOT_STARTED | 1-2 days minimum | Runtime profiles and package lifecycle stable | Safe owner-run upgrade, rollback, cleanup, and recovery procedure |
-| 7 | `TASK-100` Production Signing And Managed-Endpoint Qualification | NOT_STARTED | 3-5 days plus signer/endpoint scheduling | October; Task-101 security gate clear; satisfactory unsigned preview recorded; stable source/package shape from Tasks 087/096/097; Tasks 091-093 release, docs, and lifecycle prerequisites ready; approved signer and endpoint window | Signed `v0.1.3-rc.N` verifies after packaging and passes representative managed-endpoint acceptance |
-| 8 | `TASK-094` Evidence-Gated Support Snapshot | EVIDENCE_GATED | 1-3 days if selected | Pilot/support evidence | Implement only if real feedback shows a support-diagnostics gap |
-
-### Task-101 Boundary
-
-- Dependabot alert `#76` reports high-severity `GHSA-jmr9-qjv8-65gv` /
-  `CVE-2026-56876` against development-only transitive `extract-zip==2.0.1`
-  through `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`.
-- GitHub currently lists no patched `extract-zip` version. Task-101 must
-  classify supported-path reachability and untrusted-archive exposure before
-  selecting remediation, replacement, or any narrow time-bounded exception.
-- Technical/security review and reviewer feedback may continue. The failing
-  blocking frontend security gate prevents PR #67 merge and any
-  `v0.1.3-preview.N` or `v0.1.3-rc.N` publication until Task-101 passes.
-- Task-101 remains backlog-only until selected; do not create an active task
-  file or imply that a remediation direction has been approved.
+| 1 | `TASK-096` User-Initiated Exit And Container Stop | NOT_STARTED | 2-4 days | Task-087 helper/security pattern; current stop scripts | Confirmed Exit/Stop works on Docker and Podman without deleting named volumes |
+| 2 | `TASK-097` Podman CPU/GPU Final Path Qualification | NOT_STARTED | 3-5 days plus environment validation | Tasks 090, 098, 099, 101, 087, and 096 | Podman CPU and GPU/CDI pass final-package qualification without Docker Desktop |
+| 3 | `TASK-091` Owner-Runnable Release Qualification | NOT_STARTED | 3-6 days | Stable unsigned package/preview shape; fixture/harness custody | Preview-based harness and custody rehearsal are ready for Task-100; signed acceptance completes under Task-100 |
+| 4 | `TASK-092` Documentation Currentness And Information Architecture | NOT_STARTED | Stage A 1-2 days; Stage B as approved | Stable unsigned package behavior and shape | Repo docs, user docs, release notes, external Setup Guide, and demo video agree |
+| 5 | `TASK-093` Persistent Data Lifecycle And Recovery Rehearsal | NOT_STARTED | 1-2 days minimum | Runtime profiles and package lifecycle stable | Safe owner-run upgrade, rollback, cleanup, and recovery procedure |
+| 6 | `TASK-100` Production Signing And Managed-Endpoint Qualification | NOT_STARTED | 3-5 days plus signer/endpoint scheduling | October; Task-101 security gate clear; satisfactory unsigned preview recorded; stable source/package shape from Tasks 087/096/097; Tasks 091-093 release, docs, and lifecycle prerequisites ready; approved signer and endpoint window | Signed `v0.1.3-rc.N` verifies after packaging and passes representative managed-endpoint acceptance |
+| 7 | `TASK-094` Evidence-Gated Support Snapshot | EVIDENCE_GATED | 1-3 days if selected | Pilot/support evidence | Implement only if real feedback shows a support-diagnostics gap |
 
 ### Task-096 Boundary
 
@@ -115,8 +101,8 @@ Task-058/059 stretch work.
 
 | Order | Task | Status | Estimate | Start gate |
 | ---: | --- | --- | --- | --- |
-| 9 | `TASK-058` Background Detection Jobs And Durable Run State | CONDITIONAL | 3-5 days | Tasks 090, 098, 099, 101, 087, 096, and 097 pass; no pilot blocker; September 18 remains credible |
-| 10 | `TASK-059` Backend Layer Decomposition And Logging Consolidation | CONDITIONAL | 3-5 days | Task-058 accepted and remaining schedule margin is still safe |
+| 8 | `TASK-058` Background Detection Jobs And Durable Run State | CONDITIONAL | 3-5 days | Tasks 090, 098, 099, 101, 087, 096, and 097 pass; no pilot blocker; September 18 remains credible |
+| 9 | `TASK-059` Backend Layer Decomposition And Logging Consolidation | CONDITIONAL | 3-5 days | Task-058 accepted and remaining schedule margin is still safe |
 
 August 28 is the latest responsible Task-058 capacity checkpoint, not an
 earliest start date. Task-058 may begin earlier when all gates pass.
@@ -154,9 +140,9 @@ Parking lot:
 | `TASK-095` Governance And AI-Ready Handoff Foundation | Active in Sprint 09; Phase A complete, Phase B continues |
 | `TASK-090` Runtime, Custom-Image, And Dependency Security Investigation | Completed; Task-098 scope approved |
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
-| `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and the inventory returned at that closeout to the eight documented torch residuals |
-| `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Backlog-only immediate security gate for high-severity alert `#76`; review may continue, but PR #67 merge and preview/candidate publication remain blocked pending disposition |
-| `TASK-087` Host-Side TLS Repair Control Plane | Technical/security review may continue; merge and normal-user unsigned preview publication are gated by Task-101, while signing and representative managed-endpoint qualification remain in Task-100 |
+| `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
+| `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Active exact-head gate; PR #72/default-branch remediation and PR #73 checkpoint passed, and current `main` through `9276084` is integrated into PR #67; the new exact-head matrix remains before completion |
+| `TASK-087` Host-Side TLS Repair Control Plane | Paused / reconciliation-gated; PR #67 remains open for reviewer input, while new implementation, merge, and preview/candidate publication wait for green exact-head checks and the explicit resume transition |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---
@@ -165,8 +151,10 @@ Parking lot:
 
 | Date | Control |
 | --- | --- |
+| August 20 | PR #73/default-main checkpoint passed and current `main` was integrated into PR #67; exact-head validation remains before Task-101 completion and Task-087 resumption |
+| August 20 | PR #72/default-branch security gates recorded as passed; PR #67 semantic reconciliation became the next Task-101 gate |
 | August 19 | Task-087 Proceed-to-unsigned-preview decision recorded; production signing assigned to Task-100 |
-| August 19 | High-severity alert `#76` assigned to backlog Task-101; review may continue, but merge and preview/candidate publication are gated |
+| August 19 | Task-101 selected as the active high-severity alert `#76` gate; Task-087 implementation/package work paused while PR #67 remained reviewable |
 | August 28 | Required scope and Task-058 capacity checkpoint |
 | September 18 | Code complete |
 | September 25 | Feature/documentation complete and satisfactory unsigned-package target |

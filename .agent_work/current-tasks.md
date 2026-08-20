@@ -1,11 +1,14 @@
 # Current Tasks - Sprint 09
 
 **Sprint Period**: August 8-August 21, 2026
-**Last Updated**: August 19, 2026
-**Focus**: Complete Task-087 technical/security review and integrate the
-launcher into a normal-user unsigned preview package while keeping the frozen
-pilot and cdcai boundaries unchanged. Production signing is scheduled as
-Task-100 in October after the package is satisfactory.
+**Last Updated**: August 20, 2026
+**Focus**: Validate Draft PR #67's new semantic-reconciliation head before
+Task-087 resumes. PR #72, the default-branch alert gate, PR #73's checkpoint,
+and integration of `main` through `9276084` into PR #67 have passed their
+content gates. After the branch's exact-head matrix and subsequent lifecycle
+update pass, continue Task-087 technical/security review and unsigned preview-
+package integration under ADR-019; production signing remains Task-100 work in
+October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -14,10 +17,11 @@ Task-100 in October after the package is satisfactory.
   prereleases and are never marked `Latest`.
 - `v0.1.3-rc.N` is reserved for the signed production-shaped candidate created
   under Task-100.
-- Dependabot alert `#76` is an open high-severity development-only transitive
-  `extract-zip==2.0.1` finding with no current patched version. Reviewer input
-  may continue, but Task-101 gates PR #67 merge and preview/candidate
-  publication.
+- Dependabot alert `#76` closed as fixed, without dismissal, after PR #72
+  squash-merged as `0cc189c`. PR #73's checkpoint then squash-merged as
+  `9276084` and passed exact-main checks. Task-101 remains active only for PR
+  #67 exact-head validation and the explicit lifecycle transition; Task-087
+  remains paused through those downstream gates.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -61,37 +65,81 @@ Phase B governance and final handoff maintenance continue through closeout
 **Status**: COMPLETED - PR #68 merged the narrow dependency fixes as
 `f460445`; PR #69 merged the root-manifest refresh as `0133b50`. Dynamic graph
 run `31510493332` replaced the stale snapshot, alert `#74` closed without
-dismissal, the SBOM contains only `aiohttp==3.14.3`, and the August 11
-closeout inventory was exactly the eight documented torch residuals
+dismissal, the SBOM contains only `aiohttp==3.14.3`, and the August 11 closeout
+inventory was exactly the eight documented torch residuals
 **Completed**: August 11, 2026
 **Type**: C (Security Remediation / Release Gate)
 **Priority**: HIGH
 **Task File**:
 `.agent_work/tasks/active/TASK-099-august-dependency-advisory-follow-up.md`
 
-**Release Boundary**: Task-099 cleared its scoped dependency-security release
-gate on August 11. Alert `#76` opened August 12 and belongs to backlog-only
-Task-101 rather than rewriting Task-099. The current blocking frontend gate
-prevents PR #67 merge and Task-087 preview or Task-100 candidate publication
-until Task-101 passes; technical/security review may continue.
+**Release Boundary**: Task-099 cleared its scoped dependency-security gate on
+August 11. Alert `#76` opened afterward and belongs to separately activated
+Task-101 rather than rewriting Task-099. PR #72 restored the blocking frontend
+gate and alert `#76` closed as fixed; Task-087 resumption, PR #67 merge, and
+candidate publication remain paused through Task-101's downstream
+reconciliation gate. Reviewer input may continue.
+
+### **TASK-101: extract-zip Advisory Assessment And Release-Gate Disposition**
+
+**Status**: IN_PROGRESS - PR #72/default-branch security gates and PR #73's
+checkpoint passed; this merge integrates `main` through `9276084` into PR #67,
+whose exact-head validation and subsequent lifecycle update remain open
+**Type**: C (Security Remediation / CI And Release Gate)
+**Priority**: HIGH
+**Estimated Effort**: 1-2 days plus CI rerun timing
+**Task File**:
+`.agent_work/tasks/active/TASK-101-extract-zip-advisory-release-gate.md`
+
+**Current Scope And Gates**:
+
+- Preserve Task-099 as the dated August 11 closeout. Task-101 uniquely owns
+  alert `#76`, the current npm lock graph, and restoration of the blocking
+  frontend dependency-security gate.
+- Treat the finding as a CI/developer-browser-install risk, not a shipped
+  TowerScout runtime dependency. Do not claim exploitation or end-user runtime
+  exposure without new evidence.
+- Preserve the locally validated Node `>=22.12.0` / Puppeteer `25.8.0` path,
+  whose locked browser tooling removes vulnerable `extract-zip`; do not use
+  `npm audit fix --force`, weaken the high-severity gate, or dismiss the alert.
+- Preserve the green final PR #72 evidence at `820b649`: CI/CD run
+  `32308971393` and Task-087 run `32308971392`. Preserve the exact-main
+  post-merge evidence at squash commit `0cc189c`: CI/CD run `32310281115` and
+  Task-087 run `32310281051` passed, and alert `#76` closed as fixed without
+  dismissal.
+- Preserve PR #73's post-merge governance checkpoint at squash commit
+  `9276084`: exact-main CI/CD run `32377736719` and Task-087 run `32377736797`
+  passed. This merge semantically integrates that current `main` into PR #67
+  while preserving ADR-019 and the branch's recorded evidence.
+- Align the maintained Node baseline across CI, `package.json`, and the Docker
+  frontend stage, and remove the redundant Puppeteer browser-download path
+  from Task-087 workflows that already install a pinned browser separately.
+- Keep the Docker frontend-stage build blocking on pull requests; the full
+  runtime-image build remains the separately documented main-branch advisory
+  check.
+- Treat those narrowly scoped Task-101 security-workflow edits as gate work;
+  they do not resume broader Task-087 implementation.
+- Require clean install/audit/lock-graph, frontend bundle/contracts, Task-087
+  browser/Windows-helper, and Docker build validation before acceptance.
+- Require the reconciled PR #67 branch's exact-head matrix to pass. Then use a
+  subsequent governance update to mark Task-101 complete and explicitly resume
+  Task-087, and require checks again at that new head before new Task-087
+  implementation, merge, or candidate-package work.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS - the exact-source `7ef879c` full-runnable CPU packages
-passed Docker and approved-provider Podman Google/Azure TLS repair plus
-controlled recovery. Follow-up head `3990bc0` closes provider-installer
-dependency drift with a hash-approved offline wheelhouse. Head `5737a58`
-enforces the selected Windows rootless-Podman boundary; its exact-source
-package rejected rootful mode before provider discovery or container mutation
-while preserving the user's machine mode and volumes. The August 19 decision
-is Proceed to unsigned preview integration. Technical/security review,
-Task-101 dependency-gate disposition, normal-release-package integration, and
-clean unmanaged-machine preview validation remain open; signing and
-representative managed-endpoint validation move to Task-100 in October.
+**Status**: PAUSED / RECONCILIATION-GATED - the exact-source `7ef879c`
+full-runnable CPU packages passed Docker and approved-provider Podman
+Google/Azure TLS repair plus controlled recovery. Follow-up head `3990bc0`
+closed provider-installer dependency drift with a hash-approved offline
+wheelhouse, and head `5737a58` enforced the selected Windows rootless-Podman
+boundary without changing machine mode or volumes. PR #72 and alert `#76`
+default-branch reconciliation passed; the current merge preserves this evidence
+and ADR-019 while the new exact PR #67 head remains unvalidated.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Complete review and preview integration in Sprint 09;
-production signing is separately estimated under Task-100
+**Remaining Estimate**: 1-2 days after PR #67 reconciliation from the
+preserved PR #67 checkpoint
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 
@@ -128,11 +176,9 @@ production signing is separately estimated under Task-100
 - Keep all existing `Task-087-validation-*` packages validation-only. Build a
   new normal-user package for any `v0.1.3-preview.N` publication; do not rename
   or upload an existing validation ZIP.
-- Continue technical/security review, but do not merge or publish a preview
-  until Task-101 dispositions alert `#76` and restores the blocking frontend
-  security gate. Then test the actual GitHub download path on an approved
-  unmanaged clean Windows machine with truthful unsigned and support-boundary
-  warnings.
+- Keep new launcher/package implementation, merge, and publication paused until
+  the reconciled PR #67 exact-head CI/CD and Task-087 matrices pass. Reviewer
+  clarification and documentation review may continue during that gate.
 - Treat the August 19 decision as Proceed to unsigned preview integration under
   ADR-019. Signing, `v0.1.3-rc.N`, and representative managed-endpoint
   qualification belong to Task-100 in October after the satisfactory-package
@@ -163,41 +209,33 @@ production signing is separately estimated under Task-100
 
 ## Sprint 09 Sequence
 
-1. Close Sprint 08 and attribute the August 11 Task-099 completion to Sprint
-   09: complete through this tracking follow-up.
-2. Draft PR #67 is reconciled with current `main` while retaining both the
-   Task-099 closeout and the current Task-087 implementation state.
-3. Exact-head checks through implementation checkpoint `5737a58` are green
-   locally, and all required Draft PR checks were green on evidence head
-   `ae78b06`. The current PR frontend test now fails on high-severity
-   Dependabot alert `#76`; Task-101 owns its separate disposition.
-4. The exact-source full-runnable Task-087 package was generated and verified
-   in the approved development environment.
-5. Docker and approved-provider Podman Google/Azure plus controlled recovery
-   validation passed from exact-head packages.
-6. Podman-provider installer dependency drift is resolved. Rootless Podman CPU
-   is the provisional native-forwarding boundary, and the exact-source package
-   now enforces that boundary without changing machine mode or runtime state.
-7. Continue technical/security review and integrate the launcher into a new
-   normal-user unsigned preview-package path with accurate manifests,
-   checksums, notices, and user guidance. Do not merge or publish until
-   Task-101 restores the blocking frontend security gate.
-8. Record the August 19 Proceed-to-preview decision and keep production signing
-   plus representative managed-endpoint validation scheduled as Task-100 for
-   October after package satisfaction.
-9. Test each published `v0.1.3-preview.N` through the actual GitHub download
+1. [x] Preserve the completed Task-099 evidence and activate Task-101 for the
+   newly disclosed alert `#76`.
+2. [x] Complete Task-101's supported Node/Puppeteer remediation and required
+   clean-install, audit, lock-graph, frontend, browser, Windows-helper, and
+   Docker-build validation.
+3. [x] Merge PR #72 after its final exact-head checks pass, then confirm alert
+   `#76` closes without dismissal on the default branch.
+4. [x] Bring the accepted Task-101 change into Draft PR #67 and preserve its
+   recorded ADR-019 proceed disposition during semantic reconciliation.
+5. [ ] Require green checks at the new exact PR #67 head.
+6. [ ] Explicitly resume Task-087 only after steps 4-5 pass.
+7. [ ] Continue technical/security review and integrate the launcher into a
+   new normal-user unsigned preview-package path with accurate manifests,
+   checksums, notices, and user guidance.
+8. [ ] Test each published `v0.1.3-preview.N` through the actual GitHub download
    path on an approved unmanaged clean Windows machine without security
    exclusions or bypass instructions.
-10. Select and pass Task-101 before PR #67 merge or preview publication, then
-    select Task-096 followed by Task-097. Keep Tasks 091-093 behind the stable
-    unsigned package/runtime-shape boundary; Task-091 prepares the owner-
-    runnable harness before Task-100, while signed acceptance occurs under
-    Task-100.
+9. [ ] Keep production signing and representative managed-endpoint validation
+   scheduled as Task-100 after the ADR-019 satisfactory-package decision.
+10. [ ] Select Task-096 next, followed by Task-097. Keep Tasks 091-093 behind
+    the stable unsigned package/runtime-shape boundary; Task-091 prepares the
+    owner-runnable harness before Task-100.
 
 Task-058 and Task-059 remain conditional stretch work. Task-094 remains
-evidence-gated. Task-100 remains in the backlog until its October entry gate is
-met. Task-101 remains backlog-only until selected and has no active task file.
-Task-099 stays in `tasks/active/` until Sprint 09 closeout.
+evidence-gated. Task-101 is active for PR #67 exact-head validation and the
+subsequent lifecycle transition; Task-087 remains active in tracking but paused
+on those gates. Task-099 stays in `tasks/active/` until Sprint 09 closeout.
 
 ---
 

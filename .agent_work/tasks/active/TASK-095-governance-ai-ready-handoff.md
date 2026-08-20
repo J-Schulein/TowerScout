@@ -79,6 +79,124 @@ optional AI-assisted development.
 
 ## Implementation Log
 
+### 2026-08-20 - PR #67 Current-Main Reconciliation
+
+**Objective**: Preserve the accepted Task-087/ADR-019 branch record while
+integrating the completed Task-101/default-branch state into Draft PR #67.
+
+**Context**: PR #73 squash-merged the post-PR72 checkpoint as `9276084`, and
+its exact-main CI/CD and Task-087 workflows passed. PR #67 remained Draft and
+conflicted at `c095389` with nineteen evidence-bearing branch commits.
+
+**Decision**: Merge current `main` normally, resolve the shared control-plane
+sources semantically, and leave Task-101 active plus Task-087 paused until the
+new exact PR #67 head passes. Preserve the unsigned-preview/Task-100 sequence.
+
+**Execution**: Integrated `main` through `9276084` without rebasing or
+force-pushing. Preserved ADR-019, current Task-087 evidence, the immutable
+pilot/cdcai boundary, and Task-100 while importing the Node/Puppeteer security
+baseline and current Task-101 gate state.
+
+**Validation**: PR #73/default-main evidence is green. Local reconciliation
+passed the broad executable unit suite, clean npm/audit and exact dependency
+graph, bundle/contracts, Docker frontend plus full-image builds with the CA
+secret absent and present, secret non-persistence inspection, both agent-work
+validators, and diff checks. Endpoint antivirus blocked local loading of the
+unchanged PowerShell host-helper script; no bypass was used, and the new exact
+PR #67 workflow matrix remains pending. This entry does not complete Task-101
+or resume Task-087.
+
+**Next**: Push the merge commit and require green exact-head checks before a
+separate lifecycle-transition update.
+
+### 2026-08-20 - Task-101 Post-Merge Governance Checkpoint
+
+**Objective**: Reconcile the current control-plane sources after the accepted
+Task-101 remediation reached the default branch.
+
+**Context**: PR #72 final head `820b649` passed CI/CD run `32308971393` and
+Task-087 run `32308971392`, then squash-merged as `0cc189c`. Exact-main CI/CD
+run `32310281115` and Task-087 run `32310281051` passed. Alert `#76` is fixed
+through dependency reconciliation and has no dismissal metadata.
+
+**Decision**: Mark the PR #72 and default-branch alert gates complete without
+marking Task-101 complete or resuming Task-087. Task-101 remains active for PR
+#67 semantic integration and exact-head validation; Task-087 remains paused /
+reconciliation-gated through that checkpoint.
+
+**Execution**: Updated the current task, backlog, requirement, design, roadmap,
+pilot, handoff, task, decision, and agent-guidance sources. Historical task
+logs, completed-task records, pilot assets, and the cdcai hold remain unchanged.
+
+**Validation**: PASS. The quick workspace checker, canonical `.agent_work`
+validator, and `git diff --check` passed on August 20. The checkpoint records
+only sanitized GitHub identifiers and state.
+
+**Next**: Merge current `main` normally into Draft PR #67, resolve the shared
+governance sources semantically while preserving ADR-019 and branch evidence,
+and require the reconciled exact-head matrix before closing Task-101 or
+resuming Task-087.
+
+### 2026-08-19 - Task-101 Quality Review Gate Reconciled
+
+**Objective**: Keep the Task-101 evidence and Task-087 resume boundary
+unambiguous after PR #72's independent quality review.
+
+**Context**: The implementation head passed its main CI and all three Task-087
+compatibility jobs. The review found the committed evidence state lagged those
+runs and several current sources could be read as resuming Task-087 before PR
+#67's new exact-head validation.
+
+**Decision**: Record implementation head `a87ab53`, CI/CD run `32300398378`,
+and Task-087 run `32300398377`. Standardize the downstream order as PR #72
+merge, alert `#76` closure without dismissal, PR #67 semantic integration,
+green PR #67 exact-head checks, and only then Task-087 resumption. Keep final
+PR #72 check evidence in the PR description so an evidence-only commit does
+not invalidate its own claim.
+
+**Execution**: Reconciled the current task, backlog, requirement, design, ADR,
+roadmap, Task-087, handoff, and Copilot sources. The CI quality ratchet also
+adds a blocking Docker frontend-stage PR job and focused semantic contract.
+
+**Validation**: The focused suite passed `12` tests; the uncached Docker
+frontend-stage build, CI workflow summary, both agent-work validators, and
+`git diff --check` passed. No raw log, provider data, certificate detail, or
+local path was added to repository evidence.
+
+**Next**: Require the review-remediation commit's exact-head PR checks, then
+preserve the ordered post-merge gates without resuming Task-087 early.
+
+### 2026-08-19 - Task-101 Activated And Task-087 Paused
+
+**Objective**: Reflect the project lead's decision to resolve the blocking
+dependency-security gate before continuing Task-087 implementation.
+
+**Context**: Alert `#76` is a development/browser-install exposure rather than
+an end-user runtime dependency. The frontend audit is intentionally blocking,
+and a supported upstream removal path requires a tested Node/Puppeteer change.
+
+**Decision**: Select Task-101 directly into the active Sprint 09 lane and
+pause, rather than discard, Task-087. Keep PR #67 open for reviewer input and
+preserve its evidence. Resume implementation, merge, and package work only
+after Task-101 passes.
+
+**Execution**: Created the active Type C Task-101 record, marked Task-087
+dependency-gated, and reconciled current roadmap, requirement, design, handoff,
+and agent-guidance sources. Completed Task-099 history remained unchanged.
+
+**Output**: One immediate implementation lane, an explicit paused-but-
+reviewable Task-087 state, and a testable security-gate path back to candidate
+package work.
+
+**Validation**: PASS for the lifecycle transition on August 19, 2026. The
+TowerScout quick workspace checker and canonical `.agent_work` validator
+passed, `git diff --check` found no whitespace errors, and current relative
+Markdown links resolved across the changed files.
+
+**Next**: Implement and validate Task-101 from current `main`, reconcile alert
+`#76`, bring the accepted result into PR #67, and then resume Task-087 from its
+preserved checkpoint.
+
 ### 2026-08-19 - Alert 76 Current-Gate Reconciliation
 
 **Objective**: Keep the live security inventory and release gates accurate

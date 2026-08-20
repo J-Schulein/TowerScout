@@ -1,6 +1,6 @@
 # TowerScout Handoff Guide
 
-**Last Updated**: August 19, 2026
+**Last Updated**: August 20, 2026
 **Operational Closeout**: October 30, 2026
 **Hard Project End**: October 31, 2026
 
@@ -36,12 +36,16 @@ The current Pilot/cdcai hold is:
   complete through PR #51 / `e499b50` with its exact July 27 closeout state
 - Task-099 August dependency-advisory follow-up: complete through PRs #68/#69
   and `f460445`/`0133b50`; main CI and the root dependency graph passed,
-  alert `#74` closed without dismissal, and the August 11 closeout contained
-  only the eight documented torch residuals
-- Task-101 high-severity `extract-zip` advisory assessment and release-gate
-  disposition: backlog-only; review may continue, but PR #67 merge and preview/
-  candidate publication are blocked while the frontend audit remains red
-- Task-087 Google/Azure guided provider TLS repair on Docker/Podman
+  alert `#74` closed without dismissal, and its August 11 closeout inventory
+  contained the eight documented torch residuals
+- Task-101 high-severity development-transitive `extract-zip` remediation and
+  release-gate disposition: PR #72 squash-merged as `0cc189c`, exact-main checks
+  passed, and alert `#76` closed as fixed without dismissal; PR #73 recorded
+  the checkpoint and squash-merged as `9276084`, with exact-main CI/CD and
+  Task-087 workflows passing; this merge integrates that `main` into PR #67,
+  leaving its exact-head validation and later lifecycle update open
+- Task-087 Google/Azure guided provider TLS repair on Docker/Podman: paused /
+  reconciliation-gated while Draft PR #67 remains open for reviewer input
 - Task-096 user-confirmed Exit/Stop on Docker/Podman
 - Task-097 Podman CPU/GPU final-path qualification
 - Task-100 October production signing and representative managed-endpoint
@@ -77,12 +81,18 @@ are recorded in
 Task-099 records the completed post-closeout advisory remediation, including
 the later js-yaml npm audit finding and root graph reconciliation, in
 `.agent_work/tasks/active/TASK-099-august-dependency-advisory-follow-up.md`.
-Alert `#76`, opened after that closeout, is separately assigned to backlog
-Task-101. Task-087 technical/security review may continue, but merge and
-normal-user unsigned-preview publication wait for Task-101. Existing Task-087
+Alert `#76` opened after that closeout and is owned by active Task-101 in
+`.agent_work/tasks/active/TASK-101-extract-zip-advisory-release-gate.md`.
+Task-087 remains preserved and reviewable in PR #67, but new implementation,
+merge to `main`, and preview/candidate publication wait for green checks at the
+new reconciliation head. A subsequent governance update must then mark
+Task-101 complete, explicitly resume Task-087, and pass checks again at that
+new head before further implementation. PR #72 and alert `#76` default-branch
+reconciliation plus PR #73's checkpoint already passed. Existing Task-087
 validation artifacts remain nonpublishable. Task-100 owns production signing,
 signed-candidate packaging, and representative managed-endpoint qualification
-in October.
+in October; Task-087's other package, provider/recovery, Podman, and endpoint
+gates remain closed.
 
 ## Runtime And Package Model
 

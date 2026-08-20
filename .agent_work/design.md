@@ -1,6 +1,6 @@
 # TowerScout Current Technical Design
 
-**Last Updated**: August 19, 2026
+**Last Updated**: August 20, 2026
 **Scope**: Unsigned fix-first preview iteration, four-profile runtime
 qualification, October production signing, and cdcai handoff
 **Archived Pre-Rebaseline Design**:
@@ -38,9 +38,11 @@ The application includes:
 ### During Task-087 Validation
 
 - `feature/task-087-windows-launcher-prototype` remains a short-lived branch
-  reconciled with verified `main` commit `3932abf` and reviewed through Draft
-  PR #67. Rebased implementation checkpoint `1908670` preserves the accepted
-  launcher/runtime tree while retaining the Sprint 09 and Task-099 history.
+  reviewed through Draft PR #67. Historical rebased checkpoint `1908670` was
+  reconciled with then-current `main` commit `3932abf`; the evidence-bearing
+  branch then advanced to pre-merge head `c095389`. This merge integrates
+  current `main` through PR #73 / `9276084` while preserving the accepted
+  launcher/runtime tree, ADR-019, and Sprint 09 evidence.
 - Validation artifacts are built only from an exact commit and use
   `Task-087-validation-<short-SHA>` rather than either the
   `v0.1.3-preview.N` or `v0.1.3-rc.N` release line.
@@ -53,8 +55,9 @@ The application includes:
   uses only the organization-approved internal signing/endpoint-validation
   channel; repository evidence contains hashes, source identity, sanitized
   results, and no secrets or local certificate detail.
-- `main`, the frozen `v0.1.2` release, and `cdcai/TowerScout` remain unchanged
-  throughout the checkpoint.
+- Validation artifacts do not mutate `main`. The frozen `v0.1.2` release and
+  `cdcai/TowerScout` remain unchanged, and Draft PR #67 does not merge to
+  `main` until its remaining exact-head and release gates pass.
 - The August 19 Proceed decision makes the Draft PR eligible for normal
   technical/security review, merge, and separate preview-package integration.
   Existing validation artifacts remain nonpublishable and do not themselves
@@ -289,22 +292,30 @@ The current security boundary is:
 7. PR #68 merged the narrow fixes as `f460445`; PR #69 merged the root graph
    refresh as `0133b50`. Graph run `31510493332` removed stale
    `aiohttp==3.14.2`, alert `#74` closed without dismissal, and the repository
-   returned on August 11 to the eight documented medium/low torch residuals
-   with no open critical/high alert at that closeout.
+   returned at its August 11 closeout to the eight documented medium/low torch
+   residuals with no open critical/high alert.
 8. All-severity SARIF reporting remains advisory, while new or reintroduced
    critical/high dependency findings are blocking unless covered by a narrow,
    unexpired exception. The Task-099 discovery confirms that ratchet is
    operating as designed.
-9. GitHub opened alert `#76` on August 12 for high-severity
-   `extract-zip==2.0.1` in the development-only path
-   `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip@2.0.1`.
-   The dependency is not copied into the product runtime image or end-user ZIP,
-   but the browser-install test path can execute it and the blocking npm audit
-   fails. No patched `extract-zip` release is currently listed.
-10. Backlog Task-101 owns supported-path reachability and a validated
-    remediation or authorized residual-high disposition. PR #67 review may
-    continue, but merge, preview publication, optional architecture work, and
-    candidate acceptance remain behind that gate.
+9. Dependabot alert `#76` opened after Task-099 for high-severity
+   development-transitive `extract-zip==2.0.1` through
+   `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`.
+   It is not present in the shipped Python runtime image or normal-user Windows
+   package, but the maintained browser-install path can execute it.
+10. Active Task-101 established Node `>=22.12.0`, exact
+    `puppeteer@25.8.0`, and `@puppeteer/browsers@3.2.1`. The resulting lock
+    and installed graphs contain no `extract-zip`, and the blocking audit is
+    clean. Final PR #72 CI/CD run `32308971393` and Task-087 run `32308971392`
+    passed at `820b649`; PR #72 squash-merged as `0cc189c`. Exact-main CI/CD
+    run `32310281115` and Task-087 run `32310281051` passed, and alert `#76`
+    closed as fixed without dismissal.
+11. PR #73 recorded the post-merge checkpoint and squash-merged as `9276084`;
+    exact-main CI/CD run `32377736719` and Task-087 run `32377736797` passed.
+    This merge integrates that current `main` into Draft PR #67 while preserving
+    ADR-019 and the branch's evidence. Task-101 remains active for exact-head
+    validation, and Task-087 stays paused until that gate passes and its resume
+    transition is recorded.
 
 ## Task Dependency Flow
 
@@ -317,19 +328,17 @@ TASK-090 bounded security investigation [COMPLETE]
         v
 TASK-098 dependency-security remediation/disposition gate [COMPLETE]
         |
-        +---------------------------+
-        |                           |
-        v                           v
-TASK-087 universal provider   TASK-099 August advisory
-TLS repair [IN PROGRESS]      follow-up [COMPLETE]
-        |                           |
-        |                           v
-        |                     TASK-101 extract-zip
-        |                     gate [BACKLOG]
-        v                           |
-TASK-096 user Exit/Stop             |
-        |                           |
-        +---------------------------+
+        v
+TASK-099 August advisory follow-up [COMPLETE]
+        |
+        v
+TASK-101 extract-zip advisory gate [IN PROGRESS: PR #67 EXACT-HEAD]
+        |
+        v
+TASK-087 universal provider TLS repair [PAUSED / RECONCILIATION-GATED]
+        |
+        v
+TASK-096 user Exit/Stop
         |
         v
 TASK-097 Podman CPU/GPU qualification
@@ -358,10 +367,12 @@ handoff material current. Task-098 is separately scoped from Task-090 so the
 investigation cannot hide dependency upgrades, CPU/CUDA compatibility work, or
 four-profile regression effort. Task-099 preserved the same governance
 principle for post-closeout disclosures and cleared its scoped dependency-
-security gate on August 11. Task-087 continues under its own remaining
-qualification gates. Task-101 is the new blocking high-severity dependency
-follow-up and does not reopen the dated Task-099 record. Task-100 remains
-backlog work until October and the ADR-019 satisfactory-package entry decision.
+security gate on August 11. Task-101 closed alert `#76` through the accepted
+default-branch graph, integrated current `main` into PR #67, and now owns only
+that branch's exact-head validation. Task-087 remains reviewable but paused
+until the gate passes and the explicit resume transition is recorded. Task-100
+remains backlog work until October and the ADR-019 satisfactory-package entry
+decision.
 
 ## Validation Strategy
 

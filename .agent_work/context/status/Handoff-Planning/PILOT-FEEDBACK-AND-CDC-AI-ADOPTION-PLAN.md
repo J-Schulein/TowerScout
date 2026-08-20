@@ -1,7 +1,7 @@
 # TowerScout Pilot Feedback And cdcai Adoption Plan
 
 **Decision Date**: July 10, 2026; rebaselined July 23, 2026
-**Last Reconciled**: August 19, 2026
+**Last Reconciled**: August 20, 2026
 **Status**: CURRENT for the Pilot Package and cdcai hold
 **Forward Development Plan**:
 [`2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md`](./2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md)
@@ -76,10 +76,10 @@ controlled recovery. Follow-up evidence closes the hash-pinned Podman provider
 installer gap and enforces the selected Windows rootless-Podman boundary while
 failing closed before mutation in rootful mode. These artifacts remain
 validation-only and cannot be renamed or published. Under the August 19
-ADR-019 decision, the next work is technical/security review and a newly
-integrated normal-user unsigned preview package. Task-100 owns production
-signing and representative managed-endpoint validation in October after that
-package is satisfactory. See the current sanitized
+ADR-019 decision, the next work after the Task-101 exact-head gate is technical/
+security review and a newly integrated normal-user unsigned preview package.
+Task-100 owns production signing and representative managed-endpoint validation
+in October after that package is satisfactory. See the current sanitized
 [`Task-087 full-package validation record`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
 
 Tasks 090/098 passed on July 27 and remain completed historical records.
@@ -87,12 +87,20 @@ GitHub disclosed four additional Dependabot advisories on August 4-5, and the
 blocking npm audit added `GHSA-5p4m-2wfm-xmqj` on August 7 while Task-099 was
 still active. Task-099 completed that follow-up on August 11 through PRs
 #68/#69, successful main CI and root graph refresh, and alert closure without
-dismissal. The August 11 closeout inventory contained the eight documented
+dismissal. Its August 11 closeout inventory contained the eight documented
 torch residuals. GitHub opened high-severity development-transitive
-`extract-zip` alert `#76` on August 12; backlog Task-101 owns that separate
-assessment and disposition. Task-087 review may continue, but PR #67 merge and
-preview/candidate publication remain gated while the blocking frontend audit
-is red.
+`extract-zip` alert `#76` afterward; active Task-101 owns that separate focused
+remediation and release-gate disposition. PR #72 passed its final exact-head
+matrix and squash-merged as `0cc189c`; alert `#76` then closed as fixed without
+dismissal, and the exact-main checks passed separately. PR #73 recorded that
+post-merge checkpoint and squash-merged as `9276084`; its exact-main CI/CD and
+Task-087 workflows passed. This merge integrates `main` through `9276084` into
+Draft PR #67 while preserving ADR-019 and the branch's recorded evidence.
+Task-087's evidence remains valid and reviewer input may continue, but new
+implementation, PR #67 merge to `main`, and preview/candidate publication
+remain paused until PR #67's exact-head matrix passes. A subsequent governance
+update must then mark Task-101 complete, explicitly resume Task-087, and rerun
+checks at that new head.
 
 ## Release Naming Boundary
 
@@ -111,7 +119,7 @@ Task-089 remains blocked until:
 
 1. Pilot feedback and candidate findings are reviewed.
 2. Required four-profile qualification passes.
-3. Task-101 restores the blocking high-severity dependency gate.
+3. Task-101's downstream PR #67 exact-head gate passes.
 4. Task-100 production signing and representative managed-endpoint
    qualification pass.
 5. The project lead and cdcai owner qualify the final signed candidate.
@@ -142,8 +150,10 @@ backlog, and migration-ready handoff without changing cdcai.
 - Task-100: October production signing, signed-package verification, and
   representative managed-endpoint qualification after the satisfactory
   unsigned-package decision.
-- Task-101: backlog-only assessment and release-gate disposition for
-  high-severity development-transitive `extract-zip` alert `#76`.
+- Task-101: active downstream PR #67 exact-head gate after the focused
+  remediation and default-branch/checkpoint reconciliation passed and high-
+  severity development-transitive `extract-zip` alert `#76` closed as fixed
+  without dismissal.
 
 ## Superseded Instructions
 

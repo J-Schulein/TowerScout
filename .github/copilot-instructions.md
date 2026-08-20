@@ -3,7 +3,7 @@
 This is the primary high-context guidance file for AI coding agents working in
 the TowerScout repository. It preserves project context, guardrails, and
 workflow guidance while reflecting the current repository state as of
-2026-08-19.
+2026-08-20.
 
 ## Mission and Product Context
 
@@ -47,11 +47,17 @@ The project still carries public-health workflow expectations:
   `GHSA-5p4m-2wfm-xmqj`. PRs #68/#69 merged as `f460445`/`0133b50`; main CI
   and root graph refresh passed, alert `#74` closed without dismissal, and
   the August 11 closeout contained only the eight documented torch residuals.
-- High-severity development-transitive `extract-zip` alert `#76` opened August
-  12 with no current patched `extract-zip` version. Backlog Task-101 owns the
-  new assessment. Review may continue, but the blocking frontend audit prevents
-  PR #67 merge and preview/candidate publication until Task-101 passes.
-- `TASK-087` is in progress under ADR-018's launcher security boundary and
+- `TASK-101` delivered the Node >=22.12 / Puppeteer 25.8.0 remediation for
+  high-severity development-transitive `extract-zip` alert `#76`; no exception
+  or dismissal was used. PR #72 passed final-head checks, squash-merged as
+  `0cc189c`, passed exact-main CI and Task-087 workflows, and closed the alert
+  as fixed. PR #73 recorded the post-merge checkpoint, squash-merged as
+  `9276084`, and passed its exact-main CI/CD and Task-087 workflows. This merge
+  integrates `main` through `9276084` into Draft PR #67 while preserving
+  ADR-019 and the branch's recorded evidence. Task-101 remains in progress
+  pending PR #67's exact-head matrix.
+- `TASK-087` is paused / reconciliation-gated under ADR-018's launcher security
+  boundary and
   ADR-019's release sequence. Draft PR #67 contains the native transactional
   Docker/Podman TLS repair engine and visible typed-confirmation UI. PR #64 and
   every browser/helper activation gate remain on hold.
@@ -86,6 +92,10 @@ The project still carries public-health workflow expectations:
 - Existing launcher-policy/full-runnable assemblers remain validation-only.
   The normal release-package builder still needs explicit launcher integration
   before any preview can be published.
+- Draft PR #67 remains open for reviewer input, but new Task-087 implementation,
+  merge to `main`, and preview/candidate publication wait for its exact-head
+  matrix. A subsequent governance update must then mark Task-101 complete,
+  explicitly resume Task-087, and rerun checks at that new head.
 - `TASK-096` adds user-confirmed Exit/Stop. `TASK-097` qualifies Podman CPU/GPU.
 - Docker CPU, Docker GPU, Podman CPU, and Podman GPU are required final-package
   profiles, subject to their documented prerequisites.
@@ -155,23 +165,29 @@ adoption:
 4. Preserve Task-099's completed `aiohttp==3.14.3`, transitive
    `ip-address==10.3.1`, and transitive `js-yaml==4.3.1` remediation plus its
    eight-alert torch residual baseline.
-5. Continue Task-087 technical/security review and integrate the launcher into
-   a new normal-user release-package path. Preserve Task-086 and every existing
-   validation-only artifact boundary.
-6. Select and pass Task-101 before PR #67 merge or preview publication; do not
-   weaken or dismiss the blocking high-severity audit without the required
-   approved residual-risk process.
-7. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
-8. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
-9. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
-   approved unmanaged clean-machine feedback; never mark them `Latest`.
-10. After the package is satisfactory, complete Task-100 production signing and
-   representative managed-endpoint qualification in October. Only signed
-   output uses `v0.1.3-rc.N`.
-11. Keep Task-089 preparation reversible and cdcai unchanged.
-12. Select the official cdcai tag/title before the official build and execute
+5. Preserve the passed PR #72/default-branch security result: squash commit
+   `0cc189c`, green exact-main checks, and alert `#76` fixed without dismissal.
+6. Preserve PR #73's post-merge checkpoint at `9276084` and its green exact-
+   main CI/CD and Task-087 workflows.
+7. Preserve this semantic integration of `main` through `9276084` into Draft
+   PR #67, including ADR-019 and every recorded evidence boundary.
+8. Require PR #67's new exact-head matrix to pass.
+9. In a subsequent governance update, mark Task-101 complete, explicitly
+   resume Task-087, and rerun checks at that new head before implementation.
+10. Continue Task-087 technical/security review and integrate the launcher into
+    a new normal-user release-package path. Preserve Task-086 and every existing
+    validation-only artifact boundary.
+11. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
+12. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
+13. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
+    approved unmanaged clean-machine feedback; never mark them `Latest`.
+14. After the package is satisfactory, complete Task-100 production signing and
+    representative managed-endpoint qualification in October. Only signed
+    output uses `v0.1.3-rc.N`; do not publish `v0.1.3` final automatically.
+15. Keep Task-089 preparation reversible and cdcai unchanged.
+16. Select the official cdcai tag/title before the official build and execute
    adoption only after owner qualification and approval.
-13. Treat Task-058/059 as conditional stretch work behind all required gates.
+17. Treat Task-058/059 as conditional stretch work behind all required gates.
 
 `TASK-026` CPU optimization and `TASK-029` multi-provider fallback remain follow-on backlog work unless release evidence makes them release-critical.
 
@@ -576,17 +592,24 @@ python towerscout.py dev
 
 ```bash
 node webapp/build.js
-npm run test:stage-0
 npm run test:browser:detect
 npm run test:browser:detect:google
 npm run test:browser:detect:azure
 ```
 
+The legacy `npm run test:stage-0` Bash wrapper is not a maintained gate; its
+mutation-count assertions are stale against the current bundle. Do not cite it
+as passing evidence unless a separately scoped follow-up repairs and revalidates
+that contract.
+
 ### CI Reality
 
 Current CI includes:
 
-- frontend bundle rebuild and ProviderStateManager regression coverage on Node 18
+- frontend bundle rebuild, a CommonJS Puppeteer smoke, and
+  ProviderStateManager regression coverage on maintained Node 22
+- a blocking Docker frontend-stage build on pull requests, pushes, and the
+  weekly schedule
 - Python 3.11 and 3.12
 - `flake8`
 - `black --check` as non-blocking
@@ -594,11 +617,14 @@ Current CI includes:
 - `bandit` as non-blocking
 - unit tests
 - integration tests as non-blocking
-- Docker image build check on `main` as non-blocking
+- full Docker runtime-image build check on `main` as non-blocking
 - Codecov upload as non-blocking
 - Trivy security scan and SARIF upload as non-blocking
 
-Node 18 is now end-of-life. Treat migration of the frontend CI/runtime baseline to a supported Node LTS line as CI maintenance work that should be validated against the current build and Puppeteer smoke paths before changing the workflow.
+Task-101 moved the frontend tooling baseline to Node `>=22.12.0`, using the
+maintained Node 22 line in CI and the Docker frontend stage. Preserve that
+alignment and repeat the build, CommonJS Puppeteer, browser-workflow, and
+container checks when changing Node or Puppeteer.
 
 Current CI has per-job timeout limits and pytest timeout safeguards. Route-test imports are isolated from real local `.env`, logs, uploads, sessions, and cache paths through the test bootstrap. Full asset-backed package validation remains manual/advisory unless a later `TASK-067`/`TASK-074` ratchet promotes a bounded package smoke gate.
 
@@ -805,23 +831,27 @@ The original guidance benefited from explicitly naming recent completed work. Th
 3. Preserve completed Task-099 evidence for the August Dependabot alerts and
    later js-yaml npm audit finding, including the eight documented
    non-blocking torch residuals and qualified ML pair.
-4. Continue Task-087 technical/security review and integrate its launcher into
+4. Preserve the passed PR #72/default-branch security result at `0cc189c`,
+   including alert `#76` fixed without dismissal.
+5. Preserve PR #73's post-merge checkpoint at `9276084` and this semantic
+   integration of current `main` into PR #67.
+6. Require PR #67's new exact-head matrix to pass, then record Task-101 complete
+   and explicitly resume Task-087 in a subsequent governance update. Rerun
+   checks at that new head before implementation.
+7. Continue Task-087 technical/security review and integrate its launcher into
    a new normal-user unsigned preview-package path. Existing validation ZIPs
    remain nonpublishable.
-5. Select and pass Task-101 before PR #67 merge or preview/candidate
-   publication; preserve Task-099 as the dated August 11 closeout.
-6. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
-7. Qualify Docker CPU/GPU and Podman CPU/GPU.
-8. Start Task-058 early only when all required gates, including Task-101,
-   pass; keep Task-059 behind
-   Task-058 acceptance and schedule margin.
-9. Refine unsigned `v0.1.3-preview.N` GitHub prereleases on approved unmanaged
-   clean machines until the package is satisfactory.
-10. Complete Task-100 production signing and representative managed-endpoint
-   qualification in October, then freeze the signed `v0.1.3-rc.N` candidate.
-11. Complete owner-runnable qualification, documentation, recovery,
-   governance, and handoff work.
-12. Select the official cdcai identity, build it consistently, and execute
+8. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
+9. Qualify Docker CPU/GPU and Podman CPU/GPU.
+10. Start Task-058 early only when all required gates, including Task-101,
+    pass; keep Task-059 behind Task-058 acceptance and schedule margin.
+11. Refine unsigned `v0.1.3-preview.N` GitHub prereleases on approved unmanaged
+    clean machines until the package is satisfactory.
+12. Complete Task-100 production signing and representative managed-endpoint
+    qualification in October, then freeze the signed `v0.1.3-rc.N` candidate.
+13. Complete owner-runnable qualification, documentation, recovery,
+    governance, and handoff work.
+14. Select the official cdcai identity, build it consistently, and execute
    Task-089 only after owner approval.
 
 ### Practical Agent Takeaway
@@ -843,15 +873,23 @@ An agent should leave with the following understanding:
   a fail-closed rootless-Podman boundary; technical/security review and normal-
   user preview integration remain open, while signing/endpoint qualification
   belong to Task-100 in October
+- the non-mutating Task-087 Gate 3 proof is merged and the Tasks 090/098/099
+  scoped dependency-security gates passed; Task-101's PR #72/default-branch
+  security gate also passed and alert `#76` is fixed without dismissal
+- PR #73's post-merge checkpoint and exact-main checks passed at `9276084`;
+  this merge integrates that current `main` into PR #67 while preserving
+  ADR-019 and the branch's evidence
+- PR #67 remains open for reviewer input and must pass green exact-head
+  validation before a subsequent governance update completes Task-101 and
+  explicitly resumes Task-087
 - filesystem sessions and disk-backed config writes are real architectural constraints
 - Google and Azure workflows are both important
 - outbreak-investigation workflows are the highest-value legacy surface to preserve
 - Tasks 090, 098, and 099 remain complete; Task-099 owns the August 11
   disclosure evidence without reopening the earlier historical records
-- Task-101 is the backlog-only current gate for high-severity development-
-  transitive `extract-zip` alert `#76`; review may continue, but merge and
-  preview/candidate publication wait for its disposition
 - Task-086 remains the supported fallback throughout the Task-087 checkpoint
+- Task-101 uniquely owns the downstream PR #67 exact-head and lifecycle gate;
+  do not rewrite Task-099's dated closeout or treat fixed alert `#76` as open
 - Task-089 execution remains blocked until final qualification and explicit
   cdcai-owner adoption approval
 
