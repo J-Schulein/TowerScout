@@ -79,6 +79,30 @@ optional AI-assisted development.
 
 ## Implementation Log
 
+### 2026-08-20 - Task-101 Completed; Task-087 Resumed
+
+**Objective**: Record the canonical lifecycle transition after the reconciled
+PR #67 head passed every required check.
+
+**Context**: Merge head `946deaf` preserves ADR-019 and PR #67's evidence while
+integrating current `main` through `9276084`.
+
+**Decision**: Mark Task-101 `COMPLETED` and Task-087 `IN_PROGRESS / RESUMED`.
+Keep PR #67 Draft, preserve all later technical/package/release gates, and
+require the lifecycle update's exact-head checks before new Task-087 work.
+
+**Execution**: Reconciled the current task, backlog, requirements, design,
+Task-101, Task-087, and recent-completion sources. Task-101 remains under
+`tasks/active/` until Sprint 09 closeout; no task file was moved.
+
+**Validation**: CI/CD run `32383065903` and Task-087 run `32383065959` passed at
+exact reconciliation head `946deaf`, with all required jobs successful. Both
+agent-work validators and `git diff --check` pass for this lifecycle update.
+No package, runtime, release, frozen-pilot, or cdcai state changed.
+
+**Next**: Push the lifecycle update and require its exact-head CI/CD and
+Task-087 matrices before beginning new Task-087 work.
+
 ### 2026-08-20 - PR #67 Current-Main Reconciliation
 
 **Objective**: Preserve the accepted Task-087/ADR-019 branch record while

@@ -2,13 +2,12 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: August 20, 2026
-**Focus**: Validate Draft PR #67's new semantic-reconciliation head before
-Task-087 resumes. PR #72, the default-branch alert gate, PR #73's checkpoint,
-and integration of `main` through `9276084` into PR #67 have passed their
-content gates. After the branch's exact-head matrix and subsequent lifecycle
-update pass, continue Task-087 technical/security review and unsigned preview-
-package integration under ADR-019; production signing remains Task-100 work in
-October after the package is satisfactory.
+**Focus**: Record Task-101 completion and explicitly resume Task-087 after Draft
+PR #67 reconciliation head `946deaf` passed its exact-head CI/CD and Task-087
+matrices. This lifecycle update must pass its own exact-head checks before new
+Task-087 work begins. Then continue technical/security review and unsigned
+preview-package integration under ADR-019; production signing remains Task-100
+work in October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -19,9 +18,11 @@ October after the package is satisfactory.
   under Task-100.
 - Dependabot alert `#76` closed as fixed, without dismissal, after PR #72
   squash-merged as `0cc189c`. PR #73's checkpoint then squash-merged as
-  `9276084` and passed exact-main checks. Task-101 remains active only for PR
-  #67 exact-head validation and the explicit lifecycle transition; Task-087
-  remains paused through those downstream gates.
+  `9276084` and passed exact-main checks. PR #67 reconciliation head `946deaf`
+  then passed CI/CD run `32383065903` and Task-087 run `32383065959` with all
+  required jobs successful. Task-101 is complete, and this lifecycle update
+  explicitly resumes Task-087; new work waits for this update's exact-head
+  checks.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -76,15 +77,17 @@ inventory was exactly the eight documented torch residuals
 **Release Boundary**: Task-099 cleared its scoped dependency-security gate on
 August 11. Alert `#76` opened afterward and belongs to separately activated
 Task-101 rather than rewriting Task-099. PR #72 restored the blocking frontend
-gate and alert `#76` closed as fixed; Task-087 resumption, PR #67 merge, and
-candidate publication remain paused through Task-101's downstream
-reconciliation gate. Reviewer input may continue.
+gate, alert `#76` closed as fixed, and Task-101's downstream PR #67 exact-head
+gate passed at `946deaf`. Task-099 remains the dated August 11 closeout;
+reviewer input may continue.
 
 ### **TASK-101: extract-zip Advisory Assessment And Release-Gate Disposition**
 
-**Status**: IN_PROGRESS - PR #72/default-branch security gates and PR #73's
-checkpoint passed; this merge integrates `main` through `9276084` into PR #67,
-whose exact-head validation and subsequent lifecycle update remain open
+**Status**: COMPLETED - PR #72/default-branch security gates and PR #73's
+checkpoint passed; PR #67 reconciliation head `946deaf` then passed CI/CD run
+`32383065903` and Task-087 run `32383065959`, and this lifecycle update records
+Task-101 completion plus Task-087's explicit resume
+**Completed**: August 20, 2026
 **Type**: C (Security Remediation / CI And Release Gate)
 **Priority**: HIGH
 **Estimated Effort**: 1-2 days plus CI rerun timing
@@ -118,28 +121,32 @@ whose exact-head validation and subsequent lifecycle update remain open
   runtime-image build remains the separately documented main-branch advisory
   check.
 - Treat those narrowly scoped Task-101 security-workflow edits as gate work;
-  they do not resume broader Task-087 implementation.
+  those edits alone did not resume broader Task-087 implementation. Resumption
+  occurs only through this explicit post-green lifecycle update.
 - Require clean install/audit/lock-graph, frontend bundle/contracts, Task-087
   browser/Windows-helper, and Docker build validation before acceptance.
-- Require the reconciled PR #67 branch's exact-head matrix to pass. Then use a
-  subsequent governance update to mark Task-101 complete and explicitly resume
-  Task-087, and require checks again at that new head before new Task-087
-  implementation, merge, or candidate-package work.
+- Preserve the green PR #67 reconciliation evidence at `946deaf`: CI/CD run
+  `32383065903` and Task-087 run `32383065959` passed with all required jobs
+  successful.
+- This lifecycle update marks Task-101 complete and explicitly resumes
+  Task-087. Require this update's exact-head checks before new Task-087
+  implementation, PR merge, or preview/candidate-package work.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: PAUSED / RECONCILIATION-GATED - the exact-source `7ef879c`
+**Status**: IN_PROGRESS / RESUMED - the exact-source `7ef879c`
 full-runnable CPU packages passed Docker and approved-provider Podman
 Google/Azure TLS repair plus controlled recovery. Follow-up head `3990bc0`
 closed provider-installer dependency drift with a hash-approved offline
 wheelhouse, and head `5737a58` enforced the selected Windows rootless-Podman
 boundary without changing machine mode or volumes. PR #72 and alert `#76`
-default-branch reconciliation passed; the current merge preserves this evidence
-and ADR-019 while the new exact PR #67 head remains unvalidated.
+default-branch reconciliation passed, and PR #67 head `946deaf` passed CI/CD
+run `32383065903` plus Task-087 run `32383065959`. Task-101 is complete, and
+this lifecycle update resumes Task-087 while preserving the evidence and
+ADR-019. New work waits for this update's exact-head checks.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: 1-2 days after PR #67 reconciliation from the
-preserved PR #67 checkpoint
+**Remaining Estimate**: 1-2 days from the preserved PR #67 checkpoint
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 
@@ -176,9 +183,10 @@ preserved PR #67 checkpoint
 - Keep all existing `Task-087-validation-*` packages validation-only. Build a
   new normal-user package for any `v0.1.3-preview.N` publication; do not rename
   or upload an existing validation ZIP.
-- Keep new launcher/package implementation, merge, and publication paused until
-  the reconciled PR #67 exact-head CI/CD and Task-087 matrices pass. Reviewer
-  clarification and documentation review may continue during that gate.
+- Resume technical/security review and normal-user preview integration only
+  after this lifecycle update's exact-head CI/CD and Task-087 matrices pass.
+  PR #67 remains Draft, and no runtime, package, merge, or publication
+  acceptance is implied by the Task-101 gate alone.
 - Treat the August 19 decision as Proceed to unsigned preview integration under
   ADR-019. Signing, `v0.1.3-rc.N`, and representative managed-endpoint
   qualification belong to Task-100 in October after the satisfactory-package
@@ -218,24 +226,26 @@ preserved PR #67 checkpoint
    `#76` closes without dismissal on the default branch.
 4. [x] Bring the accepted Task-101 change into Draft PR #67 and preserve its
    recorded ADR-019 proceed disposition during semantic reconciliation.
-5. [ ] Require green checks at the new exact PR #67 head.
-6. [ ] Explicitly resume Task-087 only after steps 4-5 pass.
-7. [ ] Continue technical/security review and integrate the launcher into a
+5. [x] Require green checks at the new exact PR #67 head.
+6. [x] Explicitly resume Task-087 only after steps 4-5 pass.
+7. [ ] Require green checks on this Task-101 completion / Task-087 resume
+   lifecycle head before new Task-087 work.
+8. [ ] Continue technical/security review and integrate the launcher into a
    new normal-user unsigned preview-package path with accurate manifests,
    checksums, notices, and user guidance.
-8. [ ] Test each published `v0.1.3-preview.N` through the actual GitHub download
+9. [ ] Test each published `v0.1.3-preview.N` through the actual GitHub download
    path on an approved unmanaged clean Windows machine without security
    exclusions or bypass instructions.
-9. [ ] Keep production signing and representative managed-endpoint validation
+10. [ ] Keep production signing and representative managed-endpoint validation
    scheduled as Task-100 after the ADR-019 satisfactory-package decision.
-10. [ ] Select Task-096 next, followed by Task-097. Keep Tasks 091-093 behind
+11. [ ] Select Task-096 next, followed by Task-097. Keep Tasks 091-093 behind
     the stable unsigned package/runtime-shape boundary; Task-091 prepares the
     owner-runnable harness before Task-100.
 
 Task-058 and Task-059 remain conditional stretch work. Task-094 remains
-evidence-gated. Task-101 is active for PR #67 exact-head validation and the
-subsequent lifecycle transition; Task-087 remains active in tracking but paused
-on those gates. Task-099 stays in `tasks/active/` until Sprint 09 closeout.
+evidence-gated. Task-101 is completed, and Task-087 is resumed in tracking but
+waits for the lifecycle head's checks before new work. Task-099 and Task-101
+stay in `tasks/active/` until Sprint 09 closeout.
 
 ---
 

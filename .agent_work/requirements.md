@@ -296,7 +296,7 @@ Current result:
 - Dependabot alert `#76` opened after that closeout for high-severity
   development-transitive `extract-zip==2.0.1` through
   `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`.
-- Task-101 is the active unique follow-up. Its validated remediation uses Node
+- Task-101 is the completed unique follow-up. Its validated remediation uses Node
   `>=22.12.0` and exact `puppeteer@25.8.0` /
   `@puppeteer/browsers@3.2.1`, removes `extract-zip` from the lock and installed
   graphs, and restores a clean blocking frontend audit. The vulnerable path was
@@ -307,12 +307,15 @@ Current result:
   fixed without dismissal.
 - PR #73 recorded the post-merge governance checkpoint and squash-merged as
   `9276084`; exact-main CI/CD run `32377736719` and Task-087 run `32377736797`
-  passed. This merge integrates that current `main` into Draft PR #67 while
-  preserving ADR-019 and the branch's recorded evidence.
-- Task-087 review may continue, but new implementation, PR #67 merge, unsigned
-  preview publication, and signed-candidate publication remain paused until
-  the branch's required exact-head matrix passes and Task-087 is explicitly
-  resumed.
+  passed. Draft PR #67 reconciliation head `946deaf` then integrated that
+  current `main` while preserving ADR-019 and the branch's recorded evidence;
+  CI/CD run `32383065903` and Task-087 run `32383065959` passed with all
+  required jobs successful.
+- Task-101 is complete, and this governance update explicitly resumes
+  Task-087. New Task-087 work waits for the lifecycle head's checks; PR #67
+  remains Draft, and source merge, unsigned-preview publication, and
+  signed-candidate publication retain their separate Task-087, ADR-019, and
+  Task-100 gates.
 
 ## Qualification And Handoff Requirements
 

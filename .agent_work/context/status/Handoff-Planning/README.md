@@ -36,13 +36,17 @@
   and exact-main validation, PR #72 squash-merged as `0cc189c`, and the alert
   closed as fixed without dismissal. PR #73 recorded the post-merge checkpoint,
   squash-merged as `9276084`, and passed exact-main CI/CD and Task-087 checks.
-- This merge integrates `main` through `9276084` into Draft PR #67 while
-  preserving ADR-019 and its evidence. Task-101 remains in progress pending
-  PR #67's new exact-head matrix.
-- Task-087 is paused / reconciliation-gated. PR #67 remains open for reviewer
-  input, but new implementation, merge to `main`, and preview/candidate
-  publication wait for that exact-head matrix, a subsequent explicit lifecycle
-  transition, and green checks at the resulting governance head.
+- The merge integrated `main` through `9276084` into Draft PR #67 while
+  preserving ADR-019 and its evidence. Reconciliation commit `946deaf` then
+  passed exact-head CI/CD run `32383065903` and Task-087 run `32383065959`,
+  completing Task-101's remaining acceptance gate.
+- This governance update marks Task-101 complete and explicitly resumes
+  Task-087 from its preserved checkpoint. Task-087 is resumed /
+  governance-head-validation-pending: PR #67 remains open for reviewer input,
+  but no further
+  implementation proceeds until CI/CD and Task-087 workflows pass at the new
+  governance head. Merge to `main` and preview/candidate publication remain
+  behind Task-087's other applicable gates.
 - Existing Task-087 validation ZIPs remain nonpublishable.
 - Complete Task-100 production signing and representative managed-endpoint
   qualification in October after the unsigned package is satisfactory.
@@ -67,10 +71,12 @@ evidence passed packaged Docker and approved-provider Podman Google/Azure,
 recovery, provider-install, and rootless-Podman gates. The August 19 decision
 allows technical/security review and a separate normal-user unsigned preview-
 package path. Task-101's remediation, default-branch result, and checkpoint have
-passed; PR #67 exact-head validation and the subsequent explicit Task-087
-resume now gate merge and publication. Task-100 signing and representative
-managed-endpoint qualification remain required before any signed-candidate or
-production claim.
+passed, and reconciliation commit `946deaf` passed its exact-head matrix. This
+governance update completes Task-101 and explicitly resumes Task-087, but the
+new governance head must pass CI/CD and Task-087 workflows before further
+implementation. Task-087's remaining gates still control merge and publication;
+Task-100 signing and representative managed-endpoint qualification remain
+required before any signed-candidate or production claim.
 
 ## Archived Planning And Release History
 

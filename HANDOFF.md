@@ -42,10 +42,13 @@ The current Pilot/cdcai hold is:
   release-gate disposition: PR #72 squash-merged as `0cc189c`, exact-main checks
   passed, and alert `#76` closed as fixed without dismissal; PR #73 recorded
   the checkpoint and squash-merged as `9276084`, with exact-main CI/CD and
-  Task-087 workflows passing; this merge integrates that `main` into PR #67,
-  leaving its exact-head validation and later lifecycle update open
-- Task-087 Google/Azure guided provider TLS repair on Docker/Podman: paused /
-  reconciliation-gated while Draft PR #67 remains open for reviewer input
+  Task-087 workflows passing; the merge integrated that `main` into PR #67,
+  and reconciliation commit `946deaf` passed exact-head CI/CD run `32383065903`
+  plus Task-087 run `32383065959`; Task-101 is complete
+- Task-087 Google/Azure guided provider TLS repair on Docker/Podman: explicitly
+  resumed / governance-head-validation-pending while Draft PR #67 remains open
+  for reviewer input; no further implementation proceeds until CI/CD and
+  Task-087 workflows pass at the new governance head
 - Task-096 user-confirmed Exit/Stop on Docker/Podman
 - Task-097 Podman CPU/GPU final-path qualification
 - Task-100 October production signing and representative managed-endpoint
@@ -81,18 +84,19 @@ are recorded in
 Task-099 records the completed post-closeout advisory remediation, including
 the later js-yaml npm audit finding and root graph reconciliation, in
 `.agent_work/tasks/active/TASK-099-august-dependency-advisory-follow-up.md`.
-Alert `#76` opened after that closeout and is owned by active Task-101 in
+Alert `#76` opened after that closeout and is owned by the completed Task-101
+record in
 `.agent_work/tasks/active/TASK-101-extract-zip-advisory-release-gate.md`.
-Task-087 remains preserved and reviewable in PR #67, but new implementation,
-merge to `main`, and preview/candidate publication wait for green checks at the
-new reconciliation head. A subsequent governance update must then mark
-Task-101 complete, explicitly resume Task-087, and pass checks again at that
-new head before further implementation. PR #72 and alert `#76` default-branch
-reconciliation plus PR #73's checkpoint already passed. Existing Task-087
-validation artifacts remain nonpublishable. Task-100 owns production signing,
-signed-candidate packaging, and representative managed-endpoint qualification
-in October; Task-087's other package, provider/recovery, Podman, and endpoint
-gates remain closed.
+Task-087 remains preserved and reviewable in PR #67. Reconciliation commit
+`946deaf` passed exact-head CI/CD run `32383065903` and Task-087 run
+`32383065959`, completing Task-101's remaining gate. This governance update
+explicitly resumes Task-087, but no further implementation proceeds until
+CI/CD and Task-087 workflows pass at the new governance head. Existing Task-087
+validation artifacts remain nonpublishable. Merge to `main` and preview/
+candidate publication remain behind Task-087's other applicable gates. Task-100
+owns production signing, signed-candidate packaging, and representative
+managed-endpoint qualification in October; Task-087's remaining package,
+provider/recovery, Podman, and endpoint gates remain closed.
 
 ## Runtime And Package Model
 

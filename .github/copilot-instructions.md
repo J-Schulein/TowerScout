@@ -52,13 +52,17 @@ The project still carries public-health workflow expectations:
   or dismissal was used. PR #72 passed final-head checks, squash-merged as
   `0cc189c`, passed exact-main CI and Task-087 workflows, and closed the alert
   as fixed. PR #73 recorded the post-merge checkpoint, squash-merged as
-  `9276084`, and passed its exact-main CI/CD and Task-087 workflows. This merge
-  integrates `main` through `9276084` into Draft PR #67 while preserving
-  ADR-019 and the branch's recorded evidence. Task-101 remains in progress
-  pending PR #67's exact-head matrix.
-- `TASK-087` is paused / reconciliation-gated under ADR-018's launcher security
-  boundary and
-  ADR-019's release sequence. Draft PR #67 contains the native transactional
+  `9276084`, and passed its exact-main CI/CD and Task-087 workflows. The merge
+  integrated `main` through `9276084` into Draft PR #67 while preserving
+  ADR-019 and the branch's recorded evidence. Reconciliation commit `946deaf`
+  then passed exact-head CI/CD run `32383065903` and Task-087 run `32383065959`,
+  completing Task-101's remaining acceptance gate. This governance update marks
+  Task-101 complete.
+- `TASK-087` is resumed / governance-head-validation-pending under ADR-018's
+  launcher security boundary and ADR-019's release sequence. This governance
+  update explicitly resumes it from the preserved checkpoint, but no further
+  implementation proceeds until CI/CD and Task-087 workflows pass at the new
+  exact governance head. Draft PR #67 contains the native transactional
   Docker/Podman TLS repair engine and visible typed-confirmation UI. PR #64 and
   every browser/helper activation gate remain on hold.
 - Exact-source `7ef879c` full-runnable CPU packages passed Docker and approved-
@@ -92,10 +96,10 @@ The project still carries public-health workflow expectations:
 - Existing launcher-policy/full-runnable assemblers remain validation-only.
   The normal release-package builder still needs explicit launcher integration
   before any preview can be published.
-- Draft PR #67 remains open for reviewer input, but new Task-087 implementation,
-  merge to `main`, and preview/candidate publication wait for its exact-head
-  matrix. A subsequent governance update must then mark Task-101 complete,
-  explicitly resume Task-087, and rerun checks at that new head.
+- Draft PR #67 remains open for reviewer input, but no further Task-087
+  implementation proceeds until the new governance head passes CI/CD and
+  Task-087 workflows. Merge to `main` and preview/candidate publication remain
+  behind Task-087's other technical, security, product, and package gates.
 - `TASK-096` adds user-confirmed Exit/Stop. `TASK-097` qualifies Podman CPU/GPU.
 - Docker CPU, Docker GPU, Podman CPU, and Podman GPU are required final-package
   profiles, subject to their documented prerequisites.
@@ -167,27 +171,30 @@ adoption:
    eight-alert torch residual baseline.
 5. Preserve the passed PR #72/default-branch security result: squash commit
    `0cc189c`, green exact-main checks, and alert `#76` fixed without dismissal.
-6. Preserve PR #73's post-merge checkpoint at `9276084` and its green exact-
-   main CI/CD and Task-087 workflows.
+6. Preserve PR #73's post-merge checkpoint at `9276084` and its green
+   exact-main CI/CD and Task-087 workflows.
 7. Preserve this semantic integration of `main` through `9276084` into Draft
    PR #67, including ADR-019 and every recorded evidence boundary.
-8. Require PR #67's new exact-head matrix to pass.
-9. In a subsequent governance update, mark Task-101 complete, explicitly
-   resume Task-087, and rerun checks at that new head before implementation.
-10. Continue Task-087 technical/security review and integrate the launcher into
+8. Preserve reconciliation commit `946deaf` and its green exact-head CI/CD run
+   `32383065903` plus Task-087 run `32383065959`.
+9. Record this governance transition as Task-101 complete and Task-087
+   explicitly resumed from its preserved checkpoint.
+10. Require CI/CD and Task-087 workflows to pass at the new governance head
+    before any additional implementation-producing change.
+11. Continue Task-087 technical/security review and integrate the launcher into
     a new normal-user release-package path. Preserve Task-086 and every existing
     validation-only artifact boundary.
-11. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
-12. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
-13. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
+12. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
+13. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
+14. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
     approved unmanaged clean-machine feedback; never mark them `Latest`.
-14. After the package is satisfactory, complete Task-100 production signing and
+15. After the package is satisfactory, complete Task-100 production signing and
     representative managed-endpoint qualification in October. Only signed
     output uses `v0.1.3-rc.N`; do not publish `v0.1.3` final automatically.
-15. Keep Task-089 preparation reversible and cdcai unchanged.
-16. Select the official cdcai tag/title before the official build and execute
-   adoption only after owner qualification and approval.
-17. Treat Task-058/059 as conditional stretch work behind all required gates.
+16. Keep Task-089 preparation reversible and cdcai unchanged.
+17. Select the official cdcai tag/title before the official build and execute
+    adoption only after owner qualification and approval.
+18. Treat Task-058/059 as conditional stretch work behind all required gates.
 
 `TASK-026` CPU optimization and `TASK-029` multi-provider fallback remain follow-on backlog work unless release evidence makes them release-critical.
 
@@ -835,24 +842,27 @@ The original guidance benefited from explicitly naming recent completed work. Th
    including alert `#76` fixed without dismissal.
 5. Preserve PR #73's post-merge checkpoint at `9276084` and this semantic
    integration of current `main` into PR #67.
-6. Require PR #67's new exact-head matrix to pass, then record Task-101 complete
-   and explicitly resume Task-087 in a subsequent governance update. Rerun
-   checks at that new head before implementation.
-7. Continue Task-087 technical/security review and integrate its launcher into
+6. Preserve reconciliation commit `946deaf`, exact-head CI/CD run `32383065903`,
+   and Task-087 run `32383065959` as the final Task-101 acceptance evidence.
+7. Record this governance update as Task-101 complete and Task-087 explicitly
+   resumed from its preserved checkpoint.
+8. Require CI/CD and Task-087 workflows to pass at the new governance head
+   before any additional implementation-producing change.
+9. Continue Task-087 technical/security review and integrate its launcher into
    a new normal-user unsigned preview-package path. Existing validation ZIPs
    remain nonpublishable.
-8. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
-9. Qualify Docker CPU/GPU and Podman CPU/GPU.
-10. Start Task-058 early only when all required gates, including Task-101,
+10. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
+11. Qualify Docker CPU/GPU and Podman CPU/GPU.
+12. Start Task-058 early only when all required gates, including Task-101,
     pass; keep Task-059 behind Task-058 acceptance and schedule margin.
-11. Refine unsigned `v0.1.3-preview.N` GitHub prereleases on approved unmanaged
+13. Refine unsigned `v0.1.3-preview.N` GitHub prereleases on approved unmanaged
     clean machines until the package is satisfactory.
-12. Complete Task-100 production signing and representative managed-endpoint
+14. Complete Task-100 production signing and representative managed-endpoint
     qualification in October, then freeze the signed `v0.1.3-rc.N` candidate.
-13. Complete owner-runnable qualification, documentation, recovery,
+15. Complete owner-runnable qualification, documentation, recovery,
     governance, and handoff work.
-14. Select the official cdcai identity, build it consistently, and execute
-   Task-089 only after owner approval.
+16. Select the official cdcai identity, build it consistently, and execute
+    Task-089 only after owner approval.
 
 ### Practical Agent Takeaway
 
@@ -877,19 +887,23 @@ An agent should leave with the following understanding:
   scoped dependency-security gates passed; Task-101's PR #72/default-branch
   security gate also passed and alert `#76` is fixed without dismissal
 - PR #73's post-merge checkpoint and exact-main checks passed at `9276084`;
-  this merge integrates that current `main` into PR #67 while preserving
+  the merge integrated that current `main` into PR #67 while preserving
   ADR-019 and the branch's evidence
-- PR #67 remains open for reviewer input and must pass green exact-head
-  validation before a subsequent governance update completes Task-101 and
-  explicitly resumes Task-087
+- PR #67 reconciliation commit `946deaf` passed exact-head CI/CD run
+  `32383065903` and Task-087 run `32383065959`, completing Task-101's final gate
+- this governance update marks Task-101 complete and explicitly resumes
+  Task-087; the new governance head must pass CI/CD and Task-087 workflows
+  before further implementation
+- PR #67 remains open for reviewer input, and its remaining technical,
+  security, product, and package gates still control merge and publication
 - filesystem sessions and disk-backed config writes are real architectural constraints
 - Google and Azure workflows are both important
 - outbreak-investigation workflows are the highest-value legacy surface to preserve
 - Tasks 090, 098, and 099 remain complete; Task-099 owns the August 11
   disclosure evidence without reopening the earlier historical records
 - Task-086 remains the supported fallback throughout the Task-087 checkpoint
-- Task-101 uniquely owns the downstream PR #67 exact-head and lifecycle gate;
-  do not rewrite Task-099's dated closeout or treat fixed alert `#76` as open
+- Task-101 owns the completed alert and reconciliation history; do not rewrite
+  Task-099's dated closeout or treat fixed alert `#76` as open
 - Task-089 execution remains blocked until final qualification and explicit
   cdcai-owner adoption approval
 

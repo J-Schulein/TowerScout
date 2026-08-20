@@ -76,10 +76,11 @@ controlled recovery. Follow-up evidence closes the hash-pinned Podman provider
 installer gap and enforces the selected Windows rootless-Podman boundary while
 failing closed before mutation in rootful mode. These artifacts remain
 validation-only and cannot be renamed or published. Under the August 19
-ADR-019 decision, the next work after the Task-101 exact-head gate is technical/
-security review and a newly integrated normal-user unsigned preview package.
-Task-100 owns production signing and representative managed-endpoint validation
-in October after that package is satisfactory. See the current sanitized
+ADR-019 decision, the next work after the governance-transition head passes is
+technical/security review and a newly integrated normal-user unsigned preview
+package. Task-100 owns production signing and representative managed-endpoint
+validation in October after that package is satisfactory. See the current
+sanitized
 [`Task-087 full-package validation record`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
 
 Tasks 090/098 passed on July 27 and remain completed historical records.
@@ -89,18 +90,20 @@ still active. Task-099 completed that follow-up on August 11 through PRs
 #68/#69, successful main CI and root graph refresh, and alert closure without
 dismissal. Its August 11 closeout inventory contained the eight documented
 torch residuals. GitHub opened high-severity development-transitive
-`extract-zip` alert `#76` afterward; active Task-101 owns that separate focused
+`extract-zip` alert `#76` afterward; Task-101 owned that separate focused
 remediation and release-gate disposition. PR #72 passed its final exact-head
 matrix and squash-merged as `0cc189c`; alert `#76` then closed as fixed without
 dismissal, and the exact-main checks passed separately. PR #73 recorded that
 post-merge checkpoint and squash-merged as `9276084`; its exact-main CI/CD and
-Task-087 workflows passed. This merge integrates `main` through `9276084` into
+Task-087 workflows passed. The merge integrated `main` through `9276084` into
 Draft PR #67 while preserving ADR-019 and the branch's recorded evidence.
-Task-087's evidence remains valid and reviewer input may continue, but new
-implementation, PR #67 merge to `main`, and preview/candidate publication
-remain paused until PR #67's exact-head matrix passes. A subsequent governance
-update must then mark Task-101 complete, explicitly resume Task-087, and rerun
-checks at that new head.
+Reconciliation commit `946deaf` then passed exact-head CI/CD run `32383065903`
+and Task-087 run `32383065959`, satisfying Task-101's remaining acceptance gate.
+This governance update marks Task-101 complete and explicitly resumes Task-087
+from its preserved checkpoint. Task-087's evidence remains valid and reviewer
+input may continue, but no further implementation proceeds until CI/CD and
+Task-087 workflows pass at the new governance head. PR #67 merge to `main` and
+preview/candidate publication remain behind Task-087's other applicable gates.
 
 ## Release Naming Boundary
 
@@ -119,21 +122,23 @@ Task-089 remains blocked until:
 
 1. Pilot feedback and candidate findings are reviewed.
 2. Required four-profile qualification passes.
-3. Task-101's downstream PR #67 exact-head gate passes.
-4. Task-100 production signing and representative managed-endpoint
+3. Task-101 remains complete after its green PR #67 reconciliation gate.
+4. Task-087's governance-transition head and remaining applicable gates pass.
+5. Task-100 production signing and representative managed-endpoint
    qualification pass.
-5. The project lead and cdcai owner qualify the final signed candidate.
-6. The owner explicitly approves adoption.
-7. Repository, Actions, package, release, and backlog ownership are ready.
-8. The official identity and rebuild/verification plan are approved.
+6. The project lead and cdcai owner qualify the final signed candidate.
+7. The owner explicitly approves adoption.
+8. Repository, Actions, package, release, and backlog ownership are ready.
+9. The official identity and rebuild/verification plan are approved.
 
 If the final candidate is not ready, preserve the fork, evidence, feedback,
 backlog, and migration-ready handoff without changing cdcai.
 
 ## Task Ownership
 
-- Task-087: guided Google/Azure application-provider TLS repair on Docker and
-  Podman.
+- Task-087: resumed guided Google/Azure application-provider TLS repair on
+  Docker and Podman; governance-head validation is pending before further
+  implementation.
 - Task-088: completed Pilot Package distribution and custody.
 - Task-089: owner-gated cdcai adoption and ownership transfer.
 - Task-090: completed bounded runtime/custom-image/dependency security
@@ -150,10 +155,10 @@ backlog, and migration-ready handoff without changing cdcai.
 - Task-100: October production signing, signed-package verification, and
   representative managed-endpoint qualification after the satisfactory
   unsigned-package decision.
-- Task-101: active downstream PR #67 exact-head gate after the focused
-  remediation and default-branch/checkpoint reconciliation passed and high-
-  severity development-transitive `extract-zip` alert `#76` closed as fixed
-  without dismissal.
+- Task-101: completed August 20 after reconciliation commit `946deaf` passed
+  exact-head CI/CD run `32383065903` and Task-087 run `32383065959`; the focused
+  remediation removed the development-transitive `extract-zip` path and alert
+  `#76` closed as fixed without dismissal.
 
 ## Superseded Instructions
 

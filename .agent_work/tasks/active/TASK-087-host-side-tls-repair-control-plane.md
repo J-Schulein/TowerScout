@@ -1,6 +1,6 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: PAUSED / RECONCILIATION-GATED - the `7ef879c` exact-source
+**Status**: IN_PROGRESS / RESUMED - the `7ef879c` exact-source
 full-runnable CPU packages
 passed Docker and approved-provider Podman Google/Azure TLS repair plus
 controlled recovery. Follow-up head `3990bc0` closes the Podman-provider
@@ -8,10 +8,13 @@ installer reproducibility gap. Head `5737a58` enforces the Windows rootless-
 Podman boundary and passed exact-source packaged rootful rejection without
 machine, container, or volume mutation. The August 19 disposition is Proceed
 to unsigned preview integration. Current `main` through PR #73 / `9276084` is
-now integrated into Draft PR #67 while preserving that evidence and ADR-019;
-the branch's new exact-head CI/CD and Task-087 matrices remain pending. New
-implementation, merge, and publication stay paused through that gate. Signing
-and representative managed-endpoint validation remain Task-100 work in October
+integrated into Draft PR #67 while preserving that evidence and ADR-019.
+Reconciliation head `946deaf` passed CI/CD run `32383065903` and Task-087 run
+`32383065959`; Task-101 is complete, and this lifecycle update resumes Task-087.
+No new implementation begins until this lifecycle head's checks pass. PR #67
+merge and publication remain behind that hold plus their separate applicable
+gates. Signing and representative managed-endpoint validation remain Task-100
+work in October
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Complete review and preview integration in Sprint 09;
@@ -21,9 +24,9 @@ and the canonical October roadmap
 **Created**: 2026-06-29
 **Owner**: TowerScout release owner / active agent support
 **Depends On**: `TASK-086`; `TASK-090` investigation; approved `TASK-098`
-dependency remediation/disposition; active `TASK-101` PR #67 exact-head gate;
-package launcher/runtime profile; provider setup error classification; Docker
-and Podman CPU/GPU package paths
+dependency remediation/disposition; completed `TASK-101` dependency-security
+and PR #67 reconciliation gates; package launcher/runtime profile; provider
+setup error classification; Docker and Podman CPU/GPU package paths
 
 ## Canonical Source Note
 
@@ -44,6 +47,23 @@ remain the accepted exact-head Google/Azure repair evidence. The older
 reused as the final artifact. No validation artifact is a release candidate,
 preview release, merge signal, or substitute for Task-100's signed
 representative managed-endpoint gate.
+
+## August 20, 2026 Exact-Head Resume Override
+
+This override supersedes the post-merge reconciliation pause for current
+execution order while preserving every older entry as dated history:
+
+- Draft PR #67 reconciliation head `946deaf` passed CI/CD run `32383065903` and
+  Task-087 run `32383065959`, with all required jobs successful.
+- Task-101 is complete, and Task-087 is explicitly `IN_PROGRESS / RESUMED`
+  under ADR-019 from its preserved implementation and evidence checkpoint.
+- PR #67 remains Draft. Existing validation packages remain nonpublishable,
+  and this transition adds no runtime, package, merge, preview, candidate, or
+  managed-endpoint acceptance claim.
+- Require this lifecycle update's exact-head CI/CD and Task-087 matrices before
+  beginning new technical implementation or preview-package integration.
+- Production signing, signed `v0.1.3-rc.N`, representative managed-endpoint
+  qualification, and all other later Task-087/Task-100 gates remain unchanged.
 
 ## August 20, 2026 Post-Merge Reconciliation Override
 
@@ -1247,6 +1267,31 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-20 - Exact-Head Gate Passed; Task-087 Resumed
+
+**Objective**: Resume Task-087 from its preserved ADR-019 checkpoint only after
+the reconciled branch passed the required exact-head matrices.
+
+**Context**: Normal merge head `946deaf` integrates current `main` through PR
+#73 / `9276084` without rebasing or discarding PR #67's evidence-bearing
+history.
+
+**Decision**: Complete Task-101 and change Task-087 to `IN_PROGRESS / RESUMED`.
+Keep PR #67 Draft and require this lifecycle update's checks before any new
+implementation-producing change or preview-package work.
+
+**Execution**: Updated lifecycle and governance state only. The launcher,
+runtime, validation packages, historical evidence, frozen pilot, Task-100
+signing boundary, and cdcai hold remain unchanged.
+
+**Validation**: CI/CD run `32383065903` and Task-087 run `32383065959` passed at
+exact reconciliation head `946deaf`, with all required jobs successful. No new
+runtime or package validation was performed or claimed by this transition.
+
+**Next**: Push the lifecycle update and require its exact-head matrices. Then
+continue technical/security review and the separate normal-user unsigned
+preview-package integration path under ADR-019.
 
 ### 2026-08-20 - Current Main Integrated; Exact-Head Validation Pending
 

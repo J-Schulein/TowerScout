@@ -189,10 +189,14 @@ Task-101 without rewriting that dated closeout. PR #72's Node/Puppeteer
 remediation restored the blocking frontend dependency gate, exact-main
 validation passed, and alert `#76` closed as fixed without dismissal or a
 residual-high exception. PR #73's checkpoint then merged as `9276084` and
-passed exact-main checks. This merge integrates that current `main` into Draft
-PR #67 while preserving ADR-019 and the branch's evidence. Task-101 remains in
-progress and Task-087 remains paused until PR #67's exact-head matrix and the
-subsequent explicit lifecycle transition pass.
+passed exact-main checks. The merge integrated that current `main` into Draft
+PR #67 while preserving ADR-019 and the branch's evidence. Reconciliation
+commit `946deaf` then passed exact-head CI/CD run `32383065903` and Task-087 run
+`32383065959`, satisfying Task-101's remaining acceptance gate. This governance
+update marks Task-101 complete and explicitly resumes Task-087 from its
+preserved checkpoint. Because the update creates a new PR #67 head, Task-087 is
+resumed / governance-head-validation-pending and no further implementation
+proceeds until CI/CD and Task-087 workflows pass at that exact governance head.
 
 1. Task-095 Phase A roadmap/workspace rebaseline and readiness cleanup:
    complete July 23.
@@ -228,34 +232,39 @@ July 27 exit evidence:
 4. [x] Record the post-merge checkpoint in PR #73, squash-merge it as `9276084`,
    and pass its exact-main CI/CD and Task-087 workflows.
 5. [x] Merge current `main` through `9276084` normally into Draft PR #67 and
-   preserve ADR-019 plus
-   the branch's recorded evidence during semantic reconciliation.
-6. [ ] Require PR #67's new exact-head matrix to pass.
-7. [ ] In a subsequent governance update, mark Task-101 complete, explicitly
-   resume Task-087 from its preserved checkpoint, and rerun checks at that new
-   head before additional implementation.
-8. [ ] Continue technical/security review of Draft PR #67 and preserve the
+   preserve ADR-019 plus the branch's recorded evidence during semantic
+   reconciliation.
+6. [x] Pass PR #67 reconciliation commit `946deaf` through exact-head CI/CD run
+   `32383065903` and Task-087 run `32383065959`.
+7. [x] In this governance update, mark Task-101 complete and explicitly resume
+   Task-087 from its preserved checkpoint.
+8. [ ] Pass CI/CD and Task-087 workflows at the new governance head before any
+   additional implementation-producing change.
+9. [ ] Continue technical/security review of Draft PR #67 and preserve the
    exact-source Docker/Podman Google/Azure, recovery, provider-installer, and
    rootless Podman evidence.
-9. [x] Preserve the August 19 Proceed-to-unsigned-preview disposition under
-   ADR-019 during reconciliation.
-10. [ ] Integrate the accepted launcher into the normal release-package path;
+10. [x] Preserve the August 19 Proceed-to-unsigned-preview disposition under
+    ADR-019 during reconciliation and the lifecycle transition.
+11. [ ] Integrate the accepted launcher into the normal release-package path;
     do not publish or relabel any Task-087 validation-only ZIP.
-11. [ ] Publish and refine immutable unsigned `v0.1.3-preview.N` GitHub
+12. [ ] Publish and refine immutable unsigned `v0.1.3-preview.N` GitHub
     prereleases through approved clean unmanaged-machine testing until the
     package is declared satisfactory.
-12. [ ] Reuse Task-087's fixed-target confirmation, runtime validation,
+13. [ ] Reuse Task-087's fixed-target confirmation, runtime validation,
     sanitized state, and recovery pattern for Task-096 Exit/Stop on Docker and
     Podman.
-13. [ ] Preserve Task-086 as the supported fallback for every scope not yet
+14. [ ] Preserve Task-086 as the supported fallback for every scope not yet
     accepted in a preview or signed candidate.
 
 Exit:
 
 - Task-087 has a recorded August 19 Proceed-to-preview decision.
-- Task-101's remediation, default-branch reconciliation, and checkpoint have
-  passed; its downstream PR #67 exact-head matrix and explicit lifecycle
-  transition pass before PR #67 merge or preview publication.
+- Task-101 is complete after reconciliation commit `946deaf` passed its
+  exact-head matrix. Task-087 is explicitly resumed, but the new governance
+  head must pass CI/CD and Task-087 workflows before additional implementation.
+- Green governance-head checks lift only that revalidation hold; PR #67 merge
+  and preview publication still require Task-087's remaining technical,
+  security, product, and package gates.
 - Guided TLS repair passes technical/security, product, package, and clean
   unmanaged-machine preview gates for its stated scope.
 - Exit/Stop safely removes the selected application container while retaining
@@ -284,8 +293,9 @@ Task-058 may begin immediately when all of the following are true:
 
 - Tasks 090 and 098 are complete.
 - Task-099 passes its August dependency-security follow-up gate.
-- Task-101 completes its downstream PR #67 exact-head gate.
-- Task-087 passes its functional/security and unsigned-preview package gates.
+- Task-101 is complete.
+- Task-087's governance-transition head is green, and Task-087 passes its
+  functional/security and unsigned-preview package gates.
 - Task-096 passes Docker and Podman acceptance.
 - Task-097 passes required final-path qualification.
 - No pilot blocker requires priority.
@@ -348,7 +358,7 @@ Exit:
 
 | Task | Canonical purpose | Disposition |
 | --- | --- | --- |
-| `TASK-087` | Universal guided Google/Azure provider TLS repair on Docker/Podman | Required |
+| `TASK-087` | Universal guided Google/Azure provider TLS repair on Docker/Podman | Required; resumed / governance-head validation pending |
 | `TASK-088` | Immutable `v0.1.2` pilot distribution and custody | Complete |
 | `TASK-089` | Owner-gated cdcai release/adoption and ownership transfer | Required after qualification |
 | `TASK-090` | Runtime, custom-image, and dependency-security investigation, including the 62-alert Trivy baseline | Complete July 23 |
@@ -362,7 +372,7 @@ Exit:
 | `TASK-098` | Dependency-security remediation, compatibility validation, and release disposition | Complete July 27 |
 | `TASK-099` | August dependency-advisory remediation and release-gate reconciliation | Complete August 11 |
 | `TASK-100` | October production signing, post-sign package verification, and representative managed-endpoint qualification | Required after satisfactory unsigned package |
-| `TASK-101` | `extract-zip` advisory remediation and current dependency release-gate disposition | IN PROGRESS - remediation, default-branch reconciliation, and checkpoint complete; PR #67 exact-head validation remains before Task-087 resumes, PR #67 merges, or preview/candidate publication |
+| `TASK-101` | `extract-zip` advisory remediation and current dependency release-gate disposition | Complete August 20 - reconciliation commit `946deaf` passed exact-head CI/CD and Task-087 workflows; no exception or dismissal was used |
 | `TASK-058` | Background jobs and durable run state | Conditional stretch |
 | `TASK-059` | Backend decomposition and logging consolidation | Conditional stretch after Task-058 |
 
@@ -383,10 +393,12 @@ August 11. Alert `#74` closed without dismissal, and the inventory returned at
 that closeout to the eight documented torch residuals. High-severity alert
 `#76` opened August 12 and is tracked separately by Task-101 rather than
 rewriting Task-099 history. Task-101's remediation, default-main reconciliation,
-and PR #73 checkpoint passed; current `main` is integrated into PR #67.
-Technical/security review may continue, but PR #67 merge, preview/candidate
-publication, and new Task-087 implementation wait for PR #67's exact-head
-matrix and the subsequent lifecycle transition.
+and PR #73 checkpoint passed; current `main` is integrated into PR #67, and
+reconciliation commit `946deaf` passed its exact-head matrix. This governance
+update completes Task-101 and explicitly resumes Task-087. Technical/security
+review may continue, but additional implementation waits for the new governance
+head's CI/CD and Task-087 workflows. PR #67 merge and preview/candidate
+publication remain behind Task-087's other applicable gates.
 
 Task-100 was added August 19 after the project lead chose to refine unsigned
 normal-user previews before production signing. It stays in the backlog until
@@ -401,12 +413,14 @@ exception was approved. Final PR #72 CI/CD run `32308971393` and Task-087 run
 Exact-main CI/CD run `32310281115` and Task-087 run `32310281051` passed; alert
 `#76` closed as fixed without dismissal. PR #73 then recorded the post-merge
 checkpoint and squash-merged as `9276084`; exact-main CI/CD run `32377736719`
-and Task-087 run `32377736797` passed. This merge integrates `main` through
+and Task-087 run `32377736797` passed. The merge integrated `main` through
 `9276084` into Draft PR #67 while preserving ADR-019 and the branch's recorded
-evidence. Task-101 remains in progress pending PR #67's exact-head matrix, and
-Task-087 remains paused without invalidating its recorded evidence. A subsequent
-governance update must mark Task-101 complete, explicitly resume Task-087, and
-rerun checks at that new head before further implementation.
+evidence. Reconciliation commit `946deaf` then passed CI/CD run `32383065903`
+and Task-087 run `32383065959`, completing Task-101's remaining acceptance
+gate. This governance update marks Task-101 complete and explicitly resumes
+Task-087 without invalidating its recorded evidence. The new governance head
+must pass CI/CD and Task-087 workflows before further implementation; ADR-019,
+PR #67 merge, preview publication, and Task-100 gates remain unchanged.
 
 ## Stop Rules
 

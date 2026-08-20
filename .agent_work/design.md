@@ -40,9 +40,10 @@ The application includes:
 - `feature/task-087-windows-launcher-prototype` remains a short-lived branch
   reviewed through Draft PR #67. Historical rebased checkpoint `1908670` was
   reconciled with then-current `main` commit `3932abf`; the evidence-bearing
-  branch then advanced to pre-merge head `c095389`. This merge integrates
-  current `main` through PR #73 / `9276084` while preserving the accepted
-  launcher/runtime tree, ADR-019, and Sprint 09 evidence.
+  branch then advanced to pre-merge head `c095389`. Normal merge head `946deaf`
+  integrates current `main` through PR #73 / `9276084` while preserving the
+  accepted launcher/runtime tree, ADR-019, and Sprint 09 evidence; CI/CD run
+  `32383065903` and Task-087 run `32383065959` passed at that exact head.
 - Validation artifacts are built only from an exact commit and use
   `Task-087-validation-<short-SHA>` rather than either the
   `v0.1.3-preview.N` or `v0.1.3-rc.N` release line.
@@ -57,7 +58,7 @@ The application includes:
   results, and no secrets or local certificate detail.
 - Validation artifacts do not mutate `main`. The frozen `v0.1.2` release and
   `cdcai/TowerScout` remain unchanged, and Draft PR #67 does not merge to
-  `main` until its remaining exact-head and release gates pass.
+  `main` until its remaining technical/security and release gates pass.
 - The August 19 Proceed decision makes the Draft PR eligible for normal
   technical/security review, merge, and separate preview-package integration.
   Existing validation artifacts remain nonpublishable and do not themselves
@@ -303,7 +304,7 @@ The current security boundary is:
    `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`.
    It is not present in the shipped Python runtime image or normal-user Windows
    package, but the maintained browser-install path can execute it.
-10. Active Task-101 established Node `>=22.12.0`, exact
+10. Task-101 established Node `>=22.12.0`, exact
     `puppeteer@25.8.0`, and `@puppeteer/browsers@3.2.1`. The resulting lock
     and installed graphs contain no `extract-zip`, and the blocking audit is
     clean. Final PR #72 CI/CD run `32308971393` and Task-087 run `32308971392`
@@ -312,10 +313,10 @@ The current security boundary is:
     closed as fixed without dismissal.
 11. PR #73 recorded the post-merge checkpoint and squash-merged as `9276084`;
     exact-main CI/CD run `32377736719` and Task-087 run `32377736797` passed.
-    This merge integrates that current `main` into Draft PR #67 while preserving
-    ADR-019 and the branch's evidence. Task-101 remains active for exact-head
-    validation, and Task-087 stays paused until that gate passes and its resume
-    transition is recorded.
+    Draft PR #67 reconciliation head `946deaf` then passed CI/CD run
+    `32383065903` and Task-087 run `32383065959` while preserving ADR-019 and
+    the branch's evidence. Task-101 is complete, and Task-087 is explicitly
+    resumed; new work waits for the lifecycle update's exact-head checks.
 
 ## Task Dependency Flow
 
@@ -332,10 +333,10 @@ TASK-098 dependency-security remediation/disposition gate [COMPLETE]
 TASK-099 August advisory follow-up [COMPLETE]
         |
         v
-TASK-101 extract-zip advisory gate [IN PROGRESS: PR #67 EXACT-HEAD]
+TASK-101 extract-zip advisory gate [COMPLETE]
         |
         v
-TASK-087 universal provider TLS repair [PAUSED / RECONCILIATION-GATED]
+TASK-087 universal provider TLS repair [IN PROGRESS / RESUMED]
         |
         v
 TASK-096 user Exit/Stop
@@ -368,11 +369,10 @@ investigation cannot hide dependency upgrades, CPU/CUDA compatibility work, or
 four-profile regression effort. Task-099 preserved the same governance
 principle for post-closeout disclosures and cleared its scoped dependency-
 security gate on August 11. Task-101 closed alert `#76` through the accepted
-default-branch graph, integrated current `main` into PR #67, and now owns only
-that branch's exact-head validation. Task-087 remains reviewable but paused
-until the gate passes and the explicit resume transition is recorded. Task-100
-remains backlog work until October and the ADR-019 satisfactory-package entry
-decision.
+default-branch graph and passed the downstream PR #67 exact-head gate at
+`946deaf`. Task-101 is complete, and Task-087 is resumed under ADR-019, with
+further work held until the lifecycle update's own checks pass. Task-100 remains
+backlog work until October and the ADR-019 satisfactory-package entry decision.
 
 ## Validation Strategy
 
