@@ -282,7 +282,8 @@ Validated Podman checks on the current host:
 
 Podman support prerequisites:
 
-- Podman machine is created and running.
+- On Windows, the Podman machine is created, running, and rootless;
+  `podman machine inspect` reports `"Rootful": false`.
 - An approved non-Docker-Desktop Compose provider is installed and can talk to
   the Podman socket.
 - If no approved provider is present, run

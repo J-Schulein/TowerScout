@@ -255,6 +255,19 @@ function Test-TowerScoutPodmanPreflight {
         else {
             $warnings += "Podman machine state could not be read. Support may need to run 'podman machine list'."
         }
+
+        if (Get-Command "Assert-TowerScoutPodmanWindowsRootlessMode" -ErrorAction SilentlyContinue) {
+            try {
+                Assert-TowerScoutPodmanWindowsRootlessMode
+                $details += "The selected Podman machine is rootless for Windows localhost forwarding."
+            }
+            catch {
+                $failures += $_.Exception.Message
+            }
+        }
+        else {
+            $failures += "TowerScout could not load the Windows Podman rootless-mode preflight. Re-extract the complete application package and retry."
+        }
     }
 
     if (Get-Command "Initialize-TowerScoutPodmanComposeProvider" -ErrorAction SilentlyContinue) {

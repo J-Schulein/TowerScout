@@ -1,7 +1,7 @@
 # TowerScout Release Asset Bundle Contract
 
 **Applies to**: Current V1 release-candidate package support path
-**Last reviewed**: 2026-06-16
+**Last reviewed**: 2026-08-19
 **Audience**: Release engineering, support, and release reviewers
 **Runtime scope**: The CPU Application Package is the primary path; the CUDA
 12.6 Application Package, Podman CPU, Docker GPU, and Podman GPU are
@@ -22,7 +22,20 @@ The asset bundle covers:
 - US Census 2025 ZCTA ZIP-code boundary shapefile data.
 - A copy of the TowerScout asset manifest used to identify and verify the bundle.
 
-The GitHub Release control package, GHCR image digest, and asset bundle are separate release artifacts. The control package contains the launcher, Compose files, helper scripts, docs, and `webapp/asset_manifest.v1.json`. The asset bundle contains the large runtime files named by that manifest.
+The GitHub Release control package, GHCR image digest, and asset bundle are
+separate release artifacts. In the current `v0.1.2`/standard-generator
+contract, "launcher" means the command launch/setup surface (`start.bat`,
+`setup-towerscout.cmd`, and their package scripts), not the Task-087
+`TowerScoutLauncher.exe` GUI. The control package contains that command
+surface, Compose files, helper scripts, docs, and
+`webapp/asset_manifest.v1.json`. The asset bundle contains the large runtime
+files named by that manifest.
+
+The Task-087 GUI launcher enters this contract only through the new
+`v0.1.3-preview.N` normal-release-package integration path. Before any such
+preview is published, the control ZIP layout, manifest/checksums, notices, and
+user documentation must explicitly include the GUI launcher; validation-only
+`Task-087-validation-*` ZIPs do not satisfy this contract.
 
 Hosted asset download, bundled OCI image archives, and air-gapped/offline
 release packages are out of scope for the normal path. The package-local
@@ -37,9 +50,9 @@ For a release version such as `<release-version>`, the expected artifacts are:
 
 | Artifact | Example | Purpose |
 | --- | --- | --- |
-| CPU control ZIP | `towerscout-<release-version>-cpu.zip` | Default user-facing package with launcher, Compose, scripts, docs, manifest, and pinned CPU image metadata. |
+| CPU control ZIP | `towerscout-<release-version>-cpu.zip` | Default user-facing package with command launch/setup surface, Compose, scripts, docs, manifest, and pinned CPU image metadata; preview packages add the Task-087 GUI only after release integration. |
 | CPU control ZIP checksum | `towerscout-<release-version>-cpu.zip.sha256` | SHA-256 checksum for the full CPU control ZIP. |
-| CUDA control ZIP | `towerscout-<release-version>-cuda126.zip` | Support-assigned NVIDIA GPU package with launcher, Compose, scripts, docs, manifest, and pinned CUDA 12.6 image metadata. |
+| CUDA control ZIP | `towerscout-<release-version>-cuda126.zip` | Support-assigned NVIDIA GPU package with command launch/setup surface, Compose, scripts, docs, manifest, and pinned CUDA 12.6 image metadata; preview packages add the Task-087 GUI only after release integration. |
 | CUDA control ZIP checksum | `towerscout-<release-version>-cuda126.zip.sha256` | SHA-256 checksum for the full CUDA control ZIP. |
 | GHCR image digest | `ghcr.io/j-schulein/towerscout@sha256:<digest>` | Immutable Linux/AMD64 runtime image referenced by each control ZIP. |
 | Asset ZIP | `towerscout-<release-version>-assets-towerscout-v1-assets-2026-05-05.zip` | Restricted-pilot or support-supplied local bundle containing model weights, ZIP-code data, and the asset manifest copy. |

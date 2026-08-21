@@ -1,12 +1,14 @@
 # TASK-101: extract-zip Advisory Assessment And Release-Gate Disposition
 
-**Status**: IN_PROGRESS - PR #72 squash-merged as `0cc189c`, alert `#76` closed
-as fixed without dismissal, and exact-main CI passed August 19, 2026; PR #67
-semantic integration and exact-head validation remain open
+**Status**: COMPLETED - PR #72/default-branch security gates and PR #73's
+checkpoint passed; PR #67 reconciliation head `946deaf` then passed CI/CD run
+`32383065903` and Task-087 run `32383065959`, and this lifecycle update records
+Task-101 completion plus Task-087's explicit resume
+**Completed**: August 20, 2026
 **Priority**: HIGH
 **Type**: C (Security Remediation / CI And Release Gate)
 **Estimated Effort**: 1-2 days plus CI rerun timing
-**Target Sprint**: Sprint 09 immediate gate before Task-087 resumes
+**Target Sprint**: Sprint 09 completed security and reconciliation gate
 **Owner**: TowerScout release owner / active agent support
 **Created**: August 19, 2026
 **Selected**: August 19, 2026
@@ -36,9 +38,12 @@ Task-087 implementation, PR #67 merge, and candidate-package work to resume.
   their historical `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false` setting with the
   supported skip-download configuration so browser acquisition is explicit
   and non-redundant.
-- PR #67 review may continue. New Task-087 implementation, package integration,
-  merge, and candidate publication wait for this task. No evidence indicates
-  exploitation, and no end-user runtime vulnerability is claimed.
+- PR #67 review continued while new Task-087 implementation, package
+  integration, merge, and publication waited for this gate. Reconciliation
+  head `946deaf` passed the required matrices, so this lifecycle update resumes
+  Task-087; PR merge and publication retain their separate later gates. No
+  evidence indicates exploitation, and no end-user runtime vulnerability is
+  claimed.
 
 ## Requirements (EARS Notation)
 
@@ -80,9 +85,10 @@ Task-087 implementation, PR #67 merge, and candidate-package work to resume.
 - [x] GitHub alert `#76` closed as fixed through default-branch dependency
   reconciliation after squash commit `0cc189c`, with no dismissal or
   residual-high exception.
-- [ ] Task-087's tracker and task file are changed from paused to resumed only
-  after the accepted change is semantically integrated into PR #67 and that
-  branch's required exact-head matrix passes.
+- [x] Task-087's tracker and task file are changed from paused to resumed only
+  after the accepted change was semantically integrated into PR #67 and exact
+  head `946deaf` passed CI/CD run `32383065903` plus Task-087 run
+  `32383065959`.
 
 ## Dependencies
 
@@ -113,6 +119,73 @@ Task-087 implementation, PR #67 merge, and candidate-package work to resume.
 ---
 
 ## Implementation Log
+
+### 2026-08-20 - PR #67 Exact-Head Passed; Task-101 Completed
+
+**Objective**: Close the remaining downstream Task-101 gate and explicitly
+resume Task-087 without weakening its separate review, package, merge, or
+release boundaries.
+
+**Context**: Reconciliation merge head `946deaf` preserved ADR-019 and PR #67's
+evidence-bearing Task-087 history while integrating current `main` through
+`9276084`.
+
+**Decision**: Mark Task-101 complete and Task-087 `IN_PROGRESS / RESUMED` only
+after the reconciled exact head passed both required workflow matrices. Keep PR
+#67 Draft, retain every later Task-087 and Task-100 gate, and require this
+lifecycle update's own exact-head checks before new Task-087 work.
+
+**Execution**: Updated the canonical current-task, backlog, requirement, design,
+Task-101, Task-087, governance, and recent-completion sources. No dependency,
+launcher/runtime source, package, release artifact, frozen pilot, or cdcai
+state changed.
+
+**Validation**: CI/CD run `32383065903` and Task-087 run `32383065959` passed at
+exact reconciliation head `946deaf`, with all required jobs successful. Alert
+`#76` remains fixed without dismissal. This transition adds no runtime or
+package acceptance claim.
+
+**Next**: Push this lifecycle update and require its exact-head CI/CD and
+Task-087 matrices before beginning new implementation, PR merge, or
+preview-package work.
+
+### 2026-08-20 - Current Main Integrated Into Draft PR #67
+
+**Objective**: Reconcile the accepted Task-101 change and its stable governance
+checkpoint into Draft PR #67 without discarding ADR-019 or the branch's recorded
+Task-087 evidence.
+
+**Context**: PR #73 recorded the PR #72/default-branch result, squash-merged as
+`9276084`, and passed exact-main CI/CD run `32377736719` plus Task-087 run
+`32377736797`. PR #67 remained Draft and required a normal merge from current
+`main`, semantic resolution of the shared governance sources, and a new exact-
+head validation matrix.
+
+**Decision**: Preserve PR #67's evidence-bearing commit history, ADR-019,
+unsigned `v0.1.3-preview.N` path, and Task-100 signing boundary. Integrate
+`main` through `9276084` with a normal merge and keep Task-101 in progress and
+Task-087 paused until the reconciled head passes all required checks.
+
+**Execution**: This merge combines the Node >=22.12 / Puppeteer 25.8.0 security
+baseline, workflow contracts, Docker frontend gate, and Task-101 governance with
+PR #67's launcher/runtime changes and evidence. The combined Dockerfile retains
+both the Node 22 frontend stage and PR #67's optional BuildKit CA-secret mount.
+
+**Validation**: The broad local unit gate passed `377` tests with `74` expected
+skips after isolating the workstation-blocked host-helper file. Clean npm
+install/audit, exact dependency graph, `extract-zip` absence, CommonJS loading,
+bundle equivalence, maintained frontend contracts, Compose parsing, Docker
+frontend stage, and complete image builds both without and with the optional CA
+secret passed. Image inspection found no persisted `PIP_CERT` or secret path.
+Both agent-work validators and diff checks passed. The separate Windows host-
+helper run was blocked by endpoint antivirus before the unchanged PowerShell
+script could load; no security bypass was used, and the exact-head Windows job
+remains required.
+
+**Next**: Push the reconciliation merge and require PR #67's CI/CD plus all
+three Task-087 jobs at its exact head. Only after that green head may a
+subsequent governance update mark Task-101 complete and explicitly resume
+Task-087; that lifecycle head must then pass checks before further work.
 
 ### 2026-08-20 - PR #72 Merge And Default-Branch Reconciliation
 
@@ -304,7 +377,7 @@ open
 ### Focused Remediation - August 19, 2026
 
 **Test Status**: PASS locally and at PR #72 implementation head `a87ab53`;
-default-branch and PR #67 gates remain open
+later downstream results are recorded separately below
 
 - [x] Exact Node/Puppeteer/lock graph and no-override contracts pass.
 - [x] Clean isolated install and blocking high-severity audit pass.
@@ -316,18 +389,53 @@ default-branch and PR #67 gates remain open
   `32300398377` pass at PR #72 implementation head `a87ab53`.
 - [x] Alert `#76` closed as fixed through default-branch reconciliation without
   dismissal after PR #72 squash commit `0cc189c`.
-- [ ] The accepted change is semantically reconciled into PR #67 and validated
-  at its new exact head before Task-087 resumes.
+- [x] The accepted change is semantically reconciled into PR #67 and validated
+  at exact head `946deaf` by CI/CD run `32383065903` and Task-087 run
+  `32383065959` before Task-087 resumed.
 
 ### Post-Merge Gate - August 20, 2026
 
-**Test Status**: PASS for PR #72 and default-branch reconciliation; PR #67 gate
-remains open
+**Test Status**: PASS for PR #72 and default-branch reconciliation; the later
+PR #67 result is recorded below
 
 - [x] Final PR #72 CI/CD run `32308971393` and Task-087 run `32308971392`
   passed at exact head `820b649`.
 - [x] PR #72 squash-merged as exact-main commit `0cc189c`.
 - [x] Exact-main CI/CD run `32310281115` and Task-087 run `32310281051` passed.
 - [x] Alert `#76` is fixed and every dismissal field is null.
-- [ ] PR #67 contains the semantically reconciled accepted change and passes
-  its required exact-head matrix before Task-087 resumes.
+- [x] PR #67 contains the semantically reconciled accepted change, and exact
+  head `946deaf` passed CI/CD run `32383065903` plus Task-087 run
+  `32383065959` before Task-087 resumed.
+
+### PR #67 Semantic Reconciliation - August 20, 2026
+
+**Test Status**: PASS locally and at exact reconciliation head `946deaf`
+
+- [x] Current `main` through PR #73 squash commit `9276084` is semantically
+  integrated while ADR-019 and PR #67's recorded Task-087 evidence remain.
+- [x] The combined Dockerfile retains the Node 22 frontend stage and the
+  optional BuildKit CA-secret seam.
+- [x] The combined tree passes every locally executable dependency, launcher,
+  frontend, Docker frontend/full-image, and governance check. Endpoint antivirus
+  blocks local loading of the unchanged PowerShell host-helper script; no bypass
+  was used, and the exact-head Windows workflow remains authoritative.
+- [x] The pushed reconciliation head passed required CI/CD run `32383065903`
+  and all three jobs in Task-087 run `32383065959`.
+- [x] This subsequent governance update records Task-101 complete and Task-087
+  explicitly resumed.
+- [x] Downstream Task-087 hold (not a Task-101 acceptance item): lifecycle head
+  `6e0f744` passed CI/CD run `32385304086` and Task-087 run `32385304052`.
+
+### Post-Completion Task-087 Revalidation Hold - August 20, 2026
+
+**Test Status**: PASS for downstream revalidation; the later Task-087
+technical/security review-remediation gate is tracked separately and does not
+reopen Task-101
+
+- [x] Task-101 is `COMPLETED` only after reconciliation head `946deaf` passed
+  both required workflow matrices.
+- [x] Task-087 is explicitly `IN_PROGRESS / RESUMED` while PR #67 remains
+  Draft and all later technical, package, merge, and release gates remain.
+- [x] Task-101's file remains under `tasks/active/` through Sprint 09 closeout.
+- [x] Downstream hold: lifecycle head `6e0f744` passed CI/CD run `32385304086`
+  and all three jobs in Task-087 run `32385304052`.

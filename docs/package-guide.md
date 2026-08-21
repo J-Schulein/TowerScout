@@ -710,9 +710,16 @@ Common causes:
 
 For Podman, confirm:
 
-- Podman machine is created and running.
+- Podman machine is created, running, and rootless on Windows; verify
+  `podman machine inspect` reports `"Rootful": false`.
 - `podman compose` can use an approved non-Docker-Desktop Compose provider.
 - If needed, `PODMAN_COMPOSE_PROVIDER` points to the approved provider.
+
+The Windows package fails closed before launch when it detects a rootful Podman
+machine because published container ports may not reach Windows `localhost`.
+TowerScout never changes the machine mode automatically. Rootful and rootless
+Podman use separate containers and named volumes, so an approved mode change
+requires setup and asset-state planning.
 
 The selected Compose provider must be explicitly validated in the target
 environment. The RC5 validation used standalone Docker Compose v5.1.4 selected
@@ -821,9 +828,9 @@ ambiguous or unavailable, support may still use the lower-level
 Do not use it as normal release configuration.
 
 The current provider TLS repair path is the guided script workflow above. The
-package now ships host-helper scaffolding for a future browser-triggered repair
-flow, but that control plane remains disabled in the current release baseline;
-see [docs/support/host-helper.md](support/host-helper.md).
+experimental browser-to-host helper remains source-only review material: it is
+not included in the release package and is not loaded by the normal launch or
+stop paths.
 
 ### Restricted Networks
 

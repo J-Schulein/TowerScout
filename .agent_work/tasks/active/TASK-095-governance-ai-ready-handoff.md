@@ -62,6 +62,10 @@ optional AI-assisted development.
 - [ ] Decide whether GitHub Issues supplement the Markdown backlog.
 - [ ] Verify repository access, release/package custody, and external guide/
   video custody.
+- [ ] Keep Task-100's satisfactory-package entry gate, October signing work,
+  and managed-endpoint acceptance synchronized across release/handoff sources.
+- [ ] Keep newly disclosed critical/high dependency findings assigned to unique
+  follow-up tasks without rewriting completed-task history or weakening gates.
 - [ ] Ensure final documentation identifies current, historical, and archived
   sources unambiguously.
 - [ ] Complete owner review and final sign-off by October 30.
@@ -70,11 +74,115 @@ optional AI-assisted development.
 
 - Project lead and cdcai owner roadmap decisions
 - Tasks 087 and 089
-- Tasks 090-097 as formalized by Phase A, Task-098 added by the July 23
-  code-scanning readiness review, and active Task-101
+- Tasks 090-101 as formalized by current roadmap decisions
 - Final candidate and handoff evidence
 
 ## Implementation Log
+
+### 2026-08-21 - Task-087 IMPLEMENT Approval Recorded
+
+**Objective**: Keep the handoff state synchronized with the project lead's
+explicit approval of the August 20 Task-087 remediation design.
+
+**Decision**: Task-087 is now in IMPLEMENT for Gate A source remediation. PR
+#67 remains Draft; Gate B unsigned-preview integrity and Task-100 production
+signing/managed-endpoint qualification remain separate later gates.
+
+**Execution**: Updated live task/governance guidance before production-source
+edits. No package, runtime, release, Pilot, or cdcai state is changed by this
+approval record.
+
+**Validation**: Pending with the bounded design-checkpoint validation and
+subsequent implementation increments.
+
+**Next**: Track Gate A source implementation, exact-head validation, and
+independent re-review without broadening the approved scope.
+
+### 2026-08-20 - PR #67 Technical/Security Remediation Design Checkpoint
+
+**Objective**: Convert the outside PR #67 review into a bounded, independently
+verified remediation plan without treating the review as authoritative or
+changing production code before design approval.
+
+**Context**: Lifecycle head `6e0f744` passed CI/CD run `32385304086` and
+Task-087 run `32385304052`. Independent inspection confirmed material source
+gaps while preserving the distinction between current source/preview work and
+Task-100's later production signing and managed-endpoint qualification.
+
+**Decision**: Gate Task-087 on explicit approval of the exact-target, trusted-
+runtime, Windows-only trust, durable recovery, cross-session locking, safe-
+filesystem, staged-byte, and build-integrity design. Keep PR #67 Draft and keep
+signing, timestamping, post-sign manifests, and representative managed-endpoint
+qualification in Task-100.
+
+**Execution**: Added the task-local remediation design and reconciled current
+requirements, design, task, roadmap, handoff, decision, backlog, and agent-
+guidance sources. Recorded only the outside review's SHA-256 and sanitized
+dispositions; no external local path, raw review content, production source,
+package, runtime, PR, release, frozen-pilot, or cdcai state changed.
+
+**Validation**: PASS. Both `.agent_work` validators, `git diff --check`, changed-
+file link resolution, conflict/sanitization scans, current upstream Python 3.12
+review, and independent runtime, recovery/filesystem, and governance/security-
+boundary audits found no remaining design blocker. This checkpoint makes no
+implementation or live-runtime claim.
+
+**Next**: Present the validated design to the project lead and obtain explicit
+approval before Task-087 moves to IMPLEMENT.
+
+### 2026-08-20 - Task-101 Completed; Task-087 Resumed
+
+**Objective**: Record the canonical lifecycle transition after the reconciled
+PR #67 head passed every required check.
+
+**Context**: Merge head `946deaf` preserves ADR-019 and PR #67's evidence while
+integrating current `main` through `9276084`.
+
+**Decision**: Mark Task-101 `COMPLETED` and Task-087 `IN_PROGRESS / RESUMED`.
+Keep PR #67 Draft, preserve all later technical/package/release gates, and
+require the lifecycle update's exact-head checks before new Task-087 work.
+
+**Execution**: Reconciled the current task, backlog, requirements, design,
+Task-101, Task-087, and recent-completion sources. Task-101 remains under
+`tasks/active/` until Sprint 09 closeout; no task file was moved.
+
+**Validation**: CI/CD run `32383065903` and Task-087 run `32383065959` passed at
+exact reconciliation head `946deaf`, with all required jobs successful. Both
+agent-work validators and `git diff --check` pass for this lifecycle update.
+No package, runtime, release, frozen-pilot, or cdcai state changed.
+
+**Next**: Push the lifecycle update and require its exact-head CI/CD and
+Task-087 matrices before beginning new Task-087 work.
+
+### 2026-08-20 - PR #67 Current-Main Reconciliation
+
+**Objective**: Preserve the accepted Task-087/ADR-019 branch record while
+integrating the completed Task-101/default-branch state into Draft PR #67.
+
+**Context**: PR #73 squash-merged the post-PR72 checkpoint as `9276084`, and
+its exact-main CI/CD and Task-087 workflows passed. PR #67 remained Draft and
+conflicted at `c095389` with nineteen evidence-bearing branch commits.
+
+**Decision**: Merge current `main` normally, resolve the shared control-plane
+sources semantically, and leave Task-101 active plus Task-087 paused until the
+new exact PR #67 head passes. Preserve the unsigned-preview/Task-100 sequence.
+
+**Execution**: Integrated `main` through `9276084` without rebasing or
+force-pushing. Preserved ADR-019, current Task-087 evidence, the immutable
+pilot/cdcai boundary, and Task-100 while importing the Node/Puppeteer security
+baseline and current Task-101 gate state.
+
+**Validation**: PR #73/default-main evidence is green. Local reconciliation
+passed the broad executable unit suite, clean npm/audit and exact dependency
+graph, bundle/contracts, Docker frontend plus full-image builds with the CA
+secret absent and present, secret non-persistence inspection, both agent-work
+validators, and diff checks. Endpoint antivirus blocked local loading of the
+unchanged PowerShell host-helper script; no bypass was used, and the new exact
+PR #67 workflow matrix remains pending. This entry does not complete Task-101
+or resume Task-087.
+
+**Next**: Push the merge commit and require green exact-head checks before a
+separate lifecycle-transition update.
 
 ### 2026-08-20 - Task-101 Post-Merge Governance Checkpoint
 
@@ -103,6 +211,35 @@ only sanitized GitHub identifiers and state.
 governance sources semantically while preserving ADR-019 and branch evidence,
 and require the reconciled exact-head matrix before closing Task-101 or
 resuming Task-087.
+
+### 2026-08-19 - Task-101 Quality Review Gate Reconciled
+
+**Objective**: Keep the Task-101 evidence and Task-087 resume boundary
+unambiguous after PR #72's independent quality review.
+
+**Context**: The implementation head passed its main CI and all three Task-087
+compatibility jobs. The review found the committed evidence state lagged those
+runs and several current sources could be read as resuming Task-087 before PR
+#67's new exact-head validation.
+
+**Decision**: Record implementation head `a87ab53`, CI/CD run `32300398378`,
+and Task-087 run `32300398377`. Standardize the downstream order as PR #72
+merge, alert `#76` closure without dismissal, PR #67 semantic integration,
+green PR #67 exact-head checks, and only then Task-087 resumption. Keep final
+PR #72 check evidence in the PR description so an evidence-only commit does
+not invalidate its own claim.
+
+**Execution**: Reconciled the current task, backlog, requirement, design, ADR,
+roadmap, Task-087, handoff, and Copilot sources. The CI quality ratchet also
+adds a blocking Docker frontend-stage PR job and focused semantic contract.
+
+**Validation**: The focused suite passed `12` tests; the uncached Docker
+frontend-stage build, CI workflow summary, both agent-work validators, and
+`git diff --check` passed. No raw log, provider data, certificate detail, or
+local path was added to repository evidence.
+
+**Next**: Require the review-remediation commit's exact-head PR checks, then
+preserve the ordered post-merge gates without resuming Task-087 early.
 
 ### 2026-08-19 - Task-101 Activated And Task-087 Paused
 
@@ -135,34 +272,74 @@ Markdown links resolved across the changed files.
 `#76`, bring the accepted result into PR #67, and then resume Task-087 from its
 preserved checkpoint.
 
-### 2026-08-19 - Task-101 Quality Review Gate Reconciled
+### 2026-08-19 - Alert 76 Current-Gate Reconciliation
 
-**Objective**: Keep the Task-101 evidence and Task-087 resume boundary
-unambiguous after PR #72's independent quality review.
+**Objective**: Keep the live security inventory and release gates accurate
+after GitHub surfaced a new high-severity dependency advisory.
 
-**Context**: The implementation head passed its main CI and all three Task-087
-compatibility jobs. The review found the committed evidence state lagged those
-runs and several current sources could be read as resuming Task-087 before PR
-#67's new exact-head validation.
+**Context**: Pushing the ADR-019 documentation update caused the current
+blocking frontend audit to evaluate Dependabot alert `#76`. The alert opened
+August 12, after Task-099 completed on August 11, and affects development-only
+transitive `extract-zip==2.0.1` through Puppeteer. The dependency is not shipped
+in the product runtime image or end-user ZIP, but the browser-install test path
+can execute it and no patched `extract-zip` release is currently listed.
 
-**Decision**: Record implementation head `a87ab53`, CI/CD run `32300398378`,
-and Task-087 run `32300398377`. Standardize the downstream order as PR #72
-merge, alert `#76` closure without dismissal, PR #67 semantic integration,
-green PR #67 exact-head checks, and only then Task-087 resumption. Keep final
-PR #72 check evidence in the PR description so an evidence-only commit does
-not invalidate its own claim.
+**Decision**: Preserve Task-099 as a dated historical closeout and add backlog-
+only Task-101 for supported-path assessment and release-gate disposition.
+Allow reviewer feedback to continue, but hold PR #67 merge and preview/
+candidate publication behind the deliberately blocking high-severity gate.
 
-**Execution**: Reconciled the current task, backlog, requirement, design, ADR,
-roadmap, Task-087, handoff, and Copilot sources. The CI quality ratchet also
-adds a blocking Docker frontend-stage PR job and focused semantic contract.
+**Execution**: Reconciled the current task, backlog, requirements, design,
+roadmap, adoption, handoff, status navigation, and agent-guidance sources. No
+dependency, workflow, runtime, package, or historical Task-099 artifact was
+changed, and no remediation direction was preselected.
 
-**Validation**: The focused suite passed `12` tests; the uncached Docker
-frontend-stage build, CI workflow summary, both agent-work validators, and
-`git diff --check` passed. No raw log, provider data, certificate detail, or
-local path was added to repository evidence.
+**Output**: One current nine-alert inventory, a unique Task-101 backlog entry,
+and an explicit distinction between review continuity and merge/publication
+gates.
 
-**Next**: Require the review-remediation commit's exact-head PR checks, then
-preserve the ordered post-merge gates without resuming Task-087 early.
+**Validation**: PASS on August 19, 2026. The quick workspace checker and
+canonical `.agent_work` validator passed, and `git diff --check` found no
+whitespace errors after reconciliation.
+
+**Next**: Select Task-101 for bounded reachability and compatibility assessment
+before PR #67 merge or any preview/candidate publication.
+
+### 2026-08-19 - Preview And October Signing Rebaseline
+
+**Objective**: Turn the project lead's sequencing decision into one consistent
+release, task, and handoff policy.
+
+**Context**: Task-087's functional package evidence had passed, but active
+sources still required parallel signing and a signed managed-endpoint result
+before merge or any GitHub release. The project lead instead wants to refine a
+normal-user package first and complete signing in October once it is
+satisfactory.
+
+**Decision**: Separate immutable unsigned `v0.1.3-preview.N` GitHub
+prereleases from signed `v0.1.3-rc.N` candidates. Add Task-100 as required
+October backlog work after the ADR-019 satisfactory-package gate. Preserve all
+existing Task-087 validation artifacts as nonpublishable and keep cdcai
+owner-gated.
+
+**Execution**: Added ADR-019 and reconciled active trackers, requirements,
+design, roadmap/adoption navigation, Task-087/089 boundaries, launcher release
+guidance, agent guidance, and handoff documentation. Task-100 remains in the
+backlog until selected in October, so no premature active task file was
+created.
+
+**Output**: One documented preview-to-signing sequence with objective package
+satisfaction, signing, endpoint, naming, and adoption gates.
+
+**Validation**: PASS on August 19, 2026. The quick workspace checker and
+canonical `.agent_work` validator passed; every changed-file Markdown link
+resolved; the current-source contradiction audit found only explicitly
+superseded historical wording; the release-boundary check confirmed the
+existing Task-087 assembler remains validation-only and the normal release
+builder still requires launcher integration; and `git diff --check` passed.
+
+**Next**: Complete Task-087 review and normal release-package integration,
+then refine unsigned previews until the Task-100 entry gate can be recorded.
 
 ### 2026-07-23 - Phase A Rebaseline
 

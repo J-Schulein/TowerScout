@@ -1,33 +1,108 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: PAUSED / RECONCILIATION-GATED - PR #72 and alert `#76` default-branch
-reconciliation passed. Draft PR #67 and the Task-087 evidence recorded there
-remain preserved and reviewable. No new launcher or package
-implementation, merge, or publication proceeds until current `main` is
-semantically integrated into PR #67 and its required exact-head matrix passes.
-Release-facing TLS mutation, UAC/certificate, Chrome/Firefox, live package,
-Podman/GPU, sleep/resume, managed-network, and candidate-inclusion gates remain
-closed
+**Status**: IN_PROGRESS / IMPLEMENT - the `7ef879c` exact-source
+full-runnable CPU packages
+passed Docker and approved-provider Podman Google/Azure TLS repair plus
+controlled recovery. Follow-up head `3990bc0` closes the Podman-provider
+installer reproducibility gap. Head `5737a58` enforces the Windows rootless-
+Podman boundary and passed exact-source packaged rootful rejection without
+machine, container, or volume mutation. The August 19 disposition is Proceed
+to unsigned preview integration. Current `main` through PR #73 / `9276084` is
+integrated into Draft PR #67 while preserving that evidence and ADR-019.
+Reconciliation head `946deaf` passed CI/CD run `32383065903` and Task-087 run
+`32383065959`; Task-101 is complete, and lifecycle head `6e0f744` passed CI/CD
+run `32385304086` plus Task-087 run `32385304052`. Independent technical/
+security review then requested source changes at `6e0f744`. On August 21, the
+project lead explicitly approved IMPLEMENT under the August 20 remediation
+design; Gate A source work is active. Current Draft PR #67 head `0eebe7b`
+passed CI/CD run `32530172080` and Task-087 run `32530172064`. PR #67 remains
+Draft, and merge/publication retain their separate applicable gates. Signing
+and representative managed-endpoint validation remain Task-100 work in October
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: 4-7 days (32-56 hours), plus package validation on a managed TLS-inspected network
-**Target Sprint**: Sprint 09 continuation after the PR #67 reconciliation gate,
-with managed-network completion scheduled by the canonical October roadmap
+**Estimated Effort**: Rebaselined after review to approximately 6-10 focused
+implementation days plus live Windows/Docker/Podman validation and re-review;
+preview integration follows, and production signing remains Task-100 work
+**Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
+and the canonical October roadmap
 **Created**: 2026-06-29
 **Owner**: TowerScout release owner / active agent support
-**Depends On**: `TASK-086`; completed `TASK-090` investigation and `TASK-098`
-dependency remediation/disposition; active `TASK-101` PR #67 reconciliation
-gate; package launcher/runtime profile; provider setup error classification;
-Docker and Podman CPU/GPU package paths
+**Depends On**: `TASK-086`; `TASK-090` investigation; approved `TASK-098`
+dependency remediation/disposition; completed `TASK-101` dependency-security
+and PR #67 reconciliation gates; package launcher/runtime profile; provider
+setup error classification; Docker and Podman CPU/GPU package paths
 
 ## Canonical Source Note
 
 This file preserves the canonical gated Task-087 design and evidence. The
-non-mutating proof is merged and the Tasks 090/098 security gate passed on
-July 27. Task-087 resumed in draft PR #63; its first review found lifecycle,
-asynchronous execution, recovery, and terminal-flow gaps that are now addressed
-in the draft branch. The command-based Task-086 path remains the fallback until
-all Task-087 gates pass.
+dormant browser/helper Gate 3 non-mutating proof is merged on `main`; the newer
+ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
+feature branch and is not merged. The command-based Task-086 path remains the
+supported fallback until all Task-087 gates pass.
+
+The current remote Draft PR head is `0eebe7b`; exact-head CI/CD run
+`32530172080`, Task-087 run `32530172064`, and external Trivy passed. Gate A
+source work remains intentionally inert and independently reviewed. The
+accepted functional implementation checkpoint remains `5737a58`, built on
+then-current `main` commit `3932abf`.
+Its exact-source full-runnable Podman CPU package enforces the
+selected rootless Windows boundary and rejected rootful mode before provider
+discovery or container mutation. Checkpoint `3990bc0` remains the accepted
+fresh provider-install/setup/recovery evidence, and the `7ef879c` packages
+remain the accepted exact-head Google/Azure repair evidence. The older
+`41cec81` package remains valid pre-fix evidence but must not be promoted or
+reused as the final artifact. No validation artifact is a release candidate,
+preview release, merge signal, or substitute for Task-100's signed
+representative managed-endpoint gate.
+
+## August 20, 2026 PR #67 Technical/Security Review Override
+
+This override controls current work after the lifecycle revalidation hold
+closed:
+
+- Exact lifecycle head `6e0f744` passed CI/CD run `32385304086` and Task-087 run
+  `32385304052`; the prior governance hold is complete.
+- An external 333-line inspect-only review of that exact head requested changes.
+  Its SHA-256 is
+  `f2f116573ae5b90b122b4275514b49216cdfac354eba43ef192ff541a2d6f253`.
+  The review is outside perspective, not authority; every finding was checked
+  independently against source.
+- Independent inspection agrees that the source must correct mutable runtime/
+  endpoint/Compose identity, incomplete pre-confirmation target binding,
+  best-effort rollback, process-only recovery, mixed Windows/OpenSSL trust,
+  missing native rootless-Podman binding, session-local serialization, and
+  unsafe Windows staging/`.env` replacement before source acceptance.
+- Staged-copy/archive integrity and an explicitly approved exact-patch/hash-
+  locked Python 3.12 provenance-v2 build are separate pre-artifact/unsigned-
+  preview gates. Later
+  production signing, timestamping, post-sign manifests, and representative
+  managed-endpoint qualification remain Task-100; signing does not repair the
+  current source gaps.
+- The controlling design is
+  [`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
+  This checkpoint changed no production source or runtime state. The project
+  lead supplied the required IMPLEMENT approval on August 21, 2026.
+- Keep PR #67 Draft and preserve Task-086, the visible no-helper launcher, no
+  listener/PowerShell/bypass/admin path, explicit rootless Podman without
+  changing defaults, stable OneDrive-compatible package locations, all eight
+  named volumes, and the ADR-019/Task-100 release boundaries.
+
+## August 20, 2026 Exact-Head Resume Override
+
+This override supersedes the post-merge reconciliation pause for current
+execution order while preserving every older entry as dated history:
+
+- Draft PR #67 reconciliation head `946deaf` passed CI/CD run `32383065903` and
+  Task-087 run `32383065959`, with all required jobs successful.
+- Task-101 is complete, and Task-087 is explicitly `IN_PROGRESS / RESUMED`
+  under ADR-019 from its preserved implementation and evidence checkpoint.
+- PR #67 remains Draft. Existing validation packages remain nonpublishable,
+  and this transition adds no runtime, package, merge, preview, candidate, or
+  managed-endpoint acceptance claim.
+- Require this lifecycle update's exact-head CI/CD and Task-087 matrices before
+  beginning new technical implementation or preview-package integration.
+- Production signing, signed `v0.1.3-rc.N`, representative managed-endpoint
+  qualification, and all other later Task-087/Task-100 gates remain unchanged.
 
 ## August 20, 2026 Post-Merge Reconciliation Override
 
@@ -39,12 +114,15 @@ order while preserving that entry as dated history:
 - Exact-main CI/CD run `32310281115` and Task-087 run `32310281051` passed.
   Dependabot alert `#76` closed as fixed through dependency reconciliation;
   every dismissal field is null.
-- Preserve Draft PR #67, ADR-019, the current Task-087 implementation, and its
-  recorded evidence while current `main` is merged into the branch and shared
-  files are resolved semantically.
-- Keep Task-087 paused through the reconciled branch's required exact-head
-  matrix. Only after that matrix passes may the tracker and this task file be
-  changed explicitly to resumed.
+- PR #73 then recorded the post-merge checkpoint and squash-merged as
+  `9276084`; exact-main CI/CD run `32377736719` and Task-087 run `32377736797`
+  passed.
+- This merge integrates current `main` through `9276084` into Draft PR #67
+  while preserving ADR-019, the Task-087 implementation, and its recorded
+  evidence.
+- Keep Task-087 paused through the integrated branch's required exact-head
+  matrix. Only after that matrix passes may a subsequent governance update
+  mark Task-101 complete and change Task-087 explicitly to resumed.
 - Full TowerScout Docker/Podman runtime, package, signing, provider/recovery,
   and managed-network qualification remain later Task-087 gates.
 
@@ -72,89 +150,113 @@ while final PR/default-branch and PR #67 gates remain:
   #67. Require its new exact-head matrix to pass before resuming from the
   preserved Task-087 checkpoint.
 
-## July 28, 2026 Phase 1 Live Validation Override
+Sanitized full-package functional evidence is recorded in
+[`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
 
-This override controls current validation status wherever the July 27 review
-entry still lists all live runtime work as not run:
+## August 19, 2026 Release Sequencing Override
 
-- The Docker CPU launcher lifecycle and the Edge stop/restart browser scenario
-  passed on a dedicated, nonconflicting source-worktree project.
-- Phase 1 exposed a real launcher defect: direct invocation of the long-lived
-  helper retained the PowerShell native-command pipeline and blocked launcher
-  progress. The launcher now uses detached `Start-Process` execution, with a
-  regression assertion that rejects the blocking invocation.
-- Repeated launches, review disablement, stale-helper replacement, Compose
-  failure, readiness timeout, fatal readiness, and same-session application
-  stop/restart all completed with the expected helper and application cleanup.
-- The production backend, helper, controlled-execution, and frontend mutation
-  gates remain false. No provider TLS repair, certificate-store change, UAC
-  flow, provider-key use, or managed-network mutation was performed.
-- Chrome/Firefox, sleep/resume, Podman, GPU, release-package runtime, real
-  guided TLS mutation, and managed TLS-inspected network proof remain explicit
-  activation or candidate-inclusion blockers.
-- All dedicated containers, networks, named volumes, test images, helper state,
-  and template-derived local configuration created for Phase 1 were removed.
-  The pre-existing unrelated Docker project remained healthy and unchanged.
+This override controls wherever the August 5/12 sections below still make
+parallel signing, signing-before-merge, or the August 14 disposition the
+current sequence:
 
-## July 28, 2026 Phase 1 Re-review Remediation Override
+- Record the Task-087 outcome as Proceed to unsigned preview integration under
+  [`ADR-019`](../../decisions/019-unsigned-preview-and-october-production-signing.md).
+- Complete applicable technical/security review before merge or preview
+  publication.
+- Build a new normal-user release package that integrates the launcher and
+  intended entry points. Do not rename, tag, or upload an existing
+  `Task-087-validation-*` ZIP.
+- Publish iterative unsigned packages only as immutable
+  `v0.1.3-preview.N` fork-side GitHub prereleases, with explicit unmanaged-test-
+  machine, non-production, and unsigned-publisher wording.
+- Test the actual GitHub download path on an approved clean unmanaged Windows
+  machine without security exclusions or bypass instructions.
+- Keep production signing, post-sign package/hash generation, signed
+  `v0.1.3-rc.N`, and representative managed-endpoint qualification in
+  Task-100, which starts in October only after the package-satisfaction record.
+- Keep Task-086 available for any scope not yet accepted in the preview or
+  signed candidate.
 
-This override narrows the Phase 1 evidence and controls the current PR #63
-disposition:
+## August 12, 2026 Current Launcher Override
 
-- The short-lived visible wrapper did not give the launcher an owning handle
-  for the long-lived helper, so timeout cleanup could race a late helper start.
-  PR #63 remains draft while the launcher is changed to retain and supervise
-  the actual PowerShell process.
-- The prior four-second regression bound measures operation acceptance with a
-  test-only worker starter. It is not launcher-discovery timing, production
-  worker timing, or proof of margin against the frontend request timeout.
-- The Phase 1 Edge run observed `setup_required` before and after the externally
-  orchestrated Docker restart, but the committed observer at `5ae9f76` did not
-  assert state equality or browser-session storage retention. Those assertions
-  and bounded readiness fetches are required before the evidence can claim
-  same-session preservation.
-- The JavaScript observer did not select or mutate Docker resources. Docker
-  stop/start was manually orchestrated. Repeatable evidence requires a separate
-  driver constrained to one explicit Compose project, service label, container
-  id, and loopback port.
-- The project remains single-user by design; shared-VDI/multi-session mutex
-  behavior is not a PR #63 merge blocker and remains outside the supported
-  deployment scope.
+This current override controls where the August 5 provisional sequence below
+still describes non-mutating preview as the latest state:
 
-## July 27, 2026 PR #63 Review Remediation Override
+- The visible Python/Tkinter launcher and bounded native transaction are
+  implemented without launching PowerShell or activating the dormant helper.
+- The `41cec81` packaged Docker CPU UI flow passed Google and Azure repair,
+  same-profile restart, and controlled recovery with all eight named volumes
+  retained.
+- A separately assembled `41cec81` Podman CPU package passed approved-provider
+  setup, Google/Azure repair, same-profile restart, and controlled recovery.
+  The run exposed and then validated fixes for installer-selected provider
+  identity and Podman's safe tag-removal image normalization.
+- The rebuilt `7ef879c` full-runnable Docker CPU package passed archive,
+  checksum, source, digest, asset, Google/Azure, launcher repair, and controlled
+  recovery checks. All eight named volumes, both provider configurations, CA
+  bundle paths, assets, and the exact image digest survived container
+  recreation.
+- Follow-up head `3990bc0` replaced the connected Podman provider installer's
+  live dependency resolution with a hash-approved package-local wheelhouse.
+  Fresh packaged install, exact-version validation, approved-provider binding,
+  setup, and controlled recovery passed without reusing a prior provider.
+- Windows could not reach the Podman machine's loopback publication through
+  normal WSL forwarding on this workstation. Validation used a temporary
+  loopback-only SSH tunnel; global WSL user-mode networking was not enabled
+  because it could disturb the concurrent validated Docker session.
+- A later isolated comparison with Docker fully exited reproduced the rootful
+  failure, while the unchanged package reached native Windows localhost and
+  survived scoped restart in rootless mode. Rootless Podman CPU is therefore
+  the provisional candidate boundary. Head `5737a58` now detects and rejects
+  rootful Windows Podman before provider discovery or container mutation,
+  explains the separate stores, and does not change the user's configuration.
+- Docker exposed the RTX PRO 500 Blackwell GPU to containers, but the selected
+  PyTorch 2.6/CUDA 12.6 package profile cannot execute its compute capability
+  12.0 kernels. A separate non-release PyTorch 2.7/CUDA 12.8 feasibility image
+  passed both TowerScout model probes on CUDA. This validates the workstation,
+  not the current release profile; final GPU packaging remains in Task-097.
+- Task-096 may reuse the fixed-target confirmation, runtime validation,
+  sanitized state, and recovery pattern after the Task-087 decision; Stop is no
+  longer the first controlled launcher mutation.
+- Task-086 remains the supported fallback. Technical/security review and
+  normal-user preview integration are the remaining Task-087 gates; signing
+  and representative managed-endpoint qualification are separate Task-100
+  gates.
 
-This override controls current implementation status wherever older entries
-describe the first PR #63 checkpoint:
+## Historical August 5, 2026 Provisional Launcher Override
 
-- Keep PR #63 in draft; this remediation does not complete Task-087 or activate
-  browser-triggered mutation.
-- Enforce one helper and one active operation per package, with bounded
-  lifecycle metadata, atomic ACL-protected state, retained terminal outcomes,
-  and consumed-authorization replay protection.
-- Return `202 Accepted` before the fixed detached worker runs so authenticated
-  status requests remain responsive.
-- Require backend, live-helper, and frontend capability gates independently.
-- Preserve uncertain operation descriptors through bounded polling retries;
-  distinguish a changed helper session and never recommend concurrent manual
-  repair while status is ambiguous.
-- Complete terminal UI handling, readiness recovery, provider revalidation,
-  cross-provider monitoring, and stable failure guidance.
-- Ship the worker and state-reader libraries in release-package staging.
-- Retain live Docker stop/start, UAC/certificate mutation, Chrome/Firefox, and
-  managed TLS-inspected network proof as explicit activation blockers.
+This override controls wherever the older loopback-helper plan, gates,
+acceptance criteria, or implementation phases below conflict. Those sections
+remain as historical design and evidence; they do not authorize activation of
+the helper during this checkpoint.
 
-## July 27, 2026 Activation Update
-
-This update controls current execution status wherever older planning
-language below still describes Task-087 as gated:
-
-- Tasks 090 and 098 are complete; their dependency-security gate no longer
-  blocks Task-087.
-- Task-087 is the next selected HIGH-priority implementation lane.
-- Begin from current `main` after the documentation-only Task-098 closeout
-  merges.
-- Preserve the existing helper security model, command fallback, and remaining
-  product, browser, package, and managed-network validation gates.
+- Prototype a visible package-local Windows launcher/coordinator in one
+  selected, maintainable technology.
+- Begin with non-mutating TowerScout status and TLS repair preview. Do not bind
+  a listener, import or start the dormant helper, accept browser-issued host
+  operations, use hidden workers or normal-path execution-policy bypasses, or
+  modify the Windows trust store.
+- Keep all existing helper/browser mutation flags off. Put PR #64 on hold; do
+  not merge, close, discard, or extend its activation path before the August 14
+  disposition.
+- Keep Task-086 as the supported user-run command repair throughout the proof.
+- Start approved signing-path coordination in parallel. Unsigned or self-signed
+  development evidence can prove functionality or signing mechanics only.
+- Require the production-shaped signed artifact to pass representative
+  managed-endpoint security validation before candidate inclusion.
+- The original sequence preferred Task-096 Stop as the first controlled
+  mutation. The August 11 current override records that the separately
+  authorized native TLS source-adapter proof occurred first.
+- Record proceed, conditional, or stop by August 14 under
+  [`ADR-018`](../../decisions/018-task-087-windows-launcher-feasibility-pivot.md).
+- Publish the bounded source through a Draft PR, then build only
+  `Task-087-validation-<short-SHA>` from its exact commit. Do not create a tag,
+  GitHub Release, `v0.1.3-rc.N` identity, or cdcai change for this artifact.
+- Keep the Draft PR unmerged while validation is incomplete. A failed result
+  closes it unmerged and records the Stop/Task-086 disposition through a clean
+  documentation-only PR from current `main`, so no code revert is needed.
+- A failed proof returns to the Task-086 manual repair without changing the
+  frozen pilot, cdcai, or the September/October milestones.
 
 ## July 23, 2026 Rebaseline Override
 
@@ -173,7 +275,16 @@ This override controls wherever older planning language below conflicts:
 - The frozen `v0.1.2` Pilot Package is unchanged; this work targets a new
   `v0.1.3-rc.N` candidate.
 
-## Objective
+## Historical Dormant-Helper Design And Evidence
+
+The sections from `Objective` through `Risks` below preserve the earlier
+browser-to-loopback-helper design and its completed evidence. They are not the
+current implementation plan and do not override the August 5 launcher boundary,
+ADR-018, or the current Implementation Log. They remain here so reviewers can
+trace why the launcher pivot occurred without treating the dormant helper as
+an authorized fallback.
+
+## Objective (Historical Dormant-Helper Plan)
 
 Design and implement a support-safe host-side repair control plane that lets
 TowerScout present a guided "repair TLS trust and restart" action when provider
@@ -1095,7 +1206,51 @@ Exit criteria:
 - Task evidence records sanitized outcomes only.
 - Gate 4 passes.
 
-## Acceptance Criteria
+## Current PR #67 Remediation Acceptance Criteria
+
+- [ ] The launcher authenticates and leases exact runtime/Compose executable
+  identities, constructs a minimal environment, and executes against one
+  captured local Docker named-pipe endpoint or configured local rootless Podman
+  URI/identity key plus directly invoked authenticated provider. Context/
+  connection names are metadata only, and user defaults remain unchanged.
+- [ ] Before confirmation, the transaction binds the normalized pre/post Compose
+  model, actual container/image, config mount, all eight engine-specific named-
+  volume identities, requested/effective GPU profile, provider, fixed
+  certificate destinations, and private Windows-store CA identity; every
+  material identity is revalidated against its stage-specific transition rule
+  before mutation/restart.
+- [ ] The existing non-external volumes retain normal first-run behavior, while
+  removal/replacement by an independently daemon-authorized actor is detected at
+  terminal verification and can never be reported as repair or rollback success.
+- [ ] CA selection uses only server-auth-eligible Windows trust records and
+  requires the trust anchor to match Windows `ROOT`; server/Windows `CA`
+  intermediates cannot anchor, OpenSSL defaults/process CA variables cannot add
+  a candidate, and only the selected root enters the container.
+- [ ] Protected shared `.env` and target locks plus DPAPI-protected write-ahead
+  journals survive process termination, cross-check pending launcher/provider
+  transactions, and support strict, checked, idempotent fresh-process rollback
+  without deleting an unverified backup.
+- [ ] Windows handle/file-ID/reparse/DACL controls and ACL-preserving atomic
+  `.env` replacement detect drift and reject unsafe leaf indirection/broad-
+  principal writes while retaining stable supported OneDrive/cloud paths; they
+  do not claim defense against a compromised current-user SID, a current-user
+  process with daemon mutation authority, or administrator/SYSTEM.
+- [ ] The Podman provider installer leaves no persistent plaintext whole-file
+  root `.env` backup or backup-path output and preserves every unrelated byte.
+- [ ] Validation/package assemblers derive identity from copied staged bytes and
+  independently cross-check final directory, internal checksums, ZIP, sidecar,
+  and an atomic final commit marker before any output set is consumable.
+- [ ] New launcher artifacts use an explicitly approved exact-patch/hash-locked
+  Python 3.12 build and provenance v2; organization-controlled signing remains
+  Task-100.
+- [ ] Adversarial/fresh-process tests, isolated Docker and approved-rootless-
+  Podman recovery, OneDrive/cross-session Windows proofs, exact-head workflows,
+  and independent source re-review pass without helper, bypass, admin,
+  runtime-default, volume-deletion, or sensitive-output regressions.
+- [ ] PR #67 remains Draft until the project explicitly accepts its remaining
+  source/release gates; no existing validation ZIP is promoted or published.
+
+## Acceptance Criteria (Historical Dormant-Helper Plan)
 
 - When Google provider validation fails with a repairable TLS certificate trust
   category and the helper is available, Setup Wizard shows a guided repair and
@@ -1196,6 +1351,518 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-08-21 - Green Exact-Head Weekend Handoff
+
+**Objective**: Leave Task-087 at one unambiguous, remotely recoverable source
+checkpoint and record the exact next Gate A slice before the workstation is
+shut down.
+
+**Context**: The host-independent Windows-path correction was committed as
+`0eebe7b91bd59220bb3dc9b26f8f6a7bdc70f4f8` and pushed to
+`feature/task-087-windows-launcher-prototype`. Local HEAD, the tracking ref, and
+Draft PR #67 match with zero divergence; the worktree was clean and no Git
+operation was active during the handoff audit.
+
+**Validation**: Exact-head CI/CD run `32530172080` completed successfully:
+security, `frontend-test`, Docker frontend stage, Python 3.11, and Python 3.12
+passed; the main-only build job was skipped as designed for a pull request.
+Exact-head Task-087 run `32530172064` completed successfully: production
+controller contracts, simulated-helper end-to-end, and Windows host-helper
+contracts all passed. External Trivy passed. Independent security,
+adversarial, and source-boundary reviews retained PASS with no blocking
+findings. Both `.agent_work` validators pass.
+
+**Workstation-Local Note**: Preserve stash
+`b9b36bf4741a5e7301de6a75672799b6ed91faec`, labeled
+`task-101-governance-transfer-2026-08-19`. Its tracked diff spans 12
+governance/Task-087 documentation paths, and it may also retain untracked local
+state. It is not part of the active branch or PR. Do not pop, drop, or apply it
+blindly; inspect it privately for sensitive content and reconcile it
+deliberately in a separate workspace-hygiene step because it overlaps current
+Task-087/governance records.
+
+**Boundary**: This is documentation-only handoff reconciliation. Mutation and
+runtime execution remain disabled and unwired. No Docker, Podman, Compose,
+launcher, repair command, installed-binary native smoke, artifact build,
+publication, merge, or signing action is authorized by this checkpoint.
+
+**Next**: Implement the next separately reviewed source-only slice: bounded
+authenticated command-version evidence for Docker Compose
+`docker-compose.exe` 5.3.1 using fixed `version --short`, and Podman CLI
+`podman.exe` 6.0.2 using fixed `version --format json` plus exact
+`/Client/Version`. Bind the command evidence to the reviewed installation,
+Authenticode signer-policy overlap, policy hash, retained stable file
+identity, and complete-file SHA-256; enforce constructed minimal environment,
+closed stdin, streamed byte/time limits, verified process-tree termination, and
+strict fail-closed text/JSON parsing. Use injected test backends only and keep
+RuntimeIdentity, target/discovery/executor/app/repair integration, provider
+reconstruction, endpoint binding, mutation, Gate B artifacts, and signing
+deferred. Carry forward the trusted snapshot-to-target requirement to construct
+exact `PureWindowsPath` once, and use rendered-path/digest comparison wherever
+case-preserving final-path spelling is intended.
+
+### 2026-08-21 - Cross-Platform Windows Path Contract CI Remediation
+
+**Objective**: Repair the required Ubuntu CI failure without weakening the
+Gate A Windows identity contract, enabling runtime execution, or expanding the
+reviewed same-held evidence slice.
+
+**Context**: The worktree began clean on
+`feature/task-087-windows-launcher-prototype` at local/tracking head `ab33864`
+with zero divergence. CI/CD run `32527400108` then reported 62 failures in the
+earlier target-contract and runtime-plan tests under Ubuntu/Python 3.11. The
+Python 3.12 leg had marked the same cases failed before matrix fail-fast
+cancelled it. Every failure occurred while constructing a common
+`FileIdentity`: host `Path(r"C:\\...")` is a relative `PosixPath` on Ubuntu.
+All 37 new combined-evidence tests passed in that completed CI leg, so this did
+not implicate commit `4150217`'s retained-handle or evidence guarantees.
+
+**Decision**: Model an authenticated Windows identity with exact
+`PureWindowsPath`, not the host's concrete `Path`. Require that exact type before
+calling `str()` so a wrong-type object cannot execute hostile rendering code.
+Keep real repository-local test discovery on host `Path`. Preserve ordinary
+drive-absolute paths and local extended `\\?\C:\...` names returned by held-file
+inspection. Do not reuse the stricter raw installation-record validator here:
+installation nomination and handle-derived final identity are separate trust
+boundaries. A future trusted snapshot-to-target adapter must validate and
+canonicalize its raw input exactly once before constructing this pure identity.
+
+**Execution**: Changed `FileIdentity.final_path` and inert command-plan working
+directory typing to `PureWindowsPath`. All modeled path construction,
+replacement, leaf parsing, parent checks, joins, equality, and private digest
+rendering now use Windows semantics on every host. Test-only `Path` remains for
+repository `ROOT` discovery and the separate legacy `PackageIdentity` check.
+Added regressions for ordinary and local extended Windows paths; relative,
+drive-relative, root-relative, and absolute POSIX paths; and a hostile
+wrong-type object whose `__str__` must never run.
+
+**Independent Review**: Security review found one pre-render ordering issue;
+the exact-type check was moved before string conversion and the hostile-object
+regression was added. Final independent security, adversarial-test, and
+source-boundary reviews all issued PASS with no actionable findings. Reviewers
+confirmed the patch remains plan-only and unwired. They retained two future
+integration notes rather than current blockers: the trusted adapter must create
+the exact pure path type, and exact rendered-path/digest comparison should be
+considered where case-preserving spelling is intended because
+`PureWindowsPath` equality follows Windows case-insensitive semantics.
+
+**Validation**: The final focused target-contract/runtime-plan run passed 73
+tests. The inert Gate A security/identity/policy/plan set passed 537 tests with
+only `test_native_windows_handle_capture_smoke` and
+`test_native_held_executable_hardlink_denies_concurrent_write` explicitly
+deselected. Scoped Black checks, blocking Flake8, `git diff --check`, and task
+hygiene validation pass. Source-only mypy reports its three existing
+`runtime_execution.py` tuple-narrowing findings on unchanged lines; the changed
+target contract passes, and the repository CI mypy step remains scoped to
+`webapp/`.
+
+**Boundary**: No Docker, Podman, Compose, launcher, repair command, PowerShell
+helper, or installed-binary native smoke ran. Mutation and runtime execution
+remain disabled and unwired. At this pre-authorization checkpoint, no commit or
+push had occurred; the later weekend-handoff entry records the exact published
+head and green GitHub checks.
+
+**Next**: After authorization, checkpoint and push this narrow portability fix,
+then require both Ubuntu Python matrix jobs and the Task-087 workflow to pass at
+the exact new head before resuming the next source-only Gate A slice.
+
+### 2026-08-21 - Serialized Same-Held Runtime Evidence Combination
+
+**Objective**: Implement only the next Gate A source-only slice: serialize
+same-handle inspection through final use, combine reviewed installation, PE
+product/version, and Authenticode evidence over that retained file, and return
+an inert closeable result only after final record and file revalidation.
+
+**Context**: Read-only checkpoint checks confirmed branch
+`feature/task-087-windows-launcher-prototype` at local `24d4015`, with local
+predecessors `e049e32` and `7ad221d`, exactly three commits above PR #67 /
+tracking head `ae6342e`, and a clean starting worktree. The August 20 technical
+security remediation design and the complete latest TASK-087 implementation log
+were read before source changes. No unexpected changes were present.
+
+**Decision**: Keep this a PE-evidence-only, non-executable trust composition
+boundary. Docker CLI and CPython may produce combined evidence because their
+policy versions are PE-derived. Docker Compose and Podman remain rejected before
+installation opening because command-based exact-version proof belongs to the
+following slice. Do not expose a path, command, handle, execution method, or
+conversion to the launcher runtime target type, and do not wire the result into
+discovery, the executor, app, or repair.
+
+**Execution**: `HandleBoundFile` now serializes standalone revalidation,
+same-handle inspection, post-inspection revalidation, and native close with one
+reentrant lock and explicit active-owner state. A second thread waits through
+the first operation's postvalidation; same-thread cursor-moving reentry fails
+closed; every close caller waits for native close completion; and ordinary or
+interrupting inspector failures release ownership only after postvalidation.
+Initial capture and both installation-candidate phases now close every acquired
+handle on `BaseException` without masking the primary interruption.
+
+Added inert `runtime_verification.py`. Its immutable redacted combined evidence
+accepts only exact installation, PE, and Authenticode evidence types; requires
+one nomination/PE product; requires that product in the Authenticode signer-
+policy overlap; and requires identical package-policy SHA-256, stable file
+identity, and complete-file SHA-256 across all three inputs. Its domain-separated
+digest binds the common product/version/file facts and all three component
+evidence digests. The factory passes one retained `HandleBoundFile` to both PE
+and Authenticode verification, revalidates every reviewed installation record
+and the held file after all component checks, and transfers ownership only after
+that final check. The returned owner exposes only immutable evidence, closed
+state, final-use revalidation, close, and context management; final-use record
+and file checks are serialized against close.
+
+**Adversarial Coverage**: Added deterministic thread tests for inspection
+serialization, close-versus-inspection, native-close completion, same-thread
+reentry, interrupted/failed inspectors, and repeated concurrent close. Combined
+evidence tests cover Docker shared-signer overlap and timestamped CPython;
+pairwise policy-hash, volume/file identity, and full-file-hash mismatch; exact
+component type confusion; nomination/product and signer-overlap mismatch; late
+record and held-file replacement; every pre-return interruption ownership
+phase; final-use-versus-close serialization; idempotent/context cleanup;
+redaction/immutability/digest binding; the non-executable public surface; direct
+and `from`-import wiring guards; and pre-open deferral of Docker Compose and
+Podman.
+
+**Independent Security Review**: The initial review found one blocking lifetime
+gap: an interruption during initial capture or installation opening could occur
+before the outer combiner received an owning candidate. Capture and installation
+cleanup were extended through `BaseException`, ownership is recorded before
+post-capture validation, and exact interruption regressions were added. Review
+also found a low-severity AST-guard gap for relative `from` imports; the guard
+now inspects imported module paths as well as symbols. Independent re-review
+reproduced the fixes and issued PASS with no open findings.
+
+**Validation**: The final Windows-security, installation/PE identity,
+Authenticode, and combined-evidence run passed 228 tests with the two prohibited
+native installed-file smokes explicitly deselected. Runtime policy,
+mutation-gate, and target-contract checks passed 128 tests. Scoped Black,
+blocking and advisory Flake8, strict isolated mypy for the new boundary, normal
+mypy for the touched lower-level modules, medium/high Bandit, compilation,
+`git diff --check`, and both `.agent_work` validators pass.
+
+**Boundary**: No Docker, Podman, Compose, launcher, repair command, or installed-
+binary native smoke ran. Mutation and runtime execution remain disabled and
+unwired. No commit or push occurred until explicit authorization; the reviewed
+source slice was then checkpointed at `4150217` and pushed to PR #67.
+
+**Next**: Implement command-based exact-version proof for Docker Compose and
+Podman as the next separately reviewed source-only slice; do not infer those
+versions from installation, signer, or PE evidence.
+
+### 2026-08-21 - Same-Held PE Identity And Reviewed Install Records
+
+**Objective**: Implement the next Gate A source-only proof slice: exact PE
+product/version verification over one already-held executable and Windows
+installation nomination through reviewed records only, with mutation, runtime
+execution, and resolver/executor integration still disabled.
+
+**Context**: Read-only checks reconfirmed
+`feature/task-087-windows-launcher-prototype` at local `e049e32`, preceded by
+local `7ad221d`, tracking PR #67 head `ae6342e`, exactly two commits ahead. The
+intentional dirty worktree was preserved. The August 20 technical security
+remediation design was read completely before this slice changed files.
+
+**Execution**: Added `pe_version.py`, a filesystem/process/native-API-free,
+bounded AMD64 PE32+ parser for exactly one numeric `RT_VERSION` leaf. It maps
+resource RVAs through one raw-backed section; rejects malformed, overlapping,
+aliased, ambiguous, mispartitioned, unsorted, oversized, or string-named
+resource structures; and strictly parses `VS_VERSION_INFO`,
+`VS_FIXEDFILEINFO`, `StringFileInfo`, `VarFileInfo`, translations, UTF-16,
+lengths, alignment, and zero padding. It requires application/Windows fixed
+attributes, exact reviewed CompanyName/ProductName/OriginalFilename/
+FileVersion/ProductVersion strings, and agreement between reviewed `x.y.z` and
+the first three components of both fixed numeric versions. The unconstrained
+vendor build component remains evidence-bound instead of being invented by
+policy.
+
+Added the inert `runtime_identity.py` boundaries. PE verification takes no
+caller product assertion, reads the version resource through the existing held
+handle, derives one closed `RuntimeProductId`, and returns immutable redacted
+evidence bound to policy hash, stable file identity, complete-file hash,
+resource hash, and fixed versions. Installation resolution accepts only that
+closed product enum, scans every fixed policy record in order, uses exact
+sign-extended HKLM/HKCU predefined handles with the 64-bit registry view,
+accepts `REG_SZ` only with no expansion, and obtains approved per-user/system
+locations through exact Known Folder GUIDs. Candidate paths reject relative,
+UNC/device, ADS, traversal, environment-bearing, quoted/argument-bearing,
+noncanonical, reserved, and non-strict-UTF-8 forms. Present malformed/stale
+records poison resolution; distinct candidates are ambiguous; duplicates
+collapse only for the same stable identity, file hash, and final path; all
+losing/failure handles close; and the successful result continues to own one
+open handle. This is nomination evidence, not runtime trust.
+
+**Adversarial Validation And Review**: Added pure PE, resolver, and injected
+native-DLL-shim tests covering malformed resource trees and version blocks,
+every reviewed identity field, fixed numeric version mismatches, replacement,
+registry type/view/access/buffer/status/value races, Known Folder identity and
+memory ownership, path poisoning, ambiguity/deduplication, handle cleanup,
+sanitization, and source guards against PATH/CWD/environment/process/generic
+discovery or live-module wiring. The focused PE/resolver suite passes 102
+tests; the PE/resolver plus mutation-gate/target-plan source set passes 170;
+and the combined runtime-policy, Authenticode, PE/resolver, and Windows-file
+set passes 427 tests with only the known sandbox-ACL hardlink native smoke
+deliberately deselected. Scoped Black, fatal Flake8, strict isolated mypy,
+medium/high Bandit, and `git diff --check` pass.
+
+Independent security review reproduced fail-closed defects in string-named
+VERSION selection, resource partition/order handling, fixed numeric-version
+acceptance, surrogate sanitization, and 64-bit predefined-HKEY construction.
+Each defect received a production fix and exact regression. A separate native
+boundary audit then required DLL-shim coverage for registry and Known Folder
+ABI behavior; that coverage passed, the audit cleared its blocker, and final
+independent review issued PASS with no open findings for this isolated slice.
+
+**Decision**: Accept this source-only slice as reviewed and inert. It remains
+unimported by `app.py`, `discovery.py`, `repair.py`, and
+`runtime_execution.py`; no `RuntimeIdentity` or executable command plan is
+created. Production mutation remains false. No Docker, Podman, Compose,
+launcher, repair command, installed-binary native smoke, commit, or push was
+performed.
+
+**Next**: Before any integration, define serialized/single-owner same-handle
+inspection and lifetime through final use, then combine installation,
+PE-product, and Authenticode evidence only when policy hash, stable file
+identity, and complete-file hash all agree and the derived product belongs to
+the signer-policy overlap. Add bounded authenticated command-version evidence
+for Docker Compose and Podman rather than inferring version from install
+records. Keep target/executor wiring, provider reconstruction, ancestor/ACL,
+mutex/journal/recovery, `.env` transaction, live runtime, and mutation work
+behind their existing gates and a fresh review.
+
+### 2026-08-21 - Strict Runtime Policy And Authenticode Verification Slice
+
+**Objective**: Implement the project lead's exact initial runtime policy and
+its verification-only Windows Authenticode foundation without enabling runtime
+discovery, child execution, repair, or any machine/package mutation.
+
+**Context**: Read-only branch and GitHub inspection confirmed Draft PR #67 at
+remote head `ae6342e`, with local commits `7ad221d` and `e049e32` present and
+unpushed on `feature/task-087-windows-launcher-prototype`. The worktree started
+clean and exactly two commits ahead. The August 20 remediation design was read
+in full before edits. The policy/schema increment was completed and
+independently reviewed before native verification work began.
+
+**Execution**: Added the fixed package resource
+`towerscout_launcher/runtime-policy.v1.json`, pinned by exact-byte SHA-256
+`6c198c097b511d9a73c168a244c89f5932a27abd12b5870118a80c46c5356011`
+in both the inert parser and package inspector and bundled at one exact
+PyInstaller path. The closed schema admits only Docker CLI `29.7.2`, Docker
+Compose `5.3.1`, Podman `6.0.2`, and CPython `3.12.10`, with Windows/AMD64 PE
+identity expectations, reviewed signer-certificate identities and install
+records, embedded Authenticode only, SHA-256/RSA, cache-only whole-chain
+revocation, trusted RFC3161 expiry handling, and reviewed-updates-only
+semantics. Its inline Podman Compose catalog admits only the TowerScout-managed
+direct `python -I -m podman_compose` closure with exact interpreter,
+distribution, wheel/input, inventory, endpoint-propagation, and reconstruction
+contracts; external, Docker Desktop, wrapper, delegation, and name/version-only
+routes remain invalid.
+
+Added a same-held-handle inspection seam, a bounded pure AMD64 PE certificate-
+table/DER parser, signer-policy matching, and a ctypes WinTrust/Crypt32 backend.
+The backend independently binds the held PE/CMS signature to WinTrust provider
+evidence, enforces all physical/logical/CMS cardinality layers, validates exact
+signer facts and explicit EKU, applies cache-only whole-chain publisher and TSA
+checks with timestamp-time semantics, verifies and byte-binds the RFC3161 token
+to the primary signature, sanitizes ordinary failures, and frees partial native
+state even under interruption. Authenticode evidence reports compatible signer-
+policy records only: the shared Docker signer remains explicitly compatible
+with both Docker product policies and is not misrepresented as PE product,
+leaf-name, or version proof. Package-validation manifests now truthfully report
+`launcher_tls_mutation_enabled=false`.
+
+**Validation And Review**: The strict policy suite passed 100 tests; the pure,
+PE, and native Authenticode suites passed 193 tests; the final combined policy,
+Authenticode, target-plan, Windows-security, and launcher/package set passed
+440 tests with the one known sandbox-ACL hardlink smoke deliberately
+deselected. The full 47-test launcher/package suite also passed. Scoped Black,
+fatal Flake8, strict isolated mypy, medium/high Bandit, and package hash checks
+pass. Independent schema review and final native adversarial re-review pass;
+the latter independently ran 226 tests with the same sandbox-only hardlink
+deselection and found no remaining acceptance blocker.
+
+**Decision**: Accept this as a reviewed verification-only Gate A slice, not as
+a trusted runtime resolver or executable repair. The policy and Authenticode
+modules are not wired into discovery, runtime command execution, or repair;
+the production coordinator and package capability declaration remain mutation-
+disabled. No Docker, Podman, Compose, launcher, or repair/runtime command plan
+was executed; only repository test/static tooling ran. No candidate file was
+subjected to native installed-binary smoke, and no commit or push was made.
+
+**Next**: Add same-handle PE product/leaf/version-resource proof and reviewed
+install-record resolution, then bind the authenticated signer evidence and
+managed provider reconstruction into one immutable pre-confirmation target.
+Keep real signed-fixture/provider compatibility, executor wiring, ACL/ancestor
+containment, mutex/journal/recovery, `.env` transaction work, live runtime
+validation, and all mutation behind their existing gates.
+
+### 2026-08-21 - Gate A Fail-Closed Identity And Plan Foundation
+
+**Objective**: Establish the first implementation foundation without exposing
+an executable repair or changing any Docker, Podman, provider, trust, package,
+or user configuration state.
+
+**Context**: The approved remediation design requires each proof increment to
+remain non-mutating until exact-target resolution, trusted runtime/provider
+selection, Windows trust and filesystem controls, cross-session locking, and
+durable recovery are complete. The remote PR #67 source remains at approved
+design head `ae6342e`; subsequent source checkpoints require separate push
+authorization.
+
+**Execution**: Local commit `7ad221d` changes the application's default repair
+coordinator to `mutation_enabled=False` and adds immutable exact-target/public-
+confirmation contracts. The follow-on local checkpoint adds plan-only fixed
+read operations for exact Docker and rootless-Podman endpoints, authenticated
+Compose/environment inputs and minimal child environments, read-only Windows
+handle/file-ID/hash primitives, canonical environment/repair mutex names, and
+an unintegrated pure policy for selecting one exact eligible Windows ROOT from
+already-native-verified chain candidates. Adversarial review fixes include
+endpoint/connection override rejection, exact package-root Compose paths,
+container/image and eight-volume identity binding, no implicit `.env`
+discovery, deep tuple/type immutability, same-leaf trust snapshots, distinct-
+root ambiguity rejection, and sanitized type-confusion failures.
+
+**Validation**: The exact target/runtime suite passed 67 tests. The final broad
+Python 3.12 unit run produced 504 passes and 74 documented platform/asset skips;
+its only failure was an unrelated transient Waitress loopback reset, and that
+exact test passed immediately on isolated rerun. The native hardlink/write-
+sharing proof passed outside the sandbox. Scoped Black, fatal flake8,
+`git diff --check`, both `.agent_work` validators, and independent target/
+runtime, Windows-security, and trust-policy reviews pass. Scoped Bandit reports
+no medium/high issue; its two low findings are false positives on dataclass
+target-token serialization flags.
+
+**Decision**: Accept this as an inert local foundation only. It does not close
+Gate A, resolve the Reviewer's findings, authorize live repair, or establish a
+native Windows trust result. The default mutation path remains disabled, no
+process executor consumes the plans, and no new commit from this checkpoint is
+pushed.
+
+**Next**: Continue with authenticated runtime/provider policy and import proof,
+Windows ACL/owner/ancestor containment and secured mutex acquisition, then the
+native Windows trust verifier and durable DPAPI journal/atomic recovery. Keep
+provider `.env` hardening, executor wiring, live isolated runtime validation,
+independent re-review, Gate B artifacts, and Task-100 signing behind their
+existing gates.
+
+### 2026-08-21 - Remediation Design Approved For IMPLEMENT
+
+**Objective**: Enter Gate A implementation only after the independently audited
+August 20 remediation design received explicit project-lead authorization.
+
+**Context**: The design checkpoint passed both `.agent_work` validators,
+`git diff --check`, link/sanitization checks, and independent runtime-target,
+recovery/filesystem, and security-boundary reviews. Lifecycle head `6e0f744`
+remains the pre-implementation baseline.
+
+**Decision**: The project lead explicitly approved moving Task-087 to
+IMPLEMENT under
+[`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
+Implement Gate A dependency-first. Keep PR #67 Draft, preserve Task-086 and all
+no-helper/no-PowerShell/no-admin/no-default-change/no-volume-delete boundaries,
+and leave Gate B preview integrity plus Task-100 signing outside this approval.
+
+**Execution**: Approval is recorded before production-source edits. No live
+Docker/Podman mutation is authorized until the implementation reaches its
+isolated runtime-validation step and the running-engine scope is reconfirmed.
+
+**Validation**: Pending for implementation increments; the approved design
+checkpoint remains the controlling specification.
+
+**Next**: Add failing adversarial contracts, then implement immutable runtime
+identity and exact-target resolution before durable recovery and provider
+`.env` transaction changes.
+
+### 2026-08-20 - PR #67 Review Findings Independently Triaged And Designed
+
+**Objective**: Convert the outside technical/security review into a verified,
+bounded Task-087 remediation design before any production implementation.
+
+**Context**: Lifecycle head `6e0f744` passed exact-head CI/CD run `32385304086`
+and Task-087 run `32385304052`. The subsequent inspect-only review requested
+changes and correctly focused on source/runtime safety rather than treating the
+absence of future Task-100 signing as the present defect.
+
+**Decision**: Accept the independently confirmed source cores of Findings 1-8,
+require the low-severity provider `.env` correction before normal use, and place
+staged-byte/toolchain Findings 9-10 at the next-artifact/unsigned-preview gate.
+Keep organization-controlled signing and representative managed-endpoint
+qualification in Task-100. Use proof-first implementation for Windows security
+and endpoint seams so the correction does not recreate earlier helper,
+PowerShell, admin, runtime-switching, OneDrive, or volume-loss problems.
+
+**Execution**: Added the task-local exact-target, trusted-runtime, Windows-only
+trust, durable recovery, cross-session locking, filesystem, package provenance,
+build-integrity, error-matrix, implementation, and validation design. Updated
+canonical requirements, design, and task trackers only; no production source,
+package, runtime, PR, release, or cdcai state changed.
+
+**Validation**: PASS. The quick and canonical `.agent_work` validators,
+`git diff --check`, changed-file link resolution, conflict/sanitization scans,
+and independent runtime-target, crash-recovery/filesystem, and governance/
+security-boundary audits found no remaining design blocker. The Python 3.12
+artifact boundary was also refreshed against the current official 3.12.14
+security release. No executable or live-runtime result is claimed by this
+design entry.
+
+**Next**: Superseded by the August 21 approval entry above.
+
+### 2026-08-20 - Exact-Head Gate Passed; Task-087 Resumed
+
+**Objective**: Resume Task-087 from its preserved ADR-019 checkpoint only after
+the reconciled branch passed the required exact-head matrices.
+
+**Context**: Normal merge head `946deaf` integrates current `main` through PR
+#73 / `9276084` without rebasing or discarding PR #67's evidence-bearing
+history.
+
+**Decision**: Complete Task-101 and change Task-087 to `IN_PROGRESS / RESUMED`.
+Keep PR #67 Draft and require this lifecycle update's checks before any new
+implementation-producing change or preview-package work.
+
+**Execution**: Updated lifecycle and governance state only. The launcher,
+runtime, validation packages, historical evidence, frozen pilot, Task-100
+signing boundary, and cdcai hold remain unchanged.
+
+**Validation**: CI/CD run `32383065903` and Task-087 run `32383065959` passed at
+exact reconciliation head `946deaf`, with all required jobs successful. No new
+runtime or package validation was performed or claimed by this transition.
+
+**Next**: Push the lifecycle update and require its exact-head matrices. Then
+continue technical/security review and the separate normal-user unsigned
+preview-package integration path under ADR-019.
+
+### 2026-08-20 - Current Main Integrated; Exact-Head Validation Pending
+
+**Objective**: Integrate the accepted Task-101/default-branch state into Draft
+PR #67 without discarding its Task-087 implementation or evidence history.
+
+**Context**: PR #73 squash-merged the post-PR72 governance checkpoint as
+`9276084`, and exact-main CI/CD run `32377736719` plus Task-087 run
+`32377736797` passed. PR #67 remained at `c095389`, open, Draft, and conflicted
+against current `main`.
+
+**Decision**: Merge current `main` normally into PR #67, resolve shared
+governance files semantically, and keep Task-087 paused until the resulting
+exact head passes both required workflow matrices. Do not rebase, squash, or
+force-push the branch's evidence-bearing history.
+
+**Execution**: Integrated `main` through `9276084`, preserving ADR-019, the
+launcher/runtime implementation, Task-087 evidence, unsigned-preview boundary,
+and Task-100 signing scope while importing Node 22/Puppeteer 25, the clean
+dependency graph, blocking Docker frontend check, and current Task-101 state.
+
+**Validation**: PR #73/default-main evidence is green. Local reconciliation
+passed the broad executable unit suite, clean dependency/audit graph, bundle and
+frontend contracts, Compose parsing, Docker frontend stage, and complete image
+builds with the optional CA secret absent and present; image inspection found no
+persisted secret setting. Endpoint antivirus blocked local loading of the
+unchanged PowerShell host-helper script, so no bypass was used and the exact-
+head Windows workflow remains required. The new PR #67 workflow runs remain
+pending; no Task-087 runtime or package acceptance claim is added by this merge
+alone.
+
+**Next**: Push the merge and require green exact-head checks before the separate
+Task-101 completion/Task-087 resume transition.
+
 ### 2026-08-20 - PR #72 Security Gate Passed; PR #67 Reconciliation Pending
 
 **Objective**: Advance the Task-087 pause boundary to the remaining downstream
@@ -1256,564 +1923,1225 @@ PR #72 merges and alert `#76` closes without dismissal, bring the accepted
 Task-101 result into PR #67, require green exact-head checks, and only then
 resume from the current checkpoint.
 
-### 2026-07-31 - Ready-For-Review Custom Host Port Correction
+### 2026-08-19 - Proceed To Unsigned Preview Integration
 
-**Objective**: Correct the PR #63 review finding that made the authenticated
-helper probe appear unavailable whenever the Windows launcher used a host port
-other than `5000`.
+**Objective**: Resolve the overdue launcher disposition and separate iterative
+normal-user package refinement from October production signing.
 
-**Context**: Compose used `TOWERSCOUT_PORT` for the host-side port mapping but
-did not expose that selected host port to the application container. The
-helper therefore advertised the real launcher port while the Flask bridge
-defaulted `expected_runtime.app_port` to `5000`. The frontend's intentional
-runtime-profile equality check rejected that mismatch.
+**Context**: Exact-source Docker and approved-provider Podman Google/Azure,
+controlled-recovery, provider-installer reproducibility, and rootless-Podman
+enforcement evidence has passed. The existing Task-087 assemblers still create
+explicit validation-only artifacts, and the normal release builder does not
+yet provide the launcher as an end-user entry point. Production signing on
+every refinement cycle would not answer the remaining normal-user package
+questions efficiently.
 
-**Decision**: Pass the selected port into the container under the explicit
-`TOWERSCOUT_HOST_PORT` name and make the bridge read that value. Preserve the
-container's internal port `5000`, the frontend's strict comparison, the
-default-port fallback, and every dormant activation gate.
+**Decision**: Proceed through technical/security review, merge, and a separate
+unsigned `v0.1.3-preview.N` normal-release-package path. Preserve every
+`Task-087-validation-*` artifact as nonpublishable. Schedule production signing
+and representative managed-endpoint qualification as Task-100 in October after
+the package is declared satisfactory.
+
+**Execution**: Added ADR-019 and reconciled the current task, backlog,
+requirements, design, roadmap, adoption, launcher, and handoff documentation.
+Task-100 remains NOT_STARTED in the backlog until its October entry gate; no
+signing, package build, release publication, or cdcai mutation occurred.
+
+**Output**: Task-087 has a recorded Proceed disposition and a bounded path to
+normal-user preview feedback without weakening the later signed-candidate or
+managed-endpoint acceptance gate.
+
+**Validation**: Documentation validators and diff checks are recorded with the
+governance update after all affected sources are reconciled.
+
+**Next**: Complete technical/security review, implement the normal release-
+package launcher integration, and validate a newly published unsigned preview
+through the actual GitHub download path on an approved clean unmanaged Windows
+machine.
+
+### 2026-08-12 - Exact-Package Rootless Podman Preflight Gate Passed
+
+**Objective**: Enforce the selected rootless Windows Podman support boundary
+before provider discovery or runtime mutation and prove it from an exact-source
+full-runnable package.
+
+**Context**: Unit and source-level checks for the initial preflight were green,
+but the first exact package exposed that real `podman machine inspect` JSON
+returns `Rootful` as a Boolean. The parser attempted string trimming before
+normalizing that value. The package still failed closed and made no runtime
+change, but it stopped on the parser error instead of the intended rootful
+guidance.
+
+**Decision**: Normalize the machine-mode property explicitly to a string before
+comparison and retain the fail-closed requirement. Enforce rootless mode only
+on Windows launch/setup paths; keep status, logs, and stop available so support
+can inspect or clean an unsupported rootful installation. Never change Podman
+machine mode automatically.
 
 **Execution**:
 
-- Added `TOWERSCOUT_HOST_PORT: ${TOWERSCOUT_PORT:-5000}` to the application
-  container environment while retaining the existing loopback host mapping.
-- Changed the bridge runtime profile to read `TOWERSCOUT_HOST_PORT` rather
-  than the host-only launcher variable.
-- Exercised a custom `5005` expected runtime in the bridge unit contract,
-  retained explicit coverage for the default `5000` fallback, and added a
-  static Compose handoff assertion.
+- Commit `5737a58` fixes Boolean mode normalization and adds a regression test
+  for real `Rootful=true` and `Rootful=false` property shapes. The applicable
+  local runtime, bootstrap, launcher, package, publish-workflow, and Podman GPU
+  suite passed 101 tests. All required Draft PR checks, including both Python
+  versions, Windows host-helper contracts, production-controller contracts and
+  e2e, frontend, security, and Trivy, are green on evidence head `ae78b06`.
+- The exact launcher and full-runnable Podman CPU package record source
+  `5737a58fcbf27395c1025c672bcf3c737bf34fe2`. The package archive SHA-256 is
+  `24ef6e7e2aa6662d5f1f26b8e09fbfccc25c8a11e796571f022f978b9352f49b`;
+  the ZIP sidecar and all 1,018 embedded payload hashes passed independent
+  verification.
+- With the workstation machine intentionally left rootful, packaged
+  verify-only bootstrap rejected the configuration with the Windows-localhost
+  requirement, explained the separate rootful/rootless container and volume
+  stores, and confirmed TowerScout did not change the machine.
+- Before and after comparison confirmed rootful mode remained enabled, the
+  package's Compose project had no container, and all 24 pre-existing volumes
+  remained present.
+
+**Validation**: The package remains unsigned, validation-only, and outside any
+candidate or managed-endpoint claim. No provider key, certificate identity or
+content, local path, private network address, screenshot, or raw runtime output
+was committed.
+
+**Next**: Obtain technical/security review and the approved signing path, then
+run the signed artifact under representative managed-endpoint policy before
+the August 14 proceed/conditional/stop decision.
+
+### 2026-08-12 - Rootless Podman Native Forwarding Boundary Selected
+
+**Objective**: Determine whether the previously required loopback-only tunnel
+was caused by Docker/WSL contention, Podman networking mode, or TowerScout.
+
+**Context**: The unchanged exact-source `3990bc0` Podman CPU package was tested
+on the same managed Windows workstation. No provider key, certificate, asset
+import, or application configuration was required for this networking-only
+comparison.
+
+**Decision**: Use rootless Podman CPU as the provisional Windows candidate
+boundary. Do not automatically change a user's Podman rootful/rootless or WSL
+networking configuration. Before a candidate claim, add a fail-closed rootful
+preflight or equally explicit package guidance. Keep rootful Podman outside the
+candidate support claim unless later representative evidence proves native
+Windows localhost forwarding.
+
+**Execution**:
+
+- Pausing Docker did not isolate it: Docker's Windows backend and WSL
+  distribution remained active. After Docker Desktop was fully exited, the
+  rootful package still timed out on Windows localhost.
+- In rootful mode, the exact container was healthy, the pinned image digest and
+  `127.0.0.1` port mapping were correct, and the health endpoint responded from
+  inside the Podman WSL distribution. Windows had no corresponding listener and
+  could not reach the published port. Enabling Podman's user-mode networking
+  did not change that result and was reverted.
+- A full WSL restart regenerated a transiently missing resolver after the host
+  restart. The rootful result then reproduced with Docker fully absent, so
+  Docker contention, resolver state, TowerScout health, image identity, and the
+  Compose provider are not the forwarding cause.
+- The idle machine was switched temporarily to Podman's default rootless mode.
+  The unchanged package pulled the same pinned image, reached Windows localhost
+  with HTTP 200, reported `setup_required`, and retained native reachability
+  after scoped container recreation. The rootless test created eight isolated
+  volumes; they were removed after the test because they contained no imported
+  assets or provider configuration.
+- The machine was restored to its original rootful mode. The eight pre-existing
+  rootful validation volumes remained present, and no validation container was
+  left running.
+
+**Validation**: Native Windows localhost forwarding passed only in rootless
+mode in this comparison. The package image digest remained
+`sha256:86c54bd723ff970f70f0883397a1f2f804db796507a461a5718aeab57258afe8`.
+No provider key, certificate identity or content, local path, private network
+address, screenshot, or raw runtime log was committed.
+
+**Next**: Implement and test the selected rootless Podman CPU support boundary
+in package preflight and user guidance. Then obtain technical/security review,
+signing-path evidence, and representative managed-endpoint validation before
+the August 14 conditional/proceed/stop decision or merge of PR #67.
+
+### 2026-08-12 - Exact-Head Podman Provider Installer Gate Passed
+
+**Objective**: Close the live-index dependency drift without weakening the
+approved-provider boundary, then validate a fresh provider installation and
+runtime recovery from the resulting exact-source package.
+
+**Context**: The prior installer verified the selected provider wheel but asked
+the connected package index to resolve its dependencies. It failed closed when
+the catalog required `PyYAML==6.0.2` and the index exposed `6.0.3`. The
+`7ef879c` Google/Azure TLS repair evidence remains valid; this follow-up is
+limited to provider installation reproducibility and the affected Podman
+runtime path.
+
+**Decision**: Use a package-local, hash-approved wheelhouse rather than live
+dependency resolution. Pin direct artifact URLs and SHA-256 values for
+`podman-compose==1.5.0`, `python-dotenv==1.1.1`, and supported Windows AMD64
+`PyYAML==6.0.3` wheels. Select only the exact running Python ABI, install from
+the verified cache with index and dependency resolution disabled, run package
+consistency and exact-version checks, and require the existing provider
+allowlist before binding. Preserve the prior provider on replacement failure.
+
+**Execution**:
+
+- Commit `3990bc0` implements the bounded wheelhouse, supported Windows/Python
+  tag selection, exact post-install checks, transactional replacement, and
+  sanitized operator output. Unsupported tags and unsafe forced replacement
+  targets continue to fail closed.
+- Clean connected installs passed with Python 3.14 and Python 3.12. A managed-
+  cache forced replacement passed, while a forced target outside that cache was
+  rejected. Focused tests passed 72 checks and the applicable broader suite
+  passed 82 checks. All required exact-head CI checks, including the Windows
+  host-helper and production-controller contracts, are green.
+- The exact launcher build used source
+  `3990bc0152e2e6951036a14a2eb5f483fb9fa026` and build-tree SHA-256
+  `6fb3a2e44cd17b75dde7d66016c870bda6d33f0dcb595f6246d670f607bf4f26`.
+  The resulting Podman CPU archive has SHA-256
+  `50460576890ed3d1c455c82df6e6bd60989525c888614a5453d895b5f4bc2655`.
+  Independent verification passed all 1,018 payload hashes and found no
+  environment file, backup, key, or certificate material.
+- The exact packaged installer completed a fresh package-local install without
+  reusing an older provider. Package setup imported and verified the approved
+  asset bundle, reached `setup_required`, and reported the exact CPU image
+  digest. Scoped stop/start recreated the container while retaining all eight
+  volume creation timestamps, the provider installation, assets, runtime
+  profile, and image digest; final health returned to `healthy`.
+- Normal Windows-to-WSL localhost forwarding remained absent on this
+  workstation. Validation used a temporary loopback-only SSH tunnel after the
+  package's port preflight, and the tunnel and exact validation container were
+  removed afterward without removing named volumes.
+
+**Validation**: The exact installed provider versions were
+`podman-compose==1.5.0`, `python-dotenv==1.1.1`, and `PyYAML==6.0.3`; the image
+digest remained
+`sha256:86c54bd723ff970f70f0883397a1f2f804db796507a461a5718aeab57258afe8`.
+No provider key, certificate identity or content, local path, screenshot, raw
+installer output, or support log was committed. The package remains unsigned,
+non-candidate, and unauthorized for representative managed-endpoint evidence.
+
+**Next**: Explicitly disposition Windows localhost-forwarding supportability,
+then obtain technical/security review, signing-path evidence, and
+representative managed-endpoint validation before the August 14
+conditional/proceed/stop decision or merge of PR #67.
+
+### 2026-08-11 - Exact-Head Approved-Provider Podman Regression Passed
+
+**Objective**: Repeat Google/Azure launcher repair and controlled recovery from
+an exact-implementation-head Podman CPU package without weakening provider,
+image, TLS, or persistence controls.
+
+**Context**: The separate full-runnable Podman validation archive was built
+from source `7ef879c9a70243fe3c81769d1dd17dc86c7f54f0` for CPU/off on isolated port
+5011. Its ZIP SHA-256 is
+`b560e43ed3c37d4adcaaf986090ac905d5c7cd9a6600b558d26b000cf5979d77`;
+the package remains unsigned, non-candidate, and unauthorized for managed-
+endpoint evidence or merge.
+
+**Decision**: Keep the provider allowlist and catalog pins fail closed. Do not
+substitute Docker Desktop Compose, accept an unreviewed dependency version,
+disable TLS verification, change global WSL networking, or remove volumes. An
+already installed `podman-compose` 1.5.0 provider could be reused only after it
+passed the exact-head package's own approval checks.
+
+**Execution**:
+
+- The connected package-local provider installer verified its provider wheel
+  but stopped before `.env` binding because the catalog requires
+  `PyYAML==6.0.2` and the connected index exposed `6.0.3`. It did not silently
+  upgrade or select an unapproved provider.
+- The previously installed `podman-compose` 1.5.0 executable passed the exact-
+  head package allowlist and was explicitly bound for this validation session.
+- Package setup imported the verified asset bundle and created an isolated
+  eight-volume project. The container was healthy internally. Because normal
+  Windows-to-WSL localhost forwarding did not expose port 5011, browser and
+  launcher validation used a loopback-only SSH tunnel rather than a global
+  networking change.
+- Google setup reproduced the managed-network TLS trust error. The exact-head
+  native launcher repair completed, restarted the matching Podman profile, and
+  established the combined CA bundle. Re-entered Google configuration then
+  saved successfully. Azure configuration succeeded from Settings without a
+  second repair. Provider keys remained browser-only.
+- The package's scoped stop path removed the container without removing named
+  volumes. Same-profile start recreated the container, returned readiness to
+  `ready`, and restored health to `healthy`.
+
+**Validation**: Post-recovery assets/config remained `ok`; Google and Azure
+remained configured; engine/device/flavor remained Podman/CPU/CPU; the exact
+image digest remained
+`sha256:86c54bd723ff970f70f0883397a1f2f804db796507a461a5718aeab57258afe8`;
+the CA bundle and both CA environment paths persisted; and all eight volume
+creation timestamps were unchanged. No provider key, certificate identity or
+content, local path, screenshot, raw installer output, or support log was
+committed.
+
+**Next**: Resolve or explicitly disposition the provider-installer dependency
+drift and Windows localhost-forwarding supportability gap. Then obtain
+technical/security review, signing-path evidence, and representative managed-
+endpoint validation before the August 14 conditional/proceed/stop decision or
+merge of PR #67.
+
+### 2026-08-11 - Exact-Head Full Package And Docker Regression Passed
+
+**Objective**: Produce the final exact-implementation-head full-runnable CPU
+package, repeat Docker Google/Azure launcher validation, and prove controlled
+recovery without losing runtime state.
+
+**Context**: Exact-head CI was green after the secure build-CA change. The
+first final-package assembly validated its staged tree but Windows endpoint
+scanning denied the atomic directory publication twice. The previous assembler
+made one publication attempt before deleting its staging tree. No partial
+published package remained.
+
+**Decision**: Preserve atomic staging and rollback. Retry only transient
+`PermissionError` from final publication with bounded capped backoff; do not
+copy around validation, weaken archive checks, exclude the launcher from
+endpoint scanning, or reuse the older package.
+
+**Execution**:
+
+- Commit `7ef879c` added the bounded publication retry and a deterministic
+  injected-lock regression. All `46` launcher/package tests passed, and PR #67
+  exact-head runs `31530029726` and `31530029735` passed.
+- The launcher build recorded source
+  `7ef879c9a70243fe3c81769d1dd17dc86c7f54f0` and build-tree SHA-256
+  `537c860416563035c0465599faf60f31cdf325c8dce219d4c1e7a0f0baf4214a`.
+- The normal package generator ran under the previously authorized process-
+  scoped execution-policy bypass. The full-runnable validation archive
+  `towerscout-Task-087-validation-7ef879c9a702.zip` has SHA-256
+  `46984d688939dddcbe5afe4bd82b423a69af09277fada5db6ff8a33363e433b6`.
+- Independent verification matched the sidecar, all `1,018` internal payload
+  checksums, archive membership, source ref, CPU flavor, and exact v0.1.2 image
+  digest. No certificate/key material was present. The launcher is unsigned;
+  both release-candidate and managed-endpoint authorization remain false.
+- The isolated Docker project started on port 5010 with all assets verified.
+  Google setup reproduced the managed-network TLS error, then the packaged
+  native launcher repair succeeded. Azure configuration then succeeded without
+  another repair because the combined organization CA bundle already covered
+  that provider. Keys were entered only in TowerScout's browser UI.
+- Controlled package `down --remove-orphans` followed by same-profile start
+  recreated the container. Readiness returned `ready`; assets/config remained
+  `ok`; Google and Azure remained configured; the CA bundle and both CA
+  environment paths persisted; the exact CPU digest remained selected; and all
+  eight volume creation timestamps were unchanged.
+
+**Validation**: Archive, checksum, provenance, signature-status, setup,
+readiness, provider-state, CA-path, container-health, exact-digest, and volume-
+retention checks passed. No provider key, certificate identity/content, local
+path, screenshot, or raw support log was committed.
+
+**Next**: Repeat the approved-provider Podman CPU regression from the rebuilt
+exact source. Then obtain technical/security review, signing-path evidence, and
+representative managed-endpoint validation before recording the final
+conditional/proceed/stop decision or merging PR #67.
+
+### 2026-08-11 - Blackwell GPU Feasibility Passed; Current CUDA Profile Stopped
+
+**Objective**: Test Docker and Podman NVIDIA prerequisites on the new laptop,
+run the selected CUDA 12.6 model gate, and distinguish host capability from
+release-profile compatibility.
+
+**Context**: The host has an NVIDIA RTX PRO 500 Blackwell Generation Laptop
+GPU with compute capability 12.0, driver 596.08, and approximately 6 GiB of
+VRAM. The selected TowerScout dependency profile is PyTorch 2.6.0,
+torchvision 0.21.0, and CUDA 12.6. The managed network also intercepts the
+`pypi.nvidia.com` wheel path used during CUDA image builds.
+
+**Decision**: Keep TLS verification enabled. Add an optional BuildKit secret
+for a build-time CA bundle instead of copying a certificate into the image,
+using a trusted-host bypass, or persisting local certificate details. Treat a
+different PyTorch/CUDA pair only as feasibility evidence; do not relabel or
+promote it as the selected package profile.
+
+**Execution**:
+
+- NVIDIA's disposable Docker smoke saw the correct GPU, driver, memory, and
+  compute capability. The Podman WSL machine also saw the GPU.
+- The first exact-source CUDA 12.6 build stopped on managed-network CA trust at
+  `pypi.nvidia.com`. Commit `4314295` added optional BuildKit-secret CA support
+  to the Dockerfile and qualification wrapper. The CA is available only during
+  the package-install layer and is not copied into the image.
+- The secure exact-source PyTorch 2.6/CUDA 12.6 image then built successfully,
+  but the model gate failed closed: the installed wheel advertised kernels
+  through `sm_90`, not this workstation's `sm_120`, and YOLO stopped with no
+  compatible kernel image.
+- A separate same-source feasibility image using PyTorch 2.7.0,
+  torchvision 0.22.0, and CUDA 12.8 advertised `sm_120`, passed a CUDA tensor
+  kernel, and passed the unchanged deterministic TowerScout model harness.
+  Both YOLO and EfficientNet selected CUDA; both release-model hashes matched;
+  YOLO counts and EfficientNet scores met the declared tolerance. Peak
+  allocated CUDA memory was 814,291,968 bytes and process RSS was
+  1,962,360,832 bytes.
+- Podman `-VerifyOnly` confirmed machine and GPU visibility but stopped because
+  `nvidia-ctk` and an NVIDIA CDI specification are absent. No toolkit install,
+  CDI generation, machine-resource change, or Podman GPU workload occurred.
+
+**Validation**: The focused dependency, launcher-GPU, and container-publish
+suite passed `16` tests; PowerShell parsing, Dockerfile `--check`, and
+`git diff --check` passed. PR #67 exact-head runs `31526991477` and
+`31526991499` passed. The experimental CUDA 12.8 result is sanitized local
+feasibility evidence only; no provider key, certificate content, local path,
+raw support log, or screenshot was committed.
+
+**Next**: Rebuild the exact-head CPU launcher/package and keep Task-087's
+Google/Azure repair decision on the validated CPU scope. Route a reviewed
+Blackwell-capable dependency/profile decision plus final Docker/Podman GPU
+package matrix to Task-097 before making a current GPU release claim.
+
+### 2026-08-11 - Docker And Approved-Provider Podman CPU Validation Passed
+
+**Objective**: Complete the exact-source managed-network package checks on
+Docker and Podman, preserve runtime state through controlled recovery, and fix
+only defects demonstrated by the Podman package path.
+
+**Context**: The project lead explicitly authorized the unsigned development-
+workstation package test and a process-scoped PowerShell execution-policy
+bypass for the normal package generator. The full-runnable CPU package was
+built from exact source `41cec81` with the pinned CPU image digest. Docker used
+the isolated port-5008 project; Podman used a separate port-5009 project and an
+explicitly installed, hash-verified `podman-compose` 1.5.0 provider. Provider
+keys were entered only in the browser and were not captured in evidence.
+
+**Decision**: Keep Docker and Podman projects and named volumes isolated. Do
+not use Docker Desktop's Compose binary for Podman, change global WSL
+networking, disable TLS verification, remove volumes, or record certificate or
+provider-key details. Treat the two Podman launcher failures as fail-closed
+compatibility defects and retain the native no-PowerShell mutation boundary.
+
+**Execution**:
+
+- Docker Google and Azure TLS repair succeeded through the packaged native
+  launcher. A controlled down/up recovery retained all eight named volumes,
+  the CA bundle, provider configuration, assets, and exact image digest.
+- The separate Podman package passed checksum, asset, disk, port, runtime,
+  approved-provider, and pinned-image preflight. Asset import succeeded and the
+  container was healthy internally. Normal Windows-to-WSL localhost forwarding
+  did not expose port 5009, so the bounded UI validation used a temporary
+  loopback-only SSH tunnel rather than changing shared WSL networking.
+- The provider installer initially selected its `.cmd` wrapper, which the
+  launcher's native mutation boundary intentionally rejects. Commit `aff3cb6`
+  keeps the wrapper for manual use but records the approved virtual-environment
+  executable for native launcher validation.
+- Podman records a digest-pinned running image as `repository@digest` even when
+  the package confirms `repository:tag@digest`. Commit `aff3cb6` accepts only
+  that narrow tag-removal normalization while continuing to reject a different
+  repository or digest.
+- A validation-only launcher containing the same `aff3cb6` source changes
+  completed Google and Azure Podman TLS repair. Controlled Podman down/up
+  recovery recreated the container while retaining the original timestamps of
+  all eight volumes, both CA bundle paths, both provider configurations,
+  healthy assets, and the exact CPU image digest. Docker remained ready.
+- NVIDIA prerequisite discovery found an RTX PRO 500 Blackwell laptop GPU,
+  Docker's NVIDIA runtime, and GPU visibility inside the Podman WSL machine.
+  Podman CDI is not configured and no published `v0.1.2-cuda126` image exists;
+  this is local capability evidence, not Task-097 final qualification.
+
+**Validation**: Launcher, runtime-hardening, and release-package coverage passed
+`69` tests; launcher Python compilation and `git diff --check` passed. Runtime
+readiness reported both providers configured, assets and ML runtime healthy,
+and the exact pinned digest after recovery. No provider key, certificate
+identity, local provider path, screenshot, or raw support log was committed.
+
+**Next**: Publish `aff3cb6` plus this sanitized evidence, require exact-head CI,
+then rebuild the launcher and full-runnable package from the final accepted
+head and repeat the bounded Podman regression. Keep signing, representative
+managed-endpoint validation, candidate inclusion, merge, and final Task-097
+GPU qualification as separate gates.
+
+### 2026-08-11 - Sprint 09 Main Reconciliation Completed
+
+**Objective**: Reconcile Draft PR #67 with the post-Task-099 and Sprint 09
+tracking state without changing the accepted launcher/runtime implementation.
+
+**Decision**: Rebase the two Task-087 commits onto merged `main` checkpoint
+`3932abf`, preserve the old `54c1a77` head on the existing migration safety
+branch, and resolve tracking conflicts in favor of the completed Task-099 and
+current Sprint 09 state. No package generation, container launch, host TLS
+mutation, volume mutation, or provider-key handling was authorized for this
+reconciliation.
+
+**Execution**: The rebase produced implementation checkpoint `1908670`. The
+launcher, compose/runtime, package-script, and focused test trees are
+byte-for-byte identical to the previously accepted `54c1a77` head. The
+semantic audit also corrected stale Sprint 08, alert #74, historical package,
+and "first controlled mutation" wording across the active Task-087 records,
+roadmap, ADR, backlog, and contributor guidance.
 
 **Validation**:
 
-- PASS: 12 focused bridge and static Compose tests.
-- PASS: 10 provider-TLS Flask-route/frontend-preservation tests.
-- PASS: Setup Wizard validation contract.
-- PASS: rendered Compose config maps host `5005` to container `5000` and
-  supplies `TOWERSCOUT_HOST_PORT=5005`; the default render supplies and
-  publishes `5000`.
-- PASS: changed Python compilation and `git diff --check`.
-- HOST LIMITATION: the broad local unit attempt remained non-authoritative
-  because Defender/AMSI blocked the existing PowerShell helper module and the
-  managed sandbox denied pytest temp-fixture ACL access. The directly affected
-  tests passed independently; exact-head GitHub CI remains required.
-- TOOLING LIMITATION: local `flake8` and `black` modules are not installed;
-  their GitHub CI steps remain the validation authority.
-- PASS: no frontend source/bundle, helper authorization, TLS mutation,
-  release asset, provider-key, or activation-gate behavior changed.
+- exact implementation-tree comparison against `54c1a77`: pass;
+- launcher and release-package unit tests: `49 passed`;
+- Flask/config/container-publish regression tests: `86 passed`;
+- launcher Python compile check: pass;
+- combined suite including the dormant PowerShell helper: `55 passed`, with
+  the same 19 documented AMSI `ScriptContainedMaliciousContent` failures in
+  `scripts/lib/TowerScoutHostHelper.ps1`; that helper remains outside the
+  native launcher, stop, and package paths;
+- `.agent_work` quick and full validators: pass;
+- `git diff --check`: pass.
 
-**Next**: Commit and push the bounded correction, require green CI at the new
-head, then reply to and resolve the custom-port review conversation only after
-the remote evidence passes.
+**Next**: Commit and publish this reconciliation as the new exact PR #67 head,
+verify exact-head GitHub checks, then build the full-runnable package only in an
+approved environment where the normal package generator can run. The packaged
+UI-driven Google/Azure/recovery and approved Podman-provider gates remain open.
 
-### 2026-07-30 - Final Merge-Readiness Audit And Test Hygiene
+### 2026-08-07 - Exact-Source Policy Package Rebuilt; Full Package Remains Policy-Blocked
 
-**Objective**: Reconfirm whether PR #63 is safe as a dormant control-plane
-checkpoint and close the independent reviewer's remaining optional test and
-metadata gaps without enabling production mutation.
+**Objective**: Rebuild the launcher from the rebased exact source and determine
+whether the normal full-runnable package path can proceed on this workstation.
 
-**Context**: Independent re-review at `6d8c8dc` found no merge-blocking
-findings. It identified two test-hygiene issues: a late-start cleanup assertion
-searched for the obsolete `token-*.json` pattern rather than the production
-`token-*.secret` pattern, and the fixed-worker test treated a null parsed lock
-as sufficient cleanup evidence even though an unreadable active-lock file
-would also parse as null. The PR description and durable task status also
-lagged the current checkpoint.
+**Decision**: Use only the pinned launcher build and existing package-release
+path. Do not bypass PowerShell execution policy, create an ad hoc replacement
+generator, or combine the new launcher with an older-source base package.
 
-**Decision**: Correct the test-only gaps and refresh durable status. Do not add
-production behavior in this cleanup pass. Treat bounded active-lock deletion
-retry as activation-stage availability hardening, and defer behavioral CUDA
-coverage to the later runtime qualification work. Keep TLS mutation and every
-candidate-inclusion gate closed.
-
-**Execution**:
-
-- Changed the late-start cleanup probe to count the actual durable token file
-  pattern, `token-*.secret`.
-- Strengthened fixed-worker cleanup validation to wait for and directly assert
-  removal of both `operation-active.json` and the exact worker identity file,
-  while retaining the parsed-lock assertion.
-- Updated the Task-087 status to distinguish merge readiness for this dormant
-  checkpoint from the still-unmet activation and candidate qualification
-  matrix.
-
-**Validation**:
-
-- PASS: the preceding merge-readiness audit covered every changed PR file,
-  production gate defaults, package inclusion boundaries, local focused and
-  repository-level checks, secret-sensitive surfaces, and the complete diff.
-- PASS: required CI at `6d8c8dc` was green, including Python 3.11/3.12 unit
-  jobs, the Windows helper job, frontend/controller contracts, simulated
-  helper e2e, security, and Trivy.
-- PASS: all 25 helper tests collect, the three static helper/harness contract
-  tests pass, the changed Python compiles, both agent-work validators pass,
-  `git diff --check` passes, and the changed-diff secret scan is clear.
-- BASELINE: the advisory integration failures at `6d8c8dc` exactly matched
-  current `main`; they were not introduced by PR #63.
-- HOST POLICY LIMITATION: this endpoint's Defender/AMSI policy still blocks
-  the dynamic helper library before local test assertions run. The dedicated
-  Windows CI job remains the independent execution gate for the corrected
-  helper tests.
-- PENDING: all required checks must pass again at the cleanup commit before
-  the dormant checkpoint is considered merge-ready.
-
-**Next**: Push the cleanup commit, require green CI at its exact head, refresh
-the PR description with the final evidence, and obtain an explicit
-project-lead merge decision. Do not build or publish a release candidate until
-the remaining activation matrix is complete.
-
-### 2026-07-30 - PR #63 Additional Reviewer Corrections And Live Rerun
-
-**Objective**: Investigate the additional review against `1742186`, implement
-every accepted correction without enabling mutation, and complete the paused
-isolated Docker/Edge validation before commit preparation.
-
-**Decision**: Accept the live ACL, heartbeat/request-deadline, controlled
-restart, token-issuance, terminal recovery, readiness, malformed-status,
-rate-limit, clock-skew, fixed-time comparison, JSON retry, worker supervision,
-simulated-auth, Windows CI, artifact, token-replay-test, timing-test, process
-race, and frontend timeout/error findings. Keep the durable-token replay
-behavior, serialized atomic operation lock, continued uncertain polling, and
-wizard-close polling behavior unchanged where review did not establish a safe
-production defect or a safer bounded replacement.
-
-**Execution**:
-
-- Made ACL protection compatible with Windows PowerShell and PowerShell 7;
-  added a total request-read deadline, listener heartbeat recovery after
-  sleep/resume, worker-side session re-verification, five-minute bounded clock
-  skew, fixed-time durable-token comparison, JSON parse retry under stop error
-  preference, exact worker PID/start-time supervision, and benign
-  process-exit-race handling.
-- Marked both controlled stop and start, and made nested controlled launch skip
-  helper reinitialization so the worker cannot remove its supervisor.
-- Restricted start authorization to explicit provider-validation/save POST
-  paths; unauthenticated TLS-status GET remains probe-only. Removed untrusted
-  forwarding-header use and bounded/serialized the in-memory rate limiter.
-- Restored same-provider terminal recovery, validated start/status descriptors
-  before state mutation, added bounded readiness retry, continued low-frequency
-  polling after the uncertainty threshold, preserved request timeouts through
-  response-body reads and caller abort signals, added error-specific start
-  guidance, and handled stored-operation resume rejection.
-- Enforced exact probe/start/status authentication and allowed origins in the
-  simulated helper, used distinct localhost/loopback start tokens, added
-  negative-auth e2e checks, retained artifacts on failure, and added a pinned
-  `windows-latest` helper-contract job.
-- Fixed live-harness issues found during validation: synchronized the Edge
-  observer process before reading its exit code, emitted only sanitized failure
-  classes, and derived expected runtime port from the tested web origin.
-
-**Validation**:
-
-- PASS: two review audits, Python/JavaScript/PowerShell parsers, workflow YAML,
-  `git diff --check`, and deterministic bundle rebuild after normalizing the
-  generated build timestamp.
-- PASS: Setup Wizard validation, API-helper body-timeout/caller-abort, and Edge
-  observer configuration contracts.
-- PASS: host-helper bridge and bounded rate-limiter tests; the two corrected
-  source/JSON helper tests also pass.
-- PASS: all three new Flask security/issuance tests. The complete Flask route
-  run reached 62 passing tests before six unrelated archive fixtures hit this
-  endpoint's inaccessible pytest temp root.
-- HOST POLICY LIMITATION: dynamic helper-library tests continue to stop at
-  `ScriptContainedMaliciousContent`; they do not reach code assertions. The new
-  Windows CI job runs the focused helper file and self-test on an independent
-  runner.
-- PASS: the isolated `towerscout-task087-pr63-rereview` Edge run observed the
-  exact container stop/restart, preserved `setup_required` and same-origin
-  `sessionStorage`, and validated the alternate loopback origin.
-- PASS: authenticated simulated-helper POST/poll e2e passed from both
-  `localhost` and `127.0.0.1`, including invalid probe/start/status rejection
-  and origin-distinct fresh operations.
-- PASS: the dedicated container, network, named volumes, browser profile,
-  signals, and test processes were removed. The unrelated `extracted-cpu`
-  project remained running and healthy.
-- PASS: all production mutation gates and review opt-in default remain false.
-
-**Next**: Monitor the pushed checkpoint's CI and obtain focused re-review.
-Keep remaining activation and candidate-inclusion gates explicit.
-
-### 2026-07-30 - PR #63 Interrupted Re-review Correction Recovery
-
-**Objective**: Reconstruct the uncommitted PR #63 correction pass after the
-weekly usage-limit interruption, complete every safe non-runtime validation,
-and preserve an exact handoff for the remaining live run.
-
-**Context**: The isolated Task-087 worktree remained at pushed commit
-`1742186` with five modified files. The interrupted pass had accepted the
-reviewer's exact-process, late-start-test, launcher-matrix, and Docker/Edge
-cleanup findings. Live Docker validation stopped after its first attempt
-exposed a Windows Docker Go-template quoting defect; that defect had been
-replaced with JSON inspection but not rerun.
-
-**Decision**: Keep PR #63 draft and every mutation gate false. Make process
-termination a verified result, test the actual launcher runtime function
-without loading the endpoint-blocked helper library, make the isolated browser
-harness transactional, and do not claim the Docker rerun until Docker Desktop
-is available again.
-
-**Execution**:
-
-- Changed helper process-tree cleanup to capture native `taskkill` status,
-  attempt the managed fallback when necessary, verify the boolean
-  `WaitForExit` result, and throw when strict cleanup cannot confirm exit.
-  Launcher-owned helper cleanup and controlled-operation timeout/cancellation
-  use strict mode; exact session and bridge state are cleared both before and
-  after termination to cover late publication.
-- Reworked the late-start fixture to use production-equivalent argument
-  quoting, require the child to publish its exact PID before the launcher
-  readiness deadline begins, keep the child alive long enough to require
-  cleanup, and assert process exit plus zero session/token/operation state.
-  Added a taskkill-failure test that requires verified managed fallback.
-- Extracted the real protected launcher lifecycle into
-  `Invoke-TowerScoutLaunchRuntime`. Dot-sourced tests can define the real
-  launcher function without loading runtime libraries, while normal execution
-  loads the same libraries before preflight. Added a deterministic matrix for
-  Compose nonzero, Compose exception, fatal readiness, timeout, browser-open
-  failure, and success.
-- Hardened the isolated Docker/Edge harness to parse Docker inspection JSON,
-  retain restoration responsibility until the same container is verified
-  running, surface cleanup failures, restore review-only environment values,
-  use a GUID-scoped Edge profile, record the exact Edge PID, terminate verified
-  Node and Edge process trees, and remove only its exact temporary resources.
-
-**Validation**:
-
-- PASS: PowerShell parser checks for all three touched PowerShell files.
-- PASS: Edge observer JavaScript syntax and constrained-URL self-test.
-- PASS: Python bytecode compilation and `git diff --check`.
-- PASS: four focused source/driver/real-launcher-matrix tests.
-- PASS: practical helper bridge, release-package, source-contract, and
-  real-launcher-matrix set, 17 passed with 19 endpoint-dependent tests
-  deselected.
-- BLOCKED BY HOST POLICY: the late-start and taskkill-fallback dynamic tests
-  both stop at helper-library load with
-  `ScriptContainedMaliciousContent`, matching the pre-existing Defender/AMSI
-  blocker rather than reaching a code assertion.
-- PAUSED BY RUNTIME AVAILABILITY: Docker Desktop was no longer running after
-  the interruption. The previously created isolated
-  `towerscout-task087-pr63-rereview` project must be inventoried, rerun, and
-  removed when Docker Desktop is restarted. No unrelated project is in scope.
-- PASS: backend capability false, helper execution default false, frontend
-  browser mutation false, and review opt-in default `0` were reverified.
-
-**Next**: Start Docker Desktop, rerun the isolated Edge stop/restart driver,
-verify same-container restoration and no Node/Edge/temp-profile residue, then
-remove only the dedicated project. Incorporate any additional reviewer
-findings against `1742186` before final diff review, commit, push, and PR
-evidence update.
-
-### 2026-07-28 - PR #63 Phase 1 Re-review Hardening
-
-**Objective**: Address the accepted Phase 1 re-review findings without
-activating provider TLS mutation or overstating the prior live evidence.
-
-**Decision**: Replace the short-lived wrapper with launcher ownership of the
-actual long-lived PowerShell process. Require matching metadata plus
-authenticated liveness before discovery succeeds, keep all post-helper launcher
-work inside failure-safe cleanup, harden the Edge observer, and add a separate
-Docker driver that refuses to act outside one explicitly named Task-087
-project.
-
-**Execution**:
-
-- Moved the review-session lifecycle into the shared host-helper library and
-  removed `host-helper-visible.cmd` from source, package staging, and current
-  support documentation.
-- Changed launcher startup to retain the real helper process handle, use a
-  five-second package-mutex wait within a fifteen-second discovery deadline,
-  detect early process exit, and kill the exact process tree before clearing
-  the exact failed session.
-- Required matching engine, GPU mode, app port, package flavor/root identity,
-  PID/start time, lease/heartbeat, token file, and authenticated loopback
-  liveness before the helper is exported to the container.
-- Moved helper initialization after launcher preflight and wrapped every
-  subsequent Compose/readiness path in `try/finally`. Any exception or
-  non-success launcher exit removes the owned process/session; browser-open
-  failure is downgraded to manual-open guidance after the app is healthy.
-- Added Windows tests for real long-lived startup from a package root containing
-  spaces, process-start failure, early exit, and late-start timeout cleanup.
-  Existing package-mutex coverage remains the focused concurrent-process proof.
-- Renamed the Edge script as an observer, restricted it to explicit
-  `localhost`/`127.0.0.1` origins on one port, removed sandbox-disabling flags,
-  bounded readiness fetches with `AbortController`, and asserted expected-state
-  equality plus same-origin `sessionStorage` retention.
-- Added an isolated Docker driver that requires a
-  `towerscout-task087-*` project, verifies Compose labels/container id and the
-  exact loopback port, uses only service `stop`/`start`, restores a stopped
-  service on failure, and cleans only its GUID-named temporary files.
-- Corrected the Phase 1 evidence so the test-only operation-acceptance timing
-  is not represented as launcher or production-worker timing.
-
-**Validation**:
-
-- PASS: PowerShell parser checks for every edited PowerShell file.
-- PASS: Edge observer JavaScript syntax and constrained-URL self-test.
-- PASS: host-helper bridge suite, 8 passed.
-- PASS: release-package staging suite, 5 passed.
-- PASS: new static launcher/Edge/Docker contracts, 2 passed.
-- PASS: Setup Wizard validation contract, Python bytecode compilation,
-  `.agent_work` validators, sensitive-term scan, and `git diff --check`.
-- BLOCKED BY HOST POLICY: the Windows dynamic helper suite cannot load
-  `TowerScoutHostHelper.ps1` because Defender/AMSI currently reports
-  `ScriptContainedMaliciousContent`. The same block reproduces against the
-  unchanged `5ae9f76` helper content, so it is not attributed as a new-code
-  assertion failure. The new Windows lifecycle tests remain unclaimed until
-  they run on an approved compatible endpoint.
-- NOT RERUN: the hardened Edge observer/Docker driver against a live isolated
-  project, because the helper cannot start while the endpoint policy block is
-  active.
-
-**Next**: Keep PR #63 draft and all mutation gates false. Review the final diff,
-then commit/push the hardening and update the PR description with the corrected
-evidence. Before merge, run the Windows lifecycle tests and isolated
-Docker/Edge driver on an approved endpoint where the helper library can load.
-
-### 2026-07-28 - PR #63 Phase 1 Live Windows Lifecycle Validation
-
-**Objective**: Execute the approved safe Phase 1 Docker/Edge validation,
-remediate any reproducible blocker, and leave PR #63 in a reviewable state
-without activating provider TLS mutation.
-
-**Context**: The July 27 reviewer remediation had passed its non-mutating
-contract and helper tests, but live launcher, failure-cleanup, and browser
-stop/restart behavior remained unverified. Docker Desktop was confirmed
-running. Edge was available; Chrome and Firefox were not installed.
-
-**Decision**: Use a unique Docker CPU image and isolated Compose projects,
-retain the existing unrelated Docker project, exercise only lifecycle and
-failure paths, and keep every production mutation gate false. Treat any
-launcher failure as a code defect rather than bypassing the package entry
-point.
-
-**Execution**:
-
-- Reproduced the visible Windows launcher hang and inspected its process tree.
-  Direct helper invocation kept the native-command pipeline open, so the
-  launcher never advanced to Compose or readiness.
-- Replaced direct invocation with detached `Start-Process` execution using a
-  short-lived visible wrapper and added a static regression assertion. The
-  later re-review correctly identified that this did not retain an owning
-  handle for the long-lived helper.
-- Repeated fresh launches with review enabled and confirmed one current helper
-  session; disabled review and confirmed helper metadata cleanup while the
-  Compose-managed application remained available.
-- Terminated the exact isolated helper process, retained its stale metadata,
-  and confirmed the next launch replaced it with one live session.
-- Exercised isolated Compose failure, readiness timeout, and fatal-readiness
-  fixtures and confirmed their documented launcher exit classifications and
-  helper cleanup behavior.
-- Added a reusable Edge headless lifecycle observer that observes the real
-  application become unavailable, recover after restart, reload in the same
-  browser process, and remain valid through both supported loopback origins.
-  Docker stop/start remained external to the observer.
-- Removed all Phase 1 containers, networks, named volumes, images, helper
-  state, and template-derived local configuration after validation.
+**Execution**: Installed the pinned build requirements, ran
+`launcher/build.cmd` from clean commit `4fc5390`, assembled the
+`launcher-policy` validation package with the Python validation assembler, and
+attempted the normal `scripts/package-release.ps1 -NoZip` base-package command
+without an execution-policy bypass.
 
 **Output**:
 
-- Repeated launch, review disablement, stale-helper recovery, Compose failure,
-  readiness timeout, fatal readiness, and Edge stop/restart scenarios passed.
-- Compose failure and fatal readiness returned launcher exit code 1; readiness
-  timeout returned exit code 2. Each failure path removed its helper session
-  state.
-- At commit `5ae9f76`, the focused suite included 95 passing tests. Its
-  launcher regression was static; it did not dynamically execute the
-  production launcher/helper discovery path.
-- The earlier statement that detached helper startup completed in under 2.7
-  seconds with a four-second regression ceiling was unsupported by the
-  committed timing test and is withdrawn. That test measures operation
-  acceptance with a test-only worker starter, not helper startup or production
-  controlled execution.
-- No provider key, helper credential, certificate detail, raw network body,
-  screenshot, or private application data was captured in repository
-  evidence.
+- Launcher build tree SHA-256:
+  `bae70595e92f0520835bd526b80d1f6712992f961383a5f1eb5a6ef7eec4e322`.
+- Validation archive:
+  `Task-087-validation-4fc5390a3421.zip`.
+- Archive SHA-256:
+  `6bd8bd6e682e9657d3f419d83543fed0b5eb037f11583e6682732f1b4e413536`.
+- Authenticode status: `NotSigned`.
+- The normal base-package generator was rejected before execution with
+  `UnauthorizedAccess` because PowerShell script execution is disabled.
+
+**Validation**: Structural launcher inspection passed; the ZIP sidecar matched
+the computed archive hash; and the packaged executable remained alive and
+responsive during a bounded hidden-window launch against the non-runnable
+policy sentinel. No runtime, container, trust, provider, or certificate state
+was changed.
+
+**Next**: Generate the base package from `4fc5390` only in an approved
+environment where the normal PowerShell script is allowed, then assemble the
+full-runnable package and continue UI-driven Docker Google/Azure and recovery
+validation. Signing and representative managed-endpoint validation remain
+separate later gates.
+
+### 2026-08-07 - Task-099 Merge Reconciled Into Launcher Prototype
+
+**Objective**: Rebase Draft PR #67 onto the Task-099 security-remediation merge
+without losing either the final launcher implementation or the newer security
+history in shared planning files.
+
+**Context**: PR #68 squash-merged to `main` as `f460445`. A direct replay of
+PR #67's 19 historical commits conflicted immediately in six planning files
+because those commits contain successive snapshots from before Task-099.
+
+**Decision**: Preserve the original PR head `02b44be` under local checkpoint
+`checkpoint/task-087-launcher-prototype-pre-task099-20260807`, abort the
+historical replay, and apply the final launcher tree once onto `f460445` in an
+isolated worktree. Reconcile only the six shared planning files, retaining both
+Task-099 evidence and the latest Task-087 repair state.
+
+**Execution**: Git's final-tree squash merge reproduced all 41 PR files on the
+new base. The launcher, runtime scripts, Compose/environment changes, and
+focused tests compare byte-for-byte with the preserved `02b44be` tree. The
+merged dependency pins remain `aiohttp==3.14.3`, `ip-address==10.3.1`, and
+`js-yaml==4.3.1`.
 
 **Validation**:
 
-- PASS: PowerShell parser validation and the real host-helper self-test.
-- PASS: focused helper/bridge/Flask/release-package suite, 95 passed.
-- PASS: production Setup Wizard contract validation.
-- PASS: JavaScript syntax validation for the Edge lifecycle harness.
-- OBSERVED: real Edge stop/restart and alternate-loopback-origin recovery
-  reported `setup_required`; the `5ae9f76` observer did not assert state
-  equality or `sessionStorage` preservation.
-- PASS: post-run inventory confirmed that no Phase 1 Docker resources or
-  helper state remained and the unrelated pre-existing project stayed healthy.
-- NOT RUN: provider TLS/certificate mutation, UAC, Chrome/Firefox,
-  sleep/resume, Podman, GPU, release-package runtime, or managed TLS-inspected
-  network validation.
+- Native launcher and release-package unit contracts: 49 passed.
+- Combined local helper run: 55 passed and the same 19
+  `ScriptContainedMaliciousContent` failures occurred only in the dormant
+  PowerShell helper module under this workstation's endpoint policy.
+- Agent-work quick/full validators, frontend bundle consistency, and staged
+  diff checks: passed.
+- Post-merge main CI run `31200873386`, Task-087 run `31200873354`, and
+  dependency-graph run `31200874742`: passed.
+- Dependabot alerts `#72`, `#73`, and `#75` are fixed. GitHub still reports
+  `#74` open while its SBOM records both patched `aiohttp==3.14.3` and a stale
+  `3.14.2` entry; no alert was dismissed.
 
-**Next**: Complete final diff, secret, task-workspace, and repository hygiene
-review. Keep PR #63 draft and all production mutation gates false. Commit and
-push this remediation only after review, then schedule the remaining
-activation blockers under separate explicit approval.
+**Next**: Publish the reconciled final-state branch to Draft PR #67, require
+green exact-head CI, then produce and validate the latest exact-source
+full-runnable package in an approved environment before any signing or merge
+decision.
 
-### 2026-07-27 - PR #63 Reviewer Remediation
+### 2026-08-06 - Visible Controlled Repair UI And Exact-Source Build Added
 
-**Objective**: Address every accepted code-level finding in the PR #63 review
-without opening any release-facing mutation gate.
+**Objective**: Connect the proven native transaction to the visible launcher,
+preserve explicit user intent and sanitized recovery behavior, and build an
+exact-source artifact without misrepresenting its authorization or combining
+it with stale application source.
 
-**Context**: The reviewer agreed with the authorization and command-allowlist
-direction but requested changes for package-wide helper lifecycle, asynchronous
-execution, trust-boundary capability enforcement, ambiguous polling recovery,
-terminal UI completion, cross-provider conflicts, terminal lock release, and
-cache/ACL/replay/browser hardening.
+**Decision**: Expose a separate `Repair TLS and restart...` action after the
+non-mutating plan. Show only the fixed provider/runtime/GPU/port/project/image
+target and the bounded persistence/rollback statement. Require the exact typed
+phrase `REPAIR TLS AND RESTART`, keep one package operation active at a time,
+and publish only applying, restarting, succeeded, or recovery-required public
+states. Keep `RepairCoordinator` fail-closed by default; the visible prototype
+enables it only inside this explicit flow. Continue to exclude PowerShell,
+`.cmd`, browser helpers, arbitrary arguments, raw output, and Windows trust
+store changes.
 
-**Decision**: Accept the review disposition. Keep PR #63 draft and keep the
-backend repair capability, helper capability, controlled-execution default, and
-frontend mutation constant false in production. Implement and test the dormant
-control-plane behavior with fixed fake wrappers and in-memory frontend gate
-activation only.
+**Execution**: Commit `0901cc5` wired the transaction into the Tkinter UI,
+increased the default/minimum window height after the earlier display-scaling
+observation, added transition callbacks and a public confirmation summary, and
+updated the non-mutating plan wording. It also corrected validation manifests
+and notices: native TLS mutation capability is now `true`, while package,
+merge, release, managed-endpoint, and signature authorization remain false.
+
+The clean commit built successfully with pinned PyInstaller 6.15.0 and Python
+3.12.5. Structural inspection passed and build provenance recorded exact source
+`0901cc5b8a2e5985e549f932833fd3d93c1f979b`. The launcher-policy package ZIP
+sidecar, member inventory, every internal checksum, source ref, mutation
+capability, and `execution_authorized=false` field passed direct archive
+verification. Its executable opened and remained responsive against the
+non-runnable sentinel. That sentinel lacks a release image identity, so repair
+fails closed rather than targeting a container.
+
+**Validation**: Forty-four launcher/build/package tests passed. The separated
+runtime/readiness/config/container-publish selection passed 86 tests, for 130
+passing targeted tests. Python compilation and `git diff --check` passed. A
+combined test attempt again lost Windows access to its pytest temp root; both
+separated reruns passed, so this remains an environment fixture issue rather
+than a product-test failure. The initial extracted filesystem hash walk also
+exceeded two minutes under endpoint scanning; direct read-only ZIP verification
+completed with zero failures.
+
+**Blocker**: A new full-runnable package cannot be generated locally from the
+clean commit because the normal package generator is PowerShell and effective
+policy blocks ordinary no-bypass script execution. No execution-policy bypass,
+alternate shell path, older-source base, or endpoint exclusion was used. The
+visible build therefore has safe UI/layout evidence and the native engine has
+separate live Docker evidence, but the combined UI-driven full-package repair
+has not yet run.
+
+**Next**: Push the preserved commits to Draft PR #67. Generate the
+full-runnable package from this exact commit in an approved environment after
+GitHub Actions/build service recovery, then run UI-driven Google, Azure, and
+controlled recovery validation. Configure an approved Podman Compose provider
+separately before any Podman live repair. Keep signing and representative
+managed-endpoint acceptance as later independent gates.
+
+### 2026-08-06 - Native Docker Repair Transaction Passed Isolated Live Proof
+
+**Objective**: Complete the bounded native repair engine, preserve rollback and
+runtime data boundaries, exercise the product code against one isolated Docker
+CPU package, and stop Podman before mutation when its Compose-provider boundary
+is not satisfied.
+
+**Context**: The mutation-disabled foundation had already proven exact target
+binding and private Windows CA selection. The project lead authorized
+continuation and confirmed Docker and Podman were running. Existing containers
+and images were disposable if cleanup became necessary, but the implementation
+continued to prohibit named-volume deletion. The validated port-5008
+Task-087 package provided an isolated Docker target; no cleanup was required.
+
+**Decision**: Implement the repair directly in Python with fixed
+`docker`/`podman` argument arrays and `shell=False`; do not invoke PowerShell,
+`.cmd`, a browser helper, or a hidden worker. Require one exact container by
+Compose project/service labels and revalidate image, digest, runtime, GPU mode,
+and `127.0.0.1` port binding. Stage and verify the combined CA bundle before an
+atomic `.env` update. Restart only the same Compose project without a volume
+flag. Roll back certificate files and `.env`, then force-recreate with the
+restored environment after failure. For Podman, require one explicit approved
+non-Docker-Desktop Compose provider and do not install one inside TLS repair.
+
+**Execution**: Commits `27cc22d` and `3e77afd` added native certificate/bundle
+backup and staging, exact-container inspection, provider TLS verification,
+unrelated `.env`/line-ending preservation, same-profile restart, readiness and
+digest checks, cleanup, rollback, and approved Podman-provider preflight. The
+visible UI remains preview-only and `RepairCoordinator` still defaults to
+`mutation_enabled=False`.
+
+The current source adapter then ran one explicitly enabled Google/Docker
+transaction against project `towerscout-task087-full-4327fb6`, port 5008. It
+selected the CA privately, staged and verified the bundle, recreated only that
+project's container, reverified provider TLS, and returned `succeeded`.
+Independent post-checks recorded healthy `setup_required` readiness, matching
+runtime/image digest, both CA environment settings, both certificate files, an
+empty repair-staging area, and eight retained project named volumes. No
+certificate identity, provider key, `.env` dump, raw subprocess output, or
+local provider path was recorded.
+
+Podman engine status remained reachable, but `podman compose version` failed
+because the only discovered provider was Docker Desktop's bundled
+`docker-compose.exe`, which TowerScout disallows for this path. No Podman
+container, image, volume, provider installation, or TLS mutation followed.
+
+**Validation**: Forty-two launcher tests passed, including exact-target,
+ambiguous-container, `.env` preservation, provider-verification rollback,
+restart rollback, volume-flag exclusion, missing Podman provider, rejected
+Docker Desktop provider, and approved-provider cases. The combined launcher,
+readiness/routes, config, and container-publish selection passed 129 tests with
+repository-local pytest temp storage. Python compilation and `git diff
+--check` passed. A first combined run produced 123 passes plus six Windows
+user-Temp fixture permission errors; the repository-local rerun passed all
+129. This is unsigned developer-source functional evidence, not packaged UI,
+CI, signing, managed-endpoint, merge, RC, or release evidence.
+
+**Next**: Add the visible review/confirm/progress/recovery UI around the
+default-disabled coordinator, expand live proof to Azure and injected recovery,
+then commit, rebuild, and validate an exact-source unsigned package. Configure
+and validate an approved Podman provider separately before any Podman live
+repair. Keep CI, signing, and representative managed-endpoint acceptance as
+independent gates.
+
+### 2026-08-06 - Native Repair Transaction Foundation Started
+
+**Objective**: Begin the controlled-repair continuation with exact target
+binding, private certificate selection, explicit transaction states, and a
+fail-closed mutation boundary.
+
+**Context**: The project lead confirmed Docker and Podman were running and
+authorized starting the remaining prototype. A first direct adapter invoked
+the existing Task-086 PowerShell script without `-ExecutionPolicy Bypass`.
+Effective workstation policy blocked the script before it ran. This reproduced
+the known deployment concern and proved that the visible launcher cannot depend
+on `.ps1` or `.cmd` execution in its normal path. No bypass, hidden process,
+policy change, or endpoint exclusion was attempted.
+
+**Decision**: Keep Task-086 unchanged as the manual fallback and move the
+launcher continuation to a native Python boundary. Bind repair transactions to
+the exact package, provider, engine, GPU mode, port, Compose project, image, and
+digest. Select the trusted CA from the host-verified TLS chain in memory, keep
+certificate material out of representations and evidence, require the exact
+confirmation phrase, and keep mutation disabled until native staging and
+rollback are implemented and tested.
+
+**Execution**: Added `launcher/towerscout_launcher/repair.py` with prepared,
+confirmed, applying, restarting, succeeded, rejected, and recovery-required
+states; native Google/Azure Windows certificate-chain selection; exact target
+fingerprinting; sanitized errors; and fail-closed native apply/restart stubs.
+Expanded launcher tests for runtime mismatch, private candidate handling,
+ambiguous-chain rejection, confirmation, disabled mutation, recovery state,
+and the absence of PowerShell, `.cmd`, helper, listener, and subprocess
+execution in the repair module. The preview UI remains unchanged.
+
+**Validation**: Launcher pytest increased from 29 to 36 tests and passed. Python
+compilation passed. Sanitized live read-only classification selected one trusted
+root for both Google and Azure without printing certificate identity. Docker
+29.5.3 and Podman 5.8.2 were reachable; no container, image, or volume was
+removed. `git diff --check` passed. Black, flake8, mypy, and Bandit modules were
+not installed in the available Python 3.12/3.13 interpreters, so those checks
+remain to be rerun in CI or the controlled validation environment.
+
+**Next**: Implement the native fixed Docker/Podman staging transaction with
+backup and rollback, then add restart/readiness/provider-verification tests.
+Keep mutation disabled and do not run a live repair until that bounded slice
+passes review and local validation.
+
+### 2026-08-06 - Controlled Repair Pre-Implementation Checkpoint
+
+**Objective**: Preserve the existing repository state and record the lessons,
+non-regression boundaries, implementation order, and live-mutation prerequisites
+before extending the validated preview-only launcher.
+
+**Context**: The unsigned exact-source launcher proof passed, but Task-087 has
+already exposed several failure patterns that must not be repeated: endpoint
+protection blocked dormant helper imports in ordinary package paths, the older
+browser/helper design created an unnecessary host trust boundary, Windows
+subprocess behavior required an explicit creation-mode correction, and earlier
+CI/template work demonstrated that self-referential tests can appear green
+without exercising product code. The root worktree also contained uncommitted
+planning and unrelated skill changes on a branch whose upstream was gone.
+
+**Decision**: Preserve those root-worktree edits on the remote
+`checkpoint/task-087-pre-implementation-20260806` branch, keep this prototype
+branch isolated, and require the new
+[`CONTROLLED-REPAIR-PRE-IMPLEMENTATION-CHECKPOINT-2026-08-06.md`](./TASK-087/CONTROLLED-REPAIR-PRE-IMPLEMENTATION-CHECKPOINT-2026-08-06.md)
+rules before controlled-repair code or live mutation. Do not merge the
+checkpoint branch wholesale; reconcile any useful documentation deliberately.
+
+**Execution**: Recorded preservation commits `133686e` and `bfb4697`, the exact
+prototype/source identities, twelve controlling lessons, the transactional
+repair sequence, and a start checklist. No launcher source, runtime, container,
+certificate, trust store, release asset, helper activation flag, PR #64, or
+cdcai state changed.
+
+**Validation**: Run the Task-087 documentation and repository-hygiene checks,
+then commit this checkpoint independently from later prototype implementation.
+
+**Next**: Implement the repair state machine, fixed Task-086 adapter boundary,
+and negative tests without live mutation. Ask the project lead to confirm the
+isolated runtime target before any Docker/Podman or trust-changing validation.
+
+### 2026-08-06 - Reboot Persistence And Manual Non-Mutating Validation
+
+**Objective**: Complete the remaining user-observed launcher and provider
+sequence after a Windows reboot while keeping every TLS repair and mutation
+gate closed.
+
+**Context**: The exact-source `4327fb6` package had passed pristine
+verification and fresh Docker CPU setup, but the user restarted Windows before
+the repeated launcher refresh, preview, and provider-key observations could be
+completed. The reboot created an additional opportunity to verify that the
+same isolated runtime and persistent assets recover without repeating setup.
+The historical `7a7aecc` AMSI and `31c41ec366c2` Docker-probe timeout results
+remain unchanged in their original entries.
+
+**Decision**: Reopen the exact packaged launcher against the already isolated
+port-5008 project and record only sanitized UI outcomes. Treat the reboot and
+manual sequence as unsigned development-workstation functional evidence, not
+as a substitute for an organization-approved signed production-shaped build
+under representative managed-endpoint policies. Do not run the suggested
+Task-086 repair command during this proof.
 
 **Execution**:
 
-- Added a package-root-derived named mutex, 12-hour helper lease,
-  PID/start-time metadata, two-second heartbeat, authenticated liveness probe,
-  all-session invalidation for fresh launches, and cleanup on compose/fatal/
-  timeout launch failures.
-- Hardened package-local state with explicit current-user/SYSTEM/Administrators
-  ACLs, atomic JSON replacement, bounded cross-process reads, package-global
-  active state, retained terminal status, and immediate terminal lease release.
-- Added full start-authorization fingerprints with bounded replay retention.
-  Duplicate active starts return the existing operation; terminal replay
-  returns conflict without creating another operation.
-- Added the fixed detached worker and allowlisted Docker repair/stop/start
-  reconstruction. The listener returns `202` first, remains pollable, writes
-  pre-step states, cancels child process trees when the session is invalidated,
-  and converts an overdue/crashed worker record to terminal timeout.
-- Enforced the helper-side capability before POST, stopped Flask from minting
-  start/status credentials while its capability is false, and required the
-  frontend to match backend capability, live helper capability, and the
-  expected engine/GPU/port profile.
-- Added request timeouts, bounded start retry using the same authorization,
-  bounded exponential polling backoff for timeout/network/429/5xx outcomes,
-  retained unknown-status recovery, explicit helper-session-change handling,
-  package-global frontend blocking, and operation-ID-keyed polling.
-- Added terminal readiness/provider revalidation, Setup Wizard continuation,
-  sanitized failure guidance, cross-provider 409 descriptor handling, and
-  reload recovery without persisting keys or credentials.
-- Applied `no-store`/`no-cache` to token-bearing Flask/helper responses,
-  rejected non-object JSON payloads cleanly, converted Puppeteer coverage to
-  load the production SetupWizard controller, pinned workflow actions, and
-  added both `localhost` and `127.0.0.1` app-origin coverage.
-- Added the worker and state-reader libraries to release staging and documented
-  the package inventory and replay semantics.
+- After Windows restarted and Docker Desktop came up, Compose project
+  `towerscout-task087-full-4327fb6` auto-resumed healthy on
+  `127.0.0.1:5008`. Assets remained `ok` with zero missing and zero corrupt,
+  CPU remained selected, and the exact pinned image digest
+  `sha256:86c54bd723ff970f70f0883397a1f2f804db796507a461a5718aeab57258afe8`
+  persisted.
+- Reopened the exact packaged launcher. Docker reported running and reachable
+  initially and after all three user-initiated Refresh clicks, resolving the
+  repeated status-probe symptom seen in the historical `31c41ec366c2` run for
+  this corrected build.
+- Displayed the Google Maps/Docker TLS repair preview. It identified the exact
+  package, Docker CPU profile, and port 5008, and correctly stated that it was
+  preview-only: it did not inspect certificates, change trust, stop or restart
+  the container, or run the dormant helper.
+- The user entered the Google API key only in the browser Setup Wizard and
+  reported the expected sanitized `tls_ca_untrusted` classification plus the
+  Task-086 suggestion
+  `.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off`.
+  No provider key, raw provider response, or certificate detail was captured
+  or recorded.
+- At this host's display scaling, the launcher's normal window clipped its
+  bottom controls; maximizing the window exposed them. Record this as a
+  non-blocking UI follow-up before producing the signed build.
 
-**Validation**:
+**Validation**: PASS for the bounded unsigned manual sequence: reboot recovery,
+runtime persistence, three repeatable Docker status refreshes, preview-only
+behavior, and sanitized provider-error classification all matched the intended
+non-mutating contract. No certificate inspection by the preview operation,
+trust change, TLS repair, launcher-initiated container stop/restart, helper
+execution, or other launcher mutation was performed. Task-086 remains the
+supported fallback. This result does not make the artifact an RC or release
+and does not satisfy the signed representative managed-endpoint gate.
 
-- PASS: full unit suite, 407 collected with 333 passed and 74 expected
-  dependency/platform skips.
-- PASS: focused helper/bridge/Flask/release-package suite, 94 passed.
-- PASS: real Windows helper subprocess lifecycle, package mutex, PID/heartbeat/
-  lease metadata, session/token/status ACLs, explicit invalidation cleanup, and
-  process-tree cancellation.
-- PASS: real fixed worker against fake allowlisted wrappers; immediate `202`,
-  live status, terminal retention, active-lock release, replay rejection, and
-  overdue-worker terminalization.
-- PASS: release-package staging includes
-  `scripts/host-helper-worker.ps1` and
-  `scripts/lib/TowerScoutHostHelperState.ps1`.
-- PASS: production SetupWizard source contract plus Edge Puppeteer checks for
-  POST/poll, helper unavailable, simulated-helper end to end, and both supported
-  application loopback origins.
-- PASS: PowerShell parser and Windows security/AMSI load checks, Python bytecode
-  compilation, blocking flake8 syntax/undefined-name gate, reproducible
-  timestamp-normalized frontend bundle, `.agent_work` validators, sensitive
-  output review, and `git diff --check`.
-- NOT RUN: live Docker stop/start, real TLS/certificate mutation, UAC,
-  Chrome/Firefox, sleep/resume, or managed TLS-inspected network validation.
-  These remain activation and candidate-inclusion blockers; no runtime
-  permission was inferred.
+**Next**: Address or explicitly accept the non-blocking display-scaling issue,
+then obtain an organization-approved signed production-shaped build and
+validate it under the actual representative managed-endpoint policies with all
+existing TLS-mutation gates off. Keep Draft PR #67 unmerged and make the
+proceed/conditional/stop decision by August 14 only after that gate is
+recorded.
 
-**Next**: Keep PR #63 draft for re-review. Do not enable any mutation gate.
-After reviewer acceptance, schedule the explicitly authorized live Windows
-package and managed-network matrix before candidate inclusion.
+### 2026-08-05 - Exact-Source Full-Package Fresh Docker Validation
 
-### 2026-07-27 - Gate 3 Authenticated Helper Bridge And Polling Checkpoint
+**Objective**: Rebuild the helper-decoupled application and launcher as a
+traceable full-runnable validation package, then exercise its pristine
+first-run Docker CPU path without weakening endpoint policy or enabling TLS
+mutation.
 
-**Objective**: Reopen Task-087 from current `main` and complete the next safe,
-reviewable Gate 3 slice without enabling browser-triggered host mutation.
+**Context**: Run 1 from exact source `7a7aecc` reached healthy
+`setup_required` readiness and opened the unsigned launcher, but ordinary
+setup/stop imported the dormant helper and AMSI blocked that script. The
+helper-decoupled `31c41ec366c2` package subsequently reached the Setup Wizard
+and reproduced the known Google Maps managed-network TLS validation result.
+Its first launcher view showed the expected status and TLS repair preview, but
+later reopen/refresh attempts repeatedly timed out during the Docker status
+probe even while Docker was independently reachable. Those results remain
+historical failed/partial runs; neither run performed TLS repair.
 
-**Context**: The merged Gate 3 baseline retained a non-mutating start-contract
-preview, but the backend always reported the helper unavailable and the Setup
-Wizard had no live discovery or polling transport. The durable helper token
-could not be exposed to Flask or browser code, and the manual Task-086 command
-fallback had to remain visible when helper discovery failed.
-
-**Decision**: Add an explicitly opt-in launcher bridge with a separate
-per-launch HMAC key. Use it to issue narrow, expiring browser authorizations
-bound to helper discovery, provider repair planning, or one operation id.
-Keep the helper's public `provider_tls_repair` capability false, controlled
-execution false by default, and
-`PROVIDER_TLS_REPAIR_BROWSER_MUTATION_ENABLED = false`. Do not persist bridge
-credentials in `.env`, browser storage, public Setup Wizard state, DOM text,
-notifications, or console output.
+**Decision**: Correct the fixed Docker child-process probe for a windowed
+Windows executable, bind the launcher build and package to exact source, and
+repeat setup through a new Compose project and port. Keep the launcher
+non-mutating, retain Task-086 as the supported repair fallback, and treat this
+unsigned run only as functional evidence.
 
 **Execution**:
 
-- Added the review-only launcher/session bridge and passed its generated
-  runtime values to the app container only when a maintainer explicitly opts
-  in.
-- Tightened launcher lifecycle reuse to require matching helper version,
-  engine, GPU mode, app/helper ports, package flavor, and package-root
-  identity. Disabled or mismatched inherited sessions are invalidated before
-  their environment bridge is cleared or replaced.
-- Added Flask-side signed authorization issuance after provider error logging,
-  plus an operation-bound status-authorization endpoint. Enrichment is limited
-  to allowlisted provider TLS-repair categories so unrelated network errors
-  retain their existing response shape.
-- Extended the PowerShell helper to validate signed probe, provider, and
-  status scopes while retaining its durable-token path, loopback/origin
-  controls, allowlisted operation shape, single-operation lock, timeout states,
-  and sanitized public responses.
-- Added authenticated Setup Wizard discovery, an absolute loopback start
-  request, duplicate-start suppression, status polling with one expired-
-  authorization refresh, safe reload descriptors, terminal timeout/unavailable
-  mapping, and an always-visible manual fallback for repairable TLS failures.
-- Rebuilt the committed frontend bundle and updated the host-helper support
-  note. The public guided action remains disabled.
+- Committed the Windows status-probe and full-package stabilization as
+  `18082cf`, then committed exact launcher build-provenance and atomic package
+  controls as `4327fb6` (full source
+  `4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6`).
+- Built and inspected the exact launcher. Its executable SHA-256 is
+  `e1abd49b2c7e4e1c8de86aa4dd06bd8572520349ecea8fbaba6e75e52c10c868`;
+  the complete launcher-tree SHA-256 is
+  `fc4a150647822c950480dddc2f65bfc9ae5e1616c6513dd3b0532052e25b7380`.
+- Assembled
+  `towerscout-Task-087-validation-4327fb6288f4.zip`; its SHA-256 is
+  `8c8e5a69c702836bf842d63c6407621e124a9cc2dae170ab46dbc9259ab7f673`.
+  The package excludes dormant host-helper artifacts, keeps the Task-086
+  repair scripts, and leaves all launcher TLS mutation closed.
+- In a fresh download/extraction area, verified the control ZIP sidecar, the
+  `1,012`-record internal checksum inventory, and the shared asset ZIP at
+  SHA-256
+  `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+- Passed verify-only preflight, then created the isolated Docker Compose
+  project `towerscout-task087-full-4327fb6` on port 5008. Setup created eight
+  named volumes, imported and verified assets, started a healthy container,
+  and reported `setup_required`, assets OK, one engine, CPU selected, and the
+  exact pinned image digest
+  `sha256:86c54bd723ff970f70f0883397a1f2f804db796507a461a5718aeab57258afe8`.
+- Opened the exact packaged launcher for the remaining user-observed GUI
+  checks. No trust repair, container repair/restart, provider-key capture, or
+  other TLS mutation was performed.
+
+**Validation**: Pristine sidecars and package inventory passed; verify-only and
+fresh Docker CPU setup exited successfully. The focused launcher/release tests
+passed 36 tests, and static quality checks passed. The broader selected run
+passed 183 of 202 tests; its 19 failures were the already documented historical
+dormant-helper direct-execution tests blocked by AMSI, with no bypass attempted.
+This establishes a functioning helper-free application package and preserves
+the earlier `7a7aecc` AMSI and `31c41ec366c2` timeout findings as history. It
+does not establish signed managed-endpoint approval.
+
+**Next**: Obtain the project lead's manual result for repeated launcher status
+refreshes, the preview-only Google/Azure connection-repair view, and the
+provider-key validation observation. If that bounded unsigned proof passes,
+obtain an organization-approved signed production-shaped build and validate it
+under representative managed-endpoint policies before any proceed decision,
+merge, release candidate, or release.
+
+### 2026-08-05 - Full-Package Endpoint Finding And Helper Decoupling
+
+**Objective**: Exercise the validation launcher in a realistic end-user control
+package, identify endpoint-policy failures, and remove the dormant helper from
+ordinary release execution without weakening endpoint protections.
+
+**Context**: The project lead authorized an unsigned functional test on the
+development workstation. A full control package from exact source `7a7aecc`
+was placed in a clean download/extraction area with a verified release asset
+bundle, isolated Compose project, alternate port, and fresh named volumes.
+
+**Decision**: Treat the AMSI block against the dormant PowerShell host helper
+as a release-path defect, not as a reason to add exclusions or bypass endpoint
+policy. Keep helper source and historical tests temporarily for review, but
+remove it from ordinary launch/stop execution, `.env.example`, and the release
+package, including its Compose activation variables. Preserve the Task-086
+user-run TLS repair scripts.
+
+**Execution**:
+
+- Confirmed the application reached healthy `setup_required` readiness after
+  verified asset import, with zero missing or corrupt assets.
+- Confirmed the unsigned Tkinter launcher ran visibly, detected both engines,
+  selected the intended Docker profile, and reported the expected first-run
+  state without a Defender or Code Integrity block.
+- Confirmed ordinary setup failed when `launch.ps1` dot-sourced
+  `TowerScoutHostHelper.ps1`; `stop.ps1` contained the same unconditional
+  dependency. No exclusion, execution-policy bypass, or endpoint-policy change
+  was used.
+- Removed host-helper imports and session/profile calls from normal launch and
+  stop, removed helper artifacts from release assembly, removed the obsolete
+  package `.env` review flag and Compose activation variables, and updated the
+  package guide and tests.
+
+**Validation**: PowerShell parse checks, both `.agent_work` validators, and
+`git diff --check` pass. The bounded release, manifest, route, license,
+container-publish, config, sanitization, bootstrap, runtime-hardening,
+decoupling, and launcher selection passes all 158 tests. Exact-source
+commit/build and the clean-install rerun remain pending.
+
+**Next**: Complete bounded tests, commit the source checkpoint, rebuild the full
+validation package, repeat clean extraction/setup without endpoint bypasses,
+and pause at the visible Setup Wizard for project-lead provider-key entry.
+
+### 2026-08-05 - Separate Validation-Package Process Added
+
+**Objective**: Prevent the Task-087 launcher policy test from being confused
+with, or assembled as, a normal TowerScout release package.
+
+**Context**: The existing `scripts/package-release.ps1` creates the full
+end-user control package and includes dormant Task-087 helper files. Reusing it
+for this proof would widen the validation artifact beyond the authorized
+non-mutating launcher slice.
+
+**Decision**: Keep the release-package generator unchanged. Assemble the
+Task-087 artifact through a separate exact-source process that contains only
+the launcher build, a no-services package-discovery sentinel, non-secret
+identity defaults, validation/source manifests, notices, and hashes. Exclude
+the application stack, launch/runtime scripts, repair helpers, live `.env`,
+provider keys, certificates, and model/data assets.
+
+**Execution**:
+
+- Added `launcher/package_validation.py` with a clean-worktree requirement,
+  full-commit source identity, bounded validation name, launcher static
+  inspection, Tcl/Tk license check, forbidden-file scan, per-file hashes, ZIP,
+  and ZIP SHA-256 sidecar.
+- Added focused tests for source traceability, closed authorization flags,
+  absent control/helper content, and complete checksum coverage.
+- Documented that the resulting artifact is not an RC, release, merge signal,
+  or unsigned managed-endpoint executable.
+
+**Validation**: The focused launcher suite passes all 16 tests, launcher and
+assembler compilation passes, and `git diff --check` passes. The actual ZIP is
+intentionally built only after these changes become a clean, immutable PR
+source checkpoint; its generated manifest and PR evidence record that result
+without changing the source commit afterward.
+
+**Next**: Commit and push the assembler checkpoint, build and statically
+inspect the validation-only artifact from that exact clean commit, then record
+its sanitized identity and hashes on Draft PR #67. Do not execute or publish
+the unsigned artifact.
+
+### 2026-08-05 - Draft PR Repository Checkpoint Published
+
+**Objective**: Establish an immutable, reviewable source identity before
+building the validation-only launcher artifact.
+
+**Context**: Documentation was reconciled and the isolated branch passed its
+bounded validation. The project lead authorized the recommended repository
+checkpoint while keeping every merge, release, mutation, and cdcai gate closed.
+
+**Decision**: Publish the four intentional Task-087 commits to the existing
+short-lived feature branch and open a Draft PR against `main`. Treat the final
+PR head after this status-only follow-up as the source identity for the
+validation-only build.
+
+**Execution**:
+
+- Pushed `feature/task-087-windows-launcher-prototype` to the fork.
+- Opened Draft PR #67, `feat(task-087): add validation-only Windows launcher
+  proof`, against `main`.
+- Kept PR #64 open and on hold; no tag, GitHub Release, merge, cdcai change,
+  executable publication, or runtime mutation occurred.
+
+**Validation**: GitHub reports PR #67 open as a Draft against `main`. Required
+CI and the Task-087 production-controller workflow started at the initial PR
+head; their final result remains pending at this checkpoint.
+
+**Next**: Push this status-only documentation commit, use the resulting final
+PR head as the exact source for `Task-087-validation-<short-SHA>`, and keep the
+PR unmerged through signing and representative managed-endpoint validation.
+
+### 2026-08-05 - Validation-Only Repository Checkpoint Prepared
+
+**Objective**: Make the launcher experiment reversible at the GitHub boundary
+and remove task-document ambiguity before creating or executing a validation
+package.
+
+**Context**: The preview-only launcher and static package proof were ready, but
+the controlling documentation did not yet define validation-artifact identity
+or failed-experiment branch handling. Primary agent guidance still described
+Task-087 as awaiting implementation restart, two active status notes still requested approval
+after ADR-018 had accepted the pivot, and the historical helper proof could be
+confused with the unmerged launcher proof.
+
+**Decision**: Keep launcher code off `main` until the signed managed-endpoint
+gate passes. Publish a Draft PR, build only
+`Task-087-validation-<short-SHA>` from its exact commit, and create no tag,
+GitHub Release, candidate identity, or cdcai change. If validation stops, close
+the code PR unmerged and record the final decision from a clean docs-only
+branch based on current `main`.
+
+**Execution**:
+
+- Aligned the primary agent guide, current task tracker, backlog, requirements,
+  design, roadmap, handoff navigation, ADR-018, Task-087, completion history,
+  and review evidence with the validation-only boundary.
+- Clarified that the merged proof is the dormant-helper Gate 3 proof and that
+  the Python/Tkinter launcher remains isolated and unmerged.
+- Marked the earlier helper plan as historical and archived both superseded
+  August 4 review requests under `context/archive/2026-08/` with repaired links.
+- Removed two unrelated broken leadership-snapshot links from this isolated
+  branch only; the separate dirty primary worktree was not changed.
+
+**Validation**: The quick hygiene check, canonical agent-work validator,
+`git diff --check`, authoritative semantic-staleness scan, and changed-document
+relative-link check passed. The focused launcher suite passed all 14 tests, the
+current license/manifest/package/publish selection passed all 14 tests, and
+launcher compilation passed. Black, flake8, mypy, and Bandit were not rerun in
+this repository checkpoint because neither installed Python interpreter
+currently exposes those optional tools; their prior passing review results are
+preserved below, and launcher source did not change during this documentation
+reconciliation.
+
+**Next**: Create intentional documentation, implementation, test, and evidence
+commits; push the isolated branch; open a Draft PR against `main`; then use its
+exact final commit as the validation-only package source identity.
+
+### 2026-08-05 - Review-Ready Polish And Evidence Audit
+
+**Objective**: Prepare the non-mutating launcher slice for technical review
+without committing, publishing, signing unofficially, or widening the approved
+security boundary.
+
+**Context**: The first implementation and static package proof passed, but the
+branch still needed a complete diff review, formatter cleanup, dependency and
+license inventory, exact-source rebuild, and a compact reviewer handoff.
+
+**Decision**: Keep the synchronous, visible, preview-only architecture. Apply
+mechanical Black formatting, explicitly disable environment proxies for the
+fixed loopback readiness read, pin the complete observed PyInstaller build
+toolchain, and record prototype provenance without treating it as a release
+SBOM or legal approval. Do not refactor advisory complexity during the
+time-boxed proof unless review identifies it as blocking.
+
+**Execution**:
+
+- Reviewed the complete isolated-branch source, test, packaging, and planning
+  change set against verified `origin/main` at `4b93caf` and the approved
+  August 5 pivot. No unrelated workspace change was imported beyond the
+  authorized Task-087 planning set.
+- Ran Black 25.12.0 mechanically under installed Python 3.13 because Black
+  intentionally refuses the host's Python 3.12.5 AST-safety check. No behavior
+  change was introduced by formatting.
+- Changed the readiness opener to use an empty proxy map plus redirect
+  rejection so the fixed `127.0.0.1` request cannot inherit environment proxy
+  routing. Added assertions for both controls.
+- Pinned PyInstaller and all observed transitive build dependencies and added
+  `launcher/DEPENDENCY-PROVENANCE.md` with build/runtime inventory and explicit
+  SBOM, notice, signing, and legal-review gates.
+- Added the task-local reviewer packet under
+  `.agent_work/tasks/active/TASK-087/REVIEW-EVIDENCE-2026-08-05.md`.
 
 **Validation**:
 
-- PASS: full Python unit baseline, 395 collected with 321 passed and 74
-  expected dependency/platform skips.
-- PASS: final focused Task-087 rerun, 78 tests covering the launcher lifecycle,
-  bridge, real PowerShell request handler, helper operation contract, Flask
-  routes, frontend static contract, and sanitization.
-- PASS: PowerShell parser checks for the helper library, helper entry point,
-  launcher, and release packaging script.
-- PASS: non-mutating host-helper self-test, including the loopback transport,
-  CORS policy, invalidation, allowlisted repair planning, single-operation
-  lock, and real-wrapper contract.
-- PASS: Setup Wizard validation contract, including authenticated discovery,
-  exact allowlisted POST fields, duplicate suppression, operation polling,
-  authorization refresh, and credential redaction.
-- PASS: global, debug-logging, and status-output frontend contracts.
-- PASS: frontend bundle source-consistency check.
-- PASS: blocking flake8 gate reported zero syntax/undefined-name errors.
-- PASS: targeted Bandit and Python bytecode compilation for the new helper
-  bridge; `npm audit --audit-level=high` reported zero vulnerabilities.
-- PASS: `.agent_work` validator and quick hygiene check.
-- PASS: sensitive-term scan completed; changed-file matches were reviewed as
-  environment-variable identifiers or explicit dummy test credentials.
-- PASS: `git diff --check`.
-- ADVISORY FAIL: the unchanged integration suite reported 18 passed, 3
-  optional-browser skips, and 5 failures in existing environment-sensitive
-  areas: container-engine detection, geocoding request context, and cache
-  radius expectations. None of the failing files are changed in this slice;
-  the CI integration job remains advisory.
-- NOT RUN: Docker, live app startup, UAC, certificate mutation, and
-  managed-network validation. The user-required Docker confirmation gate was
-  preserved.
-- BLOCKED LOCALLY: the two optional Puppeteer template runs require a local
-  Chrome installation. Targeted Black also refuses Python 3.12.5 because of
-  its AST-safety version guard. The source-level Setup Wizard contract,
-  blocking flake8 gate, and bytecode compilation passed.
+- PASS: 14 focused launcher tests.
+- PASS: all 9 existing compliance/manifest/publish tests. Eight passed in the
+  managed sandbox; the one pytest `tmp_path` case passed unchanged outside the
+  sandbox after the sandbox denied temporary-directory enumeration.
+- PASS: Black check for all launcher and focused-test Python files, Python
+  compilation, blocking flake8 syntax/undefined-name gate, mypy for seven
+  source files, Bandit, exact build-pin comparison, agent-work validation, and
+  `git diff --check`.
+- ADVISORY: the CI-profile flake8 review retains three C901 complexity warnings
+  in discovery functions plus Black's expected E203 slice-spacing conflict.
+  These are visible prototype maintainability debt, not merge-blocking findings.
+- PASS: exact-source PyInstaller rebuild and static package inspection. The
+  output is a 943-file / 26,426,570-byte Windows AMD64 GUI package with four
+  launcher modules, UPX absent, the generated Tcl/Tk license present, no
+  prohibited script/secret filename, and Authenticode status `NotSigned`.
+- NOT RUN: unsigned executable launch, GUI smoke, helper self-test, provider
+  TLS/certificate work, Stop/restart, trust mutation, or managed-endpoint test.
 
-**Next**: Review and commit this non-mutating checkpoint. Before any Docker
-proof, inventory the current runtime and obtain explicit user confirmation.
-After review, validate the opt-in helper lifecycle and browser discovery in a
-package without opening either public mutation gate.
+**Review Finding**: No blocking functional or source-security defect was found
+within the approved non-mutating boundary. Distribution remains blocked on an
+approved signing owner/path, file-level SBOM and hashes, final third-party
+notice integration, legal/owner review, and signed representative endpoint
+validation.
+
+**Next**: Obtain technical/security review of the task-local packet. If the
+slice is accepted, create intentional commit checkpoints and publish a review
+branch only with project-lead authorization; do not begin Task-096 Stop or TLS
+mutation under this review-ready checkpoint.
+
+### 2026-08-05 - Non-Mutating Windows Launcher Slice Implemented
+
+**Objective**: Implement the first visible, release-shaped Task-087 launcher
+slice without enabling helper activation, host mutation, trust changes, or
+unsigned managed-endpoint execution.
+
+**Context**: ADR-018 authorized a time-boxed launcher feasibility proof from
+the merged dormant-helper baseline. The working workspace contained unrelated
+user changes, so implementation required an isolated branch from verified
+`origin/main` at `4b93caf` plus a faithful port of the August 5 Task-087
+planning set.
+
+**Decision**: Use Python 3.12/Tkinter with PyInstaller 6.15.0 in a windowed
+one-directory package with UPX disabled. The host has the maintained
+Python/pytest/Tkinter path but no .NET SDK. The launcher uses only synchronous,
+fixed Docker/Podman read-only probes, a bounded loopback readiness read, a
+package-scoped Windows session mutex, and an in-process operation guard. It
+accepts no
+command text or executable path and invokes no PowerShell, shell, dormant
+helper, listener, detached worker, or mutation path.
+
+**Execution**:
+
+- Added the visible Tkinter application, package/runtime discovery, sanitized
+  public state models, single-instance/duplicate-operation coordination, and
+  Google/Azure TLS repair preview.
+- Added a pinned PyInstaller build input, windowed one-directory spec, CMD
+  build entry point, static PE/package inspector, technology/security/signing
+  notes, and focused tests.
+- Built the package in an isolated build environment. Static inspection
+  confirmed a Windows AMD64 GUI executable, UPX absent, all four launcher
+  modules bundled, 943 packaged files / 26,426,570 bytes, and no packaged
+  helper, PowerShell/CMD/BAT, environment, key, or certificate files.
+- Performed sanitized read-only host discovery after the project lead
+  confirmed both engines were running. Docker and Podman were both reachable.
+  The source prototype has no configured engine, so explicit fixed-enum engine
+  selection is required; no TowerScout instance was reachable at its default
+  package port.
+- Did not inspect or copy source from the external Windows helpers repository;
+  reuse/license/provenance approval therefore remains a future gate if reuse
+  is proposed.
+
+**Validation**:
+
+- PASS: Python compilation for launcher source and build inspector.
+- PASS: 14 focused pytest cases covering allowlisted package fields, fixed
+  runtime commands, raw-output redaction, malformed success output, package
+  identity mismatch, exact-engine selection, preview behavior, duplicate
+  operation/process blocking, readiness sanitization, package inspection, and
+  forbidden mutation/shell/helper source contracts.
+- PASS: blocking flake8 syntax/undefined-name gate (zero findings).
+- PASS: mypy for seven launcher/build-inspection source files.
+- PASS: Bandit for launcher/build-inspection source after documenting the two
+  fixed, shell-free subprocess allowlist boundaries.
+- PASS: PyInstaller build and package inspection; no missing launcher import,
+  no forbidden packaged filename, AMD64 GUI subsystem confirmed, and UPX marker
+  absent.
+- PASS: sanitized live read-only Docker/Podman detection with both engines
+  reachable; the first sandboxed check was correctly classified as runtime
+  isolation and repeated outside that boundary with suppressed raw output.
+- NOT RUN: Black, because the installed formatter refuses Python 3.12.5 due
+  its upstream AST-safety guard. Flake8, compilation, tests, and mypy passed.
+- NOT RUN: unsigned executable launch, GUI smoke, managed-endpoint policy
+  validation, provider TLS connectivity, certificate discovery, helper
+  self-test, TLS mutation, Stop, restart, or trust-store validation.
+
+**Signing/Deployment State**: The built executable reports `NotSigned` and was
+not executed. The required signer is the organization-approved Windows
+Artifact Signing or equivalent service. The signing owner/custodian remains
+unresolved. At minimum `TowerScoutLauncher.exe` must be signed and timestamped;
+the approved owner must define policy for bundled third-party DLL/PYD
+verification or re-signing. A controlled Windows build, dependency/hash
+provenance, malware/policy scan, signing integration, post-signature
+verification, checksums, manifest/SBOM integration, and representative managed
+endpoint validation remain required before candidate inclusion.
+
+**Boundary Confirmation**: No listener, browser-issued host operation,
+dormant-helper import/start/self-test, hidden worker, PowerShell child,
+execution-policy bypass, runtime/container mutation, TLS/certificate action,
+Windows trust-store change, administrator action, provider key handling,
+release publication, cdcai change, PR #64 action, or `v0.1.2` asset change
+occurred.
+
+**Recommendation**: CONTINUE WITH CONDITIONS. Review the non-mutating slice
+and resolve signing/deployment ownership. Do not merge, ship, execute the
+unsigned artifact on the managed endpoint, or implement Stop/TLS mutation
+until this slice and its tests are reviewed. If approved, Task-096 Stop remains
+the preferred first separately authorized mutation.
+
+**Next**: Run canonical repository/task hygiene, obtain reviewer feedback on
+the source/package proof, and coordinate an organization-approved signed build
+for representative managed-endpoint testing before the August 14 disposition.
+
+### 2026-08-05 - Reversible Windows Launcher Prototype Authorized
+
+**Objective**: Authorize a small, reversible implementation checkpoint that
+tests the proposed visible launcher pathway without treating an unsigned
+functional prototype as release validation.
+
+**Context**: The dormant Task-087 PowerShell helper and its browser-to-loopback
+control plane raised Defender/AMSI and supportability concerns. Architecture
+review favored a visible launcher that owns fixed TowerScout operations without
+an extra listener, browser authority, hidden worker, or execution-policy
+bypass. The project lead approved building the prototype now, retaining the
+Task-086 manual fallback, and deciding whether to continue by August 14.
+
+**Decision**: Apply the August 5 override and ADR-018. Keep PR #64 and all
+activation gates on hold, build only on a reversible prototype path, and run
+signing/deployment coordination in parallel. Candidate inclusion remains
+blocked until the production-shaped signed artifact passes representative
+managed-endpoint validation.
+
+**Execution**: Updated the current sprint, backlog dependency, requirements,
+technical design, canonical roadmap, and Task-087 record. No launcher code,
+runtime, browser, container, certificate store, Defender setting, release
+asset, or external repository was changed.
+
+**Validation**: Both the quick agent-work hygiene check and canonical
+`.agent_work` validator passed. `git diff --check` also passed.
+
+**Next**: Start a new prototype session from the dated override and ADR-018,
+select one maintainable implementation technology, and build the non-mutating
+visible launcher slice before requesting any managed-endpoint execution.
 
 ### 2026-07-06 - Gate 3 Browser Start Contract Defined
 

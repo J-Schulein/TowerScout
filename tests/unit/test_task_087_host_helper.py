@@ -62,7 +62,6 @@ def _run_powershell_script(script: str) -> subprocess.CompletedProcess[str]:
 
 def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     script = HELPER_LIB.read_text(encoding="utf-8")
-    stop_script = STOP_SCRIPT.read_text(encoding="utf-8")
 
     assert (
         '$script:TowerScoutHostHelperProviderTlsRepairConfirmation = '
@@ -129,7 +128,6 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert 'return "GET, OPTIONS"' in script
     assert 'return "POST, OPTIONS"' in script
     assert "TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION" in script
-    assert "TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION" in stop_script
     assert "function Test-TowerScoutHostHelperFixedTimeStringEquals" in script
     assert (
         "Test-TowerScoutHostHelperFixedTimeStringEquals `\n"
@@ -142,20 +140,23 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert "function Test-TowerScoutHostHelperOperationWorkerActive" in script
     assert '"worker_exit"' in script
     assert "[datetime] $DeadlineUtc" in script
-    assert "Clear-TowerScoutHostHelperSession" in stop_script
 
 
-def test_host_helper_review_bridge_is_explicit_and_does_not_persist_session_key():
+def test_host_helper_source_is_decoupled_from_ordinary_release_execution():
     launch_script = LAUNCH_SCRIPT.read_text(encoding="utf-8")
+    stop_script = STOP_SCRIPT.read_text(encoding="utf-8")
     helper_library = HELPER_LIB.read_text(encoding="utf-8")
     compose = COMPOSE_FILE.read_text(encoding="utf-8")
     env_example = ENV_EXAMPLE.read_text(encoding="utf-8")
 
     assert "function Test-TowerScoutHostHelperReviewEnabled" in helper_library
     assert "TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED" in helper_library
-    assert "Initialize-TowerScoutHostHelperReviewSession" in launch_script
-    assert "$helperControlledOperation" in launch_script
-    assert "if (-not $helperControlledOperation)" in launch_script
+    assert "TowerScoutHostHelper" not in launch_script
+    assert "TOWERSCOUT_HOST_HELPER" not in launch_script
+    assert "TowerScoutHostHelper" not in stop_script
+    assert "TOWERSCOUT_HOST_HELPER" not in stop_script
+    assert "TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED" not in env_example
+    assert "TOWERSCOUT_HOST_HELPER" not in compose
     assert (
         "function Test-TowerScoutHostHelperSessionMetadataMatchesProfile"
         in helper_library
@@ -187,23 +188,8 @@ def test_host_helper_review_bridge_is_explicit_and_does_not_persist_session_key(
     assert "Clear-TowerScoutHostHelperBridgeEnvironment" in helper_library
     assert "function Invoke-TowerScoutLaunchRuntime" in launch_script
     assert 'if ($MyInvocation.InvocationName -eq ".")' in launch_script
-    assert "finally {" in launch_script
-    assert "if (-not $launchSucceeded)" in launch_script
-    assert "-SessionId ([string] $hostHelperReviewSession.SessionId)" in launch_script
-    assert "-Process $hostHelperReviewSession.Process" in launch_script
-    assert (
-        "TOWERSCOUT_HOST_HELPER_ENABLED: ${TOWERSCOUT_HOST_HELPER_ENABLED:-0}"
-        in compose
-    )
     assert "TOWERSCOUT_HOST_PORT: ${TOWERSCOUT_PORT:-5000}" in compose
-    assert (
-        "TOWERSCOUT_HOST_HELPER_SESSION_KEY: "
-        "${TOWERSCOUT_HOST_HELPER_SESSION_KEY:-}"
-        in compose
-    )
-    assert "TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED=0" in env_example
     assert "TOWERSCOUT_HOST_HELPER_SESSION_KEY=" not in env_example
-    assert "do not put those values in" in env_example
 
 
 def test_edge_restart_observer_and_docker_driver_are_constrained():
@@ -702,7 +688,7 @@ def test_process_tree_cleanup_falls_back_and_verifies_exit_when_taskkill_fails()
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher is Windows-only")
-def test_real_launcher_runtime_failure_matrix_cleans_only_failed_launches():
+def test_real_launcher_runtime_failure_matrix_does_not_invoke_host_helper():
     launch_path = str(LAUNCH_SCRIPT).replace("'", "''")
     script = textwrap.dedent(
         f"""
@@ -720,7 +706,7 @@ def test_real_launcher_runtime_failure_matrix_cleans_only_failed_launches():
         }}
         function Invoke-TowerScoutCompose {{
             if ($script:scenario -eq "compose_exception") {{
-                throw "synthetic exception after helper initialization"
+                throw "synthetic compose exception"
             }}
             $script:TowerScoutComposeExitCode = if (
                 $script:scenario -eq "compose_nonzero"
@@ -804,25 +790,25 @@ def test_real_launcher_runtime_failure_matrix_cleans_only_failed_launches():
             "name": "compose_nonzero",
             "exit_code": 7,
             "threw": False,
-            "cleanup_count": 1,
+            "cleanup_count": 0,
         },
         {
             "name": "compose_exception",
             "exit_code": -1,
             "threw": True,
-            "cleanup_count": 1,
+            "cleanup_count": 0,
         },
         {
             "name": "fatal",
             "exit_code": 1,
             "threw": False,
-            "cleanup_count": 1,
+            "cleanup_count": 0,
         },
         {
             "name": "timeout",
             "exit_code": 2,
             "threw": False,
-            "cleanup_count": 1,
+            "cleanup_count": 0,
         },
         {
             "name": "browser_failure",

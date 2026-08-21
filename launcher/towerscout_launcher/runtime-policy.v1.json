@@ -1,0 +1,478 @@
+{
+  "authenticode": {
+    "expired_signer": "require_valid_trusted_timestamp",
+    "file_digest_algorithm": "sha256",
+    "require_code_signing_eku": true,
+    "require_windows_chain_trust": true,
+    "revocation": {
+      "applies_to": [
+        "signer_chain",
+        "timestamp_chain"
+      ],
+      "offline": "reject",
+      "retrieval": "cache_only",
+      "revoked": "reject",
+      "scope": "whole_chain",
+      "unknown": "reject"
+    },
+    "signature_cardinality": "exactly_one_across_all_certificate_table_entries_and_nested_signatures",
+    "signature_form": "embedded_authenticode",
+    "signer_signature_algorithm": "rsa_pkcs1v15",
+    "timestamp_cardinality": "zero_or_one_require_one_when_signer_expired",
+    "timestamp_digest_algorithm": "sha256",
+    "timestamp_form": "rfc3161",
+    "timestamp_signature_algorithm": "rsa_pkcs1v15",
+    "trusted_timestamp": "windows_trusted_time_within_signer_validity",
+    "unhashed_pe_regions": "require_zero_padding_and_no_overlay"
+  },
+  "bindings": {
+    "docker": {
+      "compose_product_id": "docker-compose",
+      "runtime_product_id": "docker-cli"
+    },
+    "podman": {
+      "compose_provider_id": "podman-compose-pypi-1.5.0",
+      "runtime_product_id": "podman-cli"
+    }
+  },
+  "platform": {
+    "architecture": "amd64",
+    "operating_system": "windows"
+  },
+  "podman_compose": {
+    "allow_command_wrapper": false,
+    "allow_docker_desktop": false,
+    "allow_external": false,
+    "allow_podman_compose_delegation": false,
+    "catalog": {
+      "authentication": "runtime_policy_exact_bytes",
+      "catalog_id": "towerscout-managed-podman-compose-2026-08-21"
+    },
+    "distributions": [
+      {
+        "name": "podman-compose",
+        "source_url": "https://files.pythonhosted.org/packages/41/4b/75ab5c151b9d170fdae0048a6f6528535aff848140c007f408af9ac555d6/podman_compose-1.5.0-py3-none-any.whl",
+        "version": "1.5.0",
+        "wheel_filename": "podman_compose-1.5.0-py3-none-any.whl",
+        "wheel_sha256": "f0b9d35f4da1b309172adf208a5cb7a882b532a834c2202666c1988b6f147546"
+      },
+      {
+        "name": "python-dotenv",
+        "source_url": "https://files.pythonhosted.org/packages/5f/ed/539768cf28c661b5b068d66d96a2f155c4971a5d55684a514c1a0e0dec2f/python_dotenv-1.1.1-py3-none-any.whl",
+        "version": "1.1.1",
+        "wheel_filename": "python_dotenv-1.1.1-py3-none-any.whl",
+        "wheel_sha256": "31f23644fe2602f88ff55e1f5c79ba497e01224ee7737937930c448e4d0e24dc"
+      },
+      {
+        "name": "PyYAML",
+        "source_url": "https://files.pythonhosted.org/packages/86/bf/899e81e4cce32febab4fb42bb97dcdf66bc135272882d1987881a4b519e9/pyyaml-6.0.3-cp312-cp312-win_amd64.whl",
+        "version": "6.0.3",
+        "wheel_filename": "pyyaml-6.0.3-cp312-cp312-win_amd64.whl",
+        "wheel_sha256": "5fcd34e47f6e0b794d17de1b4ff496c00986e1c83f7ab2fb8fcfe9616ff7477b"
+      }
+    ],
+    "endpoint_propagation": {
+      "allow_provider_rediscovery": false,
+      "mechanism": "constructed_environment",
+      "required_variables": [
+        "CONTAINER_HOST",
+        "CONTAINER_SSHKEY"
+      ]
+    },
+    "exact_version": "1.5.0",
+    "interpreter": {
+      "base_product_id": "cpython",
+      "relationship": "venv_created_from_authenticated_base",
+      "relative_path": ".venv\\Scripts\\python.exe",
+      "require_authenticated_base_runtime_closure": true,
+      "require_file_hash": true,
+      "require_same_authenticode_signer": true,
+      "require_same_pe_product_version": true,
+      "require_stable_file_identity": true,
+      "require_venv_config_base_path_match": true
+    },
+    "invocation": {
+      "arguments": [
+        "-I",
+        "-m",
+        "podman_compose"
+      ],
+      "kind": "python_isolated_module",
+      "module": "podman_compose"
+    },
+    "kind": "towerscout_managed",
+    "managed_install_root": "tools\\podman-compose-provider\\podman-compose-pypi-1.5.0",
+    "provider_id": "podman-compose-pypi-1.5.0",
+    "inventory": {
+      "generated_entrypoint_relative_path": ".venv\\Scripts\\podman-compose.exe",
+      "loadable_suffixes": [
+        ".py",
+        ".pyc",
+        ".pyd",
+        ".dll",
+        ".pth"
+      ],
+      "module_relative_path": ".venv\\Lib\\site-packages\\podman_compose.py",
+      "record_validation": "reconstruct_from_pinned_wheels_and_compare_exact_inventory",
+      "reject_extra_distributions": true,
+      "reject_pth_files": true,
+      "reject_sitecustomize": true,
+      "reject_unowned_loadable_files": true,
+      "reject_usercustomize": true,
+      "require_exact_authenticated_install_tree": true,
+      "site_packages_relative_path": ".venv\\Lib\\site-packages",
+      "venv_config_relative_path": ".venv\\pyvenv.cfg"
+    },
+    "verification": {
+      "receipt_is_trust_anchor": false,
+      "require_exact_distribution_inventory": true,
+      "require_fresh_reconstruction_comparison": true,
+      "require_generated_entrypoint_hash": true,
+      "require_hash_verified_installer_inputs": true,
+      "require_module_hash": true,
+      "require_record_hashes": true,
+      "require_stable_file_identity": true
+    }
+  },
+  "policy_id": "towerscout-runtime-policy-2026-08-21",
+  "products": [
+    {
+      "architecture": "amd64",
+      "exact_version": "29.7.2",
+      "executable_name": "docker.exe",
+      "file_hash_policy": "record_and_bind",
+      "file_identity_policy": "held_handle_record_and_revalidate",
+      "id": "docker-cli",
+      "install_records": [
+        {
+          "id": "docker-desktop-system",
+          "location": {
+            "kind": "registry_directory_relative",
+            "relative_path": "resources\\bin\\docker.exe",
+            "value_name": "InstallLocation",
+            "value_subkey": ""
+          },
+          "registry": {
+            "hive": "HKEY_LOCAL_MACHINE",
+            "key": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Docker Desktop",
+            "required_values": [
+              {
+                "equals": "Docker Desktop",
+                "name": "DisplayName",
+                "subkey": ""
+              },
+              {
+                "equals": "Docker Inc.",
+                "name": "Publisher",
+                "subkey": ""
+              }
+            ],
+            "view": "registry64"
+          },
+          "scope": "system"
+        },
+        {
+          "id": "docker-desktop-user",
+          "location": {
+            "kind": "registry_directory_relative",
+            "relative_path": "resources\\bin\\docker.exe",
+            "value_name": "InstallLocation",
+            "value_subkey": ""
+          },
+          "registry": {
+            "hive": "HKEY_CURRENT_USER",
+            "key": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Docker Desktop",
+            "required_values": [
+              {
+                "equals": "Docker Desktop",
+                "name": "DisplayName",
+                "subkey": ""
+              },
+              {
+                "equals": "Docker Inc.",
+                "name": "Publisher",
+                "subkey": ""
+              }
+            ],
+            "view": "registry64"
+          },
+          "scope": "user"
+        }
+      ],
+      "role": "runtime",
+      "signers": [
+        {
+          "certificate_sha256": "a1114dec9407df1bf9e52e13917d9a4257d18f2a23198ec3d391674308c30477",
+          "issuer_common_name": "DigiCert Trusted G4 Code Signing RSA4096 SHA384 2021 CA1",
+          "minimum_public_key_bits": 4096,
+          "not_after_utc": "2027-06-25T23:59:59Z",
+          "not_before_utc": "2026-06-26T00:00:00Z",
+          "public_key_algorithm": "rsa",
+          "serial_number": "0dce683683ae70c7c647addb7e609a9a",
+          "subject_common_name": "Docker Inc",
+          "subject_organization": "Docker Inc"
+        }
+      ],
+      "version_evidence": {
+        "company_name": "Docker Inc",
+        "file_version": "29.7.2",
+        "kind": "pe_version_resource",
+        "original_filename": "docker-windows-amd64.exe",
+        "product_name": "Docker Client",
+        "product_version": "29.7.2"
+      }
+    },
+    {
+      "architecture": "amd64",
+      "exact_version": "5.3.1",
+      "executable_name": "docker-compose.exe",
+      "file_hash_policy": "record_and_bind",
+      "file_identity_policy": "held_handle_record_and_revalidate",
+      "id": "docker-compose",
+      "install_records": [
+        {
+          "id": "docker-desktop-system-compose",
+          "location": {
+            "kind": "registry_directory_relative",
+            "relative_path": "resources\\bin\\docker-compose.exe",
+            "value_name": "InstallLocation",
+            "value_subkey": ""
+          },
+          "registry": {
+            "hive": "HKEY_LOCAL_MACHINE",
+            "key": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Docker Desktop",
+            "required_values": [
+              {
+                "equals": "Docker Desktop",
+                "name": "DisplayName",
+                "subkey": ""
+              },
+              {
+                "equals": "Docker Inc.",
+                "name": "Publisher",
+                "subkey": ""
+              }
+            ],
+            "view": "registry64"
+          },
+          "scope": "system"
+        },
+        {
+          "id": "docker-desktop-user-compose",
+          "location": {
+            "kind": "registry_directory_relative",
+            "relative_path": "resources\\bin\\docker-compose.exe",
+            "value_name": "InstallLocation",
+            "value_subkey": ""
+          },
+          "registry": {
+            "hive": "HKEY_CURRENT_USER",
+            "key": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Docker Desktop",
+            "required_values": [
+              {
+                "equals": "Docker Desktop",
+                "name": "DisplayName",
+                "subkey": ""
+              },
+              {
+                "equals": "Docker Inc.",
+                "name": "Publisher",
+                "subkey": ""
+              }
+            ],
+            "view": "registry64"
+          },
+          "scope": "user"
+        }
+      ],
+      "role": "compose",
+      "signers": [
+        {
+          "certificate_sha256": "a1114dec9407df1bf9e52e13917d9a4257d18f2a23198ec3d391674308c30477",
+          "issuer_common_name": "DigiCert Trusted G4 Code Signing RSA4096 SHA384 2021 CA1",
+          "minimum_public_key_bits": 4096,
+          "not_after_utc": "2027-06-25T23:59:59Z",
+          "not_before_utc": "2026-06-26T00:00:00Z",
+          "public_key_algorithm": "rsa",
+          "serial_number": "0dce683683ae70c7c647addb7e609a9a",
+          "subject_common_name": "Docker Inc",
+          "subject_organization": "Docker Inc"
+        }
+      ],
+      "version_evidence": {
+        "arguments": [
+          "version",
+          "--short"
+        ],
+        "exact_output": "5.3.1",
+        "kind": "authenticated_command_text"
+      }
+    },
+    {
+      "architecture": "amd64",
+      "exact_version": "6.0.2",
+      "executable_name": "podman.exe",
+      "file_hash_policy": "record_and_bind",
+      "file_identity_policy": "held_handle_record_and_revalidate",
+      "id": "podman-cli",
+      "install_records": [
+        {
+          "id": "podman-cli-msi-userlocal-6.0.2",
+          "location": {
+            "kind": "known_folder_relative",
+            "known_folder": "local_app_data",
+            "relative_path": "Programs\\Podman\\podman.exe"
+          },
+          "registry": {
+            "hive": "HKEY_LOCAL_MACHINE",
+            "key": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{0D5BAFD9-FE6A-4267-841A-7760A8F2B03C}",
+            "required_values": [
+              {
+                "equals": "Podman CLI",
+                "name": "DisplayName",
+                "subkey": ""
+              },
+              {
+                "equals": "6.0.2",
+                "name": "DisplayVersion",
+                "subkey": ""
+              },
+              {
+                "equals": "Podman",
+                "name": "Publisher",
+                "subkey": ""
+              }
+            ],
+            "view": "registry64"
+          },
+          "scope": "user"
+        }
+      ],
+      "role": "runtime",
+      "signers": [
+        {
+          "certificate_sha256": "a3e52b0d4273340dc8f5a0a0152cfd73d73d46aef7c5093fe5c10e3b80c30513",
+          "issuer_common_name": "DigiCert Trusted G4 Code Signing RSA4096 SHA384 2021 CA1",
+          "minimum_public_key_bits": 4096,
+          "not_after_utc": "2026-08-07T23:59:59Z",
+          "not_before_utc": "2023-06-15T00:00:00Z",
+          "public_key_algorithm": "rsa",
+          "serial_number": "0a717996ccf3ffaaf1d76b14a59dc089",
+          "subject_common_name": "Red Hat, Inc",
+          "subject_organization": "Red Hat, Inc"
+        }
+      ],
+      "version_evidence": {
+        "arguments": [
+          "version",
+          "--format",
+          "json"
+        ],
+        "json_pointer": "/Client/Version",
+        "kind": "authenticated_command_json"
+      }
+    },
+    {
+      "architecture": "amd64",
+      "exact_version": "3.12.10",
+      "executable_name": "python.exe",
+      "file_hash_policy": "record_and_bind",
+      "file_identity_policy": "held_handle_record_and_revalidate",
+      "id": "cpython",
+      "install_records": [
+        {
+          "id": "pythoncore-3.12-system",
+          "location": {
+            "kind": "registry_file",
+            "required_leaf_name": "python.exe",
+            "value_name": "ExecutablePath",
+            "value_subkey": "InstallPath"
+          },
+          "registry": {
+            "hive": "HKEY_LOCAL_MACHINE",
+            "key": "SOFTWARE\\Python\\PythonCore\\3.12",
+            "required_values": [
+              {
+                "equals": "Python 3.12.10",
+                "name": "DisplayName",
+                "subkey": ""
+              },
+              {
+                "equals": "64bit",
+                "name": "SysArchitecture",
+                "subkey": ""
+              },
+              {
+                "equals": "3.12.10",
+                "name": "Version",
+                "subkey": ""
+              }
+            ],
+            "view": "registry64"
+          },
+          "scope": "system"
+        },
+        {
+          "id": "pythoncore-3.12-user",
+          "location": {
+            "kind": "registry_file",
+            "required_leaf_name": "python.exe",
+            "value_name": "ExecutablePath",
+            "value_subkey": "InstallPath"
+          },
+          "registry": {
+            "hive": "HKEY_CURRENT_USER",
+            "key": "SOFTWARE\\Python\\PythonCore\\3.12",
+            "required_values": [
+              {
+                "equals": "Python 3.12.10",
+                "name": "DisplayName",
+                "subkey": ""
+              },
+              {
+                "equals": "64bit",
+                "name": "SysArchitecture",
+                "subkey": ""
+              },
+              {
+                "equals": "3.12.10",
+                "name": "Version",
+                "subkey": ""
+              }
+            ],
+            "view": "registry64"
+          },
+          "scope": "user"
+        }
+      ],
+      "role": "interpreter",
+      "signers": [
+        {
+          "certificate_sha256": "f0e4f5974299809383869188a87d305827ace5a7336e7c35ed03858d5816ee62",
+          "issuer_common_name": "Microsoft ID Verified CS AOC CA 01",
+          "minimum_public_key_bits": 3072,
+          "not_after_utc": "2025-04-11T01:07:24Z",
+          "not_before_utc": "2025-04-08T01:07:24Z",
+          "public_key_algorithm": "rsa",
+          "serial_number": "3300033fcb65b25969c57e965c000000033fcb",
+          "subject_common_name": "Python Software Foundation",
+          "subject_organization": "Python Software Foundation"
+        }
+      ],
+      "version_evidence": {
+        "company_name": "Python Software Foundation",
+        "file_version": "3.12.10",
+        "kind": "pe_version_resource",
+        "original_filename": "python.exe",
+        "product_name": "Python",
+        "product_version": "3.12.10"
+      }
+    }
+  ],
+  "schema_version": 1,
+  "updates": {
+    "installation_record_change": "reviewed_policy_update_required",
+    "runtime_upgrade": "reviewed_policy_update_required",
+    "signer_rollover": "reviewed_policy_update_required"
+  }
+}

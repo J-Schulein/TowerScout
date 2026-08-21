@@ -69,6 +69,9 @@ def test_bootstrap_entrypoint_is_packaged_and_reuses_validated_scripts():
     assert "SessionMaxHours = $SessionMaxHours" in setup
     assert "-SessionMaxHours $SessionMaxHours" in bootstrap
     assert "Invoke-TowerScoutStaleContainerGuard" in launch
+    assert "-RequireWindowsRootless" in launch
+    assert "-PodmanMachineName $PodmanMachineName" in launch
+    assert launch.index("-RequireWindowsRootless") < launch.index("Invoke-TowerScoutStaleContainerGuard")
     assert "Invoke-TowerScoutStaleContainerGuard" in import_assets
     assert "Write-TowerScoutImagePullReadiness" in bootstrap
     assert "launch.ps1" in bootstrap

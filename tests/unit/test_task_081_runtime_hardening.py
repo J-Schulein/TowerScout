@@ -81,14 +81,43 @@ def test_podman_compose_provider_installer_uses_isolated_venv_and_pinned_deps():
 
     requirements = {dependency["requirement"] for dependency in provider["dependencies"]}
     assert provider["requires_python"] == ">=3.9"
-    assert requirements == {"python-dotenv==1.1.1", "PyYAML==6.0.2"}
+    assert requirements == {"python-dotenv==1.1.1", "PyYAML==6.0.3"}
+    dependency_artifacts = {
+        dependency["name"]: dependency["artifacts"]
+        for dependency in provider["dependencies"]
+    }
+    assert {
+        artifact["python_tag"]
+        for artifact in dependency_artifacts["PyYAML"]
+    } == {"cp39", "cp310", "cp311", "cp312", "cp313", "cp314", "cp314t"}
+    assert {
+        artifact["platform_tag"]
+        for artifact in dependency_artifacts["PyYAML"]
+    } == {"win_amd64"}
+    assert dependency_artifacts["python-dotenv"][0]["python_tag"] == "py3"
+    assert dependency_artifacts["python-dotenv"][0]["platform_tag"] == "any"
+    for artifacts in dependency_artifacts.values():
+        for artifact in artifacts:
+            assert artifact["source_url"].startswith("https://files.pythonhosted.org/")
+            assert len(artifact["sha256"]) == 64
+            assert artifact["source_url"].endswith(artifact["filename"])
     assert "Join-Path $InstallDir \".venv\"" in installer
     assert "@(\"-m\", \"venv\", $venvDir)" in installer
     assert "\"pip\"" in installer
     assert "\"install\"" in installer
-    assert "--only-binary" in installer
+    assert '"--no-index"' in installer
+    assert '"--no-deps"' in installer
+    assert '@("-m", "pip", "check", "--disable-pip-version-check")' in installer
     assert "foreach ($dependency in @($provider.dependencies))" in installer
+    assert "Resolve-TowerScoutInstallerDependencyArtifact" in installer
+    assert "Invoke-TowerScoutInstallerVerifiedDownload" in installer
+    assert "Assert-TowerScoutInstallerPackageVersion" in installer
     assert "\"%~dp0.venv\\Scripts\\podman-compose.exe\" %*" in installer
+    assert (
+        "Set-TowerScoutPodmanComposeProviderEnv -ProviderPath $venvProviderPath"
+        in installer
+    )
+    assert "-ProviderPath $wrapperPath -RootPath $repoRoot" not in installer
     assert "System.IO.Compression.ZipFile" not in installer
     assert "podman_compose.py" not in installer
 
@@ -229,6 +258,84 @@ def test_auto_engine_selection_prefers_reachable_podman_when_docker_is_down():
         assert "ok" in result.stdout
     finally:
         shutil.rmtree(temp_root, ignore_errors=True)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")
+def test_windows_podman_rootless_preflight_fails_closed_without_mutation():
+    command = f"""
+    $ErrorActionPreference = "Stop"
+    . "{COMPOSE_LIB}"
+    $env:OS = "Windows_NT"
+
+    if ((Get-TowerScoutPodmanWindowsMachineMode -Machine ([pscustomobject]@{{ Rootful = $false }})) -ne "rootless") {{
+        throw "A Boolean Rootful=false value was not recognized as rootless."
+    }}
+    if ((Get-TowerScoutPodmanWindowsMachineMode -Machine ([pscustomobject]@{{ Rootful = $true }})) -ne "rootful") {{
+        throw "A Boolean Rootful=true value was not recognized as rootful."
+    }}
+
+    function Invoke-TowerScoutPodmanCommand {{
+        param([string[]] $Arguments, [int] $TimeoutSeconds)
+        return [pscustomobject]@{{
+            ExitCode = 0
+            TimedOut = $false
+            StdOut = $script:MachineInspectJson
+            StdErr = ""
+        }}
+    }}
+
+    $script:MachineInspectJson = '[{{"Name":"podman-machine-default","Rootful":false}}]'
+    Assert-TowerScoutPodmanWindowsRootlessMode -MachineName "podman-machine-default"
+
+    $script:MachineInspectJson = '[{{"Name":"podman-machine-default","Rootful":true}}]'
+    function Initialize-TowerScoutPodmanComposeProvider {{
+        throw "Provider discovery ran before rootless preflight."
+    }}
+    try {{
+        Assert-TowerScoutPodmanWindowsRootlessMode -MachineName "podman-machine-default"
+        throw "Rootful Podman was accepted."
+    }}
+    catch {{
+        if ($_.Exception.Message -notmatch "requires a rootless Podman machine") {{
+            throw
+        }}
+        if ($_.Exception.Message -notmatch "separate containers and volumes") {{
+            throw "Rootful guidance omitted the storage boundary."
+        }}
+        if ($_.Exception.Message -notmatch "did not change the Podman machine") {{
+            throw "Rootful guidance did not preserve explicit user control."
+        }}
+    }}
+
+    try {{
+        Get-TowerScoutComposeCommand `
+            -Engine podman `
+            -RequireWindowsRootless `
+            -PodmanMachineName "podman-machine-default" | Out-Null
+        throw "Rootful Podman reached provider discovery."
+    }}
+    catch {{
+        if ($_.Exception.Message -notmatch "requires a rootless Podman machine") {{
+            throw
+        }}
+    }}
+
+    $script:MachineInspectJson = '[{{"Name":"podman-machine-default"}}]'
+    try {{
+        Assert-TowerScoutPodmanWindowsRootlessMode -MachineName "podman-machine-default"
+        throw "Unknown Podman mode was accepted."
+    }}
+    catch {{
+        if ($_.Exception.Message -notmatch "could not verify") {{
+            throw
+        }}
+    }}
+    "ok"
+    """
+    result = _run_powershell(command)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "ok" in result.stdout
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")

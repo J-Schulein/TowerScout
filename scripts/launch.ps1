@@ -265,113 +265,77 @@ function Invoke-TowerScoutLaunchRuntime {
         [switch] $NoBrowser
     )
 
-    $hostHelperReviewSession = $null
-    $launchSucceeded = $false
-    $helperControlledOperation = [string]::Equals(
-        [string] $env:TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION,
-        "1",
-        [System.StringComparison]::Ordinal
-    )
-    try {
-        if (-not $helperControlledOperation) {
-            $hostHelperReviewSession = Initialize-TowerScoutHostHelperReviewSession `
-                -EngineName $EngineName `
-                -GpuMode $GpuMode `
-                -AppPort $AppPort `
-                -RootPath $RootPath `
-                -PackageFlavor $PackageFlavor
-        }
+    $composeArgs = @("up", "-d")
+    if ($Build) {
+        $composeArgs += "--build"
+    }
+    Invoke-TowerScoutCompose `
+        -Engine $EngineName `
+        -Build:$Build `
+        -Gpu $GpuMode `
+        -PodmanMachineName $PodmanMachineName `
+        -ComposeArguments $composeArgs | Out-Host
+    if ($script:TowerScoutComposeExitCode -ne 0) {
+        Write-Host "TowerScout container startup failed. Check the selected engine, Compose provider, and local permissions."
+        Write-TowerScoutHostDiagnostics -EngineName $EngineName
+        return $script:TowerScoutComposeExitCode
+    }
 
-        $composeArgs = @("up", "-d")
-        if ($Build) {
-            $composeArgs += "--build"
-        }
-        Invoke-TowerScoutCompose `
-            -Engine $EngineName `
-            -Build:$Build `
-            -Gpu $GpuMode `
-            -PodmanMachineName $PodmanMachineName `
-            -ComposeArguments $composeArgs | Out-Host
-        if ($script:TowerScoutComposeExitCode -ne 0) {
-            Write-Host "TowerScout container startup failed. Check the selected engine, Compose provider, and local permissions."
-            Write-TowerScoutHostDiagnostics -EngineName $EngineName
-            return $script:TowerScoutComposeExitCode
-        }
+    Write-Host "Waiting for TowerScout readiness at $ReadinessUrl..."
+    $deadline = (Get-Date).AddSeconds($ReadinessTimeoutSeconds)
+    $lastState = ""
+    $lastReadiness = $null
 
-        Write-Host "Waiting for TowerScout readiness at $ReadinessUrl..."
-        $deadline = (Get-Date).AddSeconds($ReadinessTimeoutSeconds)
-        $lastState = ""
-        $lastReadiness = $null
+    while ((Get-Date) -lt $deadline) {
+        $readiness = Get-TowerScoutReadiness -Url $ReadinessUrl
+        $lastReadiness = $readiness
 
-        while ((Get-Date) -lt $deadline) {
-            $readiness = Get-TowerScoutReadiness -Url $ReadinessUrl
-            $lastReadiness = $readiness
-
-            if ($readiness.Reachable) {
-                if ($readiness.State -in @("setup_required", "degraded", "ready")) {
-                    Write-TowerScoutReadinessSummary -Readiness $readiness
-                    if ($GpuMode -eq "on" -and -not (Test-TowerScoutCudaSelected -Readiness $readiness)) {
-                        Write-Host "GPU mode is on, but TowerScout readiness did not report selected_device=cuda."
-                        Write-Host "Check the image flavor, NVIDIA container access, and GPU overlay before continuing."
-                        return 1
-                    }
-
-                    $launchSucceeded = $true
-                    if (-not $NoBrowser) {
-                        try {
-                            Write-Host "Opening TowerScout in your browser..."
-                            Start-Process $AppUrl
-                        }
-                        catch {
-                            Write-Warning "TowerScout is ready, but the browser could not be opened automatically."
-                            Write-Host "Open $AppUrl manually."
-                        }
-                    }
-                    else {
-                        Write-Host "Browser launch skipped. Open $AppUrl when ready."
-                    }
-                    return 0
-                }
-
-                if ($readiness.State -eq "fatal") {
-                    Write-TowerScoutReadinessSummary -Readiness $readiness
-                    Write-Host "Run scripts\logs.cmd for container logs or scripts\status.cmd for the current readiness payload."
+        if ($readiness.Reachable) {
+            if ($readiness.State -in @("setup_required", "degraded", "ready")) {
+                Write-TowerScoutReadinessSummary -Readiness $readiness
+                if ($GpuMode -eq "on" -and -not (Test-TowerScoutCudaSelected -Readiness $readiness)) {
+                    Write-Host "GPU mode is on, but TowerScout readiness did not report selected_device=cuda."
+                    Write-Host "Check the image flavor, NVIDIA container access, and GPU overlay before continuing."
                     return 1
                 }
+
+                if (-not $NoBrowser) {
+                    try {
+                        Write-Host "Opening TowerScout in your browser..."
+                        Start-Process $AppUrl
+                    }
+                    catch {
+                        Write-Warning "TowerScout is ready, but the browser could not be opened automatically."
+                        Write-Host "Open $AppUrl manually."
+                    }
+                }
+                else {
+                    Write-Host "Browser launch skipped. Open $AppUrl when ready."
+                }
+                return 0
             }
 
-            if ($readiness.State -ne $lastState) {
+            if ($readiness.State -eq "fatal") {
                 Write-TowerScoutReadinessSummary -Readiness $readiness
-                $lastState = $readiness.State
+                Write-Host "Run scripts\logs.cmd for container logs or scripts\status.cmd for the current readiness payload."
+                return 1
             }
+        }
 
-            Start-Sleep -Seconds 2
+        if ($readiness.State -ne $lastState) {
+            Write-TowerScoutReadinessSummary -Readiness $readiness
+            $lastState = $readiness.State
         }
 
-        Write-Warning "Timed out after $ReadinessTimeoutSeconds seconds waiting for TowerScout readiness."
-        if ($lastReadiness -ne $null) {
-            Write-TowerScoutReadinessSummary -Readiness $lastReadiness
-        }
-        Write-Host "Use scripts\status.cmd to inspect readiness, scripts\logs.cmd -Tail 200 for logs, or scripts\stop.cmd to stop TowerScout."
-        return 2
+        Start-Sleep -Seconds 2
     }
-    finally {
-        if ($null -ne $hostHelperReviewSession) {
-            try {
-                if (-not $launchSucceeded) {
-                    Stop-TowerScoutHostHelperReviewSession `
-                        -RootPath $RootPath `
-                        -SessionId ([string] $hostHelperReviewSession.SessionId) `
-                        -Process $hostHelperReviewSession.Process
-                }
-            }
-            finally {
-                if ($null -ne $hostHelperReviewSession.Process) {
-                    $hostHelperReviewSession.Process.Dispose()
-                }
-            }
-        }
+
+    Write-Warning "Timed out after $ReadinessTimeoutSeconds seconds waiting for TowerScout readiness."
+    if ($lastReadiness -ne $null) {
+        Write-TowerScoutReadinessSummary -Readiness $lastReadiness
     }
+    Write-Host "Use scripts\status.cmd to inspect readiness, scripts\logs.cmd -Tail 200 for logs, or scripts\stop.cmd to stop TowerScout."
+    return 2
 }
 
 if ($MyInvocation.InvocationName -eq ".") {
@@ -379,7 +343,6 @@ if ($MyInvocation.InvocationName -eq ".") {
 }
 
 . "$PSScriptRoot\lib\TowerScoutCompose.ps1"
-. "$PSScriptRoot\lib\TowerScoutHostHelper.ps1"
 
 $repoRoot = Get-TowerScoutRepoRoot
 $appUrl = "http://localhost:$Port"
@@ -394,7 +357,10 @@ if ($SessionMaxHours -lt 0) {
 
 Initialize-TowerScoutEnvFile -RootPath $repoRoot
 
-$composeCommand = Get-TowerScoutComposeCommand -Engine $Engine
+$composeCommand = Get-TowerScoutComposeCommand `
+    -Engine $Engine `
+    -RequireWindowsRootless `
+    -PodmanMachineName $PodmanMachineName
 $effectiveEngine = [string] $composeCommand["Executable"]
 $packageFlavor = Get-TowerScoutPackagePytorchFlavor -RootPath $repoRoot
 if ([string]::IsNullOrWhiteSpace($packageFlavor)) {
@@ -402,12 +368,6 @@ if ([string]::IsNullOrWhiteSpace($packageFlavor)) {
 }
 $env:TOWERSCOUT_CONTAINER_ENGINE = $effectiveEngine
 $env:TOWERSCOUT_PORT = "$Port"
-Save-TowerScoutHostHelperLaunchProfile `
-    -Engine $effectiveEngine `
-    -Gpu $Gpu `
-    -AppPort $Port `
-    -RootPath $repoRoot `
-    -PackageFlavor $packageFlavor | Out-Null
 
 Write-Host "Starting TowerScout with $effectiveEngine on $appUrl..."
 Write-TowerScoutComposeProviderSummary -Engine $effectiveEngine
