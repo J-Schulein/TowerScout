@@ -222,8 +222,9 @@ timing; preview integration remains a later gate
   live discovery, process executor, app, or repair path imports the combiner;
   mutation remains disabled. Docker Compose and Podman command-based exact-
   version proof, provider reconstruction, ACL/mutex/journal/recovery, and
-  `.env` transaction work remain open. This slice has not been committed or
-  pushed.
+  `.env` transaction work remain open. The reviewed source slice is checkpointed
+  at `4150217` and pushed to PR #67; this docs-only status reconciliation
+  follows that checkpoint.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

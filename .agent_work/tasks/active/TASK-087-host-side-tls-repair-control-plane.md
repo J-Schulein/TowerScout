@@ -1425,7 +1425,8 @@ mypy for the touched lower-level modules, medium/high Bandit, compilation,
 
 **Boundary**: No Docker, Podman, Compose, launcher, repair command, or installed-
 binary native smoke ran. Mutation and runtime execution remain disabled and
-unwired. No commit or push was made.
+unwired. No commit or push occurred until explicit authorization; the reviewed
+source slice was then checkpointed at `4150217` and pushed to PR #67.
 
 **Next**: Implement command-based exact-version proof for Docker Compose and
 Podman as the next separately reviewed source-only slice; do not infer those
