@@ -1,6 +1,6 @@
 # TowerScout Current Technical Design
 
-**Last Updated**: August 20, 2026
+**Last Updated**: August 21, 2026
 **Scope**: Unsigned fix-first preview iteration, four-profile runtime
 qualification, October production signing, and cdcai handoff
 **Archived Pre-Rebaseline Design**:
@@ -162,12 +162,14 @@ The rebuilt validation path has two deliberately separate package kinds:
   digest-pinned control package for explicitly authorized functional testing.
 
 Both assemblers stage the package directory, ZIP, and adjacent checksum before
-publishing them as one artifact set, and roll back any partially published set
-if publication fails. Launcher build provenance binds a clean
-40-character source commit to the exact build-requirements hash, executable
-hash, and deterministic complete launcher-tree hash. Assembly rechecks that
-provenance and, for `full-runnable`, the base release identity, source ref,
-pinned image digest, asset identity, and existing content checksums. A policy
+publishing them as one transactional artifact set, and roll back any partially
+moved uncommitted set if publication fails. The August 20 technical/security review identified that
+the current assembler validates source inputs before copying them and can then
+checksum changed copied bytes. Before another artifact is relied on, the copied
+staged base and launcher become the sole provenance authority; the staged tree,
+internal checksums, ZIP inventory/content, sidecar, and source/build identity
+must be independently cross-verified before one final atomic commit marker makes
+the set consumable. A policy
 artifact must never be represented as runnable, and neither package kind is a
 release candidate.
 
@@ -207,7 +209,8 @@ follow-up for the later source. All results described in this historical
 checkpoint remain authorized unsigned development-workstation evidence only:
 the artifact is not a preview, release candidate, or release, and no cdcai
 mutation is authorized by that evidence. Later exact-source package results are
-recorded in Task-087. The current gates are technical/security review, a newly
+recorded in Task-087. Technical/security review at current head `6e0f744`
+requested source remediation before merge; the later gates remain a newly
 integrated normal-user preview package, clean unmanaged-machine feedback, and
 later Task-100 signing/representative managed-endpoint qualification. The
 current historical evidence is
@@ -224,6 +227,64 @@ requires .NET or rejects Python/PyInstaller applications.
 
 Podman-machine image-pull/build TLS is outside this application-provider flow
 and belongs to Task-097.
+
+### PR #67 Technical/Security Remediation Boundary - August 20
+
+The independent review at exact head `6e0f744` confirmed that fixed argument
+arrays, `shell=False`, sanitized output, typed confirmation, helper removal, and
+the no-volume-delete path are useful controls, but not sufficient. The current
+implementation resolves mutable runtime/provider identity, discovers material
+container/mount state after confirmation, performs best-effort rollback, stores
+recovery only in process memory, and validates package inputs before copying.
+
+The controlling detailed design is
+[`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
+Its architecture is:
+
+1. Resolve one immutable internal target before confirmation. Bind the package
+   handle identity, authenticated runtime/Compose executables, captured local
+   Docker named-pipe endpoint or rootless local Podman URI/identity key,
+   normalized pre/post Compose model, actual container/image, config mount, all
+   eight engine-specific named-volume identities, requested/effective GPU
+   profile, provider, and private CA candidate. Context/connection names are
+   metadata, not execution authority.
+2. Invoke only captured absolute executable identities with fixed arguments and
+   an adapter-specific minimal environment. Ambient PATH/current-directory,
+   Docker, Podman, Compose, proxy, and CA variables cannot redirect execution.
+3. Select exact Compose files by engine/profile, validate the one-service
+   security model, reject bind/control-socket mounts or unexpected privilege,
+   and revalidate the stage-appropriate target before writes and restart.
+4. Permit server/Windows-`CA` intermediates but terminate TLS verification only
+   at a server-auth/all-purpose-eligible Windows `ROOT`; export only that root
+   and never mutate the store.
+5. Serialize mutation across Windows sessions by verified
+   endpoint/project/config-volume identity. Use a protected per-user Local
+   AppData write-ahead journal and current-user DPAPI-encrypted exact backups.
+   Repair and provider-installer paths share the `.env` lock and scan each
+   other's pending state before mutation. Startup blocks new repair until
+   authenticated incomplete recovery commits, rolls back idempotently, or
+   remains explicitly recovery-pending with its protected data retained.
+6. Check and verify every rollback action. Never clear backup state after an
+   unverified restore, and never report generic failure as safe rollback.
+7. Use handle/file-ID/reparse/DACL checks and ACL-preserving atomic `.env`
+   replacement. Stable supported OneDrive/cloud locations remain usable; unsafe
+   leaf redirects, hard links, identity changes, or broad writable ACLs fail
+   before mutation.
+8. Remove the provider installer's persistent plaintext root `.env` backup.
+   Validate copied staged package bytes, exact archive/sidecar agreement, and a
+   explicitly approved exact-patch/hash-locked Python 3.12 provenance-v2 build
+   before another validation artifact or unsigned preview.
+
+The source-remediation gate is distinct from the preview-integrity gate and the
+Task-100 signing gate. Source correction must not add a helper/listener,
+launcher-issued PowerShell, administrator requirement, Windows-store mutation,
+runtime-default change, or volume deletion. Task-100 still owns the
+organization-controlled rebuild, signing/timestamping, post-sign metadata, and
+representative managed-endpoint qualification after package satisfaction.
+The existing non-external volumes retain normal first-run behavior; an actor
+with independent daemon mutation authority is outside the launcher boundary,
+and any resulting identity replacement must remain recovery-pending rather than
+being reported as successful repair or rollback.
 
 ## Exit/Stop Design Boundary
 
@@ -315,8 +376,12 @@ The current security boundary is:
     exact-main CI/CD run `32377736719` and Task-087 run `32377736797` passed.
     Draft PR #67 reconciliation head `946deaf` then passed CI/CD run
     `32383065903` and Task-087 run `32383065959` while preserving ADR-019 and
-    the branch's evidence. Task-101 is complete, and Task-087 is explicitly
-    resumed; new work waits for the lifecycle update's exact-head checks.
+    the branch's evidence. Task-101 is complete. Lifecycle head `6e0f744` then
+    passed CI/CD run `32385304086` and Task-087 run `32385304052`, closing the
+    governance revalidation hold. Technical/security review requested source
+    remediation at that head. The project lead approved Gate A IMPLEMENT under
+    the August 20 design on August 21, so source work is active while PR #67
+    stays Draft.
 
 ## Task Dependency Flow
 
@@ -336,7 +401,7 @@ TASK-099 August advisory follow-up [COMPLETE]
 TASK-101 extract-zip advisory gate [COMPLETE]
         |
         v
-TASK-087 universal provider TLS repair [IN PROGRESS / RESUMED]
+TASK-087 universal provider TLS repair [IN PROGRESS / REVIEW REMEDIATION-GATED]
         |
         v
 TASK-096 user Exit/Stop
@@ -371,8 +436,10 @@ principle for post-closeout disclosures and cleared its scoped dependency-
 security gate on August 11. Task-101 closed alert `#76` through the accepted
 default-branch graph and passed the downstream PR #67 exact-head gate at
 `946deaf`. Task-101 is complete, and Task-087 is resumed under ADR-019, with
-further work held until the lifecycle update's own checks pass. Task-100 remains
-backlog work until October and the ADR-019 satisfactory-package entry decision.
+the lifecycle update's own checks green at `6e0f744`. Task-087 now owns the
+independently confirmed PR #67 technical/security remediation and exact-head
+re-review gates before merge or preview integration. Task-100 remains backlog
+work until October and the ADR-019 satisfactory-package entry decision.
 
 ## Validation Strategy
 

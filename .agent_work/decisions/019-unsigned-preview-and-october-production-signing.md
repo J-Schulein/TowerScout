@@ -59,6 +59,23 @@ the unsigned package is satisfactory. That decision requires:
 Preview releases may precede this gate so normal-user feedback can refine the
 package. Each preview records its own narrower tested scope and known limits.
 
+### August 20 Preview-Integrity Clarification
+
+Before another Task-087 validation artifact or unsigned preview is relied on,
+the assembler must validate copied staged bytes and independently reconcile the
+staged directory, internal checksums, ZIP, sidecar, source identity, and launcher
+provenance. The launcher build must use an explicitly approved exact CPython
+3.12 Windows artifact plus hash-locked environment, not a floating minor alias,
+with provenance that binds the actual interpreter/build inputs and complete
+output tree.
+
+That Gate-B control detects build and assembly drift for unsigned bytes; it is
+not production signing or authentication of a publisher. Task-100 continues to
+own the organization-controlled rebuild, signing/timestamping, post-sign
+manifests/checksums, extracted signature verification, and representative
+managed-endpoint qualification. No preview executable is promoted in place as
+the signed candidate.
+
 ## Task-100 October Scope
 
 `TASK-100: Production Signing And Managed-Endpoint Qualification` is required

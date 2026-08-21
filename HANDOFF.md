@@ -1,6 +1,6 @@
 # TowerScout Handoff Guide
 
-**Last Updated**: August 20, 2026
+**Last Updated**: August 21, 2026
 **Operational Closeout**: October 30, 2026
 **Hard Project End**: October 31, 2026
 
@@ -45,10 +45,12 @@ The current Pilot/cdcai hold is:
   Task-087 workflows passing; the merge integrated that `main` into PR #67,
   and reconciliation commit `946deaf` passed exact-head CI/CD run `32383065903`
   plus Task-087 run `32383065959`; Task-101 is complete
-- Task-087 Google/Azure guided provider TLS repair on Docker/Podman: explicitly
-  resumed / governance-head-validation-pending while Draft PR #67 remains open
-  for reviewer input; no further implementation proceeds until CI/CD and
-  Task-087 workflows pass at the new governance head
+- Task-087 Google/Azure guided provider TLS repair on Docker/Podman: active /
+  IMPLEMENT after lifecycle head `6e0f744` passed CI/CD run
+  `32385304086` and Task-087 run `32385304052`; Draft PR #67 remains Draft while
+  project-lead approval on August 21 activated Gate A exact-target, durable-
+  recovery, Windows trust/filesystem, and provider `.env` implementation;
+  staged-byte/build-integrity Gate B and exact-head re-review remain pending
 - Task-096 user-confirmed Exit/Stop on Docker/Podman
 - Task-097 Podman CPU/GPU final-path qualification
 - Task-100 October production signing and representative managed-endpoint
@@ -90,13 +92,17 @@ record in
 Task-087 remains preserved and reviewable in PR #67. Reconciliation commit
 `946deaf` passed exact-head CI/CD run `32383065903` and Task-087 run
 `32383065959`, completing Task-101's remaining gate. This governance update
-explicitly resumes Task-087, but no further implementation proceeds until
-CI/CD and Task-087 workflows pass at the new governance head. Existing Task-087
+explicitly resumed Task-087, and lifecycle head `6e0f744` then passed CI/CD run
+`32385304086` plus Task-087 run `32385304052`. Independent technical/security
+review requested source changes at that exact head. The current remediation
+design is
+[`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](.agent_work/tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md);
+the project lead approved Gate A IMPLEMENT on August 21. Existing Task-087
 validation artifacts remain nonpublishable. Merge to `main` and preview/
-candidate publication remain behind Task-087's other applicable gates. Task-100
-owns production signing, signed-candidate packaging, and representative
-managed-endpoint qualification in October; Task-087's remaining package,
-provider/recovery, Podman, and endpoint gates remain closed.
+candidate publication remain behind Task-087's source-re-review and other
+applicable gates. Task-100 owns production signing, signed-candidate packaging,
+and representative managed-endpoint qualification in October; Task-087's
+remaining package, provider/recovery, Podman, and endpoint gates remain closed.
 
 ## Runtime And Package Model
 

@@ -423,19 +423,19 @@ PR #67 result is recorded below
   and all three jobs in Task-087 run `32383065959`.
 - [x] This subsequent governance update records Task-101 complete and Task-087
   explicitly resumed.
-- [ ] Downstream Task-087 hold (not a Task-101 acceptance item): the lifecycle
-  update head passes its own exact-head checks before new Task-087 work.
+- [x] Downstream Task-087 hold (not a Task-101 acceptance item): lifecycle head
+  `6e0f744` passed CI/CD run `32385304086` and Task-087 run `32385304052`.
 
 ### Post-Completion Task-087 Revalidation Hold - August 20, 2026
 
-**Test Status**: PENDING downstream revalidation - Task-101 completion and the
-Task-087 resume are recorded; the lifecycle update's exact-head checks gate
-only further Task-087 work
+**Test Status**: PASS for downstream revalidation; the later Task-087
+technical/security review-remediation gate is tracked separately and does not
+reopen Task-101
 
 - [x] Task-101 is `COMPLETED` only after reconciliation head `946deaf` passed
   both required workflow matrices.
 - [x] Task-087 is explicitly `IN_PROGRESS / RESUMED` while PR #67 remains
   Draft and all later technical, package, merge, and release gates remain.
 - [x] Task-101's file remains under `tasks/active/` through Sprint 09 closeout.
-- [ ] Downstream hold: the lifecycle update head passes CI/CD and all three
-  Task-087 jobs before new Task-087 work.
+- [x] Downstream hold: lifecycle head `6e0f744` passed CI/CD run `32385304086`
+  and all three jobs in Task-087 run `32385304052`.

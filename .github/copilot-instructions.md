@@ -3,7 +3,7 @@
 This is the primary high-context guidance file for AI coding agents working in
 the TowerScout repository. It preserves project context, guardrails, and
 workflow guidance while reflecting the current repository state as of
-2026-08-20.
+2026-08-21.
 
 ## Mission and Product Context
 
@@ -58,13 +58,14 @@ The project still carries public-health workflow expectations:
   then passed exact-head CI/CD run `32383065903` and Task-087 run `32383065959`,
   completing Task-101's remaining acceptance gate. This governance update marks
   Task-101 complete.
-- `TASK-087` is resumed / governance-head-validation-pending under ADR-018's
-  launcher security boundary and ADR-019's release sequence. This governance
-  update explicitly resumes it from the preserved checkpoint, but no further
-  implementation proceeds until CI/CD and Task-087 workflows pass at the new
-  exact governance head. Draft PR #67 contains the native transactional
-  Docker/Podman TLS repair engine and visible typed-confirmation UI. PR #64 and
-  every browser/helper activation gate remain on hold.
+- `TASK-087` is active / IMPLEMENT under ADR-018's launcher
+  security boundary and ADR-019's release sequence. Lifecycle head `6e0f744`
+  passed CI/CD run `32385304086` and Task-087 run `32385304052`; independent
+  technical/security review then requested source changes. Draft PR #67 remains
+  Draft while exact-target, durable-recovery, Windows trust/filesystem, and
+  provider `.env` Gate A corrections are implemented under the project lead's
+  August 21 approval. Preview-integrity Gate B remains later. PR
+  #64 and every browser/helper activation gate remain on hold.
 - Exact-source `7ef879c` full-runnable CPU packages passed Docker and approved-
   provider Podman Google/Azure repair plus controlled recovery. Follow-up head
   `3990bc0` closes the provider-installer dependency drift with a hash-pinned
@@ -79,27 +80,30 @@ The project still carries public-health workflow expectations:
   `Latest`. Task-100 owns October production signing, post-sign package/hash
   generation, signed `v0.1.3-rc.N`, and representative managed-endpoint
   qualification after the package is satisfactory.
-- The launcher presents the exact target, requires typed
-  `REPAIR TLS AND RESTART` confirmation, validates the fixed container/runtime
-  identity, stages CA material transactionally, verifies the provider, updates
-  `.env` atomically, preserves named volumes, verifies readiness, and performs
-  bounded rollback on failure.
-- Launcher runtime discovery is limited to fixed allowlisted Docker/Podman
-  commands with `shell=False`; Windows children use `CREATE_NO_WINDOW`, and the
-  five-second timeout/failure result is sanitized. The validation assembler
-  keeps non-runnable `launcher-policy` and functional `full-runnable` package
-  kinds distinct, verifies clean-source executable/build-tree provenance, and
-  stages the directory, ZIP, and sidecar with rollback on publication failure.
+- The launcher already uses typed `REPAIR TLS AND RESTART`, fixed argument
+  arrays, `shell=False`, sanitized output, and no helper/PowerShell path. Do not
+  describe its current target or rollback as complete: review confirmed that
+  runtime/endpoint/Compose identity, actual container/mount/volume scope,
+  Windows-only trust, durable verified rollback, cross-session locking, and
+  Windows file replacement still require correction.
+- The validation assembler keeps non-runnable `launcher-policy` and functional
+  `full-runnable` package kinds distinct and publishes a staged directory/ZIP/
+  sidecar set. Before another artifact is relied on, authoritative validation
+  must run against copied staged bytes, the exact archive must be independently
+  reconciled, and the launcher must use the explicitly approved exact-patch/
+  hash-locked Python 3.12 provenance-v2 build described in the Task-087
+  remediation design.
 - [`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](../.agent_work/tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md)
   is the current functional record. The earlier `REVIEW-EVIDENCE-2026-08-05.md`
   is preserved as historical static-review evidence.
 - Existing launcher-policy/full-runnable assemblers remain validation-only.
   The normal release-package builder still needs explicit launcher integration
   before any preview can be published.
-- Draft PR #67 remains open for reviewer input, but no further Task-087
-  implementation proceeds until the new governance head passes CI/CD and
-  Task-087 workflows. Merge to `main` and preview/candidate publication remain
-  behind Task-087's other technical, security, product, and package gates.
+- Draft PR #67 remains open for reviewer input and source remediation. Follow
+  [`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](../.agent_work/tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md),
+  record the August 21 Gate A IMPLEMENT approval, and keep merge plus preview/
+  candidate publication behind their separate exact-head review, package, and
+  Task-100 gates.
 - `TASK-096` adds user-confirmed Exit/Stop. `TASK-097` qualifies Podman CPU/GPU.
 - Docker CPU, Docker GPU, Podman CPU, and Podman GPU are required final-package
   profiles, subject to their documented prerequisites.
@@ -179,22 +183,26 @@ adoption:
    `32383065903` plus Task-087 run `32383065959`.
 9. Record this governance transition as Task-101 complete and Task-087
    explicitly resumed from its preserved checkpoint.
-10. Require CI/CD and Task-087 workflows to pass at the new governance head
-    before any additional implementation-producing change.
-11. Continue Task-087 technical/security review and integrate the launcher into
-    a new normal-user release-package path. Preserve Task-086 and every existing
+10. Preserve green lifecycle head `6e0f744`, CI/CD run `32385304086`, and
+    Task-087 run `32385304052`.
+11. Validate/approve and implement the Task-087 exact-target/durable-recovery
+    source remediation, then require exact-head workflows and independent
+    technical/security re-review. Preserve Task-086 and every existing
     validation-only artifact boundary.
-12. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
-13. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
-14. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
+12. Complete copied-staged-byte/archive verification and the explicitly
+    approved exact-patch/hash-locked Python 3.12 provenance-v2 build before
+    integrating a new normal-user release-package path.
+13. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
+14. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
+15. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
     approved unmanaged clean-machine feedback; never mark them `Latest`.
-15. After the package is satisfactory, complete Task-100 production signing and
+16. After the package is satisfactory, complete Task-100 production signing and
     representative managed-endpoint qualification in October. Only signed
     output uses `v0.1.3-rc.N`; do not publish `v0.1.3` final automatically.
-16. Keep Task-089 preparation reversible and cdcai unchanged.
-17. Select the official cdcai tag/title before the official build and execute
+17. Keep Task-089 preparation reversible and cdcai unchanged.
+18. Select the official cdcai tag/title before the official build and execute
     adoption only after owner qualification and approval.
-18. Treat Task-058/059 as conditional stretch work behind all required gates.
+19. Treat Task-058/059 as conditional stretch work behind all required gates.
 
 `TASK-026` CPU optimization and `TASK-029` multi-provider fallback remain follow-on backlog work unless release evidence makes them release-critical.
 
@@ -846,11 +854,12 @@ The original guidance benefited from explicitly naming recent completed work. Th
    and Task-087 run `32383065959` as the final Task-101 acceptance evidence.
 7. Record this governance update as Task-101 complete and Task-087 explicitly
    resumed from its preserved checkpoint.
-8. Require CI/CD and Task-087 workflows to pass at the new governance head
-   before any additional implementation-producing change.
-9. Continue Task-087 technical/security review and integrate its launcher into
-   a new normal-user unsigned preview-package path. Existing validation ZIPs
-   remain nonpublishable.
+8. Preserve green lifecycle head `6e0f744`, CI/CD run `32385304086`, and
+   Task-087 run `32385304052`.
+9. Validate/approve and implement the Task-087 source remediation, require
+   exact-head workflows and independent re-review, then complete staged-byte/
+   provenance-v2 integrity before a new normal-user unsigned preview package.
+   Existing validation ZIPs remain nonpublishable.
 10. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
 11. Qualify Docker CPU/GPU and Podman CPU/GPU.
 12. Start Task-058 early only when all required gates, including Task-101,
@@ -891,11 +900,11 @@ An agent should leave with the following understanding:
   ADR-019 and the branch's evidence
 - PR #67 reconciliation commit `946deaf` passed exact-head CI/CD run
   `32383065903` and Task-087 run `32383065959`, completing Task-101's final gate
-- this governance update marks Task-101 complete and explicitly resumes
-  Task-087; the new governance head must pass CI/CD and Task-087 workflows
-  before further implementation
-- PR #67 remains open for reviewer input, and its remaining technical,
-  security, product, and package gates still control merge and publication
+- lifecycle head `6e0f744` passed CI/CD run `32385304086` and Task-087 run
+  `32385304052`; the governance revalidation hold is closed
+- independent review requested source changes at `6e0f744`; PR #67 remains
+  Draft and exact-target/durable-recovery remediation, re-review, staged-byte/
+  build integrity, product, and package gates still control merge/publication
 - filesystem sessions and disk-backed config writes are real architectural constraints
 - Google and Azure workflows are both important
 - outbreak-investigation workflows are the highest-value legacy surface to preserve

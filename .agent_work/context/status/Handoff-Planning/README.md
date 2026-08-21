@@ -41,12 +41,12 @@
   passed exact-head CI/CD run `32383065903` and Task-087 run `32383065959`,
   completing Task-101's remaining acceptance gate.
 - This governance update marks Task-101 complete and explicitly resumes
-  Task-087 from its preserved checkpoint. Task-087 is resumed /
-  governance-head-validation-pending: PR #67 remains open for reviewer input,
-  but no further
-  implementation proceeds until CI/CD and Task-087 workflows pass at the new
-  governance head. Merge to `main` and preview/candidate publication remain
-  behind Task-087's other applicable gates.
+  Task-087 from its preserved checkpoint. Lifecycle head `6e0f744` passed CI/CD
+  run `32385304086` and Task-087 run `32385304052`. Independent technical/
+  security review then requested source changes; Task-087 is active / review-
+  remediation-gated and PR #67 remains Draft. Exact-target/recovery remediation,
+  exact-head re-review, and preview/package gates remain before merge or
+  publication.
 - Existing Task-087 validation ZIPs remain nonpublishable.
 - Complete Task-100 production signing and representative managed-endpoint
   qualification in October after the unsigned package is satisfactory.
@@ -73,10 +73,13 @@ allows technical/security review and a separate normal-user unsigned preview-
 package path. Task-101's remediation, default-branch result, and checkpoint have
 passed, and reconciliation commit `946deaf` passed its exact-head matrix. This
 governance update completes Task-101 and explicitly resumes Task-087, but the
-new governance head must pass CI/CD and Task-087 workflows before further
-implementation. Task-087's remaining gates still control merge and publication;
-Task-100 signing and representative managed-endpoint qualification remain
-required before any signed-candidate or production claim.
+lifecycle head already passed its CI/CD and Task-087 workflows at `6e0f744`.
+The subsequent review-requested source changes are governed by
+[`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](../../../tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
+PR #67 remains Draft; implementation requires explicit approval, and Task-087's
+remaining gates still control merge/publication. Task-100 signing and
+representative managed-endpoint qualification remain required before any
+signed-candidate or production claim.
 
 ## Archived Planning And Release History
 

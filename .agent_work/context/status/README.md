@@ -20,11 +20,18 @@ Current navigation:
   Task-101 remediation/default-branch gate passed without exception or
   dismissal, and PR #67 reconciliation head `946deaf` passed exact-head CI/CD
   run `32383065903` plus Task-087 run `32383065959`. Task-101 is complete and
-  Task-087 is explicitly resumed, but no further implementation begins until
-  the lifecycle update's exact-head workflows pass. The next work is Task-087
-  technical/security review and a newly integrated normal-user preview package;
-  PR #67 merge and publication retain their separate applicable gates. Task-100
-  owns October signing and representative endpoint qualification.
+  Task-087 is explicitly resumed. Lifecycle head `6e0f744` passed CI/CD run
+  `32385304086` and Task-087 run `32385304052`. Independent technical/security
+  review then requested source changes, so Task-087 is active but review-
+  remediation-gated and PR #67 remains Draft. Source remediation and exact-head
+  re-review precede a newly integrated normal-user preview package; merge and
+  publication retain separate gates. Task-100 owns October signing and
+  representative endpoint qualification.
+- [`../../tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](../../tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md)
+  is the current exact-target, durable-recovery, Windows trust/filesystem, and
+  preview-integrity design checkpoint. The project lead approved Gate A
+  IMPLEMENT on August 21; live mutation and later artifact/release gates remain
+  separately controlled.
 - [`../../tasks/active/TASK-087/REVIEW-EVIDENCE-2026-08-05.md`](../../tasks/active/TASK-087/REVIEW-EVIDENCE-2026-08-05.md)
   is preserved as the historical preview-only static technical-review packet;
   it is not the current functional result.

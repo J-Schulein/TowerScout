@@ -91,9 +91,11 @@ squash-merged as `9276084`; exact-main runs `32377736719` and `32377736797`
 passed. The current-main integration is present in PR #67. Reconciliation
 commit `946deaf` then passed exact-head CI/CD run `32383065903` and Task-087 run
 `32383065959`, satisfying Task-101's final acceptance gate. This governance
-update records Task-101 complete and Task-087 explicitly resumed. The required
-rerun at the new governance head gates further Task-087 implementation; it does
-not reopen Task-101 or change ADR-019 and Task-100 boundaries.
+update records Task-101 complete and Task-087 explicitly resumed. Lifecycle
+head `6e0f744` subsequently passed CI/CD run `32385304086` and Task-087 run
+`32385304052`, closing the temporary downstream revalidation hold. The later
+Task-087 technical/security review-remediation gate does not reopen Task-101 or
+change ADR-019 and Task-100 boundaries.
 
 Review this decision when Puppeteer raises its Node minimum, TowerScout changes
 browser acquisition tooling, Node 22 leaves maintenance, or a new critical/high

@@ -1,13 +1,14 @@
 # Current Tasks - Sprint 09
 
 **Sprint Period**: August 8-August 21, 2026
-**Last Updated**: August 20, 2026
-**Focus**: Record Task-101 completion and explicitly resume Task-087 after Draft
-PR #67 reconciliation head `946deaf` passed its exact-head CI/CD and Task-087
-matrices. This lifecycle update must pass its own exact-head checks before new
-Task-087 work begins. Then continue technical/security review and unsigned
-preview-package integration under ADR-019; production signing remains Task-100
-work in October after the package is satisfactory.
+**Last Updated**: August 21, 2026
+**Focus**: Task-101 is complete and Task-087's lifecycle head `6e0f744` passed
+its exact-head CI/CD and Task-087 matrices. Independent technical/security
+review then requested source changes on Draft PR #67. Complete and approve the
+Task-087 remediation design, implement the source gate, obtain exact-head
+re-review, and only then continue unsigned preview-package integration under
+ADR-019. Production signing remains Task-100 work in October after the package
+is satisfactory.
 
 **Current Release State**:
 
@@ -20,9 +21,11 @@ work in October after the package is satisfactory.
   squash-merged as `0cc189c`. PR #73's checkpoint then squash-merged as
   `9276084` and passed exact-main checks. PR #67 reconciliation head `946deaf`
   then passed CI/CD run `32383065903` and Task-087 run `32383065959` with all
-  required jobs successful. Task-101 is complete, and this lifecycle update
-  explicitly resumes Task-087; new work waits for this update's exact-head
-  checks.
+  required jobs successful. Task-101 is complete. The lifecycle update
+  `6e0f744` then passed CI/CD run `32385304086` and Task-087 run `32385304052`.
+  Task-087 is active in Gate A IMPLEMENT under the project lead's August 21
+  approval after the independent source review requested changes; PR #67
+  remains Draft.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -128,13 +131,13 @@ Task-101 completion plus Task-087's explicit resume
 - Preserve the green PR #67 reconciliation evidence at `946deaf`: CI/CD run
   `32383065903` and Task-087 run `32383065959` passed with all required jobs
   successful.
-- This lifecycle update marks Task-101 complete and explicitly resumes
-  Task-087. Require this update's exact-head checks before new Task-087
-  implementation, PR merge, or preview/candidate-package work.
+- The lifecycle update marked Task-101 complete and explicitly resumed
+  Task-087. Exact-head CI/CD run `32385304086` and Task-087 run `32385304052`
+  passed at `6e0f744`; Task-101 has no remaining acceptance gate.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS / RESUMED - the exact-source `7ef879c`
+**Status**: IN_PROGRESS / IMPLEMENT - the exact-source `7ef879c`
 full-runnable CPU packages passed Docker and approved-provider Podman
 Google/Azure TLS repair plus controlled recovery. Follow-up head `3990bc0`
 closed provider-installer dependency drift with a hash-approved offline
@@ -142,11 +145,17 @@ wheelhouse, and head `5737a58` enforced the selected Windows rootless-Podman
 boundary without changing machine mode or volumes. PR #72 and alert `#76`
 default-branch reconciliation passed, and PR #67 head `946deaf` passed CI/CD
 run `32383065903` plus Task-087 run `32383065959`. Task-101 is complete, and
-this lifecycle update resumes Task-087 while preserving the evidence and
-ADR-019. New work waits for this update's exact-head checks.
+the lifecycle update resumed Task-087 while preserving the evidence and
+ADR-019. That exact lifecycle head `6e0f744` passed CI/CD run `32385304086` and
+Task-087 run `32385304052`. Independent technical/security review then
+requested source changes. On August 21, the project lead explicitly approved
+moving Task-087 to IMPLEMENT under the August 20 remediation design. Gate A
+source implementation is now active while PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: 1-2 days from the preserved PR #67 checkpoint
+**Remaining Estimate**: Rebaselined after review: approximately 6-10 focused
+implementation days plus live Windows/Docker/Podman validation and re-review
+timing; preview integration remains a later gate
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 
@@ -183,10 +192,24 @@ ADR-019. New work waits for this update's exact-head checks.
 - Keep all existing `Task-087-validation-*` packages validation-only. Build a
   new normal-user package for any `v0.1.3-preview.N` publication; do not rename
   or upload an existing validation ZIP.
-- Resume technical/security review and normal-user preview integration only
-  after this lifecycle update's exact-head CI/CD and Task-087 matrices pass.
-  PR #67 remains Draft, and no runtime, package, merge, or publication
-  acceptance is implied by the Task-101 gate alone.
+- Treat the August 20 external review as outside input rather than authority.
+  Independent inspection agrees that runtime/endpoint/Compose/target binding,
+  durable verified rollback, Windows-only trust selection, cross-session
+  locking, Windows file safety, staged-byte provenance, build-toolchain
+  integrity, and root `.env` backup handling require correction. Follow the
+  task-local
+  [`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
+- Keep source, preview, and signing gates separate. Findings 1-8 and the
+  source-level provider `.env` correction gate PR #67 source re-review;
+  staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked
+  Python 3.12 build gate a new validation artifact or unsigned preview;
+  Task-100 still owns production
+  signing and representative managed-endpoint qualification.
+- Preserve the existing no-helper/no-listener/no-PowerShell/no-admin boundary,
+  explicit Task-086 fallback, rootless-Podman-without-default-change boundary,
+  all eight named volumes, and normal OneDrive-compatible package behavior.
+  PR #67 remains Draft, and no merge, package, or publication acceptance is
+  implied by lifecycle checks or the design checkpoint.
 - Treat the August 19 decision as Proceed to unsigned preview integration under
   ADR-019. Signing, `v0.1.3-rc.N`, and representative managed-endpoint
   qualification belong to Task-100 in October after the satisfactory-package
@@ -228,24 +251,37 @@ ADR-019. New work waits for this update's exact-head checks.
    recorded ADR-019 proceed disposition during semantic reconciliation.
 5. [x] Require green checks at the new exact PR #67 head.
 6. [x] Explicitly resume Task-087 only after steps 4-5 pass.
-7. [ ] Require green checks on this Task-101 completion / Task-087 resume
-   lifecycle head before new Task-087 work.
-8. [ ] Continue technical/security review and integrate the launcher into a
-   new normal-user unsigned preview-package path with accurate manifests,
-   checksums, notices, and user guidance.
-9. [ ] Test each published `v0.1.3-preview.N` through the actual GitHub download
-   path on an approved unmanaged clean Windows machine without security
-   exclusions or bypass instructions.
-10. [ ] Keep production signing and representative managed-endpoint validation
-   scheduled as Task-100 after the ADR-019 satisfactory-package decision.
-11. [ ] Select Task-096 next, followed by Task-097. Keep Tasks 091-093 behind
+7. [x] Require green checks on the Task-101 completion / Task-087 resume
+   lifecycle head. At `6e0f744`, CI/CD run `32385304086` and Task-087 run
+   `32385304052` passed.
+8. [x] Validate the PR #67 technical/security remediation design through both
+   `.agent_work` validators, diff/link/sanitization checks, current upstream
+   toolchain review, and independent runtime/recovery/security-boundary audits.
+9. [x] Obtain explicit project-lead approval before IMPLEMENT; approval was
+   recorded August 21 for the August 20 remediation design.
+10. [ ] Implement the exact-target, trusted-runtime, Windows-trust, durable-
+   recovery, cross-session-lock, filesystem, and provider `.env` source gate;
+   run adversarial/local/live-isolated validation without reviving earlier
+   helper, bypass, admin, runtime-default, or volume-deletion paths.
+11. [ ] Require exact-head CI/Task-087 checks and independent technical/security
+    re-review before any PR #67 merge decision.
+12. [ ] Complete staged-byte/archive verification and the explicit hash-locked
+    Python 3.12 provenance-v2 build gate, then integrate a new normal-user
+    unsigned preview-package path with accurate manifests, checksums, notices,
+    and user guidance.
+13. [ ] Test each published `v0.1.3-preview.N` through the actual GitHub download
+    path on an approved unmanaged clean Windows machine without security
+    exclusions or bypass instructions.
+14. [ ] Keep production signing and representative managed-endpoint validation
+    scheduled as Task-100 after the ADR-019 satisfactory-package decision.
+15. [ ] Select Task-096 next, followed by Task-097. Keep Tasks 091-093 behind
     the stable unsigned package/runtime-shape boundary; Task-091 prepares the
     owner-runnable harness before Task-100.
 
 Task-058 and Task-059 remain conditional stretch work. Task-094 remains
-evidence-gated. Task-101 is completed, and Task-087 is resumed in tracking but
-waits for the lifecycle head's checks before new work. Task-099 and Task-101
-stay in `tasks/active/` until Sprint 09 closeout.
+evidence-gated. Task-101 is completed, and Task-087 is active in PR #67 Gate A
+IMPLEMENT. Task-099 and Task-101 stay in `tasks/active/` until
+Sprint 09 closeout.
 
 ---
 

@@ -126,6 +126,37 @@ Acceptance:
   as feedback evidence or contributes to package satisfaction. None of those
   actions claims managed-endpoint or production-signing acceptance.
 
+### REL-007: Staged-Byte And Preview Build Integrity
+
+WHEN the project assembles a new Task-087 validation artifact or unsigned
+normal-user preview, THE PROJECT SHALL derive provenance and publication
+metadata from the exact copied staged bytes and a constrained, hash-locked
+launcher build rather than from mutable pre-copy inputs.
+
+Acceptance:
+
+- Base-package and launcher inputs are copied into protected staging before
+  their authoritative identity, provenance, safety, and checksum checks run.
+- The staged directory, internal checksums, ZIP inventory/content, adjacent
+  archive sidecar, source identity, and launcher provenance agree before a
+  transactional output set becomes consumable. Final-destination bytes are
+  reopened/reverified, and consumers require one atomic public-safe commit
+  marker binding the relative names and hashes. A failed/crash-left set remains
+  uncommitted and is reconciled by exact transaction identity rather than a
+  glob. Unsafe, duplicate, normalization-conflicting, or case-colliding archive
+  members are rejected.
+- Launcher builds use an explicitly selected exact CPython 3.12 Windows AMD64
+  patch/artifact rather than a floating minor alias, a dedicated environment,
+  hash-locked reviewed wheels, disabled user-site injection, exact installed-
+  distribution verification, and provenance that binds the actual interpreter/
+  build inputs and complete output tree. The interpreter artifact requires an
+  explicit security/integrity disposition before use.
+- Historical provenance-v1 validation artifacts keep their historical meaning
+  but are not reused as new validation or preview output.
+- This unsigned-preview integrity gate does not replace Task-100's later
+  organization-controlled rebuild, signing/timestamping, post-sign manifests,
+  signature verification, or representative managed-endpoint qualification.
+
 ### SIGN-001: October Production Signing And Endpoint Qualification
 
 WHEN the project lead records that the unsigned normal-user package satisfies
@@ -201,6 +232,120 @@ Acceptance:
 - The August 19 Proceed-to-preview decision is recorded under ADR-019; Task-100
   owns signing and managed-endpoint qualification in October after package
   satisfaction.
+
+### TLS-002: Exact-Target Repair Authorization
+
+WHEN the visible launcher prepares a provider TLS repair, THE SYSTEM SHALL
+resolve and authenticate the complete runtime and mutation target before asking
+for confirmation, and SHALL reject any material identity change before a write
+or restart.
+
+Acceptance:
+
+- Runtime and Compose executables are resolved without current-directory or
+  ambient-PATH influence, authenticated through an approved integrity/publisher
+  policy that defines signature, publisher, timestamp, revocation/offline,
+  version, rollover, and hash rules, invoked by captured absolute identity, and
+  revalidated before use.
+- Child processes receive a minimal constructed environment. Ambient Docker,
+  Podman, Compose, proxy, and CA redirection settings cannot select another
+  executable, provider, daemon, context, connection, or trust source.
+- Runtime output is streamed under fixed byte/time limits and the verified
+  process tree is terminated on overflow/timeout; oversized certificate chains,
+  candidates, or generated bundles fail before retention or mutation.
+- Docker repair treats a context name as metadata and invokes the captured local
+  Windows named-pipe endpoint plus exact authenticated Compose executable.
+  Podman repair treats a connection name as metadata and invokes the configured
+  running local WSL machine through its captured loopback URI, identity key,
+  rootless user socket, exact Podman executable, and independently authenticated
+  Compose provider. Rootful, unknown, arbitrary remote, mutable-name-only, or
+  ambiguous targets fail before provider discovery or mutation, and TowerScout
+  never changes runtime defaults or machine mode.
+- The exact ordered Compose files and pre/post normalized models are bound to
+  both requested `off|auto|on` mode and the effective CPU/Docker-GPU/Podman-CDI
+  decision. Auto fallback and required-GPU failures preserve the existing
+  package contract. Unexpected services, build directives, bind or control-
+  socket mounts, privilege/namespace changes, ports, devices, configs, or
+  secrets fail closed.
+- Confirmation binds the actual container, immutable image ID/repository
+  digest, project/service, loopback port, config-volume mount, all eight named
+  engine-specific volume identities, fixed certificate destinations, selected
+  provider, and a privately held Windows-store CA fingerprint. The transition
+  plan permits a new container ID only after authorized stop/recreation and only
+  when every other bound identity matches.
+- The eight volumes remain non-external for supported first-run setup. A process
+  with independent authority over the bound Docker/Podman daemon is outside the
+  launcher threat boundary. If such a process removes or replaces a volume
+  between checks, terminal identity verification reports a mismatch, retains
+  protected recovery, and permits neither repair-success nor rollback-success.
+- Only the trust anchor must come from server-auth/all-purpose-eligible Windows
+  `ROOT`; server/Windows `CA` intermediates may build but never terminate the
+  chain. Partial-chain anchoring fails, only the chosen root is exported, and no
+  Windows trust-store mutation occurs.
+- The public confirmation is specific enough to authorize the bound plan while
+  exposing no local path, endpoint, key, environment content, or certificate
+  subject/fingerprint.
+
+### TLS-003: Durable Private Repair Recovery
+
+WHEN a confirmed repair can mutate certificate or environment state, THE
+SYSTEM SHALL durably arm exact-state rollback before the first mutation and
+SHALL preserve protected recovery data until success or rollback is
+independently verified.
+
+Acceptance:
+
+- A current-user/SYSTEM-only cross-session target lock prevents concurrent
+  mutation of the same verified endpoint/project/config volume without requiring
+  administrator privileges.
+- Repair and the external provider installer share a canonical cross-session
+  package/`.env` lock, acquired before the target lock, so neither overwrites the
+  other's edit; context/connection names and ambiguous string concatenation are
+  not lock authority.
+- Under that shared lock, both paths scan the protected state root for pending
+  repair and provider journals bound to the same package-parent/`.env` identity.
+  New mutation remains blocked until every applicable protocol is reconciled to
+  a safe terminal state, including after an abandoned mutex.
+- A versioned write-ahead journal and exact prior-state backups are stored under
+  Windows Known-Folder Local AppData with a protected DACL and current-user
+  DPAPI confidentiality/integrity after verifying that recovery root is on a
+  fixed local non-cloud/non-reparse volume; no plaintext durable recovery copy
+  of `.env`, CA, local identity, key, or raw runtime output is persisted.
+- Startup detects and idempotently resumes authenticated incomplete recovery
+  before enabling another repair. Failed restoration keeps its encrypted data
+  and reports recovery pending; it never deletes the only backup or claims the
+  repair failed safely.
+- Every certificate and `.env` restore/delete is checked for exact
+  content/absence, identity, security metadata, and target containment. An
+  unrelated post-failure user edit is never overwritten. Forward and rollback
+  plaintext temps each use durable planned, created-identity/DACL, and verified-
+  content substates so an abrupt process exit is unambiguously recoverable.
+- If the original container is absent, recovery restores the prior environment
+  and recreates the exact prior profile/image/volumes before certificate access;
+  failure to regain verified access preserves recovery data and never creates
+  an ad hoc volume helper or guesses a target.
+- Handle-based final-path, file-ID, reparse, hard-link, ownership, and DACL
+  checks detect drift and reject broad-principal/name-surrogate attacks while
+  permitting a stable supported OneDrive/cloud-resolved package location. The
+  boundary does not claim defense against a compromised current-user SID, a
+  current-user process with bound-daemon mutation authority,
+  administrator/SYSTEM, Windows trust policy, or accepted publisher.
+- Successful and verified-rollback paths require all eight named-volume
+  identities to match and never request `down -v`, `--volumes`, or volume
+  deletion. External replacement is detected and retained as recovery-pending,
+  not misreported as a completed repair or rollback.
+- The Podman Compose provider installer changes only
+  `PODMAN_COMPOSE_PROVIDER` through an equivalent protected atomic contract in
+  its existing external PowerShell/.NET implementation, verifies the final
+  bytes, and leaves no persistent whole-file plaintext root `.env`
+  backup or backup-path output. A protected metadata-only transaction record
+  identifies any interrupted private temp so the next invocation reconciles
+  old/candidate hashes and removes only that exact orphan identity. When `.env`
+  was absent, creation uses the authenticated package template and failure
+  returns to absence only if the transaction-created identity is unchanged;
+  unrelated concurrent files are never deleted.
+- Task-086 remains a separate manual/support fallback and is never invoked
+  automatically by recovery code.
 
 ### UX-EXIT-001: User-Initiated Stop
 
@@ -311,11 +456,13 @@ Current result:
   current `main` while preserving ADR-019 and the branch's recorded evidence;
   CI/CD run `32383065903` and Task-087 run `32383065959` passed with all
   required jobs successful.
-- Task-101 is complete, and this governance update explicitly resumes
-  Task-087. New Task-087 work waits for the lifecycle head's checks; PR #67
-  remains Draft, and source merge, unsigned-preview publication, and
-  signed-candidate publication retain their separate Task-087, ADR-019, and
-  Task-100 gates.
+- Task-101 is complete. The Task-087 lifecycle head `6e0f744` passed exact-head
+  CI/CD run `32385304086` and Task-087 run `32385304052`, so the temporary
+  governance revalidation hold is closed. Independent technical/security review
+  then requested source changes at that head. Task-087 remains active but
+  remediation-gated; PR #67 stays Draft, and source merge, unsigned-preview
+  publication, and signed-candidate publication retain their separate Task-087,
+  ADR-019, and Task-100 gates.
 
 ## Qualification And Handoff Requirements
 

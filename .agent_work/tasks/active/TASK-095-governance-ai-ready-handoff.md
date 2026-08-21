@@ -79,6 +79,57 @@ optional AI-assisted development.
 
 ## Implementation Log
 
+### 2026-08-21 - Task-087 IMPLEMENT Approval Recorded
+
+**Objective**: Keep the handoff state synchronized with the project lead's
+explicit approval of the August 20 Task-087 remediation design.
+
+**Decision**: Task-087 is now in IMPLEMENT for Gate A source remediation. PR
+#67 remains Draft; Gate B unsigned-preview integrity and Task-100 production
+signing/managed-endpoint qualification remain separate later gates.
+
+**Execution**: Updated live task/governance guidance before production-source
+edits. No package, runtime, release, Pilot, or cdcai state is changed by this
+approval record.
+
+**Validation**: Pending with the bounded design-checkpoint validation and
+subsequent implementation increments.
+
+**Next**: Track Gate A source implementation, exact-head validation, and
+independent re-review without broadening the approved scope.
+
+### 2026-08-20 - PR #67 Technical/Security Remediation Design Checkpoint
+
+**Objective**: Convert the outside PR #67 review into a bounded, independently
+verified remediation plan without treating the review as authoritative or
+changing production code before design approval.
+
+**Context**: Lifecycle head `6e0f744` passed CI/CD run `32385304086` and
+Task-087 run `32385304052`. Independent inspection confirmed material source
+gaps while preserving the distinction between current source/preview work and
+Task-100's later production signing and managed-endpoint qualification.
+
+**Decision**: Gate Task-087 on explicit approval of the exact-target, trusted-
+runtime, Windows-only trust, durable recovery, cross-session locking, safe-
+filesystem, staged-byte, and build-integrity design. Keep PR #67 Draft and keep
+signing, timestamping, post-sign manifests, and representative managed-endpoint
+qualification in Task-100.
+
+**Execution**: Added the task-local remediation design and reconciled current
+requirements, design, task, roadmap, handoff, decision, backlog, and agent-
+guidance sources. Recorded only the outside review's SHA-256 and sanitized
+dispositions; no external local path, raw review content, production source,
+package, runtime, PR, release, frozen-pilot, or cdcai state changed.
+
+**Validation**: PASS. Both `.agent_work` validators, `git diff --check`, changed-
+file link resolution, conflict/sanitization scans, current upstream Python 3.12
+review, and independent runtime, recovery/filesystem, and governance/security-
+boundary audits found no remaining design blocker. This checkpoint makes no
+implementation or live-runtime claim.
+
+**Next**: Present the validated design to the project lead and obtain explicit
+approval before Task-087 moves to IMPLEMENT.
+
 ### 2026-08-20 - Task-101 Completed; Task-087 Resumed
 
 **Objective**: Record the canonical lifecycle transition after the reconciled

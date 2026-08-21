@@ -1,6 +1,6 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS / RESUMED - the `7ef879c` exact-source
+**Status**: IN_PROGRESS / IMPLEMENT - the `7ef879c` exact-source
 full-runnable CPU packages
 passed Docker and approved-provider Podman Google/Azure TLS repair plus
 controlled recovery. Follow-up head `3990bc0` closes the Podman-provider
@@ -10,15 +10,19 @@ machine, container, or volume mutation. The August 19 disposition is Proceed
 to unsigned preview integration. Current `main` through PR #73 / `9276084` is
 integrated into Draft PR #67 while preserving that evidence and ADR-019.
 Reconciliation head `946deaf` passed CI/CD run `32383065903` and Task-087 run
-`32383065959`; Task-101 is complete, and this lifecycle update resumes Task-087.
-No new implementation begins until this lifecycle head's checks pass. PR #67
-merge and publication remain behind that hold plus their separate applicable
-gates. Signing and representative managed-endpoint validation remain Task-100
-work in October
+`32383065959`; Task-101 is complete, and lifecycle head `6e0f744` passed CI/CD
+run `32385304086` plus Task-087 run `32385304052`. Independent technical/
+security review then requested source changes at `6e0f744`. On August 21, the
+project lead explicitly approved IMPLEMENT under the August 20 remediation
+design; Gate A source work is active. PR #67 remains Draft, and merge/
+publication retain their separate
+applicable gates. Signing and
+representative managed-endpoint validation remain Task-100 work in October
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Complete review and preview integration in Sprint 09;
-production signing is separately estimated under Task-100
+**Estimated Effort**: Rebaselined after review to approximately 6-10 focused
+implementation days plus live Windows/Docker/Podman validation and re-review;
+preview integration follows, and production signing remains Task-100 work
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
 and the canonical October roadmap
 **Created**: 2026-06-29
@@ -36,9 +40,9 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current implementation checkpoint is `5737a58`, built on the then-current
-`main`
-commit `3932abf`. Its exact-source full-runnable Podman CPU package enforces the
+The current reviewed PR head is `6e0f744`. The accepted functional implementation
+checkpoint remains `5737a58`, built on then-current `main` commit `3932abf`.
+Its exact-source full-runnable Podman CPU package enforces the
 selected rootless Windows boundary and rejected rootful mode before provider
 discovery or container mutation. Checkpoint `3990bc0` remains the accepted
 fresh provider-install/setup/recovery evidence, and the `7ef879c` packages
@@ -47,6 +51,38 @@ remain the accepted exact-head Google/Azure repair evidence. The older
 reused as the final artifact. No validation artifact is a release candidate,
 preview release, merge signal, or substitute for Task-100's signed
 representative managed-endpoint gate.
+
+## August 20, 2026 PR #67 Technical/Security Review Override
+
+This override controls current work after the lifecycle revalidation hold
+closed:
+
+- Exact lifecycle head `6e0f744` passed CI/CD run `32385304086` and Task-087 run
+  `32385304052`; the prior governance hold is complete.
+- An external 333-line inspect-only review of that exact head requested changes.
+  Its SHA-256 is
+  `f2f116573ae5b90b122b4275514b49216cdfac354eba43ef192ff541a2d6f253`.
+  The review is outside perspective, not authority; every finding was checked
+  independently against source.
+- Independent inspection agrees that the source must correct mutable runtime/
+  endpoint/Compose identity, incomplete pre-confirmation target binding,
+  best-effort rollback, process-only recovery, mixed Windows/OpenSSL trust,
+  missing native rootless-Podman binding, session-local serialization, and
+  unsafe Windows staging/`.env` replacement before source acceptance.
+- Staged-copy/archive integrity and an explicitly approved exact-patch/hash-
+  locked Python 3.12 provenance-v2 build are separate pre-artifact/unsigned-
+  preview gates. Later
+  production signing, timestamping, post-sign manifests, and representative
+  managed-endpoint qualification remain Task-100; signing does not repair the
+  current source gaps.
+- The controlling design is
+  [`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
+  This checkpoint changed no production source or runtime state. The project
+  lead supplied the required IMPLEMENT approval on August 21, 2026.
+- Keep PR #67 Draft and preserve Task-086, the visible no-helper launcher, no
+  listener/PowerShell/bypass/admin path, explicit rootless Podman without
+  changing defaults, stable OneDrive-compatible package locations, all eight
+  named volumes, and the ADR-019/Task-100 release boundaries.
 
 ## August 20, 2026 Exact-Head Resume Override
 
@@ -1167,7 +1203,51 @@ Exit criteria:
 - Task evidence records sanitized outcomes only.
 - Gate 4 passes.
 
-## Acceptance Criteria
+## Current PR #67 Remediation Acceptance Criteria
+
+- [ ] The launcher authenticates and leases exact runtime/Compose executable
+  identities, constructs a minimal environment, and executes against one
+  captured local Docker named-pipe endpoint or configured local rootless Podman
+  URI/identity key plus directly invoked authenticated provider. Context/
+  connection names are metadata only, and user defaults remain unchanged.
+- [ ] Before confirmation, the transaction binds the normalized pre/post Compose
+  model, actual container/image, config mount, all eight engine-specific named-
+  volume identities, requested/effective GPU profile, provider, fixed
+  certificate destinations, and private Windows-store CA identity; every
+  material identity is revalidated against its stage-specific transition rule
+  before mutation/restart.
+- [ ] The existing non-external volumes retain normal first-run behavior, while
+  removal/replacement by an independently daemon-authorized actor is detected at
+  terminal verification and can never be reported as repair or rollback success.
+- [ ] CA selection uses only server-auth-eligible Windows trust records and
+  requires the trust anchor to match Windows `ROOT`; server/Windows `CA`
+  intermediates cannot anchor, OpenSSL defaults/process CA variables cannot add
+  a candidate, and only the selected root enters the container.
+- [ ] Protected shared `.env` and target locks plus DPAPI-protected write-ahead
+  journals survive process termination, cross-check pending launcher/provider
+  transactions, and support strict, checked, idempotent fresh-process rollback
+  without deleting an unverified backup.
+- [ ] Windows handle/file-ID/reparse/DACL controls and ACL-preserving atomic
+  `.env` replacement detect drift and reject unsafe leaf indirection/broad-
+  principal writes while retaining stable supported OneDrive/cloud paths; they
+  do not claim defense against a compromised current-user SID, a current-user
+  process with daemon mutation authority, or administrator/SYSTEM.
+- [ ] The Podman provider installer leaves no persistent plaintext whole-file
+  root `.env` backup or backup-path output and preserves every unrelated byte.
+- [ ] Validation/package assemblers derive identity from copied staged bytes and
+  independently cross-check final directory, internal checksums, ZIP, sidecar,
+  and an atomic final commit marker before any output set is consumable.
+- [ ] New launcher artifacts use an explicitly approved exact-patch/hash-locked
+  Python 3.12 build and provenance v2; organization-controlled signing remains
+  Task-100.
+- [ ] Adversarial/fresh-process tests, isolated Docker and approved-rootless-
+  Podman recovery, OneDrive/cross-session Windows proofs, exact-head workflows,
+  and independent source re-review pass without helper, bypass, admin,
+  runtime-default, volume-deletion, or sensitive-output regressions.
+- [ ] PR #67 remains Draft until the project explicitly accepts its remaining
+  source/release gates; no existing validation ZIP is promoted or published.
+
+## Acceptance Criteria (Historical Dormant-Helper Plan)
 
 - When Google provider validation fails with a repairable TLS certificate trust
   category and the helper is available, Setup Wizard shows a guided repair and
@@ -1267,6 +1347,68 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-21 - Remediation Design Approved For IMPLEMENT
+
+**Objective**: Enter Gate A implementation only after the independently audited
+August 20 remediation design received explicit project-lead authorization.
+
+**Context**: The design checkpoint passed both `.agent_work` validators,
+`git diff --check`, link/sanitization checks, and independent runtime-target,
+recovery/filesystem, and security-boundary reviews. Lifecycle head `6e0f744`
+remains the pre-implementation baseline.
+
+**Decision**: The project lead explicitly approved moving Task-087 to
+IMPLEMENT under
+[`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
+Implement Gate A dependency-first. Keep PR #67 Draft, preserve Task-086 and all
+no-helper/no-PowerShell/no-admin/no-default-change/no-volume-delete boundaries,
+and leave Gate B preview integrity plus Task-100 signing outside this approval.
+
+**Execution**: Approval is recorded before production-source edits. No live
+Docker/Podman mutation is authorized until the implementation reaches its
+isolated runtime-validation step and the running-engine scope is reconfirmed.
+
+**Validation**: Pending for implementation increments; the approved design
+checkpoint remains the controlling specification.
+
+**Next**: Add failing adversarial contracts, then implement immutable runtime
+identity and exact-target resolution before durable recovery and provider
+`.env` transaction changes.
+
+### 2026-08-20 - PR #67 Review Findings Independently Triaged And Designed
+
+**Objective**: Convert the outside technical/security review into a verified,
+bounded Task-087 remediation design before any production implementation.
+
+**Context**: Lifecycle head `6e0f744` passed exact-head CI/CD run `32385304086`
+and Task-087 run `32385304052`. The subsequent inspect-only review requested
+changes and correctly focused on source/runtime safety rather than treating the
+absence of future Task-100 signing as the present defect.
+
+**Decision**: Accept the independently confirmed source cores of Findings 1-8,
+require the low-severity provider `.env` correction before normal use, and place
+staged-byte/toolchain Findings 9-10 at the next-artifact/unsigned-preview gate.
+Keep organization-controlled signing and representative managed-endpoint
+qualification in Task-100. Use proof-first implementation for Windows security
+and endpoint seams so the correction does not recreate earlier helper,
+PowerShell, admin, runtime-switching, OneDrive, or volume-loss problems.
+
+**Execution**: Added the task-local exact-target, trusted-runtime, Windows-only
+trust, durable recovery, cross-session locking, filesystem, package provenance,
+build-integrity, error-matrix, implementation, and validation design. Updated
+canonical requirements, design, and task trackers only; no production source,
+package, runtime, PR, release, or cdcai state changed.
+
+**Validation**: PASS. The quick and canonical `.agent_work` validators,
+`git diff --check`, changed-file link resolution, conflict/sanitization scans,
+and independent runtime-target, crash-recovery/filesystem, and governance/
+security-boundary audits found no remaining design blocker. The Python 3.12
+artifact boundary was also refreshed against the current official 3.12.14
+security release. No executable or live-runtime result is claimed by this
+design entry.
+
+**Next**: Superseded by the August 21 approval entry above.
 
 ### 2026-08-20 - Exact-Head Gate Passed; Task-087 Resumed
 

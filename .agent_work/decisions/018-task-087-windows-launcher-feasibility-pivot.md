@@ -54,6 +54,20 @@ authorize publication of an existing validation-only ZIP, and does not change
 the cdcai hold. Current release sequencing is defined by
 [`ADR-019`](./019-unsigned-preview-and-october-production-signing.md).
 
+### August 20 Technical/Security Review Clarification
+
+Independent review of Draft PR #67 at exact head `6e0f744` requested source
+changes after that head's required workflows passed. The Proceed disposition and
+visible launcher choice remain valid, but source acceptance now requires the
+exact-target, authenticated-runtime/endpoint, Windows-store-only trust, durable
+verified recovery, cross-session locking, and Windows filesystem controls in
+[`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](../tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
+
+This clarification strengthens the existing fixed-target/transactional
+prototype boundary. It does not authorize the dormant helper, add PowerShell or
+administrator requirements, change runtime defaults, delete volumes, invalidate
+historical exact-byte evidence, or move production signing out of Task-100.
+
 ## Prototype Boundary
 
 The prototype may implement a thin end-to-end pathway in one selected and

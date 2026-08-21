@@ -1,15 +1,16 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: August 20, 2026
+**Last Updated**: August 21, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases until the
 normal-user package is satisfactory, then complete Task-100 production signing
 and managed-endpoint qualification in October. Task-099's scoped August gate
-and Task-101's full dependency/reconciliation gate passed: PR #67 head
-`946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959`.
-Task-101 is complete, and Task-087 is explicitly resumed; new work waits for
-the lifecycle update's exact-head checks. Required release and handoff work
-takes priority over Task-058/059 stretch work.
+and Task-101's full dependency/reconciliation gate passed. Task-087 lifecycle
+head `6e0f744` then passed CI/CD run `32385304086` and Task-087 run
+`32385304052`. Task-101 is complete. Task-087 is active but source-review-
+remediation-gated after independent technical/security review requested changes
+on Draft PR #67; source remediation/re-review precedes preview integration.
+Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
 
 ---
@@ -143,7 +144,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / resumed; PR #67 remains Draft and open for review, while new implementation and preview integration wait for the lifecycle update's exact-head checks and later merge/publication gates remain separate |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT; lifecycle head `6e0f744` is green, the August 20 remediation design passed static and independent audits, and the project lead approved IMPLEMENT on August 21. PR #67 remains Draft through Gate A remediation and exact-head re-review; preview/Task-100 gates remain separate |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---
@@ -152,6 +153,7 @@ Parking lot:
 
 | Date | Control |
 | --- | --- |
+| August 20 | Task-087 lifecycle head `6e0f744` passed CI/CD run `32385304086` and Task-087 run `32385304052`; independent PR #67 technical/security review requested changes, so exact-target/recovery source remediation and re-review are now the active gate |
 | August 20 | PR #67 reconciliation head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959`; Task-101 completion and Task-087 resume are recorded, with lifecycle-head checks next |
 | August 20 | PR #72/default-branch security gates recorded as passed; PR #67 semantic reconciliation became the next Task-101 gate |
 | August 19 | Task-087 Proceed-to-unsigned-preview decision recorded; production signing assigned to Task-100 |

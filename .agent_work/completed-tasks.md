@@ -35,7 +35,9 @@ Key outcomes:
   reconciliation head `946deaf`, with all required jobs successful.
 - Explicitly resumed Task-087 through a separate lifecycle update without
   claiming PR merge, package, preview, candidate, runtime, or managed-endpoint
-  acceptance. That lifecycle head must pass before new Task-087 work.
+  acceptance. Lifecycle head `6e0f744` passed CI/CD run `32385304086` and
+  Task-087 run `32385304052`; later Task-087 review remediation is tracked
+  separately and does not reopen Task-101.
 
 ### TASK-099: August Dependency Advisory Follow-Up
 

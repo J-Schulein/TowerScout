@@ -1,7 +1,7 @@
 # TowerScout Pilot Feedback And cdcai Adoption Plan
 
 **Decision Date**: July 10, 2026; rebaselined July 23, 2026
-**Last Reconciled**: August 20, 2026
+**Last Reconciled**: August 21, 2026
 **Status**: CURRENT for the Pilot Package and cdcai hold
 **Forward Development Plan**:
 [`2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md`](./2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md)
@@ -76,10 +76,12 @@ controlled recovery. Follow-up evidence closes the hash-pinned Podman provider
 installer gap and enforces the selected Windows rootless-Podman boundary while
 failing closed before mutation in rootful mode. These artifacts remain
 validation-only and cannot be renamed or published. Under the August 19
-ADR-019 decision, the next work after the governance-transition head passes is
-technical/security review and a newly integrated normal-user unsigned preview
-package. Task-100 owns production signing and representative managed-endpoint
-validation in October after that package is satisfactory. See the current
+ADR-019 decision, lifecycle head `6e0f744` passed its required workflows and
+independent technical/security review then requested source changes. Exact-
+target/recovery remediation and re-review now precede a newly integrated normal-
+user unsigned preview package. Task-100 owns production signing and
+representative managed-endpoint validation in October after that package is
+satisfactory. See the current
 sanitized
 [`Task-087 full-package validation record`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
 
@@ -100,10 +102,12 @@ Draft PR #67 while preserving ADR-019 and the branch's recorded evidence.
 Reconciliation commit `946deaf` then passed exact-head CI/CD run `32383065903`
 and Task-087 run `32383065959`, satisfying Task-101's remaining acceptance gate.
 This governance update marks Task-101 complete and explicitly resumes Task-087
-from its preserved checkpoint. Task-087's evidence remains valid and reviewer
-input may continue, but no further implementation proceeds until CI/CD and
-Task-087 workflows pass at the new governance head. PR #67 merge to `main` and
-preview/candidate publication remain behind Task-087's other applicable gates.
+from its preserved checkpoint. Lifecycle head `6e0f744` passed CI/CD run
+`32385304086` and Task-087 run `32385304052`. Task-087's historical evidence
+remains valid, but independent review requested source changes at that head.
+Task-087 entered Gate A IMPLEMENT with explicit project-lead approval on
+August 21; PR #67 merge to `main` and preview/candidate publication remain
+behind source re-review and the other applicable gates.
 
 ## Release Naming Boundary
 
@@ -123,7 +127,8 @@ Task-089 remains blocked until:
 1. Pilot feedback and candidate findings are reviewed.
 2. Required four-profile qualification passes.
 3. Task-101 remains complete after its green PR #67 reconciliation gate.
-4. Task-087's governance-transition head and remaining applicable gates pass.
+4. Task-087's review-requested source remediation, exact-head re-review, and
+   remaining applicable gates pass.
 5. Task-100 production signing and representative managed-endpoint
    qualification pass.
 6. The project lead and cdcai owner qualify the final signed candidate.
@@ -136,9 +141,9 @@ backlog, and migration-ready handoff without changing cdcai.
 
 ## Task Ownership
 
-- Task-087: resumed guided Google/Azure application-provider TLS repair on
-  Docker and Podman; governance-head validation is pending before further
-  implementation.
+- Task-087: active / IMPLEMENT guided Google/Azure application-provider TLS
+  repair on Docker and Podman; the August 21 approval authorizes Gate A work
+  under the exact-target/durable-recovery design before exact-head re-review.
 - Task-088: completed Pilot Package distribution and custody.
 - Task-089: owner-gated cdcai adoption and ownership transfer.
 - Task-090: completed bounded runtime/custom-image/dependency security
