@@ -1348,6 +1348,55 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-08-21 - Gate A Fail-Closed Identity And Plan Foundation
+
+**Objective**: Establish the first implementation foundation without exposing
+an executable repair or changing any Docker, Podman, provider, trust, package,
+or user configuration state.
+
+**Context**: The approved remediation design requires each proof increment to
+remain non-mutating until exact-target resolution, trusted runtime/provider
+selection, Windows trust and filesystem controls, cross-session locking, and
+durable recovery are complete. The remote PR #67 source remains at approved
+design head `ae6342e`; subsequent source checkpoints require separate push
+authorization.
+
+**Execution**: Local commit `7ad221d` changes the application's default repair
+coordinator to `mutation_enabled=False` and adds immutable exact-target/public-
+confirmation contracts. The follow-on local checkpoint adds plan-only fixed
+read operations for exact Docker and rootless-Podman endpoints, authenticated
+Compose/environment inputs and minimal child environments, read-only Windows
+handle/file-ID/hash primitives, canonical environment/repair mutex names, and
+an unintegrated pure policy for selecting one exact eligible Windows ROOT from
+already-native-verified chain candidates. Adversarial review fixes include
+endpoint/connection override rejection, exact package-root Compose paths,
+container/image and eight-volume identity binding, no implicit `.env`
+discovery, deep tuple/type immutability, same-leaf trust snapshots, distinct-
+root ambiguity rejection, and sanitized type-confusion failures.
+
+**Validation**: The exact target/runtime suite passed 67 tests. The final broad
+Python 3.12 unit run produced 504 passes and 74 documented platform/asset skips;
+its only failure was an unrelated transient Waitress loopback reset, and that
+exact test passed immediately on isolated rerun. The native hardlink/write-
+sharing proof passed outside the sandbox. Scoped Black, fatal flake8,
+`git diff --check`, both `.agent_work` validators, and independent target/
+runtime, Windows-security, and trust-policy reviews pass. Scoped Bandit reports
+no medium/high issue; its two low findings are false positives on dataclass
+target-token serialization flags.
+
+**Decision**: Accept this as an inert local foundation only. It does not close
+Gate A, resolve the Reviewer's findings, authorize live repair, or establish a
+native Windows trust result. The default mutation path remains disabled, no
+process executor consumes the plans, and no new commit from this checkpoint is
+pushed.
+
+**Next**: Continue with authenticated runtime/provider policy and import proof,
+Windows ACL/owner/ancestor containment and secured mutex acquisition, then the
+native Windows trust verifier and durable DPAPI journal/atomic recovery. Keep
+provider `.env` hardening, executor wiring, live isolated runtime validation,
+independent re-review, Gate B artifacts, and Task-100 signing behind their
+existing gates.
+
 ### 2026-08-21 - Remediation Design Approved For IMPLEMENT
 
 **Objective**: Enter Gate A implementation only after the independently audited

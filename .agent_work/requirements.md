@@ -326,7 +326,11 @@ Acceptance:
   an ad hoc volume helper or guesses a target.
 - Handle-based final-path, file-ID, reparse, hard-link, ownership, and DACL
   checks detect drift and reject broad-principal/name-surrogate attacks while
-  permitting a stable supported OneDrive/cloud-resolved package location. The
+  permitting a stable supported OneDrive/cloud-resolved package location.
+  Mutable configuration and sensitive-data leaves must be single-link. A
+  legitimate vendor-executable hard link is eligible only while a held handle
+  denies write/delete sharing and its exact file identity, content hash, and
+  accepted Authenticode result remain stable. The
   boundary does not claim defense against a compromised current-user SID, a
   current-user process with bound-daemon mutation authority,
   administrator/SYSTEM, Windows trust policy, or accepted publisher.

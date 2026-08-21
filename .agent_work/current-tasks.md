@@ -199,6 +199,16 @@ timing; preview integration remains a later gate
   integrity, and root `.env` backup handling require correction. Follow the
   task-local
   [`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
+- The first local Gate A increment is intentionally inert. Local commit
+  `7ad221d` disables the default application mutation path and adds immutable
+  target contracts; the follow-on local checkpoint adds fixed read-only
+  Docker/Podman command plans, handle-bound Windows file identity primitives,
+  canonical mutex-name derivation, and a pure Windows-root selection policy.
+  Focused and broad unit/static checks plus three independent scoped reviews
+  pass. No new source checkpoint has been pushed, no process executor or native
+  trust verifier is wired, and mutation remains disabled while runtime policy,
+  provider import proof, ACL/mutex/journal/recovery, and `.env` transaction work
+  remain open.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

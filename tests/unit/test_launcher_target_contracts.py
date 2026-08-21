@@ -15,6 +15,7 @@ if str(LAUNCHER_ROOT) not in sys.path:
 
 from towerscout_launcher.models import PackageIdentity  # noqa: E402
 from towerscout_launcher.target_contracts import (  # noqa: E402
+    ABSENT_FILE_SHA256,
     EXPECTED_VOLUME_DESTINATIONS,
     AccelerationPlan,
     CertificateIdentity,
@@ -34,6 +35,7 @@ from towerscout_launcher.target_contracts import (  # noqa: E402
     RuntimeIdentity,
     RuntimeProduct,
     VolumeIdentity,
+    WindowsProcessEnvironment,
     encode_target_token,
 )
 
@@ -66,6 +68,19 @@ def _file(logical_name: str, path: str, marker: int) -> FileIdentity:
 def _target() -> ResolvedRepairTarget:
     private_root = r"C:\Users\PATH-SECRET\TowerScout"
     package_root = _directory("package_root", private_root, 1)
+    process_environment = WindowsProcessEnvironment(
+        system_root=_directory("system_root", r"C:\Windows", 50),
+        temp_directory=_directory(
+            "temp_directory", r"C:\Users\PATH-SECRET\AppData\Local\Temp", 51
+        ),
+        user_profile=_directory("user_profile", r"C:\Users\PATH-SECRET", 52),
+        local_app_data=_directory(
+            "local_app_data", r"C:\Users\PATH-SECRET\AppData\Local", 53
+        ),
+        roaming_app_data=_directory(
+            "roaming_app_data", r"C:\Users\PATH-SECRET\AppData\Roaming", 54
+        ),
+    )
     runtime_file = _file(
         "docker.exe",
         r"C:\Program Files\Docker\RUNTIME-PATH-SECRET\docker.exe",
@@ -87,6 +102,7 @@ def _target() -> ResolvedRepairTarget:
         kind=EndpointKind.DOCKER_NAMED_PIPE,
         canonical_endpoint="npipe:////./pipe/ENDPOINT-SECRET",
         private_metadata_sha256=_digest("DAEMON-SECRET" + docker_config.sha256),
+        discovery_artifacts=(docker_config,),
     )
     compose_executable = _file(
         "docker-compose.exe",
@@ -106,17 +122,24 @@ def _target() -> ResolvedRepairTarget:
         5,
     )
     environment_secret = "PROVIDER_KEY=ENVIRONMENT-SECRET"
+    environment_file = replace(
+        _file(".env", private_root + r"\.env", 6),
+        sha256=_digest(environment_secret),
+    )
     compose = ComposePlan(
         ordered_files=(compose_file,),
         environment_sha256=_digest(environment_secret),
         planned_environment_sha256=_digest(environment_secret + "-planned"),
         pre_model_sha256=_digest("pre-model"),
         post_model_sha256=_digest("post-model"),
+        environment_source=environment_file,
+        environment_file=environment_file,
     )
     image = ImageIdentity(
         configured_reference="private.registry.invalid/IMAGE-SECRET@sha256:" + "a" * 64,
         pinned_digest="sha256:" + "a" * 64,
         repository_digest=("private.registry.invalid/towerscout@sha256:" + "a" * 64),
+        daemon_image_id="sha256:" + "b" * 64,
         private_inspect_sha256=_digest("image-inspect"),
     )
     container = ContainerIdentity(
@@ -145,6 +168,7 @@ def _target() -> ResolvedRepairTarget:
     )
     return ResolvedRepairTarget(
         package_root=package_root,
+        process_environment=process_environment,
         release_identity="v0.1.3-rc.test",
         runtime=runtime,
         endpoint=endpoint,
@@ -192,6 +216,43 @@ def test_each_hidden_target_identity_change_changes_the_full_token() -> None:
                     target.runtime.executable,
                     sha256=_digest("changed-runtime"),
                 ),
+            ),
+        ),
+        replace(
+            target,
+            process_environment=replace(
+                target.process_environment,
+                temp_directory=replace(
+                    target.process_environment.temp_directory,
+                    final_path=Path(r"C:\Users\OTHER\AppData\Local\Temp"),
+                ),
+            ),
+        ),
+        replace(
+            target,
+            endpoint=replace(
+                target.endpoint,
+                discovery_artifacts=(
+                    replace(
+                        target.endpoint.discovery_artifacts[0],
+                        final_path=Path(r"C:\Users\OTHER\.docker\contexts\meta.json"),
+                    ),
+                ),
+            ),
+        ),
+        replace(
+            target,
+            compose=replace(
+                target.compose,
+                environment_file=replace(
+                    target.compose.environment_file,
+                    sha256=_digest("changed-environment"),
+                ),
+                environment_source=replace(
+                    target.compose.environment_source,
+                    sha256=_digest("changed-environment"),
+                ),
+                environment_sha256=_digest("changed-environment"),
             ),
         ),
         replace(
@@ -314,7 +375,6 @@ def test_target_rejects_compose_binding_for_another_runtime() -> None:
     target = _target()
     podman_binding = replace(
         target.compose_provider,
-        invocation_kind=ComposeInvocationKind.PODMAN_PYTHON_MODULE,
         endpoint_binding=EndpointBindingKind.PODMAN_CONTAINER_HOST_ENVIRONMENT,
     )
 
@@ -386,6 +446,41 @@ def test_target_rejects_unpinned_or_inconsistent_image_digests() -> None:
             target.image,
             repository_digest="private.registry.invalid/towerscout@sha256:" + "e" * 64,
         )
+    with pytest.raises(ValueError, match="Container and inspected image"):
+        replace(
+            target,
+            container=replace(target.container, daemon_image_id="sha256:" + "e" * 64),
+        )
+
+
+def test_target_rejects_compose_inputs_or_environment_source_outside_package() -> None:
+    target = _target()
+
+    with pytest.raises(ValueError, match="Compose inputs are outside"):
+        replace(
+            target,
+            compose=replace(
+                target.compose,
+                ordered_files=(
+                    replace(
+                        target.compose.ordered_files[0],
+                        final_path=Path(r"C:\Attacker\compose.yaml"),
+                    ),
+                ),
+            ),
+        )
+    with pytest.raises(ValueError, match="environment source is outside"):
+        replace(
+            target,
+            compose=replace(
+                target.compose,
+                environment_file=None,
+                environment_sha256=ABSENT_FILE_SHA256,
+                environment_source=_file(
+                    ".env.example", r"C:\Attacker\.env.example", 43
+                ),
+            ),
+        )
 
 
 def test_target_rejects_duplicate_runtime_volume_names() -> None:
@@ -399,6 +494,31 @@ def test_target_rejects_duplicate_runtime_volume_names() -> None:
         replace(target, volumes=(target.volumes[0], duplicate, *target.volumes[2:]))
 
 
+def test_security_bearing_collections_reject_tuple_subclasses() -> None:
+    class HostileTuple(tuple):
+        pass
+
+    target = _target()
+
+    with pytest.raises(ValueError, match="Endpoint artifacts are invalid"):
+        replace(
+            target.endpoint,
+            discovery_artifacts=HostileTuple(target.endpoint.discovery_artifacts),
+        )
+    with pytest.raises(ValueError, match="Compose provider artifacts are invalid"):
+        replace(
+            target.compose_provider,
+            artifacts=HostileTuple(target.compose_provider.artifacts),
+        )
+    with pytest.raises(ValueError, match="Compose input identities are invalid"):
+        replace(
+            target.compose,
+            ordered_files=HostileTuple(target.compose.ordered_files),
+        )
+    with pytest.raises(ValueError, match="Runtime volume identities are invalid"):
+        replace(target, volumes=HostileTuple(target.volumes))
+
+
 def test_file_identity_rejects_relative_paths() -> None:
     with pytest.raises(ValueError, match="absolute"):
         _file("relative", "relative/path.exe", 99)
@@ -406,6 +526,11 @@ def test_file_identity_rejects_relative_paths() -> None:
 
 def test_endpoint_identity_rejects_remote_or_root_podman_targets() -> None:
     target = _target()
+    identity_key = _file(
+        "podman_identity_key",
+        r"C:\Users\PATH-SECRET\.local\share\containers\podman\machine\key",
+        40,
+    )
 
     with pytest.raises(ValueError, match="local named pipe"):
         replace(target.endpoint, canonical_endpoint="tcp://remote.invalid:2375")
@@ -420,11 +545,17 @@ def test_endpoint_identity_rejects_remote_or_root_podman_targets() -> None:
                 kind=EndpointKind.PODMAN_ROOTLESS_WSL,
                 canonical_endpoint=endpoint,
                 private_metadata_sha256=_digest("podman-endpoint"),
+                identity_key=identity_key,
                 rootless=True,
             )
 
 
 def test_endpoint_identity_accepts_bound_rootless_loopback_podman_socket() -> None:
+    identity_key = _file(
+        "podman_identity_key",
+        r"C:\Users\PATH-SECRET\.local\share\containers\podman\machine\key",
+        41,
+    )
     endpoint = EndpointIdentity(
         product=RuntimeProduct.PODMAN,
         kind=EndpointKind.PODMAN_ROOTLESS_WSL,
@@ -432,10 +563,59 @@ def test_endpoint_identity_accepts_bound_rootless_loopback_podman_socket() -> No
             "ssh://user@127.0.0.1:51313/run/user/1000/podman/podman.sock"
         ),
         private_metadata_sha256=_digest("podman-endpoint-and-key"),
+        identity_key=identity_key,
         rootless=True,
     )
 
     assert repr(endpoint) == "EndpointIdentity(<redacted>)"
+
+    with pytest.raises(ValueError, match="identity material"):
+        replace(
+            endpoint,
+            identity_key=replace(identity_key, logical_name="connection_metadata"),
+        )
+
+
+def test_invalid_podman_endpoint_does_not_retain_private_parse_cause() -> None:
+    identity_key = _file(
+        "podman_identity_key",
+        r"C:\Users\PATH-SECRET\.local\share\containers\podman\machine\key",
+        44,
+    )
+
+    with pytest.raises(ValueError) as failure:
+        EndpointIdentity(
+            product=RuntimeProduct.PODMAN,
+            kind=EndpointKind.PODMAN_ROOTLESS_WSL,
+            canonical_endpoint=(
+                "ssh://user@127.0.0.1:PORT-SECRET/run/user/1000/podman/podman.sock"
+            ),
+            private_metadata_sha256=_digest("podman-endpoint"),
+            identity_key=identity_key,
+            rootless=True,
+        )
+
+    assert failure.value.__cause__ is None
+    assert "PORT-SECRET" not in repr(failure.value)
+
+
+def test_absent_environment_file_is_bound_into_the_target_token() -> None:
+    target = _target()
+    absent = replace(
+        target,
+        compose=replace(
+            target.compose,
+            environment_file=None,
+            environment_sha256=ABSENT_FILE_SHA256,
+            environment_source=_file(
+                ".env.example",
+                str(target.package_root.final_path / ".env.example"),
+                42,
+            ),
+        ),
+    )
+
+    assert absent.target_token != target.target_token
 
 
 def test_role_specific_file_identities_reject_directories() -> None:

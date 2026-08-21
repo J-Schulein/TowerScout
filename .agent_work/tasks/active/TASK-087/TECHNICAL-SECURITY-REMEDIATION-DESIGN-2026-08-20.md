@@ -475,9 +475,14 @@ action or Task-086. Task-086 is never invoked automatically.
 Support legitimate OneDrive/cloud or junction-based package locations by
 binding their resolved handle identity rather than rejecting every ancestor
 reparse point. Hold a package-root handle, record final path plus volume/file
-ID, and require critical leaf files to remain regular, single-link, contained,
-and stable. Reject symlink/mount-point/junction leaf redirects, hard links,
-unexpected owners, permissive writable ACLs, path escapes, or identity churn.
+ID, and require mutable configuration and sensitive-data leaf files to remain
+regular, single-link, contained, and stable. A verified vendor executable may
+retain legitimate hard links only while a held handle denies write/delete
+sharing and its file identity, content hash, and accepted Authenticode result
+remain unchanged; this narrow executable exception covers supported vendor
+install layouts without weakening mutable-file policy. Reject symlink/mount-
+point/junction leaf redirects, other hard links, unexpected owners, permissive
+writable ACLs, path escapes, or identity churn.
 
 The checked-in Windows path policy defines accepted owners by path category
 (current user, SYSTEM, Administrators, or TrustedInstaller as applicable) and

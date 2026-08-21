@@ -268,8 +268,10 @@ Its architecture is:
    unverified restore, and never report generic failure as safe rollback.
 7. Use handle/file-ID/reparse/DACL checks and ACL-preserving atomic `.env`
    replacement. Stable supported OneDrive/cloud locations remain usable; unsafe
-   leaf redirects, hard links, identity changes, or broad writable ACLs fail
-   before mutation.
+   leaf redirects, mutable-file hard links, identity changes, or broad writable
+   ACLs fail before mutation. A legitimate vendor-executable hard link is
+   eligible only while a held handle denies write/delete sharing and its exact
+   file identity, content hash, and accepted Authenticode result remain stable.
 8. Remove the provider installer's persistent plaintext root `.env` backup.
    Validate copied staged package bytes, exact archive/sidecar agreement, and a
    explicitly approved exact-patch/hash-locked Python 3.12 provenance-v2 build
