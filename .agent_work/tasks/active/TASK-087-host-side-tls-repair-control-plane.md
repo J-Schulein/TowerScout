@@ -14,10 +14,10 @@ Reconciliation head `946deaf` passed CI/CD run `32383065903` and Task-087 run
 run `32385304086` plus Task-087 run `32385304052`. Independent technical/
 security review then requested source changes at `6e0f744`. On August 21, the
 project lead explicitly approved IMPLEMENT under the August 20 remediation
-design; Gate A source work is active. PR #67 remains Draft, and merge/
-publication retain their separate
-applicable gates. Signing and
-representative managed-endpoint validation remain Task-100 work in October
+design; Gate A source work is active. Current Draft PR #67 head `0eebe7b`
+passed CI/CD run `32530172080` and Task-087 run `32530172064`. PR #67 remains
+Draft, and merge/publication retain their separate applicable gates. Signing
+and representative managed-endpoint validation remain Task-100 work in October
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Rebaselined after review to approximately 6-10 focused
@@ -40,10 +40,11 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current remote Draft PR head is `ae6342e`; lifecycle head `6e0f744` remains
-the last recorded exact-head CI-reviewed baseline before the approved design
-and local Gate A implementation work. The accepted functional implementation
-checkpoint remains `5737a58`, built on then-current `main` commit `3932abf`.
+The current remote Draft PR head is `0eebe7b`; exact-head CI/CD run
+`32530172080`, Task-087 run `32530172064`, and external Trivy passed. Gate A
+source work remains intentionally inert and independently reviewed. The
+accepted functional implementation checkpoint remains `5737a58`, built on
+then-current `main` commit `3932abf`.
 Its exact-source full-runnable Podman CPU package enforces the
 selected rootless Windows boundary and rejected rootful mode before provider
 discovery or container mutation. Checkpoint `3990bc0` remains the accepted
@@ -1350,6 +1351,56 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-08-21 - Green Exact-Head Weekend Handoff
+
+**Objective**: Leave Task-087 at one unambiguous, remotely recoverable source
+checkpoint and record the exact next Gate A slice before the workstation is
+shut down.
+
+**Context**: The host-independent Windows-path correction was committed as
+`0eebe7b91bd59220bb3dc9b26f8f6a7bdc70f4f8` and pushed to
+`feature/task-087-windows-launcher-prototype`. Local HEAD, the tracking ref, and
+Draft PR #67 match with zero divergence; the worktree was clean and no Git
+operation was active during the handoff audit.
+
+**Validation**: Exact-head CI/CD run `32530172080` completed successfully:
+security, `frontend-test`, Docker frontend stage, Python 3.11, and Python 3.12
+passed; the main-only build job was skipped as designed for a pull request.
+Exact-head Task-087 run `32530172064` completed successfully: production
+controller contracts, simulated-helper end-to-end, and Windows host-helper
+contracts all passed. External Trivy passed. Independent security,
+adversarial, and source-boundary reviews retained PASS with no blocking
+findings. Both `.agent_work` validators pass.
+
+**Workstation-Local Note**: Preserve stash
+`b9b36bf4741a5e7301de6a75672799b6ed91faec`, labeled
+`task-101-governance-transfer-2026-08-19`. Its tracked diff spans 12
+governance/Task-087 documentation paths, and it may also retain untracked local
+state. It is not part of the active branch or PR. Do not pop, drop, or apply it
+blindly; inspect it privately for sensitive content and reconcile it
+deliberately in a separate workspace-hygiene step because it overlaps current
+Task-087/governance records.
+
+**Boundary**: This is documentation-only handoff reconciliation. Mutation and
+runtime execution remain disabled and unwired. No Docker, Podman, Compose,
+launcher, repair command, installed-binary native smoke, artifact build,
+publication, merge, or signing action is authorized by this checkpoint.
+
+**Next**: Implement the next separately reviewed source-only slice: bounded
+authenticated command-version evidence for Docker Compose
+`docker-compose.exe` 5.3.1 using fixed `version --short`, and Podman CLI
+`podman.exe` 6.0.2 using fixed `version --format json` plus exact
+`/Client/Version`. Bind the command evidence to the reviewed installation,
+Authenticode signer-policy overlap, policy hash, retained stable file
+identity, and complete-file SHA-256; enforce constructed minimal environment,
+closed stdin, streamed byte/time limits, verified process-tree termination, and
+strict fail-closed text/JSON parsing. Use injected test backends only and keep
+RuntimeIdentity, target/discovery/executor/app/repair integration, provider
+reconstruction, endpoint binding, mutation, Gate B artifacts, and signing
+deferred. Carry forward the trusted snapshot-to-target requirement to construct
+exact `PureWindowsPath` once, and use rendered-path/digest comparison wherever
+case-preserving final-path spelling is intended.
+
 ### 2026-08-21 - Cross-Platform Windows Path Contract CI Remediation
 
 **Objective**: Repair the required Ubuntu CI failure without weakening the
@@ -1407,8 +1458,9 @@ target contract passes, and the repository CI mypy step remains scoped to
 
 **Boundary**: No Docker, Podman, Compose, launcher, repair command, PowerShell
 helper, or installed-binary native smoke ran. Mutation and runtime execution
-remain disabled and unwired. No commit or push has occurred; exact-head GitHub
-CI confirmation requires explicit authorization.
+remain disabled and unwired. At this pre-authorization checkpoint, no commit or
+push had occurred; the later weekend-handoff entry records the exact published
+head and green GitHub checks.
 
 **Next**: After authorization, checkpoint and push this narrow portability fix,
 then require both Ubuntu Python matrix jobs and the Task-087 workflow to pass at

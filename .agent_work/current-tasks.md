@@ -3,13 +3,13 @@
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: August 21, 2026
 **Focus**: Task-101 is complete. Task-087's combined same-held runtime-evidence
-source checkpoint `4150217` and documentation checkpoint `ab33864` are on Draft
-PR #67. The source slice passed independent security review, but the first
-published full CI run exposed a Linux-only Windows-path contract portability
-defect in the earlier target/execution foundations. Complete that narrow source
-fix, obtain green exact-head CI and re-review, and only then continue Gate A and
-unsigned preview-package integration under ADR-019. Production signing remains
-Task-100 work in October after the package is satisfactory.
+checkpoint `4150217`, documentation checkpoint `ab33864`, and host-independent
+Windows-path correction `0eebe7b` are on Draft PR #67. Exact-head CI/CD run
+`32530172080` and Task-087 run `32530172064` passed, and independent security,
+adversarial, and source-boundary reviews found no blockers. Continue Gate A with
+the next source-only authenticated command-version proof slice; unsigned
+preview-package integration remains later under ADR-019. Production signing
+remains Task-100 work in October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -26,8 +26,9 @@ Task-100 work in October after the package is satisfactory.
   `6e0f744` then passed CI/CD run `32385304086` and Task-087 run `32385304052`.
   Task-087 is active in Gate A IMPLEMENT under the project lead's August 21
   approval after the independent source review requested changes. PR #67 is at
-  `ab33864` and remains Draft; exact-head CI is pending the uncommitted
-  cross-platform Windows-path correction described below.
+  exact head `0eebe7b` and remains Draft. CI/CD run `32530172080`, Task-087 run
+  `32530172064`, and the external Trivy check passed at that head; the main-only
+  build job was skipped as designed for a pull request.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -214,15 +215,24 @@ timing; preview integration remains a later gate
   target/execution foundations: the completed Ubuntu/Python 3.11 leg reported
   62 fail-closed fixture errors after interpreting modeled `C:\...` values
   through host `Path`; the 3.12 leg had marked the same cases failed before
-  matrix fail-fast cancelled it. The current uncommitted correction makes
+  matrix fail-fast cancelled it. Commit `0eebe7b` makes
   `FileIdentity.final_path` an exact `PureWindowsPath` contract, applies
   Windows semantics to all modeled path operations and command assertions,
   rejects wrong-flavor/relative inputs before rendering, and preserves ordinary
   drive paths plus handle-derived local `\\?\C:\...` final names. Focused tests
   pass 73/73; the inert Gate A set passes 537 tests with only the two prohibited
   native installed-file smokes deselected. Independent security, adversarial,
-  and source-boundary reviews pass with no blockers. A commit/push and
-  exact-head CI rerun still require explicit authorization.
+  and source-boundary reviews pass with no blockers. Exact-head CI/CD run
+  `32530172080` passed both Ubuntu Python jobs and every required PR job;
+  Task-087 run `32530172064` passed all three controller/Windows contract jobs.
+  Local and tracking refs match at `0eebe7b` with zero divergence.
+- Workstation-local handoff note: preserve stash
+  `b9b36bf4741a5e7301de6a75672799b6ed91faec`, labeled
+  `task-101-governance-transfer-2026-08-19`. Its tracked diff spans 12
+  governance/Task-087 documentation paths, and it may also retain untracked
+  local state. It is not part of the active branch or PR and must not be popped,
+  dropped, or applied blindly; inspect it privately for sensitive content and
+  reconcile it deliberately in a separate workspace-hygiene step.
 - The final focused security/identity/Auth/combiner run passed 228 tests with
   only the two prohibited native installed-file smokes deselected; the policy,
   mutation-gate, and target-contract set passed 128. Independent security
