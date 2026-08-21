@@ -25,6 +25,11 @@ _STATE_COLORS = {
 _USER_CONFIRMATION = "REPAIR TLS AND RESTART"
 
 
+def _build_default_repair_coordinator() -> RepairCoordinator:
+    """Keep production mutation closed until every Gate-A prerequisite is wired."""
+    return RepairCoordinator(NativeRepairAdapter(), mutation_enabled=False)
+
+
 def build_confirmation_summary(target: RepairTarget) -> str:
     provider = "Google Maps" if target.provider == "google" else "Azure Maps"
     runtime = "Docker" if target.engine == "docker" else "Podman"
@@ -55,8 +60,10 @@ class TowerScoutLauncherApp:
         self.root = root
         self.snapshot_loader = snapshot_loader
         self.snapshot: LauncherSnapshot | None = None
-        self.repair_coordinator = repair_coordinator or RepairCoordinator(
-            NativeRepairAdapter(), mutation_enabled=True
+        self.repair_coordinator = (
+            repair_coordinator
+            if repair_coordinator is not None
+            else _build_default_repair_coordinator()
         )
         self.operations = OperationGuard()
         self.provider_var = tk.StringVar(value="Google Maps")
