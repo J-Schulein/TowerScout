@@ -8,7 +8,7 @@ import re
 import struct
 from dataclasses import dataclass, field, fields, is_dataclass
 from enum import Enum
-from pathlib import Path
+from pathlib import PureWindowsPath
 from typing import Any, Sequence
 from urllib.parse import urlsplit
 
@@ -160,7 +160,7 @@ class _Redacted:
 @dataclass(frozen=True, slots=True, repr=False)
 class FileIdentity(_Redacted):
     logical_name: str
-    final_path: Path = field(repr=False, metadata={"token": False})
+    final_path: PureWindowsPath = field(repr=False, metadata={"token": False})
     volume_serial: int = field(repr=False)
     file_id: bytes = field(repr=False)
     is_directory: bool = False
@@ -170,6 +170,8 @@ class FileIdentity(_Redacted):
 
     def __post_init__(self) -> None:
         _require_text(self.logical_name, "file logical name", 128)
+        if type(self.final_path) is not PureWindowsPath:
+            raise ValueError("File identity paths must be absolute.")
         final_path = str(self.final_path)
         if (
             not self.final_path.is_absolute()

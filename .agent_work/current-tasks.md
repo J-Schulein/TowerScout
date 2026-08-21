@@ -2,13 +2,14 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: August 21, 2026
-**Focus**: Task-101 is complete and Task-087's lifecycle head `6e0f744` passed
-its exact-head CI/CD and Task-087 matrices. Independent technical/security
-review then requested source changes on Draft PR #67. Complete and approve the
-Task-087 remediation design, implement the source gate, obtain exact-head
-re-review, and only then continue unsigned preview-package integration under
-ADR-019. Production signing remains Task-100 work in October after the package
-is satisfactory.
+**Focus**: Task-101 is complete. Task-087's combined same-held runtime-evidence
+source checkpoint `4150217` and documentation checkpoint `ab33864` are on Draft
+PR #67. The source slice passed independent security review, but the first
+published full CI run exposed a Linux-only Windows-path contract portability
+defect in the earlier target/execution foundations. Complete that narrow source
+fix, obtain green exact-head CI and re-review, and only then continue Gate A and
+unsigned preview-package integration under ADR-019. Production signing remains
+Task-100 work in October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -24,8 +25,9 @@ is satisfactory.
   required jobs successful. Task-101 is complete. The lifecycle update
   `6e0f744` then passed CI/CD run `32385304086` and Task-087 run `32385304052`.
   Task-087 is active in Gate A IMPLEMENT under the project lead's August 21
-  approval after the independent source review requested changes; PR #67
-  remains Draft.
+  approval after the independent source review requested changes. PR #67 is at
+  `ab33864` and remains Draft; exact-head CI is pending the uncommitted
+  cross-platform Windows-path correction described below.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -199,21 +201,28 @@ timing; preview integration remains a later gate
   integrity, and root `.env` backup handling require correction. Follow the
   task-local
   [`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
-- Gate A remains intentionally inert. Local commits `7ad221d` and `e049e32`
-  disable default mutation and add immutable target contracts, fixed read-only
-  command plans, handle-bound file identity, canonical mutex names, and pure
-  root selection. Local commit `24d4015` adds the pinned runtime policy,
-  same-handle Authenticode and PE product/version proof, and reviewed-record
-  installation nomination. These three commits remain local above PR #67 head
-  `ae6342e`.
-- The current uncommitted source slice serializes every use and close of the
-  cursor-bearing `HandleBoundFile`, including postvalidation and interruption
-  cleanup. Its inert `runtime_verification.py` combines installation, PE, and
-  Authenticode evidence over the same retained file, requires identical policy
-  hash/stable identity/complete-file SHA-256, requires the PE-derived product in
-  the signer-policy overlap, then revalidates all installation records and the
-  held file before returning a closeable, non-executable owner. Final-use
-  revalidation is serialized against close.
+- Gate A remains intentionally inert. Commits `7ad221d` and `e049e32` disable
+  default mutation and add immutable target contracts, fixed read-only command
+  plans, handle-bound file identity, canonical mutex names, and pure root
+  selection. Commit `24d4015` adds the pinned runtime policy, same-handle
+  Authenticode and PE product/version proof, and reviewed-record installation
+  nomination. Commit `4150217` serializes every use/close of the retained file
+  and combines the three evidence sources into a closeable, non-executable
+  owner after final record/file revalidation. Documentation checkpoint
+  `ab33864` records that source slice; all are pushed to PR #67.
+- CI/CD run `32527400108` exposed one cross-platform defect in the earlier
+  target/execution foundations: the completed Ubuntu/Python 3.11 leg reported
+  62 fail-closed fixture errors after interpreting modeled `C:\...` values
+  through host `Path`; the 3.12 leg had marked the same cases failed before
+  matrix fail-fast cancelled it. The current uncommitted correction makes
+  `FileIdentity.final_path` an exact `PureWindowsPath` contract, applies
+  Windows semantics to all modeled path operations and command assertions,
+  rejects wrong-flavor/relative inputs before rendering, and preserves ordinary
+  drive paths plus handle-derived local `\\?\C:\...` final names. Focused tests
+  pass 73/73; the inert Gate A set passes 537 tests with only the two prohibited
+  native installed-file smokes deselected. Independent security, adversarial,
+  and source-boundary reviews pass with no blockers. A commit/push and
+  exact-head CI rerun still require explicit authorization.
 - The final focused security/identity/Auth/combiner run passed 228 tests with
   only the two prohibited native installed-file smokes deselected; the policy,
   mutation-gate, and target-contract set passed 128. Independent security

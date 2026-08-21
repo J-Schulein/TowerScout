@@ -5,7 +5,7 @@ import inspect
 import sys
 from types import SimpleNamespace
 from dataclasses import FrozenInstanceError, replace
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
 
@@ -57,7 +57,7 @@ def _digest(value: str) -> str:
 def _file(logical_name: str, path: str, marker: int) -> FileIdentity:
     return FileIdentity(
         logical_name=logical_name,
-        final_path=Path(path),
+        final_path=PureWindowsPath(path),
         volume_serial=4000 + marker,
         file_id=marker.to_bytes(16, "big"),
         sha256=_digest(f"file-{marker}"),
@@ -68,7 +68,7 @@ def _file(logical_name: str, path: str, marker: int) -> FileIdentity:
 def _directory(logical_name: str, path: str, marker: int) -> FileIdentity:
     return FileIdentity(
         logical_name=logical_name,
-        final_path=Path(path),
+        final_path=PureWindowsPath(path),
         volume_serial=5000 + marker,
         file_id=marker.to_bytes(16, "big"),
         is_directory=True,
@@ -284,9 +284,9 @@ def test_docker_plans_bind_direct_executables_and_exact_named_pipe():
         "--format",
         "json",
     )
-    assert Path(compose.command[0]).name.casefold() == "docker-compose.exe"
+    assert PureWindowsPath(compose.command[0]).name.casefold() == "docker-compose.exe"
     assert "docker.exe" not in tuple(
-        Path(argument).name.casefold() for argument in compose.command
+        PureWindowsPath(argument).name.casefold() for argument in compose.command
     )
     assert engine.environment == compose.environment
     assert set(engine.environment) == {
@@ -496,7 +496,9 @@ def test_podman_identity_key_path_and_content_are_target_token_inputs() -> None:
     assert identity_key is not None
     changed_key = replace(
         identity_key,
-        final_path=Path(r"C:\Users\OTHER\.local\share\containers\podman\key"),
+        final_path=PureWindowsPath(
+            r"C:\Users\OTHER\.local\share\containers\podman\key"
+        ),
         sha256=_digest("changed identity key"),
     )
     changed = replace(

@@ -4,7 +4,7 @@ import hashlib
 import re
 import sys
 from dataclasses import FrozenInstanceError, replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -47,7 +47,7 @@ def _digest(value: str) -> str:
 def _directory(logical_name: str, path: str, marker: int) -> FileIdentity:
     return FileIdentity(
         logical_name=logical_name,
-        final_path=Path(path),
+        final_path=PureWindowsPath(path),
         volume_serial=1000 + marker,
         file_id=marker.to_bytes(16, "big"),
         is_directory=True,
@@ -57,7 +57,7 @@ def _directory(logical_name: str, path: str, marker: int) -> FileIdentity:
 def _file(logical_name: str, path: str, marker: int) -> FileIdentity:
     return FileIdentity(
         logical_name=logical_name,
-        final_path=Path(path),
+        final_path=PureWindowsPath(path),
         volume_serial=2000 + marker,
         file_id=marker.to_bytes(16, "big"),
         sha256=_digest(f"file-{marker}"),
@@ -224,7 +224,7 @@ def test_each_hidden_target_identity_change_changes_the_full_token() -> None:
                 target.process_environment,
                 temp_directory=replace(
                     target.process_environment.temp_directory,
-                    final_path=Path(r"C:\Users\OTHER\AppData\Local\Temp"),
+                    final_path=PureWindowsPath(r"C:\Users\OTHER\AppData\Local\Temp"),
                 ),
             ),
         ),
@@ -235,7 +235,9 @@ def test_each_hidden_target_identity_change_changes_the_full_token() -> None:
                 discovery_artifacts=(
                     replace(
                         target.endpoint.discovery_artifacts[0],
-                        final_path=Path(r"C:\Users\OTHER\.docker\contexts\meta.json"),
+                        final_path=PureWindowsPath(
+                            r"C:\Users\OTHER\.docker\contexts\meta.json"
+                        ),
                     ),
                 ),
             ),
@@ -464,7 +466,7 @@ def test_target_rejects_compose_inputs_or_environment_source_outside_package() -
                 ordered_files=(
                     replace(
                         target.compose.ordered_files[0],
-                        final_path=Path(r"C:\Attacker\compose.yaml"),
+                        final_path=PureWindowsPath(r"C:\Attacker\compose.yaml"),
                     ),
                 ),
             ),
@@ -519,9 +521,60 @@ def test_security_bearing_collections_reject_tuple_subclasses() -> None:
         replace(target, volumes=HostileTuple(target.volumes))
 
 
-def test_file_identity_rejects_relative_paths() -> None:
+@pytest.mark.parametrize(
+    "final_path",
+    (
+        PureWindowsPath("relative/path.exe"),
+        PureWindowsPath(r"C:relative\path.exe"),
+        PureWindowsPath(r"\root-relative\path.exe"),
+        PurePosixPath("/host/absolute/path.exe"),
+    ),
+)
+def test_file_identity_rejects_non_absolute_or_non_windows_paths(
+    final_path: PureWindowsPath | PurePosixPath,
+) -> None:
     with pytest.raises(ValueError, match="absolute"):
-        _file("relative", "relative/path.exe", 99)
+        FileIdentity(
+            logical_name="runtime.exe",
+            final_path=final_path,  # type: ignore[arg-type]
+            volume_serial=2099,
+            file_id=(99).to_bytes(16, "big"),
+            sha256=_digest("file-99"),
+            size_bytes=199,
+        )
+
+
+def test_file_identity_rejects_wrong_path_type_before_rendering_it() -> None:
+    class HostilePath:
+        def __str__(self) -> str:
+            raise AssertionError("wrong-type path must not be rendered")
+
+    with pytest.raises(ValueError, match="absolute"):
+        FileIdentity(
+            logical_name="runtime.exe",
+            final_path=HostilePath(),  # type: ignore[arg-type]
+            volume_serial=2099,
+            file_id=(99).to_bytes(16, "big"),
+            sha256=_digest("file-99"),
+            size_bytes=199,
+        )
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        r"C:\Program Files\Docker\bin\docker.exe",
+        r"\\?\C:\Program Files\Docker\bin\docker.exe",
+    ),
+)
+def test_file_identity_uses_windows_path_semantics_on_every_host(path: str) -> None:
+    identity = _file("docker.exe", path, 98)
+
+    assert type(identity.final_path) is PureWindowsPath
+    assert identity.final_path.is_absolute()
+    assert identity.final_path.name.casefold() == "docker.exe"
+    assert identity.final_path.parent.name.casefold() == "bin"
+    assert identity.final_path.parent / identity.final_path.name == identity.final_path
 
 
 def test_endpoint_identity_rejects_remote_or_root_podman_targets() -> None:

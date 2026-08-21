@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
+from pathlib import PureWindowsPath
 from typing import Mapping, Sequence
 
 from .target_contracts import (
@@ -437,7 +437,7 @@ class ProcessCommandPlan:
         return dict(self.environment_items)
 
     @property
-    def working_directory(self) -> Path:
+    def working_directory(self) -> PureWindowsPath:
         """Return the authenticated package root, never an ambient directory."""
         return self.target.package_root.final_path
 

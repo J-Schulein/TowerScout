@@ -1350,6 +1350,70 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-08-21 - Cross-Platform Windows Path Contract CI Remediation
+
+**Objective**: Repair the required Ubuntu CI failure without weakening the
+Gate A Windows identity contract, enabling runtime execution, or expanding the
+reviewed same-held evidence slice.
+
+**Context**: The worktree began clean on
+`feature/task-087-windows-launcher-prototype` at local/tracking head `ab33864`
+with zero divergence. CI/CD run `32527400108` then reported 62 failures in the
+earlier target-contract and runtime-plan tests under Ubuntu/Python 3.11. The
+Python 3.12 leg had marked the same cases failed before matrix fail-fast
+cancelled it. Every failure occurred while constructing a common
+`FileIdentity`: host `Path(r"C:\\...")` is a relative `PosixPath` on Ubuntu.
+All 37 new combined-evidence tests passed in that completed CI leg, so this did
+not implicate commit `4150217`'s retained-handle or evidence guarantees.
+
+**Decision**: Model an authenticated Windows identity with exact
+`PureWindowsPath`, not the host's concrete `Path`. Require that exact type before
+calling `str()` so a wrong-type object cannot execute hostile rendering code.
+Keep real repository-local test discovery on host `Path`. Preserve ordinary
+drive-absolute paths and local extended `\\?\C:\...` names returned by held-file
+inspection. Do not reuse the stricter raw installation-record validator here:
+installation nomination and handle-derived final identity are separate trust
+boundaries. A future trusted snapshot-to-target adapter must validate and
+canonicalize its raw input exactly once before constructing this pure identity.
+
+**Execution**: Changed `FileIdentity.final_path` and inert command-plan working
+directory typing to `PureWindowsPath`. All modeled path construction,
+replacement, leaf parsing, parent checks, joins, equality, and private digest
+rendering now use Windows semantics on every host. Test-only `Path` remains for
+repository `ROOT` discovery and the separate legacy `PackageIdentity` check.
+Added regressions for ordinary and local extended Windows paths; relative,
+drive-relative, root-relative, and absolute POSIX paths; and a hostile
+wrong-type object whose `__str__` must never run.
+
+**Independent Review**: Security review found one pre-render ordering issue;
+the exact-type check was moved before string conversion and the hostile-object
+regression was added. Final independent security, adversarial-test, and
+source-boundary reviews all issued PASS with no actionable findings. Reviewers
+confirmed the patch remains plan-only and unwired. They retained two future
+integration notes rather than current blockers: the trusted adapter must create
+the exact pure path type, and exact rendered-path/digest comparison should be
+considered where case-preserving spelling is intended because
+`PureWindowsPath` equality follows Windows case-insensitive semantics.
+
+**Validation**: The final focused target-contract/runtime-plan run passed 73
+tests. The inert Gate A security/identity/policy/plan set passed 537 tests with
+only `test_native_windows_handle_capture_smoke` and
+`test_native_held_executable_hardlink_denies_concurrent_write` explicitly
+deselected. Scoped Black checks, blocking Flake8, `git diff --check`, and task
+hygiene validation pass. Source-only mypy reports its three existing
+`runtime_execution.py` tuple-narrowing findings on unchanged lines; the changed
+target contract passes, and the repository CI mypy step remains scoped to
+`webapp/`.
+
+**Boundary**: No Docker, Podman, Compose, launcher, repair command, PowerShell
+helper, or installed-binary native smoke ran. Mutation and runtime execution
+remain disabled and unwired. No commit or push has occurred; exact-head GitHub
+CI confirmation requires explicit authorization.
+
+**Next**: After authorization, checkpoint and push this narrow portability fix,
+then require both Ubuntu Python matrix jobs and the Task-087 workflow to pass at
+the exact new head before resuming the next source-only Gate A slice.
+
 ### 2026-08-21 - Serialized Same-Held Runtime Evidence Combination
 
 **Objective**: Implement only the next Gate A source-only slice: serialize
