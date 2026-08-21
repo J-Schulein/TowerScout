@@ -40,7 +40,9 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current reviewed PR head is `6e0f744`. The accepted functional implementation
+The current remote Draft PR head is `ae6342e`; lifecycle head `6e0f744` remains
+the last recorded exact-head CI-reviewed baseline before the approved design
+and local Gate A implementation work. The accepted functional implementation
 checkpoint remains `5737a58`, built on then-current `main` commit `3932abf`.
 Its exact-source full-runnable Podman CPU package enforces the
 selected rootless Windows boundary and rejected rootful mode before provider
@@ -1347,6 +1349,152 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-08-21 - Same-Held PE Identity And Reviewed Install Records
+
+**Objective**: Implement the next Gate A source-only proof slice: exact PE
+product/version verification over one already-held executable and Windows
+installation nomination through reviewed records only, with mutation, runtime
+execution, and resolver/executor integration still disabled.
+
+**Context**: Read-only checks reconfirmed
+`feature/task-087-windows-launcher-prototype` at local `e049e32`, preceded by
+local `7ad221d`, tracking PR #67 head `ae6342e`, exactly two commits ahead. The
+intentional dirty worktree was preserved. The August 20 technical security
+remediation design was read completely before this slice changed files.
+
+**Execution**: Added `pe_version.py`, a filesystem/process/native-API-free,
+bounded AMD64 PE32+ parser for exactly one numeric `RT_VERSION` leaf. It maps
+resource RVAs through one raw-backed section; rejects malformed, overlapping,
+aliased, ambiguous, mispartitioned, unsorted, oversized, or string-named
+resource structures; and strictly parses `VS_VERSION_INFO`,
+`VS_FIXEDFILEINFO`, `StringFileInfo`, `VarFileInfo`, translations, UTF-16,
+lengths, alignment, and zero padding. It requires application/Windows fixed
+attributes, exact reviewed CompanyName/ProductName/OriginalFilename/
+FileVersion/ProductVersion strings, and agreement between reviewed `x.y.z` and
+the first three components of both fixed numeric versions. The unconstrained
+vendor build component remains evidence-bound instead of being invented by
+policy.
+
+Added the inert `runtime_identity.py` boundaries. PE verification takes no
+caller product assertion, reads the version resource through the existing held
+handle, derives one closed `RuntimeProductId`, and returns immutable redacted
+evidence bound to policy hash, stable file identity, complete-file hash,
+resource hash, and fixed versions. Installation resolution accepts only that
+closed product enum, scans every fixed policy record in order, uses exact
+sign-extended HKLM/HKCU predefined handles with the 64-bit registry view,
+accepts `REG_SZ` only with no expansion, and obtains approved per-user/system
+locations through exact Known Folder GUIDs. Candidate paths reject relative,
+UNC/device, ADS, traversal, environment-bearing, quoted/argument-bearing,
+noncanonical, reserved, and non-strict-UTF-8 forms. Present malformed/stale
+records poison resolution; distinct candidates are ambiguous; duplicates
+collapse only for the same stable identity, file hash, and final path; all
+losing/failure handles close; and the successful result continues to own one
+open handle. This is nomination evidence, not runtime trust.
+
+**Adversarial Validation And Review**: Added pure PE, resolver, and injected
+native-DLL-shim tests covering malformed resource trees and version blocks,
+every reviewed identity field, fixed numeric version mismatches, replacement,
+registry type/view/access/buffer/status/value races, Known Folder identity and
+memory ownership, path poisoning, ambiguity/deduplication, handle cleanup,
+sanitization, and source guards against PATH/CWD/environment/process/generic
+discovery or live-module wiring. The focused PE/resolver suite passes 102
+tests; the PE/resolver plus mutation-gate/target-plan source set passes 170;
+and the combined runtime-policy, Authenticode, PE/resolver, and Windows-file
+set passes 427 tests with only the known sandbox-ACL hardlink native smoke
+deliberately deselected. Scoped Black, fatal Flake8, strict isolated mypy,
+medium/high Bandit, and `git diff --check` pass.
+
+Independent security review reproduced fail-closed defects in string-named
+VERSION selection, resource partition/order handling, fixed numeric-version
+acceptance, surrogate sanitization, and 64-bit predefined-HKEY construction.
+Each defect received a production fix and exact regression. A separate native
+boundary audit then required DLL-shim coverage for registry and Known Folder
+ABI behavior; that coverage passed, the audit cleared its blocker, and final
+independent review issued PASS with no open findings for this isolated slice.
+
+**Decision**: Accept this source-only slice as reviewed and inert. It remains
+unimported by `app.py`, `discovery.py`, `repair.py`, and
+`runtime_execution.py`; no `RuntimeIdentity` or executable command plan is
+created. Production mutation remains false. No Docker, Podman, Compose,
+launcher, repair command, installed-binary native smoke, commit, or push was
+performed.
+
+**Next**: Before any integration, define serialized/single-owner same-handle
+inspection and lifetime through final use, then combine installation,
+PE-product, and Authenticode evidence only when policy hash, stable file
+identity, and complete-file hash all agree and the derived product belongs to
+the signer-policy overlap. Add bounded authenticated command-version evidence
+for Docker Compose and Podman rather than inferring version from install
+records. Keep target/executor wiring, provider reconstruction, ancestor/ACL,
+mutex/journal/recovery, `.env` transaction, live runtime, and mutation work
+behind their existing gates and a fresh review.
+
+### 2026-08-21 - Strict Runtime Policy And Authenticode Verification Slice
+
+**Objective**: Implement the project lead's exact initial runtime policy and
+its verification-only Windows Authenticode foundation without enabling runtime
+discovery, child execution, repair, or any machine/package mutation.
+
+**Context**: Read-only branch and GitHub inspection confirmed Draft PR #67 at
+remote head `ae6342e`, with local commits `7ad221d` and `e049e32` present and
+unpushed on `feature/task-087-windows-launcher-prototype`. The worktree started
+clean and exactly two commits ahead. The August 20 remediation design was read
+in full before edits. The policy/schema increment was completed and
+independently reviewed before native verification work began.
+
+**Execution**: Added the fixed package resource
+`towerscout_launcher/runtime-policy.v1.json`, pinned by exact-byte SHA-256
+`6c198c097b511d9a73c168a244c89f5932a27abd12b5870118a80c46c5356011`
+in both the inert parser and package inspector and bundled at one exact
+PyInstaller path. The closed schema admits only Docker CLI `29.7.2`, Docker
+Compose `5.3.1`, Podman `6.0.2`, and CPython `3.12.10`, with Windows/AMD64 PE
+identity expectations, reviewed signer-certificate identities and install
+records, embedded Authenticode only, SHA-256/RSA, cache-only whole-chain
+revocation, trusted RFC3161 expiry handling, and reviewed-updates-only
+semantics. Its inline Podman Compose catalog admits only the TowerScout-managed
+direct `python -I -m podman_compose` closure with exact interpreter,
+distribution, wheel/input, inventory, endpoint-propagation, and reconstruction
+contracts; external, Docker Desktop, wrapper, delegation, and name/version-only
+routes remain invalid.
+
+Added a same-held-handle inspection seam, a bounded pure AMD64 PE certificate-
+table/DER parser, signer-policy matching, and a ctypes WinTrust/Crypt32 backend.
+The backend independently binds the held PE/CMS signature to WinTrust provider
+evidence, enforces all physical/logical/CMS cardinality layers, validates exact
+signer facts and explicit EKU, applies cache-only whole-chain publisher and TSA
+checks with timestamp-time semantics, verifies and byte-binds the RFC3161 token
+to the primary signature, sanitizes ordinary failures, and frees partial native
+state even under interruption. Authenticode evidence reports compatible signer-
+policy records only: the shared Docker signer remains explicitly compatible
+with both Docker product policies and is not misrepresented as PE product,
+leaf-name, or version proof. Package-validation manifests now truthfully report
+`launcher_tls_mutation_enabled=false`.
+
+**Validation And Review**: The strict policy suite passed 100 tests; the pure,
+PE, and native Authenticode suites passed 193 tests; the final combined policy,
+Authenticode, target-plan, Windows-security, and launcher/package set passed
+440 tests with the one known sandbox-ACL hardlink smoke deliberately
+deselected. The full 47-test launcher/package suite also passed. Scoped Black,
+fatal Flake8, strict isolated mypy, medium/high Bandit, and package hash checks
+pass. Independent schema review and final native adversarial re-review pass;
+the latter independently ran 226 tests with the same sandbox-only hardlink
+deselection and found no remaining acceptance blocker.
+
+**Decision**: Accept this as a reviewed verification-only Gate A slice, not as
+a trusted runtime resolver or executable repair. The policy and Authenticode
+modules are not wired into discovery, runtime command execution, or repair;
+the production coordinator and package capability declaration remain mutation-
+disabled. No Docker, Podman, Compose, launcher, or repair/runtime command plan
+was executed; only repository test/static tooling ran. No candidate file was
+subjected to native installed-binary smoke, and no commit or push was made.
+
+**Next**: Add same-handle PE product/leaf/version-resource proof and reviewed
+install-record resolution, then bind the authenticated signer evidence and
+managed provider reconstruction into one immutable pre-confirmation target.
+Keep real signed-fixture/provider compatibility, executor wiring, ACL/ancestor
+containment, mutex/journal/recovery, `.env` transaction work, live runtime
+validation, and all mutation behind their existing gates.
 
 ### 2026-08-21 - Gate A Fail-Closed Identity And Plan Foundation
 

@@ -584,7 +584,7 @@ def assemble_full_validation_package(
         )
         manifest["validation"] = {
             "host_helper_packaged": False,
-            "launcher_tls_mutation_enabled": True,
+            "launcher_tls_mutation_enabled": False,
             "package_kind": PACKAGE_KIND_FULL_RUNNABLE,
             "purpose": FULL_PACKAGE_PURPOSE,
             "release_candidate": False,
@@ -613,7 +613,7 @@ def assemble_full_validation_package(
             ],
             "launcher_sha256": launcher_sha256,
             "launcher_signature_verified": False,
-            "launcher_tls_mutation_enabled": True,
+            "launcher_tls_mutation_enabled": False,
             "managed_endpoint_evidence_authorized": False,
             "merge_authorized": False,
             "package_kind": PACKAGE_KIND_FULL_RUNNABLE,
@@ -760,7 +760,7 @@ def assemble_validation_package(
                     "requirements_build_sha256"
                 ],
                 "launcher_sha256": launcher_provenance["launcher_executable_sha256"],
-                "launcher_tls_mutation_enabled": True,
+                "launcher_tls_mutation_enabled": False,
                 "merge_authorized": False,
                 "package_kind": PACKAGE_KIND_LAUNCHER_POLICY,
                 "purpose": "task-087-launcher-policy-validation-only",

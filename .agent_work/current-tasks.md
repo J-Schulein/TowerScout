@@ -199,16 +199,38 @@ timing; preview integration remains a later gate
   integrity, and root `.env` backup handling require correction. Follow the
   task-local
   [`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
-- The first local Gate A increment is intentionally inert. Local commit
-  `7ad221d` disables the default application mutation path and adds immutable
-  target contracts; the follow-on local checkpoint adds fixed read-only
-  Docker/Podman command plans, handle-bound Windows file identity primitives,
-  canonical mutex-name derivation, and a pure Windows-root selection policy.
-  Focused and broad unit/static checks plus three independent scoped reviews
-  pass. No new source checkpoint has been pushed, no process executor or native
-  trust verifier is wired, and mutation remains disabled while runtime policy,
-  provider import proof, ACL/mutex/journal/recovery, and `.env` transaction work
-  remain open.
+- Gate A remains intentionally inert. Local commit `7ad221d` disables the
+  default application mutation path and adds immutable target contracts; local
+  commit `e049e32` adds fixed read-only Docker/Podman command plans,
+  handle-bound Windows file identity primitives, canonical mutex-name
+  derivation, and a pure Windows-root selection policy.
+- The current uncommitted increment adds the SHA-256-pinned package runtime
+  policy for Docker CLI `29.7.2`, Docker Compose `5.3.1`, Podman `6.0.2`, and
+  CPython `3.12.10`; exact reviewed signer/install identities; the managed-only
+  Podman Compose closure; a bounded PE/embedded-CMS parser; and verification-
+  only same-handle WinTrust/RFC3161 evidence. Authenticode output identifies
+  compatible signer-policy records only and deliberately does not claim PE
+  product, leaf-name, or version proof.
+- The follow-on uncommitted Gate A slice adds a bounded same-held-file AMD64
+  PE32+ `RT_VERSION` parser and exact product/version proof for policy products
+  that use PE evidence, plus a handle-owning installation candidate resolver
+  that reads only exact reviewed 64-bit `REG_SZ` records and approved Windows
+  Known Folders. It never consults package/CWD/PATH/PATHEXT/environment/App
+  Paths or generic discovery. Installation evidence remains an explicitly
+  untrusted nomination and is not converted into `RuntimeIdentity`.
+- Focused policy, Authenticode, PE/resolver, target-plan, mutation-gate, and
+  Windows-security checks pass. Independent security review found and closed
+  fail-closed gaps in numeric VERSION-resource selection/ordering, fixed
+  numeric-version consistency, surrogate sanitization, predefined HKEY ABI
+  representation, and native-shim test coverage, then issued PASS with no open
+  findings for the isolated slice. No live discovery, process executor, or
+  repair path imports the new resolver/evidence; no installed runtime/native
+  smoke was run; package validation reports launcher mutation disabled; and
+  the production coordinator remains hard-disabled. The same-handle
+  install/PE/Authenticode combiner, authenticated command-version evidence,
+  provider reconstruction, ACL/mutex/journal/recovery, and `.env` transaction
+  work remain open. No local checkpoint from this increment has been committed
+  or pushed.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

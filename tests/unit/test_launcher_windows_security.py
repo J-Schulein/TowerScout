@@ -63,6 +63,7 @@ class _FakeWindowsFileApi:
         self.supported = supported
         self.facts = facts or _facts(size=len(content))
         self.content = content
+        self.handle = object()
         self.opened_path = ""
         self.closed = False
         self.cursor = 0
@@ -76,7 +77,7 @@ class _FakeWindowsFileApi:
         self.opened_path = path
         if self.open_error is not None:
             raise self.open_error
-        return object()
+        return self.handle
 
     def query_file(self, handle: object) -> NativeFileFacts:
         del handle
@@ -122,6 +123,51 @@ def test_handle_capture_hashes_and_revalidates_through_same_open_handle() -> Non
 
     assert bound.closed
     assert api.closed
+
+
+def test_scoped_inspector_receives_and_revalidates_the_same_held_handle() -> None:
+    api = _FakeWindowsFileApi()
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+        observed: list[tuple[object, object]] = []
+
+        def inspect(handle: object, snapshot: object) -> str:
+            observed.append((handle, snapshot))
+            return "verified"
+
+        assert bound.inspect_same_handle(inspect) == "verified"
+
+    assert observed == [(api.handle, bound.snapshot)]
+
+
+def test_scoped_inspector_sanitizes_native_failure() -> None:
+    api = _FakeWindowsFileApi()
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+        with pytest.raises(WindowsSecurityError) as exc_info:
+            bound.inspect_same_handle(
+                lambda _handle, _snapshot: (_ for _ in ()).throw(OSError(_SECRET_PATH))
+            )
+
+    assert exc_info.value.category == "file_inspection_failed"
+    assert _SECRET_PATH not in str(exc_info.value)
+    assert _SECRET_PATH not in repr(exc_info.value)
+
+
+def test_scoped_inspector_revalidates_after_failure_and_prioritizes_drift() -> None:
+    api = _FakeWindowsFileApi()
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+
+        def replace_then_fail(_handle: object, _snapshot: object) -> None:
+            api.content = b"CONTENT"
+            raise OSError(_SECRET_PATH)
+
+        with pytest.raises(WindowsSecurityError) as exc_info:
+            bound.inspect_same_handle(replace_then_fail)
+
+    assert exc_info.value.category == "file_identity_changed"
+    assert _SECRET_PATH not in str(exc_info.value)
 
 
 def test_capture_detects_metadata_change_during_hash_and_closes_handle() -> None:

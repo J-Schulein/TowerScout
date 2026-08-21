@@ -15,7 +15,7 @@ import struct
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Protocol, Sequence
+from typing import Callable, Protocol, Sequence, TypeVar
 
 _SCHEMA_VERSION = 1
 _ENV_MUTEX_DOMAIN = b"TowerScout.EnvironmentMutex"
@@ -28,6 +28,8 @@ _MAX_IDENTITY_FIELDS = 64
 _MAX_IDENTITY_FIELD_BYTES = 65_536
 _MAX_FINAL_PATH_CHARACTERS = 32_768
 _HASH_CHUNK_BYTES = 65_536
+
+_InspectionResult = TypeVar("_InspectionResult")
 
 _FILE_ATTRIBUTE_DIRECTORY = 0x00000010
 _FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
@@ -553,6 +555,35 @@ class HandleBoundFile:
                 "The Windows file changed after it was inspected.",
             )
         return current
+
+    def inspect_same_handle(
+        self,
+        inspector: Callable[[object, FileSnapshot], _InspectionResult],
+    ) -> _InspectionResult:
+        """Inspect through the held handle and revalidate it on both sides."""
+
+        if not callable(inspector):
+            raise ValueError("The held-file inspector is invalid.")
+        self.assert_unchanged()
+        handle = self._handle
+        if handle is None:
+            raise WindowsSecurityError(
+                "file_handle_closed",
+                "The Windows file handle is no longer available.",
+            )
+        try:
+            result = inspector(handle, self._snapshot)
+        except WindowsSecurityError:
+            self.assert_unchanged()
+            raise
+        except Exception:
+            self.assert_unchanged()
+            raise WindowsSecurityError(
+                "file_inspection_failed",
+                "The Windows file could not be inspected safely.",
+            ) from None
+        self.assert_unchanged()
+        return result
 
     def close(self) -> None:
         handle = self._handle

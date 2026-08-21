@@ -14,7 +14,6 @@ from urllib.request import ProxyHandler
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[2]
 LAUNCHER_ROOT = ROOT / "launcher"
 if str(LAUNCHER_ROOT) not in sys.path:
@@ -153,6 +152,15 @@ def _write_minimal_gui_pe(path: Path) -> None:
     path.write_bytes(data)
 
 
+def _write_package_bound_runtime_policy(root: Path) -> Path:
+    destination = root / "_internal" / "towerscout_launcher" / "runtime-policy.v1.json"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(
+        (LAUNCHER_ROOT / "towerscout_launcher" / "runtime-policy.v1.json").read_bytes()
+    )
+    return destination
+
+
 def _write_test_checksums(root: Path) -> None:
     checksum_path = root / "SHA256SUMS.txt"
     files = sorted(
@@ -266,6 +274,7 @@ def _write_test_launcher_build(root: Path, *, source_ref: str) -> Path:
     tk_data = build / "_internal" / "_tk_data"
     tk_data.mkdir(parents=True)
     (tk_data / "license.terms").write_text("Tcl/Tk license", encoding="utf-8")
+    _write_package_bound_runtime_policy(build)
     _write_fake_build_provenance(build, source_ref=source_ref)
     return build
 
@@ -513,8 +522,8 @@ def test_native_adapter_selects_private_candidate_without_script_host(
 
 
 def test_native_chain_selection_requires_one_unique_trusted_root() -> None:
-    intermediate_name = ((('commonName', 'TowerScout Test Intermediate'),),)
-    root_name = ((('commonName', 'TowerScout Test Root'),),)
+    intermediate_name = ((("commonName", "TowerScout Test Intermediate"),),)
+    root_name = ((("commonName", "TowerScout Test Root"),),)
     leaf = {"issuer": intermediate_name}
     intermediate = {
         "subject": intermediate_name,
@@ -522,10 +531,13 @@ def test_native_chain_selection_requires_one_unique_trusted_root() -> None:
     }
     root = {"subject": root_name, "issuer": root_name}
 
-    assert _find_unique_trusted_root(
-        leaf,
-        ((intermediate, b"intermediate"), (root, b"root")),
-    ) == b"root"
+    assert (
+        _find_unique_trusted_root(
+            leaf,
+            ((intermediate, b"intermediate"), (root, b"root")),
+        )
+        == b"root"
+    )
 
     with pytest.raises(RepairError) as exc_info:
         _find_unique_trusted_root(
@@ -731,11 +743,34 @@ def test_package_inspection_rejects_scripts_and_secrets(
     build = launcher_tmp_path / "TowerScoutLauncher"
     build.mkdir()
     _write_minimal_gui_pe(build / "TowerScoutLauncher.exe")
+    policy_path = _write_package_bound_runtime_policy(build)
     assert inspect_build(build) == []
 
     (build / "host-helper.ps1").write_text("not allowed", encoding="utf-8")
     errors = inspect_build(build)
     assert errors and "host-helper.ps1" in errors[0]
+
+    (build / "host-helper.ps1").unlink()
+    policy_path.write_bytes(policy_path.read_bytes() + b" ")
+    errors = inspect_build(build)
+    assert errors and "integrity" in errors[0].lower()
+
+
+def test_package_inspection_requires_policy_at_its_exact_bundled_path(
+    launcher_tmp_path: Path,
+) -> None:
+    build = launcher_tmp_path / "TowerScoutLauncher"
+    build.mkdir()
+    _write_minimal_gui_pe(build / "TowerScoutLauncher.exe")
+    assert "runtime policy is missing" in inspect_build(build)[0].lower()
+
+    _write_package_bound_runtime_policy(build)
+    duplicate = build / "runtime-policy.v1.json"
+    duplicate.write_bytes(
+        (LAUNCHER_ROOT / "towerscout_launcher" / "runtime-policy.v1.json").read_bytes()
+    )
+    errors = inspect_build(build)
+    assert any("outside its fixed package path" in error for error in errors)
 
 
 def test_launcher_source_contains_only_fixed_mutation_boundary() -> None:
@@ -895,17 +930,14 @@ def test_native_repair_stages_exact_container_and_preserves_environment(
     assert "GOOGLE_API_KEY=must_not_be_loaded" in env
     assert b"GOOGLE_API_KEY=must_not_be_loaded\r\n" in env_bytes
     assert b"\n" not in env_bytes.replace(b"\r\n", b"")
-    assert (
-        "REQUESTS_CA_BUNDLE=/app/webapp/config/certs/towerscout-ca-bundle.pem" in env
-    )
+    assert "REQUESTS_CA_BUNDLE=/app/webapp/config/certs/towerscout-ca-bundle.pem" in env
     assert "SSL_CERT_FILE=/app/webapp/config/certs/towerscout-ca-bundle.pem" in env
     assert runtime.files["/app/webapp/config/certs/local-ca.pem"] == b"CANDIDATE-CA\n"
     assert runtime.files["/app/webapp/config/certs/towerscout-ca-bundle.pem"] == (
         b"SYSTEM-CA\nCANDIDATE-CA\n"
     )
     assert all(
-        "powershell" not in " ".join(command).lower()
-        for command in runtime.commands
+        "powershell" not in " ".join(command).lower() for command in runtime.commands
     )
 
 
@@ -982,8 +1014,7 @@ def test_native_repair_rejects_docker_desktop_as_podman_provider(
     provider.write_bytes(b"not executed")
     env_path = launcher_tmp_path / ".env"
     env_path.write_text(
-        env_path.read_text(encoding="utf-8")
-        .replace(
+        env_path.read_text(encoding="utf-8").replace(
             "TOWERSCOUT_CONTAINER_ENGINE=docker",
             "TOWERSCOUT_CONTAINER_ENGINE=podman",
         )
@@ -1010,8 +1041,7 @@ def test_native_repair_accepts_explicit_approved_podman_provider(
     provider.write_bytes(b"fixed test provider")
     env_path = launcher_tmp_path / ".env"
     env_path.write_text(
-        env_path.read_text(encoding="utf-8")
-        .replace(
+        env_path.read_text(encoding="utf-8").replace(
             "TOWERSCOUT_CONTAINER_ENGINE=docker",
             "TOWERSCOUT_CONTAINER_ENGINE=podman",
         )
@@ -1089,7 +1119,7 @@ def test_validation_package_is_traceable_and_contains_no_control_stack(
     assert validation_manifest["execution_authorized"] is False
     assert validation_manifest["merge_authorized"] is False
     assert validation_manifest["signed"] is False
-    assert validation_manifest["launcher_tls_mutation_enabled"] is True
+    assert validation_manifest["launcher_tls_mutation_enabled"] is False
     assert (result.package_dir / "launcher" / "TowerScoutLauncher.exe").is_file()
     assert "services: {}" in (result.package_dir / "compose.yaml").read_text(
         encoding="utf-8"
@@ -1296,7 +1326,7 @@ def test_full_validation_package_composes_verified_runnable_base_atomically(
     assert validation["gpu_mode"] == "off"
     assert validation["port"] == 5008
     assert validation["host_helper_packaged"] is False
-    assert validation["launcher_tls_mutation_enabled"] is True
+    assert validation["launcher_tls_mutation_enabled"] is False
     assert validation["managed_endpoint_evidence_authorized"] is False
     packaged_provenance = json.loads(
         (result.package_dir / "launcher" / PROVENANCE_FILENAME).read_text(

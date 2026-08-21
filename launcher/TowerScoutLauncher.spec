@@ -1,14 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
 
-
 launcher_root = Path(SPEC).resolve().parent
+runtime_policy_path = launcher_root / "towerscout_launcher" / "runtime-policy.v1.json"
 
 analysis = Analysis(
     [str(launcher_root / "towerscout_launcher" / "__main__.py")],
     pathex=[str(launcher_root)],
     binaries=[],
-    datas=[],
+    datas=[(str(runtime_policy_path), "towerscout_launcher")],
     hiddenimports=["tkinter", "tkinter.messagebox", "tkinter.ttk"],
     hookspath=[],
     hooksconfig={},
