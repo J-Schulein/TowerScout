@@ -1350,6 +1350,87 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-08-21 - Serialized Same-Held Runtime Evidence Combination
+
+**Objective**: Implement only the next Gate A source-only slice: serialize
+same-handle inspection through final use, combine reviewed installation, PE
+product/version, and Authenticode evidence over that retained file, and return
+an inert closeable result only after final record and file revalidation.
+
+**Context**: Read-only checkpoint checks confirmed branch
+`feature/task-087-windows-launcher-prototype` at local `24d4015`, with local
+predecessors `e049e32` and `7ad221d`, exactly three commits above PR #67 /
+tracking head `ae6342e`, and a clean starting worktree. The August 20 technical
+security remediation design and the complete latest TASK-087 implementation log
+were read before source changes. No unexpected changes were present.
+
+**Decision**: Keep this a PE-evidence-only, non-executable trust composition
+boundary. Docker CLI and CPython may produce combined evidence because their
+policy versions are PE-derived. Docker Compose and Podman remain rejected before
+installation opening because command-based exact-version proof belongs to the
+following slice. Do not expose a path, command, handle, execution method, or
+conversion to the launcher runtime target type, and do not wire the result into
+discovery, the executor, app, or repair.
+
+**Execution**: `HandleBoundFile` now serializes standalone revalidation,
+same-handle inspection, post-inspection revalidation, and native close with one
+reentrant lock and explicit active-owner state. A second thread waits through
+the first operation's postvalidation; same-thread cursor-moving reentry fails
+closed; every close caller waits for native close completion; and ordinary or
+interrupting inspector failures release ownership only after postvalidation.
+Initial capture and both installation-candidate phases now close every acquired
+handle on `BaseException` without masking the primary interruption.
+
+Added inert `runtime_verification.py`. Its immutable redacted combined evidence
+accepts only exact installation, PE, and Authenticode evidence types; requires
+one nomination/PE product; requires that product in the Authenticode signer-
+policy overlap; and requires identical package-policy SHA-256, stable file
+identity, and complete-file SHA-256 across all three inputs. Its domain-separated
+digest binds the common product/version/file facts and all three component
+evidence digests. The factory passes one retained `HandleBoundFile` to both PE
+and Authenticode verification, revalidates every reviewed installation record
+and the held file after all component checks, and transfers ownership only after
+that final check. The returned owner exposes only immutable evidence, closed
+state, final-use revalidation, close, and context management; final-use record
+and file checks are serialized against close.
+
+**Adversarial Coverage**: Added deterministic thread tests for inspection
+serialization, close-versus-inspection, native-close completion, same-thread
+reentry, interrupted/failed inspectors, and repeated concurrent close. Combined
+evidence tests cover Docker shared-signer overlap and timestamped CPython;
+pairwise policy-hash, volume/file identity, and full-file-hash mismatch; exact
+component type confusion; nomination/product and signer-overlap mismatch; late
+record and held-file replacement; every pre-return interruption ownership
+phase; final-use-versus-close serialization; idempotent/context cleanup;
+redaction/immutability/digest binding; the non-executable public surface; direct
+and `from`-import wiring guards; and pre-open deferral of Docker Compose and
+Podman.
+
+**Independent Security Review**: The initial review found one blocking lifetime
+gap: an interruption during initial capture or installation opening could occur
+before the outer combiner received an owning candidate. Capture and installation
+cleanup were extended through `BaseException`, ownership is recorded before
+post-capture validation, and exact interruption regressions were added. Review
+also found a low-severity AST-guard gap for relative `from` imports; the guard
+now inspects imported module paths as well as symbols. Independent re-review
+reproduced the fixes and issued PASS with no open findings.
+
+**Validation**: The final Windows-security, installation/PE identity,
+Authenticode, and combined-evidence run passed 228 tests with the two prohibited
+native installed-file smokes explicitly deselected. Runtime policy,
+mutation-gate, and target-contract checks passed 128 tests. Scoped Black,
+blocking and advisory Flake8, strict isolated mypy for the new boundary, normal
+mypy for the touched lower-level modules, medium/high Bandit, compilation,
+`git diff --check`, and both `.agent_work` validators pass.
+
+**Boundary**: No Docker, Podman, Compose, launcher, repair command, or installed-
+binary native smoke ran. Mutation and runtime execution remain disabled and
+unwired. No commit or push was made.
+
+**Next**: Implement command-based exact-version proof for Docker Compose and
+Podman as the next separately reviewed source-only slice; do not infer those
+versions from installation, signer, or PE evidence.
+
 ### 2026-08-21 - Same-Held PE Identity And Reviewed Install Records
 
 **Objective**: Implement the next Gate A source-only proof slice: exact PE

@@ -12,6 +12,7 @@ import hashlib
 import os
 import re
 import struct
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -440,7 +441,7 @@ def _safe_query(api: WindowsFileApi, handle: object) -> NativeFileFacts:
 def _safe_close(api: WindowsFileApi, handle: object) -> None:
     try:
         api.close_handle(handle)
-    except (OSError, RuntimeError, TypeError, ValueError):
+    except BaseException:
         # A close failure must not replace the sanitized primary error.  With no
         # bound object returned, the handle cannot authorize a later operation.
         return
@@ -516,9 +517,23 @@ def _capture_snapshot(
 
 
 class HandleBoundFile:
-    """Own a read-only Windows handle and revalidate only through that handle."""
+    """Own and serialize all use of one read-only Windows file handle.
 
-    __slots__ = ("_api", "_handle", "_policy", "_snapshot")
+    The handle remains open until :meth:`close` or context-manager exit.  Every
+    hash/revalidation and same-handle inspector owns the cursor-bearing handle
+    exclusively through its final post-inspection revalidation.  A close from
+    another thread waits for that final use; same-thread reentry fails closed
+    instead of deadlocking or moving the shared file cursor recursively.
+    """
+
+    __slots__ = (
+        "_active_owner",
+        "_api",
+        "_handle",
+        "_lifetime_lock",
+        "_policy",
+        "_snapshot",
+    )
 
     def __init__(
         self,
@@ -531,6 +546,8 @@ class HandleBoundFile:
         self._handle: object | None = handle
         self._policy = policy
         self._snapshot = snapshot
+        self._lifetime_lock = threading.RLock()
+        self._active_owner: int | None = None
 
     @property
     def snapshot(self) -> FileSnapshot:
@@ -538,23 +555,53 @@ class HandleBoundFile:
 
     @property
     def closed(self) -> bool:
-        return self._handle is None
+        with self._lifetime_lock:
+            return self._handle is None
 
-    def assert_unchanged(self) -> FileSnapshot:
-        """Rehash and compare the same held handle against the original snapshot."""
-
-        if self._handle is None:
+    def _begin_use(self) -> object:
+        self._lifetime_lock.acquire()
+        if self._active_owner is not None:
+            self._lifetime_lock.release()
+            raise WindowsSecurityError(
+                "file_handle_in_use",
+                "The Windows file handle is already in active use.",
+            )
+        handle = self._handle
+        if handle is None:
+            self._lifetime_lock.release()
             raise WindowsSecurityError(
                 "file_handle_closed",
                 "The Windows file handle is no longer available.",
             )
-        current = _capture_snapshot(self._api, self._handle, self._policy)
+        self._active_owner = threading.get_ident()
+        return handle
+
+    def _end_use(self) -> None:
+        self._active_owner = None
+        self._lifetime_lock.release()
+
+    def _assert_unchanged_owned(self, handle: object) -> FileSnapshot:
+        if self._handle is not handle:
+            raise WindowsSecurityError(
+                "file_handle_closed",
+                "The Windows file handle is no longer available.",
+            )
+        current = _capture_snapshot(self._api, handle, self._policy)
         if current != self._snapshot:
             raise WindowsSecurityError(
                 "file_identity_changed",
                 "The Windows file changed after it was inspected.",
             )
         return current
+
+    def assert_unchanged(self) -> FileSnapshot:
+        """Rehash and compare the same held handle against the original snapshot."""
+
+        handle = self._begin_use()
+        try:
+            return self._assert_unchanged_owned(handle)
+        finally:
+            self._end_use()
 
     def inspect_same_handle(
         self,
@@ -564,33 +611,38 @@ class HandleBoundFile:
 
         if not callable(inspector):
             raise ValueError("The held-file inspector is invalid.")
-        self.assert_unchanged()
-        handle = self._handle
-        if handle is None:
-            raise WindowsSecurityError(
-                "file_handle_closed",
-                "The Windows file handle is no longer available.",
-            )
+        handle = self._begin_use()
         try:
-            result = inspector(handle, self._snapshot)
-        except WindowsSecurityError:
-            self.assert_unchanged()
-            raise
-        except Exception:
-            self.assert_unchanged()
-            raise WindowsSecurityError(
-                "file_inspection_failed",
-                "The Windows file could not be inspected safely.",
-            ) from None
-        self.assert_unchanged()
-        return result
+            self._assert_unchanged_owned(handle)
+            try:
+                result = inspector(handle, self._snapshot)
+            except BaseException as error:
+                self._assert_unchanged_owned(handle)
+                if isinstance(error, WindowsSecurityError):
+                    raise
+                if not isinstance(error, Exception):
+                    raise
+                raise WindowsSecurityError(
+                    "file_inspection_failed",
+                    "The Windows file could not be inspected safely.",
+                ) from None
+            self._assert_unchanged_owned(handle)
+            return result
+        finally:
+            self._end_use()
 
     def close(self) -> None:
-        handle = self._handle
-        self._handle = None
-        if handle is None:
-            return
-        _safe_close(self._api, handle)
+        with self._lifetime_lock:
+            if self._active_owner is not None:
+                raise WindowsSecurityError(
+                    "file_handle_in_use",
+                    "The Windows file handle is already in active use.",
+                )
+            handle = self._handle
+            self._handle = None
+            if handle is None:
+                return
+            _safe_close(self._api, handle)
 
     def __enter__(self) -> "HandleBoundFile":
         return self
@@ -647,6 +699,9 @@ def capture_handle_bound_file(
             "file_identity_unavailable",
             "The Windows file identity could not be inspected safely.",
         ) from None
+    except BaseException:
+        _safe_close(selected_api, handle)
+        raise
     return HandleBoundFile(selected_api, handle, selected_policy, snapshot)
 
 

@@ -199,38 +199,31 @@ timing; preview integration remains a later gate
   integrity, and root `.env` backup handling require correction. Follow the
   task-local
   [`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
-- Gate A remains intentionally inert. Local commit `7ad221d` disables the
-  default application mutation path and adds immutable target contracts; local
-  commit `e049e32` adds fixed read-only Docker/Podman command plans,
-  handle-bound Windows file identity primitives, canonical mutex-name
-  derivation, and a pure Windows-root selection policy.
-- The current uncommitted increment adds the SHA-256-pinned package runtime
-  policy for Docker CLI `29.7.2`, Docker Compose `5.3.1`, Podman `6.0.2`, and
-  CPython `3.12.10`; exact reviewed signer/install identities; the managed-only
-  Podman Compose closure; a bounded PE/embedded-CMS parser; and verification-
-  only same-handle WinTrust/RFC3161 evidence. Authenticode output identifies
-  compatible signer-policy records only and deliberately does not claim PE
-  product, leaf-name, or version proof.
-- The follow-on uncommitted Gate A slice adds a bounded same-held-file AMD64
-  PE32+ `RT_VERSION` parser and exact product/version proof for policy products
-  that use PE evidence, plus a handle-owning installation candidate resolver
-  that reads only exact reviewed 64-bit `REG_SZ` records and approved Windows
-  Known Folders. It never consults package/CWD/PATH/PATHEXT/environment/App
-  Paths or generic discovery. Installation evidence remains an explicitly
-  untrusted nomination and is not converted into `RuntimeIdentity`.
-- Focused policy, Authenticode, PE/resolver, target-plan, mutation-gate, and
-  Windows-security checks pass. Independent security review found and closed
-  fail-closed gaps in numeric VERSION-resource selection/ordering, fixed
-  numeric-version consistency, surrogate sanitization, predefined HKEY ABI
-  representation, and native-shim test coverage, then issued PASS with no open
-  findings for the isolated slice. No live discovery, process executor, or
-  repair path imports the new resolver/evidence; no installed runtime/native
-  smoke was run; package validation reports launcher mutation disabled; and
-  the production coordinator remains hard-disabled. The same-handle
-  install/PE/Authenticode combiner, authenticated command-version evidence,
-  provider reconstruction, ACL/mutex/journal/recovery, and `.env` transaction
-  work remain open. No local checkpoint from this increment has been committed
-  or pushed.
+- Gate A remains intentionally inert. Local commits `7ad221d` and `e049e32`
+  disable default mutation and add immutable target contracts, fixed read-only
+  command plans, handle-bound file identity, canonical mutex names, and pure
+  root selection. Local commit `24d4015` adds the pinned runtime policy,
+  same-handle Authenticode and PE product/version proof, and reviewed-record
+  installation nomination. These three commits remain local above PR #67 head
+  `ae6342e`.
+- The current uncommitted source slice serializes every use and close of the
+  cursor-bearing `HandleBoundFile`, including postvalidation and interruption
+  cleanup. Its inert `runtime_verification.py` combines installation, PE, and
+  Authenticode evidence over the same retained file, requires identical policy
+  hash/stable identity/complete-file SHA-256, requires the PE-derived product in
+  the signer-policy overlap, then revalidates all installation records and the
+  held file before returning a closeable, non-executable owner. Final-use
+  revalidation is serialized against close.
+- The final focused security/identity/Auth/combiner run passed 228 tests with
+  only the two prohibited native installed-file smokes deselected; the policy,
+  mutation-gate, and target-contract set passed 128. Independent security
+  review found and closed one interruption-time pre-return handle-cleanup gap
+  plus one inert-import test gap, then issued PASS with no open findings. No
+  live discovery, process executor, app, or repair path imports the combiner;
+  mutation remains disabled. Docker Compose and Podman command-based exact-
+  version proof, provider reconstruction, ACL/mutex/journal/recovery, and
+  `.env` transaction work remain open. This slice has not been committed or
+  pushed.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

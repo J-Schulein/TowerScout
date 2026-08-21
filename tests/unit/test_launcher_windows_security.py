@@ -4,6 +4,7 @@ import hashlib
 import os
 import re
 import sys
+import threading
 from dataclasses import replace
 from pathlib import Path
 
@@ -66,7 +67,9 @@ class _FakeWindowsFileApi:
         self.handle = object()
         self.opened_path = ""
         self.closed = False
+        self.close_count = 0
         self.cursor = 0
+        self.query_count = 0
         self.query_results: list[NativeFileFacts] = []
         self.open_error: Exception | None = None
         self.query_error: Exception | None = None
@@ -81,6 +84,7 @@ class _FakeWindowsFileApi:
 
     def query_file(self, handle: object) -> NativeFileFacts:
         del handle
+        self.query_count += 1
         if self.query_error is not None:
             raise self.query_error
         if self.query_results:
@@ -102,6 +106,7 @@ class _FakeWindowsFileApi:
     def close_handle(self, handle: object) -> None:
         del handle
         self.closed = True
+        self.close_count += 1
         if self.close_error is not None:
             raise self.close_error
 
@@ -168,6 +173,233 @@ def test_scoped_inspector_revalidates_after_failure_and_prioritizes_drift() -> N
 
     assert exc_info.value.category == "file_identity_changed"
     assert _SECRET_PATH not in str(exc_info.value)
+
+
+def test_same_handle_inspections_are_serialized_through_postvalidation() -> None:
+    api = _FakeWindowsFileApi()
+    first_inside = threading.Event()
+    release_first = threading.Event()
+    second_started = threading.Event()
+    second_inside = threading.Event()
+    failures: list[BaseException] = []
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+
+        def inspect_first(_handle: object, _snapshot: object) -> str:
+            first_inside.set()
+            if not release_first.wait(timeout=2):
+                raise AssertionError("First inspection was not released.")
+            return "first"
+
+        def inspect_second(_handle: object, _snapshot: object) -> str:
+            # Initial capture, the first precheck/postcheck, and this precheck
+            # must all have completed before a second callback receives the
+            # cursor-bearing handle.
+            assert api.query_count >= 8
+            second_inside.set()
+            return "second"
+
+        def run_first() -> None:
+            try:
+                assert bound.inspect_same_handle(inspect_first) == "first"
+            except BaseException as error:  # pragma: no cover - thread handoff
+                failures.append(error)
+
+        def run_second() -> None:
+            second_started.set()
+            try:
+                assert bound.inspect_same_handle(inspect_second) == "second"
+            except BaseException as error:  # pragma: no cover - thread handoff
+                failures.append(error)
+
+        first = threading.Thread(target=run_first)
+        second = threading.Thread(target=run_second)
+        first.start()
+        assert first_inside.wait(timeout=2)
+        second.start()
+        assert second_started.wait(timeout=2)
+        assert not second_inside.wait(timeout=0.1)
+        release_first.set()
+        first.join(timeout=2)
+        second.join(timeout=2)
+
+        assert not first.is_alive()
+        assert not second.is_alive()
+        assert second_inside.is_set()
+        assert failures == []
+
+
+def test_close_waits_for_active_inspection_and_its_postvalidation() -> None:
+    api = _FakeWindowsFileApi()
+    inspection_inside = threading.Event()
+    release_inspection = threading.Event()
+    close_started = threading.Event()
+    close_returned = threading.Event()
+    failures: list[BaseException] = []
+    bound = capture_handle_bound_file(Path("private.exe"), api=api)
+
+    def inspect(_handle: object, _snapshot: object) -> None:
+        inspection_inside.set()
+        if not release_inspection.wait(timeout=2):
+            raise AssertionError("Inspection was not released.")
+
+    def run_inspection() -> None:
+        try:
+            bound.inspect_same_handle(inspect)
+        except BaseException as error:  # pragma: no cover - thread handoff
+            failures.append(error)
+
+    def run_close() -> None:
+        close_started.set()
+        try:
+            bound.close()
+            close_returned.set()
+        except BaseException as error:  # pragma: no cover - thread handoff
+            failures.append(error)
+
+    inspection = threading.Thread(target=run_inspection)
+    closer = threading.Thread(target=run_close)
+    inspection.start()
+    assert inspection_inside.wait(timeout=2)
+    closer.start()
+    assert close_started.wait(timeout=2)
+    assert not close_returned.wait(timeout=0.1)
+    assert api.close_count == 0
+
+    release_inspection.set()
+    inspection.join(timeout=2)
+    closer.join(timeout=2)
+
+    assert not inspection.is_alive()
+    assert not closer.is_alive()
+    assert close_returned.is_set()
+    assert failures == []
+    assert bound.closed
+    assert api.close_count == 1
+
+
+@pytest.mark.parametrize("operation", ("inspect", "assert", "close"))
+def test_reentrant_same_handle_use_fails_closed_without_losing_owner(
+    operation: str,
+) -> None:
+    api = _FakeWindowsFileApi()
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+
+        def reenter(_handle: object, _snapshot: object) -> None:
+            if operation == "inspect":
+                bound.inspect_same_handle(lambda _inner, _facts: None)
+            elif operation == "assert":
+                bound.assert_unchanged()
+            else:
+                bound.close()
+
+        with pytest.raises(WindowsSecurityError) as exc_info:
+            bound.inspect_same_handle(reenter)
+
+        assert exc_info.value.category == "file_handle_in_use"
+        assert not bound.closed
+        assert bound.inspect_same_handle(lambda _handle, _snapshot: "ok") == "ok"
+
+    assert api.close_count == 1
+
+
+def test_failed_inspector_releases_handle_ownership_for_later_use() -> None:
+    api = _FakeWindowsFileApi()
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+        with pytest.raises(WindowsSecurityError) as exc_info:
+            bound.inspect_same_handle(
+                lambda _handle, _snapshot: (_ for _ in ()).throw(OSError(_SECRET_PATH))
+            )
+
+        assert exc_info.value.category == "file_inspection_failed"
+        assert bound.inspect_same_handle(lambda _handle, _snapshot: "ok") == "ok"
+
+
+def test_interrupted_inspector_is_postvalidated_and_releases_ownership() -> None:
+    api = _FakeWindowsFileApi()
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+        with pytest.raises(KeyboardInterrupt):
+            bound.inspect_same_handle(
+                lambda _handle, _snapshot: (_ for _ in ()).throw(KeyboardInterrupt)
+            )
+
+        assert api.query_count == 6
+        assert bound.inspect_same_handle(lambda _handle, _snapshot: "ok") == "ok"
+
+
+def test_capture_interruption_closes_without_masking_primary_failure() -> None:
+    api = _FakeWindowsFileApi()
+    api.query_error = KeyboardInterrupt()  # type: ignore[assignment]
+    api.close_error = SystemExit()  # type: ignore[assignment]
+
+    with pytest.raises(KeyboardInterrupt):
+        capture_handle_bound_file(Path("private.exe"), api=api)
+
+    assert api.close_count == 1
+
+
+def test_concurrent_and_repeated_close_closes_native_handle_exactly_once() -> None:
+    api = _FakeWindowsFileApi()
+    bound = capture_handle_bound_file(Path("private.exe"), api=api)
+    start = threading.Event()
+    failures: list[BaseException] = []
+
+    def run_close() -> None:
+        if not start.wait(timeout=2):
+            failures.append(AssertionError("Close start was not released."))
+            return
+        try:
+            bound.close()
+        except BaseException as error:  # pragma: no cover - thread handoff
+            failures.append(error)
+
+    closers = [threading.Thread(target=run_close) for _ in range(4)]
+    for closer in closers:
+        closer.start()
+    start.set()
+    for closer in closers:
+        closer.join(timeout=2)
+
+    bound.close()
+    assert all(not closer.is_alive() for closer in closers)
+    assert failures == []
+    assert bound.closed
+    assert api.close_count == 1
+
+
+def test_every_concurrent_close_waits_for_native_close_completion() -> None:
+    close_inside = threading.Event()
+    release_close = threading.Event()
+
+    class _BlockingCloseApi(_FakeWindowsFileApi):
+        def close_handle(self, handle: object) -> None:
+            close_inside.set()
+            if not release_close.wait(timeout=2):
+                raise AssertionError("Native close was not released.")
+            super().close_handle(handle)
+
+    api = _BlockingCloseApi()
+    bound = capture_handle_bound_file(Path("private.exe"), api=api)
+    second_returned = threading.Event()
+
+    first = threading.Thread(target=bound.close)
+    second = threading.Thread(target=lambda: (bound.close(), second_returned.set()))
+    first.start()
+    assert close_inside.wait(timeout=2)
+    second.start()
+    assert not second_returned.wait(timeout=0.1)
+
+    release_close.set()
+    first.join(timeout=2)
+    second.join(timeout=2)
+
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert second_returned.is_set()
+    assert api.close_count == 1
 
 
 def test_capture_detects_metadata_change_during_hash_and_closes_handle() -> None:

@@ -973,7 +973,7 @@ def _close_all(values: Sequence[HandleBoundFile]) -> None:
     for value in values:
         try:
             value.close()
-        except Exception:
+        except BaseException:
             pass
 
 
@@ -1117,10 +1117,10 @@ def open_package_bound_installation(
                     require_single_link=False,
                 ),
             )
+            held.append(bound)
             if _final_leaf(bound.snapshot.final_path) != product.executable_name:
                 bound.close()
                 _fail(RuntimeIdentityErrorCode.INSTALL_RECORD_INVALID)
-            held.append(bound)
             observation_by_bound.append(observation)
     except RuntimeIdentityVerificationError:
         _close_all(held)
@@ -1131,6 +1131,9 @@ def open_package_bound_installation(
     except Exception:
         _close_all(held)
         _fail(RuntimeIdentityErrorCode.INSTALL_RECORD_INVALID)
+    except BaseException:
+        _close_all(held)
+        raise
 
     try:
         current_observations, current_digest = _scan_install_records(
@@ -1167,3 +1170,6 @@ def open_package_bound_installation(
     except Exception:
         _close_all(held)
         _fail(RuntimeIdentityErrorCode.INSTALL_RECORD_INVALID)
+    except BaseException:
+        _close_all(held)
+        raise
