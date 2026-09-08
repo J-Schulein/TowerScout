@@ -23,7 +23,10 @@ source checkpoint `2d37e66` also passed independent review with no open source-
 safety findings. It remains unwired and explicitly does not claim transitive
 dependency closure. Task-state checkpoint `ca2f284` passed exact-head CI/CD run
 `34257761291`, Task-087 run `34257761429`, and external Trivy. PR #67 remains
-Draft, and merge/publication retain their separate applicable gates.
+Draft. Source checkpoint `3909395` defines an exact CPython 3.12.10 native-
+file/dependency policy and same-handle PE inspection primitives. It is
+independently reviewed with no open findings, but is not yet packaged or wired
+to execution; merge/publication retain their separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -1367,6 +1370,99 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-08 - Exact CPython Dependency Policy Implemented Locally
+
+**Objective**: Adopt the reviewed exact-artifact policy for the next bounded
+Gate A transitive-dependency source slice without enabling discovery, target
+resolution, child execution, repair, filesystem mutation, or packaging.
+
+**Decision**: Trust the exact Python.org `pythoncore-3.12-64` CPython 3.12.10
+archive, every native file hash, and each signed file's exact leaf-certificate
+fingerprint. Do not grant broad Python Software Foundation or Microsoft signer
+trust. Record upstream unsigned native files explicitly and accept them only by
+their exact archive-bound hashes. Any CPython version or artifact change must
+replace and review the complete policy rather than inherit this approval.
+
+**Execution**: Added a strict package-hash-bound policy for the official
+Python.org archive containing 47 PE files: 43 AMD64 loadable images and four
+non-AMD64 pip launcher templates. The 43 AMD64 records contain exact file and
+dependency-manifest hashes; 39 also require one of five exact Authenticode
+signer certificates. Four AMD64 upstream files and the four non-AMD64 templates
+are explicitly unsigned and hash-only. The policy separately classifies the
+observed Windows system, API-set, and private CPython imports and denies
+unlisted private assemblies.
+
+Added a bounded AMD64 PE32+ parser for ordinary imports, RVA-form delay imports,
+and forwarded exports. It rejects malformed tables, path-bearing DLL names,
+ambiguous/overlapping sections, bound imports, CLR images, legacy delay-pointer
+descriptors, unsupported machines, and fixed resource-limit violations. Added
+a random-access view over an already retained Windows file handle so parsing
+uses the same identity-stable handle and revalidates it before and after
+inspection.
+
+Added pure validators for the exact 47-file CPython observation set and the
+Docker CLI, Docker Compose, and Podman entrypoint manifests. Static PE-table
+closure is recorded separately from the still-required dynamic-load execution
+policy. Added an exact dependency-signer Authenticode path without broadening
+the existing product signer policy. Native inspection now accepts the standard
+SHA256-with-RSA signature OID and preserves Windows FILETIME's 100-nanosecond
+timestamp precision for exact validity comparisons.
+
+**Artifact Evidence**: The downloaded official archive matched its pinned
+SHA-256, contained exactly the policy's 47 PE paths, and produced zero file-
+hash, dependency-manifest, or machine mismatches. The installed matching
+CPython tree produced zero hash mismatches; all 39 signed records matched their
+exact expected signer, and all eight policy-declared unsigned records remained
+unsigned. A held-handle live parse of the installed Docker entrypoint matched
+its exact policy manifest and retained stable identity through revalidation.
+
+**Validation**: The complete launcher unit-test set passed 769 tests with the
+known native hardlink/temp-cleanup case intentionally deselected. The focused
+Authenticode set passed 160 tests. The broader unit run reached 1,133 passes,
+74 skips, and one deselection but was not green: 20 failures were confined to
+the already documented Windows Defender block of the host-helper script plus
+the intentionally dirty-worktree release-package assertion, and 15 setup
+errors came from the workstation's inaccessible shared pytest temp root. These
+environmental results are not represented as a broad-suite pass.
+
+Black, blocking Flake8, strict mypy across all six changed source modules,
+medium/high Bandit, compilation, both task-record validators, package-policy
+hash loading, and `git diff --check` passed.
+
+The live native dependency-signer path progressed through the newly supported
+OID and fractional timestamp evidence, then failed closed because this host's
+cache-only independent timestamp-chain validation could not build a trusted
+chain. The general Windows Authenticode status for the same file is valid, but
+the stricter cache-only result is intentionally not weakened or recorded as a
+pass.
+
+**Independent Review**: The inspect-only reviewer found no Critical or High
+issue and one Medium scoped-lifetime defect: the random-access reader could be
+retained by its callback and used after the held-file ownership lock and final
+revalidation ended. The implementation now binds the reader to its original
+thread and active callback scope, clears its API and handle references during
+invalidation, and invalidates it before releasing the ownership lock on every
+success, failure, and interruption path. Four regressions cover escape after
+success, callback failure, owner close, and cross-thread use. The reviewer
+rechecked the correction, ran the six scoped-reader tests, and returned PASS
+with no open residual finding. The broader corrected launcher set passed 769
+tests with the known native hardlink/temp test deselected.
+
+**Boundary**: Source checkpoint `3909395` is committed and inert. The policy
+resource is not yet included in a packaged launcher, and no launcher,
+discovery, repair, execution, or coordination path invokes the new dependency
+validator or exact-signer entry point. The pure 47-file validation accepts
+captured evidence but does not yet own all native handles or enforce arbitrary
+dynamic-load destinations during child execution. No Docker/Podman runtime mutation,
+launcher operation, repair, package, publication, merge, or signing action ran.
+
+**Next**: Require exact-head CI/CD, Task-087, and external Trivy checks for the
+source and task-state checkpoints. After acceptance, build the held recursive
+CPython inventory/capture owner and enforce the dynamic-load and exact-artifact
+policy at the child-execution boundary. Continue Windows-store CA selection,
+cross-session locking, durable rollback/recovery, provider `.env`, and ACL-
+preserving atomic replacement as separate Gate A slices.
 
 ### 2026-09-08 - Windows Path And Immediate Load Prerequisites Checkpointed
 

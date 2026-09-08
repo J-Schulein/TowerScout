@@ -2,18 +2,18 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 8, 2026
-**Focus**: Task-101 is complete. Task-087 source checkpoint `2d37e66` adds the
-independently reviewed Windows path/DACL/reparse/cloud and immediate runtime-
-load prerequisites on top of the authenticated Docker Compose/Podman command
-boundary. Task-state checkpoint `ca2f284` passed exact-head CI/CD run
-`34257761291`, Task-087 run `34257761429`, and external Trivy. The slice remains
-inert and unwired. A product-specific transitive-
-dependency/private-assembly policy, including the reviewed Microsoft-signed
-CPython VCRuntime case, remains mandatory before execution integration. Cross-
-session locks, durable recovery, Windows-store CA selection, and ACL-preserving
-`.env` replacement remain later Gate A source work. Unsigned preview-package
-integration remains later under ADR-019. Production signing remains Task-100
-work in October after the package is satisfactory.
+**Focus**: Task-101 is complete. Task-087 checkpoint `2d37e66` and task-state
+checkpoint `ca2f284` remain independently reviewed and exact-head green.
+Source checkpoint `3909395` defines the exact Python.org CPython 3.12.10
+archive, its 47 native files, exact hashes/signers, static dependencies, and
+same-handle PE inspection. Independent review found and closed one Medium
+scoped-reader lifetime gap, then returned PASS with no open findings. The
+checkpoint is not yet packaged or wired to execution. Held recursive capture
+and dynamic-load enforcement remain mandatory before execution integration.
+Cross-session locks, durable recovery, Windows-store CA selection, and
+ACL-preserving `.env` replacement remain later Gate A source work. Unsigned
+preview-package integration remains later under ADR-019. Production signing
+remains Task-100 work in October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -290,6 +290,26 @@ timing; preview integration remains a later gate
   ran. Task-state checkpoint `ca2f284` then passed exact-head CI/CD run
   `34257761291`, Task-087 run `34257761429`, and external Trivy with all nine
   applicable checks successful; the PR-only build job skipped as designed.
+- Source checkpoint `3909395` adopts the exact-artifact dependency policy:
+  the official Python.org `pythoncore-3.12-64` CPython 3.12.10 archive and all
+  47 PE files are hash-pinned; all 43 AMD64 files have exact static-dependency
+  manifests; 39 require one of five exact signer certificates; and the eight
+  upstream unsigned records are explicitly exact-hash-only. A bounded PE
+  parser, held-handle random-access inspection, pure full-inventory/entrypoint
+  validators, and exact dependency-signer Authenticode path are implemented.
+  The official archive and matching installed tree produced zero inventory,
+  hash, machine, dependency-manifest, or signer-policy mismatches. The launcher
+  unit set passed 769 tests with the known native hardlink/temp-cleanup case
+  deselected. Independent review found one Medium escaped-reader lifetime gap;
+  the reader is now scope/thread-bound, invalidated before lock release, and
+  covered after success, callback failure, owner close, and cross-thread use.
+  Re-review returned PASS with no open findings. The broader suite was not
+  green because of the documented
+  Defender host-helper block, dirty-tree package assertion, and inaccessible
+  shared pytest temp root. Native cache-only timestamp-chain validation failed
+  closed on this workstation and is not treated as a pass. The checkpoint
+  remains unwired; package inclusion, held recursive capture, dynamic-load
+  enforcement, and execution integration remain open.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked
