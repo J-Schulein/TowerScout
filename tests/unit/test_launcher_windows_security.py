@@ -82,6 +82,9 @@ class _FakeWindowsFileApi:
             raise self.open_error
         return self.handle
 
+    def open_file_for_hydrated_identity(self, path: str) -> object:
+        return self.open_file_for_identity(path)
+
     def query_file(self, handle: object) -> NativeFileFacts:
         del handle
         self.query_count += 1

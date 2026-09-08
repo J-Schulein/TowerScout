@@ -93,6 +93,9 @@ class _FileApi:
         self.opened.append(path)
         return self.handle
 
+    def open_file_for_hydrated_identity(self, path: str) -> object:
+        return self.open_file_for_identity(path)
+
     def query_file(self, handle: object) -> NativeFileFacts:
         assert handle is self.handle
         return replace(self.facts, size=len(self.content))
@@ -784,6 +787,8 @@ class _Kernel32ProcessShim:
         returned_size: int | None = None,
         process_handle: int = 701,
         thread_handle: int = 702,
+        dll_directory: str = "",
+        interrupt_after_pipe_create: bool = False,
     ) -> None:
         self.assign_succeeds = assign_succeeds
         self.resume_result = resume_result
@@ -793,6 +798,8 @@ class _Kernel32ProcessShim:
         self.returned_size = returned_size
         self.process_handle = process_handle
         self.thread_handle = thread_handle
+        self.dll_directory = dll_directory
+        self.interrupt_after_pipe_create = interrupt_after_pipe_create
         self.job_handle = 601
         self.pipe_pairs = [(101, 102), (103, 104), (105, 106)]
         self.active = 1
@@ -801,6 +808,7 @@ class _Kernel32ProcessShim:
         self.closed: list[int] = []
         self.noninheritable: list[tuple[int, int, int]] = []
         self.inherited_handles: tuple[int, ...] = ()
+        self.mitigation_policy = 0
         self.job_limit_flags = 0
         self.application_name = ""
         self.command_line = ""
@@ -831,6 +839,9 @@ class _Kernel32ProcessShim:
         ctypes.cast(
             write_pointer, ctypes.POINTER(native_module._HANDLE)
         ).contents.value = write
+        if self.interrupt_after_pipe_create:
+            self.interrupt_after_pipe_create = False
+            raise KeyboardInterrupt
         return True
 
     def SetHandleInformation(self, handle: object, mask: int, flags: int) -> bool:
@@ -869,7 +880,7 @@ class _Kernel32ProcessShim:
         size_pointer: object,
     ) -> bool:
         self.calls.append("InitializeProcThreadAttributeList")
-        assert count == 1
+        assert count == 2
         assert flags == 0
         if attribute_list is None:
             ctypes.cast(
@@ -891,15 +902,32 @@ class _Kernel32ProcessShim:
     ) -> bool:
         self.calls.append("UpdateProcThreadAttribute")
         assert flags == 0
-        assert attribute == native_module.PROC_THREAD_ATTRIBUTE_HANDLE_LIST
-        assert size == 3 * ctypes.sizeof(native_module._HANDLE)
-        handle_array = ctypes.cast(
-            value, ctypes.POINTER(native_module._HANDLE * 3)
-        ).contents
-        self.inherited_handles = tuple(
-            _native_handle_value(handle) for handle in handle_array
-        )
+        if attribute == native_module.PROC_THREAD_ATTRIBUTE_HANDLE_LIST:
+            assert size == 3 * ctypes.sizeof(native_module._HANDLE)
+            handle_array = ctypes.cast(
+                value, ctypes.POINTER(native_module._HANDLE * 3)
+            ).contents
+            self.inherited_handles = tuple(
+                _native_handle_value(handle) for handle in handle_array
+            )
+        else:
+            assert attribute == native_module.PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY
+            assert size == ctypes.sizeof(ctypes.c_uint64)
+            self.mitigation_policy = ctypes.cast(
+                value, ctypes.POINTER(ctypes.c_uint64)
+            ).contents.value
         return True
+
+    def GetDllDirectoryW(self, size: int, buffer: object) -> int:
+        self.calls.append("GetDllDirectoryW")
+        if not self.dll_directory:
+            self.last_error = 0
+            return 1 if size == 0 or buffer is None else 0
+        required = len(self.dll_directory) + 1
+        if size == 0 or buffer is None:
+            return required
+        buffer.value = self.dll_directory
+        return len(self.dll_directory)
 
     def DeleteProcThreadAttributeList(self, _attribute_list: object) -> None:
         self.calls.append("DeleteProcThreadAttributeList")
@@ -1053,6 +1081,11 @@ def test_native_process_api_uses_exact_containment_contract(
         (106, native_module.HANDLE_FLAG_INHERIT, 0),
     ]
     assert shim.inherited_handles == (105, 102, 104)
+    assert shim.mitigation_policy == (
+        native_module.PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_ON
+        | native_module.PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON
+        | native_module.PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON
+    )
     assert shim.startup_std_handles == (105, 102, 104)
     assert shim.job_limit_flags == native_module.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
     assert shim.application_name == _COMPOSE_FINAL
@@ -1082,6 +1115,19 @@ def test_native_process_api_uses_exact_containment_contract(
     assert shim.closed == [105, 102, 104, 106, 702, 101, 103, 701, 601]
 
 
+def test_native_process_api_rejects_nonempty_parent_dll_directory_before_side_effects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shim = _Kernel32ProcessShim(dll_directory=r"C:\Users\private-user\attacker")
+    api = _shim_native_api(shim, monkeypatch)
+
+    with pytest.raises(OSError):
+        api.start(_native_request())  # type: ignore[attr-defined]
+
+    assert shim.calls == ["GetDllDirectoryW", "GetDllDirectoryW"]
+    assert shim.closed == []
+
+
 def test_native_process_api_cleans_successful_assignment_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1097,6 +1143,60 @@ def test_native_process_api_cleans_successful_assignment_failure(
     assert "WaitForSingleObject" in shim.calls
     assert "TerminateJobObject" not in shim.calls
     assert set(shim.closed) == {101, 102, 103, 104, 105, 106, 601, 701, 702}
+
+
+def test_native_process_api_closes_pipe_outputs_when_creation_is_interrupted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shim = _Kernel32ProcessShim(interrupt_after_pipe_create=True)
+    api = _shim_native_api(shim, monkeypatch)
+
+    with pytest.raises(KeyboardInterrupt):
+        api.start(_native_request())  # type: ignore[attr-defined]
+
+    assert shim.closed == [101, 102]
+    assert "CreateJobObjectW" not in shim.calls
+
+
+def test_native_process_api_closes_untracked_job_when_capture_is_interrupted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shim = _Kernel32ProcessShim()
+    api = _shim_native_api(shim, monkeypatch)
+    original_handle_value = native_module._handle_value
+
+    def interrupt_job_capture(value: object) -> int:
+        if _native_handle_value(value) == shim.job_handle:
+            raise KeyboardInterrupt
+        return original_handle_value(value)
+
+    monkeypatch.setattr(native_module, "_handle_value", interrupt_job_capture)
+    with pytest.raises(KeyboardInterrupt):
+        api.start(_native_request())  # type: ignore[attr-defined]
+
+    assert set(shim.closed) == {101, 102, 103, 104, 105, 106, 601}
+    assert len(shim.closed) == 7
+
+
+def test_native_process_api_terminates_after_result_transfer_interruption(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shim = _Kernel32ProcessShim()
+    api = _shim_native_api(shim, monkeypatch)
+    original_arm = native_module._NativeProcess._arm
+
+    def interrupt_transfer(process: object) -> None:
+        original_arm(process)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(native_module._NativeProcess, "_arm", interrupt_transfer)
+    with pytest.raises(KeyboardInterrupt):
+        api.start(_native_request())  # type: ignore[attr-defined]
+
+    assert "TerminateJobObject" in shim.calls
+    assert "QueryInformationJobObject" in shim.calls
+    assert set(shim.closed) == {101, 102, 103, 104, 105, 106, 601, 701, 702}
+    assert len(shim.closed) == 9
 
 
 @pytest.mark.parametrize("terminate_succeeds", (True, False))
@@ -1453,6 +1553,11 @@ def test_native_backend_source_contains_required_windows_containment_primitives(
         "TerminateJobObject",
         "QueryInformationJobObject",
         "PROC_THREAD_ATTRIBUTE_HANDLE_LIST",
+        "PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY",
+        "IMAGE_LOAD_NO_REMOTE_ALWAYS_ON",
+        "IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON",
+        "IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON",
+        "GetDllDirectoryW",
         "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE",
         "CREATE_SUSPENDED",
     ):

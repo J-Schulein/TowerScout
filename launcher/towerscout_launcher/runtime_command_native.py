@@ -30,6 +30,10 @@ EXTENDED_STARTUPINFO_PRESENT = 0x00080000
 STARTF_USESTDHANDLES = 0x00000100
 HANDLE_FLAG_INHERIT = 0x00000001
 PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x00020002
+PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY = 0x00020007
+PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_ON = 1 << 52
+PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON = 1 << 56
+PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON = 1 << 60
 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
 
 _JOB_OBJECT_BASIC_ACCOUNTING_INFORMATION = 1
@@ -44,6 +48,17 @@ _POLL_MILLISECONDS = 25
 _TERMINATION_TIMEOUT_SECONDS = 5.0
 _MAX_DIRECTORY_CHARACTERS = 32_767
 _REQUIRED_ENVIRONMENT_NAMES = ("SystemRoot", "WINDIR")
+
+_STDOUT_READ_SLOT = 0
+_STDOUT_WRITE_SLOT = 1
+_STDERR_READ_SLOT = 2
+_STDERR_WRITE_SLOT = 3
+_STDIN_READ_SLOT = 4
+_STDIN_WRITE_SLOT = 5
+_JOB_SLOT = 6
+_PROCESS_SLOT = 7
+_THREAD_SLOT = 8
+_START_HANDLE_SLOT_COUNT = 9
 
 _HANDLE = ctypes.c_void_p
 _DWORD = ctypes.c_uint32
@@ -164,12 +179,52 @@ def _optional_handle_value(value: object) -> int | None:
     return None
 
 
-@dataclass(frozen=True, slots=True, repr=False)
+class _StartHandleLedger:
+    """Track every acquired start handle before control returns to its caller."""
+
+    __slots__ = ("_close_handle", "_handles")
+
+    def __init__(self, close_handle: Any) -> None:
+        self._close_handle = close_handle
+        self._handles: list[int | None] = [None] * _START_HANDLE_SLOT_COUNT
+
+    def track(self, slot: int, handle: int) -> int:
+        if (
+            type(slot) is not int
+            or not 0 <= slot < len(self._handles)
+            or self._handles[slot] is not None
+            or type(handle) is not int
+            or handle <= 0
+        ):
+            raise OSError("Native process handle ownership is invalid.")
+        self._handles[slot] = handle
+        return handle
+
+    def value(self, slot: int) -> int | None:
+        return self._handles[slot]
+
+    def owns(self, handle: int) -> bool:
+        return any(value == handle for value in self._handles)
+
+    def close(self, slot: int) -> None:
+        value = self._handles[slot]
+        self._handles[slot] = None
+        if value is not None:
+            self._close_handle(value)
+
+    def close_all(self) -> None:
+        for slot in reversed(range(len(self._handles))):
+            self.close(slot)
+
+
+@dataclass(slots=True, repr=False)
 class _NativeProcess:
     job: int = field(repr=False)
     process: int = field(repr=False)
     stdout_read: int = field(repr=False)
     stderr_read: int = field(repr=False)
+    _owner: _StartHandleLedger | None = field(default=None, repr=False, compare=False)
+    _armed: bool = field(default=False, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if any(
@@ -185,6 +240,29 @@ class _NativeProcess:
 
     def __repr__(self) -> str:
         return "_NativeProcess(<redacted>)"
+
+    def _arm(self) -> None:
+        self._armed = True
+
+    def _close_owned(self) -> None:
+        owner = self._owner
+        self._armed = False
+        if owner is None:
+            return
+        for slot in (
+            _STDOUT_READ_SLOT,
+            _STDERR_READ_SLOT,
+            _PROCESS_SLOT,
+            _JOB_SLOT,
+        ):
+            owner.close(slot)
+
+    def __del__(self) -> None:
+        if getattr(self, "_armed", False):
+            try:
+                self._close_owned()
+            except BaseException:
+                pass
 
 
 class _ProcessApi(Protocol):
@@ -330,6 +408,8 @@ class _NativeWindowsProcessApi:
         kernel32.GetWindowsDirectoryW.restype = _DWORD
         kernel32.GetSystemDirectoryW.argtypes = (ctypes.c_wchar_p, _DWORD)
         kernel32.GetSystemDirectoryW.restype = _DWORD
+        kernel32.GetDllDirectoryW.argtypes = (_DWORD, ctypes.c_wchar_p)
+        kernel32.GetDllDirectoryW.restype = _DWORD
 
     @property
     def supported(self) -> bool:
@@ -357,6 +437,27 @@ class _NativeWindowsProcessApi:
 
     def system_directory(self) -> str:
         return self._directory("GetSystemDirectoryW")
+
+    def _current_dll_directory(self) -> str:
+        kernel32 = self._require_kernel32()
+        ctypes.set_last_error(0)
+        required = int(kernel32.GetDllDirectoryW(0, None))
+        if required == 0:
+            if ctypes.get_last_error() != 0:
+                raise OSError("Native DLL-directory inspection failed.")
+            return ""
+        if required > _MAX_DIRECTORY_CHARACTERS:
+            raise OSError("Native DLL-directory inspection failed.")
+        buffer = ctypes.create_unicode_buffer(required + 1)
+        ctypes.set_last_error(0)
+        written = int(kernel32.GetDllDirectoryW(len(buffer), buffer))
+        if written == 0:
+            if ctypes.get_last_error() != 0 or buffer.value:
+                raise OSError("Native DLL-directory inspection failed.")
+            return ""
+        if written >= len(buffer):
+            raise OSError("Native DLL-directory inspection failed.")
+        return buffer.value
 
     @staticmethod
     def _environment_block(environment: tuple[tuple[str, str], ...]) -> str:
@@ -390,7 +491,12 @@ class _NativeWindowsProcessApi:
         except BaseException:
             pass
 
-    def _pipe(self) -> tuple[int, int]:
+    def _pipe(
+        self,
+        owner: _StartHandleLedger,
+        read_slot: int,
+        write_slot: int,
+    ) -> None:
         kernel32 = self._require_kernel32()
         read = _HANDLE()
         write = _HANDLE()
@@ -399,11 +505,33 @@ class _NativeWindowsProcessApi:
             lpSecurityDescriptor=None,
             bInheritHandle=True,
         )
-        if not kernel32.CreatePipe(
-            ctypes.byref(read), ctypes.byref(write), ctypes.byref(attributes), 0
-        ):
-            raise OSError("Native process pipe creation failed.")
-        return _handle_value(read.value), _handle_value(write.value)
+        try:
+            if not kernel32.CreatePipe(
+                ctypes.byref(read), ctypes.byref(write), ctypes.byref(attributes), 0
+            ):
+                raise OSError("Native process pipe creation failed.")
+            owner.track(read_slot, _handle_value(read.value))
+            owner.track(write_slot, _handle_value(write.value))
+        except BaseException:
+            for raw in (
+                _optional_handle_value(read.value),
+                _optional_handle_value(write.value),
+            ):
+                if raw is not None and not owner.owns(raw):
+                    self._close(raw)
+            raise
+
+    def _job(self, owner: _StartHandleLedger) -> int:
+        kernel32 = self._require_kernel32()
+        raw: object = None
+        try:
+            raw = kernel32.CreateJobObjectW(None, None)
+            return owner.track(_JOB_SLOT, _handle_value(raw))
+        except BaseException:
+            value = _optional_handle_value(raw)
+            if value is not None and not owner.owns(value):
+                self._close(value)
+            raise
 
     def _remove_inheritance(self, handle: int) -> None:
         kernel32 = self._require_kernel32()
@@ -446,6 +574,9 @@ class _NativeWindowsProcessApi:
         if type(request) is not CommandProcessRequest:
             raise ValueError("Contained command request is invalid.")
         kernel32 = self._require_kernel32()
+        if self._current_dll_directory() != "":
+            raise OSError("Native process DLL-directory policy failed.")
+        owner = _StartHandleLedger(self._close)
         stdout_read = stdout_write = None
         stderr_read = stderr_write = None
         stdin_read = stdin_write = None
@@ -455,14 +586,31 @@ class _NativeWindowsProcessApi:
         attribute_list = None
         attribute_initialized = False
         process_info = _PROCESS_INFORMATION()
+        result: _NativeProcess | None = None
+        successful = False
         try:
-            stdout_read, stdout_write = self._pipe()
-            stderr_read, stderr_write = self._pipe()
-            stdin_read, stdin_write = self._pipe()
+            self._pipe(owner, _STDOUT_READ_SLOT, _STDOUT_WRITE_SLOT)
+            stdout_read = owner.value(_STDOUT_READ_SLOT)
+            stdout_write = owner.value(_STDOUT_WRITE_SLOT)
+            self._pipe(owner, _STDERR_READ_SLOT, _STDERR_WRITE_SLOT)
+            stderr_read = owner.value(_STDERR_READ_SLOT)
+            stderr_write = owner.value(_STDERR_WRITE_SLOT)
+            self._pipe(owner, _STDIN_READ_SLOT, _STDIN_WRITE_SLOT)
+            stdin_read = owner.value(_STDIN_READ_SLOT)
+            stdin_write = owner.value(_STDIN_WRITE_SLOT)
+            if (
+                stdout_read is None
+                or stdout_write is None
+                or stderr_read is None
+                or stderr_write is None
+                or stdin_read is None
+                or stdin_write is None
+            ):
+                raise OSError("Native process pipe ownership failed.")
             for handle in (stdout_read, stderr_read, stdin_write):
                 self._remove_inheritance(handle)
 
-            job = _handle_value(kernel32.CreateJobObjectW(None, None))
+            job = self._job(owner)
             job_limits = _JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
             job_limits.BasicLimitInformation.LimitFlags = (
                 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
@@ -478,7 +626,7 @@ class _NativeWindowsProcessApi:
             attribute_bytes = _SIZE_T()
             ctypes.set_last_error(0)
             first = kernel32.InitializeProcThreadAttributeList(
-                None, 1, 0, ctypes.byref(attribute_bytes)
+                None, 2, 0, ctypes.byref(attribute_bytes)
             )
             if (
                 first
@@ -489,7 +637,7 @@ class _NativeWindowsProcessApi:
             attribute_buffer = ctypes.create_string_buffer(attribute_bytes.value)
             attribute_list = ctypes.cast(attribute_buffer, ctypes.c_void_p)
             if not kernel32.InitializeProcThreadAttributeList(
-                attribute_list, 1, 0, ctypes.byref(attribute_bytes)
+                attribute_list, 2, 0, ctypes.byref(attribute_bytes)
             ):
                 raise OSError("Native process handle-list initialization failed.")
             attribute_initialized = True
@@ -506,6 +654,21 @@ class _NativeWindowsProcessApi:
                 None,
             ):
                 raise OSError("Native process inherited-handle policy failed.")
+            mitigation_policy = ctypes.c_uint64(
+                PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_ON
+                | PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON
+                | PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON
+            )
+            if not kernel32.UpdateProcThreadAttribute(
+                attribute_list,
+                0,
+                PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY,
+                ctypes.cast(ctypes.byref(mitigation_policy), ctypes.c_void_p),
+                ctypes.sizeof(mitigation_policy),
+                None,
+                None,
+            ):
+                raise OSError("Native process image-load policy failed.")
 
             startup = _STARTUPINFOEXW()
             startup.StartupInfo.cb = ctypes.sizeof(_STARTUPINFOEXW)
@@ -540,17 +703,17 @@ class _NativeWindowsProcessApi:
                 ctypes.byref(process_info),
             ):
                 raise OSError("Native contained process creation failed.")
-            process = _handle_value(process_info.hProcess)
-            thread = _handle_value(process_info.hThread)
+            process = owner.track(_PROCESS_SLOT, _handle_value(process_info.hProcess))
+            thread = owner.track(_THREAD_SLOT, _handle_value(process_info.hThread))
 
             # Parent copies of all child-only pipe ends are closed immediately.
-            self._close(stdin_read)
+            owner.close(_STDIN_READ_SLOT)
             stdin_read = None
-            self._close(stdout_write)
+            owner.close(_STDOUT_WRITE_SLOT)
             stdout_write = None
-            self._close(stderr_write)
+            owner.close(_STDERR_WRITE_SLOT)
             stderr_write = None
-            self._close(stdin_write)
+            owner.close(_STDIN_WRITE_SLOT)
             stdin_write = None
 
             if not kernel32.AssignProcessToJobObject(_HANDLE(job), _HANDLE(process)):
@@ -558,16 +721,31 @@ class _NativeWindowsProcessApi:
             assigned = True
             if kernel32.ResumeThread(_HANDLE(thread)) == 0xFFFFFFFF:
                 raise OSError("Native contained process resume failed.")
-            self._close(thread)
+            owner.close(_THREAD_SLOT)
+            process_info.hThread = None
             thread = None
-            result = _NativeProcess(job, process, stdout_read, stderr_read)
-            job = process = stdout_read = stderr_read = None
+            result = _NativeProcess(
+                job,
+                process,
+                stdout_read,
+                stderr_read,
+                _owner=owner,
+            )
+            result._arm()
+            successful = True
             return result
         except BaseException:
+            successful = False
             if process is None:
                 process = _optional_handle_value(process_info.hProcess)
             if thread is None:
                 thread = _optional_handle_value(process_info.hThread)
+            if job is None:
+                job = owner.value(_JOB_SLOT)
+            if process is not None and owner.value(_PROCESS_SLOT) is None:
+                owner.track(_PROCESS_SLOT, process)
+            if thread is not None and owner.value(_THREAD_SLOT) is None:
+                owner.track(_THREAD_SLOT, thread)
             cleanup_verified = True
             if process is not None:
                 cleanup_verified = self._terminate_failed_start(
@@ -588,18 +766,8 @@ class _NativeWindowsProcessApi:
                     kernel32.DeleteProcThreadAttributeList(attribute_list)
                 except BaseException:
                     pass
-            for cleanup_handle in (
-                thread,
-                process,
-                stdin_read,
-                stdin_write,
-                stdout_read,
-                stdout_write,
-                stderr_read,
-                stderr_write,
-                job,
-            ):
-                self._close(cleanup_handle)
+            if not successful:
+                owner.close_all()
 
     def read_file(self, handle: int, maximum: int) -> bytes:
         if type(maximum) is not int or not 1 <= maximum <= _READ_CHUNK_BYTES:
@@ -661,6 +829,9 @@ class _NativeWindowsProcessApi:
 
     def close_process(self, process: _NativeProcess) -> None:
         if type(process) is not _NativeProcess:
+            return
+        if process._owner is not None:
+            process._close_owned()
             return
         for handle in (
             process.stdout_read,

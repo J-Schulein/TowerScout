@@ -16,7 +16,7 @@ import threading
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Protocol, Sequence, TypeVar
+from typing import Any, Callable, Protocol, Sequence, TypeVar
 
 _SCHEMA_VERSION = 1
 _ENV_MUTEX_DOMAIN = b"TowerScout.EnvironmentMutex"
@@ -243,6 +243,7 @@ class FileCapturePolicy:
 
     max_bytes: int = 16 * 1024 * 1024
     require_single_link: bool = True
+    allow_hydrated_cloud_placeholder: bool = False
 
     def __post_init__(self) -> None:
         if (
@@ -250,6 +251,7 @@ class FileCapturePolicy:
             or isinstance(self.max_bytes, bool)
             or not 0 < self.max_bytes <= 1024 * 1024 * 1024
             or not isinstance(self.require_single_link, bool)
+            or not isinstance(self.allow_hydrated_cloud_placeholder, bool)
         ):
             raise ValueError("File capture size policy is invalid.")
 
@@ -261,6 +263,8 @@ class WindowsFileApi(Protocol):
     def supported(self) -> bool: ...
 
     def open_file_for_identity(self, path: str) -> object: ...
+
+    def open_file_for_hydrated_identity(self, path: str) -> object: ...
 
     def query_file(self, handle: object) -> NativeFileFacts: ...
 
@@ -407,10 +411,11 @@ def _validate_capture_policy(
             "file_link_count_unsafe",
             "The Windows file link count is not eligible for this operation.",
         )
-    # Recognition is not authorization.  Cloud-placeholder hydration, ancestor
-    # containment, and ACL policy need their later Gate-A proof before any
-    # reparse leaf can become eligible for mutation.
-    if classification.reparse_kind is not ReparseKind.NONE:
+    cloud_allowed = (
+        policy.allow_hydrated_cloud_placeholder
+        and classification.reparse_kind is ReparseKind.KNOWN_CLOUD_PLACEHOLDER
+    )
+    if classification.reparse_kind is not ReparseKind.NONE and not cloud_allowed:
         raise WindowsSecurityError(
             "file_reparse_unsafe",
             "The Windows file has an unsupported or unavailable reparse state.",
@@ -498,21 +503,52 @@ def _capture_snapshot(
     classification = _validate_capture_policy(before, policy)
     digest = _safe_hash(api, handle, before.size, policy.max_bytes)
     after = _safe_query(api, handle)
-    if after != before:
+    after_classification = _validate_capture_policy(after, policy)
+    cloud_hydration = (
+        policy.allow_hydrated_cloud_placeholder
+        and classification.reparse_kind is ReparseKind.KNOWN_CLOUD_PLACEHOLDER
+    )
+    hydration_markers = (
+        _FILE_ATTRIBUTE_OFFLINE
+        | _FILE_ATTRIBUTE_RECALL_ON_OPEN
+        | _FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS
+    )
+    stable_cloud_hydration = (
+        cloud_hydration
+        and after_classification.hydrated
+        and before.final_path == after.final_path
+        and before.volume_serial == after.volume_serial
+        and before.file_id == after.file_id
+        and (before.attributes & ~hydration_markers)
+        == (after.attributes & ~hydration_markers)
+        and before.link_count == after.link_count
+        and before.size == after.size
+        and before.creation_time == after.creation_time
+        and before.last_write_time == after.last_write_time
+        and before.drive_type == after.drive_type
+        and before.file_type == after.file_type
+        and before.reparse_tag == after.reparse_tag
+    )
+    if cloud_hydration and not after_classification.hydrated:
+        raise WindowsSecurityError(
+            "file_reparse_unsafe",
+            "The Windows file has an unsupported or unavailable reparse state.",
+        )
+    if after != before and not stable_cloud_hydration:
         raise WindowsSecurityError(
             "file_identity_changed",
             "The Windows file changed while it was being inspected.",
         )
     return FileSnapshot(
-        identity=StableFileIdentity(before.volume_serial, before.file_id),
+        identity=StableFileIdentity(after.volume_serial, after.file_id),
         sha256=digest,
-        size=before.size,
-        attributes=before.attributes,
-        creation_time=before.creation_time,
-        last_write_time=before.last_write_time,
-        reparse_tag=before.reparse_tag,
-        final_path=before.final_path,
-        classification=classification,
+        size=after.size,
+        attributes=after.attributes,
+        creation_time=after.creation_time,
+        last_write_time=after.last_write_time,
+        reparse_tag=after.reparse_tag,
+        final_path=after.final_path,
+        classification=after_classification,
     )
 
 
@@ -542,12 +578,13 @@ class HandleBoundFile:
         policy: FileCapturePolicy,
         snapshot: FileSnapshot,
     ) -> None:
+        self._lifetime_lock = threading.RLock()
         self._api = api
-        self._handle: object | None = handle
+        self._handle: object | None = None
         self._policy = policy
         self._snapshot = snapshot
-        self._lifetime_lock = threading.RLock()
         self._active_owner: int | None = None
+        self._handle = handle
 
     @property
     def snapshot(self) -> FileSnapshot:
@@ -647,7 +684,7 @@ class HandleBoundFile:
     def __enter__(self) -> "HandleBoundFile":
         return self
 
-    def __exit__(self, exc_type, exc, traceback) -> None:  # noqa: ANN001
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
         self.close()
 
     def __repr__(self) -> str:
@@ -688,6 +725,40 @@ def capture_handle_bound_file(
             "file_open_failed",
             "The Windows file could not be opened safely.",
         )
+    if selected_policy.allow_hydrated_cloud_placeholder:
+        try:
+            probe = _safe_query(selected_api, handle)
+            probe_classification = _validate_capture_policy(probe, selected_policy)
+        except BaseException:
+            _safe_close(selected_api, handle)
+            raise
+        if probe_classification.reparse_kind is ReparseKind.KNOWN_CLOUD_PLACEHOLDER:
+            probe_identity = StableFileIdentity(probe.volume_serial, probe.file_id)
+            _safe_close(selected_api, handle)
+            handle = None
+            try:
+                handle = selected_api.open_file_for_hydrated_identity(os.fspath(path))
+            except (OSError, RuntimeError, TypeError, ValueError):
+                handle = None
+            if handle is None:
+                raise WindowsSecurityError(
+                    "file_open_failed",
+                    "The Windows file could not be opened safely.",
+                )
+            try:
+                hydrated = _safe_query(selected_api, handle)
+            except BaseException:
+                _safe_close(selected_api, handle)
+                raise
+            if (
+                StableFileIdentity(hydrated.volume_serial, hydrated.file_id)
+                != probe_identity
+            ):
+                _safe_close(selected_api, handle)
+                raise WindowsSecurityError(
+                    "file_identity_changed",
+                    "The Windows file changed while it was being inspected.",
+                )
     try:
         snapshot = _capture_snapshot(selected_api, handle, selected_policy)
     except WindowsSecurityError:
@@ -702,7 +773,11 @@ def capture_handle_bound_file(
     except BaseException:
         _safe_close(selected_api, handle)
         raise
-    return HandleBoundFile(selected_api, handle, selected_policy, snapshot)
+    try:
+        return HandleBoundFile(selected_api, handle, selected_policy, snapshot)
+    except BaseException:
+        _safe_close(selected_api, handle)
+        raise
 
 
 class _FileTime(ctypes.Structure):
@@ -812,7 +887,7 @@ class NativeWindowsFileApi:
         kernel32.CloseHandle.argtypes = (ctypes.c_void_p,)
         kernel32.CloseHandle.restype = ctypes.c_int
 
-    def _require_kernel32(self):  # noqa: ANN202
+    def _require_kernel32(self) -> Any:
         if self._kernel32 is None:
             raise OSError("Native Windows file inspection is unavailable.")
         return self._kernel32
@@ -830,19 +905,48 @@ class NativeWindowsFileApi:
 
     def open_file_for_identity(self, path: str) -> object:
         kernel32 = self._require_kernel32()
-        handle = kernel32.CreateFileW(
+        return self._open_file(
+            kernel32,
             path,
-            0x80000000,  # GENERIC_READ
-            0x00000001,  # FILE_SHARE_READ; deny write and delete sharing
-            None,
-            3,  # OPEN_EXISTING
             0x00200000 | 0x08000000,  # OPEN_REPARSE_POINT | SEQUENTIAL_SCAN
-            None,
         )
+
+    def open_file_for_hydrated_identity(self, path: str) -> object:
+        kernel32 = self._require_kernel32()
+        return self._open_file(
+            kernel32,
+            path,
+            0x08000000,  # FILE_FLAG_SEQUENTIAL_SCAN; follow/hydrate the leaf
+        )
+
+    def _open_file(self, kernel32: Any, path: str, flags: int) -> object:
         invalid = ctypes.c_void_p(-1).value
-        if handle is None or handle == invalid:
-            self._raise_last_error()
-        return int(handle)
+        native: int | None = None
+        handle: int | None = None
+        try:
+            native = kernel32.CreateFileW(
+                path,
+                0x80000000,  # GENERIC_READ
+                0x00000001,  # FILE_SHARE_READ; deny write and delete sharing
+                None,
+                3,  # OPEN_EXISTING
+                flags,
+                None,
+            )
+            if native is None or native == invalid:
+                self._raise_last_error()
+            handle = int(native)
+            return handle
+        except BaseException:
+            to_close = handle
+            if to_close is None and type(native) is int and native > 0:
+                to_close = native
+            if to_close is not None and to_close != invalid:
+                try:
+                    kernel32.CloseHandle(ctypes.c_void_p(to_close))
+                except BaseException:
+                    pass
+            raise
 
     def query_file(self, handle: object) -> NativeFileFacts:
         kernel32 = self._require_kernel32()
