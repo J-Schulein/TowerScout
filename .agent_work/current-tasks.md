@@ -2,15 +2,15 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 8, 2026
-**Focus**: Task-101 is complete. Draft PR #67's last green baseline `703b82e` passed
-exact-head CI/CD run `32531877099`, Task-087 run `32531877128`, and external
-Trivy. The next Gate A source-only slice now has independently reviewed
-authenticated Docker Compose/Podman command-version evidence and injected
-containment tests at source checkpoint `1970f76`; this task-record
-reconciliation follows it. The slice remains unwired and requires new exact-head
-CI before acceptance. Unsigned preview-package integration remains later under
-ADR-019. Production signing remains Task-100 work in October after the package
-is satisfactory.
+**Focus**: Task-101 is complete. Draft PR #67 checkpoint `636617b` passed
+exact-head CI/CD run `34244364493`, Task-087 run `34244364488`, and external
+Trivy after independent review of the authenticated Docker Compose/Podman
+command-version and native-containment slice at source checkpoint `1970f76`.
+The slice remains unwired. The next Gate A source work must close its documented
+ancestor DACL/owner/reparse/cloud and dependency/DLL load prerequisites before
+integration. Unsigned preview-package integration remains later under ADR-019.
+Production signing remains Task-100 work in October after the package is
+satisfactory.
 
 **Current Release State**:
 
@@ -26,12 +26,12 @@ is satisfactory.
   required jobs successful. Task-101 is complete. The lifecycle update
   `6e0f744` then passed CI/CD run `32385304086` and Task-087 run `32385304052`.
   Task-087 is active in Gate A IMPLEMENT under the project lead's August 21
-  approval after the independent source review requested changes. PR #67's last
-  green exact head is `703b82e`, and it remains Draft. CI/CD run `32531877099`,
-  Task-087 run `32531877128`, and the external Trivy check passed at that head;
-  the main-only build job was skipped as designed for a pull request. The
-  September 8 reviewed source checkpoint `1970f76` and this following task-state
-  reconciliation advance the PR source but do not yet have new exact-head CI.
+  approval after the independent source review requested changes. PR #67 remains
+  Draft. Reviewed source checkpoint `1970f76` and task-state checkpoint
+  `636617b` passed exact-head CI/CD run `34244364493`, Task-087 run
+  `34244364488`, and external Trivy; all nine applicable checks succeeded and
+  the main-only build job skipped as designed for a pull request. This later
+  docs-only handoff records that evidence without changing implementation bytes.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -258,9 +258,10 @@ timing; preview integration remains a later gate
   two prohibited installed-file native smokes deselected; Black, blocking
   Flake8, isolated mypy, medium/high Bandit, compilation, diff checks, and both
   task-record validators pass. The reviewed source checkpoint is `1970f76`, and
-  this task-state reconciliation follows it. The slice remains unwired and lacks
-  new exact-head CI. No live Docker, Podman, Compose, launcher, or
-  installed-binary smoke ran, and mutation remains disabled. Ancestor
+  task-state checkpoint `636617b` passed exact-head CI/CD run `34244364493`,
+  Task-087 run `34244364488`, and external Trivy. The slice remains unwired. No
+  live Docker, Podman, Compose, launcher, or installed-binary smoke ran, and
+  mutation remains disabled. Ancestor
   DACL/owner/reparse/cloud containment and application dependency/DLL load
   closure remain strict prerequisites before integration.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the

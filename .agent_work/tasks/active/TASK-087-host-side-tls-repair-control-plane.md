@@ -14,12 +14,12 @@ Reconciliation head `946deaf` passed CI/CD run `32383065903` and Task-087 run
 run `32385304086` plus Task-087 run `32385304052`. Independent technical/
 security review then requested source changes at `6e0f744`. On August 21, the
 project lead explicitly approved IMPLEMENT under the August 20 remediation
-design; Gate A source work is active. Draft PR #67's last green baseline
-`703b82e` passed CI/CD run `32531877099` and Task-087 run `32531877128`. The
-September 8 authenticated command-version source checkpoint `1970f76` passed
-independent review with no open findings and is followed by this task-state
-reconciliation. The slice remains unwired and lacks new exact-head CI. PR #67
-remains Draft, and merge/publication retain their separate applicable gates.
+design; Gate A source work is active. The September 8 authenticated
+command-version source checkpoint `1970f76` passed independent review with no
+open findings. Its task-state checkpoint `636617b` passed exact-head CI/CD run
+`34244364493`, Task-087 run `34244364488`, and external Trivy. The slice remains
+unwired. PR #67 remains Draft, and merge/publication retain their separate
+applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -44,13 +44,15 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-Draft PR #67's last green baseline is `703b82e`; exact-head CI/CD run
-`32531877099`, Task-087 run `32531877128`, and external Trivy passed there. The
-reviewed command-version source checkpoint is `1970f76`; this following
-task-state reconciliation advances the source without claiming new exact-head
-CI. Gate A source work remains intentionally inert and subject to its remaining
-reviews. The accepted functional implementation checkpoint remains `5737a58`,
-built on then-current `main` commit `3932abf`.
+Draft PR #67 checkpoint `636617b` passed exact-head CI/CD run `34244364493`,
+Task-087 run `34244364488`, and external Trivy; all nine applicable checks
+succeeded and the main-only build job skipped as designed for a pull request.
+The reviewed command-version source checkpoint is `1970f76`; `636617b` records
+its task-state reconciliation. This later docs-only handoff records that remote
+evidence without changing implementation or test bytes. Gate A source work
+remains intentionally inert and subject to its remaining reviews. The accepted
+functional implementation checkpoint remains `5737a58`, built on then-current
+`main` commit `3932abf`.
 Its exact-source full-runnable Podman CPU package enforces the
 selected rootless Windows boundary and rejected rootful mode before provider
 discovery or container mutation. Checkpoint `3990bc0` remains the accepted
@@ -1448,13 +1450,15 @@ identity is sufficient for this isolated checkpoint, but ancestor/package-root
 DACL, owner, reparse/cloud containment and application dependency/DLL load
 closure remain mandatory before integration, together with endpoint/provider
 binding. Source checkpoint `1970f76` records the independently reviewed code;
-this task-state reconciliation claims no new exact-head CI result.
+task-state checkpoint `636617b` passed exact-head CI/CD run `34244364493`,
+Task-087 run `34244364488`, and external Trivy. This later docs-only handoff
+changes no implementation or test bytes.
 
-**Next**: Push the reviewed source checkpoint and this task-state reconciliation
-to Draft PR #67 under the project lead's authorization, then require green
-exact-head CI/CD and Task-087 workflows before beginning runtime/target/executor
-integration, provider reconstruction, endpoint binding, or any mutation-capable
-work.
+**Next**: Begin the next source-only Windows-security prerequisite: bind and
+test package-root/ancestor DACL, owner, reparse/cloud containment and executable
+dependency/DLL load closure before any runtime/target/executor integration.
+Endpoint/provider binding, provider reconstruction, and all mutation-capable
+work remain later gated slices.
 
 ### 2026-08-21 - Green Exact-Head Weekend Handoff
 
