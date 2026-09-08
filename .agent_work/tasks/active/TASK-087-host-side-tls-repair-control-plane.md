@@ -1371,6 +1371,68 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-08 - Held CPython Native Inventory Implemented Locally
+
+**Objective**: Turn the reviewed 47-file CPython policy into a lifetime owner
+that binds the exact policy paths and trusted directory hierarchies through a
+synchronous child-operation boundary without enabling launcher execution or
+repair.
+
+**Execution**: Added same-handle PE metadata inspection for AMD64, I386, and
+ARM64 images. It reads the machine and embedded `WIN_CERTIFICATE` directory
+from the already bounded random-access source, rejects inconsistent, malformed,
+misaligned, or out-of-bounds certificate tables, and never interprets a generic
+Authenticode error as proof that a file is unsigned.
+
+Added a CPython dependency inventory owner derived from a caller-held
+`python.exe`. It binds every distinct policy parent-directory hierarchy,
+retains the supplied no-write/no-delete-share executable handle, opens the
+other 46 policy-native files under the same sharing restriction, verifies
+exact paths, hashes, machine types, dependency manifests, and required exact
+signers, and structurally confirms that the eight policy-declared unsigned
+files have no embedded certificate table. The owner serializes revalidation
+and close, revalidates the executable, directory chains, and every native file
+before and after a synchronous operation, preserves interruption semantics,
+and retains the supplied executable under caller ownership.
+
+**Validation**: The focused PE metadata and dependency-capture set passed 32
+tests. The post-remediation launcher regression selection passed 830 tests
+with the documented Defender-blocked host-helper test file and native hardlink/
+temp-cleanup case excluded. A broader launcher-oriented run reached 829 passes
+and four failures;
+all four are the existing Defender parser block on
+`TowerScoutHostHelper.ps1`. Strict mypy passed for both changed source modules,
+as did Black, blocking Flake8 syntax/undefined-name checks, medium/high Bandit,
+compilation, `git diff --check`, and both task-record validators.
+
+**Independent Review**: The inspect-only reviewer found one Medium lifetime-
+lock race. The inventory owner kept each native handle open but initially did
+not hold every underlying `HandleBoundFile` lock continuously through the
+synchronous operation. A caller or retained injected capability could therefore
+close a handle from another thread, release the native write/delete sharing
+restriction, and allow replacement before the post-operation check detected it.
+The correction adds an exclusive no-capability file operation primitive, nests
+all 47 file leases across the full operation and final revalidation, removes
+the public dependency-inspector injection seam, and adds cross-thread close-
+blocking coverage for the caller-owned executable. Re-review found no remaining
+Critical, High, or Medium issue. Its one Low stale test-count finding was
+corrected from 31 to 32 in this update.
+
+**Boundary**: This is local, source-only, unwired work. The owner proves and
+retains the exact approved file objects during the
+operation, but Windows handle ownership alone cannot prevent a child from
+requesting an unrelated absolute-path dynamic library. Evidence therefore
+records `arbitrary_dynamic_destinations_denied_by_this_layer=False`; no caller
+may treat this slice as full dynamic-load closure. Docker Desktop and Podman
+were available but were not invoked because no container, Compose, launcher,
+repair, filesystem-mutation, or runtime-selection path changed.
+
+**Next**: Checkpoint this independently reviewed held-inventory slice. Then add
+an executor policy that denies unapproved dynamic-load destinations rather than
+inferring that guarantee from retained handles. Continue Windows-store CA
+selection, cross-session locks, durable recovery, and ACL-preserving `.env`
+replacement as separate Gate A slices.
+
 ### 2026-09-08 - Exact CPython Dependency Policy Implemented Locally
 
 **Objective**: Adopt the reviewed exact-artifact policy for the next bounded
@@ -1430,6 +1492,11 @@ Black, blocking Flake8, strict mypy across all six changed source modules,
 medium/high Bandit, compilation, both task-record validators, package-policy
 hash loading, and `git diff --check` passed.
 
+Source checkpoint `3909395` and task-state checkpoint `e01f1b7` subsequently
+passed exact-head CI/CD run `34275327043`, Task-087 run `34275327085`, and
+external Trivy. All nine applicable pull-request checks succeeded; the
+main-only build job skipped as designed.
+
 The live native dependency-signer path progressed through the newly supported
 OID and fractional timestamp evidence, then failed closed because this host's
 cache-only independent timestamp-chain validation could not build a trusted
@@ -1457,12 +1524,11 @@ captured evidence but does not yet own all native handles or enforce arbitrary
 dynamic-load destinations during child execution. No Docker/Podman runtime mutation,
 launcher operation, repair, package, publication, merge, or signing action ran.
 
-**Next**: Require exact-head CI/CD, Task-087, and external Trivy checks for the
-source and task-state checkpoints. After acceptance, build the held recursive
-CPython inventory/capture owner and enforce the dynamic-load and exact-artifact
-policy at the child-execution boundary. Continue Windows-store CA selection,
-cross-session locking, durable rollback/recovery, provider `.env`, and ACL-
-preserving atomic replacement as separate Gate A slices.
+**Next**: Build the held recursive CPython inventory/capture owner and enforce
+the dynamic-load and exact-artifact policy at the child-execution boundary.
+Continue Windows-store CA selection, cross-session locking, durable rollback/
+recovery, provider `.env`, and ACL-preserving atomic replacement as separate
+Gate A slices.
 
 ### 2026-09-08 - Windows Path And Immediate Load Prerequisites Checkpointed
 

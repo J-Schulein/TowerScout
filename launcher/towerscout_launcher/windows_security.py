@@ -790,6 +790,32 @@ class HandleBoundFile:
                 reader._invalidate()
             self._end_use()
 
+    def run_while_held(
+        self,
+        operation: Callable[[], _InspectionResult],
+    ) -> _InspectionResult:
+        """Retain exclusive lifetime ownership through one synchronous operation.
+
+        The callback receives no file handle or reader capability. A close from
+        another thread remains blocked until the callback and final same-handle
+        revalidation both finish.
+        """
+
+        if not callable(operation):
+            raise ValueError("The held-file operation is invalid.")
+        handle = self._begin_use()
+        try:
+            self._assert_unchanged_owned(handle)
+            try:
+                result = operation()
+            except BaseException:
+                self._assert_unchanged_owned(handle)
+                raise
+            self._assert_unchanged_owned(handle)
+            return result
+        finally:
+            self._end_use()
+
     def close(self) -> None:
         with self._lifetime_lock:
             if self._active_owner is not None:

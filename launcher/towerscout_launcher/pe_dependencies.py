@@ -21,8 +21,11 @@ MAX_PE_DEPENDENCY_COUNT = 512
 
 _DOS_HEADER_BYTES = 64
 _PE_FIXED_HEADER_BYTES = 24
+_IMAGE_FILE_MACHINE_I386 = 0x014C
 _PE32_PLUS_MAGIC = 0x020B
+_PE32_MAGIC = 0x010B
 _IMAGE_FILE_MACHINE_AMD64 = 0x8664
+_IMAGE_FILE_MACHINE_ARM64 = 0xAA64
 _MAX_PE_HEADER_OFFSET = 1024 * 1024
 _MAX_OPTIONAL_HEADER_BYTES = 4096
 _MAX_SECTION_COUNT = 96
@@ -34,6 +37,7 @@ _IMPORT_DIRECTORY_INDEX = 1
 _BOUND_IMPORT_DIRECTORY_INDEX = 11
 _DELAY_IMPORT_DIRECTORY_INDEX = 13
 _COM_DESCRIPTOR_DIRECTORY_INDEX = 14
+_SECURITY_DIRECTORY_INDEX = 4
 _IMPORT_DESCRIPTOR_BYTES = 20
 _DELAY_IMPORT_DESCRIPTOR_BYTES = 32
 _EXPORT_DIRECTORY_BYTES = 40
@@ -125,6 +129,26 @@ class PeDependencyManifest:
             f"delay_count={len(self.delay_imports)}, "
             f"forwarded_count={len(self.forwarded_imports)}, <redacted>)"
         )
+
+
+@dataclass(frozen=True, slots=True)
+class PeImageMetadata:
+    """Minimal same-byte-source facts needed before dependency validation."""
+
+    machine_code: int
+    embedded_certificate_table_present: bool
+
+    def __post_init__(self) -> None:
+        if (
+            self.machine_code
+            not in {
+                _IMAGE_FILE_MACHINE_I386,
+                _IMAGE_FILE_MACHINE_AMD64,
+                _IMAGE_FILE_MACHINE_ARM64,
+            }
+            or type(self.embedded_certificate_table_present) is not bool
+        ):
+            raise ValueError("PE image metadata is invalid.")
 
 
 class _BytesReader:
@@ -541,6 +565,74 @@ def parse_pe_dependencies(
     )
 
 
+def inspect_pe_image_metadata(source: bytes | RandomAccessReader) -> PeImageMetadata:
+    """Inspect the PE machine and embedded-certificate table fail closed.
+
+    Absence means the image has no embedded WIN_CERTIFICATE table. It never
+    treats an Authenticode verification failure as proof that a file is
+    unsigned.
+    """
+
+    reader = _CheckedReader(source)
+    if reader.size < _DOS_HEADER_BYTES:
+        _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    dos = reader.read_exact(0, _DOS_HEADER_BYTES)
+    if dos[:2] != b"MZ":
+        _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    pe_offset = struct.unpack_from("<I", dos, 0x3C)[0]
+    if pe_offset < _DOS_HEADER_BYTES or pe_offset > _MAX_PE_HEADER_OFFSET:
+        _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    _checked_end(pe_offset, _PE_FIXED_HEADER_BYTES, reader.size)
+    fixed = reader.read_exact(pe_offset, _PE_FIXED_HEADER_BYTES)
+    if fixed[:4] != b"PE\x00\x00":
+        _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    machine = struct.unpack_from("<H", fixed, 4)[0]
+    optional_size = struct.unpack_from("<H", fixed, 20)[0]
+    if (
+        machine
+        not in {
+            _IMAGE_FILE_MACHINE_I386,
+            _IMAGE_FILE_MACHINE_AMD64,
+            _IMAGE_FILE_MACHINE_ARM64,
+        }
+        or not 0 < optional_size <= _MAX_OPTIONAL_HEADER_BYTES
+    ):
+        _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    optional_offset = pe_offset + _PE_FIXED_HEADER_BYTES
+    _checked_end(optional_offset, optional_size, reader.size)
+    optional = reader.read_exact(optional_offset, optional_size)
+    if len(optional) < 2:
+        _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    magic = struct.unpack_from("<H", optional, 0)[0]
+    if machine == _IMAGE_FILE_MACHINE_I386:
+        directory_offset, count_offset = 96, 92
+        if magic != _PE32_MAGIC:
+            _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    else:
+        directory_offset, count_offset = 112, 108
+        if magic != _PE32_PLUS_MAGIC:
+            _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    if optional_size < directory_offset:
+        _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    directory_count = struct.unpack_from("<I", optional, count_offset)[0]
+    available = (optional_size - directory_offset) // 8
+    if directory_count > available:
+        _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    if directory_count <= _SECURITY_DIRECTORY_INDEX:
+        return PeImageMetadata(machine, False)
+    certificate_offset, certificate_size = struct.unpack_from(
+        "<II", optional, directory_offset + (_SECURITY_DIRECTORY_INDEX * 8)
+    )
+    if (certificate_offset == 0) != (certificate_size == 0):
+        _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    if certificate_size == 0:
+        return PeImageMetadata(machine, False)
+    if certificate_offset % 8 != 0 or certificate_size < 8:
+        _fail(PeDependencyErrorCode.FORMAT_INVALID)
+    _checked_end(certificate_offset, certificate_size, reader.size)
+    return PeImageMetadata(machine, True)
+
+
 __all__ = [
     "MAX_PE_DEPENDENCY_COUNT",
     "MAX_PE_DEPENDENCY_FILE_BYTES",
@@ -548,6 +640,8 @@ __all__ = [
     "PeDependencyError",
     "PeDependencyErrorCode",
     "PeDependencyManifest",
+    "PeImageMetadata",
     "RandomAccessReader",
     "parse_pe_dependencies",
+    "inspect_pe_image_metadata",
 ]

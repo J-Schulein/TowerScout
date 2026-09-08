@@ -17,6 +17,8 @@ from towerscout_launcher.pe_dependencies import (  # noqa: E402
     PeDependencyError,
     PeDependencyErrorCode,
     PeDependencyManifest,
+    PeImageMetadata,
+    inspect_pe_image_metadata,
     parse_pe_dependencies,
 )
 
@@ -149,6 +151,27 @@ def _format_error(value: bytes) -> PeDependencyError:
     return failure.value
 
 
+def _build_metadata_pe(machine: int, *, signed: bool = False) -> bytes:
+    pe32 = machine == 0x014C
+    optional_size = 0xE0 if pe32 else 0xF0
+    optional_offset = _PE_OFFSET + 24
+    directory_offset = 96 if pe32 else 112
+    count_offset = 92 if pe32 else 108
+    image = bytearray(0x300)
+    image[:2] = b"MZ"
+    struct.pack_into("<I", image, 0x3C, _PE_OFFSET)
+    image[_PE_OFFSET : _PE_OFFSET + 4] = b"PE\x00\x00"
+    struct.pack_into("<H", image, _PE_OFFSET + 4, machine)
+    struct.pack_into("<H", image, _PE_OFFSET + 20, optional_size)
+    struct.pack_into("<H", image, optional_offset, 0x010B if pe32 else 0x020B)
+    struct.pack_into("<I", image, optional_offset + count_offset, 16)
+    if signed:
+        struct.pack_into(
+            "<II", image, optional_offset + directory_offset + (4 * 8), 0x200, 8
+        )
+    return bytes(image)
+
+
 class _RecordingReader:
     def __init__(self, value: bytes) -> None:
         self._value = value
@@ -192,6 +215,33 @@ def test_reader_access_is_bounded_and_does_not_read_the_whole_image() -> None:
     assert reader.calls
     assert max(length for _, length in reader.calls) <= MAX_PE_DEPENDENCY_READ_BYTES
     assert all(length < len(value) for _, length in reader.calls)
+
+
+@pytest.mark.parametrize("machine", (0x014C, 0x8664, 0xAA64))
+def test_inspects_supported_machine_and_embedded_certificate_state(
+    machine: int,
+) -> None:
+    unsigned = inspect_pe_image_metadata(_build_metadata_pe(machine))
+    signed = inspect_pe_image_metadata(_build_metadata_pe(machine, signed=True))
+
+    assert unsigned == PeImageMetadata(machine, False)
+    assert signed == PeImageMetadata(machine, True)
+
+
+def test_metadata_rejects_inconsistent_or_out_of_bounds_certificate_table() -> None:
+    value = bytearray(_build_metadata_pe(0x8664))
+    certificate = _OPTIONAL_OFFSET + 112 + (4 * 8)
+    struct.pack_into("<II", value, certificate, 0, 8)
+    _format_metadata_error(bytes(value))
+
+    struct.pack_into("<II", value, certificate, 0x2F8, 16)
+    _format_metadata_error(bytes(value))
+
+
+def _format_metadata_error(value: bytes) -> None:
+    with pytest.raises(PeDependencyError) as failure:
+        inspect_pe_image_metadata(value)
+    assert failure.value.code is PeDependencyErrorCode.FORMAT_INVALID
 
 
 def test_manifest_model_rejects_a_forged_evidence_digest() -> None:

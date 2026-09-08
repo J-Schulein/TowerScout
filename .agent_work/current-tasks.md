@@ -2,14 +2,18 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 8, 2026
-**Focus**: Task-101 is complete. Task-087 checkpoint `2d37e66` and task-state
-checkpoint `ca2f284` remain independently reviewed and exact-head green.
-Source checkpoint `3909395` defines the exact Python.org CPython 3.12.10
+**Focus**: Task-101 is complete. Task-087 source checkpoint `3909395` and
+task-state checkpoint `e01f1b7` are independently reviewed and exact-head
+green. Source checkpoint `3909395` defines the exact Python.org CPython 3.12.10
 archive, its 47 native files, exact hashes/signers, static dependencies, and
 same-handle PE inspection. Independent review found and closed one Medium
 scoped-reader lifetime gap, then returned PASS with no open findings. The
-checkpoint is not yet packaged or wired to execution. Held recursive capture
-and dynamic-load enforcement remain mandatory before execution integration.
+checkpoint is not yet packaged or wired to execution. A local follow-up now
+holds all 47 policy-native files and their trusted directory chains across a
+synchronous child-operation boundary. Independent review found and closed one
+Medium lifetime-lock race; checkpointing remains pending. Arbitrary child
+dynamic-load destination enforcement remains mandatory before execution
+integration.
 Cross-session locks, durable recovery, Windows-store CA selection, and
 ACL-preserving `.env` replacement remain later Gate A source work. Unsigned
 preview-package integration remains later under ADR-019. Production signing
@@ -40,6 +44,11 @@ remains Task-100 work in October after the package is satisfactory.
   `34257761429`, and external Trivy; all nine applicable checks succeeded and
   the PR-only build job skipped as designed. A later docs-only handoff records
   that evidence without changing implementation or test bytes.
+- Reviewed CPython-dependency source checkpoint `3909395` and task-state
+  checkpoint `e01f1b7` passed exact-head CI/CD run `34275327043`, Task-087 run
+  `34275327085`, and external Trivy; all nine applicable checks succeeded and
+  the PR-only build job skipped as designed. This evidence closes the held
+  checkpoint gate without changing implementation or test bytes.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -308,8 +317,27 @@ timing; preview integration remains a later gate
   Defender host-helper block, dirty-tree package assertion, and inaccessible
   shared pytest temp root. Native cache-only timestamp-chain validation failed
   closed on this workstation and is not treated as a pass. The checkpoint
-  remains unwired; package inclusion, held recursive capture, dynamic-load
-  enforcement, and execution integration remain open.
+  remains unwired. Exact-head CI/CD run `34275327043`, Task-087 run
+  `34275327085`, and external Trivy subsequently passed for source `3909395`
+  and task state `e01f1b7`; all nine applicable checks succeeded and the
+  PR-only build job skipped as designed. A local follow-up now captures all 47
+  policy-native files and every distinct parent-directory hierarchy, proves
+  unsigned status from the held PE certificate-table structure rather than a
+  generic trust failure, and retains/revalidates those handles before and
+  after a synchronous child-operation boundary. Independent review found one
+  Medium race where another thread could close a retained handle during the
+  operation. The corrected owner now holds every underlying file lifetime lock
+  through the operation and final revalidation, removes the public inspector
+  capability, and covers cross-thread close blocking. Re-review found no
+  remaining Critical, High, or Medium issue; one Low stale test count was
+  corrected in this update. Focused tests pass 32/32 and
+  the post-remediation launcher regression set passes 830 tests when the
+  documented Defender-blocked host-helper file and native hardlink/temp case
+  are excluded. The
+  broader launcher-oriented run reached 829 passes with only four known
+  Defender host-helper failures. The follow-up is local and independently
+  reviewed; arbitrary absolute child dynamic-load destinations are explicitly
+  not yet denied, and package inclusion plus execution integration remain open.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked
