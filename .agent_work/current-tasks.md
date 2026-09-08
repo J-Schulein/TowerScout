@@ -5,7 +5,9 @@
 **Focus**: Task-101 is complete. Task-087 source checkpoint `2d37e66` adds the
 independently reviewed Windows path/DACL/reparse/cloud and immediate runtime-
 load prerequisites on top of the authenticated Docker Compose/Podman command
-boundary. The slice remains inert and unwired. A product-specific transitive-
+boundary. Task-state checkpoint `ca2f284` passed exact-head CI/CD run
+`34257761291`, Task-087 run `34257761429`, and external Trivy. The slice remains
+inert and unwired. A product-specific transitive-
 dependency/private-assembly policy, including the reviewed Microsoft-signed
 CPython VCRuntime case, remains mandatory before execution integration. Cross-
 session locks, durable recovery, Windows-store CA selection, and ACL-preserving
@@ -33,6 +35,11 @@ work in October after the package is satisfactory.
   `34244364488`, and external Trivy; all nine applicable checks succeeded and
   the main-only build job skipped as designed for a pull request. This later
   docs-only handoff records that evidence without changing implementation bytes.
+- Reviewed Windows-trust source checkpoint `2d37e66` and task-state checkpoint
+  `ca2f284` passed exact-head CI/CD run `34257761291`, Task-087 run
+  `34257761429`, and external Trivy; all nine applicable checks succeeded and
+  the PR-only build job skipped as designed. A later docs-only handoff records
+  that evidence without changing implementation or test bytes.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -280,7 +287,9 @@ timing; preview integration remains a later gate
   dependencies, private assemblies, dynamic relative loads, and the product-
   specific Microsoft/CPython signer policy still block execution wiring. No
   Docker, Podman, launcher, repair, mutation, package, or publication action
-  ran.
+  ran. Task-state checkpoint `ca2f284` then passed exact-head CI/CD run
+  `34257761291`, Task-087 run `34257761429`, and external Trivy with all nine
+  applicable checks successful; the PR-only build job skipped as designed.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

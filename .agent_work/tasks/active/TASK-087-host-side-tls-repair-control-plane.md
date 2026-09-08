@@ -21,8 +21,9 @@ open findings. Its task-state checkpoint `636617b` passed exact-head CI/CD run
 unwired. Windows path/DACL/reparse/cloud and immediate runtime-load prerequisite
 source checkpoint `2d37e66` also passed independent review with no open source-
 safety findings. It remains unwired and explicitly does not claim transitive
-dependency closure. PR #67 remains Draft, and merge/publication retain their
-separate applicable gates.
+dependency closure. Task-state checkpoint `ca2f284` passed exact-head CI/CD run
+`34257761291`, Task-087 run `34257761429`, and external Trivy. PR #67 remains
+Draft, and merge/publication retain their separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -56,8 +57,11 @@ evidence without changing implementation or test bytes. Gate A source work
 remains intentionally inert and subject to its remaining reviews. The reviewed
 Windows path and immediate runtime-load prerequisite checkpoint is `2d37e66`;
 its product-specific transitive dependency policy and execution wiring remain
-open. The accepted functional implementation checkpoint remains `5737a58`,
-built on then-current `main` commit `3932abf`.
+open. Task-state checkpoint `ca2f284` passed exact-head CI/CD run
+`34257761291`, Task-087 run `34257761429`, and external Trivy; this later docs-
+only handoff records that remote evidence without changing implementation or
+test bytes. The accepted functional implementation checkpoint remains
+`5737a58`, built on then-current `main` commit `3932abf`.
 Its exact-source full-runnable Podman CPU package enforces the
 selected rootless Windows boundary and rejected rootful mode before provider
 discovery or container mutation. Checkpoint `3990bc0` remains the accepted
@@ -1441,6 +1445,11 @@ launcher, repair, package, publication, merge, or signing action ran. Immediate
 application-directory binding does not cover transitive dependencies, private
 assemblies, or dynamic relative loads and therefore cannot authorize child
 execution by itself.
+
+Task-state checkpoint `ca2f284` passed exact-head CI/CD run `34257761291`,
+Task-087 run `34257761429`, and external Trivy with all nine applicable checks
+successful; the PR-only build job skipped as designed. This later docs-only
+handoff records that evidence without changing implementation or test bytes.
 
 **Next**: Define and review the product-specific transitive dependency and
 signer/leaf policy, including Microsoft-signed CPython runtime dependencies,
