@@ -86,6 +86,7 @@ _SGNR_TYPE_TIMESTAMP = 0x00000010
 
 _SHA256_OID = "2.16.840.1.101.3.4.2.1"
 _RSA_ENCRYPTION_OID = "1.2.840.113549.1.1.1"
+_RSA_SHA256_OID = "1.2.840.113549.1.1.11"
 _CODE_SIGNING_EKU_OID = "1.3.6.1.5.5.7.3.3"
 _TIME_STAMPING_EKU_OID = "1.3.6.1.5.5.7.3.8"
 _RFC3161_TIMESTAMP_OID = "1.3.6.1.4.1.311.3.3.1"
@@ -375,13 +376,15 @@ def _is_sha256(value: object) -> bool:
 
 
 def _is_utc_text(value: object) -> bool:
-    if type(value) is not str or len(value) != 20:
+    if type(value) is not str or len(value) not in {20, 28} or not value.endswith("Z"):
+        return False
+    if len(value) == 28 and (value[19] != "." or not value[20:27].isdigit()):
         return False
     try:
-        datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+        datetime.strptime(value[:19], "%Y-%m-%dT%H:%M:%S")
     except ValueError:
         return False
-    return value.endswith("Z")
+    return True
 
 
 class _Guid(ctypes.Structure):
@@ -764,7 +767,7 @@ def _read_oid(pointer: int | None) -> str:
 
 def _algorithm_name(oid: str, *, signature: bool = False) -> str:
     if signature:
-        if oid != _RSA_ENCRYPTION_OID:
+        if oid not in {_RSA_ENCRYPTION_OID, _RSA_SHA256_OID}:
             raise ValueError("Native signature algorithm is invalid.")
         return "rsa_pkcs1v15"
     if oid != _SHA256_OID:
@@ -789,10 +792,11 @@ def _filetime_text(value: _FileTime) -> str:
     if ticks < _FILETIME_EPOCH_TICKS:
         raise ValueError("Native time is invalid.")
     seconds, remainder = divmod(ticks - _FILETIME_EPOCH_TICKS, 10_000_000)
-    if remainder:
-        raise ValueError("Native time precision is unsupported.")
     parsed = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=seconds)
-    return parsed.strftime("%Y-%m-%dT%H:%M:%SZ")
+    whole_seconds = parsed.strftime("%Y-%m-%dT%H:%M:%S")
+    if remainder:
+        return f"{whole_seconds}.{remainder:07d}Z"
+    return whole_seconds + "Z"
 
 
 def _chain_digest(certificates: tuple[bytes, ...]) -> str:

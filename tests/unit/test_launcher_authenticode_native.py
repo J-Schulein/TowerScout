@@ -2400,6 +2400,28 @@ def test_timestamp_cms_requires_tstinfo_inner_content_and_exact_algorithms() -> 
     assert crypt32.cleanup_calls == ["message", "store"]
 
 
+def test_timestamp_cms_accepts_standard_sha256_with_rsa_signature_oid() -> None:
+    crypt32 = _RecordingMessageCrypt(
+        inner_oid=native_module._RFC3161_TSTINFO_OID,
+        timestamp_token=None,
+        signature_oid=native_module._RSA_SHA256_OID,
+    )
+    api = _api_with_recording_crypt(crypt32)
+
+    assert api._timestamp_message_algorithms(b"T" * 128) == (
+        "sha256",
+        "rsa_pkcs1v15",
+    )
+    assert crypt32.cleanup_calls == ["message", "store"]
+
+
+def test_filetime_text_preserves_fractional_100ns_precision() -> None:
+    ticks = native_module._FILETIME_EPOCH_TICKS + 12_345_710_000
+    value = native_module._FileTime(ticks & 0xFFFFFFFF, ticks >> 32)
+
+    assert native_module._filetime_text(value) == ("1970-01-01T00:20:34.5710000Z")
+
+
 def test_native_module_has_no_process_mutation_or_path_reopen_api() -> None:
     source_path = ROOT / "launcher" / "towerscout_launcher" / "authenticode_native.py"
     source = source_path.read_text(encoding="utf-8")

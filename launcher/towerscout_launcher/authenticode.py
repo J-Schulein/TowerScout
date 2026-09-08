@@ -18,7 +18,12 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Protocol
 
+from .runtime_dependency_policy import (
+    RuntimeDependencyPolicyError,
+    load_package_bound_runtime_dependency_policy,
+)
 from .runtime_policy import (
+    AuthenticodePolicy,
     RuntimePolicy,
     RuntimePolicyError,
     RuntimeProductId,
@@ -104,22 +109,43 @@ def _is_text(value: object, *, maximum: int = 512) -> bool:
 
 
 def _parse_utc(value: str) -> datetime:
+    fraction = 0
     if (
         type(value) is not str
-        or len(value) != 20
+        or len(value) not in {20, 28}
         or value[4] != "-"
         or value[7] != "-"
         or value[10] != "T"
         or value[13] != ":"
         or value[16] != ":"
-        or value[19] != "Z"
+        or not value.endswith("Z")
     ):
         raise ValueError("UTC timestamp evidence is invalid.")
+    if len(value) == 28:
+        if value[19] != "." or not value[20:27].isdigit():
+            raise ValueError("UTC timestamp evidence is invalid.")
+        fraction = int(value[20:27])
     try:
-        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+        parsed = datetime.strptime(value[:19], "%Y-%m-%dT%H:%M:%S")
     except ValueError:
         raise ValueError("UTC timestamp evidence is invalid.") from None
-    return parsed.replace(tzinfo=timezone.utc)
+    return parsed.replace(tzinfo=timezone.utc, microsecond=fraction // 10)
+
+
+def _utc_ticks(value: str) -> int:
+    parsed = _parse_utc(value)
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    elapsed = parsed - epoch
+    seconds = (elapsed.days * 86_400) + elapsed.seconds
+    fraction = int(value[20:27]) if len(value) == 28 else 0
+    return (seconds * 10_000_000) + fraction
+
+
+def _datetime_ticks(value: datetime) -> int:
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    elapsed = value.astimezone(timezone.utc) - epoch
+    seconds = (elapsed.days * 86_400) + elapsed.seconds
+    return (seconds * 10_000_000) + (elapsed.microseconds * 10)
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -311,6 +337,69 @@ class VerifiedAuthenticodeEvidence:
         )
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class VerifiedDependencyAuthenticodeEvidence:
+    dependency_policy_sha256: str = field(repr=False)
+    authenticode_policy_sha256: str = field(repr=False)
+    file_identity: StableFileIdentity = field(repr=False)
+    file_sha256: str = field(repr=False)
+    signer_certificate_sha256: str = field(repr=False)
+    signer_chain_sha256: str = field(repr=False)
+    embedded_signature_sha256: str = field(repr=False)
+    timestamp_token_sha256: str | None = field(repr=False)
+    timestamp_chain_sha256: str | None = field(repr=False)
+    timestamp_time_utc: str | None
+    evidence_sha256: str = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        optional_hashes = (
+            self.timestamp_token_sha256,
+            self.timestamp_chain_sha256,
+        )
+        if (
+            not _is_sha256(self.dependency_policy_sha256)
+            or not _is_sha256(self.authenticode_policy_sha256)
+            or type(self.file_identity) is not StableFileIdentity
+            or not _is_sha256(self.file_sha256)
+            or not _is_sha256(self.signer_certificate_sha256)
+            or not _is_sha256(self.signer_chain_sha256)
+            or not _is_sha256(self.embedded_signature_sha256)
+            or any(
+                value is not None and not _is_sha256(value) for value in optional_hashes
+            )
+            or (self.timestamp_token_sha256 is None)
+            != (self.timestamp_chain_sha256 is None)
+            or (self.timestamp_token_sha256 is None)
+            != (self.timestamp_time_utc is None)
+        ):
+            raise ValueError("Verified dependency Authenticode evidence is invalid.")
+        if self.timestamp_time_utc is not None:
+            _parse_utc(self.timestamp_time_utc)
+        object.__setattr__(
+            self,
+            "evidence_sha256",
+            _canonical_evidence_digest(
+                (
+                    b"dependency-signer",
+                    self.dependency_policy_sha256.encode("ascii"),
+                    self.authenticode_policy_sha256.encode("ascii"),
+                    self.file_identity.volume_serial.to_bytes(8, "big"),
+                    self.file_identity.file_id,
+                    self.file_sha256.encode("ascii"),
+                    self.signer_certificate_sha256.encode("ascii"),
+                    self.signer_chain_sha256.encode("ascii"),
+                    self.embedded_signature_sha256.encode("ascii"),
+                    (self.timestamp_token_sha256 or "").encode("ascii"),
+                    (self.timestamp_chain_sha256 or "").encode("ascii"),
+                    (self.timestamp_time_utc or "").encode("ascii"),
+                )
+            ),
+        )
+
+    def __repr__(self) -> str:
+        return "VerifiedDependencyAuthenticodeEvidence(<redacted>)"
+
+
 class AuthenticodeBackend(Protocol):
     """Extract complete native evidence through an existing file handle."""
 
@@ -386,16 +475,16 @@ def _validated_timestamp(
             _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
         return None
     timestamp = facts.timestamps[0]
-    timestamp_time = _parse_utc(timestamp.signing_time_utc)
+    timestamp_time = _utc_ticks(timestamp.signing_time_utc)
     if (
         timestamp.form is not TimestampForm.RFC3161
         or timestamp.digest_algorithm != "sha256"
         or timestamp.signature_algorithm != "rsa_pkcs1v15"
         or timestamp.primary_signature_valid is not True
         or timestamp.chain_status is not NativeTrustStatus.TRUSTED
-        or timestamp_time < signer_not_before
-        or timestamp_time > signer_not_after
-        or timestamp_time > now
+        or timestamp_time < _datetime_ticks(signer_not_before)
+        or timestamp_time > _datetime_ticks(signer_not_after)
+        or timestamp_time > _datetime_ticks(now)
     ):
         _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
     return timestamp
@@ -407,34 +496,44 @@ def _match_authenticode(
     policy: RuntimePolicy,
     now: datetime,
 ) -> tuple[tuple[RuntimeProductId, ...], TimestampFacts | None]:
-    auth = policy.authenticode
+    timestamp = _validate_authenticode_envelope(
+        facts,
+        authenticode=policy.authenticode,
+        now=now,
+    )
+    product_ids = _compatible_signer_policy_product_ids(policy, facts.signer)
+    return (product_ids, timestamp)
+
+
+def _validate_authenticode_envelope(
+    facts: NativeAuthenticodeFacts,
+    *,
+    authenticode: AuthenticodePolicy,
+    now: datetime,
+) -> TimestampFacts | None:
     if (
         facts.signature_form is not SignatureForm.EMBEDDED_AUTHENTICODE
-        or facts.signature_form is not auth.signature_form
+        or facts.signature_form is not authenticode.signature_form
         or facts.certificate_table_entry_count != 1
         or facts.primary_signer_count != 1
         or facts.secondary_signature_count != 0
         or facts.nested_signature_count != 0
         or facts.legacy_countersignature_count != 0
-        or facts.file_digest_algorithm != auth.file_digest_algorithm
-        or facts.signer_signature_algorithm != auth.signer_signature_algorithm
+        or facts.file_digest_algorithm != authenticode.file_digest_algorithm
+        or facts.signer_signature_algorithm != authenticode.signer_signature_algorithm
         or facts.wintrust_status != 0
         or facts.signer_chain_status is not NativeTrustStatus.TRUSTED
     ):
         _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
-    product_ids = _compatible_signer_policy_product_ids(policy, facts.signer)
     signer_not_before = _parse_utc(facts.signer.not_before_utc)
     signer_not_after = _parse_utc(facts.signer.not_after_utc)
     if now < signer_not_before:
         _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
-    return (
-        product_ids,
-        _validated_timestamp(
-            facts,
-            now=now,
-            signer_not_before=signer_not_before,
-            signer_not_after=signer_not_after,
-        ),
+    return _validated_timestamp(
+        facts,
+        now=now,
+        signer_not_before=signer_not_before,
+        signer_not_after=signer_not_after,
     )
 
 
@@ -471,6 +570,67 @@ def _build_evidence(
     )
 
 
+def _select_backend(
+    backend: AuthenticodeBackend | None,
+) -> AuthenticodeBackend:
+    if backend is None:
+        try:
+            from .authenticode_native import NativeWindowsAuthenticodeBackend
+
+            selected: AuthenticodeBackend = NativeWindowsAuthenticodeBackend()
+        except Exception:
+            _fail(AuthenticodeErrorCode.VERIFICATION_UNAVAILABLE)
+    else:
+        selected = backend
+    try:
+        supported = selected.supported is True
+    except Exception:
+        supported = False
+    if not supported:
+        _fail(AuthenticodeErrorCode.VERIFICATION_UNAVAILABLE)
+    return selected
+
+
+def _select_verification_time(clock: VerificationClock | None) -> datetime:
+    selected = clock if clock is not None else SystemVerificationClock()
+    try:
+        now = selected.now_utc()
+        if (
+            type(now) is not datetime
+            or now.tzinfo is None
+            or now.utcoffset() != timezone.utc.utcoffset(now)
+        ):
+            _fail(AuthenticodeErrorCode.VERIFICATION_UNAVAILABLE)
+        return now.astimezone(timezone.utc)
+    except AuthenticodeVerificationError:
+        raise
+    except Exception:
+        _fail(AuthenticodeErrorCode.VERIFICATION_UNAVAILABLE)
+    raise AssertionError("unreachable")
+
+
+def _inspect_authenticode(
+    bound_file: HandleBoundFile,
+    backend: AuthenticodeBackend,
+) -> NativeAuthenticodeFacts:
+    try:
+        facts = bound_file.inspect_same_handle(
+            lambda handle, snapshot: backend.inspect_open_file(
+                handle=handle,
+                snapshot=snapshot,
+            )
+        )
+    except WindowsSecurityError as error:
+        if error.category in {"file_identity_changed", "file_handle_closed"}:
+            _fail(AuthenticodeErrorCode.RUNTIME_REPLACED)
+        _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
+    except Exception:
+        _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
+    if type(facts) is not NativeAuthenticodeFacts:
+        _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
+    return facts
+
+
 def verify_package_bound_authenticode_signer(
     bound_file: HandleBoundFile,
     *,
@@ -489,52 +649,9 @@ def verify_package_bound_authenticode_signer(
         policy = load_package_bound_runtime_policy()
     except RuntimePolicyError:
         _fail(AuthenticodeErrorCode.VERIFICATION_UNAVAILABLE)
-    if backend is None:
-        try:
-            from .authenticode_native import NativeWindowsAuthenticodeBackend
-
-            selected_backend: AuthenticodeBackend = NativeWindowsAuthenticodeBackend()
-        except Exception:
-            _fail(AuthenticodeErrorCode.VERIFICATION_UNAVAILABLE)
-    else:
-        selected_backend = backend
-    try:
-        supported = selected_backend.supported is True
-    except Exception:
-        supported = False
-    if not supported:
-        _fail(AuthenticodeErrorCode.VERIFICATION_UNAVAILABLE)
-
-    selected_clock = clock if clock is not None else SystemVerificationClock()
-    try:
-        now = selected_clock.now_utc()
-        if (
-            type(now) is not datetime
-            or now.tzinfo is None
-            or now.utcoffset() != timezone.utc.utcoffset(now)
-        ):
-            _fail(AuthenticodeErrorCode.VERIFICATION_UNAVAILABLE)
-        now = now.astimezone(timezone.utc)
-    except AuthenticodeVerificationError:
-        raise
-    except Exception:
-        _fail(AuthenticodeErrorCode.VERIFICATION_UNAVAILABLE)
-
-    try:
-        facts = bound_file.inspect_same_handle(
-            lambda handle, snapshot: selected_backend.inspect_open_file(
-                handle=handle,
-                snapshot=snapshot,
-            )
-        )
-    except WindowsSecurityError as error:
-        if error.category in {"file_identity_changed", "file_handle_closed"}:
-            _fail(AuthenticodeErrorCode.RUNTIME_REPLACED)
-        _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
-    except Exception:
-        _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
-    if type(facts) is not NativeAuthenticodeFacts:
-        _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
+    selected_backend = _select_backend(backend)
+    now = _select_verification_time(clock)
+    facts = _inspect_authenticode(bound_file, selected_backend)
     try:
         product_ids, timestamp = _match_authenticode(
             facts,
@@ -547,6 +664,68 @@ def verify_package_bound_authenticode_signer(
             snapshot=bound_file.snapshot,
             facts=facts,
             timestamp=timestamp,
+        )
+    except AuthenticodeVerificationError:
+        raise
+    except Exception:
+        _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
+    raise AssertionError("unreachable")
+
+
+def verify_package_bound_dependency_authenticode_signer(
+    bound_file: HandleBoundFile,
+    expected_certificate_sha256: str,
+    *,
+    backend: AuthenticodeBackend | None = None,
+    clock: VerificationClock | None = None,
+) -> VerifiedDependencyAuthenticodeEvidence:
+    """Authenticate one held dependency against one exact bundled signer."""
+
+    if type(bound_file) is not HandleBoundFile or not _is_sha256(
+        expected_certificate_sha256
+    ):
+        _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
+    try:
+        runtime_policy = load_package_bound_runtime_policy()
+        dependency_policy = load_package_bound_runtime_dependency_policy()
+    except (RuntimePolicyError, RuntimeDependencyPolicyError):
+        _fail(AuthenticodeErrorCode.VERIFICATION_UNAVAILABLE)
+    approved = tuple(
+        signer
+        for signer in dependency_policy.cpython.signers
+        if signer.certificate_sha256 == expected_certificate_sha256
+    )
+    if len(approved) != 1:
+        _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
+
+    selected_backend = _select_backend(backend)
+    now = _select_verification_time(clock)
+    facts = _inspect_authenticode(bound_file, selected_backend)
+    try:
+        timestamp = _validate_authenticode_envelope(
+            facts,
+            authenticode=runtime_policy.authenticode,
+            now=now,
+        )
+        if not _signer_matches(facts.signer, approved[0]):
+            _fail(AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID)
+        return VerifiedDependencyAuthenticodeEvidence(
+            dependency_policy_sha256=dependency_policy.content_sha256,
+            authenticode_policy_sha256=runtime_policy.content_sha256,
+            file_identity=bound_file.snapshot.identity,
+            file_sha256=bound_file.snapshot.sha256,
+            signer_certificate_sha256=facts.signer.certificate_sha256,
+            signer_chain_sha256=facts.signer_chain_sha256,
+            embedded_signature_sha256=facts.embedded_signature_sha256,
+            timestamp_token_sha256=(
+                timestamp.token_sha256 if timestamp is not None else None
+            ),
+            timestamp_chain_sha256=(
+                timestamp.chain_sha256 if timestamp is not None else None
+            ),
+            timestamp_time_utc=(
+                timestamp.signing_time_utc if timestamp is not None else None
+            ),
         )
     except AuthenticodeVerificationError:
         raise

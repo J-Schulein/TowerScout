@@ -270,9 +270,95 @@ class WindowsFileApi(Protocol):
 
     def rewind_file(self, handle: object) -> None: ...
 
+    def seek_file(self, handle: object, offset: int) -> None: ...
+
     def read_file(self, handle: object, maximum: int) -> bytes: ...
 
     def close_handle(self, handle: object) -> None: ...
+
+
+class RandomAccessFileReader(Protocol):
+    """Bounded random-access view over one already-held file handle."""
+
+    @property
+    def size(self) -> int: ...
+
+    def read_at(self, offset: int, length: int) -> bytes: ...
+
+
+class _HandleRandomAccessReader:
+    def __init__(
+        self,
+        api: WindowsFileApi,
+        handle: object,
+        size: int,
+    ) -> None:
+        self._api: WindowsFileApi | None = api
+        self._handle: object | None = handle
+        self._size = size
+        self._owner_thread = threading.get_ident()
+        self._active = True
+
+    def _active_context(self) -> tuple[WindowsFileApi, object]:
+        api = self._api
+        handle = self._handle
+        if (
+            self._active is not True
+            or threading.get_ident() != self._owner_thread
+            or api is None
+            or handle is None
+        ):
+            raise WindowsSecurityError(
+                "file_reader_scope_ended",
+                "The scoped Windows file reader is no longer available.",
+            )
+        return (api, handle)
+
+    def _invalidate(self) -> None:
+        self._active = False
+        self._api = None
+        self._handle = None
+
+    @property
+    def size(self) -> int:
+        self._active_context()
+        return self._size
+
+    def read_at(self, offset: int, length: int) -> bytes:
+        api, handle = self._active_context()
+        if (
+            type(offset) is not int
+            or type(length) is not int
+            or offset < 0
+            or length < 0
+            or offset > self._size
+            or length > self._size - offset
+            or length > _HASH_CHUNK_BYTES
+        ):
+            raise WindowsSecurityError(
+                "file_read_failed",
+                "The Windows file could not be read safely.",
+            )
+        if length == 0:
+            return b""
+        try:
+            api.seek_file(handle, offset)
+            remaining = length
+            chunks: list[bytes] = []
+            while remaining:
+                chunk = api.read_file(handle, remaining)
+                if not isinstance(chunk, bytes) or not chunk or len(chunk) > remaining:
+                    raise OSError("Invalid bounded file read.")
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            return b"".join(chunks)
+        except WindowsSecurityError:
+            raise
+        except (OSError, RuntimeError, TypeError, ValueError):
+            raise WindowsSecurityError(
+                "file_read_failed",
+                "The Windows file could not be read safely.",
+            ) from None
 
 
 def _length_prefixed_digest(domain: bytes, fields: Sequence[bytes]) -> str:
@@ -668,6 +754,42 @@ class HandleBoundFile:
         finally:
             self._end_use()
 
+    def inspect_same_handle_random_access(
+        self,
+        inspector: Callable[[RandomAccessFileReader, FileSnapshot], _InspectionResult],
+    ) -> _InspectionResult:
+        """Inspect through a bounded reader and revalidate the held file."""
+
+        if not callable(inspector):
+            raise ValueError("The held-file inspector is invalid.")
+        handle = self._begin_use()
+        reader: _HandleRandomAccessReader | None = None
+        try:
+            self._assert_unchanged_owned(handle)
+            reader = _HandleRandomAccessReader(
+                self._api,
+                handle,
+                self._snapshot.size,
+            )
+            try:
+                result = inspector(reader, self._snapshot)
+            except BaseException as error:
+                self._assert_unchanged_owned(handle)
+                if isinstance(error, WindowsSecurityError):
+                    raise
+                if not isinstance(error, Exception):
+                    raise
+                raise WindowsSecurityError(
+                    "file_inspection_failed",
+                    "The Windows file could not be inspected safely.",
+                ) from None
+            self._assert_unchanged_owned(handle)
+            return result
+        finally:
+            if reader is not None:
+                reader._invalidate()
+            self._end_use()
+
     def close(self) -> None:
         with self._lifetime_lock:
             if self._active_owner is not None:
@@ -1009,8 +1131,13 @@ class NativeWindowsFileApi:
         return int(kernel32.GetDriveTypeW(volume.value))
 
     def rewind_file(self, handle: object) -> None:
+        self.seek_file(handle, 0)
+
+    def seek_file(self, handle: object, offset: int) -> None:
+        if type(offset) is not int or not 0 <= offset < 2**63:
+            raise ValueError("Windows file offset is invalid.")
         kernel32 = self._require_kernel32()
-        if not kernel32.SetFilePointerEx(self._handle(handle), 0, None, 0):
+        if not kernel32.SetFilePointerEx(self._handle(handle), offset, None, 0):
             self._raise_last_error()
 
     def read_file(self, handle: object, maximum: int) -> bytes:

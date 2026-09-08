@@ -98,6 +98,10 @@ class _FakeWindowsFileApi:
         del handle
         self.cursor = 0
 
+    def seek_file(self, handle: object, offset: int) -> None:
+        del handle
+        self.cursor = offset
+
     def read_file(self, handle: object, maximum: int) -> bytes:
         del handle
         if self.read_result_override is not None:
@@ -146,6 +150,107 @@ def test_scoped_inspector_receives_and_revalidates_the_same_held_handle() -> Non
         assert bound.inspect_same_handle(inspect) == "verified"
 
     assert observed == [(api.handle, bound.snapshot)]
+
+
+def test_scoped_random_access_inspector_reads_only_the_held_handle() -> None:
+    api = _FakeWindowsFileApi(content=b"0123456789")
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+
+        def inspect(reader, snapshot) -> tuple[bytes, bytes, int]:  # noqa: ANN001
+            return reader.read_at(6, 4), reader.read_at(1, 3), snapshot.size
+
+        assert bound.inspect_same_handle_random_access(inspect) == (
+            b"6789",
+            b"123",
+            10,
+        )
+
+
+def test_scoped_random_access_inspector_rejects_out_of_bounds_read() -> None:
+    api = _FakeWindowsFileApi(content=b"0123456789")
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+        with pytest.raises(WindowsSecurityError) as failure:
+            bound.inspect_same_handle_random_access(
+                lambda reader, _snapshot: reader.read_at(9, 2)
+            )
+
+    assert failure.value.category == "file_read_failed"
+
+
+def test_scoped_random_access_reader_is_invalidated_after_success() -> None:
+    api = _FakeWindowsFileApi(content=b"0123456789")
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+        escaped = bound.inspect_same_handle_random_access(
+            lambda reader, _snapshot: reader
+        )
+        with pytest.raises(WindowsSecurityError) as size_failure:
+            _ = escaped.size
+        with pytest.raises(WindowsSecurityError) as read_failure:
+            escaped.read_at(0, 1)
+
+    assert size_failure.value.category == "file_reader_scope_ended"
+    assert read_failure.value.category == "file_reader_scope_ended"
+
+
+def test_scoped_random_access_reader_is_invalidated_after_failure() -> None:
+    api = _FakeWindowsFileApi(content=b"0123456789")
+    escaped = []
+
+    def capture_then_fail(reader, _snapshot) -> None:  # noqa: ANN001
+        escaped.append(reader)
+        raise OSError(_SECRET_PATH)
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+        with pytest.raises(WindowsSecurityError) as inspection_failure:
+            bound.inspect_same_handle_random_access(capture_then_fail)
+
+    assert inspection_failure.value.category == "file_inspection_failed"
+    with pytest.raises(WindowsSecurityError) as read_failure:
+        escaped[0].read_at(0, 1)
+    assert read_failure.value.category == "file_reader_scope_ended"
+    assert _SECRET_PATH not in str(inspection_failure.value)
+    assert _SECRET_PATH not in str(read_failure.value)
+
+
+def test_scoped_random_access_reader_is_invalid_after_bound_file_close() -> None:
+    api = _FakeWindowsFileApi(content=b"0123456789")
+    bound = capture_handle_bound_file(Path("private.exe"), api=api)
+    escaped = bound.inspect_same_handle_random_access(lambda reader, _snapshot: reader)
+
+    bound.close()
+
+    with pytest.raises(WindowsSecurityError) as failure:
+        escaped.read_at(0, 1)
+    assert failure.value.category == "file_reader_scope_ended"
+
+
+def test_scoped_random_access_reader_rejects_cross_thread_access() -> None:
+    api = _FakeWindowsFileApi(content=b"0123456789")
+    failures: list[BaseException] = []
+
+    with capture_handle_bound_file(Path("private.exe"), api=api) as bound:
+
+        def inspect(reader, _snapshot) -> bytes:  # noqa: ANN001
+            def read_from_other_thread() -> None:
+                try:
+                    reader.read_at(0, 1)
+                except BaseException as error:  # pragma: no cover - thread handoff
+                    failures.append(error)
+
+            worker = threading.Thread(target=read_from_other_thread)
+            worker.start()
+            worker.join(timeout=2)
+            assert not worker.is_alive()
+            return reader.read_at(1, 2)
+
+        assert bound.inspect_same_handle_random_access(inspect) == b"12"
+
+    assert len(failures) == 1
+    assert isinstance(failures[0], WindowsSecurityError)
+    assert failures[0].category == "file_reader_scope_ended"
 
 
 def test_scoped_inspector_sanitizes_native_failure() -> None:

@@ -23,7 +23,12 @@ from towerscout_launcher.authenticode import (  # noqa: E402
     TimestampFacts,
     TimestampForm,
     VerifiedAuthenticodeEvidence,
+    VerifiedDependencyAuthenticodeEvidence,
     verify_package_bound_authenticode_signer,
+    verify_package_bound_dependency_authenticode_signer,
+)
+from towerscout_launcher.runtime_dependency_policy import (  # noqa: E402
+    load_package_bound_runtime_dependency_policy,
 )
 from towerscout_launcher.runtime_policy import (  # noqa: E402
     RuntimeProductId,
@@ -39,6 +44,7 @@ from towerscout_launcher.windows_security import (  # noqa: E402
 _NOW = datetime(2026, 8, 21, 12, 0, 0, tzinfo=timezone.utc)
 _SECRET = r"\\?\C:\Users\private-user\secret-runtime.exe"
 _POLICY = load_package_bound_runtime_policy()
+_DEPENDENCY_POLICY = load_package_bound_runtime_dependency_policy()
 
 
 def _product(product_id: RuntimeProductId):  # noqa: ANN202
@@ -158,6 +164,21 @@ def _signer(product_id: RuntimeProductId) -> SignerCertificateFacts:
     )
 
 
+def _dependency_signer(approved) -> SignerCertificateFacts:  # noqa: ANN001
+    return SignerCertificateFacts(
+        certificate_sha256=approved.certificate_sha256,
+        subject_common_name=approved.subject_common_name,
+        subject_organization=approved.subject_organization,
+        issuer_common_name=approved.issuer_common_name,
+        serial_number=approved.serial_number,
+        not_before_utc=approved.not_before_utc,
+        not_after_utc=approved.not_after_utc,
+        public_key_algorithm=approved.public_key_algorithm,
+        public_key_bits=approved.minimum_public_key_bits,
+        code_signing_eku=True,
+    )
+
+
 def _timestamp(
     *,
     signing_time: str = "2025-01-02T03:04:05Z",
@@ -245,6 +266,81 @@ def _reject(
     assert _SECRET not in str(exc_info.value)
     assert _SECRET not in repr(exc_info.value)
     return exc_info.value
+
+
+def _verify_dependency(
+    approved,  # noqa: ANN001
+) -> VerifiedDependencyAuthenticodeEvidence:
+    api = _FileApi()
+    facts = _facts(
+        signer=_dependency_signer(approved),
+        timestamps=(_timestamp(signing_time=approved.not_before_utc),),
+    )
+    backend = _Backend(facts)
+    with capture_handle_bound_file(Path("runtime.exe"), api=api) as bound:
+        evidence = verify_package_bound_dependency_authenticode_signer(
+            bound,
+            approved.certificate_sha256,
+            backend=backend,
+            clock=_Clock(),
+        )
+        assert backend.handles == [api.handle]
+        assert backend.snapshots == [bound.snapshot]
+    return evidence
+
+
+def test_every_exact_dependency_signer_is_accepted_without_broadening_products() -> (
+    None
+):
+    for approved in _DEPENDENCY_POLICY.cpython.signers:
+        evidence = _verify_dependency(approved)
+
+        assert evidence.dependency_policy_sha256 == (_DEPENDENCY_POLICY.content_sha256)
+        assert evidence.authenticode_policy_sha256 == _POLICY.content_sha256
+        assert evidence.signer_certificate_sha256 == approved.certificate_sha256
+        assert evidence.timestamp_time_utc == approved.not_before_utc
+        assert len(evidence.evidence_sha256) == 64
+        assert not hasattr(evidence, "signer_policy_product_ids")
+        assert approved.certificate_sha256 not in repr(evidence)
+
+
+def test_dependency_signer_requires_the_exact_expected_certificate() -> None:
+    approved = _DEPENDENCY_POLICY.cpython.signers[0]
+    wrong = _DEPENDENCY_POLICY.cpython.signers[1]
+    api = _FileApi()
+    facts = _facts(
+        signer=_dependency_signer(approved),
+        timestamps=(_timestamp(signing_time=approved.not_before_utc),),
+    )
+    with capture_handle_bound_file(Path("runtime.exe"), api=api) as bound:
+        with pytest.raises(AuthenticodeVerificationError) as failure:
+            verify_package_bound_dependency_authenticode_signer(
+                bound,
+                wrong.certificate_sha256,
+                backend=_Backend(facts),
+                clock=_Clock(),
+            )
+
+    assert failure.value.code is AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID
+
+
+def test_dependency_signer_rejects_a_fingerprint_absent_from_package_policy() -> None:
+    approved = _DEPENDENCY_POLICY.cpython.signers[0]
+    api = _FileApi()
+    facts = _facts(
+        signer=_dependency_signer(approved),
+        timestamps=(_timestamp(signing_time=approved.not_before_utc),),
+    )
+    with capture_handle_bound_file(Path("runtime.exe"), api=api) as bound:
+        with pytest.raises(AuthenticodeVerificationError) as failure:
+            verify_package_bound_dependency_authenticode_signer(
+                bound,
+                "0" * 64,
+                backend=_Backend(facts),
+                clock=_Clock(),
+            )
+
+    assert failure.value.code is AuthenticodeErrorCode.RUNTIME_IDENTITY_INVALID
 
 
 def test_docker_shared_signer_returns_explicit_compatible_policy_set() -> None:
@@ -441,6 +537,26 @@ def test_timestamp_validity_boundaries_are_inclusive() -> None:
             timestamps=(_timestamp(signing_time=timestamp_time),),
         )
         _verify(facts)
+
+
+def test_fractional_rfc3161_timestamp_preserves_100ns_boundary_checks() -> None:
+    valid = _facts(
+        RuntimeProductId.CPYTHON,
+        timestamps=(_timestamp(signing_time="2025-04-09T12:00:00.5710000Z"),),
+    )
+    evidence, _api, _backend = _verify(valid)
+    assert evidence.timestamp_time_utc == "2025-04-09T12:00:00.5710000Z"
+
+    for invalid in (
+        "2025-04-08T01:07:23.9999999Z",
+        "2025-04-11T01:07:24.0000001Z",
+    ):
+        _reject(
+            _facts(
+                RuntimeProductId.CPYTHON,
+                timestamps=(_timestamp(signing_time=invalid),),
+            )
+        )
 
 
 def test_not_yet_valid_signer_fails_even_with_timestamp() -> None:
