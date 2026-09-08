@@ -18,8 +18,11 @@ design; Gate A source work is active. The September 8 authenticated
 command-version source checkpoint `1970f76` passed independent review with no
 open findings. Its task-state checkpoint `636617b` passed exact-head CI/CD run
 `34244364493`, Task-087 run `34244364488`, and external Trivy. The slice remains
-unwired. PR #67 remains Draft, and merge/publication retain their separate
-applicable gates.
+unwired. Windows path/DACL/reparse/cloud and immediate runtime-load prerequisite
+source checkpoint `2d37e66` also passed independent review with no open source-
+safety findings. It remains unwired and explicitly does not claim transitive
+dependency closure. PR #67 remains Draft, and merge/publication retain their
+separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -50,9 +53,11 @@ succeeded and the main-only build job skipped as designed for a pull request.
 The reviewed command-version source checkpoint is `1970f76`; `636617b` records
 its task-state reconciliation. This later docs-only handoff records that remote
 evidence without changing implementation or test bytes. Gate A source work
-remains intentionally inert and subject to its remaining reviews. The accepted
-functional implementation checkpoint remains `5737a58`, built on then-current
-`main` commit `3932abf`.
+remains intentionally inert and subject to its remaining reviews. The reviewed
+Windows path and immediate runtime-load prerequisite checkpoint is `2d37e66`;
+its product-specific transitive dependency policy and execution wiring remain
+open. The accepted functional implementation checkpoint remains `5737a58`,
+built on then-current `main` commit `3932abf`.
 Its exact-source full-runnable Podman CPU package enforces the
 selected rootless Windows boundary and rejected rootful mode before provider
 discovery or container mutation. Checkpoint `3990bc0` remains the accepted
@@ -1358,6 +1363,91 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-08 - Windows Path And Immediate Load Prerequisites Checkpointed
+
+**Objective**: Implement the next bounded Gate A source-only Windows trust
+prerequisites without enabling runtime selection, target resolution, launcher
+execution, repair, or filesystem mutation.
+
+**Context**: Work began from reviewed/pushed command-version task-state
+checkpoint `636617b`. The Dockerfile and both Compose definitions were checked
+first under the container/Windows runtime workflow. This slice changes no
+container persistence, TLS import, readiness, asset, Docker/Podman support, or
+launcher entry-point behavior, so no runtime startup was required.
+
+**Decision**: Treat this work as an inert prerequisite rather than claim full
+Windows DLL-load closure. Bind the immediate application-directory surface and
+Windows search roots now, retain an explicit evidence flag that transitive
+dependency policy is still required, and block integration until product-
+specific private-assembly/dynamic-load/signer rules are approved. In
+particular, the current Docker/Podman same-product signer rule must not be
+silently weakened to admit the Microsoft-signed VCRuntime files present in a
+CPython distribution.
+
+**Execution**: Added a retained-handle path hierarchy owner that opens lexical
+components without following reparses, separately follows and binds the root,
+and repeats no-follow validation over the resolved chain. It rejects
+noncanonical, remote, non-fixed, non-directory, offline, unknown-reparse,
+unapproved-owner, null-DACL, unsupported-ACE, and unapproved-writer states.
+Only the current user, SYSTEM, Administrators, and TrustedInstaller may retain
+the mutation rights relevant to the inspected object; inherit-only grants do
+not apply to that object. Known hydrated cloud-directory tags and held name-
+surrogate ancestors are supported under final identity revalidation.
+
+The file owner now has an opt-in known-cloud hydration path. It probes the leaf
+without following the reparse, reopens through the provider to hydrate while
+still denying write/delete sharing, requires stable volume/file identity,
+hashes through that held handle, accepts only the documented hydration-marker
+transition, and rejects a leaf that remains offline.
+
+Added an immediate runtime-load prerequisite owner that binds the executable
+identity/hash, application/System32/Windows directory identities, exact
+application-directory inventory, every immediate regular file, file security,
+and a canonical surface digest. PE images are detected by content and
+authenticated regardless of filename extension; non-PE data must have one
+link. External manifests, `.local` redirection, reparses, name collisions,
+alternate-stream/noncanonical names, and a nonempty parent DLL directory fail
+closed. The child process boundary now also applies no-remote, no-low-label,
+and prefer-System32 image-load mitigations.
+
+**Independent Review**: A review-only sub-agent found and drove correction of
+four material classes: post-read cloud state was not initially required to be
+hydrated; DACL policy initially recognized only selected broad SIDs instead of
+rejecting every unapproved writer; extension-only loadable discovery missed
+arbitrary import names; and native handles/out-parameter allocations had
+interruption-sized ownership-transfer gaps. The final implementation rejects
+unsupported access-granting ACE types, bounds ACE/SID parsing, tracks file,
+directory, pipe, Job, process, token, security-descriptor, and SID-string
+resources before control transfer, and uses a shared armed process-owner ledger
+through return. The reviewer reran 109 scoped tests and returned PASS with no
+remaining source-safety findings.
+
+**Validation**: The four focused Windows security/path/load/command files
+passed 155 tests with the native hardlink test intentionally deselected, and
+that real Windows sharing-mode/hardlink proof passed separately. The broader
+15-file security, policy, Authenticode, identity, target, execution, and
+mutation-gate set passed 689 tests with the same native proof deselected; adding
+the separate proof yields 690 applicable passes. Native System32 hierarchy and
+runtime-inventory smokes passed. Scoped Black, blocking and advisory Flake8,
+strict isolated mypy for the new modules, mypy for the changed lower-level
+modules, medium/high Bandit, compilation, secret-term scan, and
+`git diff --check` passed.
+
+**Boundary**: Source checkpoint `2d37e66` records the reviewed implementation.
+It remains unimported by launcher, discovery, repair, execution, coordination,
+or mutation paths. No Docker, Podman, Compose, installed-runtime end-to-end,
+launcher, repair, package, publication, merge, or signing action ran. Immediate
+application-directory binding does not cover transitive dependencies, private
+assemblies, or dynamic relative loads and therefore cannot authorize child
+execution by itself.
+
+**Next**: Define and review the product-specific transitive dependency and
+signer/leaf policy, including Microsoft-signed CPython runtime dependencies,
+then prove it against controlled installed-runtime fixtures and live binaries
+before any execution wiring. Continue the remaining Gate A Windows-store CA,
+cross-session lock, durable rollback/recovery, provider `.env`, and ACL-
+preserving atomic replacement slices separately.
 
 ### 2026-09-08 - Authenticated Command-Version Evidence Implemented Locally
 

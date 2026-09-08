@@ -2,15 +2,16 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 8, 2026
-**Focus**: Task-101 is complete. Draft PR #67 checkpoint `636617b` passed
-exact-head CI/CD run `34244364493`, Task-087 run `34244364488`, and external
-Trivy after independent review of the authenticated Docker Compose/Podman
-command-version and native-containment slice at source checkpoint `1970f76`.
-The slice remains unwired. The next Gate A source work must close its documented
-ancestor DACL/owner/reparse/cloud and dependency/DLL load prerequisites before
-integration. Unsigned preview-package integration remains later under ADR-019.
-Production signing remains Task-100 work in October after the package is
-satisfactory.
+**Focus**: Task-101 is complete. Task-087 source checkpoint `2d37e66` adds the
+independently reviewed Windows path/DACL/reparse/cloud and immediate runtime-
+load prerequisites on top of the authenticated Docker Compose/Podman command
+boundary. The slice remains inert and unwired. A product-specific transitive-
+dependency/private-assembly policy, including the reviewed Microsoft-signed
+CPython VCRuntime case, remains mandatory before execution integration. Cross-
+session locks, durable recovery, Windows-store CA selection, and ACL-preserving
+`.env` replacement remain later Gate A source work. Unsigned preview-package
+integration remains later under ADR-019. Production signing remains Task-100
+work in October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -264,6 +265,22 @@ timing; preview integration remains a later gate
   mutation remains disabled. Ancestor
   DACL/owner/reparse/cloud containment and application dependency/DLL load
   closure remain strict prerequisites before integration.
+- Source checkpoint `2d37e66` implements the next inert Windows-trust
+  prerequisite layer. It binds lexical and resolved directory chains through
+  retained handles; validates local-fixed-directory identity, owner, DACL, ACE,
+  and reparse/cloud policy; hydrates an explicitly allowed cloud leaf through a
+  second identity-stable handle; binds every immediate application-directory
+  file; authenticates PE images regardless of extension; and adds empty parent
+  DLL-directory plus child image-load mitigations. Independent review closed
+  unapproved-writer, unsupported-ACE, hydration, process/pipe/job, native out-
+  parameter, and ownership-transfer gaps, then returned PASS with 109 scoped
+  tests. Local validation passed 155 focused tests plus the separate native
+  hardlink proof, and 689 broader tests plus that native proof. The layer is
+  explicitly a prerequisite, not complete DLL closure: transitive
+  dependencies, private assemblies, dynamic relative loads, and the product-
+  specific Microsoft/CPython signer policy still block execution wiring. No
+  Docker, Podman, launcher, repair, mutation, package, or publication action
+  ran.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked
