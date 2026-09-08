@@ -14,10 +14,14 @@ Reconciliation head `946deaf` passed CI/CD run `32383065903` and Task-087 run
 run `32385304086` plus Task-087 run `32385304052`. Independent technical/
 security review then requested source changes at `6e0f744`. On August 21, the
 project lead explicitly approved IMPLEMENT under the August 20 remediation
-design; Gate A source work is active. Current Draft PR #67 head `0eebe7b`
-passed CI/CD run `32530172080` and Task-087 run `32530172064`. PR #67 remains
-Draft, and merge/publication retain their separate applicable gates. Signing
-and representative managed-endpoint validation remain Task-100 work in October
+design; Gate A source work is active. Draft PR #67's last green baseline
+`703b82e` passed CI/CD run `32531877099` and Task-087 run `32531877128`. The
+September 8 authenticated command-version source checkpoint `1970f76` passed
+independent review with no open findings and is followed by this task-state
+reconciliation. The slice remains unwired and lacks new exact-head CI. PR #67
+remains Draft, and merge/publication retain their separate applicable gates.
+Signing and representative managed-endpoint validation remain Task-100 work in
+October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Rebaselined after review to approximately 6-10 focused
@@ -40,11 +44,13 @@ ADR-018 Python/Tkinter launcher proof is implemented only on the isolated
 feature branch and is not merged. The command-based Task-086 path remains the
 supported fallback until all Task-087 gates pass.
 
-The current remote Draft PR head is `0eebe7b`; exact-head CI/CD run
-`32530172080`, Task-087 run `32530172064`, and external Trivy passed. Gate A
-source work remains intentionally inert and independently reviewed. The
-accepted functional implementation checkpoint remains `5737a58`, built on
-then-current `main` commit `3932abf`.
+Draft PR #67's last green baseline is `703b82e`; exact-head CI/CD run
+`32531877099`, Task-087 run `32531877128`, and external Trivy passed there. The
+reviewed command-version source checkpoint is `1970f76`; this following
+task-state reconciliation advances the source without claiming new exact-head
+CI. Gate A source work remains intentionally inert and subject to its remaining
+reviews. The accepted functional implementation checkpoint remains `5737a58`,
+built on then-current `main` commit `3932abf`.
 Its exact-source full-runnable Podman CPU package enforces the
 selected rootless Windows boundary and rejected rootful mode before provider
 discovery or container mutation. Checkpoint `3990bc0` remains the accepted
@@ -1350,6 +1356,105 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-08 - Authenticated Command-Version Evidence Implemented Locally
+
+**Objective**: Implement the next bounded Gate A source-only slice for exact
+Docker Compose and Podman CLI command-version proof without wiring it into
+launcher discovery, target resolution, execution planning, app, or repair.
+
+**Context**: The worktree began clean at local/tracking Draft PR #67 baseline
+`703b82ed6ade4c2ab3a2f689cfe40ccb7abd9c6c`, whose CI/CD run `32531877099`,
+Task-087 run `32531877128`, and external Trivy check passed. The retained-handle
+installation and Authenticode foundations were already present. Mutation was
+disabled and remains disabled.
+
+**Decision**: Add a separate command-version evidence owner instead of
+weakening or extending the PE-only combiner. Accept only the closed product IDs
+for Docker Compose and Podman CLI. Construct one exact local `PureWindowsPath`
+from the trusted handle snapshot, bind its case-preserving UTF-16 rendering by
+digest, invoke only the policy's fixed argument tuple, and retain the executable
+handle through final installation/file/path revalidation. Keep the result
+non-executable and expose no path, handle, command runner, or conversion to a
+resolved repair target.
+
+**Execution**: Added immutable redacted command, component-evidence, combined-
+evidence, and closeable owner models. Docker Compose accepts only exact `5.3.1`
+from fixed `version --short`; Podman accepts only an exact strict-JSON string at
+`/Client/Version` from fixed `version --format json`. Parsing rejects invalid
+UTF-8, BOM/NUL, duplicate JSON members, floats/non-finite values, excessive
+depth/nodes/collection/string sizes, pointer/case/version mismatch, trailing
+content, extra terminal whitespace, nonzero exit, and any stderr.
+
+The native adapter constructs only `SystemRoot` and `WINDIR`, uses the native
+system directory as CWD, closes stdin, and launches the exact non-null
+application path with a writable Unicode command line. It creates the process
+suspended, restricts inheritance to the three required anonymous-pipe handles
+through `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`, assigns a kill-on-close Windows Job
+Object before resume, streams stdout/stderr concurrently into fixed 64 KiB/16
+KiB budgets, applies a fixed 15-second timeout, and terminates plus verifies the
+complete Job Object reaches zero active processes on timeout or overflow.
+
+**Adversarial Coverage**: The injected 63-test slice covers both reviewed
+products, Docker shared-signer overlap, Podman's valid trusted timestamp,
+policy/identity/full-file/output/path-digest binding, fixed arguments, minimal
+environment and CWD, local/case-preserving path rejection, strict text/JSON
+failures, wrong signer, runtime replacement, interruption cleanup, redaction,
+immutability, inert source boundaries, x64 ctypes layouts, environment-block
+construction, concurrent stream capture, output overflow, timeout, verified
+whole-tree termination, and rejection when termination cannot be proven. The
+existing PE-only verifier still rejects these command-version products before
+opening or execution.
+
+**API Review**: Current Microsoft Win32 documentation was checked for
+`CreateProcessW`, `STARTUPINFOEX`/`PROC_THREAD_ATTRIBUTE_HANDLE_LIST`, suspended
+Job assignment, `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, `TerminateJobObject`, and
+`QueryInformationJobObject`. The implementation follows the documented
+non-null application-path, writable command-line, inheritable-listed-handles,
+suspended-assignment, whole-job termination, and handle-close contracts.
+
+**Independent Review**: A review-only sub-agent initially found process cleanup
+began after reader construction/start, leaving post-create allocation,
+thread-start, and interruption paths outside ownership. Re-review then required
+behavioral coverage for the ctypes boundary, exact Job-accounting response
+length, verified post-`CreateProcessW` termination, and preservation of
+`CONTAINMENT_FAILED`. A final high-severity pass found the interruption window
+between successful `CreateProcessW` and strict handle capture. The implementation
+now recovers raw `PROCESS_INFORMATION` handles on every failure path, proves
+termination before re-raising an interruption, and closes each handle once.
+Injected kernel32 tests cover the exact application name, writable command
+line, minimal double-NUL environment, handle list/inheritance, assign-before-
+resume order, failed process/Job termination, timeout, malformed accounting,
+and raw-handle capture interruption. The reviewer independently reran the final
+focused suite and returned PASS with no open findings.
+
+**Validation**: The focused command-version suite passed 63 tests. The broader
+Windows-security, runtime-policy, Authenticode, installation/PE, combined-
+evidence, target-contract, plan-only executor, and mutation-gate set passed 611
+tests with only the two prohibited installed-file native smokes explicitly
+deselected. Scoped Black, blocking Flake8, strict isolated mypy, medium/high
+Bandit, compilation, `git diff --check`, and both task-record validators pass.
+A diagnostic all-unit sweep was not accepted as pass evidence: the
+workstation's default pytest temp root was access-denied, a fresh
+workspace-local temp root later became access-denied, and the unchanged
+PowerShell host-helper tests remain blocked by endpoint antivirus. No product
+defect from this slice was observed in those unrelated environmental failures.
+
+**Boundary**: All tests use injected command/process backends. No Docker,
+Podman, Compose, launcher, repair command, installed-binary process smoke,
+artifact build, package, publication, merge, or signing action ran. Runtime
+selection and mutation remain disabled/unwired. The held executable-leaf
+identity is sufficient for this isolated checkpoint, but ancestor/package-root
+DACL, owner, reparse/cloud containment and application dependency/DLL load
+closure remain mandatory before integration, together with endpoint/provider
+binding. Source checkpoint `1970f76` records the independently reviewed code;
+this task-state reconciliation claims no new exact-head CI result.
+
+**Next**: Push the reviewed source checkpoint and this task-state reconciliation
+to Draft PR #67 under the project lead's authorization, then require green
+exact-head CI/CD and Task-087 workflows before beginning runtime/target/executor
+integration, provider reconstruction, endpoint binding, or any mutation-capable
+work.
 
 ### 2026-08-21 - Green Exact-Head Weekend Handoff
 
