@@ -236,6 +236,14 @@ def test_holds_exact_policy_inventory_through_synchronous_operation(
         def operation() -> str:
             assert not file_api.closed
             assert not path_api.closed
+            policy = owner.active_dynamic_load_policy()
+            assert len(policy.exact_files) == 43
+            assert sum(binding.entrypoint for binding in policy.exact_files) == 1
+            assert "ntdll.dll" in policy.system_image_names
+            assert "api-ms-win-core-path-l1-1-0.dll" in policy.system_image_names
+            assert all(
+                "Python312" not in repr(binding) for binding in policy.exact_files
+            )
             return "complete"
 
         assert owner.run_while_held(operation) == "complete"
@@ -245,6 +253,25 @@ def test_holds_exact_policy_inventory_through_synchronous_operation(
     assert len(file_api.closed) == 46
     assert path_api.closed
     assert not executable.closed
+    executable.close()
+
+
+def test_dynamic_load_bindings_are_available_only_during_held_operation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner, executable, _path_api, _file_api = _open(monkeypatch)
+
+    with pytest.raises(CpythonDependencyCaptureError) as failure:
+        owner.active_dynamic_load_policy()
+    assert failure.value.code is CpythonDependencyCaptureErrorCode.INVENTORY_CHANGED
+
+    captured = owner.run_while_held(owner.active_dynamic_load_policy)
+    assert len(captured.exact_files) == 43
+
+    with pytest.raises(CpythonDependencyCaptureError) as failure:
+        owner.active_dynamic_load_policy()
+    assert failure.value.code is CpythonDependencyCaptureErrorCode.INVENTORY_CHANGED
+    owner.close()
     executable.close()
 
 

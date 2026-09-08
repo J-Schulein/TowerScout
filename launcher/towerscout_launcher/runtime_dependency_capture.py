@@ -10,7 +10,9 @@ search state, install packages, or execute a process itself.
 
 from __future__ import annotations
 
+import hashlib
 import ntpath
+import struct
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
@@ -45,13 +47,25 @@ from .windows_path_trust import (
 )
 from .windows_security import (
     FileCapturePolicy,
+    FileSnapshot,
     HandleBoundFile,
+    StableFileIdentity,
     WindowsFileApi,
     WindowsSecurityError,
     capture_handle_bound_file,
 )
 
 _MAX_NATIVE_FILE_BYTES = 1024 * 1024 * 1024
+_DYNAMIC_LOAD_PATH_DOMAIN = b"TowerScout.CpythonDynamicLoadPath.v1"
+# Windows maps these native loader/API-set hosts even though the CPython PE
+# inventory imports their higher-level contracts.  Keep this reviewed list
+# explicit rather than treating the whole System32 directory as executable
+# policy.
+_WINDOWS_SYSTEM_BOOTSTRAP_IMAGES = (
+    "kernelbase.dll",
+    "ntdll.dll",
+    "ucrtbase.dll",
+)
 _MACHINE_BY_CODE = {
     0x014C: PeMachine.I386,
     0x8664: PeMachine.AMD64,
@@ -125,8 +139,103 @@ class HeldCpythonDependencyEvidence:
         )
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class CpythonDynamicLoadBinding:
+    """Redacted exact-file destination admitted during a debug load event."""
+
+    identity: StableFileIdentity = field(repr=False)
+    sha256: str = field(repr=False)
+    final_path_sha256: str = field(repr=False)
+    entrypoint: bool
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.identity) is not StableFileIdentity
+            or not _is_sha256(self.sha256)
+            or not _is_sha256(self.final_path_sha256)
+            or type(self.entrypoint) is not bool
+        ):
+            raise ValueError("CPython dynamic-load binding is invalid.")
+
+    @classmethod
+    def from_snapshot(
+        cls,
+        snapshot: FileSnapshot,
+        *,
+        entrypoint: bool,
+    ) -> "CpythonDynamicLoadBinding":
+        if type(snapshot) is not FileSnapshot or type(entrypoint) is not bool:
+            raise ValueError("CPython dynamic-load snapshot is invalid.")
+        return cls(
+            identity=snapshot.identity,
+            sha256=snapshot.sha256,
+            final_path_sha256=_path_sha256(snapshot.final_path),
+            entrypoint=entrypoint,
+        )
+
+    def matches(self, snapshot: FileSnapshot) -> bool:
+        if type(snapshot) is not FileSnapshot:
+            return False
+        return (
+            snapshot.identity == self.identity
+            and snapshot.sha256 == self.sha256
+            and _path_sha256(snapshot.final_path) == self.final_path_sha256
+        )
+
+    def __repr__(self) -> str:
+        return f"CpythonDynamicLoadBinding(entrypoint={self.entrypoint}, <redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class CpythonDynamicLoadPolicy:
+    """Exact package images plus explicit Windows system-image leaf names."""
+
+    exact_files: tuple[CpythonDynamicLoadBinding, ...] = field(repr=False)
+    system_image_names: tuple[str, ...] = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.exact_files) is not tuple
+            or not self.exact_files
+            or any(
+                type(binding) is not CpythonDynamicLoadBinding
+                for binding in self.exact_files
+            )
+            or sum(binding.entrypoint for binding in self.exact_files) != 1
+            or len(set(self.exact_files)) != len(self.exact_files)
+            or type(self.system_image_names) is not tuple
+            or not self.system_image_names
+            or self.system_image_names
+            != tuple(sorted(set(self.system_image_names), key=str.casefold))
+            or any(
+                type(name) is not str
+                or not name
+                or name != name.casefold()
+                or ntpath.basename(name) != name
+                or not name.endswith(".dll")
+                for name in self.system_image_names
+            )
+        ):
+            raise ValueError("CPython dynamic-load policy is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "CpythonDynamicLoadPolicy("
+            f"exact_file_count={len(self.exact_files)}, "
+            f"system_image_count={len(self.system_image_names)}, <redacted>)"
+        )
+
+
 def _fail(code: CpythonDependencyCaptureErrorCode) -> NoReturn:
     raise CpythonDependencyCaptureError(code)
+
+
+def _is_sha256(value: object) -> bool:
+    return (
+        type(value) is str
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
 
 
 def _canonical_path(value: str) -> str:
@@ -141,6 +250,15 @@ def _canonical_path(value: str) -> str:
     if not PureWindowsPath(normalized).is_absolute():
         _fail(CpythonDependencyCaptureErrorCode.RUNTIME_MISMATCH)
     return ntpath.normcase(normalized)
+
+
+def _path_sha256(value: str) -> str:
+    encoded = _canonical_path(value).encode("utf-16-le", errors="strict")
+    digest = hashlib.sha256()
+    for field_value in (_DYNAMIC_LOAD_PATH_DOMAIN, encoded):
+        digest.update(struct.pack(">Q", len(field_value)))
+        digest.update(field_value)
+    return digest.hexdigest()
 
 
 def _target(root: PureWindowsPath, relative: str) -> PureWindowsPath:
@@ -231,6 +349,7 @@ class _HeldDependency:
     path: str = field(repr=False)
     bound_file: HandleBoundFile = field(repr=False)
     supplied_executable: bool
+    dynamic_load_eligible: bool
 
 
 class HeldCpythonDependencyInventory:
@@ -243,6 +362,7 @@ class HeldCpythonDependencyInventory:
         "_executable",
         "_files",
         "_lifetime_lock",
+        "_system_image_names",
     )
 
     def __init__(
@@ -251,6 +371,7 @@ class HeldCpythonDependencyInventory:
         executable: HandleBoundFile,
         directories: tuple[PathHierarchyTrust, ...],
         files: tuple[_HeldDependency, ...],
+        system_image_names: tuple[str, ...],
         evidence: HeldCpythonDependencyEvidence,
     ) -> None:
         if (
@@ -263,9 +384,15 @@ class HeldCpythonDependencyInventory:
             or any(type(item) is not _HeldDependency for item in files)
             or len(directories) != evidence.held_directory_count
             or len(files) != evidence.held_file_count
+            or type(system_image_names) is not tuple
+            or not system_image_names
             or sum(item.supplied_executable for item in files) != 1
+            or sum(item.dynamic_load_eligible for item in files)
+            != evidence.dependency.amd64_loadable_count
             or not any(
-                item.supplied_executable and item.bound_file is executable
+                item.supplied_executable
+                and item.dynamic_load_eligible
+                and item.bound_file is executable
                 for item in files
             )
         ):
@@ -275,6 +402,7 @@ class HeldCpythonDependencyInventory:
         self._executable = executable
         self._directories = directories
         self._files = files
+        self._system_image_names = system_image_names
         self._evidence = evidence
 
     @property
@@ -314,6 +442,29 @@ class HeldCpythonDependencyInventory:
             if not any(present is held.bound_file for present in output):
                 output.append(held.bound_file)
         return tuple(output)
+
+    def active_dynamic_load_policy(self) -> CpythonDynamicLoadPolicy:
+        """Return the complete image policy only inside the held callback."""
+
+        if self._active_owner != threading.get_ident() or not self._files:
+            _fail(CpythonDependencyCaptureErrorCode.INVENTORY_CHANGED)
+        bindings = tuple(
+            CpythonDynamicLoadBinding.from_snapshot(
+                held.bound_file.snapshot,
+                entrypoint=held.supplied_executable,
+            )
+            for held in self._files
+            if held.dynamic_load_eligible
+        )
+        if (
+            len(bindings) != self._evidence.dependency.amd64_loadable_count
+            or sum(binding.entrypoint for binding in bindings) != 1
+        ):
+            _fail(CpythonDependencyCaptureErrorCode.INVENTORY_CHANGED)
+        try:
+            return CpythonDynamicLoadPolicy(bindings, self._system_image_names)
+        except ValueError:
+            _fail(CpythonDependencyCaptureErrorCode.INVENTORY_CHANGED)
 
     def _run_under_file_leases(
         self,
@@ -379,6 +530,7 @@ class HeldCpythonDependencyInventory:
             directories = self._directories
             self._files = ()
             self._directories = ()
+            self._system_image_names = ()
             for held in reversed(files):
                 if not held.supplied_executable:
                     try:
@@ -486,7 +638,12 @@ def capture_package_bound_cpython_dependency_inventory(
                     ),
                 )
             )
-            held = _HeldDependency(record.path, bound, supplied)
+            held = _HeldDependency(
+                record.path,
+                bound,
+                supplied,
+                isinstance(record, ApprovedDependencyFile),
+            )
             files.append(held)
             if _canonical_path(bound.snapshot.final_path) != _canonical_path(
                 str(target)
@@ -521,6 +678,16 @@ def capture_package_bound_cpython_dependency_inventory(
             executable=executable,
             directories=tuple(directories),
             files=tuple(files),
+            system_image_names=tuple(
+                sorted(
+                    {
+                        *policy.cpython.declared_system_imports,
+                        *policy.cpython.declared_api_set_imports,
+                        *_WINDOWS_SYSTEM_BOOTSTRAP_IMAGES,
+                    },
+                    key=str.casefold,
+                )
+            ),
             evidence=evidence,
         )
         result.assert_unchanged()
@@ -538,6 +705,8 @@ def capture_package_bound_cpython_dependency_inventory(
 
 
 __all__ = [
+    "CpythonDynamicLoadBinding",
+    "CpythonDynamicLoadPolicy",
     "CpythonDependencyCaptureError",
     "CpythonDependencyCaptureErrorCode",
     "HeldCpythonDependencyEvidence",

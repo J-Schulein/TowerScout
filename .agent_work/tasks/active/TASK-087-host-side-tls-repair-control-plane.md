@@ -24,9 +24,14 @@ safety findings. It remains unwired and explicitly does not claim transitive
 dependency closure. Task-state checkpoint `ca2f284` passed exact-head CI/CD run
 `34257761291`, Task-087 run `34257761429`, and external Trivy. PR #67 remains
 Draft. Source checkpoint `3909395` defines an exact CPython 3.12.10 native-
-file/dependency policy and same-handle PE inspection primitives. It is
-independently reviewed with no open findings, but is not yet packaged or wired
-to execution; merge/publication retain their separate applicable gates.
+file/dependency policy and same-handle PE inspection primitives. Held-inventory
+checkpoint `e18fb3a` retains and revalidates all 47 exact policy files through a
+synchronous operation; it passed exact-head CI/CD run `34280588649`, Task-087
+run `34280588654`, and external Trivy. Both checkpoints are independently
+reviewed with no open findings, but are not yet packaged or wired to execution.
+A local source-only follow-up now enforces the dynamic image-load destination
+boundary and awaits independent review; merge/publication retain their separate
+applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -63,8 +68,11 @@ its product-specific transitive dependency policy and execution wiring remain
 open. Task-state checkpoint `ca2f284` passed exact-head CI/CD run
 `34257761291`, Task-087 run `34257761429`, and external Trivy; this later docs-
 only handoff records that remote evidence without changing implementation or
-test bytes. The accepted functional implementation checkpoint remains
-`5737a58`, built on then-current `main` commit `3932abf`.
+test bytes. Held-inventory source and task-state checkpoint `e18fb3a` passed
+exact-head CI/CD run `34280588649`, Task-087 run `34280588654`, and external
+Trivy with all nine applicable pull-request checks successful; the PR-only
+build job skipped as designed. The accepted functional implementation
+checkpoint remains `5737a58`, built on then-current `main` commit `3932abf`.
 Its exact-source full-runnable Podman CPU package enforces the
 selected rootless Windows boundary and rejected rootful mode before provider
 discovery or container mutation. Checkpoint `3990bc0` remains the accepted
@@ -1370,6 +1378,71 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-08 - CPython Dynamic-Load Destination Enforcement Implemented Locally
+
+**Objective**: Close the held-inventory slice's explicitly open arbitrary DLL-
+destination gap for one fixed CPython command, without wiring launcher
+discovery, provider execution, repair, packaging, or runtime mutation.
+
+**Execution**: Added a Windows `DEBUG_PROCESS` command backend that starts the
+already authenticated executable inside the existing Job Object, prohibits
+dynamic code, applies Windows' child-process creation restriction, and consumes
+the complete root-process debug-event stream on the same worker thread that
+creates the process. Each process-image and DLL event is inspected through the
+exact Windows-supplied file handle while the reporting process is frozen. The
+root executable and package-private AMD64 images must match the held policy
+inventory's exact stable identity, SHA-256, and canonical path. Other images
+must be direct System32 files whose leaf names occur in the reviewed static-
+import/API-set policy or the explicit `ntdll.dll`, `kernelbase.dll`, and
+`ucrtbase.dll` bootstrap set. SysWOW64, nested or unlisted System32 images,
+identity/hash/path substitutions, absent handles, malformed event sequences,
+and unexpected child events fail closed.
+
+The held dependency owner now exposes redacted exact bindings for its 43 AMD64
+records only while all 47 native-file leases and their trusted directory chains
+remain active. The native process primitive adds opt-in full-tree debugging and
+dynamic-code prohibition plus the child-creation policy without changing
+existing callers. Debug image handles are closed before continuation;
+exception events preserve Windows dispatch semantics after the initial
+breakpoint; timeout, output-limit, interruption, invalid-event, and denial paths
+terminate and drain the contained tree. Cleanup does not report containment
+until the root exit event is continued, reports native event-conversion cleanup
+failure as containment failure, still releases a pending event if job
+termination fails, and waits through repeated main-thread interruptions until
+the worker has completed cleanup.
+
+**Validation**: The focused dynamic-load/dependency/command set passes 104
+tests. The complete launcher regression selection passes 858 tests outside the sandbox
+required by its native ACL/handle cases. Black, blocking Flake8 syntax and
+undefined-name checks, strict mypy across all four changed source modules,
+medium/high Bandit, compilation, and `git diff --check` pass. The complete unit
+suite was run before the review corrections and reached 1,185 passes and 74
+skips but is not represented as green: its 19 failures are the already
+documented endpoint Defender/AMSI
+`ScriptContainedMaliciousContent` block on the unchanged dormant PowerShell host
+helper. No Defender exclusion or policy bypass was attempted.
+
+**Independent Review**: The first inspect-only review found one High child-debug
+escape plus four Medium findings: the System32 authorization was broader than
+the declared exact-artifact policy, malformed native-event cleanup could lose
+its handle/continuation failure, termination could finish without observing and
+continuing the root exit event, and a second main-thread interruption could
+return while the cleanup worker was still alive. All five are corrected and
+covered locally. Independent re-review of the corrected exact diff returned
+PASS with no open Critical, High, Medium, or Low findings; its focused rerun
+passed all 104 tests, `git diff --check`, and both task validators.
+
+**Boundary**: This is source-only and remains unwired. It proves
+`arbitrary_dynamic_destinations_denied_by_this_layer=True` only for the bounded
+single-process CPython command backend. It intentionally denies descendants, so
+it is not yet the provider-command executor needed for Docker, Compose, or
+Podman. Docker Desktop and Podman were not invoked because this slice changes no
+container, Compose, repair, target-selection, or filesystem-mutation path.
+
+**Next**: Checkpoint the independently reviewed corrected slice. Then carry the
+same exact image/event guarantees into the separately authenticated provider-
+child execution boundary before any launcher integration.
 
 ### 2026-09-08 - Held CPython Native Inventory Implemented Locally
 

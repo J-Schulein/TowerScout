@@ -809,6 +809,8 @@ class _Kernel32ProcessShim:
         self.noninheritable: list[tuple[int, int, int]] = []
         self.inherited_handles: tuple[int, ...] = ()
         self.mitigation_policy = 0
+        self.child_process_policy = 0
+        self.attribute_counts: list[int] = []
         self.job_limit_flags = 0
         self.application_name = ""
         self.command_line = ""
@@ -880,7 +882,8 @@ class _Kernel32ProcessShim:
         size_pointer: object,
     ) -> bool:
         self.calls.append("InitializeProcThreadAttributeList")
-        assert count == 2
+        assert count in {2, 3}
+        self.attribute_counts.append(count)
         assert flags == 0
         if attribute_list is None:
             ctypes.cast(
@@ -910,11 +913,16 @@ class _Kernel32ProcessShim:
             self.inherited_handles = tuple(
                 _native_handle_value(handle) for handle in handle_array
             )
-        else:
-            assert attribute == native_module.PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY
+        elif attribute == native_module.PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY:
             assert size == ctypes.sizeof(ctypes.c_uint64)
             self.mitigation_policy = ctypes.cast(
                 value, ctypes.POINTER(ctypes.c_uint64)
+            ).contents.value
+        else:
+            assert attribute == native_module.PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY
+            assert size == ctypes.sizeof(ctypes.c_uint32)
+            self.child_process_policy = ctypes.cast(
+                value, ctypes.POINTER(ctypes.c_uint32)
             ).contents.value
         return True
 
@@ -1074,13 +1082,23 @@ def test_native_process_api_uses_exact_containment_contract(
 
     process = api.start(request)  # type: ignore[attr-defined]
 
-    assert process == native_module._NativeProcess(601, 701, 101, 103)
+    assert process == native_module._NativeProcess(
+        601,
+        701,
+        101,
+        103,
+        process_id=703,
+        debug_process_tree=False,
+        dynamic_code_prohibited=False,
+        child_processes_restricted=False,
+    )
     assert shim.noninheritable == [
         (101, native_module.HANDLE_FLAG_INHERIT, 0),
         (103, native_module.HANDLE_FLAG_INHERIT, 0),
         (106, native_module.HANDLE_FLAG_INHERIT, 0),
     ]
     assert shim.inherited_handles == (105, 102, 104)
+    assert shim.attribute_counts == [2, 2]
     assert shim.mitigation_policy == (
         native_module.PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_ON
         | native_module.PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON
@@ -1113,6 +1131,32 @@ def test_native_process_api_uses_exact_containment_contract(
     api.close_process(process)  # type: ignore[attr-defined]
 
     assert shim.closed == [105, 102, 104, 106, 702, 101, 103, 701, 601]
+
+
+def test_native_process_api_can_bind_the_full_debug_process_tree(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shim = _Kernel32ProcessShim()
+    api = _shim_native_api(shim, monkeypatch)
+
+    process = api.start(  # type: ignore[attr-defined]
+        _native_request(), debug_process_tree=True
+    )
+
+    assert process.process_id == 703
+    assert process.debug_process_tree
+    assert process.dynamic_code_prohibited
+    assert process.child_processes_restricted
+    assert shim.attribute_counts == [3, 3]
+    assert shim.creation_flags & native_module.DEBUG_PROCESS
+    assert shim.mitigation_policy & (
+        native_module.PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON
+    )
+    assert shim.child_process_policy == (
+        native_module.PROCESS_CREATION_CHILD_PROCESS_RESTRICTED
+    )
+    api.terminate_job(process.job)  # type: ignore[attr-defined]
+    api.close_process(process)  # type: ignore[attr-defined]
 
 
 def test_native_process_api_rejects_nonempty_parent_dll_directory_before_side_effects(

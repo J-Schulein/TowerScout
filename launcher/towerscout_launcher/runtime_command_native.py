@@ -24,6 +24,7 @@ from .runtime_command_version import (
 )
 
 CREATE_SUSPENDED = 0x00000004
+DEBUG_PROCESS = 0x00000001
 CREATE_NO_WINDOW = 0x08000000
 CREATE_UNICODE_ENVIRONMENT = 0x00000400
 EXTENDED_STARTUPINFO_PRESENT = 0x00080000
@@ -31,9 +32,12 @@ STARTF_USESTDHANDLES = 0x00000100
 HANDLE_FLAG_INHERIT = 0x00000001
 PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x00020002
 PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY = 0x00020007
+PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY = 0x0002000E
 PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_ON = 1 << 52
 PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON = 1 << 56
 PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON = 1 << 60
+PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON = 1 << 36
+PROCESS_CREATION_CHILD_PROCESS_RESTRICTED = 0x00000001
 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
 
 _JOB_OBJECT_BASIC_ACCOUNTING_INFORMATION = 1
@@ -223,6 +227,10 @@ class _NativeProcess:
     process: int = field(repr=False)
     stdout_read: int = field(repr=False)
     stderr_read: int = field(repr=False)
+    process_id: int = field(default=0, repr=False)
+    debug_process_tree: bool = False
+    dynamic_code_prohibited: bool = False
+    child_processes_restricted: bool = False
     _owner: _StartHandleLedger | None = field(default=None, repr=False, compare=False)
     _armed: bool = field(default=False, init=False, repr=False, compare=False)
 
@@ -235,6 +243,14 @@ class _NativeProcess:
                 self.stdout_read,
                 self.stderr_read,
             )
+        ) or (
+            type(self.process_id) is not int
+            or self.process_id < 0
+            or type(self.debug_process_tree) is not bool
+            or type(self.dynamic_code_prohibited) is not bool
+            or type(self.child_processes_restricted) is not bool
+            or self.dynamic_code_prohibited != self.debug_process_tree
+            or self.child_processes_restricted != self.debug_process_tree
         ):
             raise ValueError("Native process state is invalid.")
 
@@ -273,7 +289,12 @@ class _ProcessApi(Protocol):
 
     def system_directory(self) -> str: ...
 
-    def start(self, request: CommandProcessRequest) -> _NativeProcess: ...
+    def start(
+        self,
+        request: CommandProcessRequest,
+        *,
+        debug_process_tree: bool = False,
+    ) -> _NativeProcess: ...
 
     def read_file(self, handle: int, maximum: int) -> bytes: ...
 
@@ -570,8 +591,16 @@ class _NativeWindowsProcessApi:
             return False
         return False
 
-    def start(self, request: CommandProcessRequest) -> _NativeProcess:
-        if type(request) is not CommandProcessRequest:
+    def start(
+        self,
+        request: CommandProcessRequest,
+        *,
+        debug_process_tree: bool = False,
+    ) -> _NativeProcess:
+        if (
+            type(request) is not CommandProcessRequest
+            or type(debug_process_tree) is not bool
+        ):
             raise ValueError("Contained command request is invalid.")
         kernel32 = self._require_kernel32()
         if self._current_dll_directory() != "":
@@ -623,10 +652,11 @@ class _NativeWindowsProcessApi:
             ):
                 raise OSError("Native process Job Object policy failed.")
 
+            attribute_count = 3 if debug_process_tree else 2
             attribute_bytes = _SIZE_T()
             ctypes.set_last_error(0)
             first = kernel32.InitializeProcThreadAttributeList(
-                None, 2, 0, ctypes.byref(attribute_bytes)
+                None, attribute_count, 0, ctypes.byref(attribute_bytes)
             )
             if (
                 first
@@ -637,7 +667,7 @@ class _NativeWindowsProcessApi:
             attribute_buffer = ctypes.create_string_buffer(attribute_bytes.value)
             attribute_list = ctypes.cast(attribute_buffer, ctypes.c_void_p)
             if not kernel32.InitializeProcThreadAttributeList(
-                attribute_list, 2, 0, ctypes.byref(attribute_bytes)
+                attribute_list, attribute_count, 0, ctypes.byref(attribute_bytes)
             ):
                 raise OSError("Native process handle-list initialization failed.")
             attribute_initialized = True
@@ -658,6 +688,11 @@ class _NativeWindowsProcessApi:
                 PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_ON
                 | PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON
                 | PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON
+                | (
+                    PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON
+                    if debug_process_tree
+                    else 0
+                )
             )
             if not kernel32.UpdateProcThreadAttribute(
                 attribute_list,
@@ -669,6 +704,19 @@ class _NativeWindowsProcessApi:
                 None,
             ):
                 raise OSError("Native process image-load policy failed.")
+            child_process_policy = ctypes.c_uint32(
+                PROCESS_CREATION_CHILD_PROCESS_RESTRICTED
+            )
+            if debug_process_tree and not kernel32.UpdateProcThreadAttribute(
+                attribute_list,
+                0,
+                PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY,
+                ctypes.cast(ctypes.byref(child_process_policy), ctypes.c_void_p),
+                ctypes.sizeof(child_process_policy),
+                None,
+                None,
+            ):
+                raise OSError("Native child-process policy failed.")
 
             startup = _STARTUPINFOEXW()
             startup.StartupInfo.cb = ctypes.sizeof(_STARTUPINFOEXW)
@@ -690,6 +738,8 @@ class _NativeWindowsProcessApi:
                 | CREATE_UNICODE_ENVIRONMENT
                 | EXTENDED_STARTUPINFO_PRESENT
             )
+            if debug_process_tree:
+                flags |= DEBUG_PROCESS
             if not kernel32.CreateProcessW(
                 str(request.executable_path),
                 command_buffer,
@@ -729,6 +779,10 @@ class _NativeWindowsProcessApi:
                 process,
                 stdout_read,
                 stderr_read,
+                process_id=int(process_info.dwProcessId),
+                debug_process_tree=debug_process_tree,
+                dynamic_code_prohibited=debug_process_tree,
+                child_processes_restricted=debug_process_tree,
                 _owner=owner,
             )
             result._arm()

@@ -2,17 +2,15 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 8, 2026
-**Focus**: Task-101 is complete. Task-087 source checkpoint `3909395` and
-task-state checkpoint `e01f1b7` are independently reviewed and exact-head
-green. Source checkpoint `3909395` defines the exact Python.org CPython 3.12.10
-archive, its 47 native files, exact hashes/signers, static dependencies, and
-same-handle PE inspection. Independent review found and closed one Medium
-scoped-reader lifetime gap, then returned PASS with no open findings. The
-checkpoint is not yet packaged or wired to execution. A local follow-up now
-holds all 47 policy-native files and their trusted directory chains across a
-synchronous child-operation boundary. Independent review found and closed one
-Medium lifetime-lock race; checkpointing remains pending. Arbitrary child
-dynamic-load destination enforcement remains mandatory before execution
+**Focus**: Task-101 is complete. Task-087 source/task-state checkpoint
+`e18fb3a` is independently reviewed and exact-head green. It holds all 47
+CPython policy-native files and their trusted directory chains across a
+synchronous operation; its review-found lifetime race is closed. A local,
+unwired follow-up now polices the fixed CPython command's Windows image-load
+events against those exact held files plus an explicit System32 image-name
+policy. Its first independent review found one High and four Medium issues;
+the corrections pass local validation and independent re-review returned PASS
+with no open findings. Checkpointing remains pending before execution
 integration.
 Cross-session locks, durable recovery, Windows-store CA selection, and
 ACL-preserving `.env` replacement remain later Gate A source work. Unsigned
@@ -320,7 +318,7 @@ timing; preview integration remains a later gate
   remains unwired. Exact-head CI/CD run `34275327043`, Task-087 run
   `34275327085`, and external Trivy subsequently passed for source `3909395`
   and task state `e01f1b7`; all nine applicable checks succeeded and the
-  PR-only build job skipped as designed. A local follow-up now captures all 47
+  PR-only build job skipped as designed. A follow-up captures all 47
   policy-native files and every distinct parent-directory hierarchy, proves
   unsigned status from the held PE certificate-table structure rather than a
   generic trust failure, and retains/revalidates those handles before and
@@ -330,14 +328,37 @@ timing; preview integration remains a later gate
   through the operation and final revalidation, removes the public inspector
   capability, and covers cross-thread close blocking. Re-review found no
   remaining Critical, High, or Medium issue; one Low stale test count was
-  corrected in this update. Focused tests pass 32/32 and
+  corrected before checkpoint. Focused tests pass 32/32 and
   the post-remediation launcher regression set passes 830 tests when the
   documented Defender-blocked host-helper file and native hardlink/temp case
   are excluded. The
   broader launcher-oriented run reached 829 passes with only four known
-  Defender host-helper failures. The follow-up is local and independently
-  reviewed; arbitrary absolute child dynamic-load destinations are explicitly
-  not yet denied, and package inclusion plus execution integration remain open.
+  Defender host-helper failures. Source/task-state checkpoint `e18fb3a` passed
+  exact-head CI/CD run `34280588649`, Task-087 run `34280588654`, and external
+  Trivy; all nine applicable pull-request checks succeeded. The independently
+  reviewed held-inventory layer explicitly did not deny arbitrary absolute
+  child dynamic-load destinations.
+- A local source-only follow-up now closes that gap for one fixed CPython
+  command. An opt-in `DEBUG_PROCESS` backend inspects each frozen process-image
+  and DLL event through the exact Windows-supplied file handle; package-private
+  AMD64 images must match the held inventory's stable identity, hash, and path,
+  while other images must be direct System32 files whose leaf names occur in
+  the reviewed static-import/API-set policy or the explicit `ntdll.dll`,
+  `kernelbase.dll`, and `ucrtbase.dll` bootstrap set. The process prohibits
+  dynamic code and applies Windows' child-process creation restriction in
+  addition to treating any unexpected descendant debug event as a denial.
+  Cleanup does not claim containment until it has continued the root exit
+  event, and native event-conversion cleanup failures plus repeated main-thread
+  interruptions remain fail-closed. The first independent review found one
+  High child-debug escape and four Medium allowlist, cleanup, exit-drain, and
+  interruption issues; all are corrected, and re-review returned PASS with no
+  open findings. Focused tests pass 104/104 and the complete launcher selection
+  passes 858/858;
+  Black, blocking Flake8, strict mypy, medium/high Bandit, compilation, and
+  diff checks pass. An earlier full unit run reached 1,185 passes and 74 skips,
+  with its 19 failures confined to the documented Defender/AMSI block on the
+  unchanged dormant PowerShell helper. The follow-up remains unwired and is
+  intentionally not yet a Docker, Compose, or Podman provider-child executor.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

@@ -928,6 +928,36 @@ def capture_handle_bound_file(
         raise
 
 
+def inspect_open_file_handle(
+    handle: object,
+    *,
+    api: WindowsFileApi | None = None,
+    policy: FileCapturePolicy | None = None,
+) -> FileSnapshot:
+    """Capture one caller-owned readable handle without closing or retaining it."""
+
+    selected_api = api if api is not None else NativeWindowsFileApi()
+    selected_policy = policy if policy is not None else FileCapturePolicy()
+    try:
+        supported = selected_api.supported is True
+    except (OSError, RuntimeError, TypeError, ValueError):
+        supported = False
+    if not supported or handle is None:
+        raise WindowsSecurityError(
+            "windows_security_unavailable",
+            "Secure Windows file inspection is unavailable on this platform.",
+        )
+    try:
+        return _capture_snapshot(selected_api, handle, selected_policy)
+    except WindowsSecurityError:
+        raise
+    except (OSError, RuntimeError, TypeError, ValueError):
+        raise WindowsSecurityError(
+            "file_identity_unavailable",
+            "The Windows file identity could not be inspected safely.",
+        ) from None
+
+
 class _FileTime(ctypes.Structure):
     _fields_ = (("low", ctypes.c_uint32), ("high", ctypes.c_uint32))
 
