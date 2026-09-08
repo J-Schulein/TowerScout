@@ -1379,6 +1379,38 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-08 - Linux Native-Debug Shim Portability Correction Prepared
+
+**Objective**: Correct the exact cross-platform test-harness defect exposed by
+the first CI run for independently reviewed dynamic-load source checkpoint
+`76bb3cb` without weakening or changing the Windows production implementation.
+
+**CI Finding**: CI/CD run `34291611878` passed frontend, Docker frontend,
+security, and all static checks, while the separate Task-087 run and external
+Trivy also passed. Ubuntu/Python 3.12 reached 1,142 passes, 142 skips, and four
+failures, all in the new native debug-event adapter tests. Those tests construct
+a fake Windows API on every platform, but the fake did not provide the Windows-
+only `ctypes.set_last_error`/`get_last_error` functions called before the fake
+`WaitForDebugEventEx`. Python 3.11 was cancelled during dependency installation
+by matrix fail-fast rather than independently failing; the dependent build job
+then skipped.
+
+**Correction**: Added test-only last-error state to the portable native shim
+and a timeout assertion that exercises both setter and getter behavior.
+Production launcher source, security policy, workflow, and dependencies are
+unchanged. The focused command/dependency/dynamic-load set passes 105 tests,
+and the complete launcher selection passes 859 tests outside the sandbox
+required by its native ACL/handle cases. Black, blocking Flake8, compilation,
+and `git diff --check` pass. A cached, network-disabled Linux/Python 3.11
+container confirmed that `ctypes.set_last_error` is absent there and passed a
+direct production-adapter probe after receiving the simulated last-error state.
+The image did not contain pytest, so this probe is not represented as a
+substitute for the pending GitHub matrix rerun.
+
+**Next**: Checkpoint and push the test/evidence correction, then require both
+GitHub Python matrix legs and every dependent required check to pass at the
+exact new head.
+
 ### 2026-09-08 - CPython Dynamic-Load Destination Enforcement Implemented Locally
 
 **Objective**: Close the held-inventory slice's explicitly open arbitrary DLL-

@@ -862,6 +862,8 @@ class _NativeDebugShim:
         malformed_process_id: bool = False,
         close_succeeds: bool = True,
         continue_succeeds: bool = True,
+        wait_succeeds: bool = True,
+        wait_error: int = 0,
     ) -> None:
         self.closed: list[int] = []
         self.continued: list[tuple[int, int, int]] = []
@@ -869,9 +871,14 @@ class _NativeDebugShim:
         self.malformed_process_id = malformed_process_id
         self.close_succeeds = close_succeeds
         self.continue_succeeds = continue_succeeds
+        self.wait_succeeds = wait_succeeds
+        self.wait_error = wait_error
 
     def WaitForDebugEventEx(self, event_pointer: object, milliseconds: int) -> bool:
         assert milliseconds == 25
+        ctypes.set_last_error(self.wait_error)
+        if not self.wait_succeeds:
+            return False
         event = ctypes.cast(
             event_pointer, ctypes.POINTER(dynamic_module._DEBUG_EVENT)
         ).contents
@@ -898,7 +905,27 @@ class _SupportedFileApi:
     supported = True
 
 
-def test_native_debug_api_owns_exact_event_handle_and_continuation() -> None:
+def _install_windows_last_error_test_shim(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state = {"value": 0}
+
+    def set_last_error(value: int) -> int:
+        previous = state["value"]
+        state["value"] = value
+        return previous
+
+    def get_last_error() -> int:
+        return state["value"]
+
+    monkeypatch.setattr(ctypes, "set_last_error", set_last_error, raising=False)
+    monkeypatch.setattr(ctypes, "get_last_error", get_last_error, raising=False)
+
+
+def test_native_debug_api_owns_exact_event_handle_and_continuation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_windows_last_error_test_shim(monkeypatch)
     shim = _NativeDebugShim()
     api = object.__new__(dynamic_module.NativeWindowsDebugEventApi)
     api._kernel32 = shim  # noqa: SLF001
@@ -920,6 +947,23 @@ def test_native_debug_api_owns_exact_event_handle_and_continuation() -> None:
     assert shim.continued == [(101, 201, DBG_CONTINUE)]
 
 
+def test_native_debug_api_timeout_uses_test_supplied_windows_last_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_windows_last_error_test_shim(monkeypatch)
+    shim = _NativeDebugShim(
+        wait_succeeds=False,
+        wait_error=dynamic_module._ERROR_SEM_TIMEOUT,
+    )
+    api = object.__new__(dynamic_module.NativeWindowsDebugEventApi)
+    api._kernel32 = shim  # noqa: SLF001
+    api._file_api = _SupportedFileApi()  # type: ignore[assignment]  # noqa: SLF001
+
+    assert api.wait_event(25) is None
+    assert shim.closed == []
+    assert shim.continued == []
+
+
 @pytest.mark.parametrize(
     ("close_succeeds", "continue_succeeds"),
     ((False, True), (True, False), (False, False)),
@@ -927,7 +971,9 @@ def test_native_debug_api_owns_exact_event_handle_and_continuation() -> None:
 def test_native_debug_api_reports_failed_malformed_event_cleanup_as_containment(
     close_succeeds: bool,
     continue_succeeds: bool,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _install_windows_last_error_test_shim(monkeypatch)
     shim = _NativeDebugShim(
         malformed_process_id=True,
         close_succeeds=close_succeeds,

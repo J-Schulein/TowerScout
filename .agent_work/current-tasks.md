@@ -5,13 +5,13 @@
 **Focus**: Task-101 is complete. Task-087 source/task-state checkpoint
 `e18fb3a` is independently reviewed and exact-head green. It holds all 47
 CPython policy-native files and their trusted directory chains across a
-synchronous operation; its review-found lifetime race is closed. A local,
-unwired follow-up now polices the fixed CPython command's Windows image-load
-events against those exact held files plus an explicit System32 image-name
-policy. Its first independent review found one High and four Medium issues;
-the corrections pass local validation and independent re-review returned PASS
-with no open findings. Checkpointing remains pending before execution
-integration.
+synchronous operation; its review-found lifetime race is closed. Source
+checkpoint `76bb3cb` adds the independently reviewed, unwired fixed-CPython
+Windows image-load policy. Its first CI run exposed only a Linux native-shim
+test portability defect: four Python 3.12 assertions failed before the fake
+Windows API was called, and Python 3.11 was cancelled by matrix fail-fast. A
+test-only local correction simulates the Windows last-error state without
+changing production source and is awaiting checkpoint/CI rerun.
 Cross-session locks, durable recovery, Windows-store CA selection, and
 ACL-preserving `.env` replacement remain later Gate A source work. Unsigned
 preview-package integration remains later under ADR-019. Production signing
@@ -352,13 +352,23 @@ timing; preview integration remains a later gate
   interruptions remain fail-closed. The first independent review found one
   High child-debug escape and four Medium allowlist, cleanup, exit-drain, and
   interruption issues; all are corrected, and re-review returned PASS with no
-  open findings. Focused tests pass 104/104 and the complete launcher selection
-  passes 858/858;
+  open findings. Focused tests passed 104/104 and the complete launcher
+  selection passed 858/858 before checkpoint;
   Black, blocking Flake8, strict mypy, medium/high Bandit, compilation, and
   diff checks pass. An earlier full unit run reached 1,185 passes and 74 skips,
   with its 19 failures confined to the documented Defender/AMSI block on the
   unchanged dormant PowerShell helper. The follow-up remains unwired and is
   intentionally not yet a Docker, Compose, or Podman provider-child executor.
+  Source checkpoint `76bb3cb` then passed every Task-087, frontend, Docker-
+  frontend, security, and Trivy job, but CI/CD run `34291611878` failed four
+  portable native-shim tests on Ubuntu/Python 3.12 because the shim did not
+  provide Windows-only `ctypes.set_last_error`/`get_last_error`; the Python
+  3.11 matrix leg was cancelled during dependency installation by fail-fast,
+  and the dependent build skipped. A local test-only correction supplies that
+  simulated last-error state and adds timeout coverage. Production source is
+  unchanged. The corrected focused set passes 105/105 and the complete launcher
+  selection passes 859/859; Black, blocking Flake8, compilation, and diff
+  checks pass. Checkpoint and exact-head CI rerun remain pending.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked
