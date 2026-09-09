@@ -30,15 +30,21 @@ synchronous operation; it passed exact-head CI/CD run `34280588649`, Task-087
 run `34280588654`, and external Trivy. Both checkpoints are independently
 reviewed with no open findings, but are not yet packaged or wired to execution.
 Dynamic-load checkpoint `9c58aed` is independently reviewed and exact-head
-green. Provider-child checkpoint `d40bb7f` and held provider/runtime/endpoint
-checkpoint `1547f2a` are independently reviewed and exact-head green; the
-latter passed CI/CD run `34370131662`, Task-087 run `34370131570`, and external
-Trivy. A September 9 local source-only follow-up now binds the release manifest,
-both package policy catalogs, Compose inputs, `.env`/template source, package
-root, and Windows process-environment directories under one outer transaction
-owner. Independent inspect-only review returned PASS with no findings. The
-slice remains unwired. Merge/publication retain their separate applicable
-gates.
+green. Provider-child checkpoint `d40bb7f`, held provider/runtime/endpoint
+checkpoint `1547f2a`, and full outer-input checkpoint `f423da4` are
+independently reviewed and exact-head green. The latter passed CI/CD run
+`34375158061`, Task-087 run `34375158062`, and external Trivy. A subsequent
+September 9 local source-only factory now captures the exact ordered Compose,
+environment-source, security-artifact, package-root, and Windows process-
+environment inputs from the immutable plan and transfers them into the held
+outer transaction owner. It remains unwired. Independent inspect-only review
+and narrow follow-up re-review returned CLEAN/PASS with no findings. The slice
+is ready for checkpointing. A subsequent local Windows-native primitive now
+creates and verifies exact global environment/repair mutexes with a protected
+current-user/SYSTEM-only DACL, bounded waiting, abandoned-owner signaling, and
+same-thread release. Independent inspect-only review returned CLEAN/PASS with
+no findings. It remains unwired and is ready for checkpointing.
+Merge/publication retain their separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -1385,6 +1391,122 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-09 - Secured Cross-Session Mutex Primitive Implemented Locally
+
+**Objective**: Add the isolated Windows-native mutex primitive required for
+cross-session Gate A serialization without yet acquiring the ordered
+environment/target pair or wiring any repair mutation.
+
+**Design Basis**: Use the already reviewed domain-separated global mutex names.
+Create new kernel objects with an explicit protected DACL and request only
+`READ_CONTROL`, `SYNCHRONIZE`, and `MUTEX_MODIFY_STATE`. Verify the current-user
+owner and exact current-user/SYSTEM ACE set even when opening an existing
+object. Never fall back to the session-local namespace.
+
+**Execution**: Added `windows_mutex.py` with an injectable API, native ctypes
+adapter, sanitized result/error contracts, and a lifetime owner. New mutexes
+are created initially owned. Existing objects are security-checked before a
+bounded wait. Timeout, unsupported APIs, wrong owner/DACL, native failure,
+unexpected wait results, and duplicate in-process acquisition fail closed.
+An abandoned mutex is returned as explicit recovery evidence rather than
+silently treated as ordinary acquisition. Release is restricted to the owning
+thread and always attempts handle cleanup/name unreservation.
+
+**Adversarial Coverage**: The 23 focused tests cover new and existing objects,
+bounded wait, abandoned ownership, missing/unprotected/extra/wrong DACL state,
+wrong owner, extra principals, wrong masks/flags, busy/failed waits, unsupported
+platforms, sanitized native failures, malformed/non-global names, local
+duplicate acquisition, wrong-thread close, release failure, and redacted
+representations. A native Windows child process intentionally exits while
+owning the global object; the parent observes `ABANDONED` and safely releases
+the recovered mutex.
+
+**Validation**: Mutex tests pass 23/23. The mutex, file-security, path-trust,
+and provider/transaction group passes 136/136 applicable tests with the known
+restricted-host native hardlink case deselected. The complete launcher
+selection passes 929/929 with the same case deselected. Black, strict mypy,
+blocking Flake8, and medium/high Bandit pass for the new source and tests.
+
+**Independent Review**: Inspect-only technical/security review returned
+CLEAN/PASS with no Critical, High, Medium, or Low findings. It independently
+reproduced all 23 mutex tests, including native abandonment, and all 136
+applicable focused security tests with the documented hardlink case deselected.
+It also reproduced Black, strict mypy, Bandit, single-job blocking Flake8, and
+`git diff --check`, and confirmed that the primitive remains unwired.
+
+**Boundary**: The primitive creates only a reversible named kernel object and
+performs no filesystem, trust-store, provider, container, `.env`, or recovery
+mutation. Application, discovery, repair, provider installation, runtime
+execution, and runtime verification do not import it. Ordered two-lock
+acquisition, key/target revalidation, common-journal scanning, and recovery
+policy remain later integration work.
+
+**Next**: Checkpoint the reviewed capture factory plus mutex primitive before
+adding the ordered environment/target lock owner or Windows-store trust proof.
+
+### 2026-09-09 - Native Full-Transaction Capture Factory Implemented Locally
+
+**Objective**: Replace test-only manual outer-owner construction with one
+production capture boundary that opens every non-provider plan input through
+the reviewed Windows file/path primitives without wiring discovery, repair, or
+live execution.
+
+**Checkpoint Context**: Full outer-input checkpoint `f423da4` passed exact-head
+CI/CD run `34375158061`, Task-087 run `34375158062`, and external Trivy. All
+nine applicable pull-request checks passed; the main-only build job skipped as
+designed. Draft PR #67 remains open and clean.
+
+**Decision**: Accept only an exact Podman Compose plan and its matching open
+provider owner. Reject a mismatched target/request before opening any outer
+input. Capture files in immutable plan order with single-link enforcement,
+bounded exact-size hashing, and hydrated OneDrive/cloud-placeholder support;
+capture package/process directories with their exact trust purposes. Transfer
+ownership only after the composite owner validates every identity.
+
+**Execution**: Added `capture_runtime_transaction_inventory`, which captures
+the ordered Compose files, exact `.env` or `.env.example` source, release
+manifest, both policy catalogs, package root, and five Windows process-
+environment directory hierarchies. Failure closes every partial capture in
+reverse dependency order while leaving the caller-owned provider inventory
+available for explicit cleanup. Cleanup failure maps to a fail-closed changed-
+inventory result.
+
+**Adversarial Coverage**: Tests prove exact input/path order and API reuse,
+absent-`.env` fallback, Podman GPU overlay ordering, hydrated cloud-file
+acceptance, partial-capture cleanup, pre-capture provider mismatch rejection,
+same-thread reentry denial, and cross-thread close serialization until active
+execution completes. Reviewer follow-ups additionally prove the exact 16 MiB
+ceiling, rejection above it before capture, fail-closed cleanup failure, and
+post-capture constructor failure without provider-ownership transfer. The
+factory contract now explicitly requires callers to serialize provider use
+during transfer.
+
+**Independent Review**: Inspect-only review returned CLEAN/PASS with no
+Critical, High, Medium, or Low findings. Its initial run passed 184/184
+applicable tests with the restricted-host native hardlink case deselected and
+confirmed the slice remains non-mutating and unwired. Its four nonblocking
+suggestions were implemented; narrow re-review remained CLEAN/PASS and passed
+188/188 applicable tests with the same case deselected.
+
+**Validation**: The provider/transaction file passes 35/35. The target,
+execution, provider/transaction, path-trust, and file-security group passes
+184/184 applicable tests with the one documented restricted-host native
+hardlink case deselected. The complete launcher selection passes 902/902 with
+that same case deselected. Black, strict mypy, blocking Flake8, medium/high
+Bandit, compilation, sensitive-term scanning, both task-record validators, and
+`git diff --check` pass. An initial run including the native hardlink case
+reached the known workstation temporary-directory ACL failure; it did not
+report a product assertion failure.
+
+**Boundary**: This factory remains unimported by application, discovery,
+repair, runtime execution, and runtime verification modules. It does not
+construct the provider inventory, discover a target, execute a provider,
+modify Docker/Podman state, write `.env`, touch the Windows trust store, or
+observe a live network peer.
+
+**Next**: Checkpoint this factory, then proceed to the next secure target-
+resolution/provider-factory or Windows-native security slice.
 
 ### 2026-09-09 - Held Full Plan-Input Transaction Inventory Implemented Locally
 

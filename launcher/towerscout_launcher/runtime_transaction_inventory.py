@@ -13,7 +13,7 @@ import struct
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import PureWindowsPath
+from pathlib import Path, PureWindowsPath
 from typing import Any, Callable, NoReturn, TypeVar
 
 from .runtime_dependency_policy import (
@@ -39,16 +39,22 @@ from .target_contracts import FileIdentity
 from .windows_path_trust import (
     PathHierarchyTrust,
     PathTrustPurpose,
+    WindowsPathTrustApi,
+    capture_path_hierarchy,
 )
 from .windows_security import (
+    FileCapturePolicy,
     HandleBoundFile,
     PathLocality,
     ReparseKind,
+    WindowsFileApi,
     WindowsSecurityError,
+    capture_handle_bound_file,
 )
 
 _BINDING_DOMAIN = b"TowerScout.HeldRuntimeTransactionInventory.v1"
 _EVIDENCE_DOMAIN = b"TowerScout.RuntimeTransactionInventoryEvidence.v1"
+_MAX_TRANSACTION_INPUT_BYTES = 16 * 1024 * 1024
 _Result = TypeVar("_Result")
 
 
@@ -214,6 +220,118 @@ def _paths_match(
         )
         for index, (path, identity) in enumerate(zip(held, expected, strict=True))
     )
+
+
+def _close_partial_capture(
+    input_files: list[HandleBoundFile],
+    directory_paths: list[PathHierarchyTrust],
+) -> bool:
+    failed = False
+    for directory in reversed(directory_paths):
+        try:
+            directory.close()
+        except BaseException:
+            failed = True
+    for bound_file in reversed(input_files):
+        try:
+            bound_file.close()
+        except BaseException:
+            failed = True
+    return failed
+
+
+def capture_runtime_transaction_inventory(
+    plan: ProcessCommandPlan,
+    provider_inventory: HeldProviderChildInventory,
+    *,
+    file_api: WindowsFileApi | None = None,
+    path_api: WindowsPathTrustApi | None = None,
+) -> "HeldRuntimeTransactionInventory":
+    """Capture every outer plan input and transfer them into one owner.
+
+    On success the returned owner owns ``provider_inventory`` and all newly
+    captured objects.  On failure it closes only objects captured here; the
+    caller retains ownership of ``provider_inventory``.  The caller must not
+    use or close ``provider_inventory`` concurrently while this ownership
+    transfer is in progress.
+    """
+
+    if (
+        type(plan) is not ProcessCommandPlan
+        or plan.kind is not CommandKind.PODMAN_COMPOSE
+        or type(provider_inventory) is not HeldProviderChildInventory
+        or provider_inventory.closed
+    ):
+        _fail(RuntimeTransactionInventoryErrorCode.INVALID_BINDING)
+    try:
+        request = ProviderChildProcessRequest.from_plan(plan)
+    except Exception:
+        _fail(RuntimeTransactionInventoryErrorCode.INVALID_BINDING)
+    if (
+        provider_inventory.target_token != plan.target_token
+        or provider_inventory.request_binding_sha256 != request.binding_sha256
+    ):
+        _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
+    expected_files = _expected_input_files(plan)
+    expected_paths = _expected_directory_paths(plan)
+    input_files: list[HandleBoundFile] = []
+    directory_paths: list[PathHierarchyTrust] = []
+    try:
+        for identity in expected_files:
+            if not 0 <= identity.size_bytes <= _MAX_TRANSACTION_INPUT_BYTES:
+                _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
+            bound_file = capture_handle_bound_file(
+                Path(str(identity.final_path)),
+                api=file_api,
+                policy=FileCapturePolicy(
+                    max_bytes=max(1, identity.size_bytes),
+                    require_single_link=True,
+                    allow_hydrated_cloud_placeholder=True,
+                ),
+            )
+            input_files.append(bound_file)
+            if not _snapshot_matches_identity(bound_file, identity):
+                _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
+
+        for index, identity in enumerate(expected_paths):
+            path = capture_path_hierarchy(
+                str(identity.final_path),
+                purpose=(
+                    PathTrustPurpose.PACKAGE_ROOT
+                    if index == 0
+                    else PathTrustPurpose.PROCESS_ENVIRONMENT
+                ),
+                api=path_api,
+            )
+            directory_paths.append(path)
+            if not _path_matches_identity(
+                path,
+                identity,
+                (
+                    PathTrustPurpose.PACKAGE_ROOT
+                    if index == 0
+                    else PathTrustPurpose.PROCESS_ENVIRONMENT
+                ),
+            ):
+                _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
+
+        return HeldRuntimeTransactionInventory(
+            plan=plan,
+            provider_inventory=provider_inventory,
+            input_files=tuple(input_files),
+            directory_paths=tuple(directory_paths),
+        )
+    except RuntimeTransactionInventoryError:
+        if _close_partial_capture(input_files, directory_paths):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        raise
+    except (WindowsSecurityError, OSError, RuntimeError, TypeError, ValueError):
+        if _close_partial_capture(input_files, directory_paths):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
+    except BaseException:
+        _close_partial_capture(input_files, directory_paths)
+        raise
 
 
 def _binding_digest(
@@ -665,4 +783,5 @@ __all__ = [
     "RuntimeTransactionInventoryError",
     "RuntimeTransactionInventoryErrorCode",
     "RuntimeTransactionInventoryEvidence",
+    "capture_runtime_transaction_inventory",
 ]

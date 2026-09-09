@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import sys
 import threading
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
 
@@ -50,8 +50,10 @@ from towerscout_launcher.runtime_transaction_inventory import (  # noqa: E402
     HeldRuntimeTransactionInventory,
     RuntimeTransactionInventoryError,
     RuntimeTransactionInventoryErrorCode,
+    capture_runtime_transaction_inventory,
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
+    ABSENT_FILE_SHA256,
     EXPECTED_VOLUME_DESTINATIONS,
     AccelerationPlan,
     CertificateIdentity,
@@ -78,11 +80,13 @@ from towerscout_launcher.windows_security import (  # noqa: E402
     FileCapturePolicy,
     FileSnapshot,
     HandleBoundFile,
+    KNOWN_CLOUD_REPARSE_TAGS,
     NativeFileFacts,
     PathClassification,
     PathLocality,
     ReparseKind,
     StableFileIdentity,
+    WindowsSecurityError,
 )
 from towerscout_launcher.windows_path_trust import (  # noqa: E402
     DirectoryTrustSnapshot,
@@ -659,13 +663,14 @@ def _provider_runtime_inventory(
 
 def _held_inventory_owner(
     monkeypatch: pytest.MonkeyPatch,
+    target: ResolvedRepairTarget | None = None,
 ) -> tuple[
     HeldProviderChildInventory,
     NativeWindowsProviderChildDynamicLoadBackend,
     _HeldFileApi,
     HandleBoundFile,
 ]:
-    target = _podman_target()
+    target = _podman_target() if target is None else target
     plan = RuntimeExecutionBinding(target).compose_command(ComposeReadOperation.CONFIG)
     provider, _provider_api = _held_file(_PROVIDER, 1)
     provider_module, _module_api = _held_file(
@@ -895,8 +900,9 @@ def _held_target_file(
 
 def _transaction_components(
     monkeypatch: pytest.MonkeyPatch,
+    target: ResolvedRepairTarget | None = None,
 ):  # noqa: ANN202
-    provider_owner, backend, _key_api, _key = _held_inventory_owner(monkeypatch)
+    provider_owner, backend, _key_api, _key = _held_inventory_owner(monkeypatch, target)
     plan = provider_owner._plan  # noqa: SLF001
     covered = {
         (identity.volume_serial, identity.file_id)
@@ -967,6 +973,508 @@ def _transaction_components(
         tuple(item[0] for item in held_paths_with_apis),
         tuple(item[1] for item in held_paths_with_apis),
     )
+
+
+def _capture_transaction_owner(
+    monkeypatch: pytest.MonkeyPatch,
+    provider_owner: HeldProviderChildInventory,
+    plan,
+    held_files: tuple[HandleBoundFile, ...],
+    held_paths: tuple[PathHierarchyTrust, ...],
+):  # noqa: ANN202
+    opened_files: list[tuple[str, FileCapturePolicy, object]] = []
+    opened_paths: list[tuple[str, PathTrustPurpose, object]] = []
+    pending_files = iter(held_files)
+    pending_paths = iter(held_paths)
+    file_api = object()
+    path_api = object()
+
+    def capture_file(path, *, api=None, policy=None):  # noqa: ANN001, ANN202
+        assert type(policy) is FileCapturePolicy
+        opened_files.append((str(path), policy, api))
+        return next(pending_files)
+
+    def capture_path(path, *, purpose, api=None):  # noqa: ANN001, ANN202
+        opened_paths.append((path, purpose, api))
+        return next(pending_paths)
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_handle_bound_file",
+        capture_file,
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_path_hierarchy",
+        capture_path,
+    )
+    owner = capture_runtime_transaction_inventory(
+        plan,
+        provider_owner,
+        file_api=file_api,  # type: ignore[arg-type]
+        path_api=path_api,  # type: ignore[arg-type]
+    )
+    return owner, opened_files, opened_paths
+
+
+def test_runtime_transaction_capture_opens_exact_inputs_in_plan_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+
+    owner, opened_files, opened_paths = _capture_transaction_owner(
+        monkeypatch, provider, plan, files, paths
+    )
+
+    assert tuple(item[0] for item in opened_files) == tuple(
+        str(identity.final_path)
+        for identity in (
+            *plan.target.compose.ordered_files,
+            plan.target.compose.environment_source,
+            *plan.target.security_artifacts.ordered_files,
+        )
+    )
+    assert all(item[1].require_single_link for item in opened_files)
+    assert all(item[1].allow_hydrated_cloud_placeholder for item in opened_files)
+    assert len({id(item[2]) for item in opened_files}) == 1
+    assert tuple(item[0] for item in opened_paths) == tuple(
+        str(identity.final_path)
+        for identity in (
+            plan.target.package_root,
+            plan.target.process_environment.system_root,
+            plan.target.process_environment.temp_directory,
+            plan.target.process_environment.user_profile,
+            plan.target.process_environment.local_app_data,
+            plan.target.process_environment.roaming_app_data,
+        )
+    )
+    assert tuple(item[1] for item in opened_paths) == (
+        PathTrustPurpose.PACKAGE_ROOT,
+        *(PathTrustPurpose.PROCESS_ENVIRONMENT for _ in range(5)),
+    )
+    assert len({id(item[2]) for item in opened_paths}) == 1
+    owner.close()
+
+
+def test_runtime_transaction_capture_uses_env_example_when_env_is_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = _podman_target()
+    template = _file(
+        ".env.example", original.package_root.final_path / ".env.example", 106
+    )
+    target = replace(
+        original,
+        compose=replace(
+            original.compose,
+            environment_sha256=ABSENT_FILE_SHA256,
+            environment_source=template,
+            environment_file=None,
+        ),
+    )
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch, target
+    )
+
+    owner, opened_files, _opened_paths = _capture_transaction_owner(
+        monkeypatch, provider, plan, files, paths
+    )
+
+    assert opened_files[1][0].endswith(r"\TowerScout\.env.example")
+    assert all(not item[0].endswith(r"\TowerScout\.env") for item in opened_files)
+    owner.close()
+
+
+def test_runtime_transaction_capture_preserves_podman_gpu_overlay_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = _podman_target()
+    overlay = _file(
+        "compose.gpu.podman.yaml",
+        original.package_root.final_path / "compose.gpu.podman.yaml",
+        107,
+    )
+    target = replace(
+        original,
+        compose=replace(
+            original.compose,
+            ordered_files=(*original.compose.ordered_files, overlay),
+        ),
+        acceleration=AccelerationPlan(
+            GpuMode.ON,
+            EffectiveProfile.PODMAN_GPU,
+            "compose.gpu.podman.yaml",
+        ),
+    )
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch, target
+    )
+
+    owner, opened_files, _opened_paths = _capture_transaction_owner(
+        monkeypatch, provider, plan, files, paths
+    )
+
+    assert [Path(item[0]).name for item in opened_files[:3]] == [
+        "compose.yaml",
+        "compose.gpu.podman.yaml",
+        ".env",
+    ]
+    owner.close()
+
+
+def test_runtime_transaction_capture_accepts_hydrated_cloud_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    original = files[0]
+    cloud_tag = min(KNOWN_CLOUD_REPARSE_TAGS)
+    cloud_snapshot = replace(
+        original.snapshot,
+        attributes=0x480,
+        reparse_tag=cloud_tag,
+        classification=PathClassification(
+            locality=PathLocality.FIXED_LOCAL,
+            reparse_kind=ReparseKind.KNOWN_CLOUD_PLACEHOLDER,
+            hydrated=True,
+            regular_file=True,
+            single_link=True,
+        ),
+    )
+    cloud_api = _HeldFileApi(
+        cloud_snapshot,
+        str(plan.target.compose.ordered_files[0].final_path).encode("utf-8"),
+    )
+    cloud_file = HandleBoundFile(
+        cloud_api,
+        object(),
+        FileCapturePolicy(
+            max_bytes=1024 * 1024,
+            require_single_link=True,
+            allow_hydrated_cloud_placeholder=True,
+        ),
+        cloud_snapshot,
+    )
+    original.close()
+    files = (cloud_file, *files[1:])
+
+    owner, opened_files, _opened_paths = _capture_transaction_owner(
+        monkeypatch, provider, plan, files, paths
+    )
+
+    assert opened_files[0][1].allow_hydrated_cloud_placeholder
+    owner.close()
+
+
+def test_runtime_transaction_capture_closes_partial_capture_on_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    capture_count = 0
+
+    def fail_second_file(path, *, api=None, policy=None):  # noqa: ANN001, ANN202
+        del path, api, policy
+        nonlocal capture_count
+        capture_count += 1
+        if capture_count == 1:
+            return files[0]
+        raise WindowsSecurityError("file_open_failed", "sanitized")
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_handle_bound_file",
+        fail_second_file,
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        capture_runtime_transaction_inventory(plan, provider)
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+    assert files[0].closed
+    assert not provider.closed
+    provider.close()
+    for item in files[1:]:
+        item.close()
+    for path in paths:
+        path.close()
+
+
+def test_runtime_transaction_capture_accepts_exact_input_size_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _podman_target()
+    compose_file = replace(
+        target.compose.ordered_files[0],
+        size_bytes=16 * 1024 * 1024,
+    )
+    target = replace(
+        target,
+        compose=replace(target.compose, ordered_files=(compose_file,)),
+    )
+    provider, _backend, _key_api, _key = _held_inventory_owner(monkeypatch, target)
+    plan = provider._plan  # noqa: SLF001
+    observed_maximum = None
+
+    def observe_boundary(path, *, api=None, policy=None):  # noqa: ANN001, ANN202
+        del path, api
+        nonlocal observed_maximum
+        observed_maximum = policy.max_bytes
+        raise WindowsSecurityError("file_open_failed", "sanitized")
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_handle_bound_file",
+        observe_boundary,
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        capture_runtime_transaction_inventory(plan, provider)
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+    assert observed_maximum == 16 * 1024 * 1024
+    assert not provider.closed
+    provider.close()
+
+
+def test_runtime_transaction_capture_rejects_input_above_size_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _podman_target()
+    compose_file = replace(
+        target.compose.ordered_files[0],
+        size_bytes=(16 * 1024 * 1024) + 1,
+    )
+    target = replace(
+        target,
+        compose=replace(target.compose, ordered_files=(compose_file,)),
+    )
+    provider, _backend, _key_api, _key = _held_inventory_owner(monkeypatch, target)
+    plan = provider._plan  # noqa: SLF001
+
+    def unexpected_capture(*args, **kwargs):  # noqa: ANN002, ANN003, ANN202
+        raise AssertionError("oversized input must be rejected before capture")
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_handle_bound_file",
+        unexpected_capture,
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        capture_runtime_transaction_inventory(plan, provider)
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+    assert not provider.closed
+    provider.close()
+
+
+def test_runtime_transaction_capture_fails_closed_when_partial_cleanup_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    capture_count = 0
+    original_close = HandleBoundFile.close
+
+    def fail_second_file(path, *, api=None, policy=None):  # noqa: ANN001, ANN202
+        del path, api, policy
+        nonlocal capture_count
+        capture_count += 1
+        if capture_count == 1:
+            return files[0]
+        raise WindowsSecurityError("file_open_failed", "sanitized")
+
+    def fail_captured_close(self):  # noqa: ANN001, ANN202
+        if self is files[0]:
+            raise WindowsSecurityError("file_handle_in_use", "sanitized")
+        return original_close(self)
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_handle_bound_file",
+        fail_second_file,
+    )
+    monkeypatch.setattr(HandleBoundFile, "close", fail_captured_close)
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        capture_runtime_transaction_inventory(plan, provider)
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
+    assert not provider.closed
+    original_close(files[0])
+    provider.close()
+    for item in files[1:]:
+        item.close()
+    for path in paths:
+        path.close()
+
+
+def test_runtime_transaction_capture_constructor_failure_retains_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+
+    def fail_constructor(**kwargs):  # noqa: ANN003, ANN202
+        del kwargs
+        raise ValueError("constructor failure")
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.HeldRuntimeTransactionInventory",
+        fail_constructor,
+    )
+    pending_files = iter(files)
+    pending_paths = iter(paths)
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_handle_bound_file",
+        lambda *args, **kwargs: next(pending_files),
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_path_hierarchy",
+        lambda *args, **kwargs: next(pending_paths),
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        capture_runtime_transaction_inventory(plan, provider)
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+    assert not provider.closed
+    assert all(item.closed for item in files)
+    assert all(path.closed for path in paths)
+    provider.close()
+
+
+def test_runtime_transaction_capture_rejects_wrong_provider_before_opening_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, _key_api, _key = _held_inventory_owner(monkeypatch)
+    original = _podman_target()
+    other_target = replace(original, release_identity="v0.1.3-other")
+    other_plan = RuntimeExecutionBinding(other_target).compose_command(
+        ComposeReadOperation.CONFIG
+    )
+
+    def unexpected_capture(*args, **kwargs):  # noqa: ANN002, ANN003, ANN202
+        raise AssertionError("capture must not run for a mismatched provider")
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_handle_bound_file",
+        unexpected_capture,
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_path_hierarchy",
+        unexpected_capture,
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        capture_runtime_transaction_inventory(other_plan, provider)
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+    assert not provider.closed
+    provider.close()
+
+
+def test_runtime_transaction_owner_rejects_same_thread_reentry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    original_execute = HeldProviderChildInventory.execute
+    nested_code = None
+
+    def execute_with_reentry(
+        self, selected_backend, *, pre_execute_validator=None
+    ):  # noqa: ANN001, ANN202
+        nonlocal nested_code
+        with pytest.raises(RuntimeTransactionInventoryError) as nested:
+            owner.execute(selected_backend)
+        nested_code = nested.value.code
+        return original_execute(
+            self,
+            selected_backend,
+            pre_execute_validator=pre_execute_validator,
+        )
+
+    monkeypatch.setattr(HeldProviderChildInventory, "execute", execute_with_reentry)
+
+    result = owner.execute(backend)
+
+    assert result.provider_result.command.command.exit_code == 0
+    assert nested_code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
+    owner.close()
+
+
+def test_runtime_transaction_owner_serializes_concurrent_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    original_execute = HeldProviderChildInventory.execute
+    entered = threading.Event()
+    release = threading.Event()
+    close_started = threading.Event()
+    close_complete = threading.Event()
+    failures: list[BaseException] = []
+
+    def blocked_execute(
+        self, selected_backend, *, pre_execute_validator=None
+    ):  # noqa: ANN001, ANN202
+        entered.set()
+        if not release.wait(2):
+            raise AssertionError("test release timed out")
+        return original_execute(
+            self,
+            selected_backend,
+            pre_execute_validator=pre_execute_validator,
+        )
+
+    def execute_owner() -> None:
+        try:
+            owner.execute(backend)
+        except BaseException as error:
+            failures.append(error)
+
+    def close_owner() -> None:
+        try:
+            close_started.set()
+            owner.close()
+        except BaseException as error:
+            failures.append(error)
+        finally:
+            close_complete.set()
+
+    monkeypatch.setattr(HeldProviderChildInventory, "execute", blocked_execute)
+    execute_thread = threading.Thread(target=execute_owner)
+    close_thread = threading.Thread(target=close_owner)
+    execute_thread.start()
+    assert entered.wait(1)
+    close_thread.start()
+    assert close_started.wait(1)
+    assert not close_complete.wait(0.1)
+
+    release.set()
+    execute_thread.join(2)
+    close_thread.join(2)
+
+    assert not execute_thread.is_alive()
+    assert not close_thread.is_alive()
+    assert failures == []
+    assert owner.closed
 
 
 def test_runtime_transaction_owner_holds_all_outer_inputs(
