@@ -223,6 +223,46 @@ class WindowsProcessEnvironment(_Redacted):
 
 
 @dataclass(frozen=True, slots=True, repr=False)
+class SecurityArtifactInventory(_Redacted):
+    """Exact package manifest and policy files used to approve one target."""
+
+    release_manifest: FileIdentity
+    runtime_policy: FileIdentity
+    runtime_dependency_policy: FileIdentity
+
+    def __post_init__(self) -> None:
+        expected = (
+            ("release-manifest.v1.json", self.release_manifest),
+            ("runtime-policy.v1.json", self.runtime_policy),
+            (
+                "runtime-dependency-policy.v1.json",
+                self.runtime_dependency_policy,
+            ),
+        )
+        if any(
+            type(identity) is not FileIdentity
+            or identity.logical_name != logical_name
+            or identity.is_directory
+            for logical_name, identity in expected
+        ):
+            raise ValueError("Security artifact inventory is invalid.")
+        identities = {
+            (identity.volume_serial, identity.file_id) for _, identity in expected
+        }
+        paths = {identity.final_path for _, identity in expected}
+        if len(identities) != len(expected) or len(paths) != len(expected):
+            raise ValueError("Security artifacts must be distinct.")
+
+    @property
+    def ordered_files(self) -> tuple[FileIdentity, ...]:
+        return (
+            self.release_manifest,
+            self.runtime_policy,
+            self.runtime_dependency_policy,
+        )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
 class RuntimeIdentity(_Redacted):
     product: RuntimeProduct
     executable: FileIdentity
@@ -620,6 +660,7 @@ class ResolvedRepairTarget:
     package_root: FileIdentity
     process_environment: WindowsProcessEnvironment
     release_identity: str
+    security_artifacts: SecurityArtifactInventory
     runtime: RuntimeIdentity
     endpoint: EndpointIdentity
     compose_provider: ComposeProviderIdentity
@@ -643,6 +684,32 @@ class ResolvedRepairTarget:
         _require_text(self.release_identity, "release identity", 256)
         if not self.package_root.is_directory:
             raise ValueError("Package root must be a directory identity.")
+        if type(self.security_artifacts) is not SecurityArtifactInventory:
+            raise ValueError("Security artifact inventory is invalid.")
+        expected_manifest_path = (
+            self.package_root.final_path / "release-manifest.v1.json"
+        )
+        policy_files = (
+            self.security_artifacts.runtime_policy,
+            self.security_artifacts.runtime_dependency_policy,
+        )
+        allowed_policy_parents = {
+            self.package_root.final_path / "launcher" / "towerscout_launcher",
+            self.package_root.final_path
+            / "launcher"
+            / "_internal"
+            / "towerscout_launcher",
+        }
+        if (
+            self.security_artifacts.release_manifest.final_path
+            != expected_manifest_path
+            or any(
+                identity.final_path.name != identity.logical_name
+                or identity.final_path.parent not in allowed_policy_parents
+                for identity in policy_files
+            )
+        ):
+            raise ValueError("Security artifacts are outside the bound package root.")
         expected_compose_paths = tuple(
             self.package_root.final_path / item.logical_name
             for item in self.compose.ordered_files

@@ -97,6 +97,7 @@ _TRUSTED_INSTALLER_SID = (
 
 class PathTrustPurpose(str, Enum):
     PACKAGE_ROOT = "package_root"
+    PROCESS_ENVIRONMENT = "process_environment"
     RUNTIME_INSTALL = "runtime_install"
 
 
@@ -556,6 +557,18 @@ class PathHierarchyTrust:
             return self._evidence
         finally:
             self._end_use()
+
+    def assert_unchanged_while_held(self) -> PathHierarchyEvidence:
+        """Revalidate from the thread that currently owns an outer lease."""
+
+        handles = self._handles
+        if self._active_owner != threading.get_ident() or handles is None:
+            raise WindowsSecurityError(
+                "path_handle_not_held",
+                "The Windows path trust handles are not held by this operation.",
+            )
+        self._assert_unchanged_owned(handles)
+        return self._evidence
 
     def run_while_held(self, operation: Callable[[], _Result]) -> _Result:
         """Run synchronously while every trusted directory handle stays held."""

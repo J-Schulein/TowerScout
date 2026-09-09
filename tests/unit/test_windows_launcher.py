@@ -158,6 +158,12 @@ def _write_package_bound_runtime_policy(root: Path) -> Path:
     destination.write_bytes(
         (LAUNCHER_ROOT / "towerscout_launcher" / "runtime-policy.v1.json").read_bytes()
     )
+    dependency_destination = destination.with_name("runtime-dependency-policy.v1.json")
+    dependency_destination.write_bytes(
+        (
+            LAUNCHER_ROOT / "towerscout_launcher" / "runtime-dependency-policy.v1.json"
+        ).read_bytes()
+    )
     return destination
 
 
@@ -725,6 +731,8 @@ def test_pyinstaller_contract_is_windowed_onedir_without_upx() -> None:
     assert spec.count("upx=False") >= 2
     assert "COLLECT(" in spec
     assert "onefile" not in spec.lower()
+    assert '"runtime-policy.v1.json"' in spec
+    assert '"runtime-dependency-policy.v1.json"' in spec
     entrypoint = (LAUNCHER_ROOT / "towerscout_launcher" / "__main__.py").read_text(
         encoding="utf-8"
     )
@@ -769,6 +777,43 @@ def test_package_inspection_requires_policy_at_its_exact_bundled_path(
     duplicate.write_bytes(
         (LAUNCHER_ROOT / "towerscout_launcher" / "runtime-policy.v1.json").read_bytes()
     )
+    errors = inspect_build(build)
+    assert any("outside its fixed package path" in error for error in errors)
+
+
+def test_package_inspection_requires_exact_dependency_policy(
+    launcher_tmp_path: Path,
+) -> None:
+    build = launcher_tmp_path / "TowerScoutLauncher"
+    build.mkdir()
+    _write_minimal_gui_pe(build / "TowerScoutLauncher.exe")
+    runtime_policy = _write_package_bound_runtime_policy(build)
+    dependency_policy = runtime_policy.with_name("runtime-dependency-policy.v1.json")
+
+    dependency_policy.unlink()
+    errors = inspect_build(build)
+    assert any(
+        "runtime dependency policy is missing" in error.lower() for error in errors
+    )
+
+    dependency_policy.write_bytes(
+        (
+            LAUNCHER_ROOT / "towerscout_launcher" / "runtime-dependency-policy.v1.json"
+        ).read_bytes()
+        + b" "
+    )
+    errors = inspect_build(build)
+    assert any(
+        "runtime dependency policy integrity" in error.lower() for error in errors
+    )
+
+    dependency_policy.write_bytes(
+        (
+            LAUNCHER_ROOT / "towerscout_launcher" / "runtime-dependency-policy.v1.json"
+        ).read_bytes()
+    )
+    duplicate = build / "runtime-dependency-policy.v1.json"
+    duplicate.write_bytes(dependency_policy.read_bytes())
     errors = inspect_build(build)
     assert any("outside its fixed package path" in error for error in errors)
 

@@ -1702,3 +1702,9 @@ def load_package_bound_runtime_policy() -> RuntimePolicy:
     except OSError:
         raise RuntimePolicyError(PolicyErrorCode.RESOURCE_UNAVAILABLE) from None
     return parse_package_bound_runtime_policy_bytes(data)
+
+
+def package_bound_runtime_policy_path() -> Path:
+    """Return the fixed policy path used by the package-bound loader."""
+
+    return _POLICY_RESOURCE.resolve()

@@ -819,6 +819,12 @@ def load_package_bound_runtime_dependency_policy() -> RuntimeDependencyPolicy:
     return parse_package_bound_runtime_dependency_policy_bytes(data)
 
 
+def package_bound_runtime_dependency_policy_path() -> Path:
+    """Return the fixed dependency-policy path used by the package loader."""
+
+    return _POLICY_RESOURCE.resolve()
+
+
 __all__ = [
     "ApprovedDependencyFile",
     "CpythonDependencyArtifactPolicy",
@@ -832,6 +838,7 @@ __all__ = [
     "RuntimeDependencyPolicy",
     "RuntimeDependencyPolicyError",
     "load_package_bound_runtime_dependency_policy",
+    "package_bound_runtime_dependency_policy_path",
     "parse_package_bound_runtime_dependency_policy_bytes",
     "parse_runtime_dependency_policy_bytes",
 ]

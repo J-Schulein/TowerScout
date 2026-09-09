@@ -34,6 +34,7 @@ from towerscout_launcher.target_contracts import (  # noqa: E402
     ResolvedRepairTarget,
     RuntimeIdentity,
     RuntimeProduct,
+    SecurityArtifactInventory,
     VolumeIdentity,
     WindowsProcessEnvironment,
     encode_target_token,
@@ -135,6 +136,25 @@ def _target() -> ResolvedRepairTarget:
         environment_source=environment_file,
         environment_file=environment_file,
     )
+    security_artifacts = SecurityArtifactInventory(
+        release_manifest=_file(
+            "release-manifest.v1.json",
+            private_root + r"\release-manifest.v1.json",
+            60,
+        ),
+        runtime_policy=_file(
+            "runtime-policy.v1.json",
+            private_root
+            + r"\launcher\_internal\towerscout_launcher\runtime-policy.v1.json",
+            61,
+        ),
+        runtime_dependency_policy=_file(
+            "runtime-dependency-policy.v1.json",
+            private_root
+            + r"\launcher\_internal\towerscout_launcher\runtime-dependency-policy.v1.json",
+            62,
+        ),
+    )
     image = ImageIdentity(
         configured_reference="private.registry.invalid/IMAGE-SECRET@sha256:" + "a" * 64,
         pinned_digest="sha256:" + "a" * 64,
@@ -170,6 +190,7 @@ def _target() -> ResolvedRepairTarget:
         package_root=package_root,
         process_environment=process_environment,
         release_identity="v0.1.3-rc.test",
+        security_artifacts=security_artifacts,
         runtime=runtime,
         endpoint=endpoint,
         compose_provider=compose_provider,
@@ -201,6 +222,16 @@ def test_each_hidden_target_identity_change_changes_the_full_token() -> None:
     target = _target()
     first_volume = target.volumes[0]
     mutations = (
+        replace(
+            target,
+            security_artifacts=replace(
+                target.security_artifacts,
+                release_manifest=replace(
+                    target.security_artifacts.release_manifest,
+                    sha256=_digest("changed-release-manifest"),
+                ),
+            ),
+        ),
         replace(
             target,
             endpoint=replace(
@@ -483,6 +514,58 @@ def test_target_rejects_compose_inputs_or_environment_source_outside_package() -
                 ),
             ),
         )
+
+
+def test_target_rejects_security_artifacts_outside_fixed_package_paths() -> None:
+    target = _target()
+
+    with pytest.raises(ValueError, match="Security artifacts are outside"):
+        replace(
+            target,
+            security_artifacts=replace(
+                target.security_artifacts,
+                release_manifest=replace(
+                    target.security_artifacts.release_manifest,
+                    final_path=PureWindowsPath(r"C:\Attacker\release-manifest.v1.json"),
+                ),
+            ),
+        )
+    with pytest.raises(ValueError, match="Security artifacts are outside"):
+        replace(
+            target,
+            security_artifacts=replace(
+                target.security_artifacts,
+                runtime_policy=replace(
+                    target.security_artifacts.runtime_policy,
+                    final_path=(
+                        target.package_root.final_path
+                        / "arbitrary"
+                        / "runtime-policy.v1.json"
+                    ),
+                ),
+            ),
+        )
+
+
+def test_target_accepts_fixed_source_policy_paths() -> None:
+    target = _target()
+    source_parent = target.package_root.final_path / "launcher" / "towerscout_launcher"
+    source_artifacts = replace(
+        target.security_artifacts,
+        runtime_policy=replace(
+            target.security_artifacts.runtime_policy,
+            final_path=source_parent / "runtime-policy.v1.json",
+        ),
+        runtime_dependency_policy=replace(
+            target.security_artifacts.runtime_dependency_policy,
+            final_path=source_parent / "runtime-dependency-policy.v1.json",
+        ),
+    )
+
+    observed = replace(target, security_artifacts=source_artifacts)
+
+    assert observed.security_artifacts == source_artifacts
+    assert observed.target_token != target.target_token
 
 
 def test_target_rejects_duplicate_runtime_volume_names() -> None:

@@ -892,4 +892,5 @@ def test_policy_layer_is_inert_and_pyinstaller_bundles_exact_resource() -> None:
         'runtime_policy_path = launcher_root / "towerscout_launcher" / '
         '"runtime-policy.v1.json"'
     ) in spec
-    assert 'datas=[(str(runtime_policy_path), "towerscout_launcher")]' in spec
+    assert '(str(runtime_policy_path), "towerscout_launcher")' in spec
+    assert '(str(runtime_dependency_policy_path), "towerscout_launcher")' in spec

@@ -392,6 +392,14 @@ class HeldProviderChildInventory:
         with self._lock:
             return self._provider_artifacts is None
 
+    @property
+    def target_token(self) -> str:
+        return self._plan.target_token
+
+    @property
+    def request_binding_sha256(self) -> str:
+        return self._request.binding_sha256
+
     def _begin_use(
         self,
     ) -> tuple[tuple[HandleBoundFile, ...], tuple[HandleBoundFile, ...]]:
@@ -425,7 +433,9 @@ class HeldProviderChildInventory:
         )
 
     def _execute_under_inventories(
-        self, backend: NativeWindowsProviderChildDynamicLoadBackend
+        self,
+        backend: NativeWindowsProviderChildDynamicLoadBackend,
+        pre_execute_validator: Callable[[], bool] | None,
     ) -> HeldProviderChildCommandResult:
         cpython_policy = self._provider_runtime_inventory.active_dynamic_load_policy()
         cpython_entrypoint = next(
@@ -450,6 +460,8 @@ class HeldProviderChildInventory:
             self._plan.target.runtime.executable
         ):
             _fail(ProviderChildInventoryErrorCode.INVENTORY_MISMATCH)
+        if pre_execute_validator is not None and pre_execute_validator() is not True:
+            _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
         result = backend.execute(self._plan, provider_policy, child_policy)
         if (
             type(result) is not ProviderChildCommandResult
@@ -476,9 +488,14 @@ class HeldProviderChildInventory:
         return HeldProviderChildCommandResult(result, evidence)
 
     def execute(
-        self, backend: NativeWindowsProviderChildDynamicLoadBackend
+        self,
+        backend: NativeWindowsProviderChildDynamicLoadBackend,
+        *,
+        pre_execute_validator: Callable[[], bool] | None = None,
     ) -> HeldProviderChildCommandResult:
-        if type(backend) is not NativeWindowsProviderChildDynamicLoadBackend:
+        if type(backend) is not NativeWindowsProviderChildDynamicLoadBackend or (
+            pre_execute_validator is not None and not callable(pre_execute_validator)
+        ):
             _fail(ProviderChildInventoryErrorCode.INVALID_BINDING)
         provider_artifacts, endpoint_artifacts = self._begin_use()
         try:
@@ -498,7 +515,9 @@ class HeldProviderChildInventory:
 
             def under_provider() -> HeldProviderChildCommandResult:
                 return self._child_runtime_inventory.run_while_held(
-                    lambda: self._execute_under_inventories(backend)
+                    lambda: self._execute_under_inventories(
+                        backend, pre_execute_validator
+                    )
                 )
 
             return self._run_under_file_leases(

@@ -14,6 +14,12 @@ RUNTIME_POLICY_RELATIVE_PATH = (
 RUNTIME_POLICY_SHA256 = (
     "6c198c097b511d9a73c168a244c89f5932a27abd12b5870118a80c46c5356011"
 )
+RUNTIME_DEPENDENCY_POLICY_RELATIVE_PATH = (
+    Path("_internal") / "towerscout_launcher" / "runtime-dependency-policy.v1.json"
+)
+RUNTIME_DEPENDENCY_POLICY_SHA256 = (
+    "1c699ac7d2d2592305e876431d57231ef63e5ccdaaeb033c7d3526db307a3890"
+)
 MAX_RUNTIME_POLICY_BYTES = 128 * 1024
 
 
@@ -37,20 +43,43 @@ def _inspect_launcher_pe(path: Path) -> list[str]:
     return errors
 
 
-def _inspect_runtime_policy(root: Path) -> list[str]:
-    expected = root / RUNTIME_POLICY_RELATIVE_PATH
+def _inspect_policy(
+    root: Path,
+    *,
+    relative_path: Path,
+    expected_sha256: str,
+    label: str,
+) -> list[str]:
+    expected = root / relative_path
     if not expected.is_file():
-        return ["The package-bound runtime policy is missing."]
+        return [f"The package-bound {label} is missing."]
     try:
         with expected.open("rb") as handle:
             data = handle.read(MAX_RUNTIME_POLICY_BYTES + 1)
     except OSError:
-        return ["The package-bound runtime policy is unreadable."]
+        return [f"The package-bound {label} is unreadable."]
     if len(data) > MAX_RUNTIME_POLICY_BYTES:
-        return ["The package-bound runtime policy exceeds its size limit."]
-    if hashlib.sha256(data).hexdigest() != RUNTIME_POLICY_SHA256:
-        return ["The package-bound runtime policy integrity check failed."]
+        return [f"The package-bound {label} exceeds its size limit."]
+    if hashlib.sha256(data).hexdigest() != expected_sha256:
+        return [f"The package-bound {label} integrity check failed."]
     return []
+
+
+def _inspect_runtime_policies(root: Path) -> list[str]:
+    return [
+        *_inspect_policy(
+            root,
+            relative_path=RUNTIME_POLICY_RELATIVE_PATH,
+            expected_sha256=RUNTIME_POLICY_SHA256,
+            label="runtime policy",
+        ),
+        *_inspect_policy(
+            root,
+            relative_path=RUNTIME_DEPENDENCY_POLICY_RELATIVE_PATH,
+            expected_sha256=RUNTIME_DEPENDENCY_POLICY_SHA256,
+            label="runtime dependency policy",
+        ),
+    ]
 
 
 def inspect_build(root: Path) -> list[str]:
@@ -60,15 +89,19 @@ def inspect_build(root: Path) -> list[str]:
         errors.append("TowerScoutLauncher.exe is missing.")
     else:
         errors.extend(_inspect_launcher_pe(executable))
-    errors.extend(_inspect_runtime_policy(root))
+    errors.extend(_inspect_runtime_policies(root))
     files = [path for path in root.rglob("*") if path.is_file()]
     if not files:
         errors.append("The launcher build is empty.")
+    expected_policy_paths = {
+        "runtime-policy.v1.json": root / RUNTIME_POLICY_RELATIVE_PATH,
+        "runtime-dependency-policy.v1.json": (
+            root / RUNTIME_DEPENDENCY_POLICY_RELATIVE_PATH
+        ),
+    }
     for path in files:
-        if (
-            path.name.casefold() == "runtime-policy.v1.json"
-            and path != root / RUNTIME_POLICY_RELATIVE_PATH
-        ):
+        expected_policy_path = expected_policy_paths.get(path.name.casefold())
+        if expected_policy_path is not None and path != expected_policy_path:
             errors.append("A runtime policy exists outside its fixed package path.")
         if path.suffix.lower() in FORBIDDEN_SUFFIXES or path.name.lower().startswith(
             ".env"

@@ -726,6 +726,17 @@ class HandleBoundFile:
         finally:
             self._end_use()
 
+    def assert_unchanged_while_held(self) -> FileSnapshot:
+        """Revalidate from the thread that currently owns an outer lease."""
+
+        handle = self._handle
+        if self._active_owner != threading.get_ident() or handle is None:
+            raise WindowsSecurityError(
+                "file_handle_not_held",
+                "The Windows file handle is not held by this operation.",
+            )
+        return self._assert_unchanged_owned(handle)
+
     def inspect_same_handle(
         self,
         inspector: Callable[[object, FileSnapshot], _InspectionResult],

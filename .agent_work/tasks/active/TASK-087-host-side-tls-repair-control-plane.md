@@ -30,11 +30,15 @@ synchronous operation; it passed exact-head CI/CD run `34280588649`, Task-087
 run `34280588654`, and external Trivy. Both checkpoints are independently
 reviewed with no open findings, but are not yet packaged or wired to execution.
 Dynamic-load checkpoint `9c58aed` is independently reviewed and exact-head
-green. A September 9 local source-only follow-up now extends that boundary to
-one separately authenticated provider plus one active exact runtime child; it
-remains unwired and passed independent re-review after correcting Windows
-debug-handle ownership and Job-limit wording. It awaits checkpointing and
-exact-head CI. Merge/publication retain their separate applicable gates.
+green. Provider-child checkpoint `d40bb7f` and held provider/runtime/endpoint
+checkpoint `1547f2a` are independently reviewed and exact-head green; the
+latter passed CI/CD run `34370131662`, Task-087 run `34370131570`, and external
+Trivy. A September 9 local source-only follow-up now binds the release manifest,
+both package policy catalogs, Compose inputs, `.env`/template source, package
+root, and Windows process-environment directories under one outer transaction
+owner. Independent inspect-only review returned PASS with no findings. The
+slice remains unwired. Merge/publication retain their separate applicable
+gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -1381,6 +1385,77 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-09 - Held Full Plan-Input Transaction Inventory Implemented Locally
+
+**Objective**: Close the provider-owner residual input-lifetime gap by binding
+every remaining authenticated Podman Compose plan file and directory through
+the provider/runtime/endpoint operation, without wiring discovery, repair,
+mutation, or a live provider run.
+
+**Checkpoint Context**: Prior held provider/runtime/endpoint source checkpoint
+`1547f2a` passed exact-head CI/CD run `34370131662`, Task-087 run
+`34370131570`, and external Trivy. All nine applicable pull-request checks
+passed; the main-only build job skipped as designed.
+
+**Decision**: Make the release manifest, runtime policy, and runtime dependency
+policy exact file identities first-class parts of the immutable resolved
+target and every command plan. Require the two held policy identities, bytes,
+and canonical paths to match the actual package-bound loaders. Treat the
+package root and all five Windows process-environment directories as explicit
+held path hierarchies. Keep the new transaction owner Podman-Compose-specific
+and source-only until the remaining secure resolver/integration gates are met.
+
+**Execution**: Added a redacted security-artifact inventory to the target
+token, added all three artifacts to engine and Compose authenticated-file
+plans, packaged the dependency policy beside the existing runtime policy, and
+made build inspection require both exact policy paths and compiled hashes. A
+new outer owner validates exact ordered Compose/environment/security handles,
+requires single-link local or hydrated cloud-safe leaves, validates six exact
+directory hierarchies, composes the existing provider owner, and owns complete
+cleanup. File and path primitives now allow same-thread revalidation only from
+inside an active lease. The provider owner accepts a boolean pre-execution
+validator so the outer inventory is rechecked after all inner provider/runtime
+leases are acquired and immediately before native execution.
+
+**Adversarial Coverage**: Tests reject missing outer inputs, policy hash drift,
+policy path substitution, and security artifacts outside the two fixed source/
+packaged locations. They detect input mutation after provider return, reject
+early package-root drift before callback entry, and simulate package-root drift
+during inner runtime-lease acquisition to prove the native backend remains
+unexecuted. Owner-only revalidation, redacted evidence, complete close, and the
+unwired source boundary are covered.
+
+**Validation**: The target, execution, and transaction-owner group passes
+98/98. Policy/provider groups pass 152/152, and path/file/provider ownership
+tests pass 101 applicable cases; the pre-existing restricted-host native
+hardlink case cannot create its pytest temporary directory on this workstation.
+The broader launcher selection passes 893/893 with that one known native case
+deselected. The package/policy selection produced 182 functional passes; its
+unchanged dirty-tree guard could not query Git status because Git emits access
+warnings for pre-existing inaccessible pytest directories. Black, strict mypy,
+blocking Flake8, medium/high Bandit, compilation, and `git diff --check` pass.
+
+**Independent Review**: A separate inspect-only technical/security review
+returned CLEAN/PASS with no Critical, High, Medium, or Low findings. It
+verified target-token and command-plan completeness, source and packaged
+policy path/hash binding, dependency-policy packaging and inspection, nested
+pre-execution revalidation, fail-closed cleanup, sanitized evidence, hydrated
+cloud-file compatibility, and the intentional unwired boundary. Its focused
+validation passed 324 tests with the documented native hardlink case
+deselected. Suggested absent-environment-source, GPU-overlay-ordering,
+hydrated-cloud-input, and concurrent-close/reentry cases are nonblocking
+coverage additions for the later integration slice.
+
+**Boundary**: The new owner is not imported by application, discovery, repair,
+runtime execution, or mutation paths. No Docker/Podman state, runtime defaults,
+containers, volumes, trust store, package configuration, or `.env` bytes were
+changed, and no live network peer was observed. This closes the source-level
+outer input lease contract; it does not claim secure target resolution,
+launcher integration, a live endpoint trace, or package acceptance.
+
+**Next**: Checkpoint/push this independently reviewed slice and require
+exact-head CI before the next dependency-ordered integration slice.
 
 ### 2026-09-09 - Held Provider/Runtime/Endpoint Inventory Implemented Locally
 

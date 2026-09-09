@@ -46,6 +46,11 @@ from towerscout_launcher.runtime_provider_inventory import (  # noqa: E402
     ProviderChildInventoryError,
     ProviderChildInventoryErrorCode,
 )
+from towerscout_launcher.runtime_transaction_inventory import (  # noqa: E402
+    HeldRuntimeTransactionInventory,
+    RuntimeTransactionInventoryError,
+    RuntimeTransactionInventoryErrorCode,
+)
 from towerscout_launcher.target_contracts import (  # noqa: E402
     EXPECTED_VOLUME_DESTINATIONS,
     AccelerationPlan,
@@ -65,6 +70,7 @@ from towerscout_launcher.target_contracts import (  # noqa: E402
     ResolvedRepairTarget,
     RuntimeIdentity,
     RuntimeProduct,
+    SecurityArtifactInventory,
     VolumeIdentity,
     WindowsProcessEnvironment,
 )
@@ -77,6 +83,14 @@ from towerscout_launcher.windows_security import (  # noqa: E402
     PathLocality,
     ReparseKind,
     StableFileIdentity,
+)
+from towerscout_launcher.windows_path_trust import (  # noqa: E402
+    DirectoryTrustSnapshot,
+    NativeDirectoryFacts,
+    NativeSecurityFacts,
+    PathHierarchyEvidence,
+    PathHierarchyTrust,
+    PathTrustPurpose,
 )
 
 _SYSTEM32 = PureWindowsPath(r"C:\Windows\System32")
@@ -173,6 +187,27 @@ def _podman_target() -> ResolvedRepairTarget:
             ),
         ),
         release_identity="v0.1.3-test",
+        security_artifacts=SecurityArtifactInventory(
+            release_manifest=_file(
+                "release-manifest.v1.json",
+                PureWindowsPath(r"C:\TowerScout\release-manifest.v1.json"),
+                26,
+            ),
+            runtime_policy=_file(
+                "runtime-policy.v1.json",
+                PureWindowsPath(
+                    r"C:\TowerScout\launcher\_internal\towerscout_launcher\runtime-policy.v1.json"
+                ),
+                27,
+            ),
+            runtime_dependency_policy=_file(
+                "runtime-dependency-policy.v1.json",
+                PureWindowsPath(
+                    r"C:\TowerScout\launcher\_internal\towerscout_launcher\runtime-dependency-policy.v1.json"
+                ),
+                28,
+            ),
+        ),
         runtime=RuntimeIdentity(
             RuntimeProduct.PODMAN,
             runtime,
@@ -727,6 +762,8 @@ def test_held_provider_child_inventory_binds_endpoint_and_both_image_roles(
 
     result = owner.execute(backend)
 
+    assert owner.target_token == result.evidence.target_token
+    assert owner.request_binding_sha256 == result.evidence.request_binding_sha256
     assert result.command.command.stdout == b"{}\n"
     assert result.evidence.target_token == _podman_target().target_token.display
     assert (
@@ -747,6 +784,416 @@ def test_held_provider_child_inventory_binds_endpoint_and_both_image_roles(
     assert not result.evidence.live_network_peer_observed
     assert "127.0.0.1" not in repr(result)
     assert "private" not in repr(result.evidence)
+    owner.close()
+
+
+class _HeldPathApi:
+    supported = True
+
+    def __init__(self, identity: FileIdentity) -> None:
+        self.identity = StableFileIdentity(identity.volume_serial, identity.file_id)
+        self.final_path = rf"\\?\{identity.final_path}"
+        self.security = NativeSecurityFacts("S-1-5-21-1000", True, ())
+        self.query_count = 0
+        self.drift_after_queries: int | None = None
+        self.closed = 0
+
+    def query_directory(self, handle: object) -> NativeDirectoryFacts:
+        del handle
+        self.query_count += 1
+        identity = self.identity
+        if (
+            self.drift_after_queries is not None
+            and self.query_count > self.drift_after_queries
+        ):
+            identity = StableFileIdentity(
+                identity.volume_serial, (999).to_bytes(16, "big")
+            )
+        return NativeDirectoryFacts(
+            final_path=self.final_path,
+            volume_serial=identity.volume_serial,
+            file_id=identity.file_id,
+            attributes=0x10,
+            drive_type=3,
+            file_type=1,
+            reparse_tag=0,
+        )
+
+    def query_security(self, handle: object) -> NativeSecurityFacts:
+        del handle
+        return self.security
+
+    def close_handle(self, handle: object) -> None:
+        del handle
+        self.closed += 1
+
+
+def _held_path(
+    identity: FileIdentity, purpose: PathTrustPurpose
+) -> tuple[PathHierarchyTrust, _HeldPathApi]:
+    api = _HeldPathApi(identity)
+    snapshot = DirectoryTrustSnapshot(
+        identity=api.identity,
+        final_path=api.final_path,
+        attributes=0x10,
+        reparse_tag=0,
+        security=api.security,
+        is_trusted_root=True,
+    )
+    evidence = PathHierarchyEvidence(
+        purpose=purpose,
+        lexical_depth=1,
+        resolved_depth=1,
+        root_identity=api.identity,
+    )
+    return (
+        PathHierarchyTrust(
+            api,
+            "S-1-5-21-1000",
+            (object(), object()),
+            (snapshot, snapshot),
+            evidence,
+        ),
+        api,
+    )
+
+
+def _held_target_file(
+    identity: FileIdentity,
+) -> tuple[HandleBoundFile, _HeldFileApi]:
+    content = str(identity.final_path).encode("utf-8")
+    snapshot = FileSnapshot(
+        identity=StableFileIdentity(identity.volume_serial, identity.file_id),
+        sha256=identity.sha256,
+        size=identity.size_bytes,
+        attributes=0x80,
+        creation_time=1,
+        last_write_time=2,
+        reparse_tag=0,
+        final_path=rf"\\?\{identity.final_path}",
+        classification=PathClassification(
+            locality=PathLocality.FIXED_LOCAL,
+            reparse_kind=ReparseKind.NONE,
+            hydrated=True,
+            regular_file=True,
+            single_link=True,
+        ),
+    )
+    assert len(content) == snapshot.size
+    assert hashlib.sha256(content).hexdigest() == snapshot.sha256
+    api = _HeldFileApi(snapshot, content)
+    return (
+        HandleBoundFile(
+            api,
+            object(),
+            FileCapturePolicy(max_bytes=1024 * 1024, require_single_link=True),
+            snapshot,
+        ),
+        api,
+    )
+
+
+def _transaction_components(
+    monkeypatch: pytest.MonkeyPatch,
+):  # noqa: ANN202
+    provider_owner, backend, _key_api, _key = _held_inventory_owner(monkeypatch)
+    plan = provider_owner._plan  # noqa: SLF001
+    covered = {
+        (identity.volume_serial, identity.file_id)
+        for identity in (
+            plan.target.runtime.executable,
+            *plan.target.compose_provider.artifacts,
+            *(
+                ()
+                if plan.target.endpoint.identity_key is None
+                else (plan.target.endpoint.identity_key,)
+            ),
+            *plan.target.endpoint.discovery_artifacts,
+        )
+    }
+    outer_identities = tuple(
+        identity
+        for identity in plan.authenticated_files
+        if not identity.is_directory
+        and (identity.volume_serial, identity.file_id) not in covered
+    )
+    held_files_with_apis = tuple(
+        _held_target_file(identity) for identity in outer_identities
+    )
+    directory_identities = tuple(
+        identity for identity in plan.authenticated_files if identity.is_directory
+    )
+    held_paths_with_apis = tuple(
+        _held_path(
+            identity,
+            (
+                PathTrustPurpose.PACKAGE_ROOT
+                if index == 0
+                else PathTrustPurpose.PROCESS_ENVIRONMENT
+            ),
+        )
+        for index, identity in enumerate(directory_identities)
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.load_package_bound_runtime_policy",
+        lambda: SimpleNamespace(
+            content_sha256=plan.target.security_artifacts.runtime_policy.sha256
+        ),
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.package_bound_runtime_policy_path",
+        lambda: Path(str(plan.target.security_artifacts.runtime_policy.final_path)),
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.load_package_bound_runtime_dependency_policy",
+        lambda: SimpleNamespace(
+            content_sha256=(
+                plan.target.security_artifacts.runtime_dependency_policy.sha256
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.package_bound_runtime_dependency_policy_path",
+        lambda: Path(
+            str(plan.target.security_artifacts.runtime_dependency_policy.final_path)
+        ),
+    )
+    return (
+        provider_owner,
+        backend,
+        plan,
+        tuple(item[0] for item in held_files_with_apis),
+        tuple(item[1] for item in held_files_with_apis),
+        tuple(item[0] for item in held_paths_with_apis),
+        tuple(item[1] for item in held_paths_with_apis),
+    )
+
+
+def test_runtime_transaction_owner_holds_all_outer_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (
+        provider_owner,
+        backend,
+        plan,
+        held_files,
+        _file_apis,
+        held_paths,
+        _path_apis,
+    ) = _transaction_components(monkeypatch)
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider_owner,
+        input_files=held_files,
+        directory_paths=held_paths,
+    )
+
+    result = owner.execute(backend)
+
+    assert result.provider_result.command.command.stdout == b"{}\n"
+    assert result.evidence.target_token == plan.target_token
+    assert result.evidence.input_file_count == 5
+    assert result.evidence.directory_path_count == 6
+    assert result.evidence.compose_inputs_held_through_execution
+    assert result.evidence.security_artifacts_held_through_execution
+    assert result.evidence.process_environment_held_through_execution
+    assert not result.evidence.live_network_peer_observed
+    assert "TowerScout" not in repr(result)
+    assert "private" not in repr(result.evidence)
+    owner.close()
+    assert all(bound.closed for bound in held_files)
+    assert all(path.closed for path in held_paths)
+    assert provider_owner.closed
+
+
+def test_runtime_transaction_owner_rejects_missing_or_wrong_policy_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider_owner, _backend, plan, held_files, _apis, held_paths, _path_apis = (
+        _transaction_components(monkeypatch)
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as missing:
+        HeldRuntimeTransactionInventory(
+            plan=plan,
+            provider_inventory=provider_owner,
+            input_files=held_files[:-1],
+            directory_paths=held_paths,
+        )
+    assert missing.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+    provider_owner.close()
+    for bound_file in held_files:
+        bound_file.close()
+    for path in held_paths:
+        path.close()
+
+
+def test_runtime_transaction_owner_rejects_policy_hash_or_path_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider_owner, _backend, plan, held_files, _apis, held_paths, _path_apis = (
+        _transaction_components(monkeypatch)
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.load_package_bound_runtime_policy",
+        lambda: SimpleNamespace(content_sha256="0" * 64),
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as wrong_hash:
+        HeldRuntimeTransactionInventory(
+            plan=plan,
+            provider_inventory=provider_owner,
+            input_files=held_files,
+            directory_paths=held_paths,
+        )
+    assert (
+        wrong_hash.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+    )
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.load_package_bound_runtime_policy",
+        lambda: SimpleNamespace(
+            content_sha256=plan.target.security_artifacts.runtime_policy.sha256
+        ),
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.package_bound_runtime_policy_path",
+        lambda: Path(r"C:\Attacker\runtime-policy.v1.json"),
+    )
+    with pytest.raises(RuntimeTransactionInventoryError) as wrong_path:
+        HeldRuntimeTransactionInventory(
+            plan=plan,
+            provider_inventory=provider_owner,
+            input_files=held_files,
+            directory_paths=held_paths,
+        )
+    assert (
+        wrong_path.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+    )
+    provider_owner.close()
+    for bound_file in held_files:
+        bound_file.close()
+    for path in held_paths:
+        path.close()
+
+
+def test_runtime_transaction_owner_detects_file_change_after_provider_return(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider_owner, backend, plan, held_files, apis, held_paths, _path_apis = (
+        _transaction_components(monkeypatch)
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider_owner,
+        input_files=held_files,
+        directory_paths=held_paths,
+    )
+    original_execute = HeldProviderChildInventory.execute
+
+    def execute_then_mutate(
+        self, selected_backend, *, pre_execute_validator=None
+    ):  # noqa: ANN001, ANN202
+        result = original_execute(
+            self,
+            selected_backend,
+            pre_execute_validator=pre_execute_validator,
+        )
+        apis[0].content += b"changed"
+        return result
+
+    monkeypatch.setattr(HeldProviderChildInventory, "execute", execute_then_mutate)
+
+    with pytest.raises(RuntimeTransactionInventoryError) as changed:
+        owner.execute(backend)
+    assert changed.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
+    owner.close()
+
+
+def test_runtime_transaction_owner_rechecks_early_path_before_execution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (
+        provider_owner,
+        backend,
+        plan,
+        held_files,
+        _apis,
+        held_paths,
+        path_apis,
+    ) = _transaction_components(monkeypatch)
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider_owner,
+        input_files=held_files,
+        directory_paths=held_paths,
+    )
+    path_apis[0].drift_after_queries = 2
+    executed = False
+    original_execute = HeldProviderChildInventory.execute
+
+    def observe_execute(
+        self, selected_backend, *, pre_execute_validator=None
+    ):  # noqa: ANN001, ANN202
+        nonlocal executed
+        executed = True
+        return original_execute(
+            self,
+            selected_backend,
+            pre_execute_validator=pre_execute_validator,
+        )
+
+    monkeypatch.setattr(HeldProviderChildInventory, "execute", observe_execute)
+
+    with pytest.raises(RuntimeTransactionInventoryError) as changed:
+        owner.execute(backend)
+    assert changed.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
+    assert not executed
+    owner.close()
+
+
+def test_runtime_transaction_owner_rechecks_inside_fully_acquired_inner_leases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (
+        provider_owner,
+        backend,
+        plan,
+        held_files,
+        _apis,
+        held_paths,
+        path_apis,
+    ) = _transaction_components(monkeypatch)
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider_owner,
+        input_files=held_files,
+        directory_paths=held_paths,
+    )
+    original_child_lease = RuntimeLoadPrerequisites.run_while_held
+    original_backend_execute = NativeWindowsProviderChildDynamicLoadBackend.execute
+    backend_executed = False
+
+    def drift_during_child_lease(self, operation):  # noqa: ANN001, ANN202
+        path_apis[0].drift_after_queries = path_apis[0].query_count
+        return original_child_lease(self, operation)
+
+    def observe_backend(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
+        nonlocal backend_executed
+        backend_executed = True
+        return original_backend_execute(self, *args, **kwargs)
+
+    monkeypatch.setattr(
+        RuntimeLoadPrerequisites, "run_while_held", drift_during_child_lease
+    )
+    monkeypatch.setattr(
+        NativeWindowsProviderChildDynamicLoadBackend, "execute", observe_backend
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as changed:
+        owner.execute(backend)
+    assert changed.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
+    assert not backend_executed
     owner.close()
 
 
@@ -1072,6 +1519,7 @@ def test_provider_child_slice_remains_unwired() -> None:
         )
         assert "runtime_provider_child" not in source
         assert "runtime_provider_inventory" not in source
+        assert "runtime_transaction_inventory" not in source
 
 
 def test_policy_module_has_no_process_or_shell_execution() -> None:

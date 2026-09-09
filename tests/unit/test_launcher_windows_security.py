@@ -701,6 +701,18 @@ def test_closed_handle_cannot_authorize_revalidation() -> None:
     assert exc_info.value.category == "file_handle_closed"
 
 
+def test_active_file_lease_allows_only_its_owner_to_revalidate() -> None:
+    with capture_handle_bound_file(
+        Path("private.env"), api=_FakeWindowsFileApi()
+    ) as bound:
+        with pytest.raises(WindowsSecurityError) as outside:
+            bound.assert_unchanged_while_held()
+        assert outside.value.category == "file_handle_not_held"
+
+        observed = bound.run_while_held(bound.assert_unchanged_while_held)
+        assert observed == bound.snapshot
+
+
 def test_reparse_classification_uses_explicit_cloud_allowlist() -> None:
     cloud = classify_path(
         _facts(

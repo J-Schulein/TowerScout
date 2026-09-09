@@ -231,6 +231,21 @@ def test_package_route_binds_lexical_and_resolved_ancestors() -> None:
     assert all(handle in api.closed for _path, _follow, handle in api.opened)
 
 
+def test_active_path_lease_allows_only_its_owner_to_revalidate() -> None:
+    api = _FakePathTrustApi()
+
+    with capture_path_hierarchy(
+        _SECRET, purpose=PathTrustPurpose.PROCESS_ENVIRONMENT, api=api
+    ) as trust:
+        with pytest.raises(WindowsSecurityError) as outside:
+            trust.assert_unchanged_while_held()
+        assert outside.value.category == "path_handle_not_held"
+
+        evidence = trust.run_while_held(trust.assert_unchanged_while_held)
+        assert evidence == trust.evidence
+        assert evidence.purpose is PathTrustPurpose.PROCESS_ENVIRONMENT
+
+
 @pytest.mark.parametrize(
     "path",
     (

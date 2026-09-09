@@ -45,6 +45,7 @@ from towerscout_launcher.target_contracts import (  # noqa: E402
     ResolvedRepairTarget,
     RuntimeIdentity,
     RuntimeProduct,
+    SecurityArtifactInventory,
     VolumeIdentity,
     WindowsProcessEnvironment,
 )
@@ -226,6 +227,25 @@ def _target(
         package_root=package_root,
         process_environment=process_environment,
         release_identity="v0.1.3-test",
+        security_artifacts=SecurityArtifactInventory(
+            release_manifest=_file(
+                "release-manifest.v1.json",
+                private_root + r"\release-manifest.v1.json",
+                60,
+            ),
+            runtime_policy=_file(
+                "runtime-policy.v1.json",
+                private_root
+                + r"\launcher\_internal\towerscout_launcher\runtime-policy.v1.json",
+                61,
+            ),
+            runtime_dependency_policy=_file(
+                "runtime-dependency-policy.v1.json",
+                private_root
+                + r"\launcher\_internal\towerscout_launcher\runtime-dependency-policy.v1.json",
+                62,
+            ),
+        ),
         runtime=runtime,
         endpoint=endpoint,
         compose_provider=compose_provider,
@@ -306,6 +326,11 @@ def test_docker_plans_bind_direct_executables_and_exact_named_pipe():
         and artifact in compose.authenticated_files
         for artifact in target.endpoint.discovery_artifacts
     )
+    assert all(
+        artifact in engine.authenticated_files
+        and artifact in compose.authenticated_files
+        for artifact in target.security_artifacts.ordered_files
+    )
 
 
 def test_podman_plans_bind_exact_url_key_python_module_and_child_endpoint():
@@ -374,6 +399,11 @@ def test_podman_plans_bind_exact_url_key_python_module_and_child_endpoint():
         artifact in engine.authenticated_files
         and artifact in compose.authenticated_files
         for artifact in target.endpoint.discovery_artifacts
+    )
+    assert all(
+        artifact in engine.authenticated_files
+        and artifact in compose.authenticated_files
+        for artifact in target.security_artifacts.ordered_files
     )
 
 

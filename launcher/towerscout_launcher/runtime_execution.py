@@ -220,6 +220,12 @@ def _endpoint_authenticated_files(
     return (*identity_key, *target.endpoint.discovery_artifacts)
 
 
+def _security_authenticated_files(
+    target: ResolvedRepairTarget,
+) -> tuple[FileIdentity, ...]:
+    return target.security_artifacts.ordered_files
+
+
 def _windows_environment_items(
     target: ResolvedRepairTarget,
 ) -> tuple[tuple[str, str], ...]:
@@ -300,6 +306,7 @@ class ProcessCommandPlan:
                 (
                     expected_executable,
                     self.target.package_root,
+                    *_security_authenticated_files(self.target),
                     *_windows_environment_identities(self.target),
                     *_endpoint_authenticated_files(self.target),
                 )
@@ -326,6 +333,7 @@ class ProcessCommandPlan:
                 (
                     *self.target.compose_provider.artifacts,
                     *_compose_authenticated_files(self.target),
+                    *_security_authenticated_files(self.target),
                     *_windows_environment_identities(self.target),
                     *_endpoint_authenticated_files(self.target),
                 )
@@ -347,6 +355,7 @@ class ProcessCommandPlan:
                     expected_executable,
                     identity_key,
                     self.target.package_root,
+                    *_security_authenticated_files(self.target),
                     *_windows_environment_identities(self.target),
                     *_endpoint_authenticated_files(self.target),
                 )
@@ -387,6 +396,7 @@ class ProcessCommandPlan:
                     identity_key,
                     *self.target.compose_provider.artifacts,
                     *_compose_authenticated_files(self.target),
+                    *_security_authenticated_files(self.target),
                     *_windows_environment_identities(self.target),
                     *_endpoint_authenticated_files(self.target),
                 )
@@ -537,6 +547,7 @@ class RuntimeExecutionBinding:
             authenticated = (
                 runtime.executable,
                 self.target.package_root,
+                *_security_authenticated_files(self.target),
                 *_windows_environment_identities(self.target),
                 *_endpoint_authenticated_files(self.target),
             )
@@ -556,6 +567,7 @@ class RuntimeExecutionBinding:
                 runtime.executable,
                 identity_key,
                 self.target.package_root,
+                *_security_authenticated_files(self.target),
                 *_windows_environment_identities(self.target),
                 *_endpoint_authenticated_files(self.target),
             )
@@ -596,6 +608,7 @@ class RuntimeExecutionBinding:
                 (
                     *target.compose_provider.artifacts,
                     *_compose_authenticated_files(target),
+                    *_security_authenticated_files(target),
                     *_windows_environment_identities(target),
                     *_endpoint_authenticated_files(target),
                 ),
@@ -634,6 +647,7 @@ class RuntimeExecutionBinding:
                 identity_key,
                 *target.compose_provider.artifacts,
                 *_compose_authenticated_files(target),
+                *_security_authenticated_files(target),
                 *_windows_environment_identities(target),
                 *_endpoint_authenticated_files(target),
             ),

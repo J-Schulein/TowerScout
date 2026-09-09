@@ -2,26 +2,21 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 9, 2026
-**Focus**: Task-101 is complete. Task-087 source/task-state checkpoint
-`e18fb3a` is independently reviewed and exact-head green. It holds all 47
-CPython policy-native files and their trusted directory chains across a
-synchronous operation; its review-found lifetime race is closed. Source
-checkpoint `76bb3cb` adds the independently reviewed, unwired fixed-CPython
-Windows image-load policy. Its first CI run exposed only a Linux native-shim
-test portability defect: four Python 3.12 assertions failed before the fake
-Windows API was called, and Python 3.11 was cancelled by matrix fail-fast. A
-test-only correction at `7233dc3` simulates the Windows last-error state without
-changing production source. Exact-head CI/CD run `34293025363`, Task-087 run
-`34293025481`, and external Trivy passed all nine applicable checks; the main-
-only build skipped as designed for a pull request. A September 9 local,
-source-only follow-up now implements the separately authenticated provider-
-child image/event boundary with an exact two-process Job limit; it is unwired
-and passed independent re-review after correcting Windows debug-handle
-ownership and Job-limit wording. It now awaits checkpointing and exact-head CI.
-Cross-session locks, durable recovery, Windows-store CA selection, and
-ACL-preserving `.env` replacement remain later Gate A source work. Unsigned
-preview-package integration remains later under ADR-019. Production signing
-remains Task-100 work in October after the package is satisfactory.
+**Focus**: Task-101 is complete. Task-087 held provider/runtime/endpoint
+checkpoint `1547f2a` is independently reviewed and exact-head green: CI/CD run
+`34370131662`, Task-087 run `34370131570`, and external Trivy passed all nine
+applicable pull-request checks. A September 9 local source-only follow-up now
+adds the outer transaction owner: the release manifest, both package policy
+catalogs, Compose inputs, `.env`/template source, package root, and all Windows
+process-environment directories are exact target/plan inputs held through the
+fully acquired provider/runtime boundary. The dependency policy is now bundled
+and build-inspected beside the runtime policy. The slice is unwired and ready
+for checkpointing after independent review returned PASS with no findings.
+Secure resolver/integration work, cross-session locks,
+durable recovery, Windows-store CA selection, and ACL-preserving `.env`
+replacement remain later Gate A work. Unsigned preview-package integration
+remains later under ADR-019. Production signing remains Task-100 work in
+October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -416,8 +411,23 @@ timing; preview integration remains a later gate
   deepest-boundary check and adversarial regression passed re-review with no
   findings remaining. Focused tests pass 77/77, and the wider launcher
   regression selection passes 885/885 with the documented Defender/AMSI helper
-  and restricted native-hardlink host cases excluded. The increment is still
-  unwired and ready for checkpoint.
+  and restricted native-hardlink host cases excluded. Source checkpoint
+  `1547f2a` passed exact-head CI/CD run `34370131662`, Task-087 run
+  `34370131570`, and external Trivy; all nine applicable pull-request checks
+  passed and the main-only build skipped as designed.
+- The next local source-only increment closes that owner's residual outer-input
+  lifetime gap. It binds exact release-manifest and package-policy identities
+  into the target token and every command plan, packages and build-inspects the
+  runtime dependency policy, and holds ordered Compose/environment/security
+  file handles plus package-root and five Windows process-environment path
+  hierarchies through provider execution. A pre-execution validator runs after
+  the provider/runtime leases are fully acquired; simulated drift at that
+  boundary prevents the native backend from running. The focused target,
+  execution, and transaction set passes 98/98; the wider launcher selection
+  passes 893/893 with the known restricted-host native hardlink case
+  deselected. Static/security checks pass. Independent inspect-only review
+  returned CLEAN/PASS with no findings after its own 324 focused tests. The
+  slice remains unwired and is ready for checkpointing.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked
