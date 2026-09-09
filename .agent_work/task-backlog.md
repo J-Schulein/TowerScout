@@ -1,6 +1,6 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: August 21, 2026
+**Last Updated**: September 9, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases until the
 normal-user package is satisfactory, then complete Task-100 production signing
@@ -144,7 +144,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT; independently reviewed capture/mutex checkpoint `f7d21a9` plus portability follow-up `90cdfb8` passed exact-head CI/CD run `34381047736`, Task-087 run `34381047707`, and external Trivy. The local source-only ordered environment/target acquisition and held-inventory revalidation follow-up is independently reviewed CLEAN/PASS and ready for checkpointing without enabling mutation. PR #67 remains Draft through Gate A remediation and exact-head re-review; preview/Task-100 gates remain separate |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT; independently reviewed ordered-lock checkpoint `16604c8` passed exact-head CI/CD run `34386914693`, Task-087 run `34386914725`, and external Trivy. The current independently reviewed CLEAN/PASS source-only increment adds production provider/runtime/endpoint capture and complete held-and-locked transaction composition from secure-resolver inputs; it remains unwired and enables no execution or mutation. PR #67 remains Draft through Gate A remediation and exact-head re-review; preview/Task-100 gates remain separate |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---

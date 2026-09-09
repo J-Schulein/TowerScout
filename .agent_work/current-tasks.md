@@ -2,23 +2,22 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 9, 2026
-**Focus**: Task-101 is complete. Task-087 source checkpoint `f7d21a9` contains
-the independently reviewed production capture factory and secured Windows
-global-mutex primitive. Portability follow-up `90cdfb8` passed exact-head CI/CD
-run `34381047736`, Task-087 run `34381047707`, and external Trivy; all nine
-applicable pull-request checks succeeded. Both components remain unwired. The
-current local source-only follow-up composes them into an ordered environment-
-then-target lock owner. It derives stable canonical keys, revalidates the held
-outer and provider/runtime/endpoint inventories under the locks, retains both
-through the transaction lifetime, releases in reverse order, and carries both
-abandoned-owner signals forward for later recovery policy. Independent inspect-
-only review returned CLEAN/PASS with no findings after reproducing all 114
-focused tests and the applicable quality gates. Existing `.env`
-state is supported; absent-`.env` acquisition fails closed until the atomic
-replacement slice supplies a secure absence proof. Secure target resolver/
-provider-factory wiring, live target revalidation, durable recovery, Windows-
-store CA selection, and ACL-preserving `.env` replacement remain later Gate A
-work. Unsigned preview integration remains later under ADR-019. Production
+**Focus**: Task-101 is complete. Task-087 ordered-lock checkpoint `16604c8`
+passed exact-head CI/CD run `34386914693`, Task-087 run `34386914725`, and
+external Trivy; all nine applicable pull-request checks succeeded after
+independent CLEAN/PASS review. The current local source-only follow-up adds the
+production provider/runtime/endpoint capture boundary and composes it with the
+reviewed outer-input capture and ordered environment-then-target lock owner.
+Successful construction transfers every captured handle to one lifetime owner;
+all intermediate failure paths close only resources already transferred at
+that boundary. Existing `.env` state is supported; absent-`.env` acquisition
+still fails closed until the atomic replacement slice supplies a secure absence
+proof. Secure target resolution, live target revalidation, durable recovery,
+Windows-store CA selection, and ACL-preserving `.env` replacement remain later
+Gate A work. The new factory remains unwired and enables no execution or
+mutation. Independent inspect-only review returned CLEAN/PASS with no findings
+after reproducing the focused, launcher, static, security, and task-hygiene
+checks. Unsigned preview integration remains later under ADR-019. Production
 signing remains Task-100 work in October after the package is satisfactory.
 
 **Current Release State**:
@@ -457,15 +456,27 @@ timing; preview integration remains a later gate
   reproducing the mutex and focused security gates. Portability correction
   `90cdfb8` passed exact-head CI/CD run `34381047736`, Task-087 run
   `34381047707`, and external Trivy. The primitive remains unwired.
-- The current local source-only increment adds the ordered environment/target
-  owner and integrates acquisition into the held transaction inventory. It
-  revalidates outer and provider/runtime/endpoint handles under the locks,
-  preserves abandoned-owner evidence, prevents cross-thread release, and
-  releases the pair in reverse order. Independent inspect-only review returned
-  CLEAN/PASS with no findings after reproducing all 114 focused tests and the
-  applicable quality gates. It performs no live peer query or mutation;
-  absent-`.env` state remains fail-closed pending the secure atomic-replacement/
-  absence-proof slice. The increment is ready for checkpointing.
+- Checkpoint `16604c8` adds the ordered environment/target owner and integrates
+  acquisition into the held transaction inventory. It revalidates outer and
+  provider/runtime/endpoint handles under the locks, preserves abandoned-owner
+  evidence, prevents cross-thread release, and releases the pair in reverse
+  order. Independent inspect-only review returned CLEAN/PASS with no findings
+  after reproducing all 114 focused tests and the applicable quality gates.
+  Exact-head CI/CD run `34386914693`, Task-087 run `34386914725`, and external
+  Trivy passed with all nine applicable pull-request checks successful.
+- The current local source-only increment adds the remaining production
+  provider/runtime/endpoint capture boundary and an end-to-end factory that
+  constructs the provider owner, captures the outer plan inputs, and acquires
+  the ordered locks from resolver-supplied held base-Python and Podman
+  executables. It enforces exact, single-link, bounded provider and endpoint
+  artifact capture, preserves resolver ownership when provider construction
+  fails, and closes every transferred owner on later capture or lock failure.
+  It remains unwired and performs no runtime discovery, child execution,
+  repair, or mutation. Secure resolution and live daemon/target revalidation
+  remain separate Gate A work. Independent inspect-only review returned
+  CLEAN/PASS with no findings after independently reproducing `46/46` focused
+  tests, `959/959` launcher tests with the documented native hardlink case
+  deselected, and all applicable static/security/task-hygiene checks.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

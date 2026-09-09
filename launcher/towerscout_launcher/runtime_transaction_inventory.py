@@ -16,6 +16,7 @@ from enum import Enum
 from pathlib import Path, PureWindowsPath
 from typing import Any, Callable, NoReturn, TypeVar
 
+from .authenticode import AuthenticodeBackend, VerificationClock
 from .runtime_dependency_policy import (
     load_package_bound_runtime_dependency_policy,
     package_bound_runtime_dependency_policy_path,
@@ -29,11 +30,13 @@ from .runtime_policy import (
     load_package_bound_runtime_policy,
     package_bound_runtime_policy_path,
 )
+from .runtime_load_trust import LoadableAuthenticator, RuntimeLoadInventoryApi
 from .runtime_provider_child import ProcessImageBinding, ProviderChildProcessRequest
 from .runtime_provider_inventory import (
     HeldProviderChildCommandResult,
     HeldProviderChildInventory,
     ProviderChildInventoryError,
+    capture_provider_child_inventory,
 )
 from .target_contracts import FileIdentity
 from .windows_path_trust import (
@@ -519,6 +522,7 @@ class HeldRuntimeTransactionInventory:
         "_provider_inventory",
         "_request_binding_sha256",
         "_transaction_locks",
+        "_transaction_lock_evidence",
         "_transaction_lock_owner_thread",
     )
 
@@ -582,6 +586,7 @@ class HeldRuntimeTransactionInventory:
         self._directory_paths: tuple[PathHierarchyTrust, ...] | None = directory_paths
         self._request_binding_sha256 = request.binding_sha256
         self._transaction_locks: HeldRuntimeTransactionLocks | None = None
+        self._transaction_lock_evidence: RuntimeTransactionLockEvidence | None = None
         self._transaction_lock_owner_thread: int | None = None
         self._binding_sha256 = _binding_digest(
             plan,
@@ -604,6 +609,17 @@ class HeldRuntimeTransactionInventory:
                 self._transaction_locks is not None
                 and not self._transaction_locks.closed
             )
+
+    @property
+    def lock_evidence(self) -> RuntimeTransactionLockEvidence | None:
+        with self._lock:
+            if (
+                self._transaction_locks is None
+                or self._transaction_locks.closed
+                or self._transaction_lock_evidence is None
+            ):
+                return None
+            return self._transaction_lock_evidence
 
     def _begin_use(
         self,
@@ -812,12 +828,14 @@ class HeldRuntimeTransactionInventory:
             )
             self._transaction_locks = transaction_locks
             self._transaction_lock_owner_thread = threading.get_ident()
-            return RuntimeTransactionLockEvidence(
+            evidence = RuntimeTransactionLockEvidence(
                 target_token=self._plan.target_token,
                 environment_abandoned=transaction_locks.environment_abandoned,
                 target_abandoned=transaction_locks.target_abandoned,
                 held_inventory_revalidated=True,
             )
+            self._transaction_lock_evidence = evidence
+            return evidence
         except (RuntimeTransactionInventoryError, RuntimeTransactionLockError):
             raise
         except Exception:
@@ -880,6 +898,7 @@ class HeldRuntimeTransactionInventory:
             self._input_files = None
             self._directory_paths = None
             self._transaction_locks = None
+            self._transaction_lock_evidence = None
             self._transaction_lock_owner_thread = None
             if (
                 provider_inventory is None
@@ -919,6 +938,95 @@ class HeldRuntimeTransactionInventory:
         )
 
 
+def _close_factory_owner(closeable: Any | None) -> bool:
+    if closeable is None:
+        return False
+    try:
+        closeable.close()
+    except BaseException:
+        return True
+    return False
+
+
+def capture_locked_runtime_transaction_inventory(
+    plan: ProcessCommandPlan,
+    provider_base_executable: HandleBoundFile,
+    child_executable: HandleBoundFile,
+    *,
+    path_api: WindowsPathTrustApi | None = None,
+    file_api: WindowsFileApi | None = None,
+    runtime_inventory_api: RuntimeLoadInventoryApi | None = None,
+    loadable_authenticate: LoadableAuthenticator | None = None,
+    authenticode_backend: AuthenticodeBackend | None = None,
+    clock: VerificationClock | None = None,
+    mutex_api: WindowsMutexApi | None = None,
+    lock_timeout_ms: int = 0,
+) -> HeldRuntimeTransactionInventory:
+    """Capture and lock one exact resolved Podman transaction inventory.
+
+    The caller supplies two already-held executable identities from the secure
+    resolver. Provider construction transfers them into the composite owner.
+    Any later failure closes all transferred resources before returning a
+    sanitized error. This function performs no child execution or mutation.
+    """
+
+    provider_inventory: HeldProviderChildInventory | None = None
+    transaction_inventory: HeldRuntimeTransactionInventory | None = None
+    try:
+        provider_inventory = capture_provider_child_inventory(
+            plan,
+            provider_base_executable,
+            child_executable,
+            path_api=path_api,
+            file_api=file_api,
+            runtime_inventory_api=runtime_inventory_api,
+            loadable_authenticate=loadable_authenticate,
+            authenticode_backend=authenticode_backend,
+            clock=clock,
+        )
+        transaction_inventory = capture_runtime_transaction_inventory(
+            plan,
+            provider_inventory,
+            path_api=path_api,
+            file_api=file_api,
+        )
+        provider_inventory = None
+        evidence = transaction_inventory.acquire_transaction_locks(
+            api=mutex_api,
+            timeout_ms=lock_timeout_ms,
+        )
+        if (
+            type(evidence) is not RuntimeTransactionLockEvidence
+            or transaction_inventory.lock_evidence != evidence
+            or not transaction_inventory.locks_acquired
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        return transaction_inventory
+    except (
+        ProviderChildInventoryError,
+        RuntimeTransactionInventoryError,
+        RuntimeTransactionLockError,
+    ):
+        failed = _close_factory_owner(transaction_inventory)
+        if transaction_inventory is None:
+            failed = _close_factory_owner(provider_inventory) or failed
+        if failed:
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        raise
+    except (OSError, RuntimeError, TypeError, ValueError):
+        failed = _close_factory_owner(transaction_inventory)
+        if transaction_inventory is None:
+            failed = _close_factory_owner(provider_inventory) or failed
+        if failed:
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
+    except BaseException:
+        _close_factory_owner(transaction_inventory)
+        if transaction_inventory is None:
+            _close_factory_owner(provider_inventory)
+        raise
+
+
 __all__ = [
     "HeldRuntimeTransactionCommandResult",
     "HeldRuntimeTransactionInventory",
@@ -926,5 +1034,6 @@ __all__ = [
     "RuntimeTransactionInventoryErrorCode",
     "RuntimeTransactionInventoryEvidence",
     "RuntimeTransactionLockEvidence",
+    "capture_locked_runtime_transaction_inventory",
     "capture_runtime_transaction_inventory",
 ]

@@ -45,12 +45,14 @@ from towerscout_launcher.runtime_provider_inventory import (  # noqa: E402
     HeldProviderChildInventory,
     ProviderChildInventoryError,
     ProviderChildInventoryErrorCode,
+    capture_provider_child_inventory,
 )
 from towerscout_launcher.runtime_transaction_inventory import (  # noqa: E402
     HeldRuntimeTransactionInventory,
     RuntimeTransactionInventoryError,
     RuntimeTransactionInventoryErrorCode,
     RuntimeTransactionLockEvidence,
+    capture_locked_runtime_transaction_inventory,
     capture_runtime_transaction_inventory,
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
@@ -761,6 +763,186 @@ def _held_inventory_owner(
         endpoint_artifacts=(identity_key,),
     )
     return owner, backend, identity_key_api, identity_key
+
+
+def test_provider_child_capture_factory_builds_exact_held_owner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _podman_target()
+    plan = RuntimeExecutionBinding(target).compose_command(ComposeReadOperation.CONFIG)
+    provider_base, provider_base_api = _held_file(_BASE_PYTHON, 9)
+    provider_dll, provider_dll_api = _held_file(_PROVIDER_DLL, 2)
+    child_executable, child_api = _held_file(_PODMAN, 3)
+    child_dll, child_dll_api = _held_file(_PODMAN_DLL, 10)
+    provider_runtime = _provider_runtime_inventory(provider_base, provider_dll)
+    child_runtime = object.__new__(RuntimeLoadPrerequisites)
+    child_runtime._evidence = SimpleNamespace(  # noqa: SLF001
+        product_id=RuntimeProductId.PODMAN_CLI
+    )
+    provider_files = tuple(
+        _held_file(identity.final_path, marker)
+        for identity, marker in zip(
+            target.compose_provider.artifacts,
+            (1, 8),
+            strict=True,
+        )
+    )
+    endpoint_files = (
+        _held_file(target.endpoint.identity_key.final_path, 4),  # type: ignore[union-attr]
+    )
+    pending_files = iter((*provider_files, *endpoint_files))
+    opened: list[tuple[str, FileCapturePolicy, object]] = []
+    file_api = object()
+    path_api = object()
+    runtime_inventory_api = object()
+    authenticode_backend = object()
+    clock = object()
+
+    def capture_file(path, *, api=None, policy=None):  # noqa: ANN001, ANN202
+        assert type(policy) is FileCapturePolicy
+        opened.append((str(path), policy, api))
+        return next(pending_files)[0]
+
+    def capture_provider(executable, **kwargs):  # noqa: ANN001, ANN202
+        assert executable is provider_base
+        assert kwargs == {
+            "path_api": path_api,
+            "file_api": file_api,
+            "authenticode_backend": authenticode_backend,
+            "clock": clock,
+        }
+        return provider_runtime
+
+    def capture_child(product_id, executable, **kwargs):  # noqa: ANN001, ANN202
+        assert product_id is RuntimeProductId.PODMAN_CLI
+        assert executable is child_executable
+        assert kwargs["path_api"] is path_api
+        assert kwargs["inventory_api"] is runtime_inventory_api
+        assert kwargs["file_api"] is file_api
+        assert kwargs["authenticate"] is None
+        return child_runtime
+
+    def run_child(_self, operation):  # noqa: ANN001, ANN202
+        return child_executable.run_while_held(
+            lambda: child_dll.run_while_held(operation)
+        )
+
+    def child_policy(_self, role):  # noqa: ANN001, ANN202
+        return ProcessImagePolicy(
+            role,
+            (
+                ProcessImageBinding.from_snapshot(
+                    child_executable.snapshot, entrypoint=True
+                ),
+                ProcessImageBinding.from_snapshot(child_dll.snapshot, entrypoint=False),
+            ),
+            ("kernel32.dll", "ntdll.dll"),
+        )
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_provider_inventory.capture_handle_bound_file",
+        capture_file,
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_provider_inventory.capture_package_bound_cpython_dependency_inventory",
+        capture_provider,
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_provider_inventory.capture_runtime_load_prerequisites",
+        capture_child,
+    )
+    monkeypatch.setattr(RuntimeLoadPrerequisites, "run_while_held", run_child)
+    monkeypatch.setattr(
+        RuntimeLoadPrerequisites, "active_process_image_policy", child_policy
+    )
+    monkeypatch.setattr(
+        RuntimeLoadPrerequisites, "close", lambda _self: child_dll.close()
+    )
+
+    owner = capture_provider_child_inventory(
+        plan,
+        provider_base,
+        child_executable,
+        path_api=path_api,  # type: ignore[arg-type]
+        file_api=file_api,  # type: ignore[arg-type]
+        runtime_inventory_api=runtime_inventory_api,  # type: ignore[arg-type]
+        authenticode_backend=authenticode_backend,  # type: ignore[arg-type]
+        clock=clock,  # type: ignore[arg-type]
+    )
+
+    assert type(owner) is HeldProviderChildInventory
+    assert owner.target_token == plan.target_token
+    assert tuple(item[0] for item in opened) == tuple(
+        str(identity.final_path)
+        for identity in (
+            *target.compose_provider.artifacts,
+            target.endpoint.identity_key,
+        )
+    )
+    assert all(item[1].require_single_link for item in opened)
+    assert all(item[1].allow_hydrated_cloud_placeholder for item in opened)
+    assert tuple(item[1].max_bytes for item in opened) == tuple(
+        identity.size_bytes
+        for identity in (
+            *target.compose_provider.artifacts,
+            target.endpoint.identity_key,
+        )
+    )
+    assert all(item[2] is file_api for item in opened)
+    owner.assert_unchanged()
+
+    owner.close()
+
+    assert provider_base_api.closed
+    assert provider_dll_api.closed
+    assert child_api.closed
+    assert child_dll_api.closed
+    assert all(api.closed for _held, api in (*provider_files, *endpoint_files))
+
+
+def test_provider_child_capture_failure_closes_partial_files_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _podman_target()
+    plan = RuntimeExecutionBinding(target).compose_command(ComposeReadOperation.CONFIG)
+    provider_base, provider_base_api = _held_file(_BASE_PYTHON, 9)
+    child_executable, child_api = _held_file(_PODMAN, 3)
+    first_provider, first_provider_api = _held_file(
+        target.compose_provider.artifacts[0].final_path,
+        1,
+    )
+    captures = 0
+
+    def capture_file(path, *, api=None, policy=None):  # noqa: ANN001, ANN202
+        nonlocal captures
+        del path, api, policy
+        captures += 1
+        if captures == 1:
+            return first_provider
+        raise WindowsSecurityError(
+            "file_open_failed",
+            "The Windows file could not be opened safely.",
+        )
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_provider_inventory.capture_handle_bound_file",
+        capture_file,
+    )
+
+    with pytest.raises(ProviderChildInventoryError) as failure:
+        capture_provider_child_inventory(
+            plan,
+            provider_base,
+            child_executable,
+        )
+
+    assert failure.value.code is ProviderChildInventoryErrorCode.INVENTORY_MISMATCH
+    assert captures == 2
+    assert first_provider_api.closed
+    assert not provider_base_api.closed
+    assert not child_api.closed
+    provider_base.close()
+    child_executable.close()
 
 
 def test_held_provider_child_inventory_binds_endpoint_and_both_image_roles(
@@ -1532,6 +1714,212 @@ class _FakeTransactionLocks:
 
     def close(self) -> None:
         self.closed = True
+
+
+def test_locked_transaction_capture_composes_provider_outer_inventory_and_locks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    provider_base = provider._provider_base_executable  # noqa: SLF001
+    child_executable = provider._child_executable  # noqa: SLF001
+    path_api = object()
+    file_api = object()
+    runtime_inventory_api = object()
+    loadable_authenticate = object()
+    authenticode_backend = object()
+    clock = object()
+    mutex_api = object()
+    fake_locks = _FakeTransactionLocks(environment_abandoned=True)
+
+    def capture_provider(
+        plan_arg, base_arg, child_arg, **kwargs
+    ):  # noqa: ANN001, ANN202
+        assert plan_arg is plan
+        assert base_arg is provider_base
+        assert child_arg is child_executable
+        assert kwargs == {
+            "path_api": path_api,
+            "file_api": file_api,
+            "runtime_inventory_api": runtime_inventory_api,
+            "loadable_authenticate": loadable_authenticate,
+            "authenticode_backend": authenticode_backend,
+            "clock": clock,
+        }
+        return provider
+
+    def capture_outer(plan_arg, provider_arg, **kwargs):  # noqa: ANN001, ANN202
+        assert plan_arg is plan
+        assert provider_arg is provider
+        assert kwargs == {"path_api": path_api, "file_api": file_api}
+        return owner
+
+    def acquire(binding, revalidate, *, api=None, timeout_ms=0):  # noqa: ANN001, ANN202
+        assert binding.target_token_sha256 == plan.target.target_token.digest_sha256
+        assert revalidate() == binding
+        assert api is mutex_api
+        assert timeout_ms == 3100
+        return fake_locks
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_provider_child_inventory",
+        capture_provider,
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_runtime_transaction_inventory",
+        capture_outer,
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        acquire,
+    )
+
+    result = capture_locked_runtime_transaction_inventory(
+        plan,
+        provider_base,
+        child_executable,
+        path_api=path_api,  # type: ignore[arg-type]
+        file_api=file_api,  # type: ignore[arg-type]
+        runtime_inventory_api=runtime_inventory_api,  # type: ignore[arg-type]
+        loadable_authenticate=loadable_authenticate,  # type: ignore[arg-type]
+        authenticode_backend=authenticode_backend,  # type: ignore[arg-type]
+        clock=clock,  # type: ignore[arg-type]
+        mutex_api=mutex_api,  # type: ignore[arg-type]
+        lock_timeout_ms=3100,
+    )
+
+    assert result is owner
+    assert result.locks_acquired
+    assert type(result.lock_evidence) is RuntimeTransactionLockEvidence
+    assert result.lock_evidence.environment_abandoned is True
+    assert result.lock_evidence.target_abandoned is False
+
+    result.close()
+
+    assert result.closed
+    assert result.lock_evidence is None
+    assert fake_locks.closed
+
+
+def test_locked_transaction_capture_leaves_resolver_handles_on_provider_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _podman_target()
+    plan = RuntimeExecutionBinding(target).compose_command(ComposeReadOperation.CONFIG)
+    provider_base, provider_base_api = _held_file(_BASE_PYTHON, 9)
+    child_executable, child_api = _held_file(_PODMAN, 3)
+
+    def reject_provider(*_args, **_kwargs):  # noqa: ANN002, ANN003, ANN202
+        raise ProviderChildInventoryError(
+            ProviderChildInventoryErrorCode.INVENTORY_MISMATCH
+        )
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_provider_child_inventory",
+        reject_provider,
+    )
+
+    with pytest.raises(ProviderChildInventoryError):
+        capture_locked_runtime_transaction_inventory(
+            plan,
+            provider_base,
+            child_executable,
+        )
+
+    assert not provider_base_api.closed
+    assert not child_api.closed
+    provider_base.close()
+    child_executable.close()
+
+
+def test_locked_transaction_capture_closes_provider_when_outer_capture_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, _files, _apis, _paths, _path_apis = (
+        _transaction_components(monkeypatch)
+    )
+    provider_base = provider._provider_base_executable  # noqa: SLF001
+    child_executable = provider._child_executable  # noqa: SLF001
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_provider_child_inventory",
+        lambda *_args, **_kwargs: provider,
+    )
+
+    def reject_outer(*_args, **_kwargs):  # noqa: ANN002, ANN003, ANN202
+        raise RuntimeTransactionInventoryError(
+            RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+        )
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_runtime_transaction_inventory",
+        reject_outer,
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError):
+        capture_locked_runtime_transaction_inventory(
+            plan,
+            provider_base,
+            child_executable,
+        )
+
+    assert provider.closed
+    assert provider_base.closed
+    assert child_executable.closed
+
+
+def test_locked_transaction_capture_closes_outer_owner_when_locking_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    provider_base = provider._provider_base_executable  # noqa: SLF001
+    child_executable = provider._child_executable  # noqa: SLF001
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_provider_child_inventory",
+        lambda *_args, **_kwargs: provider,
+    )
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.capture_runtime_transaction_inventory",
+        lambda *_args, **_kwargs: owner,
+    )
+
+    def reject_lock(*_args, **_kwargs):  # noqa: ANN002, ANN003, ANN202
+        raise RuntimeTransactionLockError(
+            RuntimeTransactionLockErrorCode.LOCK_UNAVAILABLE
+        )
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        reject_lock,
+    )
+
+    with pytest.raises(RuntimeTransactionLockError):
+        capture_locked_runtime_transaction_inventory(
+            plan,
+            provider_base,
+            child_executable,
+        )
+
+    assert owner.closed
+    assert provider.closed
+    assert all(item.closed for item in files)
+    assert all(item.closed for item in paths)
 
 
 def test_runtime_transaction_owner_acquires_and_retains_ordered_locks(

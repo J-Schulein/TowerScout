@@ -16,12 +16,14 @@ import struct
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import PureWindowsPath
+from pathlib import Path, PureWindowsPath
 from typing import Any, Callable, NoReturn, TypeVar
 
+from .authenticode import AuthenticodeBackend, VerificationClock
 from .runtime_dependency_capture import (
     CpythonDependencyCaptureError,
     HeldCpythonDependencyInventory,
+    capture_package_bound_cpython_dependency_inventory,
 )
 from .runtime_dynamic_load import (
     DynamicLoadEnforcementError,
@@ -29,7 +31,13 @@ from .runtime_dynamic_load import (
     ProviderChildCommandResult,
 )
 from .runtime_execution import CommandKind, ProcessCommandPlan
-from .runtime_load_trust import RuntimeLoadPrerequisites, RuntimeLoadTrustError
+from .runtime_load_trust import (
+    LoadableAuthenticator,
+    RuntimeLoadInventoryApi,
+    RuntimeLoadPrerequisites,
+    RuntimeLoadTrustError,
+    capture_runtime_load_prerequisites,
+)
 from .runtime_policy import RuntimeProductId, load_package_bound_runtime_policy
 from .runtime_provider_child import (
     ProcessImageBinding,
@@ -38,10 +46,18 @@ from .runtime_provider_child import (
     ProviderChildProcessRequest,
 )
 from .target_contracts import FileIdentity, RuntimeProduct
-from .windows_security import HandleBoundFile, WindowsSecurityError
+from .windows_path_trust import WindowsPathTrustApi
+from .windows_security import (
+    FileCapturePolicy,
+    HandleBoundFile,
+    WindowsFileApi,
+    WindowsSecurityError,
+    capture_handle_bound_file,
+)
 
 _BINDING_DOMAIN = b"TowerScout.HeldProviderChildInventory.v1"
 _EVIDENCE_DOMAIN = b"TowerScout.ProviderChildInventoryEvidence.v1"
+_MAX_PROVIDER_ARTIFACT_BYTES = 16 * 1024 * 1024
 _Result = TypeVar("_Result")
 
 
@@ -134,6 +150,181 @@ def _files_match(
         _snapshot_matches_identity(bound_file, identity)
         for bound_file, identity in zip(held, expected, strict=True)
     )
+
+
+def _capture_exact_files(
+    identities: tuple[FileIdentity, ...],
+    *,
+    file_api: WindowsFileApi | None,
+) -> list[HandleBoundFile]:
+    captured: list[HandleBoundFile] = []
+    try:
+        for identity in identities:
+            if not 1 <= identity.size_bytes <= _MAX_PROVIDER_ARTIFACT_BYTES:
+                _fail(ProviderChildInventoryErrorCode.INVENTORY_MISMATCH)
+            bound_file = capture_handle_bound_file(
+                Path(str(identity.final_path)),
+                api=file_api,
+                policy=FileCapturePolicy(
+                    max_bytes=identity.size_bytes,
+                    require_single_link=True,
+                    allow_hydrated_cloud_placeholder=True,
+                ),
+            )
+            captured.append(bound_file)
+            if not _snapshot_matches_identity(bound_file, identity):
+                _fail(ProviderChildInventoryErrorCode.INVENTORY_MISMATCH)
+        return captured
+    except BaseException as error:
+        failed = False
+        for bound_file in reversed(captured):
+            try:
+                bound_file.close()
+            except BaseException:
+                failed = True
+        if failed and isinstance(error, Exception):
+            _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
+        raise
+
+
+def _close_partial_provider_capture(
+    provider_runtime_inventory: HeldCpythonDependencyInventory | None,
+    child_runtime_inventory: RuntimeLoadPrerequisites | None,
+    provider_artifacts: list[HandleBoundFile],
+    endpoint_artifacts: list[HandleBoundFile],
+) -> bool:
+    failed = False
+    closeables: tuple[Any, ...] = (
+        *((child_runtime_inventory,) if child_runtime_inventory is not None else ()),
+        *(
+            (provider_runtime_inventory,)
+            if provider_runtime_inventory is not None
+            else ()
+        ),
+        *reversed(endpoint_artifacts),
+        *reversed(provider_artifacts),
+    )
+    for closeable in closeables:
+        try:
+            closeable.close()
+        except BaseException:
+            failed = True
+    return failed
+
+
+def capture_provider_child_inventory(
+    plan: ProcessCommandPlan,
+    provider_base_executable: HandleBoundFile,
+    child_executable: HandleBoundFile,
+    *,
+    path_api: WindowsPathTrustApi | None = None,
+    file_api: WindowsFileApi | None = None,
+    runtime_inventory_api: RuntimeLoadInventoryApi | None = None,
+    loadable_authenticate: LoadableAuthenticator | None = None,
+    authenticode_backend: AuthenticodeBackend | None = None,
+    clock: VerificationClock | None = None,
+) -> "HeldProviderChildInventory":
+    """Capture one provider/runtime/endpoint owner from resolver-held inputs.
+
+    The two executable handles remain caller-owned on failure. Successful
+    construction transfers both handles and every newly captured prerequisite
+    to the returned owner.
+    """
+
+    if (
+        type(plan) is not ProcessCommandPlan
+        or plan.kind is not CommandKind.PODMAN_COMPOSE
+        or plan.target.runtime.product is not RuntimeProduct.PODMAN
+        or type(provider_base_executable) is not HandleBoundFile
+        or provider_base_executable.closed
+        or type(child_executable) is not HandleBoundFile
+        or child_executable.closed
+        or provider_base_executable is child_executable
+        or not _snapshot_matches_identity(
+            child_executable, plan.target.runtime.executable
+        )
+        or plan.target.endpoint.identity_key is None
+    ):
+        _fail(ProviderChildInventoryErrorCode.INVENTORY_MISMATCH)
+    try:
+        ProviderChildProcessRequest.from_plan(plan)
+    except (TypeError, ValueError):
+        _fail(ProviderChildInventoryErrorCode.INVALID_BINDING)
+
+    provider_runtime_inventory: HeldCpythonDependencyInventory | None = None
+    child_runtime_inventory: RuntimeLoadPrerequisites | None = None
+    provider_artifacts: list[HandleBoundFile] = []
+    endpoint_artifacts: list[HandleBoundFile] = []
+    try:
+        provider_artifacts = _capture_exact_files(
+            plan.target.compose_provider.artifacts,
+            file_api=file_api,
+        )
+        endpoint_artifacts = _capture_exact_files(
+            (
+                plan.target.endpoint.identity_key,
+                *plan.target.endpoint.discovery_artifacts,
+            ),
+            file_api=file_api,
+        )
+        provider_runtime_inventory = capture_package_bound_cpython_dependency_inventory(
+            provider_base_executable,
+            path_api=path_api,
+            file_api=file_api,
+            authenticode_backend=authenticode_backend,
+            clock=clock,
+        )
+        child_runtime_inventory = capture_runtime_load_prerequisites(
+            RuntimeProductId.PODMAN_CLI,
+            child_executable,
+            path_api=path_api,
+            inventory_api=runtime_inventory_api,
+            file_api=file_api,
+            authenticate=loadable_authenticate,
+        )
+        return HeldProviderChildInventory(
+            plan=plan,
+            provider_runtime_inventory=provider_runtime_inventory,
+            child_runtime_inventory=child_runtime_inventory,
+            provider_base_executable=provider_base_executable,
+            child_executable=child_executable,
+            provider_artifacts=tuple(provider_artifacts),
+            endpoint_artifacts=tuple(endpoint_artifacts),
+        )
+    except ProviderChildInventoryError:
+        if _close_partial_provider_capture(
+            provider_runtime_inventory,
+            child_runtime_inventory,
+            provider_artifacts,
+            endpoint_artifacts,
+        ):
+            _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
+        raise
+    except (
+        CpythonDependencyCaptureError,
+        RuntimeLoadTrustError,
+        WindowsSecurityError,
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ):
+        if _close_partial_provider_capture(
+            provider_runtime_inventory,
+            child_runtime_inventory,
+            provider_artifacts,
+            endpoint_artifacts,
+        ):
+            _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
+        _fail(ProviderChildInventoryErrorCode.INVENTORY_MISMATCH)
+    except BaseException:
+        _close_partial_provider_capture(
+            provider_runtime_inventory,
+            child_runtime_inventory,
+            provider_artifacts,
+            endpoint_artifacts,
+        )
+        raise
 
 
 def _binding_digest(
@@ -646,4 +837,5 @@ __all__ = [
     "ProviderChildInventoryError",
     "ProviderChildInventoryErrorCode",
     "ProviderChildInventoryEvidence",
+    "capture_provider_child_inventory",
 ]

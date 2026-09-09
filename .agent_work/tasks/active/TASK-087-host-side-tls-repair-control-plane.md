@@ -37,9 +37,13 @@ secured Windows global-mutex primitive were independently reviewed and
 checkpointed together as `f7d21a9`; portability correction `90cdfb8` then
 passed exact-head CI/CD run `34381047736`, Task-087 run `34381047707`, and
 external Trivy, with all nine applicable pull-request checks successful. Both
-remain unwired. The current local source-only follow-up adds the ordered
-environment/target lock owner and lets the held transaction inventory acquire,
-revalidate, retain, and release that pair without enabling repair execution or
+remain unwired. Ordered-lock checkpoint `16604c8` passed exact-head CI/CD run
+`34386914693`, Task-087 run `34386914725`, and external Trivy, with all nine
+applicable pull-request checks successful after independent CLEAN/PASS review.
+The current local source-only follow-up captures the provider/runtime/endpoint
+owner from resolver-supplied held executables and composes the complete outer
+inventory plus ordered lock acquisition through one production factory. It
+does not implement the secure resolver, live daemon discovery, execution, or
 mutation. Independent inspect-only review returned CLEAN/PASS with no findings.
 Merge/publication retain their separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
@@ -1388,6 +1392,65 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-09 - Production Provider And Locked-Transaction Composition Added Locally
+
+**Objective**: Replace the remaining test-only provider-owner assembly with a
+production capture boundary, then compose that owner with the reviewed outer-
+input capture and ordered locks without enabling execution or mutation.
+
+**Checkpoint Context**: Ordered-lock checkpoint `16604c8` is the exact remote
+head. It passed CI/CD run `34386914693`, Task-087 run `34386914725`, and
+external Trivy with all nine applicable pull-request checks successful after
+independent CLEAN/PASS review.
+
+**Decision**: Treat the already-held base-Python and Podman executable handles
+as secure-resolver inputs. Provider-stage failure leaves those two handles with
+the resolver; successful provider construction transfers them to the composite
+owner. Once transferred, any later outer-capture or lock failure closes the
+current owner and all nested resources. This slice does not infer paths from
+ambient environment state or claim that secure target resolution is complete.
+
+**Execution**: Added `capture_provider_child_inventory` to capture exact
+Compose-provider and endpoint key/discovery artifacts with single-link,
+hydrated-cloud, bounded-size, hash, path, and stable-identity checks. It builds
+the existing package-bound CPython dependency owner and Podman runtime-load
+owner around the resolver-held executables. Added
+`capture_locked_runtime_transaction_inventory` to construct that provider
+owner, capture every outer plan input, acquire the ordered environment/target
+locks, and return one held-and-locked lifetime owner. Lock evidence remains
+available only while the locks are actively retained.
+
+**Adversarial Coverage**: Tests cover exact provider/endpoint capture order and
+policy propagation, successful nested revalidation and cleanup, partial-file
+capture failure without resolver-handle loss, end-to-end dependency/API
+propagation, and cleanup after provider, outer-inventory, or lock-stage failure.
+
+**Validation**: The focused provider/transaction file passes `46/46`. The
+source-only launcher selection passes `959/959`, with the one documented
+restricted-host native hardlink case deselected. Black, strict mypy, blocking
+single-job Flake8, medium/high Bandit, compilation, both task-hygiene
+validators, and `git diff --check` pass.
+
+**Independent Review**: CLEAN/PASS with no Critical, High, Medium, Low,
+correctness, or documentation findings. The reviewer independently reproduced
+all `46` focused tests, the `959`-test launcher selection with the documented
+native hardlink case deselected, Black, strict mypy, blocking Flake8,
+medium/high Bandit, compilation, both task validators, and the exact diff
+check. The reviewed diff hash was unchanged before and after inspection, and
+the reviewer made no repository edits or runtime mutations.
+
+**Boundary**: The new factories are not wired into application, discovery,
+repair, or mutation paths. They consume an already-resolved immutable Podman
+plan and already-held executable identities; they do not discover a runtime,
+query a live daemon, execute a child, alter trust, change `.env`, or mutate a
+container or volume. Absent-`.env` locking remains fail-closed pending secure
+absence proof and ACL-preserving atomic replacement.
+
+**Next**: Checkpoint and push the reviewed slice, require its exact-head checks,
+then continue Gate A with the fixed secure resolver and live endpoint/target
+revalidation. The Windows-store CA, atomic `.env`, durable recovery,
+transaction-refactor, and provider-installer hardening slices remain after it.
 
 ### 2026-09-09 - Ordered Transaction Lock Owner Integrated Locally
 
