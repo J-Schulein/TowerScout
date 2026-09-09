@@ -28,6 +28,7 @@ from .authenticode import (
     verify_package_bound_authenticode_signer,
 )
 from .runtime_identity import (
+    _BoundFileTransferSlot,
     BoundInstallationCandidate,
     InstallationCandidateEvidence,
     InstallationRecordBackend,
@@ -43,7 +44,11 @@ from .runtime_policy import (
     VersionEvidenceKind,
     load_package_bound_runtime_policy,
 )
-from .windows_security import FileSnapshot, StableFileIdentity, WindowsFileApi
+from .windows_security import (
+    FileSnapshot,
+    StableFileIdentity,
+    WindowsFileApi,
+)
 
 COMMAND_TIMEOUT_MS = 15_000
 COMMAND_STDOUT_LIMIT_BYTES = 64 * 1024
@@ -799,6 +804,38 @@ class BoundCommandRuntimeEvidence:
             if not _snapshot_matches(snapshot, self._evidence):
                 _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
             return self._evidence
+        finally:
+            self._active_owner = None
+            self._lifetime_lock.release()
+
+    def _transfer_bound_file(self, slot: _BoundFileTransferSlot) -> None:
+        """Transfer into an armed internal slot after final revalidation."""
+
+        if type(slot) is not _BoundFileTransferSlot:
+            _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+        self._lifetime_lock.acquire()
+        if self._active_owner is not None or self._candidate.closed:
+            self._lifetime_lock.release()
+            _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+        self._active_owner = threading.get_ident()
+        try:
+            try:
+                snapshot = self._candidate.assert_unchanged()
+            except RuntimeIdentityVerificationError as error:
+                _map_identity_error(error)
+            except Exception:
+                _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+            if not _snapshot_matches(snapshot, self._evidence):
+                _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+            try:
+                self._candidate._release_bound_file(slot)  # noqa: SLF001
+                slot.bound_file
+            except RuntimeIdentityVerificationError as error:
+                _map_identity_error(error)
+            except BaseException as error:
+                if isinstance(error, Exception):
+                    _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+                raise
         finally:
             self._active_owner = None
             self._lifetime_lock.release()

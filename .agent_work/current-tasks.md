@@ -2,23 +2,22 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 9, 2026
-**Focus**: Task-101 is complete. Task-087 ordered-lock checkpoint `16604c8`
-passed exact-head CI/CD run `34386914693`, Task-087 run `34386914725`, and
-external Trivy; all nine applicable pull-request checks succeeded after
-independent CLEAN/PASS review. The current local source-only follow-up adds the
-production provider/runtime/endpoint capture boundary and composes it with the
-reviewed outer-input capture and ordered environment-then-target lock owner.
-Successful construction transfers every captured handle to one lifetime owner;
-all intermediate failure paths close only resources already transferred at
-that boundary. Existing `.env` state is supported; absent-`.env` acquisition
-still fails closed until the atomic replacement slice supplies a secure absence
-proof. Secure target resolution, live target revalidation, durable recovery,
-Windows-store CA selection, and ACL-preserving `.env` replacement remain later
-Gate A work. The new factory remains unwired and enables no execution or
-mutation. Independent inspect-only review returned CLEAN/PASS with no findings
-after reproducing the focused, launcher, static, security, and task-hygiene
-checks. Unsigned preview integration remains later under ADR-019. Production
-signing remains Task-100 work in October after the package is satisfactory.
+**Focus**: Task-101 is complete. Task-087 provider-composition checkpoint
+`5950188` passed exact-head CI/CD run `34392071456`, Task-087 run `34392071573`,
+and external Trivy; all nine applicable pull-request checks succeeded after
+independent CLEAN/PASS review. The current local source-only follow-up replaces
+caller-supplied runtime handles with package-policy-fixed CPython and Podman
+installation resolution through the reviewed Windows installation,
+Authenticode, PE/version, and command-version evidence owners. It performs a
+final same-handle revalidation and transfers each executable exactly once into
+the complete held-and-locked transaction owner. Existing `.env` state is
+supported; absent-`.env` acquisition still fails closed until the atomic
+replacement slice supplies a secure absence proof. Live Podman machine/daemon/
+endpoint resolution and revalidation, durable recovery, Windows-store CA
+selection, and ACL-preserving `.env` replacement remain later Gate A work. The
+new factory remains unwired and enables no execution or mutation. Unsigned
+preview integration remains later under ADR-019. Production signing remains
+Task-100 work in October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -464,19 +463,36 @@ timing; preview integration remains a later gate
   after reproducing all 114 focused tests and the applicable quality gates.
   Exact-head CI/CD run `34386914693`, Task-087 run `34386914725`, and external
   Trivy passed with all nine applicable pull-request checks successful.
-- The current local source-only increment adds the remaining production
-  provider/runtime/endpoint capture boundary and an end-to-end factory that
-  constructs the provider owner, captures the outer plan inputs, and acquires
-  the ordered locks from resolver-supplied held base-Python and Podman
-  executables. It enforces exact, single-link, bounded provider and endpoint
-  artifact capture, preserves resolver ownership when provider construction
-  fails, and closes every transferred owner on later capture or lock failure.
-  It remains unwired and performs no runtime discovery, child execution,
-  repair, or mutation. Secure resolution and live daemon/target revalidation
-  remain separate Gate A work. Independent inspect-only review returned
-  CLEAN/PASS with no findings after independently reproducing `46/46` focused
-  tests, `959/959` launcher tests with the documented native hardlink case
-  deselected, and all applicable static/security/task-hygiene checks.
+- Checkpoint `5950188` adds the remaining production provider/runtime/endpoint
+  capture boundary and an end-to-end factory that constructs the provider
+  owner, captures the outer plan inputs, and acquires the ordered locks from
+  resolver-supplied held base-Python and Podman executables. It enforces exact,
+  single-link, bounded provider and endpoint artifact capture, preserves
+  resolver ownership when provider construction fails, and closes every
+  transferred owner on later capture or lock failure. It remains unwired and
+  performs no runtime discovery, child execution, repair, or mutation.
+  Independent inspect-only review returned CLEAN/PASS with no findings after
+  independently reproducing `46/46` focused tests, `959/959` launcher tests
+  with the documented native hardlink case deselected, and all applicable
+  static/security/task-hygiene checks. Exact-head CI/CD run `34392071456`,
+  Task-087 run `34392071573`, and external Trivy passed with all nine applicable
+  pull-request checks successful.
+- The current local source-only increment opens package-policy-fixed CPython
+  and Podman candidates through the reviewed installation, signer, PE/version,
+  and command-version evidence owners. It verifies the immutable Podman plan
+  against the package policy and resolved version/file evidence, performs a
+  final same-handle revalidation, and transfers both executable handles exactly
+  once into the complete held-and-locked transaction owner. Repeated transfer,
+  mismatch, partial transfer, downstream failure, and asynchronous interruption
+  all fail closed without leaking ownership. It remains unwired and performs no
+  live machine/daemon/endpoint discovery, execution, repair, or mutation. The
+  four focused files pass `237/237`; the launcher selection passes `971/971`
+  with the documented native hardlink case deselected. The first independent
+  review found one Medium asynchronous-interruption ownership gap; an armed
+  transfer ledger and targeted regressions now correct it. Corrected-diff
+  re-review returned CLEAN/PASS with no open findings after independently
+  reproducing all `237` focused tests. Exact-head checks remain required before
+  this slice is accepted.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

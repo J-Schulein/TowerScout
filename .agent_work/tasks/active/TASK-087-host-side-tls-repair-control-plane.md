@@ -40,12 +40,16 @@ external Trivy, with all nine applicable pull-request checks successful. Both
 remain unwired. Ordered-lock checkpoint `16604c8` passed exact-head CI/CD run
 `34386914693`, Task-087 run `34386914725`, and external Trivy, with all nine
 applicable pull-request checks successful after independent CLEAN/PASS review.
-The current local source-only follow-up captures the provider/runtime/endpoint
-owner from resolver-supplied held executables and composes the complete outer
-inventory plus ordered lock acquisition through one production factory. It
-does not implement the secure resolver, live daemon discovery, execution, or
-mutation. Independent inspect-only review returned CLEAN/PASS with no findings.
-Merge/publication retain their separate applicable gates.
+Provider-composition checkpoint `5950188` passed exact-head CI/CD run
+`34392071456`, Task-087 run `34392071573`, and external Trivy, with all nine
+applicable pull-request checks successful after independent CLEAN/PASS review.
+The current local source-only follow-up now opens package-policy-fixed CPython
+and Podman installations through the reviewed Windows installation,
+Authenticode, PE/version, and command-version evidence owners. After a final
+same-handle revalidation, it transfers each executable exactly once into the
+complete held-and-locked transaction owner. It does not discover a live daemon
+or endpoint, execute a repair, or mutate host/container state, and it remains
+unwired. Merge/publication retain their separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -1392,6 +1396,77 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-09 - Fixed Runtime Resolver Ownership Bridge Added Locally
+
+**Objective**: Remove the remaining caller-supplied executable-handle boundary
+by resolving package-policy-fixed CPython and Podman installations into the
+reviewed held-and-locked transaction owner, without enabling discovery,
+execution, repair, or mutation.
+
+**Checkpoint Context**: Provider-composition checkpoint `5950188` is the exact
+remote head. It passed CI/CD run `34392071456`, Task-087 run `34392071573`, and
+external Trivy with all nine applicable pull-request checks successful after
+independent CLEAN/PASS review; the pull-request-only build skipped as designed.
+
+**Decision**: Reuse the reviewed package-bound installation, Authenticode,
+same-handle PE/version, and fixed command-version evidence owners. Permit only
+an internal, one-time ownership transfer after a final installation-record and
+same-handle revalidation. The immutable Podman plan must match the package
+runtime policy plus the resolved Podman version, file identity, and content
+hash before either handle enters the transaction factory.
+
+**Execution**: Added private transfer boundaries to the installation,
+PE/version, and command-version owners. A caller-created slot arms ownership
+before the donor clears its reference, and a higher-level ledger remains armed
+through both executable transfers and transaction-lock acceptance. The ledger
+disarms only after the complete transaction owner is stored and verified. A
+consumed evidence owner becomes closed while its exact still-open handle moves
+to the composite owner; repeated transfer fails closed. Added
+`capture_verified_locked_podman_transaction_inventory`, which opens fixed
+CPython and Podman candidates, validates their evidence against the exact plan,
+transfers both handles, and calls the reviewed provider/outer-input/ordered-lock
+factory. Ordinary failure and asynchronous interruption paths close every
+resource whose ownership has already moved.
+
+**Adversarial Coverage**: Tests cover final transfer revalidation, exact
+single-owner movement, repeated-transfer rejection, interruption immediately
+after detachment, interruption while the wrapper lock finalizes, interruption
+during the second transfer, transaction acceptance before caller assignment,
+exact-once native close, plan/package-policy rejection before runtime opening,
+resolved-evidence mismatch before transfer, and downstream transaction failure
+after both handles move.
+
+**Validation**: The four focused identity/version/provider files pass
+`237/237` after correction. The canonical launcher selection passes `971/971`,
+with the one documented restricted-host native hardlink case deselected.
+Black, strict mypy, blocking single-job Flake8, medium/high Bandit, compilation,
+both task-hygiene validators, and `git diff --check` pass.
+
+**Independent Review**: The initial inspect-only review found one Medium
+blocking lifetime gap: asynchronous interruption could occur after donor
+detachment but before the caller stored the naked returned handle. The
+correction replaces naked return-value transfer with armed caller-owned slots
+and a transaction ledger, and adds the missing interruption regressions. The
+corrected frozen diff then returned CLEAN/PASS with no open Critical, High,
+Medium, or Low findings. The reviewer independently reproduced all `237`
+focused tests, both task validators, and `git diff --check`; confirmed that
+handle and lock ownership remains recoverable across partial transfer,
+transaction acceptance, partial disarm, and asynchronous interruption; and
+made no repository edit or Docker/Podman invocation.
+
+**Boundary**: The new factory is unwired. It resolves only fixed local
+executable installations and produces a held-and-locked in-memory owner. It
+does not discover or authorize a live Podman machine, daemon, endpoint, or
+network peer; execute a child or repair; alter trust; replace `.env`; or mutate
+a container, volume, or host runtime.
+
+**Next**: Checkpoint/push the independently reviewed slice. After exact-head
+checks, continue with live
+Podman machine/daemon/endpoint identity capture and revalidation as a separate
+source-only slice. Windows-store CA selection, secure absent-`.env` proof plus
+ACL-preserving replacement, durable recovery, transaction refactoring, and
+provider-installer hardening remain later Gate A work.
 
 ### 2026-09-09 - Production Provider And Locked-Transaction Composition Added Locally
 

@@ -363,6 +363,88 @@ def test_combines_install_pe_and_authenticode_over_one_retained_handle() -> None
     assert api.close_count == 1
 
 
+def test_internal_transfer_revalidates_and_moves_single_handle_ownership() -> None:
+    result, installation, api, _pe, _authenticode = _open_docker()
+    slot = identity_module._BoundFileTransferSlot()  # noqa: SLF001
+
+    assert result._transfer_bound_file(slot) is None  # noqa: SLF001
+    bound_file = slot.bound_file
+
+    assert result.closed
+    assert not bound_file.closed
+    assert len(installation.calls) == 10
+    assert api.close_count == 0
+    result.close()
+    assert api.close_count == 0
+    with pytest.raises(RuntimeVerificationError) as repeated:
+        result._transfer_bound_file(  # noqa: SLF001
+            identity_module._BoundFileTransferSlot()  # noqa: SLF001
+        )
+    assert repeated.value.code is RuntimeVerificationErrorCode.RUNTIME_REPLACED
+
+    slot.close()
+
+    assert api.close_count == 1
+
+
+def test_internal_transfer_interruption_after_release_keeps_armed_ownership(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result, _installation, api, _pe, _authenticode = _open_docker()
+    release = identity_module.BoundInstallationCandidate._release_bound_file
+    slot = identity_module._BoundFileTransferSlot()  # noqa: SLF001
+
+    def release_then_interrupt(self, receiver):  # noqa: ANN001, ANN202
+        release(self, receiver)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(
+        identity_module.BoundInstallationCandidate,
+        "_release_bound_file",
+        release_then_interrupt,
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        result._transfer_bound_file(slot)  # noqa: SLF001
+
+    assert result.closed
+    assert not slot.bound_file.closed
+    assert api.close_count == 0
+    slot.close()
+    assert api.close_count == 1
+
+
+def test_internal_transfer_interruption_during_finalization_keeps_armed_ownership() -> (
+    None
+):
+    result, _installation, api, _pe, _authenticode = _open_docker()
+    slot = identity_module._BoundFileTransferSlot()  # noqa: SLF001
+
+    class _InterruptAfterReleaseLock:
+        def __init__(self) -> None:
+            self._lock = threading.RLock()
+
+        def acquire(self) -> bool:
+            return self._lock.acquire()
+
+        def release(self) -> None:
+            self._lock.release()
+            raise KeyboardInterrupt
+
+    result._lifetime_lock = _InterruptAfterReleaseLock()  # type: ignore[assignment]  # noqa: SLF001
+
+    with pytest.raises(KeyboardInterrupt):
+        result._transfer_bound_file(slot)  # noqa: SLF001
+
+    result._lifetime_lock = threading.RLock()  # noqa: SLF001
+    assert result.closed
+    assert not slot.bound_file.closed
+    assert api.close_count == 0
+    slot.close()
+    result.close()
+    assert api.close_count == 1
+
+
 def test_combines_cpython_pe_product_with_its_timestamped_signer() -> None:
     installation = _InstallBackend()
     installation.records[_PYTHON_SYSTEM] = _python_record()

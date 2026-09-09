@@ -21,6 +21,7 @@ if str(LAUNCHER_ROOT) not in sys.path:
 
 import towerscout_launcher.runtime_command_version as command_module  # noqa: E402
 import towerscout_launcher.runtime_command_native as native_module  # noqa: E402
+import towerscout_launcher.runtime_identity as identity_module  # noqa: E402
 from towerscout_launcher.authenticode import (  # noqa: E402
     NativeAuthenticodeFacts,
     NativeTrustStatus,
@@ -345,6 +346,98 @@ def test_compose_command_evidence_is_bound_to_one_retained_runtime() -> None:
     owner.close()
     owner.close()
     assert owner.closed
+    assert api.close_count == 1
+
+
+def test_internal_transfer_revalidates_and_moves_single_handle_ownership() -> None:
+    owner, installation, api, _authenticode, _command = _open(
+        RuntimeProductId.PODMAN_CLI,
+        b'{"Client":{"Version":"6.0.2"}}\n',
+    )
+    calls_before_transfer = installation.calls
+    slot = identity_module._BoundFileTransferSlot()  # noqa: SLF001
+
+    assert owner._transfer_bound_file(slot) is None  # noqa: SLF001
+    bound_file = slot.bound_file
+
+    assert owner.closed
+    assert not bound_file.closed
+    assert installation.calls > calls_before_transfer
+    assert api.close_count == 0
+    owner.close()
+    assert api.close_count == 0
+    with pytest.raises(RuntimeCommandVerificationError) as repeated:
+        owner._transfer_bound_file(  # noqa: SLF001
+            identity_module._BoundFileTransferSlot()  # noqa: SLF001
+        )
+    assert repeated.value.code is RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED
+
+    slot.close()
+
+    assert api.close_count == 1
+
+
+def test_internal_transfer_interruption_after_release_keeps_armed_ownership(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner, _installation, api, _authenticode, _command = _open(
+        RuntimeProductId.PODMAN_CLI,
+        b'{"Client":{"Version":"6.0.2"}}\n',
+    )
+    release = identity_module.BoundInstallationCandidate._release_bound_file
+    slot = identity_module._BoundFileTransferSlot()  # noqa: SLF001
+
+    def release_then_interrupt(self, receiver):  # noqa: ANN001, ANN202
+        release(self, receiver)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(
+        identity_module.BoundInstallationCandidate,
+        "_release_bound_file",
+        release_then_interrupt,
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        owner._transfer_bound_file(slot)  # noqa: SLF001
+
+    assert owner.closed
+    assert not slot.bound_file.closed
+    assert api.close_count == 0
+    slot.close()
+    assert api.close_count == 1
+
+
+def test_internal_transfer_interruption_during_finalization_keeps_armed_ownership() -> (
+    None
+):
+    owner, _installation, api, _authenticode, _command = _open(
+        RuntimeProductId.PODMAN_CLI,
+        b'{"Client":{"Version":"6.0.2"}}\n',
+    )
+    slot = identity_module._BoundFileTransferSlot()  # noqa: SLF001
+
+    class _InterruptAfterReleaseLock:
+        def __init__(self) -> None:
+            self._lock = threading.RLock()
+
+        def acquire(self) -> bool:
+            return self._lock.acquire()
+
+        def release(self) -> None:
+            self._lock.release()
+            raise KeyboardInterrupt
+
+    owner._lifetime_lock = _InterruptAfterReleaseLock()  # type: ignore[assignment]  # noqa: SLF001
+
+    with pytest.raises(KeyboardInterrupt):
+        owner._transfer_bound_file(slot)  # noqa: SLF001
+
+    owner._lifetime_lock = threading.RLock()  # noqa: SLF001
+    assert owner.closed
+    assert not slot.bound_file.closed
+    assert api.close_count == 0
+    slot.close()
+    owner.close()
     assert api.close_count == 1
 
 

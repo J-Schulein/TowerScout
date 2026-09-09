@@ -1,8 +1,9 @@
 """Held outer inventory for one exact Podman Compose execution transaction.
 
 This source-only owner composes the provider/runtime/endpoint owner with every
-remaining authenticated file and directory in the immutable command plan.  It
-does not discover, repair, mutate, or authorize a live network peer.
+remaining authenticated file and directory in the immutable command plan. It
+can consume reviewed Windows installation/version evidence, but does not
+discover a daemon, repair, mutate, or authorize a live network peer.
 """
 
 from __future__ import annotations
@@ -21,16 +22,29 @@ from .runtime_dependency_policy import (
     load_package_bound_runtime_dependency_policy,
     package_bound_runtime_dependency_policy_path,
 )
+from .runtime_command_version import (
+    BoundCommandRuntimeEvidence,
+    CommandVersionBackend,
+    RuntimeCommandVerificationError,
+    open_package_bound_command_runtime_evidence,
+)
 from .runtime_dynamic_load import (
     DynamicLoadEnforcementError,
     NativeWindowsProviderChildDynamicLoadBackend,
 )
 from .runtime_execution import CommandKind, ProcessCommandPlan
+from .runtime_identity import (
+    _BoundFileTransferSlot,
+    InstallationRecordBackend,
+    PeProductBackend,
+    RuntimeIdentityVerificationError,
+)
+from .runtime_load_trust import LoadableAuthenticator, RuntimeLoadInventoryApi
 from .runtime_policy import (
+    RuntimeProductId,
     load_package_bound_runtime_policy,
     package_bound_runtime_policy_path,
 )
-from .runtime_load_trust import LoadableAuthenticator, RuntimeLoadInventoryApi
 from .runtime_provider_child import ProcessImageBinding, ProviderChildProcessRequest
 from .runtime_provider_inventory import (
     HeldProviderChildCommandResult,
@@ -38,7 +52,12 @@ from .runtime_provider_inventory import (
     ProviderChildInventoryError,
     capture_provider_child_inventory,
 )
-from .target_contracts import FileIdentity
+from .runtime_verification import (
+    BoundRuntimeEvidence,
+    RuntimeVerificationError,
+    open_package_bound_runtime_evidence,
+)
+from .target_contracts import FileIdentity, RuntimeProduct
 from .windows_path_trust import (
     PathHierarchyTrust,
     PathTrustPurpose,
@@ -948,6 +967,315 @@ def _close_factory_owner(closeable: Any | None) -> bool:
     return False
 
 
+class _VerifiedRuntimeTransferLedger:
+    """Keep transferred handles armed until the composite owner is accepted."""
+
+    __slots__ = (
+        "_armed",
+        "_child_slot",
+        "_provider_slot",
+        "_transaction_inventory",
+    )
+
+    def __init__(self) -> None:
+        self._armed = True
+        self._provider_slot = _BoundFileTransferSlot()
+        self._child_slot = _BoundFileTransferSlot()
+        self._transaction_inventory: HeldRuntimeTransactionInventory | None = None
+
+    @property
+    def provider_slot(self) -> _BoundFileTransferSlot:
+        return self._provider_slot
+
+    @property
+    def child_slot(self) -> _BoundFileTransferSlot:
+        return self._child_slot
+
+    def _slot_file(self, slot: _BoundFileTransferSlot) -> HandleBoundFile:
+        try:
+            return slot.bound_file
+        except RuntimeIdentityVerificationError:
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+
+    @property
+    def provider_base_executable(self) -> HandleBoundFile:
+        return self._slot_file(self._provider_slot)
+
+    @property
+    def child_executable(self) -> HandleBoundFile:
+        return self._slot_file(self._child_slot)
+
+    @property
+    def transaction_inventory(self) -> HeldRuntimeTransactionInventory:
+        transaction_inventory = self._transaction_inventory
+        if (
+            not self._armed
+            or transaction_inventory is None
+            or transaction_inventory.closed
+            or not transaction_inventory.locks_acquired
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        return transaction_inventory
+
+    def _accept_transaction(
+        self,
+        transaction_inventory: HeldRuntimeTransactionInventory,
+    ) -> None:
+        provider_base_executable = self.provider_base_executable
+        child_executable = self.child_executable
+        if (
+            not self._armed
+            or self._transaction_inventory is not None
+            or type(transaction_inventory) is not HeldRuntimeTransactionInventory
+            or transaction_inventory.closed
+            or not transaction_inventory.locks_acquired
+            or provider_base_executable is child_executable
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        self._transaction_inventory = transaction_inventory
+
+    def disarm(
+        self,
+        transaction_inventory: HeldRuntimeTransactionInventory,
+    ) -> None:
+        if self.transaction_inventory is not transaction_inventory:
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        provider_base_executable = self.provider_base_executable
+        child_executable = self.child_executable
+        self._provider_slot._disarm(provider_base_executable)
+        self._child_slot._disarm(child_executable)
+        self._transaction_inventory = None
+        self._armed = False
+
+    def close(self) -> None:
+        transaction_inventory = self._transaction_inventory
+        failed = False
+        for closeable in (
+            *((transaction_inventory,) if transaction_inventory is not None else ()),
+            self._child_slot,
+            self._provider_slot,
+        ):
+            try:
+                closeable.close()
+            except BaseException:
+                failed = True
+        if failed:
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        self._transaction_inventory = None
+        self._armed = False
+
+    def __del__(self) -> None:
+        if getattr(self, "_armed", False):
+            try:
+                self.close()
+            except BaseException:
+                pass
+
+
+def _runtime_evidence_matches_plan(
+    plan: ProcessCommandPlan,
+    provider_runtime: BoundRuntimeEvidence,
+    child_runtime: BoundCommandRuntimeEvidence,
+) -> bool:
+    provider_evidence = provider_runtime.evidence
+    child_evidence = child_runtime.evidence
+    runtime = plan.target.runtime
+    executable = runtime.executable
+    return (
+        provider_evidence.product_id is RuntimeProductId.CPYTHON
+        and child_evidence.product_id is RuntimeProductId.PODMAN_CLI
+        and child_evidence.exact_version == runtime.version
+        and child_evidence.policy_sha256 == runtime.publisher_policy_sha256
+        and provider_evidence.policy_sha256 == runtime.publisher_policy_sha256
+        and child_evidence.file_identity.volume_serial == executable.volume_serial
+        and child_evidence.file_identity.file_id == executable.file_id
+        and child_evidence.file_sha256 == executable.sha256
+    )
+
+
+def _runtime_plan_matches_package_policy(plan: ProcessCommandPlan) -> bool:
+    try:
+        policy = load_package_bound_runtime_policy()
+    except (OSError, RuntimeError, TypeError, ValueError):
+        return False
+    podman_products = tuple(
+        product
+        for product in policy.products
+        if product.product_id is RuntimeProductId.PODMAN_CLI
+    )
+    provider_products = tuple(
+        product
+        for product in policy.products
+        if product.product_id is RuntimeProductId.CPYTHON
+    )
+    return (
+        len(podman_products) == 1
+        and len(provider_products) == 1
+        and plan.target.runtime.version == podman_products[0].exact_version
+        and plan.target.runtime.publisher_policy_sha256 == policy.content_sha256
+    )
+
+
+def _close_verified_runtime_capture(
+    transaction_inventory: HeldRuntimeTransactionInventory | None,
+    transfer_ledger: _VerifiedRuntimeTransferLedger,
+    provider_runtime: BoundRuntimeEvidence | None,
+    child_runtime: BoundCommandRuntimeEvidence | None,
+) -> bool:
+    failed = False
+    closeables: tuple[Any, ...] = (
+        *((transaction_inventory,) if transaction_inventory is not None else ()),
+        transfer_ledger,
+        *((child_runtime,) if child_runtime is not None else ()),
+        *((provider_runtime,) if provider_runtime is not None else ()),
+    )
+    for closeable in closeables:
+        try:
+            closeable.close()
+        except BaseException:
+            failed = True
+    return failed
+
+
+def capture_verified_locked_podman_transaction_inventory(
+    plan: ProcessCommandPlan,
+    *,
+    installation_backend: InstallationRecordBackend | None = None,
+    file_api: WindowsFileApi | None = None,
+    pe_backend: PeProductBackend | None = None,
+    authenticode_backend: AuthenticodeBackend | None = None,
+    command_backend: CommandVersionBackend | None = None,
+    clock: VerificationClock | None = None,
+    path_api: WindowsPathTrustApi | None = None,
+    runtime_inventory_api: RuntimeLoadInventoryApi | None = None,
+    loadable_authenticate: LoadableAuthenticator | None = None,
+    mutex_api: WindowsMutexApi | None = None,
+    lock_timeout_ms: int = 0,
+) -> HeldRuntimeTransactionInventory:
+    """Resolve verified Podman/CPython handles into one locked transaction.
+
+    Resolution uses only the package-bound installation, signer, PE-version,
+    and fixed command-version policies. The already-resolved immutable target
+    must match that evidence exactly. This factory remains unwired and performs
+    no daemon discovery, repair execution, or mutation.
+    """
+
+    provider_runtime: BoundRuntimeEvidence | None = None
+    child_runtime: BoundCommandRuntimeEvidence | None = None
+    transfer_ledger = _VerifiedRuntimeTransferLedger()
+    transaction_inventory: HeldRuntimeTransactionInventory | None = None
+    try:
+        if (
+            type(plan) is not ProcessCommandPlan
+            or plan.kind is not CommandKind.PODMAN_COMPOSE
+            or plan.target.runtime.product is not RuntimeProduct.PODMAN
+            or not _runtime_plan_matches_package_policy(plan)
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
+        provider_runtime = open_package_bound_runtime_evidence(
+            RuntimeProductId.CPYTHON,
+            installation_backend=installation_backend,
+            file_api=file_api,
+            pe_backend=pe_backend,
+            authenticode_backend=authenticode_backend,
+            clock=clock,
+        )
+        child_runtime = open_package_bound_command_runtime_evidence(
+            RuntimeProductId.PODMAN_CLI,
+            installation_backend=installation_backend,
+            file_api=file_api,
+            authenticode_backend=authenticode_backend,
+            command_backend=command_backend,
+            clock=clock,
+        )
+        if (
+            type(provider_runtime) is not BoundRuntimeEvidence
+            or provider_runtime.closed
+            or type(child_runtime) is not BoundCommandRuntimeEvidence
+            or child_runtime.closed
+            or not _runtime_evidence_matches_plan(
+                plan,
+                provider_runtime,
+                child_runtime,
+            )
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
+        provider_runtime._transfer_bound_file(  # noqa: SLF001
+            transfer_ledger.provider_slot
+        )
+        child_runtime._transfer_bound_file(transfer_ledger.child_slot)  # noqa: SLF001
+        provider_base_executable = transfer_ledger.provider_base_executable
+        child_executable = transfer_ledger.child_executable
+        if (
+            not provider_runtime.closed
+            or not child_runtime.closed
+            or provider_base_executable.closed
+            or child_executable.closed
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        transaction_inventory = capture_locked_runtime_transaction_inventory(
+            plan,
+            provider_base_executable,
+            child_executable,
+            path_api=path_api,
+            file_api=file_api,
+            runtime_inventory_api=runtime_inventory_api,
+            loadable_authenticate=loadable_authenticate,
+            authenticode_backend=authenticode_backend,
+            clock=clock,
+            mutex_api=mutex_api,
+            lock_timeout_ms=lock_timeout_ms,
+            _result_owner=transfer_ledger,
+        )
+        if (
+            type(transaction_inventory) is not HeldRuntimeTransactionInventory
+            or transaction_inventory.closed
+            or not transaction_inventory.locks_acquired
+            or transfer_ledger.transaction_inventory is not transaction_inventory
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        if _close_factory_owner(child_runtime) or _close_factory_owner(
+            provider_runtime
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        provider_runtime = None
+        child_runtime = None
+        transfer_ledger.disarm(transaction_inventory)
+        return transaction_inventory
+    except (
+        RuntimeVerificationError,
+        RuntimeCommandVerificationError,
+        ProviderChildInventoryError,
+        RuntimeTransactionInventoryError,
+        RuntimeTransactionLockError,
+    ):
+        if _close_verified_runtime_capture(
+            transaction_inventory,
+            transfer_ledger,
+            provider_runtime,
+            child_runtime,
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        raise
+    except (OSError, RuntimeError, TypeError, ValueError):
+        if _close_verified_runtime_capture(
+            transaction_inventory,
+            transfer_ledger,
+            provider_runtime,
+            child_runtime,
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
+    except BaseException:
+        _close_verified_runtime_capture(
+            transaction_inventory,
+            transfer_ledger,
+            provider_runtime,
+            child_runtime,
+        )
+        raise
+
+
 def capture_locked_runtime_transaction_inventory(
     plan: ProcessCommandPlan,
     provider_base_executable: HandleBoundFile,
@@ -961,6 +1289,7 @@ def capture_locked_runtime_transaction_inventory(
     clock: VerificationClock | None = None,
     mutex_api: WindowsMutexApi | None = None,
     lock_timeout_ms: int = 0,
+    _result_owner: _VerifiedRuntimeTransferLedger | None = None,
 ) -> HeldRuntimeTransactionInventory:
     """Capture and lock one exact resolved Podman transaction inventory.
 
@@ -973,6 +1302,11 @@ def capture_locked_runtime_transaction_inventory(
     provider_inventory: HeldProviderChildInventory | None = None
     transaction_inventory: HeldRuntimeTransactionInventory | None = None
     try:
+        if (
+            _result_owner is not None
+            and type(_result_owner) is not _VerifiedRuntimeTransferLedger
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
         provider_inventory = capture_provider_child_inventory(
             plan,
             provider_base_executable,
@@ -1001,6 +1335,8 @@ def capture_locked_runtime_transaction_inventory(
             or not transaction_inventory.locks_acquired
         ):
             _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        if _result_owner is not None:
+            _result_owner._accept_transaction(transaction_inventory)
         return transaction_inventory
     except (
         ProviderChildInventoryError,
@@ -1036,4 +1372,5 @@ __all__ = [
     "RuntimeTransactionLockEvidence",
     "capture_locked_runtime_transaction_inventory",
     "capture_runtime_transaction_inventory",
+    "capture_verified_locked_podman_transaction_inventory",
 ]

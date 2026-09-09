@@ -987,6 +987,63 @@ def _candidate_key(bound: HandleBoundFile) -> tuple[object, ...]:
     )
 
 
+class _BoundFileTransferSlot:
+    """Arm ownership before one held file is detached from its donor."""
+
+    __slots__ = ("_armed", "_bound_file")
+
+    def __init__(self) -> None:
+        self._armed = True
+        self._bound_file: HandleBoundFile | None = None
+
+    @property
+    def bound_file(self) -> HandleBoundFile:
+        bound_file = self._bound_file
+        if not self._armed or bound_file is None or bound_file.closed:
+            _fail(RuntimeIdentityErrorCode.RUNTIME_REPLACED)
+        return bound_file
+
+    def _accept(self, bound_file: HandleBoundFile) -> None:
+        if (
+            not self._armed
+            or self._bound_file is not None
+            or type(bound_file) is not HandleBoundFile
+            or bound_file.closed
+        ):
+            _fail(RuntimeIdentityErrorCode.RUNTIME_REPLACED)
+        self._bound_file = bound_file
+
+    def _disarm(self, bound_file: HandleBoundFile) -> None:
+        if (
+            not self._armed
+            or type(bound_file) is not HandleBoundFile
+            or self._bound_file is not bound_file
+            or bound_file.closed
+        ):
+            _fail(RuntimeIdentityErrorCode.RUNTIME_REPLACED)
+        self._bound_file = None
+        self._armed = False
+
+    def close(self) -> None:
+        bound_file = self._bound_file
+        if bound_file is None:
+            self._armed = False
+            return
+        try:
+            bound_file.close()
+        finally:
+            if bound_file.closed:
+                self._bound_file = None
+                self._armed = False
+
+    def __del__(self) -> None:
+        if getattr(self, "_armed", False):
+            try:
+                self.close()
+            except BaseException:
+                pass
+
+
 class BoundInstallationCandidate:
     """Own one nominated executable handle until explicit close/context exit."""
 
@@ -1008,7 +1065,7 @@ class BoundInstallationCandidate:
         resolution_sha256: str,
     ) -> None:
         self._backend = backend
-        self._bound_file = bound_file
+        self._bound_file: HandleBoundFile | None = bound_file
         self._evidence = evidence
         self._product = product
         self._resolution_sha256 = resolution_sha256
@@ -1019,16 +1076,19 @@ class BoundInstallationCandidate:
 
     @property
     def bound_file(self) -> HandleBoundFile:
-        if self.closed:
+        bound_file = self._bound_file
+        if bound_file is None or bound_file.closed:
             _fail(RuntimeIdentityErrorCode.RUNTIME_REPLACED)
-        return self._bound_file
+        return bound_file
 
     @property
     def closed(self) -> bool:
-        return bool(self._bound_file.closed)
+        bound_file = self._bound_file
+        return bound_file is None or bound_file.closed
 
     def assert_unchanged(self) -> FileSnapshot:
-        if self.closed:
+        bound_file = self._bound_file
+        if bound_file is None or bound_file.closed:
             _fail(RuntimeIdentityErrorCode.RUNTIME_REPLACED)
         try:
             observations, digest = _scan_install_records(self._product, self._backend)
@@ -1041,7 +1101,7 @@ class BoundInstallationCandidate:
         ):
             _fail(RuntimeIdentityErrorCode.RUNTIME_REPLACED)
         try:
-            snapshot = self._bound_file.assert_unchanged()
+            snapshot = bound_file.assert_unchanged()
         except WindowsSecurityError:
             _fail(RuntimeIdentityErrorCode.RUNTIME_REPLACED)
         if (
@@ -1051,8 +1111,23 @@ class BoundInstallationCandidate:
             _fail(RuntimeIdentityErrorCode.RUNTIME_REPLACED)
         return snapshot
 
+    def _release_bound_file(self, slot: _BoundFileTransferSlot) -> None:
+        """Revalidate and arm a receiver before detaching the exact file."""
+
+        if type(slot) is not _BoundFileTransferSlot:
+            _fail(RuntimeIdentityErrorCode.RUNTIME_REPLACED)
+        bound_file = self.bound_file
+        self.assert_unchanged()
+        if self._bound_file is not bound_file or bound_file.closed:
+            _fail(RuntimeIdentityErrorCode.RUNTIME_REPLACED)
+        slot._accept(bound_file)
+        self._bound_file = None
+
     def close(self) -> None:
-        self._bound_file.close()
+        bound_file = self._bound_file
+        if bound_file is not None:
+            bound_file.close()
+            self._bound_file = None
 
     def __enter__(self) -> "BoundInstallationCandidate":
         if self.closed:
