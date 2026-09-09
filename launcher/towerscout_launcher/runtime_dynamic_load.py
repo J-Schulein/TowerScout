@@ -1,11 +1,12 @@
-"""Fail-closed CPython image-load destination enforcement on Windows.
+"""Fail-closed Windows process-image and DLL-load destination enforcement.
 
-The backend starts one already planned command as a contained ``DEBUG_PROCESS``
+The backends start an already planned command as a contained ``DEBUG_PROCESS``
 tree.  Windows freezes the reporting process for each debug event, so the
 debugger can hash the exact file handle supplied for the process image or DLL
-before allowing that event to continue.  Only the held CPython AMD64 inventory
-and direct children of the bound System32 directory are admitted.  Descendant
-processes are denied.
+before allowing that event to continue.  The CPython backend admits only its
+held AMD64 inventory and denies descendants.  The provider-child backend uses
+separate exact provider and runtime-child policies and permits only one active
+child alongside the provider.
 
 This source slice remains intentionally unwired from launcher discovery,
 runtime planning, and repair.
@@ -19,10 +20,11 @@ import ntpath
 import os
 import struct
 import threading
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import PureWindowsPath
-from typing import Any, Callable, NoReturn, Protocol
+from typing import Any, Callable, Protocol
 
 from .runtime_command_native import (
     _BoundedReader,
@@ -42,6 +44,12 @@ from .runtime_dependency_capture import (
     CpythonDependencyCaptureError,
     CpythonDynamicLoadPolicy,
     HeldCpythonDependencyInventory,
+)
+from .runtime_execution import CommandKind, ProcessCommandPlan
+from .runtime_provider_child import (
+    ProcessImagePolicy,
+    ProcessImageRole,
+    ProviderChildProcessRequest,
 )
 from .windows_path_trust import (
     PathTrustPurpose,
@@ -194,6 +202,7 @@ class DynamicLoadEnforcementErrorCode(str, Enum):
     TIMEOUT = "timeout"
     OUTPUT_LIMIT = "output_limit"
     CONTAINMENT_FAILED = "containment_failed"
+    PLAN_REJECTED = "plan_rejected"
 
 
 class DynamicLoadEnforcementError(RuntimeError):
@@ -221,6 +230,9 @@ class DynamicLoadEnforcementError(RuntimeError):
         ),
         DynamicLoadEnforcementErrorCode.CONTAINMENT_FAILED: (
             "The monitored Windows process tree could not be contained safely."
+        ),
+        DynamicLoadEnforcementErrorCode.PLAN_REJECTED: (
+            "The authenticated provider-child command plan is invalid."
         ),
     }
 
@@ -408,6 +420,9 @@ class NativeWindowsDebugEventApi:
                 raise OSError("Windows debug-event kind is unsupported.")
             if kind is DebugEventKind.CREATE_PROCESS:
                 image_handle = _native_handle(native.CreateProcessInfo.hFile)
+                # Windows owns the debugger's hProcess/hThread handles until
+                # EXIT_PROCESS_DEBUG_EVENT is continued.  Only hFile is closed
+                # explicitly by this debugger.
             elif kind is DebugEventKind.LOAD_DLL:
                 image_handle = _native_handle(native.LoadDll.hFile)
             exception_code = None
@@ -420,7 +435,7 @@ class NativeWindowsDebugEventApi:
                 exit_code = int(native.ExitProcess.dwExitCode)
             elif kind is DebugEventKind.EXIT_THREAD:
                 exit_code = int(native.ExitThread.dwExitCode)
-            return DebugEvent(
+            result = DebugEvent(
                 kind,
                 int(native.dwProcessId),
                 int(native.dwThreadId),
@@ -429,6 +444,7 @@ class NativeWindowsDebugEventApi:
                 first_chance=first_chance,
                 exit_code=exit_code,
             )
+            return result
         except BaseException as original:
             cleanup_proven = kind is not None
             if image_handle is not None:
@@ -582,6 +598,117 @@ class DynamicLoadCommandResult:
         )
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class ProviderChildEnforcementEvidence:
+    """Sanitized proof for one provider and its serialized runtime children."""
+
+    request_binding_sha256: str = field(repr=False)
+    provider_policy_sha256: str = field(repr=False)
+    child_policy_sha256: str = field(repr=False)
+    system_directory_identity: StableFileIdentity = field(repr=False)
+    provider_image_count: int
+    child_image_count: int
+    child_process_count: int
+    exact_inventory_image_count: int
+    system32_image_count: int
+    active_process_limit: int
+    debug_process_tree: bool
+    provider_dynamic_code_prohibited: bool
+    root_alive_during_child: bool
+    unexpected_processes_denied: bool
+    event_file_handles_closed: bool
+    arbitrary_dynamic_destinations_denied: bool
+    image_sequence_sha256: str = field(repr=False)
+    evidence_sha256: str = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        loaded = self.provider_image_count + self.child_image_count
+        if (
+            not _is_sha256(self.request_binding_sha256)
+            or not _is_sha256(self.provider_policy_sha256)
+            or not _is_sha256(self.child_policy_sha256)
+            or type(self.system_directory_identity) is not StableFileIdentity
+            or type(self.provider_image_count) is not int
+            or self.provider_image_count < 1
+            or type(self.child_image_count) is not int
+            or self.child_image_count < 1
+            or type(self.child_process_count) is not int
+            or not 1 <= self.child_process_count <= _MAX_DEBUG_EVENTS
+            or type(self.exact_inventory_image_count) is not int
+            or self.exact_inventory_image_count < 2
+            or type(self.system32_image_count) is not int
+            or self.system32_image_count < 0
+            or self.exact_inventory_image_count + self.system32_image_count != loaded
+            or loaded > _MAX_DEBUG_EVENTS
+            or self.active_process_limit != 2
+            or self.debug_process_tree is not True
+            or self.provider_dynamic_code_prohibited is not True
+            or self.root_alive_during_child is not True
+            or self.unexpected_processes_denied is not True
+            or self.event_file_handles_closed is not True
+            or self.arbitrary_dynamic_destinations_denied is not True
+            or not _is_sha256(self.image_sequence_sha256)
+        ):
+            raise ValueError("Provider-child enforcement evidence is invalid.")
+        object.__setattr__(
+            self,
+            "evidence_sha256",
+            _digest(
+                b"TowerScout.ProviderChildEnforcementEvidence.v1",
+                self.request_binding_sha256.encode("ascii"),
+                self.provider_policy_sha256.encode("ascii"),
+                self.child_policy_sha256.encode("ascii"),
+                self.system_directory_identity.volume_serial.to_bytes(8, "big"),
+                self.system_directory_identity.file_id,
+                self.provider_image_count.to_bytes(4, "big"),
+                self.child_image_count.to_bytes(4, "big"),
+                self.child_process_count.to_bytes(4, "big"),
+                self.exact_inventory_image_count.to_bytes(4, "big"),
+                self.system32_image_count.to_bytes(4, "big"),
+                self.active_process_limit.to_bytes(4, "big"),
+                bytes(
+                    (
+                        self.debug_process_tree,
+                        self.provider_dynamic_code_prohibited,
+                        self.root_alive_during_child,
+                        self.unexpected_processes_denied,
+                        self.event_file_handles_closed,
+                        self.arbitrary_dynamic_destinations_denied,
+                    )
+                ),
+                self.image_sequence_sha256.encode("ascii"),
+            ),
+        )
+
+    def __repr__(self) -> str:
+        return (
+            "ProviderChildEnforcementEvidence("
+            f"provider_images={self.provider_image_count}, "
+            f"child_images={self.child_image_count}, "
+            f"child_processes={self.child_process_count}, <redacted>)"
+        )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class ProviderChildCommandResult:
+    command: CommandProcessResult = field(repr=False)
+    enforcement: ProviderChildEnforcementEvidence
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.command) is not CommandProcessResult
+            or type(self.enforcement) is not ProviderChildEnforcementEvidence
+        ):
+            raise ValueError("Provider-child command result is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "ProviderChildCommandResult("
+            f"exit_code={self.command.exit_code}, "
+            f"child_processes={self.enforcement.child_process_count}, <redacted>)"
+        )
+
+
 def _is_sha256(value: object) -> bool:
     return (
         type(value) is str
@@ -623,14 +750,14 @@ class _ImagePolicy:
 
     def __init__(
         self,
-        policy: CpythonDynamicLoadPolicy,
+        policy: CpythonDynamicLoadPolicy | ProcessImagePolicy,
         system_directory: PureWindowsPath,
     ) -> None:
         if (
-            type(policy) is not CpythonDynamicLoadPolicy
+            type(policy) not in {CpythonDynamicLoadPolicy, ProcessImagePolicy}
             or type(system_directory) is not PureWindowsPath
         ):
-            raise ValueError("CPython image-load policy is invalid.")
+            raise ValueError("Windows image-load policy is invalid.")
         self._bindings = policy.exact_files
         self._system_directory = _canonical_path(str(system_directory))
         self._system_image_names = frozenset(policy.system_image_names)
@@ -809,6 +936,183 @@ class _EventMonitor:
             event_file_handles_closed=True,
             arbitrary_dynamic_destinations_denied=True,
             image_sequence_sha256=self._policy.sequence_sha256,
+        )
+
+
+class _ProviderChildEventMonitor:
+    """Authorize one root provider and at most one active runtime child."""
+
+    __slots__ = (
+        "_breakpoints",
+        "_child_exact_count",
+        "_child_policy",
+        "_child_process_count",
+        "_child_processes",
+        "_child_system_count",
+        "_event_count",
+        "_provider_exact_count",
+        "_provider_policy",
+        "_provider_system_count",
+        "_root_created",
+        "_root_process_id",
+    )
+
+    def __init__(
+        self,
+        root_process_id: int,
+        provider_policy: _ImagePolicy,
+        child_policy: _ImagePolicy,
+    ) -> None:
+        self._root_process_id = root_process_id
+        self._provider_policy = provider_policy
+        self._child_policy = child_policy
+        self._root_created = False
+        self._child_processes: set[int] = set()
+        self._breakpoints: set[int] = set()
+        self._event_count = 0
+        self._child_process_count = 0
+        self._provider_exact_count = 0
+        self._provider_system_count = 0
+        self._child_exact_count = 0
+        self._child_system_count = 0
+
+    def _known_process(self, process_id: int) -> bool:
+        return (
+            process_id == self._root_process_id or process_id in self._child_processes
+        )
+
+    def _policy_for(self, process_id: int) -> _ImagePolicy:
+        if process_id == self._root_process_id:
+            return self._provider_policy
+        if process_id in self._child_processes:
+            return self._child_policy
+        raise DynamicLoadEnforcementError(DynamicLoadEnforcementErrorCode.EVENT_INVALID)
+
+    def _record_decision(self, process_id: int, decision: str) -> None:
+        if process_id == self._root_process_id:
+            if decision == "exact":
+                self._provider_exact_count += 1
+            else:
+                self._provider_system_count += 1
+        elif decision == "exact":
+            self._child_exact_count += 1
+        else:
+            self._child_system_count += 1
+
+    def accept(
+        self, event: DebugEvent, snapshot: FileSnapshot | None
+    ) -> tuple[int, bool]:
+        self._event_count += 1
+        if self._event_count > _MAX_DEBUG_EVENTS:
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.EVENT_INVALID
+            )
+
+        if event.kind is DebugEventKind.CREATE_PROCESS:
+            if snapshot is None:
+                raise DynamicLoadEnforcementError(
+                    DynamicLoadEnforcementErrorCode.EVENT_INVALID
+                )
+            if event.process_id == self._root_process_id:
+                if self._root_created:
+                    raise DynamicLoadEnforcementError(
+                        DynamicLoadEnforcementErrorCode.EVENT_INVALID
+                    )
+                self._root_created = True
+            else:
+                if (
+                    not self._root_created
+                    or self._root_process_id not in self._breakpoints
+                    or self._child_processes
+                    or event.process_id in self._breakpoints
+                ):
+                    raise DynamicLoadEnforcementError(
+                        DynamicLoadEnforcementErrorCode.CHILD_PROCESS_DENIED
+                    )
+                self._child_processes.add(event.process_id)
+                self._child_process_count += 1
+            decision = self._policy_for(event.process_id).authorize(event, snapshot)
+            self._record_decision(event.process_id, decision)
+            return (DBG_CONTINUE, False)
+
+        if not self._root_created or not self._known_process(event.process_id):
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.EVENT_INVALID
+            )
+        if event.kind is DebugEventKind.LOAD_DLL:
+            if snapshot is None:
+                raise DynamicLoadEnforcementError(
+                    DynamicLoadEnforcementErrorCode.EVENT_INVALID
+                )
+            decision = self._policy_for(event.process_id).authorize(event, snapshot)
+            self._record_decision(event.process_id, decision)
+            return (DBG_CONTINUE, False)
+        if event.kind is DebugEventKind.EXCEPTION:
+            if event.process_id not in self._breakpoints:
+                if (
+                    event.exception_code != _EXCEPTION_BREAKPOINT
+                    or event.first_chance is not True
+                ):
+                    raise DynamicLoadEnforcementError(
+                        DynamicLoadEnforcementErrorCode.EVENT_INVALID
+                    )
+                self._breakpoints.add(event.process_id)
+                return (DBG_CONTINUE, False)
+            return (DBG_EXCEPTION_NOT_HANDLED, False)
+        if event.kind is DebugEventKind.EXIT_PROCESS:
+            if event.process_id not in self._breakpoints:
+                raise DynamicLoadEnforcementError(
+                    DynamicLoadEnforcementErrorCode.EVENT_INVALID
+                )
+            if event.process_id == self._root_process_id:
+                if self._child_processes or self._child_process_count < 1:
+                    raise DynamicLoadEnforcementError(
+                        DynamicLoadEnforcementErrorCode.CHILD_PROCESS_DENIED
+                    )
+                return (DBG_CONTINUE, True)
+            self._child_processes.remove(event.process_id)
+            self._breakpoints.remove(event.process_id)
+            return (DBG_CONTINUE, False)
+        if event.kind is DebugEventKind.RIP:
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.EVENT_INVALID
+            )
+        return (DBG_CONTINUE, False)
+
+    def evidence(
+        self,
+        request_binding_sha256: str,
+        provider_policy_sha256: str,
+        child_policy_sha256: str,
+        system_directory_identity: StableFileIdentity,
+    ) -> ProviderChildEnforcementEvidence:
+        return ProviderChildEnforcementEvidence(
+            request_binding_sha256=request_binding_sha256,
+            provider_policy_sha256=provider_policy_sha256,
+            child_policy_sha256=child_policy_sha256,
+            system_directory_identity=system_directory_identity,
+            provider_image_count=(
+                self._provider_exact_count + self._provider_system_count
+            ),
+            child_image_count=self._child_exact_count + self._child_system_count,
+            child_process_count=self._child_process_count,
+            exact_inventory_image_count=(
+                self._provider_exact_count + self._child_exact_count
+            ),
+            system32_image_count=(
+                self._provider_system_count + self._child_system_count
+            ),
+            active_process_limit=2,
+            debug_process_tree=True,
+            provider_dynamic_code_prohibited=True,
+            root_alive_during_child=True,
+            unexpected_processes_denied=True,
+            event_file_handles_closed=True,
+            arbitrary_dynamic_destinations_denied=True,
+            image_sequence_sha256=_digest(
+                self._provider_policy.sequence_sha256.encode("ascii"),
+                self._child_policy.sequence_sha256.encode("ascii"),
+            ),
         )
 
 
@@ -1056,15 +1360,16 @@ class NativeWindowsCpythonDynamicLoadBackend:
 
         def run() -> None:
             try:
-                results.append(
-                    self._execute_worker(
-                        request,
-                        policy,
-                        policy_sha256,
-                        system_directory_identity,
-                        cancellation,
-                    )
+                result = self._execute_worker(
+                    request,
+                    policy,
+                    policy_sha256,
+                    system_directory_identity,
+                    cancellation,
                 )
+                if type(result) is not DynamicLoadCommandResult:
+                    raise TypeError("CPython dynamic-load result is invalid.")
+                results.append(result)
             except BaseException as error:
                 failures.append(error)
 
@@ -1110,21 +1415,33 @@ class NativeWindowsCpythonDynamicLoadBackend:
 
     def _execute_worker(
         self,
-        request: CommandProcessRequest,
+        request: CommandProcessRequest | ProviderChildProcessRequest,
         policy: _ImagePolicy,
         policy_sha256: str,
         system_directory_identity: StableFileIdentity,
         cancellation: threading.Event,
-    ) -> DynamicLoadCommandResult:
+        *,
+        child_policy: _ImagePolicy | None = None,
+        child_policy_sha256: str = "",
+        request_binding_sha256: str = "",
+    ) -> DynamicLoadCommandResult | ProviderChildCommandResult:
         process: _NativeProcess | None = None
         try:
-            process = self._process_api.start(request, debug_process_tree=True)
+            if child_policy is None:
+                process = self._process_api.start(request, debug_process_tree=True)
+            else:
+                process = self._process_api.start(
+                    request,
+                    debug_process_tree=True,
+                    active_process_limit=2,
+                )
             if (
                 type(process) is not _NativeProcess
                 or process.process_id <= 0
                 or process.debug_process_tree is not True
                 or process.dynamic_code_prohibited is not True
-                or process.child_processes_restricted is not True
+                or process.child_processes_restricted is not (child_policy is None)
+                or process.active_process_limit != (1 if child_policy is None else 2)
             ):
                 raise TypeError("Debug process state is invalid.")
             self._debug_api.prepare_kill_on_exit()
@@ -1161,7 +1478,15 @@ class NativeWindowsCpythonDynamicLoadBackend:
         pending: DebugEvent | None = None
         pending_image_closed = False
         tree_empty = False
-        monitor = _EventMonitor(process.process_id, policy)
+        monitor: _EventMonitor | _ProviderChildEventMonitor
+        if child_policy is None:
+            monitor = _EventMonitor(process.process_id, policy)
+        else:
+            monitor = _ProviderChildEventMonitor(
+                process.process_id,
+                policy,
+                child_policy,
+            )
         try:
             stdout = _BoundedReader(
                 self._process_api, process.stdout_read, request.stdout_limit_bytes
@@ -1208,7 +1533,8 @@ class NativeWindowsCpythonDynamicLoadBackend:
                 pending = event
                 pending_image_closed = False
                 if (
-                    event.process_id != process.process_id
+                    child_policy is None
+                    and event.process_id != process.process_id
                     and event.image_handle is not None
                 ):
                     try:
@@ -1286,9 +1612,31 @@ class NativeWindowsCpythonDynamicLoadBackend:
                 process_tree_contained=True,
                 process_tree_empty=True,
             )
-            return DynamicLoadCommandResult(
+            if child_policy is None:
+                if type(monitor) is not _EventMonitor:
+                    raise DynamicLoadEnforcementError(
+                        DynamicLoadEnforcementErrorCode.CONTAINMENT_FAILED
+                    )
+                return DynamicLoadCommandResult(
+                    command,
+                    monitor.evidence(policy_sha256, system_directory_identity),
+                )
+            if (
+                type(monitor) is not _ProviderChildEventMonitor
+                or not _is_sha256(child_policy_sha256)
+                or not _is_sha256(request_binding_sha256)
+            ):
+                raise DynamicLoadEnforcementError(
+                    DynamicLoadEnforcementErrorCode.CONTAINMENT_FAILED
+                )
+            return ProviderChildCommandResult(
                 command,
-                monitor.evidence(policy_sha256, system_directory_identity),
+                monitor.evidence(
+                    request_binding_sha256,
+                    policy_sha256,
+                    child_policy_sha256,
+                    system_directory_identity,
+                ),
             )
         except DynamicLoadEnforcementError:
             cleaned = self._terminate_and_drain(process, pending, pending_image_closed)
@@ -1332,6 +1680,231 @@ class NativeWindowsCpythonDynamicLoadBackend:
         return f"NativeWindowsCpythonDynamicLoadBackend(state={state!r})"
 
 
+class NativeWindowsProviderChildDynamicLoadBackend:
+    """Execute one exact Podman provider plan with one serialized child role."""
+
+    __slots__ = ("_delegate",)
+
+    def __init__(
+        self,
+        *,
+        process_api: _ProcessApi | None = None,
+        debug_api: DebugEventApi | None = None,
+        clock: _Clock | None = None,
+        path_api: WindowsPathTrustApi | None = None,
+        worker_factory: Callable[[Callable[[], None]], _WorkerThread] | None = None,
+    ) -> None:
+        self._delegate = NativeWindowsCpythonDynamicLoadBackend(
+            process_api=process_api,
+            debug_api=debug_api,
+            clock=clock,
+            path_api=path_api,
+            worker_factory=worker_factory,
+        )
+
+    @property
+    def supported(self) -> bool:
+        return self._delegate.supported
+
+    @staticmethod
+    def _validate_policies(
+        plan: ProcessCommandPlan,
+        provider_policy: ProcessImagePolicy,
+        child_policy: ProcessImagePolicy,
+    ) -> None:
+        provider_images = {
+            (item.identity, item.sha256, item.final_path_sha256)
+            for item in provider_policy.exact_files
+        }
+        child_images = {
+            (item.identity, item.sha256, item.final_path_sha256)
+            for item in child_policy.exact_files
+        }
+        if (
+            type(plan) is not ProcessCommandPlan
+            or plan.kind is not CommandKind.PODMAN_COMPOSE
+            or type(provider_policy) is not ProcessImagePolicy
+            or provider_policy.role is not ProcessImageRole.PROVIDER
+            or type(child_policy) is not ProcessImagePolicy
+            or child_policy.role is not ProcessImageRole.RUNTIME_CHILD
+            or provider_policy.content_sha256 == child_policy.content_sha256
+            or not provider_policy.entrypoint.matches_file_identity(plan.executable)
+            or not child_policy.entrypoint.matches_file_identity(
+                plan.target.runtime.executable
+            )
+            or provider_images.intersection(child_images)
+        ):
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.PLAN_REJECTED
+            )
+
+    def execute(
+        self,
+        plan: ProcessCommandPlan,
+        provider_policy: ProcessImagePolicy,
+        child_policy: ProcessImagePolicy,
+    ) -> ProviderChildCommandResult:
+        if self.supported is not True:
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.UNAVAILABLE
+            )
+        try:
+            self._validate_policies(plan, provider_policy, child_policy)
+            request = ProviderChildProcessRequest.from_plan(plan)
+            system_directory = PureWindowsPath(
+                self._delegate._process_api.system_directory()
+            )
+            expected_system = plan.target.process_environment.system_root.final_path / (
+                "System32"
+            )
+            if _canonical_path(str(system_directory)) != _canonical_path(
+                str(expected_system)
+            ):
+                raise ValueError("System directory mismatch.")
+            if plan.working_directory != plan.target.package_root.final_path:
+                raise ValueError("Package working directory mismatch.")
+            with ExitStack() as stack:
+                system_trust = stack.enter_context(
+                    capture_path_hierarchy(
+                        str(system_directory),
+                        purpose=PathTrustPurpose.RUNTIME_INSTALL,
+                        api=self._delegate._path_api,
+                    )
+                )
+                package_trust = stack.enter_context(
+                    capture_path_hierarchy(
+                        str(plan.working_directory),
+                        purpose=PathTrustPurpose.PACKAGE_ROOT,
+                        api=self._delegate._path_api,
+                    )
+                )
+                system_trust.assert_unchanged()
+                package_trust.assert_unchanged()
+                expected_package_identity = StableFileIdentity(
+                    plan.target.package_root.volume_serial,
+                    plan.target.package_root.file_id,
+                )
+                if (
+                    package_trust.evidence.root_identity != expected_package_identity
+                    or _canonical_path(package_trust.root_snapshot.final_path)
+                    != _canonical_path(str(plan.target.package_root.final_path))
+                ):
+                    raise DynamicLoadEnforcementError(
+                        DynamicLoadEnforcementErrorCode.PLAN_REJECTED
+                    )
+                result = self._execute_provider_request(
+                    request,
+                    provider_policy,
+                    child_policy,
+                    system_directory=system_directory,
+                    system_directory_identity=system_trust.evidence.root_identity,
+                )
+                system_trust.assert_unchanged()
+                package_trust.assert_unchanged()
+                return result
+        except DynamicLoadEnforcementError:
+            raise
+        except (TypeError, ValueError, WindowsSecurityError):
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.PLAN_REJECTED
+            ) from None
+        except Exception:
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.START_FAILED
+            ) from None
+
+    def _execute_provider_request(
+        self,
+        request: ProviderChildProcessRequest,
+        provider_policy: ProcessImagePolicy,
+        child_policy: ProcessImagePolicy,
+        *,
+        system_directory: PureWindowsPath,
+        system_directory_identity: StableFileIdentity,
+    ) -> ProviderChildCommandResult:
+        if (
+            type(request) is not ProviderChildProcessRequest
+            or type(provider_policy) is not ProcessImagePolicy
+            or type(child_policy) is not ProcessImagePolicy
+            or type(system_directory) is not PureWindowsPath
+            or type(system_directory_identity) is not StableFileIdentity
+            or self.supported is not True
+        ):
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.UNAVAILABLE
+            )
+        provider = _ImagePolicy(provider_policy, system_directory)
+        child = _ImagePolicy(child_policy, system_directory)
+        cancellation = threading.Event()
+        results: list[ProviderChildCommandResult] = []
+        failures: list[BaseException] = []
+
+        def run() -> None:
+            try:
+                result = self._delegate._execute_worker(
+                    request,
+                    provider,
+                    provider_policy.content_sha256,
+                    system_directory_identity,
+                    cancellation,
+                    child_policy=child,
+                    child_policy_sha256=child_policy.content_sha256,
+                    request_binding_sha256=request.binding_sha256,
+                )
+                if type(result) is not ProviderChildCommandResult:
+                    raise TypeError("Provider-child execution result is invalid.")
+                results.append(result)
+            except BaseException as error:
+                failures.append(error)
+
+        worker = self._delegate._worker_factory(run)
+        primary: BaseException | None = None
+        try:
+            worker.start()
+        except BaseException as error:
+            primary = error
+            cancellation.set()
+        while worker.is_alive():
+            try:
+                worker.join(0.05)
+            except BaseException as error:
+                if primary is None:
+                    primary = error
+                cancellation.set()
+        if primary is not None:
+            if failures and isinstance(failures[0], DynamicLoadEnforcementError):
+                if (
+                    failures[0].code
+                    is DynamicLoadEnforcementErrorCode.CONTAINMENT_FAILED
+                ):
+                    raise failures[0]
+            if isinstance(primary, Exception):
+                raise DynamicLoadEnforcementError(
+                    DynamicLoadEnforcementErrorCode.START_FAILED
+                ) from None
+            raise primary
+        if len(results) == 1 and not failures:
+            return results[0]
+        if len(failures) == 1 and not results:
+            if isinstance(failures[0], Exception) and not isinstance(
+                failures[0], DynamicLoadEnforcementError
+            ):
+                raise DynamicLoadEnforcementError(
+                    DynamicLoadEnforcementErrorCode.START_FAILED
+                ) from None
+            raise failures[0]
+        raise DynamicLoadEnforcementError(
+            DynamicLoadEnforcementErrorCode.CONTAINMENT_FAILED
+        )
+
+    def __repr__(self) -> str:
+        state = "supported" if self.supported else "unavailable"
+        return (
+            "NativeWindowsProviderChildDynamicLoadBackend("
+            f"state={state!r}, active_process_limit=2)"
+        )
+
+
 __all__ = [
     "DBG_CONTINUE",
     "DBG_EXCEPTION_NOT_HANDLED",
@@ -1343,4 +1916,7 @@ __all__ = [
     "DynamicLoadEnforcementEvidence",
     "NativeWindowsCpythonDynamicLoadBackend",
     "NativeWindowsDebugEventApi",
+    "NativeWindowsProviderChildDynamicLoadBackend",
+    "ProviderChildCommandResult",
+    "ProviderChildEnforcementEvidence",
 ]

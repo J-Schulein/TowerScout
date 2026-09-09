@@ -22,6 +22,7 @@ from .runtime_command_version import (
     CommandProcessRequest,
     CommandProcessResult,
 )
+from .runtime_provider_child import ProviderChildProcessRequest
 
 CREATE_SUSPENDED = 0x00000004
 DEBUG_PROCESS = 0x00000001
@@ -38,6 +39,7 @@ PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON = 1 << 56
 PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON = 1 << 60
 PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON = 1 << 36
 PROCESS_CREATION_CHILD_PROCESS_RESTRICTED = 0x00000001
+JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x00000008
 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
 
 _JOB_OBJECT_BASIC_ACCOUNTING_INFORMATION = 1
@@ -231,6 +233,7 @@ class _NativeProcess:
     debug_process_tree: bool = False
     dynamic_code_prohibited: bool = False
     child_processes_restricted: bool = False
+    active_process_limit: int = 1
     _owner: _StartHandleLedger | None = field(default=None, repr=False, compare=False)
     _armed: bool = field(default=False, init=False, repr=False, compare=False)
 
@@ -249,8 +252,12 @@ class _NativeProcess:
             or type(self.debug_process_tree) is not bool
             or type(self.dynamic_code_prohibited) is not bool
             or type(self.child_processes_restricted) is not bool
+            or type(self.active_process_limit) is not int
+            or self.active_process_limit not in {1, 2}
             or self.dynamic_code_prohibited != self.debug_process_tree
-            or self.child_processes_restricted != self.debug_process_tree
+            or self.child_processes_restricted
+            != (self.debug_process_tree and self.active_process_limit == 1)
+            or (not self.debug_process_tree and self.active_process_limit != 1)
         ):
             raise ValueError("Native process state is invalid.")
 
@@ -291,9 +298,10 @@ class _ProcessApi(Protocol):
 
     def start(
         self,
-        request: CommandProcessRequest,
+        request: CommandProcessRequest | ProviderChildProcessRequest,
         *,
         debug_process_tree: bool = False,
+        active_process_limit: int = 1,
     ) -> _NativeProcess: ...
 
     def read_file(self, handle: int, maximum: int) -> bytes: ...
@@ -504,6 +512,28 @@ class _NativeWindowsProcessApi:
         # create_unicode_buffer supplies the second terminal NUL.
         return "\x00".join(rendered) + "\x00"
 
+    @staticmethod
+    def _provider_environment_block(
+        request: ProviderChildProcessRequest,
+    ) -> str:
+        if type(request) is not ProviderChildProcessRequest:
+            raise ValueError("The provider-child environment is invalid.")
+        rendered: list[str] = []
+        previous = ""
+        for key, value in request.environment:
+            folded = key.casefold()
+            if (
+                not key
+                or "=" in key
+                or "\x00" in key
+                or "\x00" in value
+                or (previous and folded <= previous)
+            ):
+                raise ValueError("The provider-child environment is invalid.")
+            previous = folded
+            rendered.append(f"{key}={value}")
+        return "\x00".join(rendered) + "\x00"
+
     def _close(self, value: int | None) -> None:
         if value is None or value <= 0 or self._kernel32 is None:
             return
@@ -593,13 +623,21 @@ class _NativeWindowsProcessApi:
 
     def start(
         self,
-        request: CommandProcessRequest,
+        request: CommandProcessRequest | ProviderChildProcessRequest,
         *,
         debug_process_tree: bool = False,
+        active_process_limit: int = 1,
     ) -> _NativeProcess:
         if (
-            type(request) is not CommandProcessRequest
+            type(request) not in {CommandProcessRequest, ProviderChildProcessRequest}
             or type(debug_process_tree) is not bool
+            or type(active_process_limit) is not int
+            or active_process_limit not in {1, 2}
+            or (not debug_process_tree and active_process_limit != 1)
+            or (
+                active_process_limit == 2
+                and type(request) is not ProviderChildProcessRequest
+            )
         ):
             raise ValueError("Contained command request is invalid.")
         kernel32 = self._require_kernel32()
@@ -644,6 +682,11 @@ class _NativeWindowsProcessApi:
             job_limits.BasicLimitInformation.LimitFlags = (
                 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
             )
+            if active_process_limit == 2:
+                job_limits.BasicLimitInformation.LimitFlags |= (
+                    JOB_OBJECT_LIMIT_ACTIVE_PROCESS
+                )
+                job_limits.BasicLimitInformation.ActiveProcessLimit = 2
             if not kernel32.SetInformationJobObject(
                 _HANDLE(job),
                 _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
@@ -652,7 +695,8 @@ class _NativeWindowsProcessApi:
             ):
                 raise OSError("Native process Job Object policy failed.")
 
-            attribute_count = 3 if debug_process_tree else 2
+            restrict_children = debug_process_tree and active_process_limit == 1
+            attribute_count = 3 if restrict_children else 2
             attribute_bytes = _SIZE_T()
             ctypes.set_last_error(0)
             first = kernel32.InitializeProcThreadAttributeList(
@@ -707,7 +751,7 @@ class _NativeWindowsProcessApi:
             child_process_policy = ctypes.c_uint32(
                 PROCESS_CREATION_CHILD_PROCESS_RESTRICTED
             )
-            if debug_process_tree and not kernel32.UpdateProcThreadAttribute(
+            if restrict_children and not kernel32.UpdateProcThreadAttribute(
                 attribute_list,
                 0,
                 PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY,
@@ -730,7 +774,11 @@ class _NativeWindowsProcessApi:
             )
             command_buffer = ctypes.create_unicode_buffer(command_line)
             environment_buffer = ctypes.create_unicode_buffer(
-                self._environment_block(request.environment)
+                (
+                    self._provider_environment_block(request)
+                    if type(request) is ProviderChildProcessRequest
+                    else self._environment_block(request.environment)
+                )
             )
             flags = (
                 CREATE_SUSPENDED
@@ -782,7 +830,8 @@ class _NativeWindowsProcessApi:
                 process_id=int(process_info.dwProcessId),
                 debug_process_tree=debug_process_tree,
                 dynamic_code_prohibited=debug_process_tree,
-                child_processes_restricted=debug_process_tree,
+                child_processes_restricted=restrict_children,
+                active_process_limit=active_process_limit,
                 _owner=owner,
             )
             result._arm()

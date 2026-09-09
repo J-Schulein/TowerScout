@@ -812,6 +812,7 @@ class _Kernel32ProcessShim:
         self.child_process_policy = 0
         self.attribute_counts: list[int] = []
         self.job_limit_flags = 0
+        self.job_active_process_limit = 0
         self.application_name = ""
         self.command_line = ""
         self.environment_block = ""
@@ -872,6 +873,9 @@ class _Kernel32ProcessShim:
             ctypes.POINTER(native_module._JOBOBJECT_EXTENDED_LIMIT_INFORMATION),
         ).contents
         self.job_limit_flags = int(limits.BasicLimitInformation.LimitFlags)
+        self.job_active_process_limit = int(
+            limits.BasicLimitInformation.ActiveProcessLimit
+        )
         return True
 
     def InitializeProcThreadAttributeList(
@@ -1155,6 +1159,61 @@ def test_native_process_api_can_bind_the_full_debug_process_tree(
     assert shim.child_process_policy == (
         native_module.PROCESS_CREATION_CHILD_PROCESS_RESTRICTED
     )
+    api.terminate_job(process.job)  # type: ignore[attr-defined]
+    api.close_process(process)  # type: ignore[attr-defined]
+
+
+def test_native_process_api_allows_only_one_concurrent_authenticated_child(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shim = _Kernel32ProcessShim()
+    api = _shim_native_api(shim, monkeypatch)
+    base = _native_request()
+    request = native_module.ProviderChildProcessRequest(
+        executable_path=base.executable_path,
+        arguments=base.arguments,
+        environment=(
+            ("APPDATA", r"C:\Users\private\AppData\Roaming"),
+            ("COMPOSE_PROJECT_DIR", r"C:\TowerScout"),
+            (
+                "CONTAINER_HOST",
+                "ssh://core@127.0.0.1:51999/run/user/1000/podman/podman.sock",
+            ),
+            ("CONTAINER_SSHKEY", r"C:\Users\private\.config\podman-key"),
+            ("LOCALAPPDATA", r"C:\Users\private\AppData\Local"),
+            ("SYSTEMROOT", _WINDOWS_DIRECTORY),
+            ("TEMP", r"C:\Users\private\AppData\Local\Temp"),
+            ("TMP", r"C:\Users\private\AppData\Local\Temp"),
+            ("USERPROFILE", r"C:\Users\private"),
+            ("WINDIR", _WINDOWS_DIRECTORY),
+        ),
+        working_directory=base.working_directory,
+        timeout_ms=base.timeout_ms,
+        stdout_limit_bytes=base.stdout_limit_bytes,
+        stderr_limit_bytes=base.stderr_limit_bytes,
+        target_token="TSRT1-" + "a" * 32,
+        binding_sha256="b" * 64,
+    )
+
+    process = api.start(  # type: ignore[attr-defined]
+        request,
+        debug_process_tree=True,
+        active_process_limit=2,
+    )
+
+    assert process.process_id == 703
+    assert process.debug_process_tree
+    assert process.dynamic_code_prohibited
+    assert not process.child_processes_restricted
+    assert process.active_process_limit == 2
+    assert shim.attribute_counts == [2, 2]
+    assert shim.child_process_policy == 0
+    assert shim.job_limit_flags == (
+        native_module.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        | native_module.JOB_OBJECT_LIMIT_ACTIVE_PROCESS
+    )
+    assert shim.job_active_process_limit == 2
+    assert shim.creation_flags & native_module.DEBUG_PROCESS
     api.terminate_job(process.job)  # type: ignore[attr-defined]
     api.close_process(process)  # type: ignore[attr-defined]
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import PureWindowsPath
-from typing import Mapping, Sequence
+from typing import Mapping, NoReturn, Sequence
 
 from .target_contracts import (
     ComposeInvocationKind,
@@ -46,7 +46,9 @@ class ComposeReadOperation(str, Enum):
     CONFIG = "config"
 
 
-_ENGINE_READ_ARGUMENTS = {
+_ENGINE_READ_ARGUMENTS: dict[
+    tuple[RuntimeProduct, EngineReadOperation], tuple[str, ...]
+] = {
     (RuntimeProduct.DOCKER, EngineReadOperation.VERSION_JSON): (
         "version",
         "--format",
@@ -63,7 +65,9 @@ _ENGINE_READ_ARGUMENTS = {
         "json",
     ),
 }
-_COMPOSE_READ_ARGUMENTS = {
+_COMPOSE_READ_ARGUMENTS: dict[
+    tuple[RuntimeProduct, ComposeReadOperation], tuple[str, ...]
+] = {
     (RuntimeProduct.DOCKER, ComposeReadOperation.CONFIG): (
         "config",
         "--format",
@@ -103,7 +107,7 @@ class RuntimeExecutionBindingError(ValueError):
         return f"RuntimeExecutionBindingError(code={self.code.value!r})"
 
 
-def _reject(code: BindingErrorCode) -> None:
+def _reject(code: BindingErrorCode) -> NoReturn:
     raise RuntimeExecutionBindingError(code)
 
 
@@ -288,6 +292,7 @@ class ProcessCommandPlan:
         expected_environment = _windows_environment_items(self.target)
         expected_executable = self.target.runtime.executable
         expected_authenticated: tuple[FileIdentity, ...] = (expected_executable,)
+        prefix: tuple[str, ...]
         if self.kind is CommandKind.DOCKER_ENGINE:
             _require_executable(expected_executable, "docker.exe")
             prefix = ("--host", self.target.endpoint.canonical_endpoint)
@@ -524,6 +529,8 @@ class RuntimeExecutionBinding:
         expected_name = f"{runtime.product.value}.exe"
         _require_executable(runtime.executable, expected_name)
 
+        arguments: tuple[str, ...]
+        authenticated: tuple[FileIdentity, ...]
         if runtime.product is RuntimeProduct.DOCKER:
             arguments = ("--host", endpoint.canonical_endpoint, *operation_args)
             kind = CommandKind.DOCKER_ENGINE

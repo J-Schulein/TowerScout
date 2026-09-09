@@ -29,9 +29,12 @@ checkpoint `e18fb3a` retains and revalidates all 47 exact policy files through a
 synchronous operation; it passed exact-head CI/CD run `34280588649`, Task-087
 run `34280588654`, and external Trivy. Both checkpoints are independently
 reviewed with no open findings, but are not yet packaged or wired to execution.
-A local source-only follow-up now enforces the dynamic image-load destination
-boundary and awaits independent review; merge/publication retain their separate
-applicable gates.
+Dynamic-load checkpoint `9c58aed` is independently reviewed and exact-head
+green. A September 9 local source-only follow-up now extends that boundary to
+one separately authenticated provider plus one active exact runtime child; it
+remains unwired and passed independent re-review after correcting Windows
+debug-handle ownership and Job-limit wording. It awaits checkpointing and
+exact-head CI. Merge/publication retain their separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -1378,6 +1381,76 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-09 - Provider-Child Image/Event Boundary Implemented Locally
+
+**Objective**: Carry the reviewed fixed-CPython image/event guarantees into a
+separately authenticated provider-child process boundary without wiring live
+launcher discovery, Compose execution, repair, or mutation.
+
+**Decision**: Keep this increment source-only and specific to the existing
+exact Podman Compose plan. Treat the provider and runtime child as different
+roles with non-overlapping stable file identity, SHA-256, and canonical-path
+policies. Admit exactly two concurrent Job Object processes--the provider plus
+one child--instead of removing containment, and require the provider to remain
+alive until the child exits. Apply dynamic-code prohibition to the provider
+without claiming that mitigation for the child.
+
+**Execution**: Added immutable, redacted provider/child image policies and a
+shell-free process request reconstructed from the validated command plan. The
+request preserves the exact fixed argument vector and only the ten constructed
+Windows/Podman environment entries; ambient `PATH` and unrelated variables are
+rejected. The native Windows process layer now supports an opt-in active-
+process Job limit of two only for this request type, while the original
+single-process CPython path retains its child-creation restriction unchanged.
+
+The debug-event executor closes only Windows process/DLL image-file handles;
+debugger-owned `CREATE_PROCESS` process/thread handles remain under Windows'
+ownership until the corresponding exit event is continued. Its provider-child
+monitor requires the exact provider root image, one active exact runtime child
+at a time, a valid initial breakpoint for each process, separate role-specific
+DLL policies, and child exit before provider exit. Wrong entrypoints, wrong
+DLLs, overlapping role policies, malformed sequences, and observed concurrent
+or third-process debug events terminate and drain the Job. Independently, the
+active-process limit prevents a third concurrent process from remaining active;
+this slice does not claim that an association denial alone notifies the monitor
+or terminates the existing Job. Successful evidence records only redacted
+policy/request hashes and explicitly states provider--not child--dynamic-code
+mitigation.
+
+**Validation**: The first contract run failed as intended because the new
+policy module did not yet exist. The completed focused provider-child,
+dynamic-load, native-command, and execution-plan set passes 152/152. The full
+launcher-prefix regression selection passes 827/827 outside the sandbox used
+for its native Windows handle case. Black reports all seven changed source/test
+files unchanged; strict mypy reports no issues in the three affected execution
+source modules; blocking Flake8 reports zero syntax/undefined-name findings;
+medium/high Bandit, source sensitive-term scanning, and `git diff --check` pass.
+An accidental full-repository run reached 1,215 passes and 77 skips; its known
+Defender-blocked dormant PowerShell-helper failures, dirty-tree package
+assertion, unrelated integration failures, and sandbox temporary-directory
+errors are not represented as slice failures or as a green repository run.
+
+**Boundary**: The code is not imported by launcher discovery, application,
+repair, or mutation paths. It accepts role policies from a future separately
+authenticated inventory owner; this increment does not yet construct or lease
+the provider/native-child inventories, prove provider-child endpoint tracing,
+or run a real provider. Docker Desktop, Podman, Compose, the trust store,
+package files, runtime defaults, containers, and volumes were not touched.
+
+**Independent Review**: The first inspect-only review found one High defect:
+the native adapter closed `CREATE_PROCESS_DEBUG_EVENT` process/thread handles
+that Windows owns until the corresponding exit event is continued. It also
+found one Medium documentation overclaim that treated active-process-limit
+association denial as if it necessarily notified the monitor and drained the
+existing Job. The adapter now closes only the event's image-file handle, its
+test asserts that ownership contract, and the task claims now distinguish Job
+limit prevention from debug-event-triggered draining. Independent re-review
+returned PASS with no Critical, High, Medium, or Low findings remaining.
+
+**Next**: Checkpoint and run exact-head CI before building the authenticated
+provider/runtime inventory owners and endpoint-tracing integration that will
+supply this boundary.
 
 ### 2026-09-08 - Linux Native-Debug Shim Portability Correction Green
 

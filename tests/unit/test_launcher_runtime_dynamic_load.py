@@ -864,6 +864,7 @@ class _NativeDebugShim:
         continue_succeeds: bool = True,
         wait_succeeds: bool = True,
         wait_error: int = 0,
+        create_process_event: bool = False,
     ) -> None:
         self.closed: list[int] = []
         self.continued: list[tuple[int, int, int]] = []
@@ -873,6 +874,7 @@ class _NativeDebugShim:
         self.continue_succeeds = continue_succeeds
         self.wait_succeeds = wait_succeeds
         self.wait_error = wait_error
+        self.create_process_event = create_process_event
 
     def WaitForDebugEventEx(self, event_pointer: object, milliseconds: int) -> bool:
         assert milliseconds == 25
@@ -882,10 +884,19 @@ class _NativeDebugShim:
         event = ctypes.cast(
             event_pointer, ctypes.POINTER(dynamic_module._DEBUG_EVENT)
         ).contents
-        event.dwDebugEventCode = dynamic_module._LOAD_DLL_DEBUG_EVENT
+        event.dwDebugEventCode = (
+            dynamic_module._CREATE_PROCESS_DEBUG_EVENT
+            if self.create_process_event
+            else dynamic_module._LOAD_DLL_DEBUG_EVENT
+        )
         event.dwProcessId = 0 if self.malformed_process_id else 101
         event.dwThreadId = 201
-        event.LoadDll.hFile = 501
+        if self.create_process_event:
+            event.CreateProcessInfo.hFile = 501
+            event.CreateProcessInfo.hProcess = 502
+            event.CreateProcessInfo.hThread = 503
+        else:
+            event.LoadDll.hFile = 501
         return True
 
     def ContinueDebugEvent(self, process_id: int, thread_id: int, status: int) -> bool:
@@ -962,6 +973,31 @@ def test_native_debug_api_timeout_uses_test_supplied_windows_last_error(
     assert api.wait_event(25) is None
     assert shim.closed == []
     assert shim.continued == []
+
+
+def test_native_debug_api_leaves_create_process_handles_under_windows_ownership(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_windows_last_error_test_shim(monkeypatch)
+    shim = _NativeDebugShim(create_process_event=True)
+    api = object.__new__(dynamic_module.NativeWindowsDebugEventApi)
+    api._kernel32 = shim  # noqa: SLF001
+    api._file_api = _SupportedFileApi()  # type: ignore[assignment]  # noqa: SLF001
+
+    event = api.wait_event(25)
+
+    assert event == DebugEvent(
+        DebugEventKind.CREATE_PROCESS,
+        101,
+        201,
+        image_handle=501,
+    )
+    assert shim.closed == []
+    api.close_image_handle(event.image_handle)
+    api.continue_event(event, DBG_CONTINUE)
+    # The adapter closes only hFile. Windows retains and later closes the
+    # debugger-owned hProcess/hThread handles when EXIT_PROCESS is continued.
+    assert shim.closed == [501]
 
 
 @pytest.mark.parametrize(

@@ -1,7 +1,7 @@
 # Current Tasks - Sprint 09
 
 **Sprint Period**: August 8-August 21, 2026
-**Last Updated**: September 8, 2026
+**Last Updated**: September 9, 2026
 **Focus**: Task-101 is complete. Task-087 source/task-state checkpoint
 `e18fb3a` is independently reviewed and exact-head green. It holds all 47
 CPython policy-native files and their trusted directory chains across a
@@ -13,7 +13,11 @@ Windows API was called, and Python 3.11 was cancelled by matrix fail-fast. A
 test-only correction at `7233dc3` simulates the Windows last-error state without
 changing production source. Exact-head CI/CD run `34293025363`, Task-087 run
 `34293025481`, and external Trivy passed all nine applicable checks; the main-
-only build skipped as designed for a pull request.
+only build skipped as designed for a pull request. A September 9 local,
+source-only follow-up now implements the separately authenticated provider-
+child image/event boundary with an exact two-process Job limit; it is unwired
+and passed independent re-review after correcting Windows debug-handle
+ownership and Job-limit wording. It now awaits checkpointing and exact-head CI.
 Cross-session locks, durable recovery, Windows-store CA selection, and
 ACL-preserving `.env` replacement remain later Gate A source work. Unsigned
 preview-package integration remains later under ADR-019. Production signing
@@ -374,6 +378,29 @@ timing; preview integration remains a later gate
   and external Trivy passed all nine applicable checks; both Ubuntu Python
   matrix legs passed, and the main-only build skipped as designed for a pull
   request.
+- A September 9 local source-only slice extends the exact debug-event policy to
+  one separately authenticated provider role plus one active exact runtime-
+  child role. The native Job Object admits at most the provider and one child;
+  the provider remains alive while the child runs, every process image and DLL
+  must match its role-specific stable identity/hash/path policy or a reviewed
+  direct-System32 leaf. The Job limit prevents a third concurrent process from
+  remaining active; an observed unexpected/concurrent process event fails and
+  drains the operation, without claiming that an association denial alone
+  terminates the existing Job.
+  Provider requests are reconstructed from the exact Podman Compose plan with
+  a fixed shell-free argument vector and the ten-key constructed environment;
+  the native debug adapter closes only process/DLL image-file handles and leaves
+  debugger-owned process/thread handles to Windows through exit continuation.
+  Focused tests pass 152/152 and the complete launcher-prefix regression
+  selection passes 827/827 outside the sandbox required by its native Windows
+  handle case. Black, blocking Flake8, strict mypy, medium/high Bandit, source
+  sensitive-term scanning, and diff checks pass. This slice remains unwired:
+  no Docker, Podman, Compose, launcher, repair, filesystem mutation, package,
+  or publication path ran. The initial independent review found one High
+  Windows debug-handle ownership defect and one Medium Job-limit overclaim;
+  both are corrected, and re-review returned PASS with no open findings. It
+  requires an exact-head checkpoint/CI pass before the next implementation
+  slice.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked
