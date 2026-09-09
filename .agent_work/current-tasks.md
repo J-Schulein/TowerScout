@@ -10,8 +10,10 @@ checkpoint `76bb3cb` adds the independently reviewed, unwired fixed-CPython
 Windows image-load policy. Its first CI run exposed only a Linux native-shim
 test portability defect: four Python 3.12 assertions failed before the fake
 Windows API was called, and Python 3.11 was cancelled by matrix fail-fast. A
-test-only local correction simulates the Windows last-error state without
-changing production source and is awaiting checkpoint/CI rerun.
+test-only correction at `7233dc3` simulates the Windows last-error state without
+changing production source. Exact-head CI/CD run `34293025363`, Task-087 run
+`34293025481`, and external Trivy passed all nine applicable checks; the main-
+only build skipped as designed for a pull request.
 Cross-session locks, durable recovery, Windows-store CA selection, and
 ACL-preserving `.env` replacement remain later Gate A source work. Unsigned
 preview-package integration remains later under ADR-019. Production signing
@@ -364,11 +366,14 @@ timing; preview integration remains a later gate
   portable native-shim tests on Ubuntu/Python 3.12 because the shim did not
   provide Windows-only `ctypes.set_last_error`/`get_last_error`; the Python
   3.11 matrix leg was cancelled during dependency installation by fail-fast,
-  and the dependent build skipped. A local test-only correction supplies that
+  and the dependent build skipped. Test-only checkpoint `7233dc3` supplies that
   simulated last-error state and adds timeout coverage. Production source is
   unchanged. The corrected focused set passes 105/105 and the complete launcher
   selection passes 859/859; Black, blocking Flake8, compilation, and diff
-  checks pass. Checkpoint and exact-head CI rerun remain pending.
+  checks pass. Exact-head CI/CD run `34293025363`, Task-087 run `34293025481`,
+  and external Trivy passed all nine applicable checks; both Ubuntu Python
+  matrix legs passed, and the main-only build skipped as designed for a pull
+  request.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

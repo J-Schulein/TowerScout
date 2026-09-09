@@ -1379,7 +1379,7 @@ Exit criteria:
 
 ## Implementation Log
 
-### 2026-09-08 - Linux Native-Debug Shim Portability Correction Prepared
+### 2026-09-08 - Linux Native-Debug Shim Portability Correction Green
 
 **Objective**: Correct the exact cross-platform test-harness defect exposed by
 the first CI run for independently reviewed dynamic-load source checkpoint
@@ -1405,11 +1405,16 @@ and `git diff --check` pass. A cached, network-disabled Linux/Python 3.11
 container confirmed that `ctypes.set_last_error` is absent there and passed a
 direct production-adapter probe after receiving the simulated last-error state.
 The image did not contain pytest, so this probe is not represented as a
-substitute for the pending GitHub matrix rerun.
+substitute for the GitHub matrix rerun.
 
-**Next**: Checkpoint and push the test/evidence correction, then require both
-GitHub Python matrix legs and every dependent required check to pass at the
-exact new head.
+**Exact-Head Evidence**: Test/evidence checkpoint `7233dc3` passed CI/CD run
+`34293025363`, Task-087 run `34293025481`, and external Trivy. Both Ubuntu
+Python 3.11 and 3.12 jobs passed; all nine applicable pull-request checks
+succeeded, and the main-only build skipped as designed for a pull request.
+
+**Next**: Preserve this correction and carry the same exact image/event
+guarantees into the separately authenticated provider-child execution boundary
+before any launcher integration.
 
 ### 2026-09-08 - CPython Dynamic-Load Destination Enforcement Implemented Locally
 
