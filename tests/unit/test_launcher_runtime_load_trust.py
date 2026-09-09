@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import sys
+import threading
 from dataclasses import replace
 from pathlib import Path, PureWindowsPath
 
@@ -23,6 +24,9 @@ from towerscout_launcher.runtime_load_trust import (  # noqa: E402
     capture_runtime_load_prerequisites,
 )
 from towerscout_launcher.runtime_policy import RuntimeProductId  # noqa: E402
+from towerscout_launcher.runtime_provider_child import (  # noqa: E402
+    ProcessImageRole,
+)
 from towerscout_launcher.windows_path_trust import (  # noqa: E402
     AccessAllowedAce,
     NativeDirectoryFacts,
@@ -359,6 +363,160 @@ def test_same_thread_close_during_load_revalidation_fails_without_closing() -> N
     assert not owner.closed
     owner.close()
     executable.close()
+
+
+def test_runtime_load_inventory_policy_is_available_only_during_held_operation() -> (
+    None
+):
+    entry = DirectoryEntry("helper.dll", False, 0x80, 0)
+    module_path = _APP + r"\helper.dll"
+    owner, executable, _path_api, _inventory, _file_api = _open(
+        entries=(entry,), files={module_path: b"MZdll"}
+    )
+
+    with pytest.raises(RuntimeLoadTrustError) as exc_info:
+        owner.active_process_image_policy(ProcessImageRole.RUNTIME_CHILD)
+    assert exc_info.value.code is RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED
+
+    def operation():  # noqa: ANN202
+        policy = owner.active_process_image_policy(ProcessImageRole.RUNTIME_CHILD)
+        assert policy.role is ProcessImageRole.RUNTIME_CHILD
+        assert len(policy.exact_files) == 2
+        assert policy.entrypoint.matches(executable.snapshot)
+        assert "kernel32.dll" in policy.system_image_names
+        with pytest.raises(RuntimeLoadTrustError) as close_failure:
+            owner.close()
+        assert close_failure.value.code is RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED
+        return policy
+
+    policy = owner.run_while_held(operation)
+
+    assert policy.role is ProcessImageRole.RUNTIME_CHILD
+    assert not owner.closed
+    owner.close()
+    executable.close()
+
+
+def test_runtime_load_operation_detects_inventory_drift_after_callback() -> None:
+    entry = DirectoryEntry("helper.dll", False, 0x80, 0)
+    module_path = _APP + r"\helper.dll"
+    owner, executable, _path_api, inventory, _file_api = _open(
+        entries=(entry,), files={module_path: b"MZdll"}
+    )
+
+    def operation() -> None:
+        inventory.entries = ()
+
+    with pytest.raises(RuntimeLoadTrustError) as exc_info:
+        owner.run_while_held(operation)
+
+    assert exc_info.value.code is RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED
+    owner.close()
+    executable.close()
+
+
+def test_runtime_load_operation_rechecks_inventory_immediately_before_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry = DirectoryEntry("helper.dll", False, 0x80, 0)
+    module_path = _APP + r"\helper.dll"
+    owner, executable, _path_api, inventory, _file_api = _open(
+        entries=(entry,), files={module_path: b"MZdll"}
+    )
+    original_run = runtime_load_trust.PathHierarchyTrust.run_while_held
+    changed = False
+    callback_ran = False
+
+    def change_inventory_then_continue(path_owner, operation):  # noqa: ANN001, ANN202
+        nonlocal changed
+        if not changed:
+            changed = True
+            inventory.entries = ()
+        return original_run(path_owner, operation)
+
+    def operation() -> None:
+        nonlocal callback_ran
+        callback_ran = True
+
+    monkeypatch.setattr(
+        runtime_load_trust.PathHierarchyTrust,
+        "run_while_held",
+        change_inventory_then_continue,
+    )
+    with pytest.raises(RuntimeLoadTrustError) as exc_info:
+        owner.run_while_held(operation)
+
+    assert exc_info.value.code is RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED
+    assert not callback_ran
+    owner.close()
+    executable.close()
+
+
+def test_runtime_load_operation_preserves_callback_failure_when_inventory_is_stable() -> (
+    None
+):
+    owner, executable, _path_api, _inventory, _file_api = _open()
+
+    with pytest.raises(ValueError, match="operation failed"):
+        owner.run_while_held(
+            lambda: (_ for _ in ()).throw(ValueError("operation failed"))
+        )
+
+    owner.close()
+    executable.close()
+
+
+def test_runtime_load_operation_maps_inventory_api_failure_to_changed() -> None:
+    owner, executable, _path_api, inventory, _file_api = _open()
+
+    def fail_inventory() -> None:
+        raise OSError("private inventory failure")
+
+    inventory.list_hook = fail_inventory
+    with pytest.raises(RuntimeLoadTrustError) as exc_info:
+        owner.run_while_held(lambda: None)
+
+    assert exc_info.value.code is RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED
+    assert "private inventory failure" not in str(exc_info.value)
+    owner.close()
+    executable.close()
+
+
+def test_runtime_load_operation_holds_external_executable_lifetime_lock() -> None:
+    owner, executable, _path_api, _inventory, _file_api = _open()
+    entered = threading.Event()
+    release = threading.Event()
+    operation_done = threading.Event()
+    close_done = threading.Event()
+
+    def operation() -> None:
+        entered.set()
+        assert release.wait(5)
+        assert not executable.closed
+
+    def execute() -> None:
+        owner.run_while_held(operation)
+        operation_done.set()
+
+    def close_executable() -> None:
+        executable.close()
+        close_done.set()
+
+    worker = threading.Thread(target=execute)
+    closer = threading.Thread(target=close_executable)
+    worker.start()
+    assert entered.wait(5)
+    closer.start()
+    assert not close_done.wait(0.1)
+
+    release.set()
+    worker.join(5)
+    closer.join(5)
+
+    assert operation_done.is_set()
+    assert close_done.is_set()
+    assert executable.closed
+    owner.close()
 
 
 def test_interruption_before_file_ownership_transfer_closes_all_captured_handles(

@@ -39,6 +39,11 @@ from .runtime_dependency_trust import (
     inspect_handle_bound_pe_dependencies,
     validate_package_bound_cpython_dependency_observations,
 )
+from .runtime_provider_child import (
+    ProcessImageBinding,
+    ProcessImagePolicy,
+    ProcessImageRole,
+)
 from .windows_path_trust import (
     PathHierarchyTrust,
     PathTrustPurpose,
@@ -463,6 +468,42 @@ class HeldCpythonDependencyInventory:
             _fail(CpythonDependencyCaptureErrorCode.INVENTORY_CHANGED)
         try:
             return CpythonDynamicLoadPolicy(bindings, self._system_image_names)
+        except ValueError:
+            _fail(CpythonDependencyCaptureErrorCode.INVENTORY_CHANGED)
+
+    def active_process_image_policy(
+        self,
+        role: ProcessImageRole,
+        *,
+        entrypoint: HandleBoundFile,
+    ) -> ProcessImagePolicy:
+        """Return a role policy for a held venv stub plus this base runtime."""
+
+        if (
+            type(role) is not ProcessImageRole
+            or type(entrypoint) is not HandleBoundFile
+            or entrypoint.closed
+            or self._active_owner != threading.get_ident()
+            or not self._files
+        ):
+            _fail(CpythonDependencyCaptureErrorCode.INVENTORY_CHANGED)
+        try:
+            return ProcessImagePolicy(
+                role,
+                (
+                    ProcessImageBinding.from_snapshot(
+                        entrypoint.snapshot, entrypoint=True
+                    ),
+                    *(
+                        ProcessImageBinding.from_snapshot(
+                            held.bound_file.snapshot, entrypoint=False
+                        )
+                        for held in self._files
+                        if held.dynamic_load_eligible
+                    ),
+                ),
+                self._system_image_names,
+            )
         except ValueError:
             _fail(CpythonDependencyCaptureErrorCode.INVENTORY_CHANGED)
 

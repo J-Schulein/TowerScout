@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import sys
+import threading
 from dataclasses import FrozenInstanceError
 from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
@@ -14,7 +15,11 @@ if str(LAUNCHER_ROOT) not in sys.path:
     sys.path.insert(0, str(LAUNCHER_ROOT))
 
 import towerscout_launcher.runtime_dynamic_load as dynamic_module  # noqa: E402
+import towerscout_launcher.runtime_dependency_capture as dependency_module  # noqa: E402
 from towerscout_launcher.runtime_command_native import _NativeProcess  # noqa: E402
+from towerscout_launcher.runtime_dependency_capture import (  # noqa: E402
+    HeldCpythonDependencyInventory,
+)
 from towerscout_launcher.runtime_dynamic_load import (  # noqa: E402
     DebugEvent,
     DebugEventKind,
@@ -26,11 +31,20 @@ from towerscout_launcher.runtime_execution import (  # noqa: E402
     ComposeReadOperation,
     RuntimeExecutionBinding,
 )
+from towerscout_launcher.runtime_load_trust import (  # noqa: E402
+    RuntimeLoadPrerequisites,
+)
+from towerscout_launcher.runtime_policy import RuntimeProductId  # noqa: E402
 from towerscout_launcher.runtime_provider_child import (  # noqa: E402
     ProcessImageBinding,
     ProcessImagePolicy,
     ProcessImageRole,
     ProviderChildProcessRequest,
+)
+from towerscout_launcher.runtime_provider_inventory import (  # noqa: E402
+    HeldProviderChildInventory,
+    ProviderChildInventoryError,
+    ProviderChildInventoryErrorCode,
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
     EXPECTED_VOLUME_DESTINATIONS,
@@ -55,7 +69,10 @@ from towerscout_launcher.target_contracts import (  # noqa: E402
     WindowsProcessEnvironment,
 )
 from towerscout_launcher.windows_security import (  # noqa: E402
+    FileCapturePolicy,
     FileSnapshot,
+    HandleBoundFile,
+    NativeFileFacts,
     PathClassification,
     PathLocality,
     ReparseKind,
@@ -64,6 +81,7 @@ from towerscout_launcher.windows_security import (  # noqa: E402
 
 _SYSTEM32 = PureWindowsPath(r"C:\Windows\System32")
 _PROVIDER = PureWindowsPath(r"C:\TowerScout\tools\provider\.venv\Scripts\python.exe")
+_BASE_PYTHON = PureWindowsPath(r"C:\Python312\python.exe")
 _PROVIDER_DLL = PureWindowsPath(r"C:\Python312\python312.dll")
 _PODMAN = PureWindowsPath(r"C:\Program Files\RedHat\Podman\podman.exe")
 _PODMAN_DLL = PureWindowsPath(r"C:\Program Files\RedHat\Podman\helper.dll")
@@ -525,6 +543,347 @@ def _backend(events: tuple[DebugEvent, ...] | None = None):
     return backend, process_api, debug_api
 
 
+class _HeldFileApi:
+    supported = True
+
+    def __init__(self, snapshot: FileSnapshot, content: bytes) -> None:
+        self.snapshot = snapshot
+        self.content = content
+        self.cursor = 0
+        self.closed = False
+
+    def query_file(self, handle: object) -> NativeFileFacts:
+        del handle
+        return NativeFileFacts(
+            final_path=self.snapshot.final_path,
+            volume_serial=self.snapshot.identity.volume_serial,
+            file_id=self.snapshot.identity.file_id,
+            attributes=self.snapshot.attributes,
+            link_count=1 if self.snapshot.classification.single_link else 2,
+            size=len(self.content),
+            creation_time=self.snapshot.creation_time,
+            last_write_time=self.snapshot.last_write_time,
+            drive_type=3,
+            file_type=1,
+            reparse_tag=self.snapshot.reparse_tag,
+        )
+
+    def rewind_file(self, handle: object) -> None:
+        del handle
+        self.cursor = 0
+
+    def read_file(self, handle: object, maximum: int) -> bytes:
+        del handle
+        chunk = self.content[self.cursor : self.cursor + maximum]
+        self.cursor += len(chunk)
+        return chunk
+
+    def close_handle(self, handle: object) -> None:
+        del handle
+        self.closed = True
+
+
+def _held_file(
+    path: PureWindowsPath, marker: int
+) -> tuple[HandleBoundFile, _HeldFileApi]:
+    snapshot = _snapshot(str(path), marker)
+    api = _HeldFileApi(snapshot, str(path).encode("utf-8"))
+    return (
+        HandleBoundFile(
+            api,
+            object(),
+            FileCapturePolicy(max_bytes=1024 * 1024, require_single_link=False),
+            snapshot,
+        ),
+        api,
+    )
+
+
+def _provider_runtime_inventory(
+    base_python: HandleBoundFile, base_dll: HandleBoundFile
+) -> HeldCpythonDependencyInventory:
+    inventory = object.__new__(HeldCpythonDependencyInventory)
+    inventory._lifetime_lock = threading.RLock()  # noqa: SLF001
+    inventory._active_owner = None  # noqa: SLF001
+    inventory._executable = base_python  # noqa: SLF001
+    inventory._directories = ()  # noqa: SLF001
+    inventory._files = (  # noqa: SLF001
+        dependency_module._HeldDependency(  # noqa: SLF001
+            "python.exe", base_python, True, True
+        ),
+        dependency_module._HeldDependency(  # noqa: SLF001
+            "python312.dll", base_dll, False, True
+        ),
+    )
+    inventory._system_image_names = ("kernel32.dll", "ntdll.dll")  # noqa: SLF001
+    inventory._evidence = SimpleNamespace(  # noqa: SLF001
+        dependency=SimpleNamespace(amd64_loadable_count=2)
+    )
+    return inventory
+
+
+def _held_inventory_owner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[
+    HeldProviderChildInventory,
+    NativeWindowsProviderChildDynamicLoadBackend,
+    _HeldFileApi,
+    HandleBoundFile,
+]:
+    target = _podman_target()
+    plan = RuntimeExecutionBinding(target).compose_command(ComposeReadOperation.CONFIG)
+    provider, _provider_api = _held_file(_PROVIDER, 1)
+    provider_module, _module_api = _held_file(
+        target.compose_provider.artifacts[1].final_path, 8
+    )
+    base_python, _base_api = _held_file(_BASE_PYTHON, 9)
+    base_dll, _base_dll_api = _held_file(_PROVIDER_DLL, 2)
+    child_executable, _child_api = _held_file(_PODMAN, 3)
+    child_dll, _child_dll_api = _held_file(_PODMAN_DLL, 10)
+    identity_key, identity_key_api = _held_file(
+        target.endpoint.identity_key.final_path, 4  # type: ignore[union-attr]
+    )
+    provider_inventory = _provider_runtime_inventory(base_python, base_dll)
+    child_inventory = object.__new__(RuntimeLoadPrerequisites)
+    child_inventory._evidence = SimpleNamespace(  # noqa: SLF001
+        product_id=RuntimeProductId.PODMAN_CLI
+    )
+
+    def run_child(_self, operation):  # noqa: ANN001, ANN202
+        return child_executable.run_while_held(
+            lambda: child_dll.run_while_held(operation)
+        )
+
+    def child_policy(_self, role):  # noqa: ANN001, ANN202
+        return ProcessImagePolicy(
+            role,
+            (
+                ProcessImageBinding.from_snapshot(
+                    child_executable.snapshot, entrypoint=True
+                ),
+                ProcessImageBinding.from_snapshot(child_dll.snapshot, entrypoint=False),
+            ),
+            ("kernel32.dll", "ntdll.dll"),
+        )
+
+    monkeypatch.setattr(RuntimeLoadPrerequisites, "run_while_held", run_child)
+    monkeypatch.setattr(
+        RuntimeLoadPrerequisites, "active_process_image_policy", child_policy
+    )
+    monkeypatch.setattr(
+        RuntimeLoadPrerequisites, "close", lambda _self: child_dll.close()
+    )
+
+    def execute(
+        backend_self,
+        command_plan,
+        provider_policy,
+        runtime_policy,
+    ):  # noqa: ANN001, ANN202
+        assert provider_policy.entrypoint.matches(debug_api.images["provider"])
+        assert any(
+            binding.matches(debug_api.images["provider-dll"])
+            for binding in provider_policy.exact_files
+        )
+        assert runtime_policy.entrypoint.matches(debug_api.images["podman"])
+        assert any(
+            binding.matches(debug_api.images["podman-dll"])
+            for binding in runtime_policy.exact_files
+        )
+        backend_self._validate_policies(  # noqa: SLF001
+            command_plan, provider_policy, runtime_policy
+        )
+        return backend_self._execute_provider_request(  # noqa: SLF001
+            ProviderChildProcessRequest.from_plan(command_plan),
+            provider_policy,
+            runtime_policy,
+            system_directory=_SYSTEM32,
+            system_directory_identity=StableFileIdentity(71, (99).to_bytes(16, "big")),
+        )
+
+    monkeypatch.setattr(
+        NativeWindowsProviderChildDynamicLoadBackend, "execute", execute
+    )
+    backend, _process_api, debug_api = _backend()
+    debug_api.images["podman-dll"] = _snapshot(str(_PODMAN_DLL), 10)
+    owner = HeldProviderChildInventory(
+        plan=plan,
+        provider_runtime_inventory=provider_inventory,
+        child_runtime_inventory=child_inventory,
+        provider_base_executable=base_python,
+        child_executable=child_executable,
+        provider_artifacts=(provider, provider_module),
+        endpoint_artifacts=(identity_key,),
+    )
+    return owner, backend, identity_key_api, identity_key
+
+
+def test_held_provider_child_inventory_binds_endpoint_and_both_image_roles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner, backend, _identity_key_api, _identity_key = _held_inventory_owner(
+        monkeypatch
+    )
+
+    result = owner.execute(backend)
+
+    assert result.command.command.stdout == b"{}\n"
+    assert result.evidence.target_token == _podman_target().target_token.display
+    assert (
+        result.evidence.request_binding_sha256
+        == result.command.enforcement.request_binding_sha256
+    )
+    assert (
+        result.evidence.provider_policy_sha256
+        == result.command.enforcement.provider_policy_sha256
+    )
+    assert (
+        result.evidence.child_policy_sha256
+        == result.command.enforcement.child_policy_sha256
+    )
+    assert result.evidence.constructed_endpoint_environment
+    assert result.evidence.provider_rediscovery_denied_by_policy
+    assert result.evidence.endpoint_artifacts_held_through_execution
+    assert not result.evidence.live_network_peer_observed
+    assert "127.0.0.1" not in repr(result)
+    assert "private" not in repr(result.evidence)
+    owner.close()
+
+
+def test_held_provider_child_inventory_rejects_endpoint_identity_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = _podman_target()
+    plan = RuntimeExecutionBinding(target).compose_command(ComposeReadOperation.CONFIG)
+    provider, _provider_api = _held_file(_PROVIDER, 1)
+    provider_module, _module_api = _held_file(
+        target.compose_provider.artifacts[1].final_path, 8
+    )
+    base_python, _base_api = _held_file(_BASE_PYTHON, 9)
+    base_dll, _base_dll_api = _held_file(_PROVIDER_DLL, 2)
+    wrong_child, _wrong_child_api = _held_file(_PODMAN, 3)
+    wrong_key, _wrong_key_api = _held_file(
+        target.endpoint.identity_key.final_path, 44  # type: ignore[union-attr]
+    )
+    child_inventory = object.__new__(RuntimeLoadPrerequisites)
+    child_inventory._evidence = SimpleNamespace(  # noqa: SLF001
+        product_id=RuntimeProductId.PODMAN_CLI
+    )
+    monkeypatch.setattr(RuntimeLoadPrerequisites, "close", lambda _self: None)
+
+    with pytest.raises(ProviderChildInventoryError) as exc_info:
+        HeldProviderChildInventory(
+            plan=plan,
+            provider_runtime_inventory=_provider_runtime_inventory(
+                base_python, base_dll
+            ),
+            child_runtime_inventory=child_inventory,
+            provider_base_executable=base_python,
+            child_executable=wrong_child,
+            provider_artifacts=(provider, provider_module),
+            endpoint_artifacts=(wrong_key,),
+        )
+
+    assert exc_info.value.code is ProviderChildInventoryErrorCode.INVENTORY_MISMATCH
+    rendered = str(exc_info.value) + repr(exc_info.value)
+    assert "podman-machine-key" not in rendered
+    assert "private" not in rendered
+    for held in (
+        provider,
+        provider_module,
+        base_python,
+        base_dll,
+        wrong_child,
+        wrong_key,
+    ):
+        held.close()
+
+
+def test_held_provider_child_inventory_detects_key_replacement_after_execution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner, backend, identity_key_api, _identity_key = _held_inventory_owner(monkeypatch)
+    original_execute = NativeWindowsProviderChildDynamicLoadBackend.execute
+
+    def replace_key_then_execute(
+        backend_self,
+        command_plan,
+        provider_policy,
+        child_policy,
+    ):  # noqa: ANN001, ANN202
+        result = original_execute(
+            backend_self, command_plan, provider_policy, child_policy
+        )
+        identity_key_api.content += b"replacement"
+        return result
+
+    monkeypatch.setattr(
+        NativeWindowsProviderChildDynamicLoadBackend,
+        "execute",
+        replace_key_then_execute,
+    )
+
+    with pytest.raises(ProviderChildInventoryError) as exc_info:
+        owner.execute(backend)
+
+    assert exc_info.value.code is ProviderChildInventoryErrorCode.INVENTORY_CHANGED
+    assert "replacement" not in str(exc_info.value)
+    owner.close()
+
+
+def test_held_provider_child_inventory_blocks_cross_thread_key_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner, backend, _identity_key_api, identity_key = _held_inventory_owner(monkeypatch)
+    original_execute = NativeWindowsProviderChildDynamicLoadBackend.execute
+    entered = threading.Event()
+    release = threading.Event()
+    execution_done = threading.Event()
+    close_done = threading.Event()
+
+    def wait_then_execute(
+        backend_self,
+        command_plan,
+        provider_policy,
+        child_policy,
+    ):  # noqa: ANN001, ANN202
+        entered.set()
+        assert release.wait(5)
+        return original_execute(
+            backend_self, command_plan, provider_policy, child_policy
+        )
+
+    monkeypatch.setattr(
+        NativeWindowsProviderChildDynamicLoadBackend,
+        "execute",
+        wait_then_execute,
+    )
+
+    def execute() -> None:
+        owner.execute(backend)
+        execution_done.set()
+
+    def close_key() -> None:
+        identity_key.close()
+        close_done.set()
+
+    worker = threading.Thread(target=execute)
+    closer = threading.Thread(target=close_key)
+    worker.start()
+    assert entered.wait(5)
+    closer.start()
+    assert not close_done.wait(0.1)
+
+    release.set()
+    worker.join(5)
+    closer.join(5)
+
+    assert execution_done.is_set()
+    assert close_done.is_set()
+    assert identity_key.closed
+    owner.close()
+
+
 def test_provider_child_backend_authenticates_both_process_roles_and_images() -> None:
     request, provider_policy, child_policy = _plan_and_policies()
     backend, process_api, debug_api = _backend()
@@ -712,6 +1071,7 @@ def test_provider_child_slice_remains_unwired() -> None:
             encoding="utf-8"
         )
         assert "runtime_provider_child" not in source
+        assert "runtime_provider_inventory" not in source
 
 
 def test_policy_module_has_no_process_or_shell_execution() -> None:

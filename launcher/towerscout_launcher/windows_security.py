@@ -816,6 +816,30 @@ class HandleBoundFile:
         finally:
             self._end_use()
 
+    def _run_while_held_with_postvalidation(
+        self,
+        operation: Callable[[], _InspectionResult],
+        postvalidator: Callable[[object, FileSnapshot], None],
+    ) -> _InspectionResult:
+        """Internal owner seam for same-handle security postvalidation."""
+
+        if not callable(operation) or not callable(postvalidator):
+            raise ValueError("The held-file operation is invalid.")
+        handle = self._begin_use()
+        try:
+            self._assert_unchanged_owned(handle)
+            try:
+                result = operation()
+            except BaseException:
+                postvalidator(handle, self._snapshot)
+                self._assert_unchanged_owned(handle)
+                raise
+            postvalidator(handle, self._snapshot)
+            self._assert_unchanged_owned(handle)
+            return result
+        finally:
+            self._end_use()
+
     def close(self) -> None:
         with self._lifetime_lock:
             if self._active_owner is not None:

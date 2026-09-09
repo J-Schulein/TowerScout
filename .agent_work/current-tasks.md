@@ -398,9 +398,26 @@ timing; preview integration remains a later gate
   no Docker, Podman, Compose, launcher, repair, filesystem mutation, package,
   or publication path ran. The initial independent review found one High
   Windows debug-handle ownership defect and one Medium Job-limit overclaim;
-  both are corrected, and re-review returned PASS with no open findings. It
-  requires an exact-head checkpoint/CI pass before the next implementation
-  slice.
+  both are corrected, and re-review returned PASS with no open findings.
+  Source checkpoint `d40bb7f` then passed exact-head CI/CD run `34359261079`
+  and Task-087 run `34359261077`; all nine applicable checks succeeded and the
+  pull-request-only build skipped as designed.
+- A subsequent local source-only increment now composes the authenticated
+  provider artifacts, held base-CPython closure, held Podman application load
+  surface, and captured endpoint key/discovery artifacts under one synchronous
+  owner. Role policies are available only while every nested file and directory
+  lifetime lock is held, and the returned redacted evidence binds the exact
+  request, provider/child policies, endpoint material, and dynamic-load result.
+  Replacement, identity mismatch, same-thread reentry, cross-thread close, and
+  post-operation drift tests fail closed. The evidence explicitly records that
+  no live network peer was observed: this is the source-level endpoint contract
+  needed before a real provider trace, not the live trace itself. Independent
+  review found one Medium pre-callback inventory timing gap; the corrected
+  deepest-boundary check and adversarial regression passed re-review with no
+  findings remaining. Focused tests pass 77/77, and the wider launcher
+  regression selection passes 885/885 with the documented Defender/AMSI helper
+  and restricted native-hardlink host cases excluded. The increment is still
+  unwired and ready for checkpoint.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

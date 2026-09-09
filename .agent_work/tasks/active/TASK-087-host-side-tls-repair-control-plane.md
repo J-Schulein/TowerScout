@@ -1382,6 +1382,76 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-09 - Held Provider/Runtime/Endpoint Inventory Implemented Locally
+
+**Objective**: Supply the reviewed provider-child process boundary from one
+authenticated, continuously held provider/runtime/endpoint inventory without
+wiring launcher discovery, repair, mutation, or a live provider run.
+
+**Checkpoint**: Provider-child source checkpoint `d40bb7f` passed exact-head
+CI/CD run `34359261079` and Task-087 run `34359261077`. All nine applicable
+checks succeeded; the pull-request-only build skipped as designed.
+
+**Decision**: Compose the exact provider interpreter/module artifacts, the
+held base-CPython closure, the held Podman immediate load surface, and the
+captured identity-key/discovery files under one synchronous owner. Construct
+the provider and child image policies only inside all nested leases. Bind the
+constructed `CONTAINER_HOST`/`CONTAINER_SSHKEY` request, endpoint metadata,
+provider integrity, role policies, and dynamic-load enforcement evidence into
+one redacted result. Record `live_network_peer_observed=false` explicitly: the
+source contract denies ambient endpoint selection and policy-authorized
+rediscovery, but a later controlled provider run must still supply live peer
+trace evidence.
+
+**Execution**: Added continuous callback leases to directory hierarchies and
+runtime load prerequisites, including pre/post path identity, DACL, file,
+inventory, and same-handle checks. Extended the held CPython inventory to build
+a provider-role image policy from the leased virtual-environment interpreter
+plus the exact authenticated base runtime. Added a composite provider-child
+owner that rejects mismatched or duplicated artifacts, owns cleanup, holds the
+provider artifacts and endpoint files across nested provider/runtime inventory
+leases, invokes only the exact bound plan, and verifies that returned native
+evidence matches the request and both policies.
+
+**Validation**: The first runtime-owner contract run failed on the intentionally
+missing lease/policy methods; the first composite-owner run failed on the
+intentionally missing module. The completed provider-child, runtime-load,
+CPython-capture, and path-trust set passes 77/77. Black, strict mypy, blocking
+Flake8, medium/high Bandit, compilation, sensitive-term scanning, both
+agent-work validators, and `git diff --check` pass. A wider launcher regression
+selection passes 885/885 with the documented Defender/AMSI helper and
+restricted native-hardlink host cases excluded; it is not represented as a
+green full repository run.
+
+**Adversarial Coverage**: Tests reject endpoint-key identity mismatch, detect
+key-byte replacement after backend return, block a cross-thread key close
+through final same-handle validation, deny image policy access outside its
+owner callback, detect directory-inventory drift after the callback, preserve
+an unrelated callback failure when the inventory remains stable, and keep raw
+endpoint, key, package, and provider paths out of results and errors.
+
+**Independent Review**: The initial inspect-only review found one Medium
+TOCTOU gap: directory inventory was checked before nested lease acquisition and
+after the callback, but not again at the deepest boundary immediately before
+execution. A new adversarial test mutated the inventory during path-lease
+acquisition and initially proved that the callback still ran. The runtime owner
+now revalidates inventory immediately before invoking the callback; the test
+proves the callback remains unexecuted, runtime-load tests pass 24/24, and
+independent re-review returned clean with no findings remaining.
+
+**Boundary**: The new owner is not imported by discovery, application, repair,
+or mutation paths. Docker Desktop, Podman, Compose, the trust store, runtime
+defaults, containers, volumes, package files, and `.env` were not touched. No
+live provider-child network peer was observed, so live endpoint tracing and
+the real-provider validation gate remain open. Compose files, `.env`, catalog,
+manifest, and other non-provider plan inputs are not leased by this narrowly
+scoped owner; an outer transaction owner must supply and continuously hold them
+before any launcher integration or live execution.
+
+**Next**: Checkpoint/push this independently reviewed slice and require
+exact-head CI before the controlled live provider endpoint trace or the next
+dependency-ordered Gate A component.
+
 ### 2026-09-09 - Provider-Child Image/Event Boundary Implemented Locally
 
 **Objective**: Carry the reviewed fixed-CPython image/event guarantees into a

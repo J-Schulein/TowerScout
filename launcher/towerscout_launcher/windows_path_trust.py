@@ -13,7 +13,7 @@ import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import PureWindowsPath
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol, TypeVar
 
 from .windows_security import (
     KNOWN_CLOUD_REPARSE_TAGS,
@@ -30,6 +30,7 @@ _FILE_ATTRIBUTE_RECALL_ON_OPEN = 0x00040000
 _FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x00400000
 _IO_REPARSE_TAG_NAME_SURROGATE = 0x20000000
 _INHERIT_ONLY_ACE = 0x08
+_Result = TypeVar("_Result")
 
 _ACCESS_ALLOWED_ACE_TYPES = frozenset({0, 5, 9, 11})
 _NON_GRANTING_ACE_TYPES = frozenset(
@@ -499,7 +500,7 @@ class PathHierarchyTrust:
         with self._lock:
             return self._handles is None
 
-    def assert_unchanged(self) -> PathHierarchyEvidence:
+    def _begin_use(self) -> tuple[object, ...]:
         self._lock.acquire()
         if self._active_owner is not None:
             self._lock.release()
@@ -515,31 +516,64 @@ class PathHierarchyTrust:
                 "The Windows path trust handles are no longer available.",
             )
         self._active_owner = threading.get_ident()
+        return handles
+
+    def _end_use(self) -> None:
+        self._active_owner = None
+        self._lock.release()
+
+    def _assert_unchanged_owned(self, handles: tuple[object, ...]) -> None:
         try:
-            try:
-                for handle, expected in zip(handles, self._snapshots, strict=True):
-                    current = _capture_one(
-                        self._api,
-                        handle,
-                        current_user_sid=self._current_user_sid,
-                        trusted_root=expected.is_trusted_root,
+            for handle, expected in zip(handles, self._snapshots, strict=True):
+                current = _capture_one(
+                    self._api,
+                    handle,
+                    current_user_sid=self._current_user_sid,
+                    trusted_root=expected.is_trusted_root,
+                )
+                if current != expected:
+                    raise WindowsSecurityError(
+                        "path_changed",
+                        "The Windows path changed after it was inspected.",
                     )
-                    if current != expected:
-                        raise WindowsSecurityError(
-                            "path_changed",
-                            "The Windows path changed after it was inspected.",
-                        )
-            except WindowsSecurityError as error:
-                if error.category == "path_handle_closed":
-                    raise
-                raise WindowsSecurityError(
-                    "path_changed",
-                    "The Windows path changed after it was inspected.",
-                ) from None
+        except WindowsSecurityError as error:
+            if error.category == "path_handle_closed":
+                raise
+            raise WindowsSecurityError(
+                "path_changed",
+                "The Windows path changed after it was inspected.",
+            ) from None
+        except Exception:
+            raise WindowsSecurityError(
+                "path_changed",
+                "The Windows path changed after it was inspected.",
+            ) from None
+
+    def assert_unchanged(self) -> PathHierarchyEvidence:
+        handles = self._begin_use()
+        try:
+            self._assert_unchanged_owned(handles)
             return self._evidence
         finally:
-            self._active_owner = None
-            self._lock.release()
+            self._end_use()
+
+    def run_while_held(self, operation: Callable[[], _Result]) -> _Result:
+        """Run synchronously while every trusted directory handle stays held."""
+
+        if not callable(operation):
+            raise ValueError("The held-path operation is invalid.")
+        handles = self._begin_use()
+        try:
+            self._assert_unchanged_owned(handles)
+            try:
+                result = operation()
+            except BaseException:
+                self._assert_unchanged_owned(handles)
+                raise
+            self._assert_unchanged_owned(handles)
+            return result
+        finally:
+            self._end_use()
 
     def close(self) -> None:
         with self._lock:

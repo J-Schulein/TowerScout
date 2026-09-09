@@ -16,10 +16,16 @@ import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path, PureWindowsPath
-from typing import Any, Callable, NoReturn, Protocol
+from typing import Any, Callable, NoReturn, Protocol, TypeVar
 
 from .authenticode import verify_package_bound_authenticode_signer
+from .runtime_dependency_policy import load_package_bound_runtime_dependency_policy
 from .runtime_policy import RuntimeProductId
+from .runtime_provider_child import (
+    ProcessImageBinding,
+    ProcessImagePolicy,
+    ProcessImageRole,
+)
 from .windows_path_trust import (
     NativeSecurityFacts,
     PathHierarchyTrust,
@@ -45,6 +51,12 @@ _FILE_ATTRIBUTE_DIRECTORY = 0x00000010
 _FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
 _MAX_LOADABLE_BYTES = 1024 * 1024 * 1024
 _SHA256_CHARACTERS = 64
+_WINDOWS_SYSTEM_BOOTSTRAP_IMAGES = (
+    "kernelbase.dll",
+    "ntdll.dll",
+    "ucrtbase.dll",
+)
+_Result = TypeVar("_Result")
 
 
 class RuntimeLoadTrustErrorCode(str, Enum):
@@ -420,6 +432,7 @@ class RuntimeLoadPrerequisites:
         "_lock",
         "_path_api",
         "_path_trusts",
+        "_system_image_names",
     )
 
     def __init__(
@@ -438,7 +451,22 @@ class RuntimeLoadPrerequisites:
         path_trusts: tuple[PathHierarchyTrust, ...],
         application_files: tuple[_HeldApplicationFile, ...],
         authenticate: LoadableAuthenticator,
+        system_image_names: tuple[str, ...],
     ) -> None:
+        if (
+            type(system_image_names) is not tuple
+            or not system_image_names
+            or system_image_names
+            != tuple(sorted(set(system_image_names), key=str.casefold))
+            or any(
+                type(name) is not str
+                or not name
+                or name != name.casefold()
+                or not name.endswith(".dll")
+                for name in system_image_names
+            )
+        ):
+            raise ValueError("Runtime system-image policy is invalid.")
         self._evidence = evidence
         self._active_owner: int | None = None
         self._executable = executable
@@ -455,6 +483,7 @@ class RuntimeLoadPrerequisites:
             application_files
         )
         self._authenticate = authenticate
+        self._system_image_names = system_image_names
         self._lock = threading.RLock()
 
     @property
@@ -466,7 +495,9 @@ class RuntimeLoadPrerequisites:
         with self._lock:
             return self._path_trusts is None
 
-    def assert_unchanged(self) -> RuntimeLoadPrerequisiteEvidence:
+    def _begin_use(
+        self,
+    ) -> tuple[tuple[PathHierarchyTrust, ...], tuple[_HeldApplicationFile, ...]]:
         self._lock.acquire()
         if self._active_owner is not None:
             self._lock.release()
@@ -477,72 +508,207 @@ class RuntimeLoadPrerequisites:
             self._lock.release()
             _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
         self._active_owner = threading.get_ident()
+        return path_trusts, application_files
+
+    def _end_use(self) -> None:
+        self._active_owner = None
+        self._lock.release()
+
+    def _assert_unchanged_owned(
+        self,
+        path_trusts: tuple[PathHierarchyTrust, ...],
+        application_files: tuple[_HeldApplicationFile, ...],
+    ) -> RuntimeLoadPrerequisiteEvidence:
         try:
-            try:
-                if self._inventory_api.current_dll_directory() != "":
-                    _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
-                if (
-                    _safe_inventory(self._inventory_api, self._app_directory)
-                    != self._inventory
-                ):
-                    _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
-                for path_trust in path_trusts:
-                    path_trust.assert_unchanged()
-                self._executable.assert_unchanged()
-                current_executable_security = _inspect_security(
-                    self._executable,
+            if self._inventory_api.current_dll_directory() != "":
+                _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+            if (
+                _safe_inventory(self._inventory_api, self._app_directory)
+                != self._inventory
+            ):
+                _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+            for path_trust in path_trusts:
+                path_trust.assert_unchanged()
+            self._executable.assert_unchanged()
+            current_executable_security = _inspect_security(
+                self._executable,
+                path_api=self._path_api,
+                current_user_sid=self._current_user_sid,
+            )
+            if current_executable_security != self._executable_security:
+                _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+            for held in application_files:
+                held.bound_file.assert_unchanged()
+                current_security = _inspect_security(
+                    held.bound_file,
                     path_api=self._path_api,
                     current_user_sid=self._current_user_sid,
                 )
-                if current_executable_security != self._executable_security:
+                if current_security != held.security:
                     _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
-                for held in application_files:
-                    held.bound_file.assert_unchanged()
-                    current_security = _inspect_security(
+                if _is_pe_image(held.bound_file, self._file_api) != held.is_pe_image:
+                    _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+                if held.is_pe_image:
+                    authentication = _authenticate_loadable(
+                        self._authenticate,
                         held.bound_file,
-                        path_api=self._path_api,
-                        current_user_sid=self._current_user_sid,
-                    )
-                    if current_security != held.security:
-                        _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
-                    if (
-                        _is_pe_image(held.bound_file, self._file_api)
-                        != held.is_pe_image
-                    ):
-                        _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
-                    if held.is_pe_image:
-                        authentication = _authenticate_loadable(
-                            self._authenticate,
-                            held.bound_file,
-                            self._evidence.product_id,
-                        )
-                        if authentication != held.authentication:
-                            _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
-                if (
-                    self._executable.snapshot.identity
-                    != self._evidence.executable_identity
-                    or self._executable.snapshot.sha256
-                    != self._evidence.executable_sha256
-                    or _immediate_surface_digest(
                         self._evidence.product_id,
-                        self._executable,
-                        path_trusts,
-                        self._inventory,
-                        application_files,
                     )
-                    != self._evidence.immediate_surface_sha256
-                ):
-                    _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
-            except RuntimeLoadTrustError as error:
-                if error.code is RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED:
-                    raise
+                    if authentication != held.authentication:
+                        _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+            if (
+                self._executable.snapshot.identity != self._evidence.executable_identity
+                or self._executable.snapshot.sha256 != self._evidence.executable_sha256
+                or _immediate_surface_digest(
+                    self._evidence.product_id,
+                    self._executable,
+                    path_trusts,
+                    self._inventory,
+                    application_files,
+                )
+                != self._evidence.immediate_surface_sha256
+            ):
                 _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+        except RuntimeLoadTrustError as error:
+            if error.code is RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED:
+                raise
+            _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+        except Exception:
+            _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+        return self._evidence
+
+    def _held_file_security(
+        self, application_files: tuple[_HeldApplicationFile, ...]
+    ) -> tuple[tuple[HandleBoundFile, NativeSecurityFacts], ...]:
+        return (
+            (self._executable, self._executable_security),
+            *((held.bound_file, held.security) for held in application_files),
+        )
+
+    def _run_under_file_leases(
+        self,
+        files: tuple[tuple[HandleBoundFile, NativeSecurityFacts], ...],
+        index: int,
+        operation: Callable[[], _Result],
+    ) -> _Result:
+        if index == len(files):
+            return operation()
+        bound_file, expected_security = files[index]
+
+        def assert_security(handle: object, _snapshot: FileSnapshot) -> None:
+            try:
+                current = self._path_api.query_security(handle)
+                validate_security_facts(
+                    current,
+                    current_user_sid=self._current_user_sid,
+                    trusted_root=True,
+                )
             except Exception:
                 _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
-            return self._evidence
+            if current != expected_security:
+                _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+
+        return bound_file._run_while_held_with_postvalidation(  # noqa: SLF001
+            lambda: self._run_under_file_leases(files, index + 1, operation),
+            assert_security,
+        )
+
+    def _run_under_path_leases(
+        self,
+        paths: tuple[PathHierarchyTrust, ...],
+        index: int,
+        operation: Callable[[], _Result],
+    ) -> _Result:
+        if index == len(paths):
+            return operation()
+        return paths[index].run_while_held(
+            lambda: self._run_under_path_leases(paths, index + 1, operation)
+        )
+
+    def _run_and_revalidate_inventory(
+        self, operation: Callable[[], _Result]
+    ) -> _Result:
+        def assert_inventory() -> None:
+            try:
+                changed = (
+                    self._inventory_api.current_dll_directory() != ""
+                    or _safe_inventory(self._inventory_api, self._app_directory)
+                    != self._inventory
+                )
+            except Exception:
+                _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+            if changed:
+                _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+
+        assert_inventory()
+        try:
+            result = operation()
+        except BaseException:
+            assert_inventory()
+            raise
+        assert_inventory()
+        return result
+
+    def active_process_image_policy(self, role: ProcessImageRole) -> ProcessImagePolicy:
+        """Return the exact executable image policy only inside the held callback."""
+
+        application_files = self._application_files
+        if (
+            type(role) is not ProcessImageRole
+            or self._active_owner != threading.get_ident()
+            or application_files is None
+        ):
+            _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+        try:
+            return ProcessImagePolicy(
+                role,
+                (
+                    ProcessImageBinding.from_snapshot(
+                        self._executable.snapshot, entrypoint=True
+                    ),
+                    *(
+                        ProcessImageBinding.from_snapshot(
+                            held.bound_file.snapshot, entrypoint=False
+                        )
+                        for held in application_files
+                        if held.is_pe_image
+                    ),
+                ),
+                self._system_image_names,
+            )
+        except ValueError:
+            _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+
+    def assert_unchanged(self) -> RuntimeLoadPrerequisiteEvidence:
+        path_trusts, application_files = self._begin_use()
+        try:
+            return self._assert_unchanged_owned(path_trusts, application_files)
         finally:
-            self._active_owner = None
-            self._lock.release()
+            self._end_use()
+
+    def run_while_held(self, operation: Callable[[], _Result]) -> _Result:
+        """Run synchronously while every executable and directory stays bound."""
+
+        if not callable(operation):
+            raise ValueError("The held runtime-load operation is invalid.")
+        path_trusts, application_files = self._begin_use()
+        try:
+            self._assert_unchanged_owned(path_trusts, application_files)
+            return self._run_under_path_leases(
+                path_trusts,
+                0,
+                lambda: self._run_under_file_leases(
+                    self._held_file_security(application_files),
+                    0,
+                    lambda: self._run_and_revalidate_inventory(operation),
+                ),
+            )
+        except RuntimeLoadTrustError:
+            raise
+        except WindowsSecurityError:
+            _fail(RuntimeLoadTrustErrorCode.LOAD_PATH_CHANGED)
+        finally:
+            self._end_use()
 
     def close(self) -> None:
         with self._lock:
@@ -610,6 +776,21 @@ def capture_runtime_load_prerequisites(
     except Exception:
         supported = False
     if not supported:
+        _fail(RuntimeLoadTrustErrorCode.UNAVAILABLE)
+    try:
+        dependency_policy = load_package_bound_runtime_dependency_policy()
+        product_policy = dependency_policy.product(product_id)
+        system_image_names = tuple(
+            sorted(
+                {
+                    *product_policy.declared_system_imports,
+                    *product_policy.declared_api_set_imports,
+                    *_WINDOWS_SYSTEM_BOOTSTRAP_IMAGES,
+                },
+                key=str.casefold,
+            )
+        )
+    except Exception:
         _fail(RuntimeLoadTrustErrorCode.UNAVAILABLE)
 
     path_trusts: list[PathHierarchyTrust] = []
@@ -736,6 +917,7 @@ def capture_runtime_load_prerequisites(
             path_trusts=held_paths,
             application_files=held_files,
             authenticate=selected_authenticate,
+            system_image_names=system_image_names,
         )
         result.assert_unchanged()
         return result

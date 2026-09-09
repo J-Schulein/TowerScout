@@ -144,7 +144,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT; lifecycle head `6e0f744` is green, the August 20 remediation design passed static and independent audits, and the project lead approved IMPLEMENT on August 21. PR #67 remains Draft through Gate A remediation and exact-head re-review; preview/Task-100 gates remain separate |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT; provider-child checkpoint `d40bb7f` passed exact-head CI/CD and Task-087 runs, and the next held provider/runtime/endpoint inventory slice passed independent review after one remediated Medium timing finding and is ready for checkpoint. PR #67 remains Draft through Gate A remediation and exact-head re-review; preview/Task-100 gates remain separate |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---
