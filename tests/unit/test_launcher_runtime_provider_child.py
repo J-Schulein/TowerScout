@@ -1114,7 +1114,7 @@ def test_runtime_transaction_capture_preserves_podman_gpu_overlay_order(
         monkeypatch, provider, plan, files, paths
     )
 
-    assert [Path(item[0]).name for item in opened_files[:3]] == [
+    assert [PureWindowsPath(item[0]).name for item in opened_files[:3]] == [
         "compose.yaml",
         "compose.gpu.podman.yaml",
         ".env",
