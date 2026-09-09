@@ -39,6 +39,12 @@ from towerscout_launcher.target_contracts import (  # noqa: E402
     WindowsProcessEnvironment,
     encode_target_token,
 )
+from towerscout_launcher.windows_mutex import (  # noqa: E402
+    RuntimeTransactionLockError,
+    RuntimeTransactionLockErrorCode,
+    runtime_transaction_lock_binding,
+)
+from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
 
 
 def _digest(value: str) -> str:
@@ -318,6 +324,128 @@ def test_each_hidden_target_identity_change_changes_the_full_token() -> None:
         mutations
     )
     assert all(item.target_token != target.target_token for item in mutations)
+
+
+def test_runtime_transaction_lock_binding_uses_stable_target_authority() -> None:
+    target = _target()
+    package_parent = StableFileIdentity(
+        target.package_root.volume_serial,
+        target.package_root.file_id,
+    )
+
+    binding = runtime_transaction_lock_binding(target, package_parent)
+    mutable_inspection_drift = replace(
+        target,
+        endpoint=replace(
+            target.endpoint,
+            private_metadata_sha256=_digest("changed-endpoint-inspection"),
+        ),
+        volumes=(
+            replace(
+                target.volumes[0],
+                private_inspect_sha256=_digest("changed-volume-inspection"),
+            ),
+            *target.volumes[1:],
+        ),
+    )
+    drift_binding = runtime_transaction_lock_binding(
+        mutable_inspection_drift,
+        package_parent,
+    )
+
+    assert binding.environment_mutex_name.startswith("Global\\TowerScoutEnv-v1-")
+    assert binding.target_mutex_name.startswith("Global\\TowerScoutRepair-v1-")
+    assert binding.environment_sha256 == target.compose.environment_sha256
+    assert binding.target_token_sha256 == target.target_token.digest_sha256
+    assert drift_binding.environment_mutex_name == binding.environment_mutex_name
+    assert drift_binding.target_mutex_name == binding.target_mutex_name
+    assert drift_binding.target_token_sha256 != binding.target_token_sha256
+
+
+def test_runtime_transaction_target_lock_separates_canonical_targets() -> None:
+    target = _target()
+    package_parent = StableFileIdentity(
+        target.package_root.volume_serial,
+        target.package_root.file_id,
+    )
+    baseline = runtime_transaction_lock_binding(target, package_parent)
+    other_endpoint = runtime_transaction_lock_binding(
+        replace(
+            target,
+            endpoint=replace(
+                target.endpoint,
+                canonical_endpoint="npipe:////./pipe/other-endpoint",
+            ),
+        ),
+        package_parent,
+    )
+    other_project = runtime_transaction_lock_binding(
+        replace(target, compose_project="other-project"),
+        package_parent,
+    )
+    other_config_volume = runtime_transaction_lock_binding(
+        replace(
+            target,
+            volumes=(
+                replace(target.volumes[0], runtime_name="other-config-volume"),
+                *target.volumes[1:],
+            ),
+        ),
+        package_parent,
+    )
+
+    assert (
+        len(
+            {
+                baseline.target_mutex_name,
+                other_endpoint.target_mutex_name,
+                other_project.target_mutex_name,
+                other_config_volume.target_mutex_name,
+            }
+        )
+        == 4
+    )
+    assert {
+        baseline.environment_mutex_name,
+        other_endpoint.environment_mutex_name,
+        other_project.environment_mutex_name,
+        other_config_volume.environment_mutex_name,
+    } == {baseline.environment_mutex_name}
+
+
+def test_runtime_transaction_lock_binding_rejects_unheld_package_parent() -> None:
+    target = _target()
+
+    with pytest.raises(RuntimeTransactionLockError) as failure:
+        runtime_transaction_lock_binding(
+            target,
+            StableFileIdentity(
+                target.package_root.volume_serial,
+                (999).to_bytes(16, "big"),
+            ),
+        )
+
+    assert failure.value.code is RuntimeTransactionLockErrorCode.INVALID_BINDING
+
+
+def test_runtime_transaction_lock_binding_repr_redacts_private_state() -> None:
+    target = _target()
+    binding = runtime_transaction_lock_binding(
+        target,
+        StableFileIdentity(
+            target.package_root.volume_serial,
+            target.package_root.file_id,
+        ),
+    )
+
+    rendered = repr(binding)
+
+    assert "PATH-SECRET" not in rendered
+    assert binding.environment_mutex_name not in rendered
+    assert binding.target_mutex_name not in rendered
+    assert binding.environment_sha256 not in rendered
+    assert binding.target_token_sha256 not in rendered
+    assert "<redacted>" in rendered
 
 
 def test_internal_target_and_nested_plans_are_immutable_and_slot_based() -> None:

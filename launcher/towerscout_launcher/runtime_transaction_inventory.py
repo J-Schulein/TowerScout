@@ -42,6 +42,15 @@ from .windows_path_trust import (
     WindowsPathTrustApi,
     capture_path_hierarchy,
 )
+from .windows_mutex import (
+    HeldRuntimeTransactionLocks,
+    RuntimeTransactionLockBinding,
+    RuntimeTransactionLockError,
+    RuntimeTransactionLockErrorCode,
+    WindowsMutexApi,
+    acquire_ordered_runtime_transaction_locks,
+    runtime_transaction_lock_binding,
+)
 from .windows_security import (
     FileCapturePolicy,
     HandleBoundFile,
@@ -449,6 +458,29 @@ class RuntimeTransactionInventoryEvidence:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class RuntimeTransactionLockEvidence:
+    target_token: str
+    environment_abandoned: bool
+    target_abandoned: bool
+    held_inventory_revalidated: bool
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.target_token) is not str
+            or not self.target_token.startswith("TSRT1-")
+            or len(self.target_token) != 38
+            or any(
+                character not in "0123456789abcdef"
+                for character in self.target_token[6:]
+            )
+            or type(self.environment_abandoned) is not bool
+            or type(self.target_abandoned) is not bool
+            or self.held_inventory_revalidated is not True
+        ):
+            raise ValueError("Runtime transaction lock evidence is invalid.")
+
+
 @dataclass(frozen=True, slots=True, repr=False)
 class HeldRuntimeTransactionCommandResult:
     provider_result: HeldProviderChildCommandResult = field(repr=False)
@@ -486,6 +518,8 @@ class HeldRuntimeTransactionInventory:
         "_plan",
         "_provider_inventory",
         "_request_binding_sha256",
+        "_transaction_locks",
+        "_transaction_lock_owner_thread",
     )
 
     def __init__(
@@ -547,6 +581,8 @@ class HeldRuntimeTransactionInventory:
         self._input_files: tuple[HandleBoundFile, ...] | None = input_files
         self._directory_paths: tuple[PathHierarchyTrust, ...] | None = directory_paths
         self._request_binding_sha256 = request.binding_sha256
+        self._transaction_locks: HeldRuntimeTransactionLocks | None = None
+        self._transaction_lock_owner_thread: int | None = None
         self._binding_sha256 = _binding_digest(
             plan,
             request.binding_sha256,
@@ -560,6 +596,14 @@ class HeldRuntimeTransactionInventory:
     def closed(self) -> bool:
         with self._lock:
             return self._provider_inventory is None
+
+    @property
+    def locks_acquired(self) -> bool:
+        with self._lock:
+            return (
+                self._transaction_locks is not None
+                and not self._transaction_locks.closed
+            )
 
     def _begin_use(
         self,
@@ -577,6 +621,10 @@ class HeldRuntimeTransactionInventory:
             or provider_inventory is None
             or input_files is None
             or directory_paths is None
+            or (
+                self._transaction_locks is not None
+                and self._transaction_lock_owner_thread != threading.get_ident()
+            )
         ):
             self._lock.release()
             _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
@@ -694,6 +742,89 @@ class HeldRuntimeTransactionInventory:
         ):
             return False
 
+    def _lock_binding_while_outer_inventory_held(
+        self,
+        provider_inventory: HeldProviderChildInventory,
+        input_files: tuple[HandleBoundFile, ...],
+        directory_paths: tuple[PathHierarchyTrust, ...],
+    ) -> RuntimeTransactionLockBinding:
+        if not self._active_inventory_matches(
+            provider_inventory, input_files, directory_paths
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        try:
+            provider_inventory.assert_unchanged()
+            if not self._active_inventory_matches(
+                provider_inventory, input_files, directory_paths
+            ):
+                _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+            return runtime_transaction_lock_binding(
+                self._plan.target,
+                directory_paths[0].root_snapshot.identity,
+            )
+        except RuntimeTransactionInventoryError:
+            raise
+        except Exception:
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+
+    def acquire_transaction_locks(
+        self,
+        *,
+        api: WindowsMutexApi | None = None,
+        timeout_ms: int = 0,
+    ) -> RuntimeTransactionLockEvidence:
+        """Acquire and retain the ordered lock pair after full revalidation.
+
+        The current capture owner cannot yet prove that an absent ``.env`` leaf
+        stayed absent. That state therefore remains fail-closed until the
+        handle-safe atomic replacement slice supplies an absence proof.
+        """
+
+        provider_inventory, input_files, directory_paths = self._begin_use()
+        try:
+            if (
+                self._transaction_locks is not None
+                or self._plan.target.compose.environment_file is None
+            ):
+                _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH)
+
+            def revalidate() -> RuntimeTransactionLockBinding:
+                return self._run_under_path_leases(
+                    directory_paths,
+                    0,
+                    lambda: self._run_under_file_leases(
+                        input_files,
+                        0,
+                        lambda: self._lock_binding_while_outer_inventory_held(
+                            provider_inventory,
+                            input_files,
+                            directory_paths,
+                        ),
+                    ),
+                )
+
+            binding = revalidate()
+            transaction_locks = acquire_ordered_runtime_transaction_locks(
+                binding,
+                revalidate,
+                api=api,
+                timeout_ms=timeout_ms,
+            )
+            self._transaction_locks = transaction_locks
+            self._transaction_lock_owner_thread = threading.get_ident()
+            return RuntimeTransactionLockEvidence(
+                target_token=self._plan.target_token,
+                environment_abandoned=transaction_locks.environment_abandoned,
+                target_abandoned=transaction_locks.target_abandoned,
+                held_inventory_revalidated=True,
+            )
+        except (RuntimeTransactionInventoryError, RuntimeTransactionLockError):
+            raise
+        except Exception:
+            _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+        finally:
+            self._end_use()
+
     def execute(
         self, backend: NativeWindowsProviderChildDynamicLoadBackend
     ) -> HeldRuntimeTransactionCommandResult:
@@ -734,12 +865,22 @@ class HeldRuntimeTransactionInventory:
         with self._lock:
             if self._active_owner is not None:
                 _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+            if (
+                self._transaction_locks is not None
+                and self._transaction_lock_owner_thread != threading.get_ident()
+            ):
+                raise RuntimeTransactionLockError(
+                    RuntimeTransactionLockErrorCode.WRONG_THREAD
+                ) from None
             provider_inventory = self._provider_inventory
             input_files = self._input_files
             directory_paths = self._directory_paths
+            transaction_locks = self._transaction_locks
             self._provider_inventory = None
             self._input_files = None
             self._directory_paths = None
+            self._transaction_locks = None
+            self._transaction_lock_owner_thread = None
             if (
                 provider_inventory is None
                 or input_files is None
@@ -751,6 +892,7 @@ class HeldRuntimeTransactionInventory:
                 provider_inventory,
                 *reversed(input_files),
                 *reversed(directory_paths),
+                *((transaction_locks,) if transaction_locks is not None else ()),
             )
             for closeable in closeables:
                 try:
@@ -783,5 +925,6 @@ __all__ = [
     "RuntimeTransactionInventoryError",
     "RuntimeTransactionInventoryErrorCode",
     "RuntimeTransactionInventoryEvidence",
+    "RuntimeTransactionLockEvidence",
     "capture_runtime_transaction_inventory",
 ]

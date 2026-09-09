@@ -50,6 +50,7 @@ from towerscout_launcher.runtime_transaction_inventory import (  # noqa: E402
     HeldRuntimeTransactionInventory,
     RuntimeTransactionInventoryError,
     RuntimeTransactionInventoryErrorCode,
+    RuntimeTransactionLockEvidence,
     capture_runtime_transaction_inventory,
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
@@ -87,6 +88,10 @@ from towerscout_launcher.windows_security import (  # noqa: E402
     ReparseKind,
     StableFileIdentity,
     WindowsSecurityError,
+)
+from towerscout_launcher.windows_mutex import (  # noqa: E402
+    RuntimeTransactionLockError,
+    RuntimeTransactionLockErrorCode,
 )
 from towerscout_launcher.windows_path_trust import (  # noqa: E402
     DirectoryTrustSnapshot,
@@ -1512,6 +1517,220 @@ def test_runtime_transaction_owner_holds_all_outer_inputs(
     assert all(bound.closed for bound in held_files)
     assert all(path.closed for path in held_paths)
     assert provider_owner.closed
+
+
+class _FakeTransactionLocks:
+    def __init__(
+        self,
+        *,
+        environment_abandoned: bool = False,
+        target_abandoned: bool = False,
+    ) -> None:
+        self.environment_abandoned = environment_abandoned
+        self.target_abandoned = target_abandoned
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_runtime_transaction_owner_acquires_and_retains_ordered_locks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    fake_locks = _FakeTransactionLocks(
+        environment_abandoned=True,
+        target_abandoned=False,
+    )
+    revalidation_count = 0
+
+    def acquire(binding, revalidate, *, api=None, timeout_ms=0):  # noqa: ANN001, ANN202
+        nonlocal revalidation_count
+        assert api is None
+        assert timeout_ms == 2750
+        for _ in range(2):
+            assert revalidate() == binding
+            revalidation_count += 1
+        return fake_locks
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        acquire,
+    )
+
+    evidence = owner.acquire_transaction_locks(timeout_ms=2750)
+
+    assert type(evidence) is RuntimeTransactionLockEvidence
+    assert evidence.target_token == plan.target_token
+    assert evidence.environment_abandoned is True
+    assert evidence.target_abandoned is False
+    assert evidence.held_inventory_revalidated is True
+    assert revalidation_count == 2
+    assert owner.locks_acquired
+
+    with pytest.raises(RuntimeTransactionInventoryError) as duplicate:
+        owner.acquire_transaction_locks(timeout_ms=2750)
+    assert (
+        duplicate.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+    )
+
+    owner.close()
+    assert fake_locks.closed
+    assert not owner.locks_acquired
+
+
+def test_runtime_transaction_lock_acquisition_detects_environment_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+
+    def acquire(binding, revalidate, *, api=None, timeout_ms=0):  # noqa: ANN001, ANN202
+        del api, timeout_ms
+        assert revalidate() == binding
+        apis[1].content += b"changed"
+        revalidate()
+        raise AssertionError("drifted environment must fail revalidation")
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        acquire,
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        owner.acquire_transaction_locks()
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
+    assert not owner.locks_acquired
+    owner.close()
+
+
+def test_locked_runtime_transaction_owner_rejects_cross_thread_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    fake_locks = _FakeTransactionLocks()
+
+    def acquire(binding, revalidate, *, api=None, timeout_ms=0):  # noqa: ANN001, ANN202
+        del api, timeout_ms
+        assert revalidate() == binding
+        return fake_locks
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        acquire,
+    )
+    owner.acquire_transaction_locks()
+    failures: list[BaseException] = []
+
+    def close_from_other_thread() -> None:
+        try:
+            owner.close()
+        except BaseException as error:
+            failures.append(error)
+
+    worker = threading.Thread(target=close_from_other_thread)
+    worker.start()
+    worker.join(timeout=2)
+
+    assert not worker.is_alive()
+    assert len(failures) == 1
+    assert isinstance(failures[0], RuntimeTransactionLockError)
+    assert failures[0].code is RuntimeTransactionLockErrorCode.WRONG_THREAD
+    assert not owner.closed
+    assert owner.locks_acquired
+    assert all(not item.closed for item in files)
+    assert all(not item.closed for item in paths)
+    assert not fake_locks.closed
+
+    owner.close()
+
+
+def test_runtime_transaction_lock_acquisition_detects_provider_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+
+    def changed_provider(_self) -> None:  # noqa: ANN001
+        raise ProviderChildInventoryError(
+            ProviderChildInventoryErrorCode.INVENTORY_CHANGED
+        )
+
+    monkeypatch.setattr(
+        HeldProviderChildInventory, "assert_unchanged", changed_provider
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        owner.acquire_transaction_locks()
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
+    assert not owner.locks_acquired
+    owner.close()
+
+
+def test_runtime_transaction_lock_acquisition_rejects_unproven_absent_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = _podman_target()
+    template = _file(
+        ".env.example", original.package_root.final_path / ".env.example", 106
+    )
+    target = replace(
+        original,
+        compose=replace(
+            original.compose,
+            environment_sha256=ABSENT_FILE_SHA256,
+            environment_source=template,
+            environment_file=None,
+        ),
+    )
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch, target
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        owner.acquire_transaction_locks()
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
+    assert not owner.locks_acquired
+    owner.close()
 
 
 def test_runtime_transaction_owner_rejects_missing_or_wrong_policy_input(

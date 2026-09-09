@@ -2,26 +2,24 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 9, 2026
-**Focus**: Task-101 is complete. Task-087 full outer-input checkpoint `f423da4`
-is independently reviewed and exact-head green: CI/CD run `34375158061`,
-Task-087 run `34375158062`, and external Trivy passed all nine applicable pull-
-request checks. A September 9 local source-only follow-up adds the production
-capture factory for its exact ordered Compose, environment-source, security-
-artifact, package-root, and Windows process-environment inputs. The factory
-uses the reviewed handle/path primitives, supports hydrated cloud files,
-cleans partial captures, and remains unwired. Independent inspect-only review
-and narrow follow-up re-review returned CLEAN/PASS with no findings; its
-follow-up suggestions are covered by 35/35 focused tests. The slice is ready
-for checkpointing. A subsequent local Windows-native primitive now creates,
-verifies, owns, and releases exact global mutexes with a protected current-
-user/SYSTEM-only DACL. Its 23/23 tests include a real separate-process
-abandoned-owner probe; independent review returned CLEAN/PASS with no findings.
-It remains unwired and is ready for checkpointing. Secure
-target resolver/provider integration work, ordered two-lock integration,
-durable recovery, Windows-store CA selection, and ACL-preserving `.env`
-replacement remain later Gate A work. Unsigned preview-package integration
-remains later under ADR-019. Production signing remains Task-100 work in
-October after the package is satisfactory.
+**Focus**: Task-101 is complete. Task-087 source checkpoint `f7d21a9` contains
+the independently reviewed production capture factory and secured Windows
+global-mutex primitive. Portability follow-up `90cdfb8` passed exact-head CI/CD
+run `34381047736`, Task-087 run `34381047707`, and external Trivy; all nine
+applicable pull-request checks succeeded. Both components remain unwired. The
+current local source-only follow-up composes them into an ordered environment-
+then-target lock owner. It derives stable canonical keys, revalidates the held
+outer and provider/runtime/endpoint inventories under the locks, retains both
+through the transaction lifetime, releases in reverse order, and carries both
+abandoned-owner signals forward for later recovery policy. Independent inspect-
+only review returned CLEAN/PASS with no findings after reproducing all 114
+focused tests and the applicable quality gates. Existing `.env`
+state is supported; absent-`.env` acquisition fails closed until the atomic
+replacement slice supplies a secure absence proof. Secure target resolver/
+provider-factory wiring, live target revalidation, durable recovery, Windows-
+store CA selection, and ACL-preserving `.env` replacement remain later Gate A
+work. Unsigned preview integration remains later under ADR-019. Production
+signing remains Task-100 work in October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -434,7 +432,7 @@ timing; preview integration remains a later gate
   returned CLEAN/PASS with no findings after its own 324 focused tests. The
   slice remains unwired. Checkpoint `f423da4` passed exact-head CI/CD run
   `34375158061`, Task-087 run `34375158062`, and external Trivy.
-- A subsequent local factory now captures those exact outer files and
+- Checkpoint `f7d21a9` adds the production factory that captures those exact outer files and
   directories through the reviewed Windows primitives before transferring
   ownership. It rejects provider mismatch before capture, supports absent
   `.env`, Podman GPU ordering, and hydrated cloud inputs, closes partial
@@ -445,8 +443,8 @@ timing; preview integration remains a later gate
   is unwired. Independent inspect-only review and narrow follow-up re-review
   returned CLEAN/PASS with no findings. The reviewer independently passed
   188/188 applicable tests with the native hardlink case deselected. The slice
-  is ready for checkpointing.
-- A subsequent local `windows_mutex` primitive now creates or opens only exact
+  was checkpointed together with the mutex primitive described next.
+- Checkpoint `f7d21a9` also adds the `windows_mutex` primitive, which creates or opens only exact
   derived `Global\TowerScoutEnv-v1-*` and `Global\TowerScoutRepair-v1-*`
   names with a protected DACL granting only the current user and SYSTEM. It
   verifies exact owner/ACE rights before use, bounds waiting, preserves an
@@ -456,8 +454,18 @@ timing; preview integration remains a later gate
   security group passes 136/136 applicable tests and the full launcher
   selection passes 929/929 with the restricted-host hardlink case deselected.
   Independent inspect-only review returned CLEAN/PASS with no findings after
-  reproducing the mutex and focused security gates. The primitive is unwired
-  and ready for checkpointing.
+  reproducing the mutex and focused security gates. Portability correction
+  `90cdfb8` passed exact-head CI/CD run `34381047736`, Task-087 run
+  `34381047707`, and external Trivy. The primitive remains unwired.
+- The current local source-only increment adds the ordered environment/target
+  owner and integrates acquisition into the held transaction inventory. It
+  revalidates outer and provider/runtime/endpoint handles under the locks,
+  preserves abandoned-owner evidence, prevents cross-thread release, and
+  releases the pair in reverse order. Independent inspect-only review returned
+  CLEAN/PASS with no findings after reproducing all 114 focused tests and the
+  applicable quality gates. It performs no live peer query or mutation;
+  absent-`.env` state remains fail-closed pending the secure atomic-replacement/
+  absence-proof slice. The increment is ready for checkpointing.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

@@ -437,6 +437,39 @@ class HeldProviderChildInventory:
         backend: NativeWindowsProviderChildDynamicLoadBackend,
         pre_execute_validator: Callable[[], bool] | None,
     ) -> HeldProviderChildCommandResult:
+        provider_policy, child_policy = self._active_policies()
+        if pre_execute_validator is not None and pre_execute_validator() is not True:
+            _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
+        result = backend.execute(self._plan, provider_policy, child_policy)
+        if (
+            type(result) is not ProviderChildCommandResult
+            or result.enforcement.request_binding_sha256 != self._request.binding_sha256
+            or result.enforcement.provider_policy_sha256
+            != provider_policy.content_sha256
+            or result.enforcement.child_policy_sha256 != child_policy.content_sha256
+        ):
+            _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
+        evidence = ProviderChildInventoryEvidence(
+            target_token=self._plan.target_token,
+            inventory_binding_sha256=self._binding_sha256,
+            request_binding_sha256=self._request.binding_sha256,
+            provider_policy_sha256=provider_policy.content_sha256,
+            child_policy_sha256=child_policy.content_sha256,
+            enforcement_evidence_sha256=result.enforcement.evidence_sha256,
+            provider_artifact_count=len(self._plan.target.compose_provider.artifacts),
+            endpoint_artifact_count=(
+                1 + len(self._plan.target.endpoint.discovery_artifacts)
+            ),
+            constructed_endpoint_environment=True,
+            provider_rediscovery_denied_by_policy=True,
+            endpoint_artifacts_held_through_execution=True,
+            live_network_peer_observed=False,
+        )
+        return HeldProviderChildCommandResult(result, evidence)
+
+    def _active_policies(self) -> tuple[ProcessImagePolicy, ProcessImagePolicy]:
+        """Reconstruct both exact policies while every inventory is leased."""
+
         cpython_policy = self._provider_runtime_inventory.active_dynamic_load_policy()
         cpython_entrypoint = next(
             binding for binding in cpython_policy.exact_files if binding.entrypoint
@@ -460,32 +493,63 @@ class HeldProviderChildInventory:
             self._plan.target.runtime.executable
         ):
             _fail(ProviderChildInventoryErrorCode.INVENTORY_MISMATCH)
-        if pre_execute_validator is not None and pre_execute_validator() is not True:
-            _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
-        result = backend.execute(self._plan, provider_policy, child_policy)
-        if (
-            type(result) is not ProviderChildCommandResult
-            or result.enforcement.request_binding_sha256 != self._request.binding_sha256
-            or result.enforcement.provider_policy_sha256
-            != provider_policy.content_sha256
-            or result.enforcement.child_policy_sha256 != child_policy.content_sha256
+        return provider_policy, child_policy
+
+    def _current_artifacts_match(
+        self,
+        provider_artifacts: tuple[HandleBoundFile, ...],
+        endpoint_artifacts: tuple[HandleBoundFile, ...],
+    ) -> bool:
+        identity_key = self._plan.target.endpoint.identity_key
+        return (
+            identity_key is not None
+            and _files_match(
+                provider_artifacts, self._plan.target.compose_provider.artifacts
+            )
+            and _files_match(
+                endpoint_artifacts,
+                (
+                    identity_key,
+                    *self._plan.target.endpoint.discovery_artifacts,
+                ),
+            )
+        )
+
+    def assert_unchanged(self) -> None:
+        """Revalidate the full provider/runtime/endpoint inventory without execution."""
+
+        provider_artifacts, endpoint_artifacts = self._begin_use()
+        try:
+            if not self._current_artifacts_match(
+                provider_artifacts, endpoint_artifacts
+            ):
+                _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
+
+            def under_provider() -> None:
+                def validate_child() -> None:
+                    self._active_policies()
+
+                self._child_runtime_inventory.run_while_held(validate_child)
+
+            self._run_under_file_leases(
+                (*provider_artifacts, *endpoint_artifacts),
+                0,
+                lambda: self._provider_runtime_inventory.run_while_held(under_provider),
+            )
+        except ProviderChildInventoryError:
+            raise
+        except (
+            CpythonDependencyCaptureError,
+            RuntimeLoadTrustError,
+            WindowsSecurityError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
         ):
             _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
-        evidence = ProviderChildInventoryEvidence(
-            target_token=self._plan.target_token,
-            inventory_binding_sha256=self._binding_sha256,
-            request_binding_sha256=self._request.binding_sha256,
-            provider_policy_sha256=provider_policy.content_sha256,
-            child_policy_sha256=child_policy.content_sha256,
-            enforcement_evidence_sha256=result.enforcement.evidence_sha256,
-            provider_artifact_count=len(provider_artifacts),
-            endpoint_artifact_count=len(endpoint_artifacts),
-            constructed_endpoint_environment=True,
-            provider_rediscovery_denied_by_policy=True,
-            endpoint_artifacts_held_through_execution=True,
-            live_network_peer_observed=False,
-        )
-        return HeldProviderChildCommandResult(result, evidence)
+        finally:
+            self._end_use()
 
     def execute(
         self,
@@ -499,17 +563,8 @@ class HeldProviderChildInventory:
             _fail(ProviderChildInventoryErrorCode.INVALID_BINDING)
         provider_artifacts, endpoint_artifacts = self._begin_use()
         try:
-            identity_key = self._plan.target.endpoint.identity_key
-            if identity_key is None:
-                _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
-            if not _files_match(
-                provider_artifacts, self._plan.target.compose_provider.artifacts
-            ) or not _files_match(
-                endpoint_artifacts,
-                (
-                    identity_key,
-                    *self._plan.target.endpoint.discovery_artifacts,
-                ),
+            if not self._current_artifacts_match(
+                provider_artifacts, endpoint_artifacts
             ):
                 _fail(ProviderChildInventoryErrorCode.INVENTORY_CHANGED)
 

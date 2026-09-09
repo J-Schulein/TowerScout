@@ -32,18 +32,15 @@ reviewed with no open findings, but are not yet packaged or wired to execution.
 Dynamic-load checkpoint `9c58aed` is independently reviewed and exact-head
 green. Provider-child checkpoint `d40bb7f`, held provider/runtime/endpoint
 checkpoint `1547f2a`, and full outer-input checkpoint `f423da4` are
-independently reviewed and exact-head green. The latter passed CI/CD run
-`34375158061`, Task-087 run `34375158062`, and external Trivy. A subsequent
-September 9 local source-only factory now captures the exact ordered Compose,
-environment-source, security-artifact, package-root, and Windows process-
-environment inputs from the immutable plan and transfers them into the held
-outer transaction owner. It remains unwired. Independent inspect-only review
-and narrow follow-up re-review returned CLEAN/PASS with no findings. The slice
-is ready for checkpointing. A subsequent local Windows-native primitive now
-creates and verifies exact global environment/repair mutexes with a protected
-current-user/SYSTEM-only DACL, bounded waiting, abandoned-owner signaling, and
-same-thread release. Independent inspect-only review returned CLEAN/PASS with
-no findings. It remains unwired and is ready for checkpointing.
+independently reviewed and exact-head green. The production capture factory and
+secured Windows global-mutex primitive were independently reviewed and
+checkpointed together as `f7d21a9`; portability correction `90cdfb8` then
+passed exact-head CI/CD run `34381047736`, Task-087 run `34381047707`, and
+external Trivy, with all nine applicable pull-request checks successful. Both
+remain unwired. The current local source-only follow-up adds the ordered
+environment/target lock owner and lets the held transaction inventory acquire,
+revalidate, retain, and release that pair without enabling repair execution or
+mutation. Independent inspect-only review returned CLEAN/PASS with no findings.
 Merge/publication retain their separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
@@ -1391,6 +1388,73 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-09 - Ordered Transaction Lock Owner Integrated Locally
+
+**Objective**: Compose the reviewed global-mutex primitive into the held
+runtime transaction owner while keeping the repair path non-mutating and
+unwired.
+
+**Checkpoint Context**: Source checkpoint `f7d21a9` contains the independently
+reviewed production capture factory and secured Windows mutex primitive.
+Portability follow-up `90cdfb8` is the exact remote head and passed CI/CD run
+`34381047736`, Task-087 run `34381047707`, and external Trivy; all nine
+applicable pull-request checks passed and the pull-request-only build skipped as
+designed.
+
+**Decision**: Derive the package/`.env` key from the held package-root identity
+and the target key from canonical endpoint, project, and config-volume fields.
+Keep mutable endpoint/volume inspection hashes out of the mutex names so drift
+cannot create a second lock for the same canonical target; retain those hashes
+in the full target token so revalidation still detects the drift. Always acquire
+the environment mutex first and release the target mutex first.
+
+**Execution**: Added an opaque transaction-lock binding, sanitized ordered-lock
+errors, and a same-thread lifetime owner. Acquisition revalidates once under the
+environment mutex and again under both mutexes. The held provider owner can now
+revalidate its provider, CPython, runtime child, and endpoint inventories
+without child execution. The outer transaction owner uses that proof while all
+Compose, `.env`, policy, package-root, and Windows process-environment handles
+are leased, retains both locks through its lifetime, and exposes only sanitized
+abandonment evidence.
+
+**Adversarial Coverage**: Tests cover binding drift after each acquisition,
+target contention cleanup, reverse-order release, both abandoned-owner signals,
+same target across different packages, independent targets, wrong-thread close,
+release failure, unexpected interruption cleanup, redacted representations,
+preservation of a primary interruption when cleanup also fails,
+canonical endpoint/project/config-volume separation, mutable inspection drift,
+outer `.env` drift, provider drift, duplicate acquisition, and composite-owner
+cross-thread close.
+
+**Validation**: The focused provider/transaction, target-contract, and mutex
+selection passes `114/114` locally. Black, strict mypy, single-job blocking Flake8,
+medium/high Bandit, compilation, and `git diff --check` pass. The source-only
+launcher selection passes `953/953`, with the one documented restricted-host
+native hardlink case deselected. The broader helper-inclusive run reaches only
+the known Defender/AMSI `ScriptContainedMaliciousContent` host-policy failures
+in the unchanged dormant PowerShell helper.
+
+**Independent Review**: CLEAN/PASS with no Critical, High, Medium, Low,
+correctness, or documentation findings. The reviewer inspected all nine tracked
+files and independently reproduced all 114 focused tests, Black, strict mypy,
+high-confidence/high-severity Bandit, blocking Flake8, both agent-work
+validators, and `git diff --check`. The reviewer made no repository edits.
+Nonblocking future recommendations are a second-revalidation process-level
+interruption test after both locks are held and native multi-process ordered-pair
+validation during the Windows integration gate.
+
+**Boundary**: No application, discovery, repair, provider installation, live
+runtime, trust-store, filesystem, container, `.env`, or recovery mutation is
+enabled. The current capture cannot prove that an absent `.env` leaf remained
+absent, so lock integration fails closed for that state until the handle-safe
+atomic replacement slice adds the missing proof. The immutable target token is
+rechecked, but no live daemon peer is re-queried in this source-only slice.
+Common-journal scanning and recovery policy remain later work.
+
+**Next**: Checkpoint this reviewed increment, then connect the secure target
+resolver/provider factory to construct the reviewed held-and-locked owner end
+to end before any repair mutation is enabled.
 
 ### 2026-09-09 - Secured Cross-Session Mutex Primitive Implemented Locally
 

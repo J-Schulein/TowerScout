@@ -13,7 +13,15 @@ import re
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, NoReturn, Protocol
+from typing import Any, Callable, NoReturn, Protocol
+
+from .target_contracts import ResolvedRepairTarget
+from .windows_security import (
+    StableFileIdentity,
+    canonical_identity_digest,
+    derive_environment_mutex_name,
+    derive_repair_mutex_name,
+)
 
 SYSTEM_SID = "S-1-5-18"
 MUTEX_ACCESS_MASK = 0x00120001  # READ_CONTROL | SYNCHRONIZE | MUTEX_MODIFY_STATE
@@ -55,6 +63,149 @@ class MutexWaitOutcome(str, Enum):
     ABANDONED = "abandoned"
     TIMEOUT = "timeout"
     FAILED = "failed"
+
+
+class RuntimeTransactionLockErrorCode(str, Enum):
+    INVALID_BINDING = "invalid_binding"
+    LOCK_UNAVAILABLE = "repair_lock_unavailable"
+    BUSY = "repair_busy"
+    BINDING_CHANGED = "target_changed"
+    WRONG_THREAD = "repair_lock_wrong_thread"
+    RELEASE_FAILED = "repair_lock_release_failed"
+
+
+class RuntimeTransactionLockError(RuntimeError):
+    """A sanitized failure while owning the ordered Gate-A lock pair."""
+
+    _MESSAGES = {
+        RuntimeTransactionLockErrorCode.INVALID_BINDING: (
+            "The runtime transaction lock binding is invalid."
+        ),
+        RuntimeTransactionLockErrorCode.LOCK_UNAVAILABLE: (
+            "The Windows repair locks are unavailable."
+        ),
+        RuntimeTransactionLockErrorCode.BUSY: (
+            "Another repair operation currently owns this environment or target."
+        ),
+        RuntimeTransactionLockErrorCode.BINDING_CHANGED: (
+            "The runtime repair target changed while its locks were acquired."
+        ),
+        RuntimeTransactionLockErrorCode.WRONG_THREAD: (
+            "The runtime repair locks must be released by their owning operation."
+        ),
+        RuntimeTransactionLockErrorCode.RELEASE_FAILED: (
+            "The runtime repair locks could not be released safely."
+        ),
+    }
+
+    def __init__(self, code: RuntimeTransactionLockErrorCode) -> None:
+        if type(code) is not RuntimeTransactionLockErrorCode:
+            raise ValueError("Unknown runtime transaction lock error code.")
+        self.code = code
+        super().__init__(self._MESSAGES[code])
+
+    def __repr__(self) -> str:
+        return f"RuntimeTransactionLockError(code={self.code.value!r})"
+
+
+def _fail_runtime_locks(code: RuntimeTransactionLockErrorCode) -> NoReturn:
+    raise RuntimeTransactionLockError(code) from None
+
+
+def _is_sha256(value: object) -> bool:
+    return (
+        type(value) is str
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class RuntimeTransactionLockBinding:
+    """Opaque lock keys plus the exact immutable state they serialize."""
+
+    environment_mutex_name: str = field(repr=False)
+    target_mutex_name: str = field(repr=False)
+    target_token_sha256: str = field(repr=False)
+    environment_sha256: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.environment_mutex_name) is not str
+            or not self.environment_mutex_name.startswith("Global\\TowerScoutEnv-v1-")
+            or _MUTEX_NAME.fullmatch(self.environment_mutex_name) is None
+            or type(self.target_mutex_name) is not str
+            or not self.target_mutex_name.startswith("Global\\TowerScoutRepair-v1-")
+            or _MUTEX_NAME.fullmatch(self.target_mutex_name) is None
+            or not _is_sha256(self.target_token_sha256)
+            or not _is_sha256(self.environment_sha256)
+        ):
+            raise ValueError("Runtime transaction lock binding is invalid.")
+
+    def __repr__(self) -> str:
+        return "RuntimeTransactionLockBinding(<redacted>)"
+
+
+def runtime_transaction_lock_binding(
+    target: ResolvedRepairTarget,
+    package_parent: StableFileIdentity,
+) -> RuntimeTransactionLockBinding:
+    """Bind stable serialization keys to one exact immutable repair target.
+
+    ``package_parent`` is the held identity of the directory containing
+    ``.env`` (the package root). Mutable endpoint and volume inspection hashes
+    deliberately remain in the target token, not the mutex names, so identity
+    drift cannot create a second lock for the same canonical target.
+    """
+
+    if (
+        type(target) is not ResolvedRepairTarget
+        or type(package_parent) is not StableFileIdentity
+        or target.package_root.volume_serial != package_parent.volume_serial
+        or target.package_root.file_id != package_parent.file_id
+        or target.compose.environment_source.final_path.parent
+        != target.package_root.final_path
+        or target.volumes[0].logical_name != "towerscout_config"
+    ):
+        _fail_runtime_locks(RuntimeTransactionLockErrorCode.INVALID_BINDING)
+    try:
+        endpoint = canonical_identity_digest(
+            "Endpoint",
+            (
+                b"runtime-product",
+                target.endpoint.product.value.encode("ascii"),
+                b"endpoint-kind",
+                target.endpoint.kind.value.encode("ascii"),
+                b"canonical-endpoint",
+                target.endpoint.canonical_endpoint.encode("utf-8", errors="strict"),
+                b"rootless",
+                b"1" if target.endpoint.rootless else b"0",
+            ),
+        )
+        config_volume = target.volumes[0]
+        volume = canonical_identity_digest(
+            "ConfigVolume",
+            (
+                b"logical-name",
+                config_volume.logical_name.encode("utf-8", errors="strict"),
+                b"runtime-name",
+                config_volume.runtime_name.encode("utf-8", errors="strict"),
+                b"destination",
+                config_volume.destination.encode("utf-8", errors="strict"),
+            ),
+        )
+        return RuntimeTransactionLockBinding(
+            environment_mutex_name=derive_environment_mutex_name(package_parent),
+            target_mutex_name=derive_repair_mutex_name(
+                endpoint=endpoint,
+                compose_project=target.compose_project,
+                config_volume=volume,
+            ),
+            target_token_sha256=target.target_token.digest_sha256,
+            environment_sha256=target.compose.environment_sha256,
+        )
+    except Exception:
+        _fail_runtime_locks(RuntimeTransactionLockErrorCode.INVALID_BINDING)
 
 
 def _valid_sid(value: object) -> bool:
@@ -376,6 +527,182 @@ def acquire_secured_cross_session_mutex(
         raise
 
 
+def _mapped_runtime_lock_error(
+    error: WindowsMutexError,
+) -> RuntimeTransactionLockErrorCode:
+    return {
+        "mutex_busy": RuntimeTransactionLockErrorCode.BUSY,
+        "mutex_wrong_thread": RuntimeTransactionLockErrorCode.WRONG_THREAD,
+        "mutex_release_failed": RuntimeTransactionLockErrorCode.RELEASE_FAILED,
+    }.get(error.category, RuntimeTransactionLockErrorCode.LOCK_UNAVAILABLE)
+
+
+def _close_runtime_mutexes(
+    mutexes: tuple[HeldCrossSessionMutex | None, ...],
+) -> bool:
+    failed = False
+    for mutex in mutexes:
+        if mutex is None:
+            continue
+        try:
+            mutex.close()
+        except WindowsMutexError:
+            failed = True
+    return failed
+
+
+class HeldRuntimeTransactionLocks:
+    """Own the environment mutex first and target mutex second."""
+
+    __slots__ = (
+        "_binding",
+        "_environment_abandoned",
+        "_environment_mutex",
+        "_target_abandoned",
+        "_target_mutex",
+    )
+
+    def __init__(
+        self,
+        *,
+        binding: RuntimeTransactionLockBinding,
+        environment_mutex: HeldCrossSessionMutex,
+        target_mutex: HeldCrossSessionMutex,
+    ) -> None:
+        if (
+            type(binding) is not RuntimeTransactionLockBinding
+            or type(environment_mutex) is not HeldCrossSessionMutex
+            or environment_mutex.closed
+            or type(target_mutex) is not HeldCrossSessionMutex
+            or target_mutex.closed
+        ):
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.INVALID_BINDING)
+        self._binding = binding
+        self._environment_abandoned = environment_mutex.abandoned
+        self._target_abandoned = target_mutex.abandoned
+        self._environment_mutex: HeldCrossSessionMutex | None = environment_mutex
+        self._target_mutex: HeldCrossSessionMutex | None = target_mutex
+
+    @property
+    def environment_abandoned(self) -> bool:
+        return self._environment_abandoned
+
+    @property
+    def target_abandoned(self) -> bool:
+        return self._target_abandoned
+
+    @property
+    def closed(self) -> bool:
+        return self._environment_mutex is None and self._target_mutex is None
+
+    def close(self) -> None:
+        if self.closed:
+            return
+        wrong_thread = False
+        failed = False
+        target_mutex = self._target_mutex
+        environment_mutex = self._environment_mutex
+        for mutex in (target_mutex, environment_mutex):
+            if mutex is None:
+                continue
+            try:
+                mutex.close()
+            except WindowsMutexError as error:
+                wrong_thread = wrong_thread or error.category == "mutex_wrong_thread"
+                failed = True
+            finally:
+                if mutex.closed:
+                    if mutex is target_mutex:
+                        self._target_mutex = None
+                    else:
+                        self._environment_mutex = None
+        if wrong_thread:
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.WRONG_THREAD)
+        if failed:
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.RELEASE_FAILED)
+
+    def __enter__(self) -> "HeldRuntimeTransactionLocks":
+        if self.closed:
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.LOCK_UNAVAILABLE)
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        self.close()
+
+    def __repr__(self) -> str:
+        state = "closed" if self.closed else "owned"
+        return (
+            "HeldRuntimeTransactionLocks("
+            f"state={state!r}, "
+            f"environment_abandoned={self._environment_abandoned}, "
+            f"target_abandoned={self._target_abandoned}, <redacted>)"
+        )
+
+
+def acquire_ordered_runtime_transaction_locks(
+    binding: RuntimeTransactionLockBinding,
+    revalidate: Callable[[], RuntimeTransactionLockBinding],
+    *,
+    api: WindowsMutexApi | None = None,
+    timeout_ms: int = 0,
+) -> HeldRuntimeTransactionLocks:
+    """Acquire environment then target mutex and revalidate under both.
+
+    The callback must reconstruct the binding from currently held, freshly
+    validated target and environment state. It runs once under the environment
+    mutex before target acquisition and again while both mutexes are owned.
+    """
+
+    if type(binding) is not RuntimeTransactionLockBinding or not callable(revalidate):
+        _fail_runtime_locks(RuntimeTransactionLockErrorCode.INVALID_BINDING)
+    environment_mutex: HeldCrossSessionMutex | None = None
+    target_mutex: HeldCrossSessionMutex | None = None
+    try:
+        environment_mutex = acquire_secured_cross_session_mutex(
+            binding.environment_mutex_name,
+            api=api,
+            timeout_ms=timeout_ms,
+        )
+        after_environment = revalidate()
+        if (
+            type(after_environment) is not RuntimeTransactionLockBinding
+            or after_environment != binding
+        ):
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.BINDING_CHANGED)
+        target_mutex = acquire_secured_cross_session_mutex(
+            after_environment.target_mutex_name,
+            api=api,
+            timeout_ms=timeout_ms,
+        )
+        after_target = revalidate()
+        if (
+            type(after_target) is not RuntimeTransactionLockBinding
+            or after_target != binding
+        ):
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.BINDING_CHANGED)
+        return HeldRuntimeTransactionLocks(
+            binding=binding,
+            environment_mutex=environment_mutex,
+            target_mutex=target_mutex,
+        )
+    except RuntimeTransactionLockError:
+        if _close_runtime_mutexes((target_mutex, environment_mutex)):
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.RELEASE_FAILED)
+        raise
+    except WindowsMutexError as error:
+        code = _mapped_runtime_lock_error(error)
+        if _close_runtime_mutexes((target_mutex, environment_mutex)):
+            code = RuntimeTransactionLockErrorCode.RELEASE_FAILED
+        _fail_runtime_locks(code)
+    except Exception:
+        if _close_runtime_mutexes((target_mutex, environment_mutex)):
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.RELEASE_FAILED)
+        _fail_runtime_locks(RuntimeTransactionLockErrorCode.BINDING_CHANGED)
+    except BaseException:
+        _close_runtime_mutexes((target_mutex, environment_mutex))
+        raise
+
+
 class _SecurityAttributes(ctypes.Structure):
     _fields_ = (
         ("length", ctypes.c_uint32),
@@ -613,11 +940,17 @@ __all__ = [
     "SYSTEM_SID",
     "CreatedMutex",
     "HeldCrossSessionMutex",
+    "HeldRuntimeTransactionLocks",
     "MutexAccessAllowedAce",
     "MutexSecurityFacts",
     "MutexWaitOutcome",
     "NativeWindowsMutexApi",
+    "RuntimeTransactionLockBinding",
+    "RuntimeTransactionLockError",
+    "RuntimeTransactionLockErrorCode",
     "WindowsMutexApi",
     "WindowsMutexError",
+    "acquire_ordered_runtime_transaction_locks",
     "acquire_secured_cross_session_mutex",
+    "runtime_transaction_lock_binding",
 ]
