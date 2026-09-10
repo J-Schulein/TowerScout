@@ -6,11 +6,12 @@ use. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases until the
 normal-user package is satisfactory, then complete Task-100 production signing
 and managed-endpoint qualification in October. Task-099's scoped August gate
 and Task-101's full dependency/reconciliation gate passed. Task-101 is complete.
-Task-087 is active at source head `0674805a6624` under its fixed nine-slice
+Task-087 is active at source head `dd1af9cfa2e7` under its fixed nine-slice
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md): exact-runtime
-and exact-target foundations are materially advanced but unwired, while durable
-mutation/recovery and final validation remain. PR #67 remains Draft and Gate A
-source remediation/re-review precedes preview integration.
+and exact-target foundations, including native observation authority, are
+materially advanced but unwired, while durable mutation/recovery and final
+validation remain. PR #67 remains Draft and Gate A source remediation/re-review
+precedes preview integration.
 Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
 
@@ -145,7 +146,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at `0674805a6624`. The [fixed Gate A burn-down](./tasks/active/TASK-087/GATE-A-STATUS.md) records slice 1 complete; slices 2-3 substantially built but unwired; slices 4-5 and 8 partial; slices 6-7 not started; and final validation continuing. Mutation is disabled and PR #67 remains Draft; preview and Task-100 gates remain separate. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at `dd1af9cfa2e7`. The [fixed Gate A burn-down](./tasks/active/TASK-087/GATE-A-STATUS.md) records slice 1 complete; slices 2-3 substantially built but unwired with native observation authority checkpointed; slices 4-5 and 8 partial; slices 6-7 not started; and final validation continuing. Mutation is disabled and PR #67 remains Draft; preview and Task-100 gates remain separate. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---
