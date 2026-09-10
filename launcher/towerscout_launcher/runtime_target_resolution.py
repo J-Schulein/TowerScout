@@ -1494,22 +1494,21 @@ def capture_bound_resolved_repair_target(
 ) -> BoundResolvedRepairTarget:
     """Resolve twice and transfer the read-only backend into the target owner."""
 
-    if type(plan) is not TargetResolutionPlan:
-        _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
-    try:
-        supported = (
-            backend.supported is True
-            and backend.closed is False
-            and callable(backend.capture)
-            and callable(backend.close)
-        )
-    except Exception:
-        supported = False
-    if not supported:
-        _suppress_backend_close(backend)
-        _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
     transferred = False
     try:
+        if type(plan) is not TargetResolutionPlan:
+            _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
+        try:
+            supported = (
+                backend.supported is True
+                and backend.closed is False
+                and callable(backend.capture)
+                and callable(backend.close)
+            )
+        except Exception:
+            supported = False
+        if not supported:
+            _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
         first = _capture_once(plan, backend)
         second = _capture_once(plan, backend)
         if (

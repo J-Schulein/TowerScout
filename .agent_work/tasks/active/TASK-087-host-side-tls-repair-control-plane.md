@@ -1356,6 +1356,74 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-10 - Native Exact-Target Resolver Bridge Added Locally
+
+**Objective**: Connect the checkpointed native observation authority directly
+to the bound exact-target resolver without yet connecting launcher discovery,
+confirmation, repair, or mutation.
+
+**Context**: Checkpoint `dd1af9c` completed the native observation executor and
+production authority factory. The only caller path into target normalization
+still required a caller-supplied backend, so production code did not yet have a
+closed construction path from an immutable plan to an owned resolved target.
+
+**Decision**: Add one production bridge with no injectable backend parameter.
+It always constructs the native Windows authority backend, maps construction
+failures into the target resolver's sanitized error vocabulary, and immediately
+transfers the backend to `capture_bound_resolved_repair_target`, which performs
+the two matching observations and retains it for later revalidation. Tests may
+replace the module-local factory; production callers cannot select a weaker
+backend through the public function.
+
+**Execution**:
+
+- Added `capture_native_windows_resolved_repair_target` to the native
+  observation module.
+- Kept backend cleanup delegated to the reviewed authority factory and bound
+  resolver so failed initial resolution closes all transferred owners.
+- Kept the bridge absent from `app.py`, `discovery.py`, and `repair.py`; no UI,
+  confirmation, transaction, restart, or mutation behavior changed.
+
+**Adversarial Coverage**: Docker and Podman tests verify that the exact plan is
+passed to the native factory, the backend is transferred into a real
+`BoundResolvedRepairTarget`, both initial observations occur, ownership remains
+open until target close, construction failures expose only sanitized resolver
+errors without exception chains, a failed initial observation closes the
+executor and authority, and an interruption during the resolver's initial
+backend-capability probe still closes the newly constructed native authority.
+
+**Validation**: The observation backend/native focus passes `80/80`; the target
+resolution/backend/native selection passes `170/170`; the broader target plan/
+normalization/provider-child selection passes `248/248`; and the canonical
+source-only launcher selection passes `1281/1281` with the documented Defender-
+blocked dormant-helper file and restricted-host native hard-link smoke excluded.
+Black, strict mypy for the two affected source modules, single-process blocking
+Flake8, high-severity Bandit, compileall, both `.agent_work` validators, and
+`git diff --check` pass. No Docker, Podman, Compose, launcher, certificate,
+`.env`, container, image, volume, or host mutation command ran.
+
+**Independent Review**: The review-only sub-agent first identified a Low test-
+strength gap because plan equality did not prove the identical immutable plan
+object crossed the bridge; the corrected regression now asserts object identity.
+The reviewer then found one Medium ownership blocker: backend capability probing
+occurred before the generic resolver entered its cleanup guard, so an
+interruption could leak the newly constructed native authority. Plan validation
+and the full probe now run inside the transfer `try/finally`, with generic and
+bridge-level regressions proving exactly-once cleanup while preserving the
+original interruption. Independent re-review confirmed `170/170` focused and
+`1281/1281` canonical tests; no blocking finding remains.
+
+**Boundary**: This is material, independently reviewed wiring inside slices 2-3
+and is ready for checkpointing. A production plan assembler still must construct
+the immutable `TargetResolutionPlan` from authenticated package, runtime,
+endpoint, provider, environment, acceleration, image, and certificate inputs
+before the bridge can be connected ahead of confirmation. Gate A remains open
+and mutation remains disabled.
+
+**Next**: Checkpoint this reviewed bridge, then build the production plan
+assembler and its ownership/cleanup tests before wiring exact-target
+confirmation and stage-specific revalidation.
+
 ### 2026-09-10 - Native Target-Observation Authority Added Locally
 
 **Objective**: Complete the source-only native execution and ownership

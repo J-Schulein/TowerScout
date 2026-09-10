@@ -1,9 +1,11 @@
 """Owned native Windows execution boundary for exact target observations.
 
 This module remains disconnected from launcher discovery and repair.  Its
-factory recaptures every immutable plan input, retains executable load-surface
-owners for the whole observation, and transfers that authority together with
-one contained executor into the normalization backend.
+authority factory recaptures every immutable plan input, retains executable
+load-surface owners for the whole observation, and transfers that authority
+together with one contained executor into the normalization backend.  Its
+production bridge then transfers that backend directly into the bound exact
+target resolver without exposing a replaceable execution seam.
 """
 
 from __future__ import annotations
@@ -56,7 +58,13 @@ from .runtime_target_observation_backend import (
     OwnedTargetObservationBackend,
     TargetObservationProcessResult,
 )
-from .runtime_target_resolution import TargetResolutionPlan
+from .runtime_target_resolution import (
+    BoundResolvedRepairTarget,
+    TargetResolutionError,
+    TargetResolutionErrorCode,
+    TargetResolutionPlan,
+    capture_bound_resolved_repair_target,
+)
 from .runtime_verification import (
     BoundRuntimeEvidence,
     open_package_bound_runtime_evidence,
@@ -1059,10 +1067,45 @@ def capture_native_windows_target_observation_backend(
                 raise interruption
 
 
+def capture_native_windows_resolved_repair_target(
+    plan: TargetResolutionPlan,
+) -> BoundResolvedRepairTarget:
+    """Resolve one exact target through the production native authority path.
+
+    The public bridge deliberately accepts no alternate backend. Tests replace
+    the module-local factory seam, while production callers can only construct
+    a :class:`BoundResolvedRepairTarget` from the native Windows observation
+    backend that owns every authenticated plan input.
+    """
+
+    failure_code: TargetResolutionErrorCode | None = None
+    backend: OwnedTargetObservationBackend | None = None
+    try:
+        backend = capture_native_windows_target_observation_backend(plan)
+    except TargetObservationNativeError as error:
+        failure_code = {
+            TargetObservationNativeErrorCode.BINDING_INVALID: (
+                TargetResolutionErrorCode.AUTHORITY_MISMATCH
+            ),
+            TargetObservationNativeErrorCode.AUTHORITY_CHANGED: (
+                TargetResolutionErrorCode.TARGET_CHANGED
+            ),
+            TargetObservationNativeErrorCode.UNAVAILABLE: (
+                TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+            ),
+        }[error.code]
+    if failure_code is not None or backend is None:
+        raise TargetResolutionError(
+            failure_code or TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+        )
+    return capture_bound_resolved_repair_target(plan, backend=backend)
+
+
 __all__ = [
     "HeldTargetObservationAuthority",
     "NativeWindowsTargetObservationExecutor",
     "TargetObservationNativeError",
     "TargetObservationNativeErrorCode",
+    "capture_native_windows_resolved_repair_target",
     "capture_native_windows_target_observation_backend",
 ]

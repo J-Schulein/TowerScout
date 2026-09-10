@@ -1249,6 +1249,23 @@ def test_backend_failure_and_unsupported_state_are_sanitized() -> None:
         assert backend.close_calls == 1
 
 
+def test_backend_probe_interruption_closes_before_propagating() -> None:
+    plan = _plan()
+
+    class InterruptingBackend(_Backend):
+        @property
+        def supported(self) -> bool:
+            raise KeyboardInterrupt("PRIVATE PROBE INTERRUPTION")
+
+    backend = InterruptingBackend(_snapshot(plan), _snapshot(plan))
+
+    with pytest.raises(KeyboardInterrupt, match="PRIVATE PROBE INTERRUPTION"):
+        capture_bound_resolved_repair_target(plan, backend=backend)
+
+    assert backend.closed is True
+    assert backend.close_calls == 1
+
+
 @pytest.mark.parametrize("explicit_cause", [False, True])
 def test_backend_target_error_chains_are_rebuilt_without_private_context(
     explicit_cause: bool,

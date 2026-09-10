@@ -23,6 +23,9 @@ from test_launcher_runtime_target_observation import _file, _plan  # noqa: E402
 from towerscout_launcher import (  # noqa: E402
     runtime_target_observation_backend as backend_module,
 )
+from towerscout_launcher import (  # noqa: E402
+    runtime_target_observation_native as native_module,
+)
 from towerscout_launcher.runtime_target_observation import (  # noqa: E402
     ObservationOperation,
     TargetObservationExecutionBinding,
@@ -561,6 +564,136 @@ def test_owned_backend_normalizes_provider_output_into_resolved_target(
     owner.close()
     assert authority.close_calls == 1
     assert executor.close_calls == 1
+
+
+@pytest.mark.parametrize("product", [RuntimeProduct.DOCKER, RuntimeProduct.PODMAN])
+def test_native_production_bridge_transfers_authority_into_resolved_target(
+    monkeypatch: pytest.MonkeyPatch,
+    product: RuntimeProduct,
+) -> None:
+    plan, authority, executor, backend = _backend(product)
+    requested: list[TargetResolutionPlan] = []
+
+    def capture(candidate: TargetResolutionPlan) -> OwnedTargetObservationBackend:
+        requested.append(candidate)
+        return backend
+
+    monkeypatch.setattr(
+        native_module,
+        "capture_native_windows_target_observation_backend",
+        capture,
+    )
+
+    owner = native_module.capture_native_windows_resolved_repair_target(plan)
+
+    assert requested == [plan]
+    assert requested[0] is plan
+    assert type(owner) is BoundResolvedRepairTarget
+    assert owner.target.runtime.product is product
+    assert authority.calls == 2
+    assert backend.closed is False
+    owner.close()
+    assert backend.closed is True
+    assert executor.closed is True
+
+
+def test_native_production_bridge_closes_authority_when_resolution_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan, authority, executor, backend = _backend(RuntimeProduct.DOCKER)
+    executor.exit_code = 1
+
+    def capture(candidate: TargetResolutionPlan) -> OwnedTargetObservationBackend:
+        assert candidate is plan
+        return backend
+
+    monkeypatch.setattr(
+        native_module,
+        "capture_native_windows_target_observation_backend",
+        capture,
+    )
+
+    with pytest.raises(TargetResolutionError) as captured:
+        native_module.capture_native_windows_resolved_repair_target(plan)
+
+    assert captured.value.code is TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+    assert backend.closed is True
+    assert authority.closed is True
+    assert executor.closed is True
+
+
+@pytest.mark.parametrize(
+    ("native_code", "resolution_code"),
+    [
+        (
+            native_module.TargetObservationNativeErrorCode.BINDING_INVALID,
+            TargetResolutionErrorCode.AUTHORITY_MISMATCH,
+        ),
+        (
+            native_module.TargetObservationNativeErrorCode.AUTHORITY_CHANGED,
+            TargetResolutionErrorCode.TARGET_CHANGED,
+        ),
+        (
+            native_module.TargetObservationNativeErrorCode.UNAVAILABLE,
+            TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE,
+        ),
+    ],
+)
+def test_native_production_bridge_exposes_only_resolution_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    native_code: native_module.TargetObservationNativeErrorCode,
+    resolution_code: TargetResolutionErrorCode,
+) -> None:
+    plan = _plan(RuntimeProduct.DOCKER)
+
+    def fail(_candidate: TargetResolutionPlan) -> OwnedTargetObservationBackend:
+        raise native_module.TargetObservationNativeError(native_code)
+
+    monkeypatch.setattr(
+        native_module,
+        "capture_native_windows_target_observation_backend",
+        fail,
+    )
+
+    with pytest.raises(TargetResolutionError) as captured:
+        native_module.capture_native_windows_resolved_repair_target(plan)
+
+    assert captured.value.code is resolution_code
+    _assert_no_exception_chain(captured.value)
+
+
+def test_native_production_bridge_closes_backend_after_probe_interruption(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    plan = _plan(RuntimeProduct.DOCKER)
+
+    class InterruptingBackend:
+        closed = False
+        close_calls = 0
+
+        @property
+        def supported(self) -> bool:
+            raise KeyboardInterrupt("PRIVATE PROBE INTERRUPTION")
+
+        def capture(self, _candidate: TargetResolutionPlan) -> None:
+            raise AssertionError("capture must not run")
+
+        def close(self) -> None:
+            self.close_calls += 1
+            self.closed = True
+
+    backend = InterruptingBackend()
+    monkeypatch.setattr(
+        native_module,
+        "capture_native_windows_target_observation_backend",
+        lambda _candidate: backend,
+    )
+
+    with pytest.raises(KeyboardInterrupt, match="PRIVATE PROBE INTERRUPTION"):
+        native_module.capture_native_windows_resolved_repair_target(plan)
+
+    assert backend.closed is True
+    assert backend.close_calls == 1
 
 
 @pytest.mark.parametrize("product", [RuntimeProduct.DOCKER, RuntimeProduct.PODMAN])
