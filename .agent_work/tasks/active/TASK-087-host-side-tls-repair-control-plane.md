@@ -1356,6 +1356,73 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-10 - Owned Production Target-Plan Assembly Added Locally
+
+**Objective**: Build the missing source-only handoff from one coherent set of
+authenticated resolver inputs to the checkpointed native exact-target bridge,
+without connecting launcher discovery, confirmation, repair, or mutation.
+
+**Context**: Source checkpoint `2d885cc` can turn an already constructed
+`TargetResolutionPlan` into an owned, revalidatable `ResolvedRepairTarget`, but
+production orchestration still had no bounded assembler for package, runtime,
+endpoint, Compose-provider, environment, acceleration, image, and certificate
+inputs. Documentation checkpoint `4a52e90` is the current branch head.
+
+**Decision**: Require a retained authenticated-input owner rather than a loose
+argument collection. Capture its immutable redacted input snapshot twice,
+construct the strict plan in this layer, reject authority drift before native
+execution, and keep the input owner live until the native bridge has
+independently recaptured every exact plan authority. Close the input owner after
+handoff; if that cleanup fails, close the new target and fail closed.
+
+**Execution**:
+
+- Added `runtime_target_plan.py` with the redacted immutable
+  `TargetResolutionPlanInputs` contract and strict plan assembler.
+- Added the production handoff that accepts only the input-owner interface,
+  compares two complete plan-authority hashes, and gives the second exact plan
+  to the non-injectable native resolver bridge.
+- Added cleanup that closes the input owner exactly once on success, ordinary
+  failure, and interruption; a failed post-handoff cleanup also closes the new
+  resolved target so no unreturned native authority remains live.
+- Kept the module absent from `app.py`, `discovery.py`, and `repair.py`. Runtime
+  mutation remains disabled.
+
+**Adversarial Coverage**: Tests cover Docker and Podman plan assembly, redacted
+representation, mixed runtime/endpoint rejection, input drift before the native
+bridge, capture-error sanitization, successful authority transfer, input-close
+failure after transfer, primary-error preservation when cleanup also fails, and
+interruption cleanup.
+
+**Validation**: The updated target-resolution file passes `101/101`; the target
+resolution/observation/backend/native boundary passes `205/205`; and the
+canonical source-only launcher selection passes `1292/1292` with `393`
+unrelated tests deselected and the documented native held-executable hard-link
+case excluded. Black, strict mypy for the new source, single-process blocking/
+fatal Flake8, high-severity Bandit, compileall, the `.agent_work` validator, and
+`git diff --check` pass. No Docker, Podman, Compose, launcher, certificate,
+`.env`, container, image, volume, or host mutation command ran.
+
+**Independent Review**: A fresh review-only sub-agent reported **CLEAN / PASS**
+with no findings against base `4a52e90`. It verified exact second-plan identity
+at the fixed native bridge, input-owner lifetime and exactly-once cleanup,
+fail-closed exception/interruption handling, redaction and strict types, the
+unwired boundary, test adequacy, documentation accuracy, and the Task-092
+model-upgrade handoff note. Its independent focused selection passed `11/11`
+with `90` tests deselected; it made no working-tree changes.
+
+**Boundary**: This materially implements the plan-assembly and ownership
+handoff sub-increment in slices 2-3. Those slices remain **BUILT BUT UNWIRED**:
+the launcher still needs a concrete authenticated-input owner and must consume
+the resulting resolved target before confirmation. Native Windows-store
+certificate proof from slice 4 remains a required input to that final wiring;
+this is an existing dependency, not a new Gate A slice.
+
+**Next**: Checkpoint this independently reviewed increment. Then implement the
+concrete authenticated-input capture/owner alongside the native Windows-store
+certificate proof before connecting exact-target confirmation and
+stage-specific transaction revalidation.
+
 ### 2026-09-10 - Native Exact-Target Resolver Bridge Added Locally
 
 **Objective**: Connect the checkpointed native observation authority directly

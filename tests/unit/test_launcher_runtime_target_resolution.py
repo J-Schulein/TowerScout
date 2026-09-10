@@ -15,6 +15,12 @@ LAUNCHER_ROOT = ROOT / "launcher"
 if str(LAUNCHER_ROOT) not in sys.path:
     sys.path.insert(0, str(LAUNCHER_ROOT))
 
+from towerscout_launcher import runtime_target_plan  # noqa: E402
+from towerscout_launcher.runtime_target_plan import (  # noqa: E402
+    TargetResolutionPlanInputs,
+    assemble_target_resolution_plan,
+    capture_native_windows_resolved_target_from_inputs,
+)
 from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
     EXPECTED_HEALTHCHECK_COMMAND_SHA256,
     TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER,
@@ -228,6 +234,69 @@ def _plan(
             candidate_content_sha256="c" * 64,
         ),
     )
+
+
+def _plan_inputs(plan: TargetResolutionPlan) -> TargetResolutionPlanInputs:
+    return TargetResolutionPlanInputs(
+        package_root=plan.package_root,
+        process_environment=plan.process_environment,
+        release_identity=plan.release_identity,
+        security_artifacts=plan.security_artifacts,
+        runtime=plan.runtime,
+        endpoint=plan.endpoint,
+        compose_provider=plan.compose_provider,
+        ordered_compose_files=plan.ordered_compose_files,
+        environment_sha256=plan.environment_sha256,
+        planned_environment_sha256=plan.planned_environment_sha256,
+        environment_source=plan.environment_source,
+        environment_file=plan.environment_file,
+        compose_project=plan.compose_project,
+        acceleration=plan.acceleration,
+        provider=plan.provider,
+        port=plan.port,
+        configured_image_reference=plan.configured_image_reference,
+        pinned_image_digest=plan.pinned_image_digest,
+        certificate=plan.certificate,
+    )
+
+
+class _PlanInputOwner:
+    def __init__(
+        self,
+        *captures: TargetResolutionPlanInputs | BaseException | object,
+        supported: bool = True,
+        close_error: BaseException | None = None,
+    ) -> None:
+        self.supported = supported
+        self.closed = False
+        self.captures = list(captures)
+        self.capture_calls = 0
+        self.close_calls = 0
+        self.close_error = close_error
+
+    def capture(self) -> TargetResolutionPlanInputs:
+        assert not self.closed
+        self.capture_calls += 1
+        value = self.captures.pop(0)
+        if isinstance(value, BaseException):
+            raise value
+        return value  # type: ignore[return-value]
+
+    def close(self) -> None:
+        self.close_calls += 1
+        self.closed = True
+        if self.close_error is not None:
+            raise self.close_error
+
+
+class _ResolvedTargetOwner:
+    def __init__(self) -> None:
+        self.closed = False
+        self.close_calls = 0
+
+    def close(self) -> None:
+        self.close_calls += 1
+        self.closed = True
 
 
 _BASE_ENVIRONMENT = {
@@ -1358,6 +1427,244 @@ def test_plan_rejects_runtime_endpoint_provider_and_certificate_mismatch() -> No
     for values in invalid_values:
         with pytest.raises(ValueError, match="invalid"):
             replace(docker, **values)
+
+
+def test_plan_assembler_constructs_the_exact_redacted_plan() -> None:
+    expected = _plan(RuntimeProduct.PODMAN)
+    inputs = _plan_inputs(expected)
+
+    assembled = assemble_target_resolution_plan(inputs)
+
+    assert assembled == expected
+    assert assembled.authority_sha256 == expected.authority_sha256
+    assert repr(inputs) == "TargetResolutionPlanInputs(<redacted>)"
+    assert "PRIVATE-PATH" not in repr(inputs)
+
+
+def test_plan_assembler_sanitizes_mixed_or_invalid_inputs() -> None:
+    docker = _plan()
+    podman = _plan(RuntimeProduct.PODMAN)
+    invalid = replace(_plan_inputs(docker), endpoint=podman.endpoint)
+
+    with pytest.raises(TargetResolutionError) as caught:
+        assemble_target_resolution_plan(invalid)
+
+    assert caught.value.code is TargetResolutionErrorCode.AUTHORITY_MISMATCH
+    assert "PRIVATE-PATH" not in str(caught.value)
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+
+
+def test_owned_plan_assembly_transfers_the_second_stable_plan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(inputs, inputs)
+    resolved = _ResolvedTargetOwner()
+    captured: list[TargetResolutionPlan] = []
+    assembled: list[TargetResolutionPlan] = []
+    real_assembler = assemble_target_resolution_plan
+
+    def tracking_assembler(
+        snapshot: TargetResolutionPlanInputs,
+    ) -> TargetResolutionPlan:
+        plan = real_assembler(snapshot)
+        assembled.append(plan)
+        return plan
+
+    def bridge(plan: TargetResolutionPlan) -> _ResolvedTargetOwner:
+        assert owner.closed is False
+        assert plan is assembled[1]
+        captured.append(plan)
+        return resolved
+
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "BoundResolvedRepairTarget",
+        _ResolvedTargetOwner,
+    )
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "assemble_target_resolution_plan",
+        tracking_assembler,
+    )
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "capture_native_windows_resolved_repair_target",
+        bridge,
+    )
+
+    result = capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert result is resolved
+    assert len(assembled) == 2
+    assert len(captured) == 1
+    assert captured[0] is assembled[1]
+    assert captured[0] == _plan()
+    assert owner.capture_calls == 2
+    assert owner.close_calls == 1
+    assert owner.closed is True
+    assert resolved.closed is False
+
+
+def test_owned_plan_assembly_rejects_changed_inputs_before_native_capture(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = _plan_inputs(_plan(port=5000))
+    second = _plan_inputs(_plan(port=5001))
+    owner = _PlanInputOwner(first, second)
+    bridge_calls = 0
+
+    def bridge(_plan: TargetResolutionPlan) -> BoundResolvedRepairTarget:
+        nonlocal bridge_calls
+        bridge_calls += 1
+        raise AssertionError("bridge must not run")
+
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "capture_native_windows_resolved_repair_target",
+        bridge,
+    )
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.TARGET_CHANGED
+    assert bridge_calls == 0
+    assert owner.capture_calls == 2
+    assert owner.close_calls == 1
+    assert owner.closed is True
+
+
+def test_owned_plan_assembly_maps_failed_recapture_to_changed() -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(inputs, RuntimeError("PRIVATE RECAPTURE DETAIL"))
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.TARGET_CHANGED
+    assert "PRIVATE RECAPTURE DETAIL" not in str(caught.value)
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+    assert owner.capture_calls == 2
+    assert owner.close_calls == 1
+
+
+def test_owned_plan_assembly_closes_inputs_on_capture_failure() -> None:
+    owner = _PlanInputOwner(RuntimeError("PRIVATE CAPTURE DETAIL"))
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+    assert "PRIVATE CAPTURE DETAIL" not in str(caught.value)
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+    assert owner.close_calls == 1
+    assert owner.closed is True
+
+
+def test_owned_plan_assembly_closes_new_target_when_input_close_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(
+        inputs,
+        inputs,
+        close_error=RuntimeError("PRIVATE CLOSE DETAIL"),
+    )
+    resolved = _ResolvedTargetOwner()
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "BoundResolvedRepairTarget",
+        _ResolvedTargetOwner,
+    )
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "capture_native_windows_resolved_repair_target",
+        lambda _plan: resolved,
+    )
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.TARGET_CHANGED
+    assert "PRIVATE CLOSE DETAIL" not in str(caught.value)
+    assert owner.close_calls == 1
+    assert resolved.close_calls == 1
+    assert resolved.closed is True
+
+
+def test_owned_plan_assembly_preserves_primary_failure_over_cleanup_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(
+        inputs,
+        inputs,
+        close_error=RuntimeError("PRIVATE CLOSE DETAIL"),
+    )
+
+    def bridge(_plan: TargetResolutionPlan) -> BoundResolvedRepairTarget:
+        raise TargetResolutionError(TargetResolutionErrorCode.MODEL_INVALID)
+
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "capture_native_windows_resolved_repair_target",
+        bridge,
+    )
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.MODEL_INVALID
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+    assert owner.close_calls == 1
+
+
+def test_owned_plan_assembly_sanitizes_unexpected_native_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(inputs, inputs)
+
+    def bridge(_plan: TargetResolutionPlan) -> BoundResolvedRepairTarget:
+        raise RuntimeError("PRIVATE NATIVE DETAIL")
+
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "capture_native_windows_resolved_repair_target",
+        bridge,
+    )
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+    assert "PRIVATE NATIVE DETAIL" not in str(caught.value)
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+    assert owner.close_calls == 1
+
+
+def test_owned_plan_assembly_preserves_interruption_and_closes_inputs() -> None:
+    owner = _PlanInputOwner(KeyboardInterrupt())
+
+    with pytest.raises(KeyboardInterrupt):
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert owner.close_calls == 1
+    assert owner.closed is True
+
+
+def test_owned_plan_assembly_remains_unwired() -> None:
+    for relative in ("app.py", "discovery.py", "repair.py"):
+        source = (LAUNCHER_ROOT / "towerscout_launcher" / relative).read_text(
+            encoding="utf-8"
+        )
+        assert "runtime_target_plan" not in source
 
 
 def test_plan_rejects_aliased_compose_and_environment_file_identities() -> None:

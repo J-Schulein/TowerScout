@@ -75,6 +75,16 @@ Required release and handoff work takes priority over Task-058/059 stretch work.
 - Explain that loopback publication blocks other physical devices by default,
   while another locally controlled Docker Desktop container can reach the host
   proxy and is still denied without the key.
+- Add a tool-neutral owner model-upgrade runbook and bounded manifest/checksum
+  helper. Cover accepting a trained artifact, adding or replacing compatible
+  YOLOv5 weights, selecting the intended model/version, updating the asset
+  manifest path/size/SHA-256, rebuilding release metadata and checksums,
+  recording license/provenance, validating fixed CPU/GPU fixtures and
+  performance, and rolling back safely.
+- Clearly separate a compatible weights-only update from a YOLO runtime or
+  model-family upgrade. The latter must also pin and review the vendored source
+  revision, loader, dependencies, licenses/SBOM, and complete runtime-profile
+  requalification before release.
 
 ### Task-100 Boundary
 
