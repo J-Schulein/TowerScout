@@ -59,6 +59,7 @@ class TrustPolicyError(RuntimeError):
         "chain_unverified": "The provider certificate chain was not verified.",
         "root_ineligible": "The provider chain has no eligible Windows root.",
         "unsupported_provider": "The selected provider is unsupported.",
+        "windows_trust_unavailable": "Windows trust verification is unavailable.",
     }
 
     def __init__(self, code: str) -> None:

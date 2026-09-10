@@ -177,7 +177,9 @@ canonical burn-down; re-estimate after exact-target wiring
 - Keep Gate A source acceptance, Gate B artifact/preview integrity, and
   Gate C/Task-100 signing and managed-endpoint qualification separate. PR #67
   remains Draft.
-- The immediate outcome is to finish slices 2-3 by implementing the concrete
+- The current working increment implements the native Windows-store trust
+  provider under slice 4 while keeping it unwired. After checkpointing the
+  clean independent review, finish slices 2-3 by implementing the concrete
   authenticated-input owner, connecting the checkpointed owned exact target
   ahead of confirmation, and wiring stage-specific revalidation.
 

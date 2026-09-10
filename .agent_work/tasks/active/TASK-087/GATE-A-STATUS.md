@@ -36,9 +36,9 @@ Status in this file answers four separate questions:
 | ID | Approved slice | State | Material evidence already completed | Remaining before this slice is complete |
 | ---: | --- | --- | --- | --- |
 | 1 | Contracts and models | **COMPLETE** | Immutable target/plan contracts, redacted summaries, mutation-off default, Windows-path portability, and adversarial contracts are checkpointed from `7ad221d` through `0eebe7b`. | Keep the contracts stable while later integration consumes them. |
-| 2 | Runtime resolver | **BUILT BUT UNWIRED** | Runtime/Compose authentication, exact CPython dependency and dynamic-load policy, provider-child containment, held ownership, rootless Podman resolution, package configuration, and Docker named-pipe capture are implemented and independently reviewed. Key checkpoints include `1970f76`, `2d37e66`, `e18fb3a`, `d40bb7f`, `f423da4`, `30acb79`, `a4e7015`, `81f82b3`, `8076823`, `dd1af9c`, `2d885cc`, and `eaa2116`; the latest checkpoint assembles a strict production target plan from one retained authenticated-input owner and hands its exact stable second capture to the native bridge. | Implement the concrete authenticated-input capture owner, including native Windows-store certificate proof, and connect the resulting exact target ahead of confirmation. |
+| 2 | Runtime resolver | **BUILT BUT UNWIRED** | Runtime/Compose authentication, exact CPython dependency and dynamic-load policy, provider-child containment, held ownership, rootless Podman resolution, package configuration, and Docker named-pipe capture are implemented and independently reviewed. Key checkpoints include `1970f76`, `2d37e66`, `e18fb3a`, `d40bb7f`, `f423da4`, `30acb79`, `a4e7015`, `81f82b3`, `8076823`, `dd1af9c`, `2d885cc`, and `eaa2116`; the latest committed checkpoint assembles a strict production target plan from one retained authenticated-input owner and hands its exact stable second capture to the native bridge. | Implement the concrete authenticated-input capture owner, consume the native Windows-store certificate result, and connect the resulting exact target ahead of confirmation. |
 | 3 | Target resolver | **BUILT BUT UNWIRED** | `0704974` defines the normalized target and revalidation contract; `215d520` defines immutable observation commands; `0674805` strictly normalizes Docker/Podman Compose, container, image, and all eight volume observations; `dd1af9c` executes those plans through the authenticated native boundary while retaining exact owners; `2d885cc` bridges that native authority into the bound resolver; and `eaa2116` adds independently reviewed stable plan assembly and ownership transfer. | Connect the assembled exact target ahead of confirmation, then wire exact-target confirmation and stage-specific revalidation into the transaction. |
-| 4 | Windows trust proof | **PARTIAL** | Pure Windows-root eligibility and exact-root selection contracts exist in `trust_policy.py`, with bounded/redacted target fields. | Implement native Windows `ROOT`/`CA` acquisition and server-auth chain verification, reject environment/OpenSSL trust injection, export only the selected root, and integrate the private CA identity into the target. |
+| 4 | Windows trust proof | **PARTIAL** | Pure Windows-root eligibility and exact-root selection contracts exist in `trust_policy.py`, with bounded/redacted target fields. The current reviewed source increment adds a fixed-host WinHTTP/Crypt32 provider that filters Current User/Local Machine `ROOT`, confines Windows `CA` and server certificates to intermediate use, rebuilds best/alternate paths under exclusive eligible roots, enforces cached revocation and SSL hostname policy, and returns only the selected root. Its focused fake-native tests, independent review, and local read-only Windows-store enumeration pass. | Checkpoint the native provider, obtain a successful fixed-host proof on a supported Windows execution context (the current sandboxed Schannel probe fails before returning a server chain), integrate the private CA identity into the authenticated input/target, and prove only the selected root reaches the container. |
 | 5 | Windows security proof | **PARTIAL** | `2d37e66` implements handle/file-ID, owner, DACL, reparse, hard-link, and supported cloud/OneDrive path controls. `f7d21a9` and `16604c8` implement secured cross-session mutexes and ordered `.env`/target lock ownership. | Add protected Local AppData state, current-user DPAPI, secure absence proof, and ACL-preserving atomic `.env` replacement; then exercise the completed primitives together. |
 | 6 | Recovery manager | **NOT STARTED** | The approved journal/recovery contract and adversarial scenarios are documented. | Implement the versioned write-ahead journal, encrypted exact-state backups, authenticated startup reconciliation, fresh-process idempotent recovery, verified rollback, and recovery-pending retention. |
 | 7 | Transaction refactor | **NOT STARTED** | The older prototype transaction and historical live evidence remain available as behavior references only. | Refactor `repair.py` to consume the immutable resolved target and recovery manager, remove process-memory-only backup and unchecked rollback, and enforce pre-write/pre-restart/terminal revalidation. |
@@ -57,14 +57,15 @@ count, determine completion.
 
 ## Remaining Outcome Sequence
 
-1. **Finish exact-target wiring (slices 2-3).** The native observation executor,
-   authority factory, owned exact-target bridge, and authenticated production
-   plan assembler are checkpointed. Implement the concrete authenticated-input
-   owner, connect the resulting target ahead of confirmation, and wire
-   stage-specific revalidation.
-2. **Finish Windows mutation foundations (slices 4-5).** Complete Windows-store
-   CA verification plus DPAPI-backed, ACL-preserving atomic `.env` handling by
-   reusing the already reviewed path and mutex controls.
+1. **Finish trust-backed exact-target wiring (slices 2-4).** The native
+   observation executor, authority factory, owned exact-target bridge, and
+   authenticated production plan assembler are checkpointed. Checkpoint the
+   reviewed Windows trust provider, implement the concrete authenticated-input
+   owner, connect the resulting target ahead of confirmation, and wire stage-
+   specific revalidation.
+2. **Finish Windows mutation foundations (slice 5).** Complete DPAPI-backed,
+   ACL-preserving atomic `.env` handling by reusing the already reviewed path
+   and mutex controls.
 3. **Build durable recovery and refactor repair (slices 6-7).** Implement the
    fresh-process journal/recovery manager before enabling the refactored
    transaction.

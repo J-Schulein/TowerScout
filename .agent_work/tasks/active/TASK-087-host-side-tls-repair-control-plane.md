@@ -2,13 +2,14 @@
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A source work is active under the
 approved August 20 remediation design. The canonical detailed status is the
-[`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). At source head
-`0674805a6624`, contracts are complete; the runtime and target foundations are
-substantially built but unwired; Windows trust/security are partial; durable
-recovery, transaction refactoring, and the final Gate A proof remain open. All
-applicable exact-head checks passed in CI/CD run `34515408041`, Task-087 run
-`34515408156`, and external Trivy job `102999589403`; the PR-only build skipped
-as designed. PR #67 remains Draft, mutation remains disabled, and no live
+[`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). At reviewed source
+head `eaa2116363f0`, contracts are complete; the runtime and target foundations
+are substantially built but unwired; Windows trust/security are partial;
+durable recovery, transaction refactoring, and the final Gate A proof remain
+open. Earlier exact head `0674805a6624` passed all applicable checks in CI/CD
+run `34515408041`, Task-087 run `34515408156`, and external Trivy job
+`102999589403`; the PR-only build skipped as designed. PR #67 remains Draft,
+mutation remains disabled, and no live
 runtime, repair, or host/container mutation occurred in the current source
 sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -1355,6 +1356,80 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-10 - Native Windows-Store TLS Trust Provider Added Locally
+
+**Objective**: Replace caller-asserted trust fixtures with the native,
+Windows-store-only evidence provider required before the authenticated target
+input owner can bind the selected CA identity.
+
+**Decision**: Keep the public production boundary non-injectable and fixed to
+Google `maps.googleapis.com` or Azure `atlas.microsoft.com`. Inspect the actual
+process environment and reject ambient CA redirect variables before native
+work. Enumerate Current User and Local Machine
+`ROOT` records, admitting only combined Windows EKU evidence for server
+authentication or all-purpose use. Rebuild the negotiated chain with a custom
+Crypt32 engine whose exclusive root store contains only that eligible snapshot;
+Windows `CA` and server-supplied certificates are restricted to intermediate
+use. Apply cached-only revocation, disable AIA/root auto-update, evaluate the
+SSL hostname policy across the best and bounded lower-quality candidates, and
+return only the one exact selected root through the existing redacted policy.
+
+**Execution**:
+
+- Added `trust_windows_native.py` with fixed TLS 1.2/1.3 WinHTTP acquisition,
+  redirects/cookies disabled, bounded timeouts, system proxy discovery, and no
+  caller-selectable hostname, environment snapshot, trust store, native
+  adapter, or weakened policy.
+- Added the exclusive-root Crypt32 builder, Current User/Local Machine `ROOT`
+  filtering, Windows `CA`/server intermediate collection, exact SSL hostname
+  evaluation, best/alternate candidate capture, stable sanitization, and
+  reverse-order native cleanup.
+- Added `windows_trust_unavailable` to the existing sanitized trust-policy
+  error vocabulary. The module remains absent from launcher discovery,
+  confirmation, repair, and transaction paths.
+
+**Adversarial Coverage**: The new tests cover both fixed provider hostnames,
+ambient CA injection before native access, exact native-support typing,
+exception sanitization and interruption propagation, malformed/mismatched
+evidence, server-auth/all-purpose EKU filtering, fixed constants and AMD64 ABI
+layouts, non-injectable production arguments, redaction/immutability, exact
+SSL hostname-policy inputs, cached-only/lower-candidate chain flags, negotiated
+chain copying, combined-EKU root enumeration, exclusive ROOT versus restricted
+CA/server store assembly, and reverse exactly-once WinHTTP/Crypt32 cleanup on
+success, ordinary failure, and interruption.
+
+**Independent Review**: The first inspect-only security review found one Medium
+test-adequacy gap: the security-critical native capture orchestration, combined
+EKU enumeration, exclusive root engine, and capture-level cleanup were not
+executed directly by regression tests. The corrected diff adds fake-Crypt32
+coverage for those paths, including ordinary-failure and `BaseException`
+cleanup. The reviewer independently reproduced `52/52` focused passes and
+confirmed that finding closed with no remaining implementation issue. A final
+Low documentation correction updated the stale test count and review state.
+
+**Validation**: The new native plus existing pure trust suites pass `52/52`.
+The canonical source-only launcher selection passes `1315/1315` with the known
+Defender-blocked helper file and two restricted-host native-handle tests
+excluded. Black, strict mypy for the new source, fatal/syntax Flake8,
+high-severity Bandit, compileall, both task-record validators, and
+`git diff --check` pass. A read-only native Windows store smoke loaded the
+reviewed ABI and enumerated 26 eligible roots totaling 30,450 DER bytes. Full
+Google/Azure WinHTTP smoke fails closed on this execution context with
+`SEC_E_NO_CREDENTIALS` before Windows exposes the server chain; the public
+boundary returns only `windows_trust_unavailable`. Python's independent direct
+TLS diagnostic succeeds, so successful Schannel proof still must be obtained
+on a supported execution context. No certificate store, Docker, Podman,
+Compose, launcher, `.env`, container, image, volume, or host mutation occurred.
+
+**Boundary**: This is a reviewed but not-yet-checkpointed source increment
+within slice 4, so that slice remains **PARTIAL**. It does not export a root to
+a container or activate repair. Mutation remains disabled.
+
+**Next**: Checkpoint the clean reviewed source, then build the concrete
+authenticated-input owner that converts the selected root into the existing
+private certificate identity and transfers it into exact target assembly ahead
+of confirmation.
 
 ### 2026-09-10 - Owned Production Target-Plan Assembly Checkpointed
 
