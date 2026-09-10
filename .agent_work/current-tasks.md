@@ -2,23 +2,23 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 10, 2026
-**Focus**: Task-101 is complete. Task-087 fixed-runtime-resolver checkpoint
-`30acb79` passed exact-head CI/CD run `34402177675`, Task-087 run `34402177705`,
+**Focus**: Task-101 is complete. Task-087 rootless-Podman-endpoint checkpoint
+`a4e7015` passed exact-head CI/CD run `34471132678`, Task-087 run `34471132677`,
 and external Trivy; all nine applicable pull-request checks succeeded after
-independent CLEAN/PASS review. The current local source-only follow-up resolves
-one explicitly configured, running rootless Podman WSL machine to its loopback
-SSH endpoint, retains its single-link local identity key by handle, verifies
-the WSL provider plus endpoint-bound rootless socket/store/version facts, and
-revalidates the full binding before use. Independent corrected-diff review is
-CLEAN/PASS. The resolver remains unwired and enables no repair or mutation.
-Verified package `.env`/template provenance for the configured machine and key-
-parent owner/DACL/path-trust composition remain prerequisites.
-Existing `.env` state is supported; absent-`.env` acquisition still fails
-closed until the atomic replacement slice supplies a secure absence proof.
-Final target resolution, durable recovery, Windows-store CA selection, and ACL-
-preserving `.env` replacement remain later Gate A work. Unsigned preview
-integration remains later under ADR-019. Production signing remains Task-100
-work in October after the package is satisfactory.
+independent corrected-diff CLEAN/PASS review. The current local source-only
+follow-up obtains `TOWERSCOUT_PODMAN_MACHINE` only from the held existing
+package `.env`, binds the file and package-root identities into redacted
+evidence, and composes owner/DACL/reparse trust for the discovered identity-key
+parent into endpoint capture and revalidation. Ambient environment and caller-
+supplied machine names are no longer accepted at this boundary. The source
+remains unwired and enables no repair or mutation. Existing `.env` state is
+supported; absent-`.env` acquisition still fails closed until the atomic
+replacement slice supplies secure absence proof and authenticated template
+fallback. Docker named-pipe endpoint capture/revalidation, exact target
+resolution, durable recovery, Windows-store CA selection, and ACL-preserving
+`.env` replacement remain later Gate A work. Unsigned preview integration
+remains later under ADR-019. Production signing remains Task-100 work in
+October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -487,20 +487,26 @@ timing; preview integration remains a later gate
   CLEAN/PASS with no open findings. Exact-head CI/CD run `34402177675`, Task-087
   run `34402177705`, and external Trivy passed with all nine applicable pull-
   request checks successful.
-- The current local source-only increment resolves one explicitly configured,
-  running rootless Podman WSL machine to exactly one loopback SSH connection,
-  binds and retains its single-link local identity key, and verifies the WSL
-  provider plus the explicit endpoint's rootless socket/store/version facts.
-  It treats connection names and default flags as metadata, rejects the ambient
-  root connection and ambiguity, observes the endpoint around key capture, and
-  revalidates runtime, VM provider, key, and endpoint under held lifetime locks.
-  The initial independent review found one Medium missing-VM-provider binding;
-  the correction requires and binds exact `VMType=wsl`, rejects missing/Hyper-V
-  values, and covers provider drift. Corrected-diff re-review returned
-  CLEAN/PASS with no open blockers. It remains unwired; verified package
-  machine-name provenance and key-parent owner/DACL/path trust remain
-  prerequisites. The focused selection passes `133/133`; the launcher selection
-  passes `953/953` with the documented native hardlink case deselected.
+- Checkpoint `a4e7015` resolves one explicitly configured, running rootless
+  Podman WSL machine to exactly one loopback SSH connection, binds and retains
+  its single-link local identity key, and verifies the WSL provider plus the
+  explicit endpoint's rootless socket/store/version facts. Corrected-diff
+  independent re-review returned CLEAN/PASS with no open blockers. Exact-head
+  CI/CD run `34471132678`, Task-087 run `34471132677`, and external Trivy passed
+  with all nine applicable pull-request checks successful.
+- The current local source-only increment removes the caller-supplied machine-
+  name boundary. It reads the selector only from a held existing package
+  `.env`, binds the file and trusted package-root identities into redacted
+  evidence, transfers the exact configuration owner into the endpoint lifetime,
+  and retains/revalidates the discovered identity key's trusted parent
+  hierarchy. Corrected-diff independent review is CLEAN/PASS. It remains unwired
+  and performs no repair or mutation.
+  Existing `.env` is supported; absent `.env` deliberately fails closed until
+  the atomic-replacement slice provides secure absence proof and authenticated
+  template fallback. The focused configuration/endpoint selection passes
+  `59/59`; the Windows configuration/path/endpoint selection passes `137/137`,
+  and the canonical launcher selection passes `1030/1030`, each with the one
+  documented native hardlink case deselected where applicable.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

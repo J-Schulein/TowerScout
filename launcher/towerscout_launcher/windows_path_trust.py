@@ -99,6 +99,7 @@ class PathTrustPurpose(str, Enum):
     PACKAGE_ROOT = "package_root"
     PROCESS_ENVIRONMENT = "process_environment"
     RUNTIME_INSTALL = "runtime_install"
+    PODMAN_IDENTITY_KEY = "podman_identity_key"
 
 
 @dataclass(frozen=True, slots=True, repr=False)

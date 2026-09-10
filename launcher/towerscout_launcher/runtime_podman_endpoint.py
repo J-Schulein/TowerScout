@@ -34,6 +34,11 @@ from .runtime_command_version import (
     RuntimeCommandVerificationError,
 )
 from .runtime_policy import RuntimeProductId
+from .runtime_package_config import (
+    BoundPodmanMachineConfiguration,
+    PackageConfigurationError,
+    PodmanMachineConfigurationEvidence,
+)
 from .target_contracts import (
     EndpointIdentity,
     EndpointKind,
@@ -47,6 +52,12 @@ from .windows_security import (
     WindowsFileApi,
     WindowsSecurityError,
     capture_handle_bound_file,
+)
+from .windows_path_trust import (
+    PathHierarchyTrust,
+    PathTrustPurpose,
+    WindowsPathTrustApi,
+    capture_path_hierarchy,
 )
 
 _MACHINE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
@@ -73,6 +84,7 @@ _MAX_JSON_STRING_CHARACTERS = 32_767
 _MAX_KEY_BYTES = 1024 * 1024
 _BINDING_DOMAIN = b"TowerScout.PodmanEndpointBinding.v1"
 _EVIDENCE_DOMAIN = b"TowerScout.PodmanEndpointEvidence.v1"
+_KEY_PARENT_DOMAIN = b"TowerScout.PodmanIdentityKeyParent.v1"
 
 
 class PodmanEndpointCommandKind(str, Enum):
@@ -214,7 +226,10 @@ class PodmanEndpointEvidence:
     endpoint_output_sha256: str = field(repr=False)
     binding_sha256: str = field(repr=False)
     configured_machine_sha256: str = field(repr=False)
+    configuration_binding_sha256: str = field(repr=False)
+    identity_key_parent_sha256: str = field(repr=False)
     connection_metadata_sha256: str = field(repr=False)
+    configuration_source: FileIdentity = field(repr=False)
     machine_running: bool = True
     machine_rootful: bool = False
     endpoint_rootless: bool = True
@@ -229,6 +244,8 @@ class PodmanEndpointEvidence:
             self.endpoint_output_sha256,
             self.binding_sha256,
             self.configured_machine_sha256,
+            self.configuration_binding_sha256,
+            self.identity_key_parent_sha256,
             self.connection_metadata_sha256,
         )
         if (
@@ -244,6 +261,9 @@ class PodmanEndpointEvidence:
             or self.endpoint_rootless is not True
             or self.local_loopback is not True
             or self.endpoint.private_metadata_sha256 != self.binding_sha256
+            or type(self.configuration_source) is not FileIdentity
+            or self.configuration_source.logical_name != ".env"
+            or self.configuration_source.is_directory
         ):
             raise ValueError("Podman endpoint evidence is invalid.")
         object.__setattr__(
@@ -253,6 +273,9 @@ class PodmanEndpointEvidence:
                 _EVIDENCE_DOMAIN,
                 (
                     *(value.encode("ascii") for value in digests),
+                    self.configuration_source.volume_serial.to_bytes(8, "big"),
+                    self.configuration_source.file_id,
+                    self.configuration_source.sha256.encode("ascii"),
                     b"machine-running",
                     b"machine-rootless",
                     b"endpoint-rootless",
@@ -763,15 +786,38 @@ def _snapshot_fields(snapshot: FileSnapshot) -> tuple[bytes, ...]:
     )
 
 
+def _key_parent_sha256(parent: PathHierarchyTrust) -> str:
+    evidence = parent.evidence
+    snapshot = parent.root_snapshot
+    if evidence.purpose is not PathTrustPurpose.PODMAN_IDENTITY_KEY:
+        raise ValueError("Podman identity-key parent evidence is invalid.")
+    return _digest(
+        _KEY_PARENT_DOMAIN,
+        (
+            evidence.root_identity.volume_serial.to_bytes(8, "big"),
+            evidence.root_identity.file_id,
+            evidence.lexical_depth.to_bytes(4, "big"),
+            evidence.resolved_depth.to_bytes(4, "big"),
+            _path_key(PureWindowsPath(snapshot.final_path)).encode(
+                "utf-16-le", errors="strict"
+            ),
+        ),
+    )
+
+
 def _binding_sha256(
     runtime: BoundCommandRuntimeEvidence,
     observation: _Observation,
     snapshot: FileSnapshot,
+    configuration: PodmanMachineConfigurationEvidence,
+    key_parent: PathHierarchyTrust,
 ) -> str:
     return _digest(
         _BINDING_DOMAIN,
         (
             runtime.evidence.evidence_sha256.encode("ascii"),
+            configuration.binding_sha256.encode("ascii"),
+            _key_parent_sha256(key_parent).encode("ascii"),
             *_observation_fields(observation),
             *_snapshot_fields(snapshot),
         ),
@@ -807,14 +853,16 @@ def _snapshot_matches_identity(snapshot: FileSnapshot, identity: FileIdentity) -
 
 
 class BoundPodmanEndpointEvidence:
-    """Own the identity key and revalidate the live endpoint on demand."""
+    """Own the package selector and identity key; revalidate both on demand."""
 
     __slots__ = (
         "_active_owner",
         "_binding_sha256",
+        "_configuration",
         "_configured_machine",
         "_evidence",
         "_key",
+        "_key_parent",
         "_lifetime_lock",
     )
 
@@ -822,11 +870,23 @@ class BoundPodmanEndpointEvidence:
         self,
         *,
         configured_machine: str,
+        configuration: BoundPodmanMachineConfiguration,
+        key_parent: PathHierarchyTrust,
         key: HandleBoundFile,
         evidence: PodmanEndpointEvidence,
     ) -> None:
         if (
-            not _MACHINE_NAME.fullmatch(configured_machine)
+            type(configuration) is not BoundPodmanMachineConfiguration
+            or configuration.closed
+        ):
+            raise ValueError("Bound Podman endpoint evidence is invalid.")
+        configuration_evidence = configuration.evidence
+        if (
+            type(configured_machine) is not str
+            or not _MACHINE_NAME.fullmatch(configured_machine)
+            or type(key_parent) is not PathHierarchyTrust
+            or key_parent.closed
+            or key_parent.evidence.purpose is not PathTrustPurpose.PODMAN_IDENTITY_KEY
             or type(key) is not HandleBoundFile
             or key.closed
             or type(evidence) is not PodmanEndpointEvidence
@@ -836,11 +896,20 @@ class BoundPodmanEndpointEvidence:
                 key.snapshot,
                 evidence.endpoint.identity_key,
             )
+            or evidence.configuration_source
+            != configuration_evidence.environment_source
+            or evidence.configured_machine_sha256
+            != configuration_evidence.configured_machine_sha256
+            or evidence.configuration_binding_sha256
+            != configuration_evidence.binding_sha256
+            or evidence.identity_key_parent_sha256 != _key_parent_sha256(key_parent)
         ):
             raise ValueError("Bound Podman endpoint evidence is invalid.")
         self._lifetime_lock = threading.RLock()
         self._active_owner: int | None = None
         self._configured_machine = configured_machine
+        self._configuration: BoundPodmanMachineConfiguration | None = configuration
+        self._key_parent: PathHierarchyTrust | None = key_parent
         self._key: HandleBoundFile | None = key
         self._evidence = evidence
         self._binding_sha256 = evidence.binding_sha256
@@ -856,7 +925,14 @@ class BoundPodmanEndpointEvidence:
     @property
     def closed(self) -> bool:
         with self._lifetime_lock:
-            return self._key is None or self._key.closed
+            return (
+                self._configuration is None
+                or self._configuration.closed
+                or self._key is None
+                or self._key.closed
+                or self._key_parent is None
+                or self._key_parent.closed
+            )
 
     def assert_unchanged(
         self,
@@ -870,23 +946,57 @@ class BoundPodmanEndpointEvidence:
             self._lifetime_lock.release()
             _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
         key = self._key
-        if key is None or key.closed:
+        key_parent = self._key_parent
+        configuration = self._configuration
+        if (
+            configuration is None
+            or configuration.closed
+            or key is None
+            or key.closed
+            or key_parent is None
+            or key_parent.closed
+        ):
             self._lifetime_lock.release()
             _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
         self._active_owner = threading.get_ident()
-        try:
-            observation = _observe_under_runtime(
-                runtime,
-                self._configured_machine,
-                backend,
-                key,
+
+        def revalidate(
+            configured_machine: str,
+            configuration_evidence: PodmanMachineConfigurationEvidence,
+        ) -> PodmanEndpointEvidence:
+            if (
+                configured_machine != self._configured_machine
+                or configuration_evidence.environment_source
+                != self._evidence.configuration_source
+                or configuration_evidence.configured_machine_sha256
+                != self._evidence.configured_machine_sha256
+                or configuration_evidence.binding_sha256
+                != self._evidence.configuration_binding_sha256
+            ):
+                _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
+            observation = key_parent.run_while_held(
+                lambda: _observe_under_runtime(
+                    runtime,
+                    configured_machine,
+                    backend,
+                    key,
+                )
             )
             if (
-                _binding_sha256(runtime, observation, key.snapshot)
+                _binding_sha256(
+                    runtime,
+                    observation,
+                    key.snapshot,
+                    configuration_evidence,
+                    key_parent,
+                )
                 != self._binding_sha256
             ):
                 _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
             return self._evidence
+
+        try:
+            return configuration._run_while_held(revalidate)  # noqa: SLF001
         except PodmanEndpointError as error:
             if error.code is PodmanEndpointErrorCode.ENDPOINT_INVALID:
                 _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
@@ -903,13 +1013,31 @@ class BoundPodmanEndpointEvidence:
         with self._lifetime_lock:
             if self._active_owner is not None:
                 _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
+            configuration = self._configuration
             key = self._key
+            key_parent = self._key_parent
+            self._configuration = None
             self._key = None
-            if key is None:
+            self._key_parent = None
+            if configuration is None and key is None and key_parent is None:
                 return
-            try:
-                key.close()
-            except WindowsSecurityError:
+            failed = False
+            if configuration is not None:
+                try:
+                    configuration.close()
+                except PackageConfigurationError:
+                    failed = True
+            if key is not None:
+                try:
+                    key.close()
+                except WindowsSecurityError:
+                    failed = True
+            if key_parent is not None:
+                try:
+                    key_parent.close()
+                except WindowsSecurityError:
+                    failed = True
+            if failed:
                 _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
 
     def __enter__(self) -> BoundPodmanEndpointEvidence:
@@ -927,12 +1055,13 @@ class BoundPodmanEndpointEvidence:
 
 def capture_bound_podman_endpoint(
     runtime: BoundCommandRuntimeEvidence,
-    configured_machine: str,
+    configuration: BoundPodmanMachineConfiguration,
     *,
     backend: PodmanEndpointCommandBackend | None = None,
     file_api: WindowsFileApi | None = None,
+    path_api: WindowsPathTrustApi | None = None,
 ) -> BoundPodmanEndpointEvidence:
-    """Resolve and retain one package-selected rootless Podman endpoint."""
+    """Resolve one package-selected endpoint and transfer configuration ownership."""
 
     if (
         type(runtime) is not BoundCommandRuntimeEvidence
@@ -940,8 +1069,9 @@ def capture_bound_podman_endpoint(
         or runtime.evidence.product_id is not RuntimeProductId.PODMAN_CLI
     ):
         _fail(PodmanEndpointErrorCode.RUNTIME_INVALID)
-    if type(configured_machine) is not str or not _MACHINE_NAME.fullmatch(
-        configured_machine
+    if (
+        type(configuration) is not BoundPodmanMachineConfiguration
+        or configuration.closed
     ):
         _fail(PodmanEndpointErrorCode.ENDPOINT_INVALID)
     selected_backend = backend
@@ -956,9 +1086,20 @@ def capture_bound_podman_endpoint(
             _fail(PodmanEndpointErrorCode.VERIFICATION_UNAVAILABLE)
 
     key: HandleBoundFile | None = None
+    key_parent: PathHierarchyTrust | None = None
     owner: BoundPodmanEndpointEvidence | None = None
-    try:
+
+    def resolve(
+        configured_machine: str,
+        configuration_evidence: PodmanMachineConfigurationEvidence,
+    ) -> BoundPodmanEndpointEvidence:
+        nonlocal key, key_parent, owner
         first = _observe_under_runtime(runtime, configured_machine, selected_backend)
+        key_parent = capture_path_hierarchy(
+            str(first.machine.identity_path.parent),
+            purpose=PathTrustPurpose.PODMAN_IDENTITY_KEY,
+            api=path_api,
+        )
         key = capture_handle_bound_file(
             Path(str(first.machine.identity_path)),
             api=file_api,
@@ -968,19 +1109,31 @@ def capture_bound_podman_endpoint(
                 allow_hydrated_cloud_placeholder=False,
             ),
         )
-        if not 1 <= key.snapshot.size <= _MAX_KEY_BYTES or _path_key(
-            PureWindowsPath(key.snapshot.final_path)
-        ) != _path_key(first.machine.identity_path):
+        resolved_key = PureWindowsPath(key.snapshot.final_path)
+        resolved_parent = PureWindowsPath(key_parent.root_snapshot.final_path)
+        if (
+            not 1 <= key.snapshot.size <= _MAX_KEY_BYTES
+            or _path_key(resolved_key) != _path_key(first.machine.identity_path)
+            or _path_key(resolved_key.parent) != _path_key(resolved_parent)
+        ):
             _fail(PodmanEndpointErrorCode.ENDPOINT_INVALID)
-        second = _observe_under_runtime(
-            runtime,
-            configured_machine,
-            selected_backend,
-            key,
+        second = key_parent.run_while_held(
+            lambda: _observe_under_runtime(
+                runtime,
+                configured_machine,
+                selected_backend,
+                key,
+            )
         )
         if _observation_fields(first) != _observation_fields(second):
             _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
-        binding = _binding_sha256(runtime, second, key.snapshot)
+        binding = _binding_sha256(
+            runtime,
+            second,
+            key.snapshot,
+            configuration_evidence,
+            key_parent,
+        )
         key_identity = _identity_from_snapshot(key.snapshot)
         endpoint = EndpointIdentity(
             product=RuntimeProduct.PODMAN,
@@ -998,22 +1151,33 @@ def capture_bound_podman_endpoint(
             connection_output_sha256=second.connection_output_sha256,
             endpoint_output_sha256=second.endpoint_output_sha256,
             binding_sha256=binding,
-            configured_machine_sha256=_text_digest(
-                b"TowerScout.PodmanConfiguredMachine.v1", configured_machine
+            configured_machine_sha256=(
+                configuration_evidence.configured_machine_sha256
             ),
+            configuration_binding_sha256=configuration_evidence.binding_sha256,
+            identity_key_parent_sha256=_key_parent_sha256(key_parent),
             connection_metadata_sha256=_text_digest(
                 b"TowerScout.PodmanConnectionMetadata.v1", second.connection_name
             ),
+            configuration_source=configuration_evidence.environment_source,
         )
         owner = BoundPodmanEndpointEvidence(
             configured_machine=configured_machine,
+            configuration=configuration,
+            key_parent=key_parent,
             key=key,
             evidence=evidence,
         )
         key = None
+        key_parent = None
         return owner
+
+    try:
+        return configuration._run_while_held(resolve)  # noqa: SLF001
     except PodmanEndpointError:
         raise
+    except PackageConfigurationError:
+        _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
     except WindowsSecurityError:
         _fail(PodmanEndpointErrorCode.ENDPOINT_INVALID)
     except RuntimeCommandVerificationError:
@@ -1027,11 +1191,17 @@ def capture_bound_podman_endpoint(
                 owner.close()
             except BaseException:
                 pass
-        elif owner is None and key is not None:
-            try:
-                key.close()
-            except BaseException:
-                pass
+        elif owner is None:
+            if key is not None:
+                try:
+                    key.close()
+                except BaseException:
+                    pass
+            if key_parent is not None:
+                try:
+                    key_parent.close()
+                except BaseException:
+                    pass
 
 
 __all__ = [

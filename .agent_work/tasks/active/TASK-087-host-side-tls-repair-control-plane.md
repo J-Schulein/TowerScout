@@ -46,17 +46,23 @@ applicable pull-request checks successful after independent CLEAN/PASS review.
 Fixed-runtime-resolver checkpoint `30acb79` passed exact-head CI/CD run
 `34402177675`, Task-087 run `34402177705`, and external Trivy, with all nine
 applicable pull-request checks successful after independent CLEAN/PASS review.
-The current local source-only follow-up resolves one explicitly configured,
-running rootless Podman WSL machine to its loopback SSH endpoint, retains the
-single-link local identity-key file by handle, verifies the WSL provider plus
-endpoint-bound rootless socket/store/version facts, and revalidates the full
-binding before use. Corrected-diff independent review is CLEAN/PASS. It remains
-unwired. The configured machine must still be sourced from the verified package
-`.env`/template, and key-parent owner/DACL/path-trust composition remains
-required before execution wiring. It executes no repair and mutates no host/
-container state. Merge/publication retain their separate applicable gates.
-Signing and representative managed-endpoint validation remain Task-100 work in
-October.
+Rootless-Podman-endpoint checkpoint `a4e7015` passed exact-head CI/CD run
+`34471132678`, Task-087 run `34471132677`, and external Trivy, with all nine
+applicable pull-request checks successful after independent corrected-diff
+CLEAN/PASS review. The current local source-only follow-up obtains the configured
+machine only from a held existing package `.env`, binds that file and the trusted
+package-root identities into redacted evidence, transfers that exact configuration
+owner through the endpoint lifetime, and adds retained owner/DACL/reparse trust
+for the discovered identity-key parent. Ambient configuration and caller-provided
+machine names are rejected at this boundary. Corrected-diff independent review
+is CLEAN/PASS. The source remains unwired.
+Existing `.env` state is supported; absent `.env` deliberately fails closed until
+atomic replacement supplies secure absence proof and authenticated template
+fallback. It executes no repair and mutates no host/container state.
+Docker named-pipe endpoint capture, exact target resolution, recovery, CA
+selection, and secure `.env` replacement remain open Gate A work. Merge/
+publication retain their separate applicable gates. Signing and representative
+managed-endpoint validation remain Task-100 work in October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Rebaselined after review to approximately 6-10 focused
@@ -1401,6 +1407,79 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-10 - Package Podman Configuration And Key-Parent Trust Added Locally
+
+**Objective**: Remove the caller-supplied Podman-machine selector and complete
+the missing path-trust composition around the Podman identity key, without
+wiring repair execution or changing any runtime or host state.
+
+**Checkpoint Context**: Rootless-Podman-endpoint checkpoint `a4e7015` is the
+exact remote head. It passed CI/CD run `34471132678`, Task-087 run `34471132677`,
+and external Trivy with all nine applicable pull-request checks successful after
+independent corrected-diff CLEAN/PASS review; the main-only build job skipped as
+designed for a pull request.
+
+**Decision**: Derive `TOWERSCOUT_PODMAN_MACHINE` only from an existing package
+`.env` retained together with its trusted package-root hierarchy. Do not consult
+the ambient process environment, UI state, caller input, or `.env.example`.
+Require strict UTF-8, one exact-case unquoted machine assignment, a bounded
+single-link file, direct containment in the held package root, and redacted
+identity/hash evidence. An absent `.env` remains fail closed until the later
+atomic-replacement slice can prove secure absence and authenticate its template
+source. Treat the identity key's parent hierarchy as part of endpoint trust, not
+merely the leaf file.
+
+**Execution**: Added a package-configuration owner that retains and revalidates
+the package root and `.env` handles. The Podman endpoint factory now accepts only
+that bound owner, transfers it into the endpoint lifetime after successful
+capture, and nests every endpoint revalidation inside the same live configuration
+lease. It incorporates the source/binding evidence, captures the discovered
+identity key's parent with the Windows owner/DACL/reparse path policy before
+opening the leaf, proves direct parent containment, retains all three owners, and
+revalidates them before endpoint use. Representations and public failures remain
+sanitized.
+
+**Adversarial Coverage**: Tests cover ambient-environment substitution,
+duplicate/missing/wrong-case/quoted/invalid assignments, BOM, NUL, invalid UTF-8,
+ambiguous newline/control characters, oversized/multi-link/out-of-root `.env`,
+broad root writers, cloud hydration, file/root drift, concurrent lifetime and
+callback behavior, configuration evidence/caller ownership, unsafe identity-key
+parents, parent drift, closed configuration, post-capture and between-observation
+`.env` drift, concurrent configuration close, interruption cleanup, redaction,
+and continued absence from live launcher imports.
+
+**Validation**: Package configuration plus endpoint tests pass `59/59`.
+Windows configuration/path/endpoint security tests pass `137/137`, with the one
+documented restricted-host native hardlink case deselected. The canonical
+launcher selection passes `1030/1030` with that same case deselected. Focused
+configuration/error-redaction tests pass `18/18`. Black, strict mypy, blocking
+Flake8, medium/high Bandit, compilation, the repository secret scanner, and
+`git diff --check` pass. Managed endpoint policy independently blocks six
+unrelated unsafe-ZIP Flask fixtures and dormant PowerShell-host-helper execution;
+neither path is changed or used by this source-only slice.
+
+**Independent Review**: The initial inspect-only review found one Medium blocker:
+the endpoint retained immutable configuration evidence but not the live package-
+root/`.env` owner, allowing stale selector provenance after capture. The
+correction transfers the exact configuration owner into the endpoint, leases it
+during every endpoint revalidation, closes it with the endpoint, and adds closed-
+owner, post-capture drift, between-observation drift, and concurrent-close
+regressions. Corrected-diff re-review returned CLEAN/PASS with no remaining
+technical/security blocker after independently reproducing `59/59` focused tests,
+`137/137` Windows security/path/configuration/endpoint tests with the documented
+native hardlink case deselected, and every applicable static/hygiene check.
+
+**Boundary**: The new configuration and augmented endpoint modules remain
+unwired from the application, discovery, repair, and runtime-execution paths.
+No real `.env` value was read or changed, and no Docker or Podman command was
+invoked. This slice does not capture Docker's named-pipe endpoint, resolve the
+final container/image/volume target, select a CA, create recovery state, replace
+`.env`, execute a repair, or mutate the host or a runtime.
+
+**Next**: Obtain independent source/security review and checkpoint the slice.
+After exact-head checks, implement Docker named-pipe endpoint capture and
+revalidation, then compose the exact provider/runtime/container target resolver.
 
 ### 2026-09-09 - Rootless Podman Endpoint Resolver Added Locally
 
