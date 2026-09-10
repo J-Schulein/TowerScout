@@ -22,6 +22,7 @@ from .runtime_command_version import (
     CommandProcessRequest,
     CommandProcessResult,
 )
+from .runtime_docker_endpoint import DockerEndpointCommandRequest
 from .runtime_podman_endpoint import PodmanEndpointCommandRequest
 from .runtime_provider_child import ProviderChildProcessRequest
 
@@ -50,6 +51,8 @@ _WAIT_TIMEOUT = 0x00000102
 _STILL_ACTIVE = 259
 _ERROR_BROKEN_PIPE = 109
 _ERROR_INSUFFICIENT_BUFFER = 122
+_LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
+_TOKEN_QUERY = 0x0008
 _READ_CHUNK_BYTES = 4096
 _POLL_MILLISECONDS = 25
 _TERMINATION_TIMEOUT_SECONDS = 5.0
@@ -297,10 +300,13 @@ class _ProcessApi(Protocol):
 
     def system_directory(self) -> str: ...
 
+    def user_profile_directory(self) -> str: ...
+
     def start(
         self,
         request: (
             CommandProcessRequest
+            | DockerEndpointCommandRequest
             | PodmanEndpointCommandRequest
             | ProviderChildProcessRequest
         ),
@@ -343,18 +349,40 @@ class _SystemClock:
 class _NativeWindowsProcessApi:
     """Narrow ctypes wrapper around the fixed Windows process policy."""
 
-    __slots__ = ("_kernel32",)
+    __slots__ = ("_advapi32", "_kernel32", "_userenv")
 
+    _advapi32: Any | None
     _kernel32: Any | None
+    _userenv: Any | None
 
     def __init__(self) -> None:
+        self._advapi32 = None
+        self._kernel32 = None
+        self._userenv = None
         win_dll = getattr(ctypes, "WinDLL", None)
         if os.name != "nt" or win_dll is None:
-            self._kernel32 = None
             return
         kernel32 = win_dll("kernel32", use_last_error=True)
         self._kernel32 = kernel32
         self._bind(kernel32)
+        try:
+            system_directory = self.system_directory()
+            advapi32 = win_dll(
+                os.path.join(system_directory, "advapi32.dll"),
+                use_last_error=True,
+                winmode=_LOAD_LIBRARY_SEARCH_SYSTEM32,
+            )
+            userenv = win_dll(
+                os.path.join(system_directory, "userenv.dll"),
+                use_last_error=True,
+                winmode=_LOAD_LIBRARY_SEARCH_SYSTEM32,
+            )
+            self._bind_profile(kernel32, advapi32, userenv)
+            self._advapi32 = advapi32
+            self._userenv = userenv
+        except Exception:
+            self._advapi32 = None
+            self._userenv = None
 
     @staticmethod
     def _bind(kernel32: Any) -> None:
@@ -442,8 +470,26 @@ class _NativeWindowsProcessApi:
         kernel32.GetWindowsDirectoryW.restype = _DWORD
         kernel32.GetSystemDirectoryW.argtypes = (ctypes.c_wchar_p, _DWORD)
         kernel32.GetSystemDirectoryW.restype = _DWORD
+        kernel32.GetCurrentProcess.argtypes = ()
+        kernel32.GetCurrentProcess.restype = _HANDLE
         kernel32.GetDllDirectoryW.argtypes = (_DWORD, ctypes.c_wchar_p)
         kernel32.GetDllDirectoryW.restype = _DWORD
+
+    @staticmethod
+    def _bind_profile(kernel32: Any, advapi32: Any, userenv: Any) -> None:
+        del kernel32
+        advapi32.OpenProcessToken.argtypes = (
+            _HANDLE,
+            _DWORD,
+            ctypes.POINTER(_HANDLE),
+        )
+        advapi32.OpenProcessToken.restype = _BOOL
+        userenv.GetUserProfileDirectoryW.argtypes = (
+            _HANDLE,
+            ctypes.c_wchar_p,
+            ctypes.POINTER(_DWORD),
+        )
+        userenv.GetUserProfileDirectoryW.restype = _BOOL
 
     @property
     def supported(self) -> bool:
@@ -471,6 +517,50 @@ class _NativeWindowsProcessApi:
 
     def system_directory(self) -> str:
         return self._directory("GetSystemDirectoryW")
+
+    def user_profile_directory(self) -> str:
+        kernel32 = self._require_kernel32()
+        advapi32 = self._advapi32
+        userenv = self._userenv
+        if advapi32 is None or userenv is None:
+            raise OSError("Native Windows profile resolution is unavailable.")
+        token = _HANDLE()
+        if not advapi32.OpenProcessToken(
+            kernel32.GetCurrentProcess(),
+            _TOKEN_QUERY,
+            ctypes.byref(token),
+        ):
+            raise OSError("Native Windows profile resolution failed.")
+        token_value = _handle_value(token.value)
+        try:
+            size = _DWORD(0)
+            ctypes.set_last_error(0)
+            if userenv.GetUserProfileDirectoryW(
+                _HANDLE(token_value),
+                None,
+                ctypes.byref(size),
+            ):
+                raise OSError("Native Windows profile resolution was inconsistent.")
+            if (
+                ctypes.get_last_error() != _ERROR_INSUFFICIENT_BUFFER
+                or size.value <= 1
+                or size.value > _MAX_DIRECTORY_CHARACTERS + 1
+            ):
+                raise OSError("Native Windows profile resolution failed.")
+            buffer = ctypes.create_unicode_buffer(size.value)
+            written = _DWORD(size.value)
+            if not userenv.GetUserProfileDirectoryW(
+                _HANDLE(token_value),
+                buffer,
+                ctypes.byref(written),
+            ):
+                raise OSError("Native Windows profile resolution failed.")
+            value = buffer.value
+            if not value or len(value) + 1 != written.value:
+                raise OSError("Native Windows profile resolution was inconsistent.")
+            return value
+        finally:
+            self._close(token_value)
 
     def _current_dll_directory(self) -> str:
         kernel32 = self._require_kernel32()
@@ -630,6 +720,7 @@ class _NativeWindowsProcessApi:
         self,
         request: (
             CommandProcessRequest
+            | DockerEndpointCommandRequest
             | PodmanEndpointCommandRequest
             | ProviderChildProcessRequest
         ),
@@ -641,6 +732,7 @@ class _NativeWindowsProcessApi:
             type(request)
             not in {
                 CommandProcessRequest,
+                DockerEndpointCommandRequest,
                 PodmanEndpointCommandRequest,
                 ProviderChildProcessRequest,
             }
@@ -1064,6 +1156,12 @@ class NativeWindowsCommandVersionBackend:
         except Exception:
             raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE) from None
 
+    def user_profile_directory(self) -> str:
+        try:
+            return self._api.user_profile_directory()
+        except Exception:
+            raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE) from None
+
     def _terminate_and_verify(self, process: _NativeProcess) -> bool:
         try:
             self._api.terminate_job(process.job)
@@ -1093,7 +1191,11 @@ class NativeWindowsCommandVersionBackend:
 
     def _execute_contained(
         self,
-        request: CommandProcessRequest | PodmanEndpointCommandRequest,
+        request: (
+            CommandProcessRequest
+            | DockerEndpointCommandRequest
+            | PodmanEndpointCommandRequest
+        ),
     ) -> CommandProcessResult:
         try:
             process = self._api.start(request)
@@ -1235,7 +1337,50 @@ class NativeWindowsPodmanEndpointCommandBackend:
         return f"NativeWindowsPodmanEndpointCommandBackend(state={state!r})"
 
 
+class NativeWindowsDockerEndpointCommandBackend:
+    """Execute only validated Docker endpoint queries in native containment."""
+
+    __slots__ = ("_contained",)
+
+    def __init__(
+        self,
+        *,
+        api: _ProcessApi | None = None,
+        clock: _Clock | None = None,
+    ) -> None:
+        self._contained = NativeWindowsCommandVersionBackend(api=api, clock=clock)
+
+    @property
+    def supported(self) -> bool:
+        return self._contained.supported
+
+    def windows_directory(self) -> str:
+        return self._contained.windows_directory()
+
+    def system_directory(self) -> str:
+        return self._contained.system_directory()
+
+    def user_profile_directory(self) -> str:
+        return self._contained.user_profile_directory()
+
+    def execute(
+        self,
+        request: DockerEndpointCommandRequest,
+    ) -> CommandProcessResult:
+        if (
+            type(request) is not DockerEndpointCommandRequest
+            or self.supported is not True
+        ):
+            raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE)
+        return self._contained._execute_contained(request)
+
+    def __repr__(self) -> str:
+        state = "supported" if self.supported else "unavailable"
+        return f"NativeWindowsDockerEndpointCommandBackend(state={state!r})"
+
+
 __all__ = [
     "NativeWindowsCommandVersionBackend",
+    "NativeWindowsDockerEndpointCommandBackend",
     "NativeWindowsPodmanEndpointCommandBackend",
 ]

@@ -46,23 +46,24 @@ applicable pull-request checks successful after independent CLEAN/PASS review.
 Fixed-runtime-resolver checkpoint `30acb79` passed exact-head CI/CD run
 `34402177675`, Task-087 run `34402177705`, and external Trivy, with all nine
 applicable pull-request checks successful after independent CLEAN/PASS review.
-Rootless-Podman-endpoint checkpoint `a4e7015` passed exact-head CI/CD run
-`34471132678`, Task-087 run `34471132677`, and external Trivy, with all nine
+Package-Podman-configuration checkpoint `81f82b3` passed exact-head CI/CD run
+`34479570301`, Task-087 run `34479570389`, and external Trivy, with all nine
 applicable pull-request checks successful after independent corrected-diff
-CLEAN/PASS review. The current local source-only follow-up obtains the configured
-machine only from a held existing package `.env`, binds that file and the trusted
-package-root identities into redacted evidence, transfers that exact configuration
-owner through the endpoint lifetime, and adds retained owner/DACL/reparse trust
-for the discovered identity-key parent. Ambient configuration and caller-provided
-machine names are rejected at this boundary. Corrected-diff independent review
-is CLEAN/PASS. The source remains unwired.
-Existing `.env` state is supported; absent `.env` deliberately fails closed until
-atomic replacement supplies secure absence proof and authenticated template
-fallback. It executes no repair and mutates no host/container state.
-Docker named-pipe endpoint capture, exact target resolution, recovery, CA
-selection, and secure `.env` replacement remain open Gate A work. Merge/
-publication retain their separate applicable gates. Signing and representative
-managed-endpoint validation remain Task-100 work in October.
+CLEAN/PASS review. That source is unwired. Existing `.env` state is supported;
+absent `.env` deliberately fails closed until atomic replacement supplies secure
+absence proof and authenticated template fallback. The current local source-only
+follow-up captures Docker's current context through an explicit current-user
+configuration directory, accepts only one canonical local Windows named pipe,
+and re-queries that pipe explicitly through the held authenticated Docker CLI.
+It binds stable Linux/AMD64 daemon facts while treating context labels and
+volatile inventory counts as metadata. Ambient Docker variables cannot select
+the daemon. Independent corrected-diff review is CLEAN/PASS after closing one
+Medium invalid-Unicode sanitization gap and one Low JSON-bound coverage gap.
+The source remains unwired and executes no repair or host/container mutation.
+Exact target resolution, recovery, CA selection, and secure `.env` replacement
+remain open Gate A work. Merge/publication retain their separate applicable
+gates. Signing and representative managed-endpoint validation remain Task-100
+work in October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Rebaselined after review to approximately 6-10 focused
@@ -1407,6 +1408,77 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-10 - Docker Named-Pipe Endpoint Capture Added Locally
+
+**Objective**: Complete the source-only Docker endpoint half of the Gate A
+runtime resolver without wiring target discovery, repair execution, or any live
+runtime operation.
+
+**Checkpoint Context**: Package-Podman-configuration checkpoint `81f82b3` is
+the exact local and remote head. It passed CI/CD run `34479570301`, Task-087 run
+`34479570389`, and external Trivy with all nine applicable pull-request checks
+successful after independent corrected-diff CLEAN/PASS review; the main-only
+build job skipped as designed for a pull request.
+
+**Decision**: Read Docker's current context only through an explicit current-
+user `.docker` configuration directory in a minimal child environment. Treat
+the context name as metadata. Accept exactly one canonical local Windows named
+pipe with no TLS material or skip-verification setting, then pass that captured
+pipe with explicit `--host` for every daemon query. Bind stable daemon identity,
+platform, version, storage, and driver facts while excluding volatile container
+and image counts from the security identity.
+
+**Execution**: Added a strict, bounded, duplicate-safe Docker JSON parser plus
+a redacted endpoint evidence owner. Capture performs two complete observations
+through the held authenticated Docker CLI and later revalidation repeats both
+the context and explicit-pipe daemon queries. TCP, SSH, Unix, noncanonical,
+ambiguous, changed, TLS-configured, non-Linux, and non-AMD64 targets fail closed.
+The native contained-command adapter now resolves the real current-user profile
+from the current process token through System32-loaded Windows APIs, constructs
+the explicit configuration path, and admits only the two fixed Docker endpoint
+request shapes. Ambient `PATH`, `DOCKER_*`, proxy, and CA variables are absent.
+
+**Adversarial Coverage**: Tests cover context repointing under the same label,
+label-only changes, volatile count changes, daemon identity drift, remote and
+malformed pipes, TLS material, duplicate/invalid/bounded JSON, wrong platform,
+invalid storage facts, nonzero/stderr/uncontained results, malformed native
+directories, wrong and closed runtimes, sanitized exceptions, interruption,
+concurrent endpoint/runtime close, fixed request immutability, native adapter
+type restriction, current-process-token profile resolution and token cleanup,
+lazy native-backend construction, redaction, and continued absence from live
+launcher imports.
+
+**Validation**: The focused Docker endpoint suite passes `55/55`. The shared
+Docker/Podman/native-command regression set passes `166/166`. The canonical
+launcher selection passes `1085/1085` with the documented Defender-blocked
+dormant helper file and restricted-host native hardlink test excluded. The
+initial broader launcher run reached `1074` passes with only the same four
+Defender/AMSI helper executions failing. Scoped Black, blocking/fatal Flake8,
+strict mypy, medium/high Bandit, compilation, complexity, and `git diff --check`
+pass.
+
+**Independent Review**: Initial inspect-only review found one Medium blocker:
+a lone Unicode surrogate in a private daemon field escaped as a raw encoding
+exception before the sanitized endpoint error boundary. It also found one Low
+evidence gap because the bounded-JSON claim lacked direct limit tests. The
+parser now proves strict UTF-8 encodability before evidence construction;
+capture and revalidation regressions verify sanitized failure for all private
+daemon fields. New cases exercise BOM, invalid UTF-8, non-finite values, depth,
+item, node, and string-size limits. Corrected-diff re-review independently
+reproduced `166/166` shared tests and returned CLEAN/PASS with no Critical,
+High, or Medium finding remaining.
+
+**Boundary**: The new resolver remains unimported by application, discovery,
+repair, and runtime-execution paths. No Docker, Podman, Compose, launcher,
+repair, package, publication, or installed-binary command ran, and no real
+`.env` or Docker configuration content was read or changed. This slice is not a
+live endpoint trace, target-resolution proof, package acceptance, or permission
+to enable mutation.
+
+**Next**: Obtain independent source/security review and checkpoint the slice.
+After exact-head checks, compose the exact provider/runtime/container target
+resolver before Windows-store CA selection and transactional mutation work.
 
 ### 2026-09-10 - Package Podman Configuration And Key-Parent Trust Added Locally
 

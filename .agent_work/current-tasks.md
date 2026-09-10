@@ -2,23 +2,21 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 10, 2026
-**Focus**: Task-101 is complete. Task-087 rootless-Podman-endpoint checkpoint
-`a4e7015` passed exact-head CI/CD run `34471132678`, Task-087 run `34471132677`,
-and external Trivy; all nine applicable pull-request checks succeeded after
-independent corrected-diff CLEAN/PASS review. The current local source-only
-follow-up obtains `TOWERSCOUT_PODMAN_MACHINE` only from the held existing
-package `.env`, binds the file and package-root identities into redacted
-evidence, and composes owner/DACL/reparse trust for the discovered identity-key
-parent into endpoint capture and revalidation. Ambient environment and caller-
-supplied machine names are no longer accepted at this boundary. The source
-remains unwired and enables no repair or mutation. Existing `.env` state is
-supported; absent-`.env` acquisition still fails closed until the atomic
-replacement slice supplies secure absence proof and authenticated template
-fallback. Docker named-pipe endpoint capture/revalidation, exact target
-resolution, durable recovery, Windows-store CA selection, and ACL-preserving
-`.env` replacement remain later Gate A work. Unsigned preview integration
-remains later under ADR-019. Production signing remains Task-100 work in
-October after the package is satisfactory.
+**Focus**: Task-101 is complete. Task-087 package-Podman-configuration
+checkpoint `81f82b3` passed exact-head CI/CD run `34479570301`, Task-087 run
+`34479570389`, and external Trivy; all nine applicable pull-request checks
+succeeded after independent corrected-diff CLEAN/PASS review. The current local
+source-only follow-up captures Docker's current context only from an explicit
+current-user configuration directory, accepts exactly one local Windows named-
+pipe endpoint, and re-queries that endpoint explicitly through the held
+authenticated Docker CLI. Context labels and volatile container/image counts
+are metadata, while the endpoint plus stable Linux/AMD64 daemon facts are bound
+into redacted evidence and revalidated. Ambient Docker variables cannot select
+the daemon. The source remains unwired and enables no repair or mutation. Exact
+provider/runtime/container target resolution, durable recovery, Windows-store
+CA selection, and ACL-preserving `.env` replacement remain later Gate A work.
+Unsigned preview integration remains later under ADR-019. Production signing
+remains Task-100 work in October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -494,19 +492,34 @@ timing; preview integration remains a later gate
   independent re-review returned CLEAN/PASS with no open blockers. Exact-head
   CI/CD run `34471132678`, Task-087 run `34471132677`, and external Trivy passed
   with all nine applicable pull-request checks successful.
-- The current local source-only increment removes the caller-supplied machine-
-  name boundary. It reads the selector only from a held existing package
+- Checkpoint `81f82b3` removes the caller-supplied machine-name boundary. It
+  reads the selector only from a held existing package
   `.env`, binds the file and trusted package-root identities into redacted
   evidence, transfers the exact configuration owner into the endpoint lifetime,
   and retains/revalidates the discovered identity key's trusted parent
-  hierarchy. Corrected-diff independent review is CLEAN/PASS. It remains unwired
-  and performs no repair or mutation.
+  hierarchy. Corrected-diff independent review is CLEAN/PASS. Exact-head CI/CD
+  run `34479570301`, Task-087 run `34479570389`, and external Trivy passed with
+  all nine applicable pull-request checks successful. It remains unwired and
+  performs no repair or mutation.
   Existing `.env` is supported; absent `.env` deliberately fails closed until
   the atomic-replacement slice provides secure absence proof and authenticated
   template fallback. The focused configuration/endpoint selection passes
   `59/59`; the Windows configuration/path/endpoint selection passes `137/137`,
   and the canonical launcher selection passes `1030/1030`, each with the one
   documented native hardlink case deselected where applicable.
+- The current local source-only increment captures Docker's selected local
+  Windows named pipe through the authenticated Docker CLI while ignoring
+  ambient `DOCKER_*`, proxy, and TLS variables. It uses an explicit current-user
+  `.docker` configuration directory, rejects remote/TLS/ambiguous/noncanonical
+  endpoints, re-queries the captured pipe with explicit `--host`, and binds
+  stable Linux/AMD64 daemon facts rather than volatile inventory counts.
+  Context labels remain metadata. Independent review found and closed one
+  Medium invalid-Unicode sanitization gap plus one Low JSON-bound coverage gap;
+  corrected-diff re-review is CLEAN/PASS with no open blocker. The 55 focused
+  Docker tests, 166 shared Docker/Podman/native-command tests, and 1085-test
+  canonical launcher selection pass; the latter excludes only the documented
+  Defender-blocked dormant helper and restricted-host native hardlink cases. It
+  remains unwired and performs no live runtime operation, repair, or mutation.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked
