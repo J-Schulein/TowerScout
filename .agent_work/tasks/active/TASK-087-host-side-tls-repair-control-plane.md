@@ -3,7 +3,7 @@
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A source work is active under the
 approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). At reviewed source
-head `eaa2116363f0`, contracts are complete; the runtime and target foundations
+head `f0a9d81bf6a8`, contracts are complete; the runtime and target foundations
 are substantially built but unwired; Windows trust/security are partial;
 durable recovery, transaction refactoring, and the final Gate A proof remain
 open. Earlier exact head `0674805a6624` passed all applicable checks in CI/CD
@@ -1357,7 +1357,7 @@ Exit criteria:
 
 ## Implementation Log
 
-### 2026-09-10 - Native Windows-Store TLS Trust Provider Added Locally
+### 2026-09-10 - Native Windows-Store TLS Trust Provider Checkpointed
 
 **Objective**: Replace caller-asserted trust fixtures with the native,
 Windows-store-only evidence provider required before the authenticated target
@@ -1422,14 +1422,13 @@ TLS diagnostic succeeds, so successful Schannel proof still must be obtained
 on a supported execution context. No certificate store, Docker, Podman,
 Compose, launcher, `.env`, container, image, volume, or host mutation occurred.
 
-**Boundary**: This is a reviewed but not-yet-checkpointed source increment
-within slice 4, so that slice remains **PARTIAL**. It does not export a root to
-a container or activate repair. Mutation remains disabled.
+**Boundary**: Source checkpoint `f0a9d81` records the reviewed increment within
+slice 4, which remains **PARTIAL**. It does not export a root to a container or
+activate repair. Mutation remains disabled.
 
-**Next**: Checkpoint the clean reviewed source, then build the concrete
-authenticated-input owner that converts the selected root into the existing
-private certificate identity and transfers it into exact target assembly ahead
-of confirmation.
+**Next**: Build the concrete authenticated-input owner that converts the
+selected root into the existing private certificate identity and transfers it
+into exact target assembly ahead of confirmation.
 
 ### 2026-09-10 - Owned Production Target-Plan Assembly Checkpointed
 
