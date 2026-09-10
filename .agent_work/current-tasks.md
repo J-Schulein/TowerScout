@@ -2,19 +2,19 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 10, 2026
-**Focus**: Task-101 is complete. Task-087 package-Podman-configuration
-checkpoint `81f82b3` passed exact-head CI/CD run `34479570301`, Task-087 run
-`34479570389`, and external Trivy; all nine applicable pull-request checks
-succeeded after independent corrected-diff CLEAN/PASS review. The current local
-source-only follow-up captures Docker's current context only from an explicit
-current-user configuration directory, accepts exactly one local Windows named-
-pipe endpoint, and re-queries that endpoint explicitly through the held
-authenticated Docker CLI. Context labels and volatile container/image counts
-are metadata, while the endpoint plus stable Linux/AMD64 daemon facts are bound
-into redacted evidence and revalidated. Ambient Docker variables cannot select
-the daemon. The source remains unwired and enables no repair or mutation. Exact
-provider/runtime/container target resolution, durable recovery, Windows-store
-CA selection, and ACL-preserving `.env` replacement remain later Gate A work.
+**Focus**: Task-101 is complete. Task-087 Docker endpoint checkpoint `8076823`
+passed exact-head CI/CD run `34487846481`, Task-087 run `34487846501`, and
+external Trivy; all nine applicable pull-request checks succeeded after
+independent corrected-diff CLEAN/PASS review. The current local source-only
+follow-up adds the provider-neutral normalized target-resolution contract. It
+binds the authenticated plan, strict pre/post Compose models, exactly one
+running container plus its security/runtime state, pinned image, loopback
+publication, and all eight named volumes through two matching read-only
+observations and later held revalidation. The production Docker/Podman
+observation adapter remains the next
+target-resolution increment; no live launcher path imports this module and no
+repair or mutation is enabled. Durable recovery, Windows-store CA selection,
+and ACL-preserving `.env` replacement remain later Gate A work.
 Unsigned preview integration remains later under ADR-019. Production signing
 remains Task-100 work in October after the package is satisfactory.
 
@@ -507,7 +507,7 @@ timing; preview integration remains a later gate
   `59/59`; the Windows configuration/path/endpoint selection passes `137/137`,
   and the canonical launcher selection passes `1030/1030`, each with the one
   documented native hardlink case deselected where applicable.
-- The current local source-only increment captures Docker's selected local
+- Checkpoint `8076823` captures Docker's selected local
   Windows named pipe through the authenticated Docker CLI while ignoring
   ambient `DOCKER_*`, proxy, and TLS variables. It uses an explicit current-user
   `.docker` configuration directory, rejects remote/TLS/ambiguous/noncanonical
@@ -520,6 +520,28 @@ timing; preview integration remains a later gate
   canonical launcher selection pass; the latter excludes only the documented
   Defender-blocked dormant helper and restricted-host native hardlink cases. It
   remains unwired and performs no live runtime operation, repair, or mutation.
+  Exact-head CI/CD run `34487846481`, Task-087 run `34487846501`, and external
+  Trivy passed with all nine applicable pull-request checks successful.
+- The current local source-only increment adds an immutable normalized target-
+  resolution plan, bounded duplicate-safe JSON observations, exact Docker and
+  Podman CPU/GPU Compose policy, one running container and pinned-image binding,
+  loopback-only publication, and exact ordered identity for all eight named
+  volumes. Two complete observations must match before a closeable target owner
+  is returned; later checks and held operations revalidate the same binding
+  before and after use. Malformed, ambiguous, changed, non-loopback, bind-mount,
+  wrong-image, wrong-volume, unsafe-environment, and private backend failures
+  fail closed with sanitized errors. The focused resolver suite passes `89/89`,
+  the target-contract/resolver/execution set passes `168/168`, and the canonical
+  launcher selection passes `1124/1124` with only the documented restricted-
+  host native hardlink case deselected. Strict mypy, single-process blocking
+  Flake8/complexity, medium/high Bandit, Black, and compilation pass. The
+  normalized backend is intentionally injected and test-only; an authenticated
+  native Docker/Podman observation adapter and live-path wiring remain separate
+  reviewable work, and no runtime command, repair, or mutation ran. Independent
+  review found five Medium binding/lifetime/sanitization gaps and six Low
+  schema/coverage/typing/ownership/evidence gaps across its passes; all were
+  corrected, and final corrected-diff review returned CLEAN/PASS with no
+  remaining finding after independently reproducing every listed gate.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

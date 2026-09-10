@@ -49,21 +49,24 @@ applicable pull-request checks successful after independent CLEAN/PASS review.
 Package-Podman-configuration checkpoint `81f82b3` passed exact-head CI/CD run
 `34479570301`, Task-087 run `34479570389`, and external Trivy, with all nine
 applicable pull-request checks successful after independent corrected-diff
-CLEAN/PASS review. That source is unwired. Existing `.env` state is supported;
-absent `.env` deliberately fails closed until atomic replacement supplies secure
-absence proof and authenticated template fallback. The current local source-only
-follow-up captures Docker's current context through an explicit current-user
-configuration directory, accepts only one canonical local Windows named pipe,
-and re-queries that pipe explicitly through the held authenticated Docker CLI.
-It binds stable Linux/AMD64 daemon facts while treating context labels and
-volatile inventory counts as metadata. Ambient Docker variables cannot select
-the daemon. Independent corrected-diff review is CLEAN/PASS after closing one
-Medium invalid-Unicode sanitization gap and one Low JSON-bound coverage gap.
-The source remains unwired and executes no repair or host/container mutation.
-Exact target resolution, recovery, CA selection, and secure `.env` replacement
-remain open Gate A work. Merge/publication retain their separate applicable
-gates. Signing and representative managed-endpoint validation remain Task-100
-work in October.
+CLEAN/PASS review. Docker named-pipe endpoint checkpoint `8076823` then passed
+exact-head CI/CD run `34487846481`, Task-087 run `34487846501`, and external
+Trivy with all nine applicable pull-request checks successful after independent
+corrected-diff CLEAN/PASS review. Both remain unwired. Existing `.env` state is
+supported; absent `.env` deliberately fails closed until atomic replacement
+supplies secure absence proof and authenticated template fallback. The current
+local source-only follow-up implements the provider-neutral normalized target-
+resolution contract: strict pre/post Compose policy, one running container and
+pinned image, its exact security/runtime state, loopback publication, and all
+eight exact named volumes must match across two read-only observations and later
+held revalidation. Its backend is
+injected and test-only; the authenticated native Docker/Podman observation
+adapter remains the next target-resolution increment. No live launcher path
+imports the module and no runtime command, repair, or host/container mutation
+ran. Recovery, Windows-store CA selection, and secure `.env` replacement remain
+open Gate A work. Merge/publication retain their separate applicable gates.
+Signing and representative managed-endpoint validation remain Task-100 work in
+October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Rebaselined after review to approximately 6-10 focused
@@ -1408,6 +1411,114 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-10 - Normalized Exact Target Resolution Added Locally
+
+**Objective**: Implement the next bounded Gate A target-resolution increment
+without wiring native runtime commands, launcher behavior, repair execution, or
+mutation.
+
+**Checkpoint Context**: Docker named-pipe endpoint checkpoint `8076823` is the
+exact local and remote base. It passed CI/CD run `34487846481`, Task-087 run
+`34487846501`, and external Trivy with all nine applicable pull-request checks
+successful after independent corrected-diff CLEAN/PASS review; the main-only
+build job skipped as designed for a pull request.
+
+**Decision**: Separate provider-specific command translation from the security
+policy that decides whether an observed target is acceptable. Require a future
+authenticated Docker/Podman backend to emit one deliberately small normalized
+schema. Bind that schema to the already authenticated package, process
+environment, security artifacts, runtime, endpoint, Compose provider, ordered
+Compose files, environment state, release, acceleration, provider, port,
+digest-pinned image, and selected certificate plan.
+
+**Execution**: Added `runtime_target_resolution.py` with an immutable plan,
+bounded duplicate-safe JSON snapshots, sanitized fixed error categories, and a
+closeable resolved-target owner. The resolver validates exact current and
+planned Compose models for Docker/Podman CPU and their respective GPU overlays;
+only the two fixed container CA variables may differ as configuration inputs,
+while each provider's corresponding derived configuration hash is bound. It
+then requires exactly one running container with matching project/service/config
+labels, current environment, loopback-only port set, restart/healthcheck,
+network, privilege/namespace, command/entrypoint, capability, device, GPU/
+security-option state, ordered writable named-volume mounts, daemon image
+identity, and configured repository digest. All eight volume objects must match
+their ordered logical/runtime names, destinations, local driver/scope, empty
+options, project labels, and opaque engine metadata hashes. Two complete
+read-only observations must match before the owner is returned. Later explicit
+checks and `run_while_held` revalidate the same binding before and after use.
+
+**Adversarial Coverage**: Tests reject added services/build directives,
+unapproved pre/post model changes, non-loopback ports, insecure TLS, bind mounts,
+wrong volume order, unsupported profiles, missing/ambiguous/stopped containers,
+label/environment/mount drift, image-ID and repository-digest mismatches, every
+volume identity-field mismatch, authority mismatch, inter-capture and later
+drift, mismatched GPU/device policy, consistently substituted Compose-derived
+volume names, aliased Compose/environment file identities, stale provider config
+  hashes, extra ports, unsafe container runtime/security settings, use after
+  close, concurrent close completion, context-manager cleanup collisions, pre/
+  post-operation drift, and ABA restoration. JSON
+tests cover BOM, duplicate keys, invalid UTF-8, non-finite values, truncation,
+depth/item/node/
+string/integer limits, Boolean schema-version substitution, line/control
+characters in environment values, malformed evidence collections, Boolean
+mount flags, explicit/implicit private backend exception chains, and sanitized
+backend/close failures. A callback-failure plus target-drift case proves the
+final sanitized target error cannot inherit private callback context. Volume
+coverage includes non-empty driver options and both malformed opaque metadata
+hashes. Compose and container numeric fields reject Boolean and floating-point
+substitution even where Python equality would otherwise treat values as equal.
+
+**Validation**: Tests were written first; the initial missing-module collection
+failed before implementation. The focused resolver suite now passes `89/89`.
+The target-contract/resolver/runtime-execution set passes `168/168`. The
+canonical launcher selection passes `1124/1124` with only the documented
+restricted-host native hardlink case deselected. Black, strict mypy, single-
+process fatal/blocking Flake8 and complexity, medium/high Bandit, and compilation
+pass. Flake8's initial default multiprocessing launch was denied by the Windows
+sandbox; the same checks passed with `--jobs=1`, so this was a validation-host
+constraint rather than a source finding.
+
+**Independent Review**: Initial review requested changes for three Medium
+issues: the current provider config hash was self-compared instead of bound to
+the normalized current model; target drift did not permanently invalidate the
+owner; and backend-originated fixed-category errors could retain private
+exception chains. It also reported four Low gaps for Boolean mount typing,
+backend resource ownership, two omitted volume-field cases, and strict typing
+of the test helper. Corrected-diff review then found two Medium cleanup issues:
+a second close could return before the first finished releasing held resources,
+and context-manager cleanup failure could retain an active private body error.
+It also caught Low stale-evidence counts after the new regressions and exact-
+numeric-type ambiguity in the normalized port schema. The corrected source
+binds current/planned provider hashes, validates actual
+container runtime/security state, poisons and closes on any revalidation
+failure, transfers/cleans backend ownership on every path, serializes cleanup
+through actual backend close completion, preserves an active body error instead
+of chaining it to a cleanup error, reconstructs other sanitized errors outside
+private backend/callback exception contexts, adds all missing adversarial cases,
+and passes strict mypy over both new files. Final corrected-diff independent re-
+review returned CLEAN/PASS with no remaining Critical, High, Medium, or Low
+finding. The reviewer independently reproduced the `89/89`, `168/168`, and
+`1124/1124` test gates plus Black, strict mypy, single-process blocking/
+complexity Flake8, medium/high Bandit, `git diff --check`, targeted secret scan,
+and both task-hygiene validators. The reviewer made no repository edit and ran
+no live runtime command.
+
+**Boundary**: The backend is an ownership-transferring protocol seam exercised
+only by deterministic test snapshots; the native adapter will compose the
+already-held runtime/provider/endpoint/file owners behind that close contract.
+No Docker, Podman, Compose, launcher, repair, package, publication, or installed-
+binary command ran. No live application path imports
+the new module, no real `.env` or runtime configuration content was read, and no
+mutation is enabled. This increment proves normalized policy and immutable
+binding; it does not yet prove native command translation or a live resolved
+target.
+
+**Next**: Checkpoint and push this independently reviewed slice. Then implement
+the authenticated native Docker/Podman observation adapter that
+translates held Compose/engine output into this schema and reuses the captured
+runtime/provider/endpoint authority. Keep confirmation rendering and any
+execution wiring behind a later separately reviewed boundary.
 
 ### 2026-09-10 - Docker Named-Pipe Endpoint Capture Added Locally
 
