@@ -1,90 +1,21 @@
 # TASK-087: Host-Side TLS Repair Control Plane
 
-**Status**: IN_PROGRESS / IMPLEMENT - the `7ef879c` exact-source
-full-runnable CPU packages
-passed Docker and approved-provider Podman Google/Azure TLS repair plus
-controlled recovery. Follow-up head `3990bc0` closes the Podman-provider
-installer reproducibility gap. Head `5737a58` enforces the Windows rootless-
-Podman boundary and passed exact-source packaged rootful rejection without
-machine, container, or volume mutation. The August 19 disposition is Proceed
-to unsigned preview integration. Current `main` through PR #73 / `9276084` is
-integrated into Draft PR #67 while preserving that evidence and ADR-019.
-Reconciliation head `946deaf` passed CI/CD run `32383065903` and Task-087 run
-`32383065959`; Task-101 is complete, and lifecycle head `6e0f744` passed CI/CD
-run `32385304086` plus Task-087 run `32385304052`. Independent technical/
-security review then requested source changes at `6e0f744`. On August 21, the
-project lead explicitly approved IMPLEMENT under the August 20 remediation
-design; Gate A source work is active. The September 8 authenticated
-command-version source checkpoint `1970f76` passed independent review with no
-open findings. Its task-state checkpoint `636617b` passed exact-head CI/CD run
-`34244364493`, Task-087 run `34244364488`, and external Trivy. The slice remains
-unwired. Windows path/DACL/reparse/cloud and immediate runtime-load prerequisite
-source checkpoint `2d37e66` also passed independent review with no open source-
-safety findings. It remains unwired and explicitly does not claim transitive
-dependency closure. Task-state checkpoint `ca2f284` passed exact-head CI/CD run
-`34257761291`, Task-087 run `34257761429`, and external Trivy. PR #67 remains
-Draft. Source checkpoint `3909395` defines an exact CPython 3.12.10 native-
-file/dependency policy and same-handle PE inspection primitives. Held-inventory
-checkpoint `e18fb3a` retains and revalidates all 47 exact policy files through a
-synchronous operation; it passed exact-head CI/CD run `34280588649`, Task-087
-run `34280588654`, and external Trivy. Both checkpoints are independently
-reviewed with no open findings, but are not yet packaged or wired to execution.
-Dynamic-load checkpoint `9c58aed` is independently reviewed and exact-head
-green. Provider-child checkpoint `d40bb7f`, held provider/runtime/endpoint
-checkpoint `1547f2a`, and full outer-input checkpoint `f423da4` are
-independently reviewed and exact-head green. The production capture factory and
-secured Windows global-mutex primitive were independently reviewed and
-checkpointed together as `f7d21a9`; portability correction `90cdfb8` then
-passed exact-head CI/CD run `34381047736`, Task-087 run `34381047707`, and
-external Trivy, with all nine applicable pull-request checks successful. Both
-remain unwired. Ordered-lock checkpoint `16604c8` passed exact-head CI/CD run
-`34386914693`, Task-087 run `34386914725`, and external Trivy, with all nine
-applicable pull-request checks successful after independent CLEAN/PASS review.
-Provider-composition checkpoint `5950188` passed exact-head CI/CD run
-`34392071456`, Task-087 run `34392071573`, and external Trivy, with all nine
-applicable pull-request checks successful after independent CLEAN/PASS review.
-Fixed-runtime-resolver checkpoint `30acb79` passed exact-head CI/CD run
-`34402177675`, Task-087 run `34402177705`, and external Trivy, with all nine
-applicable pull-request checks successful after independent CLEAN/PASS review.
-Package-Podman-configuration checkpoint `81f82b3` passed exact-head CI/CD run
-`34479570301`, Task-087 run `34479570389`, and external Trivy, with all nine
-applicable pull-request checks successful after independent corrected-diff
-CLEAN/PASS review. Docker named-pipe endpoint checkpoint `8076823` then passed
-exact-head CI/CD run `34487846481`, Task-087 run `34487846501`, and external
-Trivy with all nine applicable pull-request checks successful after independent
-corrected-diff CLEAN/PASS review. Both remain unwired. Existing `.env` state is
-supported; absent `.env` deliberately fails closed until atomic replacement
-supplies secure absence proof and authenticated template fallback. Normalized
-target-resolution checkpoint `0704974` passed exact-head CI/CD run
-`34500079631`, Task-087 run `34500079667`, and external Trivy run
-`102948482699`, with all nine applicable pull-request checks successful; the
-main-only build job skipped as designed. Observation-plan checkpoint `215d520`
-passed exact-head CI/CD run `34506377753`, Task-087 run `34506377890`, and
-external Trivy with all nine applicable pull-request checks successful; the
-main-only build job skipped as designed. The current source-only follow-up
-consumes those immutable plans through one transferred ownership window and
-strictly normalizes Docker JSON or pinned Podman Compose YAML plus exact engine
-inspect output into the existing bounded `TargetResolutionSnapshot`. It binds
-the one selected full container ID through image and all eight volume selectors,
-verifies security/mount/network/Compose policy, requires a Podman provider-child
-containment claim at the injected executor boundary, rejects malformed/
-oversized/duplicate/aliased output, independently binds semantic current and
-planned models, and separately retains the provider's opaque native config hash
-for drift detection. Full normalized environment values exist only in bounded,
-repr-redacted in-memory snapshots; public failures expose fixed sanitized
-categories. It remains inert and unwired: a concrete native executor and
-production authority factory are still required to supply and verify native
-containment evidence before any live observation or launcher integration. No
-runtime command, repair, or host/container mutation ran. Recovery, Windows-store
-CA selection, and secure `.env` replacement remain open Gate A work. Merge/
-publication retain their separate applicable gates.
-Signing and representative managed-endpoint validation remain Task-100 work in
-October.
+**Status**: IN_PROGRESS / IMPLEMENT - Gate A source work is active under the
+approved August 20 remediation design. The canonical detailed status is the
+[`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). At source head
+`0674805a6624`, contracts are complete; the runtime and target foundations are
+substantially built but unwired; Windows trust/security are partial; durable
+recovery, transaction refactoring, and the final Gate A proof remain open. All
+applicable exact-head checks passed in CI/CD run `34515408041`, Task-087 run
+`34515408156`, and external Trivy job `102999589403`; the PR-only build skipped
+as designed. PR #67 remains Draft, mutation remains disabled, and no live
+runtime, repair, or host/container mutation occurred in the current source
+sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaselined after review to approximately 6-10 focused
-implementation days plus live Windows/Docker/Podman validation and re-review;
-preview integration follows, and production signing remains Task-100 work
+**Estimated Effort**: Track the remaining four outcome groups in the Gate A
+burn-down; re-estimate elapsed effort after exact-target wiring rather than
+using the superseded August 21 day estimate as a completion measure
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
 and the canonical October roadmap
 **Created**: 2026-06-29
@@ -1424,6 +1355,57 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-10 - Gate A Documentation Burn-Down Reconciled
+
+**Objective**: Make material Gate A progress and remaining work visible without
+changing the approved requirements or creating new implementation gates.
+
+**Context**: `current-tasks.md` still described the observation-plan increment
+as current after the normalization backend had been reviewed, committed, and
+pushed at `0674805`. The backlog was older still, and the task header repeated
+a long chronological checkpoint narrative. Those sources blurred completed,
+built-but-unwired, partial, and not-started outcomes.
+
+**Decision**: Keep `current-tasks.md` authoritative for active sprint selection,
+the August 20 remediation design authoritative for scope and exit criteria, and
+one task-local Gate A burn-down authoritative for detailed current status. Keep
+the existing implementation log as historical evidence rather than copying it
+into each tracker. Freeze the approved nine slices and require an explicit
+design/scope decision before adding a top-level outcome.
+
+**Execution**:
+
+- Added `TASK-087/GATE-A-STATUS.md` with status definitions, a fixed nine-slice
+  matrix, evidence pointers, remaining criteria, four outcome groups, scope
+  control, and update rules.
+- Replaced the task header's chronological status wall with a concise current
+  summary and burn-down link.
+- Updated `current-tasks.md` to the `0674805` source state, replaced duplicated
+  release-state and checkpoint history with the burn-down pointer plus concise
+  current boundaries, and corrected the observation backend status.
+- Updated the Task-087 backlog summary from the older rootless-Podman endpoint
+  checkpoint to the current fixed burn-down.
+- Left `requirements.md`, `design.md`, the approved remediation design, and
+  completed-task history unchanged because this is state reconciliation, not a
+  requirement, architecture, completion, or release change.
+
+**Output**: The documentation now reports slice 1 complete; slices 2-3 built
+but unwired; slices 4-5 and 8 partial; slices 6-7 not started; and slice 9 in
+incremental validation with its final proof outstanding. The next work is
+grouped into exact-target wiring, Windows mutation foundations, durable
+recovery/transaction refactoring, and installer/final validation. No source,
+runtime, package, or release behavior changed.
+
+**Validation**: The agent-work quick check and canonical validator pass, and
+`git diff --check` reports no whitespace error. Exact-head PR status was also
+rechecked before recording it: all applicable checks pass at `0674805` in
+CI/CD run `34515408041`, Task-087 run `34515408156`, and external Trivy job
+`102999589403`; the PR-only build skips as designed.
+
+**Next**: Review this documentation-only reconciliation, then checkpoint it if
+accepted. Resume Gate A with the native observation executor and production
+authority factory; update the burn-down only when its defined state changes.
 
 ### 2026-09-10 - Owned Target-Observation Normalization Backend Added
 

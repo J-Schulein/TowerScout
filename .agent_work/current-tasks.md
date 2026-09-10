@@ -1,23 +1,20 @@
 # Current Tasks - Sprint 09
 
-**Sprint Period**: August 8-August 21, 2026
+**Sprint Period**: August 8-August 21, 2026; active-task continuation retained
+through the current Task-087 Gate A work
 **Last Updated**: September 10, 2026
-**Focus**: Task-101 is complete. Task-087 normalized target-resolution
-checkpoint `0704974` passed exact-head CI/CD run `34500079631`, Task-087 run
-`34500079667`, and external Trivy run `102948482699`; all nine applicable pull-
-request checks succeeded after independent corrected-diff CLEAN/PASS review.
-The current local source-only follow-up defines immutable explicit-endpoint
-process plans for the current/planned Compose models, exact TowerScout container
-selection, full container/image inspection, and all eight volume inspections.
-It binds the complete authenticated input inventory, constructs a minimal child
-environment, and permits only the two fixed planned CA overrides; it does not
-execute or parse any runtime command. The held native executor and provider-
-specific normalizers remain the next target-resolution increments. No live
-launcher path imports this module and no repair or mutation is enabled. Durable
-recovery, Windows-store CA selection, and ACL-preserving `.env` replacement
-remain later Gate A work.
-Unsigned preview integration remains later under ADR-019. Production signing
-remains Task-100 work in October after the package is satisfactory.
+**Focus**: Task-101 is complete. Task-087 is the active implementation task.
+Its canonical detailed
+[`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
+nine-slice scope and distinguishes complete, built-but-unwired, partial,
+not-started, and validation states. At source head `0674805a6624`, contracts are
+complete; runtime/target foundations are substantially built but unwired;
+Windows trust/security are partial; durable recovery, transaction refactoring,
+provider-installer completion, and final proof remain. All applicable exact-head
+checks passed in CI/CD run `34515408041`, Task-087 run `34515408156`, and
+external Trivy job `102999589403`; the PR-only build skipped as designed. No
+repair or mutation is enabled. Gate B preview integration and Task-100 signing
+remain separate.
 
 **Current Release State**:
 
@@ -26,29 +23,12 @@ remains Task-100 work in October after the package is satisfactory.
   prereleases and are never marked `Latest`.
 - `v0.1.3-rc.N` is reserved for the signed production-shaped candidate created
   under Task-100.
-- Dependabot alert `#76` closed as fixed, without dismissal, after PR #72
-  squash-merged as `0cc189c`. PR #73's checkpoint then squash-merged as
-  `9276084` and passed exact-main checks. PR #67 reconciliation head `946deaf`
-  then passed CI/CD run `32383065903` and Task-087 run `32383065959` with all
-  required jobs successful. Task-101 is complete. The lifecycle update
-  `6e0f744` then passed CI/CD run `32385304086` and Task-087 run `32385304052`.
-  Task-087 is active in Gate A IMPLEMENT under the project lead's August 21
-  approval after the independent source review requested changes. PR #67 remains
-  Draft. Reviewed source checkpoint `1970f76` and task-state checkpoint
-  `636617b` passed exact-head CI/CD run `34244364493`, Task-087 run
-  `34244364488`, and external Trivy; all nine applicable checks succeeded and
-  the main-only build job skipped as designed for a pull request. This later
-  docs-only handoff records that evidence without changing implementation bytes.
-- Reviewed Windows-trust source checkpoint `2d37e66` and task-state checkpoint
-  `ca2f284` passed exact-head CI/CD run `34257761291`, Task-087 run
-  `34257761429`, and external Trivy; all nine applicable checks succeeded and
-  the PR-only build job skipped as designed. A later docs-only handoff records
-  that evidence without changing implementation or test bytes.
-- Reviewed CPython-dependency source checkpoint `3909395` and task-state
-  checkpoint `e01f1b7` passed exact-head CI/CD run `34275327043`, Task-087 run
-  `34275327085`, and external Trivy; all nine applicable checks succeeded and
-  the PR-only build job skipped as designed. This evidence closes the held
-  checkpoint gate without changing implementation or test bytes.
+- Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
+  reconciliation and lifecycle evidence remains in the completed-task record.
+- Draft PR #67 is at `0674805a6624`. Gate A remains open and mutation remains
+  disabled. The detailed status and evidence pointers are maintained in the
+  [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
+  in this release-state summary.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -160,418 +140,40 @@ Task-101 completion plus Task-087's explicit resume
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS / IMPLEMENT - the exact-source `7ef879c`
-full-runnable CPU packages passed Docker and approved-provider Podman
-Google/Azure TLS repair plus controlled recovery. Follow-up head `3990bc0`
-closed provider-installer dependency drift with a hash-approved offline
-wheelhouse, and head `5737a58` enforced the selected Windows rootless-Podman
-boundary without changing machine mode or volumes. PR #72 and alert `#76`
-default-branch reconciliation passed, and PR #67 head `946deaf` passed CI/CD
-run `32383065903` plus Task-087 run `32383065959`. Task-101 is complete, and
-the lifecycle update resumed Task-087 while preserving the evidence and
-ADR-019. That exact lifecycle head `6e0f744` passed CI/CD run `32385304086` and
-Task-087 run `32385304052`. Independent technical/security review then
-requested source changes. On August 21, the project lead explicitly approved
-moving Task-087 to IMPLEMENT under the August 20 remediation design. Gate A
-source implementation is now active while PR #67 remains Draft.
+**Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced but not
+near exit. At `0674805a6624`, slice 1 is complete; slices 2-3 are substantially
+built but unwired; slices 4-5 and 8 are partial; slices 6-7 are not started;
+and slice 9 continues incrementally but lacks its final live proof. Mutation is
+disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaselined after review: approximately 6-10 focused
-implementation days plus live Windows/Docker/Podman validation and re-review
-timing; preview integration remains a later gate
+**Remaining Estimate**: Track the four remaining outcome groups in the
+canonical burn-down; re-estimate after exact-target wiring
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
+**Canonical Gate A Burn-Down**:
+[`TASK-087/GATE-A-STATUS.md`](./tasks/active/TASK-087/GATE-A-STATUS.md)
 
 **Current Scope And Gates**:
 
-- Preserve the visible Python/Tkinter launcher and bounded native transaction
-  on top of the current security and Sprint 09 tracking history.
-- Preserve the Google/Azure functional evidence from accepted implementation
-  head `7ef879c` and the provider-installer reproducibility evidence from
-  follow-up head `3990bc0`; their applicable exact-head CI and CPU package gates
-  are green.
-- Preserve the passed exact-head Docker and approved-provider Podman
-  Google/Azure/recovery results as unsigned development-workstation evidence.
-- Keep the approved Podman Compose provider explicit. Head `3990bc0` replaces
-  live dependency resolution with exact per-artifact URLs and SHA-256 pins,
-  installs only from the verified local wheel cache with dependencies disabled,
-  checks the environment and exact versions, and binds it only after approval.
-  Fresh packaged installation and managed replacement passed; no unapproved
-  provider or dependency was accepted.
-- Treat rootless Podman CPU as the provisional Windows support boundary. The
-  unchanged exact package reached native Windows localhost and retained that
-  reachability across scoped restart in rootless mode. Rootful mode remained
-  healthy only inside the Podman WSL distribution and did not expose Windows
-  localhost, with Docker fully exited; user-mode networking did not fix it.
-  Head `5737a58` now rejects rootful Windows Podman before Compose-provider
-  discovery or container mutation, explains the separate rootful/rootless
-  stores, and never switches the user's machine mode automatically.
-- Record the NVIDIA result accurately: the workstation passed Docker GPU and
-  Blackwell model execution, but the selected PyTorch 2.6/CUDA 12.6 release
-  profile cannot execute compute capability 12.0. A non-release PyTorch
-  2.7/CUDA 12.8 feasibility image passed the deterministic model harness.
-  Keep dependency/profile selection and final Docker/Podman GPU package
-  qualification in Task-097 rather than expanding the Task-087 release claim.
-- Keep all existing `Task-087-validation-*` packages validation-only. Build a
-  new normal-user package for any `v0.1.3-preview.N` publication; do not rename
-  or upload an existing validation ZIP.
-- Treat the August 20 external review as outside input rather than authority.
-  Independent inspection agrees that runtime/endpoint/Compose/target binding,
-  durable verified rollback, Windows-only trust selection, cross-session
-  locking, Windows file safety, staged-byte provenance, build-toolchain
-  integrity, and root `.env` backup handling require correction. Follow the
-  task-local
-  [`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
-- Gate A remains intentionally inert. Commits `7ad221d` and `e049e32` disable
-  default mutation and add immutable target contracts, fixed read-only command
-  plans, handle-bound file identity, canonical mutex names, and pure root
-  selection. Commit `24d4015` adds the pinned runtime policy, same-handle
-  Authenticode and PE product/version proof, and reviewed-record installation
-  nomination. Commit `4150217` serializes every use/close of the retained file
-  and combines the three evidence sources into a closeable, non-executable
-  owner after final record/file revalidation. Documentation checkpoint
-  `ab33864` records that source slice; all are pushed to PR #67.
-- CI/CD run `32527400108` exposed one cross-platform defect in the earlier
-  target/execution foundations: the completed Ubuntu/Python 3.11 leg reported
-  62 fail-closed fixture errors after interpreting modeled `C:\...` values
-  through host `Path`; the 3.12 leg had marked the same cases failed before
-  matrix fail-fast cancelled it. Commit `0eebe7b` makes
-  `FileIdentity.final_path` an exact `PureWindowsPath` contract, applies
-  Windows semantics to all modeled path operations and command assertions,
-  rejects wrong-flavor/relative inputs before rendering, and preserves ordinary
-  drive paths plus handle-derived local `\\?\C:\...` final names. Focused tests
-  pass 73/73; the inert Gate A set passes 537 tests with only the two prohibited
-  native installed-file smokes deselected. Independent security, adversarial,
-  and source-boundary reviews pass with no blockers. Exact-head CI/CD run
-  `32530172080` passed both Ubuntu Python jobs and every required PR job;
-  Task-087 run `32530172064` passed all three controller/Windows contract jobs.
-  Local and tracking refs match at `0eebe7b` with zero divergence.
-- Workstation-local handoff note: preserve stash
-  `b9b36bf4741a5e7301de6a75672799b6ed91faec`, labeled
-  `task-101-governance-transfer-2026-08-19`. Its tracked diff spans 12
-  governance/Task-087 documentation paths, and it may also retain untracked
-  local state. It is not part of the active branch or PR and must not be popped,
-  dropped, or applied blindly; inspect it privately for sensitive content and
-  reconcile it deliberately in a separate workspace-hygiene step.
-- The final focused security/identity/Auth/combiner run passed 228 tests with
-  only the two prohibited native installed-file smokes deselected; the policy,
-  mutation-gate, and target-contract set passed 128. Independent security
-  review found and closed one interruption-time pre-return handle-cleanup gap
-  plus one inert-import test gap, then issued PASS with no open findings. No
-  live discovery, process executor, app, or repair path imports the combiner;
-  mutation remains disabled. Docker Compose and Podman command-based exact-
-  version proof, provider reconstruction, ACL/mutex/journal/recovery, and
-  `.env` transaction work remain open. The reviewed source slice is checkpointed
-  at `4150217` and pushed to PR #67; this docs-only status reconciliation
-  follows that checkpoint.
-- The September 8 Gate A slice adds authenticated command-version proof
-  for Docker Compose `5.3.1` and Podman CLI `6.0.2`, including exact fixed
-  arguments/output parsing, minimal constructed environment, retained-handle
-  identity/signer/hash/path binding, and a suspended Windows Job Object process
-  boundary with streamed limits and verified tree termination. Independent
-  review found and closed process-ownership/cleanup gaps and the missing native
-  ctypes behavioral proof, then returned PASS with no open findings. Its focused
-  63-test suite and the 611-test security/identity regression set pass with only
-  two prohibited installed-file native smokes deselected; Black, blocking
-  Flake8, isolated mypy, medium/high Bandit, compilation, diff checks, and both
-  task-record validators pass. The reviewed source checkpoint is `1970f76`, and
-  task-state checkpoint `636617b` passed exact-head CI/CD run `34244364493`,
-  Task-087 run `34244364488`, and external Trivy. The slice remains unwired. No
-  live Docker, Podman, Compose, launcher, or installed-binary smoke ran, and
-  mutation remains disabled. Ancestor
-  DACL/owner/reparse/cloud containment and application dependency/DLL load
-  closure remain strict prerequisites before integration.
-- Source checkpoint `2d37e66` implements the next inert Windows-trust
-  prerequisite layer. It binds lexical and resolved directory chains through
-  retained handles; validates local-fixed-directory identity, owner, DACL, ACE,
-  and reparse/cloud policy; hydrates an explicitly allowed cloud leaf through a
-  second identity-stable handle; binds every immediate application-directory
-  file; authenticates PE images regardless of extension; and adds empty parent
-  DLL-directory plus child image-load mitigations. Independent review closed
-  unapproved-writer, unsupported-ACE, hydration, process/pipe/job, native out-
-  parameter, and ownership-transfer gaps, then returned PASS with 109 scoped
-  tests. Local validation passed 155 focused tests plus the separate native
-  hardlink proof, and 689 broader tests plus that native proof. The layer is
-  explicitly a prerequisite, not complete DLL closure: transitive
-  dependencies, private assemblies, dynamic relative loads, and the product-
-  specific Microsoft/CPython signer policy still block execution wiring. No
-  Docker, Podman, launcher, repair, mutation, package, or publication action
-  ran. Task-state checkpoint `ca2f284` then passed exact-head CI/CD run
-  `34257761291`, Task-087 run `34257761429`, and external Trivy with all nine
-  applicable checks successful; the PR-only build job skipped as designed.
-- Source checkpoint `3909395` adopts the exact-artifact dependency policy:
-  the official Python.org `pythoncore-3.12-64` CPython 3.12.10 archive and all
-  47 PE files are hash-pinned; all 43 AMD64 files have exact static-dependency
-  manifests; 39 require one of five exact signer certificates; and the eight
-  upstream unsigned records are explicitly exact-hash-only. A bounded PE
-  parser, held-handle random-access inspection, pure full-inventory/entrypoint
-  validators, and exact dependency-signer Authenticode path are implemented.
-  The official archive and matching installed tree produced zero inventory,
-  hash, machine, dependency-manifest, or signer-policy mismatches. The launcher
-  unit set passed 769 tests with the known native hardlink/temp-cleanup case
-  deselected. Independent review found one Medium escaped-reader lifetime gap;
-  the reader is now scope/thread-bound, invalidated before lock release, and
-  covered after success, callback failure, owner close, and cross-thread use.
-  Re-review returned PASS with no open findings. The broader suite was not
-  green because of the documented
-  Defender host-helper block, dirty-tree package assertion, and inaccessible
-  shared pytest temp root. Native cache-only timestamp-chain validation failed
-  closed on this workstation and is not treated as a pass. The checkpoint
-  remains unwired. Exact-head CI/CD run `34275327043`, Task-087 run
-  `34275327085`, and external Trivy subsequently passed for source `3909395`
-  and task state `e01f1b7`; all nine applicable checks succeeded and the
-  PR-only build job skipped as designed. A follow-up captures all 47
-  policy-native files and every distinct parent-directory hierarchy, proves
-  unsigned status from the held PE certificate-table structure rather than a
-  generic trust failure, and retains/revalidates those handles before and
-  after a synchronous child-operation boundary. Independent review found one
-  Medium race where another thread could close a retained handle during the
-  operation. The corrected owner now holds every underlying file lifetime lock
-  through the operation and final revalidation, removes the public inspector
-  capability, and covers cross-thread close blocking. Re-review found no
-  remaining Critical, High, or Medium issue; one Low stale test count was
-  corrected before checkpoint. Focused tests pass 32/32 and
-  the post-remediation launcher regression set passes 830 tests when the
-  documented Defender-blocked host-helper file and native hardlink/temp case
-  are excluded. The
-  broader launcher-oriented run reached 829 passes with only four known
-  Defender host-helper failures. Source/task-state checkpoint `e18fb3a` passed
-  exact-head CI/CD run `34280588649`, Task-087 run `34280588654`, and external
-  Trivy; all nine applicable pull-request checks succeeded. The independently
-  reviewed held-inventory layer explicitly did not deny arbitrary absolute
-  child dynamic-load destinations.
-- A local source-only follow-up now closes that gap for one fixed CPython
-  command. An opt-in `DEBUG_PROCESS` backend inspects each frozen process-image
-  and DLL event through the exact Windows-supplied file handle; package-private
-  AMD64 images must match the held inventory's stable identity, hash, and path,
-  while other images must be direct System32 files whose leaf names occur in
-  the reviewed static-import/API-set policy or the explicit `ntdll.dll`,
-  `kernelbase.dll`, and `ucrtbase.dll` bootstrap set. The process prohibits
-  dynamic code and applies Windows' child-process creation restriction in
-  addition to treating any unexpected descendant debug event as a denial.
-  Cleanup does not claim containment until it has continued the root exit
-  event, and native event-conversion cleanup failures plus repeated main-thread
-  interruptions remain fail-closed. The first independent review found one
-  High child-debug escape and four Medium allowlist, cleanup, exit-drain, and
-  interruption issues; all are corrected, and re-review returned PASS with no
-  open findings. Focused tests passed 104/104 and the complete launcher
-  selection passed 858/858 before checkpoint;
-  Black, blocking Flake8, strict mypy, medium/high Bandit, compilation, and
-  diff checks pass. An earlier full unit run reached 1,185 passes and 74 skips,
-  with its 19 failures confined to the documented Defender/AMSI block on the
-  unchanged dormant PowerShell helper. The follow-up remains unwired and is
-  intentionally not yet a Docker, Compose, or Podman provider-child executor.
-  Source checkpoint `76bb3cb` then passed every Task-087, frontend, Docker-
-  frontend, security, and Trivy job, but CI/CD run `34291611878` failed four
-  portable native-shim tests on Ubuntu/Python 3.12 because the shim did not
-  provide Windows-only `ctypes.set_last_error`/`get_last_error`; the Python
-  3.11 matrix leg was cancelled during dependency installation by fail-fast,
-  and the dependent build skipped. Test-only checkpoint `7233dc3` supplies that
-  simulated last-error state and adds timeout coverage. Production source is
-  unchanged. The corrected focused set passes 105/105 and the complete launcher
-  selection passes 859/859; Black, blocking Flake8, compilation, and diff
-  checks pass. Exact-head CI/CD run `34293025363`, Task-087 run `34293025481`,
-  and external Trivy passed all nine applicable checks; both Ubuntu Python
-  matrix legs passed, and the main-only build skipped as designed for a pull
-  request.
-- A September 9 local source-only slice extends the exact debug-event policy to
-  one separately authenticated provider role plus one active exact runtime-
-  child role. The native Job Object admits at most the provider and one child;
-  the provider remains alive while the child runs, every process image and DLL
-  must match its role-specific stable identity/hash/path policy or a reviewed
-  direct-System32 leaf. The Job limit prevents a third concurrent process from
-  remaining active; an observed unexpected/concurrent process event fails and
-  drains the operation, without claiming that an association denial alone
-  terminates the existing Job.
-  Provider requests are reconstructed from the exact Podman Compose plan with
-  a fixed shell-free argument vector and the ten-key constructed environment;
-  the native debug adapter closes only process/DLL image-file handles and leaves
-  debugger-owned process/thread handles to Windows through exit continuation.
-  Focused tests pass 152/152 and the complete launcher-prefix regression
-  selection passes 827/827 outside the sandbox required by its native Windows
-  handle case. Black, blocking Flake8, strict mypy, medium/high Bandit, source
-  sensitive-term scanning, and diff checks pass. This slice remains unwired:
-  no Docker, Podman, Compose, launcher, repair, filesystem mutation, package,
-  or publication path ran. The initial independent review found one High
-  Windows debug-handle ownership defect and one Medium Job-limit overclaim;
-  both are corrected, and re-review returned PASS with no open findings.
-  Source checkpoint `d40bb7f` then passed exact-head CI/CD run `34359261079`
-  and Task-087 run `34359261077`; all nine applicable checks succeeded and the
-  pull-request-only build skipped as designed.
-- A subsequent local source-only increment now composes the authenticated
-  provider artifacts, held base-CPython closure, held Podman application load
-  surface, and captured endpoint key/discovery artifacts under one synchronous
-  owner. Role policies are available only while every nested file and directory
-  lifetime lock is held, and the returned redacted evidence binds the exact
-  request, provider/child policies, endpoint material, and dynamic-load result.
-  Replacement, identity mismatch, same-thread reentry, cross-thread close, and
-  post-operation drift tests fail closed. The evidence explicitly records that
-  no live network peer was observed: this is the source-level endpoint contract
-  needed before a real provider trace, not the live trace itself. Independent
-  review found one Medium pre-callback inventory timing gap; the corrected
-  deepest-boundary check and adversarial regression passed re-review with no
-  findings remaining. Focused tests pass 77/77, and the wider launcher
-  regression selection passes 885/885 with the documented Defender/AMSI helper
-  and restricted native-hardlink host cases excluded. Source checkpoint
-  `1547f2a` passed exact-head CI/CD run `34370131662`, Task-087 run
-  `34370131570`, and external Trivy; all nine applicable pull-request checks
-  passed and the main-only build skipped as designed.
-- The next local source-only increment closes that owner's residual outer-input
-  lifetime gap. It binds exact release-manifest and package-policy identities
-  into the target token and every command plan, packages and build-inspects the
-  runtime dependency policy, and holds ordered Compose/environment/security
-  file handles plus package-root and five Windows process-environment path
-  hierarchies through provider execution. A pre-execution validator runs after
-  the provider/runtime leases are fully acquired; simulated drift at that
-  boundary prevents the native backend from running. The focused target,
-  execution, and transaction set passes 98/98; the wider launcher selection
-  passes 893/893 with the known restricted-host native hardlink case
-  deselected. Static/security checks pass. Independent inspect-only review
-  returned CLEAN/PASS with no findings after its own 324 focused tests. The
-  slice remains unwired. Checkpoint `f423da4` passed exact-head CI/CD run
-  `34375158061`, Task-087 run `34375158062`, and external Trivy.
-- Checkpoint `f7d21a9` adds the production factory that captures those exact outer files and
-  directories through the reviewed Windows primitives before transferring
-  ownership. It rejects provider mismatch before capture, supports absent
-  `.env`, Podman GPU ordering, and hydrated cloud inputs, closes partial
-  captures, and serializes reentry/concurrent close. The provider/transaction
-  file passes 35/35 and the focused security group passes 184/184 applicable
-  tests with the documented native hardlink case deselected. The complete
-  launcher selection passes 902/902 with that same case deselected. The factory
-  is unwired. Independent inspect-only review and narrow follow-up re-review
-  returned CLEAN/PASS with no findings. The reviewer independently passed
-  188/188 applicable tests with the native hardlink case deselected. The slice
-  was checkpointed together with the mutex primitive described next.
-- Checkpoint `f7d21a9` also adds the `windows_mutex` primitive, which creates or opens only exact
-  derived `Global\TowerScoutEnv-v1-*` and `Global\TowerScoutRepair-v1-*`
-  names with a protected DACL granting only the current user and SYSTEM. It
-  verifies exact owner/ACE rights before use, bounds waiting, preserves an
-  explicit abandoned-owner recovery signal, prevents duplicate local
-  acquisition, and requires same-thread release. Its 23/23 focused tests pass,
-  including a native separate-process abandonment probe; the broader Windows
-  security group passes 136/136 applicable tests and the full launcher
-  selection passes 929/929 with the restricted-host hardlink case deselected.
-  Independent inspect-only review returned CLEAN/PASS with no findings after
-  reproducing the mutex and focused security gates. Portability correction
-  `90cdfb8` passed exact-head CI/CD run `34381047736`, Task-087 run
-  `34381047707`, and external Trivy. The primitive remains unwired.
-- Checkpoint `16604c8` adds the ordered environment/target owner and integrates
-  acquisition into the held transaction inventory. It revalidates outer and
-  provider/runtime/endpoint handles under the locks, preserves abandoned-owner
-  evidence, prevents cross-thread release, and releases the pair in reverse
-  order. Independent inspect-only review returned CLEAN/PASS with no findings
-  after reproducing all 114 focused tests and the applicable quality gates.
-  Exact-head CI/CD run `34386914693`, Task-087 run `34386914725`, and external
-  Trivy passed with all nine applicable pull-request checks successful.
-- Checkpoint `5950188` adds the remaining production provider/runtime/endpoint
-  capture boundary and an end-to-end factory that constructs the provider
-  owner, captures the outer plan inputs, and acquires the ordered locks from
-  resolver-supplied held base-Python and Podman executables. It enforces exact,
-  single-link, bounded provider and endpoint artifact capture, preserves
-  resolver ownership when provider construction fails, and closes every
-  transferred owner on later capture or lock failure. It remains unwired and
-  performs no runtime discovery, child execution, repair, or mutation.
-  Independent inspect-only review returned CLEAN/PASS with no findings after
-  independently reproducing `46/46` focused tests, `959/959` launcher tests
-  with the documented native hardlink case deselected, and all applicable
-  static/security/task-hygiene checks. Exact-head CI/CD run `34392071456`,
-  Task-087 run `34392071573`, and external Trivy passed with all nine applicable
-  pull-request checks successful.
-- Checkpoint `30acb79` opens package-policy-fixed CPython and Podman candidates
-  through the reviewed installation, signer, PE/version, and command-version
-  evidence owners, then transfers their handles exactly once into the complete
-  held-and-locked transaction owner. Repeated transfer, mismatch, partial
-  transfer, downstream failure, and asynchronous interruption fail closed
-  without leaking ownership. Corrected-diff independent re-review returned
-  CLEAN/PASS with no open findings. Exact-head CI/CD run `34402177675`, Task-087
-  run `34402177705`, and external Trivy passed with all nine applicable pull-
-  request checks successful.
-- Checkpoint `a4e7015` resolves one explicitly configured, running rootless
-  Podman WSL machine to exactly one loopback SSH connection, binds and retains
-  its single-link local identity key, and verifies the WSL provider plus the
-  explicit endpoint's rootless socket/store/version facts. Corrected-diff
-  independent re-review returned CLEAN/PASS with no open blockers. Exact-head
-  CI/CD run `34471132678`, Task-087 run `34471132677`, and external Trivy passed
-  with all nine applicable pull-request checks successful.
-- Checkpoint `81f82b3` removes the caller-supplied machine-name boundary. It
-  reads the selector only from a held existing package
-  `.env`, binds the file and trusted package-root identities into redacted
-  evidence, transfers the exact configuration owner into the endpoint lifetime,
-  and retains/revalidates the discovered identity key's trusted parent
-  hierarchy. Corrected-diff independent review is CLEAN/PASS. Exact-head CI/CD
-  run `34479570301`, Task-087 run `34479570389`, and external Trivy passed with
-  all nine applicable pull-request checks successful. It remains unwired and
-  performs no repair or mutation.
-  Existing `.env` is supported; absent `.env` deliberately fails closed until
-  the atomic-replacement slice provides secure absence proof and authenticated
-  template fallback. The focused configuration/endpoint selection passes
-  `59/59`; the Windows configuration/path/endpoint selection passes `137/137`,
-  and the canonical launcher selection passes `1030/1030`, each with the one
-  documented native hardlink case deselected where applicable.
-- Checkpoint `8076823` captures Docker's selected local
-  Windows named pipe through the authenticated Docker CLI while ignoring
-  ambient `DOCKER_*`, proxy, and TLS variables. It uses an explicit current-user
-  `.docker` configuration directory, rejects remote/TLS/ambiguous/noncanonical
-  endpoints, re-queries the captured pipe with explicit `--host`, and binds
-  stable Linux/AMD64 daemon facts rather than volatile inventory counts.
-  Context labels remain metadata. Independent review found and closed one
-  Medium invalid-Unicode sanitization gap plus one Low JSON-bound coverage gap;
-  corrected-diff re-review is CLEAN/PASS with no open blocker. The 55 focused
-  Docker tests, 166 shared Docker/Podman/native-command tests, and 1085-test
-  canonical launcher selection pass; the latter excludes only the documented
-  Defender-blocked dormant helper and restricted-host native hardlink cases. It
-  remains unwired and performs no live runtime operation, repair, or mutation.
-  Exact-head CI/CD run `34487846481`, Task-087 run `34487846501`, and external
-  Trivy passed with all nine applicable pull-request checks successful.
-- Checkpoint `0704974` adds an immutable normalized target-resolution plan,
-  bounded duplicate-safe JSON observations, exact Docker and Podman CPU/GPU
-  Compose policy, one running container and pinned-image binding, loopback-only
-  publication, and exact ordered identity for all eight named volumes. Two
-  complete observations must match before a closeable target owner is returned;
-  later checks and held operations revalidate the same binding before and after
-  use. Malformed, ambiguous, changed, non-loopback, bind-mount, wrong-image,
-  wrong-volume, unsafe-environment, and private backend failures fail closed
-  with sanitized errors. Independent review found and closed five Medium and
-  six Low issues across its passes, returned final CLEAN/PASS, and reproduced
-  every listed gate. Exact-head CI/CD run `34500079631`, Task-087 run
-  `34500079667`, and external Trivy run `102948482699` passed with all nine
-  applicable pull-request checks successful; the PR-only build job skipped as
-  designed.
-- The current local source-only increment defines immutable, explicit-endpoint
-  process plans for current/planned Compose reads, exact container listing and
-  inspection, digest-form image inspection, and all eight ordered named-volume
-  inspections. Docker binds the captured pipe and authenticated standalone
-  Compose executable; Podman binds the captured rootless URI/key, authenticated
-  CPython provider/module, and fixed Podman child path. Ambient environment
-  state is discarded, only the two planned CA variables are added, Windows
-  command/environment shape and dynamic selectors are strictly bounded, and
-  every command names the full authenticated inventory its future owner must
-  retain. The focused suite passes `21/21`, the related contract/resolver/
-  execution selection passes `189/189`, and the canonical launcher selection
-  passes `1145/1145` with only
-  the documented restricted-host hardlink case deselected. Static/security
-  checks pass. Independent review found and closed three Low process-bound/
-  constant-drift/coverage gaps; corrected-diff re-review returned CLEAN/PASS
-  with no remaining finding. This source remains inert and unwired: held native
-  execution, provider-specific output normalization, and live-path integration
-  are separate reviewable work, and no runtime command, repair, or mutation ran.
-- Keep source, preview, and signing gates separate. Findings 1-8 and the
-  source-level provider `.env` correction gate PR #67 source re-review;
-  staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked
-  Python 3.12 build gate a new validation artifact or unsigned preview;
-  Task-100 still owns production
-  signing and representative managed-endpoint qualification.
-- Preserve the existing no-helper/no-listener/no-PowerShell/no-admin boundary,
-  explicit Task-086 fallback, rootless-Podman-without-default-change boundary,
-  all eight named volumes, and normal OneDrive-compatible package behavior.
-  PR #67 remains Draft, and no merge, package, or publication acceptance is
-  implied by lifecycle checks or the design checkpoint.
-- Treat the August 19 decision as Proceed to unsigned preview integration under
-  ADR-019. Signing, `v0.1.3-rc.N`, and representative managed-endpoint
-  qualification belong to Task-100 in October after the satisfactory-package
-  gate.
-- Keep Task-086 as the supported command-based fallback until the replacement
-  launcher path is accepted for its stated preview or signed-candidate scope.
+- Use the [fixed Gate A burn-down](./tasks/active/TASK-087/GATE-A-STATUS.md)
+  for present status, evidence pointers, remaining criteria, and the next
+  outcome sequence.
+- Implement only the approved August 20 source-remediation design. Mutation
+  remains disabled until the exact target, Windows trust/security, durable
+  recovery, and transaction requirements are integrated and reviewed.
+- Preserve the visible Python/Tkinter launcher, Google/Azure and Docker/rootless-
+  Podman boundaries, all eight named volumes, supported OneDrive behavior, and
+  the independent Task-086 fallback.
+- Keep historical package/runtime evidence in the Task-087 file. It proves only
+  the exact bytes and environments previously tested and does not close the
+  current Gate A source findings.
+- Keep Gate A source acceptance, Gate B artifact/preview integrity, and
+  Gate C/Task-100 signing and managed-endpoint qualification separate. PR #67
+  remains Draft.
+- The immediate outcome is to finish slices 2-3 with the ownership-preserving
+  native observation executor, production authority factory, exact-target
+  confirmation, and stage-specific revalidation.
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
 
