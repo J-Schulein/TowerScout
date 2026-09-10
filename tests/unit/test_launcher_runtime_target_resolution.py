@@ -17,6 +17,7 @@ if str(LAUNCHER_ROOT) not in sys.path:
 
 from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
     EXPECTED_HEALTHCHECK_COMMAND_SHA256,
+    TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER,
     BoundResolvedRepairTarget,
     TargetResolutionBackend,
     TargetResolutionError,
@@ -25,6 +26,7 @@ from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
     TargetResolutionPlan,
     TargetResolutionSnapshot,
     capture_bound_resolved_repair_target,
+    target_model_semantic_sha256,
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
     ABSENT_FILE_SHA256,
@@ -305,17 +307,13 @@ def _model(plan: TargetResolutionPlan, *, planned: bool) -> dict[str, Any]:
             "security_options": [],
             "capabilities": [],
         }
-    return {
+    model: dict[str, Any] = {
         "schema_version": 1,
         "project": plan.compose_project,
         "service": {
             "name": "towerscout",
             "image": plan.configured_image_reference,
-            "provider_config_hash": _digest(
-                "planned provider config hash"
-                if planned
-                else "current provider config hash"
-            ),
+            "semantic_config_sha256": TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER,
             "environment": environment,
             "port": {
                 "host_ip": "127.0.0.1",
@@ -344,6 +342,10 @@ def _model(plan: TargetResolutionPlan, *, planned: bool) -> dict[str, Any]:
             for logical_name, destination in EXPECTED_VOLUME_DESTINATIONS
         ],
     }
+    model["service"]["semantic_config_sha256"] = target_model_semantic_sha256(
+        _json(model)
+    )
+    return model
 
 
 def _snapshot(plan: TargetResolutionPlan) -> TargetResolutionSnapshot:
@@ -364,7 +366,8 @@ def _snapshot(plan: TargetResolutionPlan) -> TargetResolutionSnapshot:
             "service": "towerscout",
             "working_directory_sha256": plan.package_root.canonical_path_sha256,
             "compose_files_sha256": plan.compose_files_sha256,
-            "config_hash": pre_model["service"]["provider_config_hash"],
+            "native_config_hash": _digest("opaque native provider config"),
+            "semantic_config_sha256": pre_model["service"]["semantic_config_sha256"],
         },
         "environment": pre_model["service"]["environment"],
         "ports": [pre_model["service"]["port"]],
@@ -841,7 +844,7 @@ def test_schema_version_rejects_json_boolean(
         ),
         (
             "container_inspect",
-            lambda value: value["labels"].update(config_hash="0" * 64),
+            lambda value: value["labels"].update(semantic_config_sha256="0" * 64),
             TargetResolutionErrorCode.TARGET_INVALID,
         ),
         (

@@ -58,16 +58,25 @@ supplies secure absence proof and authenticated template fallback. Normalized
 target-resolution checkpoint `0704974` passed exact-head CI/CD run
 `34500079631`, Task-087 run `34500079667`, and external Trivy run
 `102948482699`, with all nine applicable pull-request checks successful; the
-main-only build job skipped as designed. The current local source-only follow-up
-defines every current/planned Compose and exact container/image/volume
-observation as an immutable, explicit-endpoint process plan. It binds the
-complete authenticated plan inventory, discards ambient environment state,
-permits only two fixed planned CA overrides, and accepts only full container/
-image IDs or the eight derived volume names. It remains inert: the held native
-executor and provider-specific output normalizers are still the next target-
-resolution increments. No live launcher path imports the module and no runtime
-command, repair, or host/container mutation ran. Recovery, Windows-store CA
-selection, and secure `.env` replacement remain open Gate A work. Merge/
+main-only build job skipped as designed. Observation-plan checkpoint `215d520`
+passed exact-head CI/CD run `34506377753`, Task-087 run `34506377890`, and
+external Trivy with all nine applicable pull-request checks successful; the
+main-only build job skipped as designed. The current source-only follow-up
+consumes those immutable plans through one transferred ownership window and
+strictly normalizes Docker JSON or pinned Podman Compose YAML plus exact engine
+inspect output into the existing bounded `TargetResolutionSnapshot`. It binds
+the one selected full container ID through image and all eight volume selectors,
+verifies security/mount/network/Compose policy, requires a Podman provider-child
+containment claim at the injected executor boundary, rejects malformed/
+oversized/duplicate/aliased output, independently binds semantic current and
+planned models, and separately retains the provider's opaque native config hash
+for drift detection. Full normalized environment values exist only in bounded,
+repr-redacted in-memory snapshots; public failures expose fixed sanitized
+categories. It remains inert and unwired: a concrete native executor and
+production authority factory are still required to supply and verify native
+containment evidence before any live observation or launcher integration. No
+runtime command, repair, or host/container mutation ran. Recovery, Windows-store
+CA selection, and secure `.env` replacement remain open Gate A work. Merge/
 publication retain their separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
@@ -1415,6 +1424,112 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-10 - Owned Target-Observation Normalization Backend Added
+
+**Objective**: Complete the next target-resolution sub-boundary by translating
+only the reviewed immutable observation plans into the existing normalized
+snapshot while keeping process execution injected, launcher wiring absent, and
+all mutation disabled.
+
+**Checkpoint Context**: Observation-plan checkpoint `215d520` is the exact local
+and remote base. It passed exact-head CI/CD run `34506377753`, Task-087 run
+`34506377890`, and external Trivy; all nine applicable pull-request checks
+succeeded and the main-only build job skipped as designed for a pull request.
+
+**Decision**: Retain the execution authority and contained executor as
+transferred interfaces so this normalization layer cannot reacquire paths or
+invent commands. Run one complete current/planned Compose, container, image,
+and eight-volume capture inside a single synchronous authority lease. Docker
+Compose output is strict bounded JSON. The pinned Podman Compose 1.5.0 provider
+prints merged YAML, so its path uses a bounded safe loader that rejects aliases,
+duplicates, non-text keys, unsafe tags/types, deep/large trees, and missing YAML
+support. The resolver independently recomputes a provider-neutral semantic hash
+over each complete normalized model, allowing the planned model to become the
+current model after restart. The current container's provider-native config-hash
+label is separately syntax-validated and retained as opaque drift evidence; it
+is not derived from Podman YAML or treated as the planned semantic hash.
+
+**Execution**: Added `runtime_target_observation_backend.py`. The backend accepts
+only its exact bound `TargetResolutionPlan`, reconstructs every command through
+`TargetObservationExecutionBinding`, validates operation/authority/output limits
+and process-tree facts, requires a provider-child claim digest for Podman
+Compose and forbids that claim elsewhere, then chains the selected full
+container ID into provider-canonical image and exact derived volume inspections.
+Docker's `sha256:<64-hex>` and Podman's bare 64-hex image IDs are validated in
+their native command forms and normalized to the resolver's digest form.
+Normalizers validate the one TowerScout service, environment, loopback port,
+restart/healthcheck/profile, named volumes, Compose labels, running container,
+image defaults, image digest, network, mounts, security controls, and engine
+volume identity. Image-default environment entries are accepted only when they
+match the inspected image and are excluded from the Compose-controlled target
+model. Raw stdout/stderr is never logged, persisted, or publicly rendered.
+Sensitive paths, complete normalized environment values, hashed mountpoints,
+and hashed engine metadata cross only as bounded repr-redacted in-memory
+snapshot fields. Any failure after an accepted capture begins poisons and
+closes both transferred resources. Capture calls rejected before an accepted
+capture begins leave an otherwise valid backend owner available.
+
+**Adversarial Coverage**: The 57-test focused backend suite covers accepted
+Docker JSON and pinned-provider-representative Podman short-form YAML through the
+real normalized resolver, CPU success, structural GPU-contract cases, provider-
+specific native image IDs, Docker `StartInterval`, Podman `shareable` IPC, exact
+operation/selector order, one-lease execution, provider-child claims, false
+claims, mismatched authority, nonzero exit, malformed/duplicate JSON, malformed/
+duplicate/aliased YAML, empty/ambiguous/short container lists, privileged/host/
+capability/command/mount/network drift, unapproved short volume modes, changed
+image identity/default environment, volume-project substitution, operation-
+specific output overflow, sanitized explicit/implicit exception chains,
+rejected-resource cleanup, exact-plan identity, and idempotent ownership cleanup.
+GPU cases validate the contract shape only and do not claim provider-conformance
+evidence.
+
+**Validation**: Tests were written first; collection initially failed because
+the module did not exist. After the independent review corrections, the focused
+observation/backend/resolution set passes `170/170`. The canonical launcher set
+passes `1255/1255` with 404 unrelated tests deselected and the documented
+Defender-blocked helper file plus native held-executable hardlink smoke excluded.
+Black, strict mypy, single-process Flake8 fatal/blocking, Bandit High-severity,
+and compileall checks pass. The advisory Flake8 complexity/line-length profile
+reports five `C901` complexity warnings and no other findings; four warnings are
+in this deliberately strict backend and one is in the preceding resolver.
+Diff checks and both task-hygiene validators pass. Secret-safety scanning found
+no match in a changed file; its one launcher-tree match is the existing benign
+`apikey.txt` filename check in `package_validation.py`.
+
+**Independent Review**: The initial and corrected-diff review found and drove
+closure of provider-shape, identity-binding, fail-closed parsing, exception-
+sanitization, and transferred-owner lifecycle defects. Corrections separate
+provider-native drift evidence from independently recomputed semantic model
+hashes; accept only canonical Docker and Podman image IDs; validate real Docker
+health/bind output and provider-realistic Podman IPC, named-volume bind/mount,
+and cgroup-namespace output; reject unapproved Compose volume modes; bind the
+actual user and working directory to image defaults; remove private exception
+chains; and close every distinct transferred resource across construction,
+capture, and shutdown failures while preserving interruptions. Final review is
+CLEAN/PASS with no Critical, High, Medium, Low, or unresolved findings. The
+reviewer independently passed 170 focused tests, Black, strict source mypy,
+single-process blocking Flake8, High-severity Bandit, both task validators,
+changed-file secret review, and `git diff --check`; no live runtime command or
+Git mutation ran during review.
+
+**Boundary**: This is an owned normalization backend and executor protocol, not
+the concrete Windows process/provider adapter or production capture factory.
+The result's Podman claim digest is supplied by the injected executor and must
+ultimately be verified by the existing held provider-child implementation, not
+accepted as proof merely because a caller populated it. Safe YAML is
+currently a development dependency; packaging/hash-lock integration remains
+part of the later concrete wiring boundary. No live launcher module imports this
+backend. No Docker, Podman, Compose, `.env`, certificate-store, journal,
+filesystem-mutation, repair, package, or publication command ran.
+
+**Next**: Checkpoint this independently reviewed slice. Then implement the
+concrete native observation executor/authority factory: adapt the existing
+Windows Job Object output containment for Docker/engine commands, carry actual
+held provider-child evidence for Podman Compose, retain every runtime/provider/
+endpoint/file owner across the whole capture, and resolve the hash-locked YAML
+availability boundary. Keep that adapter source-only and unwired until its own
+review passes.
 
 ### 2026-09-10 - Exact Target-Observation Command Plans Added Locally
 

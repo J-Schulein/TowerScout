@@ -5,8 +5,9 @@ or engine observation to an immutable :class:`TargetResolutionPlan`, an
 absolute authenticated executable, an explicit endpoint, a minimal child
 environment, and the complete set of file/path identities that an execution
 owner must retain.  Dynamic daemon selectors are deliberately limited to one
-full container ID, one digest-form image ID, or one of TowerScout's eight
-derived named-volume names.
+full container ID, one provider-canonical full image ID, or one of
+TowerScout's eight derived named-volume names. Docker uses
+``sha256:<64-hex>`` while Podman emits and accepts a bare 64-hex image ID.
 
 The native executor and provider-specific output normalizers remain separate
 review boundaries.  In particular, constructing these plans performs no
@@ -39,7 +40,8 @@ OBSERVATION_LIST_STDOUT_LIMIT_BYTES = 8 * 1024
 OBSERVATION_STDERR_LIMIT_BYTES = 16 * 1024
 
 _CONTAINER_ID = re.compile(r"^[0-9a-f]{64}$")
-_IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
+_DOCKER_IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
+_PODMAN_IMAGE_ID = re.compile(r"^[0-9a-f]{64}$")
 _MAX_ARGUMENTS = 128
 _MAX_ARGUMENT_CHARACTERS = 32_767
 _MAX_COMMAND_LINE_CHARACTERS = 32_767
@@ -342,7 +344,12 @@ def _valid_selector(
     if operation is ObservationOperation.CONTAINER_INSPECT:
         return type(selector) is str and _CONTAINER_ID.fullmatch(selector) is not None
     if operation is ObservationOperation.IMAGE_INSPECT:
-        return type(selector) is str and _IMAGE_ID.fullmatch(selector) is not None
+        pattern = (
+            _DOCKER_IMAGE_ID
+            if target.runtime.product is RuntimeProduct.DOCKER
+            else _PODMAN_IMAGE_ID
+        )
+        return type(selector) is str and pattern.fullmatch(selector) is not None
     if operation is ObservationOperation.VOLUME_INSPECT:
         expected = {
             f"{target.compose_project}_{logical_name}"

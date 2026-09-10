@@ -58,9 +58,11 @@ _MAX_JSON_STRING_CHARACTERS = 32_767
 _MAX_ENVIRONMENT_VALUE_CHARACTERS = 4096
 _AUTHORITY_DOMAIN = b"TowerScout.TargetResolutionAuthority.v1"
 _COMPOSE_FILES_DOMAIN = b"TowerScout.TargetResolutionComposeFiles.v1"
+_SEMANTIC_MODEL_DOMAIN = b"TowerScout.TargetResolutionSemanticModel.v1"
 _OBSERVATION_DOMAIN = b"TowerScout.TargetResolutionObservation.v1"
 _EVIDENCE_DOMAIN = b"TowerScout.TargetResolutionEvidence.v1"
 _CA_DESTINATION = "/app/webapp/config/certs/towerscout-ca-bundle.pem"
+TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER = "0" * 64
 _Result = TypeVar("_Result")
 
 _HEALTHCHECK_COMMAND = (
@@ -78,6 +80,15 @@ _HEALTHCHECK_INTEGER_FIELDS = (
     "start_period_seconds",
     "retries",
 )
+
+
+def target_model_semantic_sha256(canonical_model: bytes) -> str:
+    """Hash a canonical normalized model containing the fixed placeholder."""
+
+    if type(canonical_model) is not bytes or not canonical_model:
+        raise ValueError("Canonical target model is invalid.")
+    return _digest(_SEMANTIC_MODEL_DOMAIN, (canonical_model,))
+
 
 _BASE_ENVIRONMENT_NAMES = frozenset(
     {
@@ -620,8 +631,8 @@ def _container_path(value: object) -> str | None:
 class _ComposeObservation:
     pre_model_sha256: str
     post_model_sha256: str
-    pre_provider_config_hash: str = field(repr=False)
-    post_provider_config_hash: str = field(repr=False)
+    pre_semantic_config_sha256: str = field(repr=False)
+    post_semantic_config_sha256: str = field(repr=False)
     pre_environment: dict[str, str] = field(repr=False)
     runtime_volumes: tuple[tuple[str, str, str], ...] = field(repr=False)
 
@@ -751,7 +762,7 @@ def _validate_model(
             {
                 "name",
                 "image",
-                "provider_config_hash",
+                "semantic_config_sha256",
                 "environment",
                 "port",
                 "restart",
@@ -764,8 +775,16 @@ def _validate_model(
     if (
         service["name"] != "towerscout"
         or service["image"] != plan.configured_image_reference
-        or not _is_sha256(service["provider_config_hash"])
+        or not _is_sha256(service["semantic_config_sha256"])
         or service["restart"] != "always"
+    ):
+        _fail(TargetResolutionErrorCode.MODEL_INVALID)
+    semantic_comparison = json.loads(_canonical_json(model))
+    semantic_comparison["service"][
+        "semantic_config_sha256"
+    ] = TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER
+    if service["semantic_config_sha256"] != target_model_semantic_sha256(
+        _canonical_json(semantic_comparison)
     ):
         _fail(TargetResolutionErrorCode.MODEL_INVALID)
     environment = _validated_environment(plan, service["environment"], planned=planned)
@@ -852,14 +871,14 @@ def _compose_observation(
         environment = model["service"]["environment"]
         environment["REQUESTS_CA_BUNDLE"] = "<planned-ca>"
         environment["SSL_CERT_FILE"] = "<planned-ca>"
-        model["service"]["provider_config_hash"] = "<provider-config>"
+        model["service"]["semantic_config_sha256"] = "<semantic-config>"
     if pre_comparison != post_comparison or pre_volumes != post_volumes:
         _fail(TargetResolutionErrorCode.MODEL_INVALID)
     return _ComposeObservation(
         pre_model_sha256=hashlib.sha256(_canonical_json(pre_model)).hexdigest(),
         post_model_sha256=hashlib.sha256(_canonical_json(post_model)).hexdigest(),
-        pre_provider_config_hash=pre_model["service"]["provider_config_hash"],
-        post_provider_config_hash=post_model["service"]["provider_config_hash"],
+        pre_semantic_config_sha256=pre_model["service"]["semantic_config_sha256"],
+        post_semantic_config_sha256=post_model["service"]["semantic_config_sha256"],
         pre_environment=pre_environment,
         runtime_volumes=pre_volumes,
     )
@@ -930,7 +949,8 @@ def _container_observation(
                 "service",
                 "working_directory_sha256",
                 "compose_files_sha256",
-                "config_hash",
+                "native_config_hash",
+                "semantic_config_sha256",
             }
         ),
         TargetResolutionErrorCode.TARGET_INVALID,
@@ -943,13 +963,14 @@ def _container_observation(
         or _OCI_DIGEST.fullmatch(image_id) is None
         or value["configured_image"] != plan.configured_image_reference
         or value["running"] is not True
-        or labels
+        or not _is_sha256(labels["native_config_hash"])
+        or {key: item for key, item in labels.items() if key != "native_config_hash"}
         != {
             "project": plan.compose_project,
             "service": "towerscout",
             "working_directory_sha256": plan.package_root.canonical_path_sha256,
             "compose_files_sha256": plan.compose_files_sha256,
-            "config_hash": compose.pre_provider_config_hash,
+            "semantic_config_sha256": compose.pre_semantic_config_sha256,
         }
         or value["environment"] != compose.pre_environment
         or value["restart"] != "always"
@@ -1523,6 +1544,7 @@ def capture_bound_resolved_repair_target(
 
 __all__ = [
     "EXPECTED_HEALTHCHECK_COMMAND_SHA256",
+    "TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER",
     "BoundResolvedRepairTarget",
     "TargetResolutionBackend",
     "TargetResolutionError",
@@ -1531,4 +1553,5 @@ __all__ = [
     "TargetResolutionPlan",
     "TargetResolutionSnapshot",
     "capture_bound_resolved_repair_target",
+    "target_model_semantic_sha256",
 ]

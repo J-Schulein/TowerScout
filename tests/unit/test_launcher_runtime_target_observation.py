@@ -325,7 +325,7 @@ def test_exact_container_image_and_all_volume_inspection_plans(
     plan = _plan(product)
     binding = TargetObservationExecutionBinding(plan)
     container_id = "d" * 64
-    image_id = "sha256:" + "e" * 64
+    image_id = "sha256:" + "e" * 64 if product is RuntimeProduct.DOCKER else "e" * 64
 
     container = binding.container_inspect(container_id)
     image = binding.image_inspect(image_id)
@@ -423,18 +423,25 @@ def test_compose_planned_flag_requires_an_exact_boolean() -> None:
 
 
 @pytest.mark.parametrize(
-    ("factory", "selector"),
+    ("product", "factory", "selector"),
     [
-        ("container_inspect", "short-id"),
-        ("container_inspect", "d" * 63),
-        ("container_inspect", "d" * 64 + "x"),
-        ("image_inspect", "e" * 64),
-        ("image_inspect", "sha256:" + "E" * 64),
-        ("image_inspect", "sha256:" + "e" * 63),
+        (RuntimeProduct.DOCKER, "container_inspect", "short-id"),
+        (RuntimeProduct.DOCKER, "container_inspect", "d" * 63),
+        (RuntimeProduct.DOCKER, "container_inspect", "d" * 64 + "x"),
+        (RuntimeProduct.DOCKER, "image_inspect", "e" * 64),
+        (RuntimeProduct.DOCKER, "image_inspect", "sha256:" + "E" * 64),
+        (RuntimeProduct.DOCKER, "image_inspect", "sha256:" + "e" * 63),
+        (RuntimeProduct.PODMAN, "image_inspect", "sha256:" + "e" * 64),
+        (RuntimeProduct.PODMAN, "image_inspect", "E" * 64),
+        (RuntimeProduct.PODMAN, "image_inspect", "e" * 63),
     ],
 )
-def test_dynamic_engine_selectors_are_strict(factory: str, selector: str) -> None:
-    binding = TargetObservationExecutionBinding(_plan())
+def test_dynamic_engine_selectors_are_strict(
+    product: RuntimeProduct,
+    factory: str,
+    selector: str,
+) -> None:
+    binding = TargetObservationExecutionBinding(_plan(product))
 
     with pytest.raises(TargetObservationBindingError) as caught:
         getattr(binding, factory)(selector)
@@ -481,7 +488,9 @@ def test_process_plan_rejects_argument_environment_and_identity_tampering() -> N
 
     for changes in cases:
         with pytest.raises(TargetObservationBindingError) as caught:
-            TargetObservationProcessPlan(**(baseline | changes))  # type: ignore[arg-type]
+            TargetObservationProcessPlan(
+                **(baseline | changes)  # type: ignore[arg-type]
+            )
         assert caught.value.code is TargetObservationBindingErrorCode.PLAN_REJECTED
 
 
