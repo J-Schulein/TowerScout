@@ -31,6 +31,7 @@ from towerscout_launcher.runtime_dynamic_load import (  # noqa: E402
     DynamicLoadEnforcementError,
     DynamicLoadEnforcementErrorCode,
     NativeWindowsProviderChildDynamicLoadBackend,
+    TargetObservationProviderChildCommandResult,
 )
 from towerscout_launcher.runtime_execution import (  # noqa: E402
     ComposeReadOperation,
@@ -48,6 +49,13 @@ from towerscout_launcher.runtime_provider_child import (  # noqa: E402
     ProcessImagePolicy,
     ProcessImageRole,
     ProviderChildProcessRequest,
+    TargetObservationProviderChildProcessRequest,
+)
+from towerscout_launcher.runtime_target_observation import (  # noqa: E402
+    TargetObservationExecutionBinding,
+)
+from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
+    TargetResolutionPlan,
 )
 from towerscout_launcher.runtime_provider_inventory import (  # noqa: E402
     HeldProviderChildInventory,
@@ -293,6 +301,31 @@ def _podman_target() -> ResolvedRepairTarget:
             windows_root_fingerprint_sha256=_digest("root"),
             candidate_content_sha256=_digest("candidate"),
         ),
+    )
+
+
+def _podman_observation_plan() -> TargetResolutionPlan:
+    target = _podman_target()
+    return TargetResolutionPlan(
+        package_root=target.package_root,
+        process_environment=target.process_environment,
+        release_identity=target.release_identity,
+        security_artifacts=target.security_artifacts,
+        runtime=target.runtime,
+        endpoint=target.endpoint,
+        compose_provider=target.compose_provider,
+        ordered_compose_files=target.compose.ordered_files,
+        environment_sha256=target.compose.environment_sha256,
+        planned_environment_sha256=target.compose.planned_environment_sha256,
+        environment_source=target.compose.environment_source,
+        environment_file=target.compose.environment_file,
+        compose_project=target.compose_project,
+        acceleration=target.acceleration,
+        provider=target.provider,
+        port=target.port,
+        configured_image_reference=target.image.configured_reference,
+        pinned_image_digest=target.image.pinned_digest,
+        certificate=target.certificate,
     )
 
 
@@ -2928,6 +2961,35 @@ def test_provider_child_backend_authenticates_both_process_roles_and_images() ->
     assert debug_api.prepared == 1
 
 
+def test_provider_child_backend_returns_observation_claim_from_same_monitor() -> None:
+    plan = TargetObservationExecutionBinding(_podman_observation_plan()).compose_model(
+        planned=False
+    )
+    request = TargetObservationProviderChildProcessRequest.from_plan(plan)
+    _legacy_request, provider_policy, child_policy = _plan_and_policies()
+    backend, process_api, debug_api = _backend()
+
+    result = backend._execute_provider_request(  # noqa: SLF001
+        request,
+        provider_policy,
+        child_policy,
+        system_directory=_SYSTEM32,
+        system_directory_identity=StableFileIdentity(71, (99).to_bytes(16, "big")),
+    )
+
+    assert type(result) is TargetObservationProviderChildCommandResult
+    assert result.command.stdout == b"{}\n"
+    assert result.command.provider_child_claimed is True
+    assert (
+        result.command.provider_child_claim_sha256 == result.enforcement.evidence_sha256
+    )
+    assert result.enforcement.request_binding_sha256 == request.binding_sha256
+    assert process_api.starts == [(request, True, 2)]
+    assert process_api.terminated == 0
+    assert process_api.closed == 1
+    assert debug_api.prepared == 1
+
+
 class _PathTrust:
     def __init__(self, path: PureWindowsPath, identity: StableFileIdentity) -> None:
         self.evidence = SimpleNamespace(root_identity=identity)
@@ -2981,6 +3043,47 @@ def test_public_provider_child_execution_holds_system_and_package_paths(
     assert package_trust.assertions == 2
     assert system_trust.closed
     assert package_trust.closed
+
+
+def test_public_observation_execution_holds_paths_and_returns_monitor_claim(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target_plan = _podman_observation_plan()
+    plan = TargetObservationExecutionBinding(target_plan).compose_model(planned=True)
+    request = TargetObservationProviderChildProcessRequest.from_plan(plan)
+    _legacy_request, provider_policy, child_policy = _plan_and_policies()
+    backend, process_api, _debug_api = _backend()
+    system_trust = _PathTrust(
+        _SYSTEM32, StableFileIdentity(71, (99).to_bytes(16, "big"))
+    )
+    package_trust = _PathTrust(
+        target_plan.package_root.final_path,
+        StableFileIdentity(
+            target_plan.package_root.volume_serial,
+            target_plan.package_root.file_id,
+        ),
+    )
+
+    def capture(path: str, *, purpose, api):  # noqa: ANN001, ANN202
+        del api
+        if purpose.value == "runtime_install":
+            assert path == str(_SYSTEM32)
+            return system_trust
+        assert purpose.value == "package_root"
+        assert path == str(target_plan.package_root.final_path)
+        return package_trust
+
+    monkeypatch.setattr(dynamic_module, "capture_path_hierarchy", capture)
+
+    result = backend.execute_observation(plan, provider_policy, child_policy)
+
+    assert result.command.provider_child_claimed is True
+    assert result.enforcement.request_binding_sha256 == request.binding_sha256
+    assert system_trust.assertions == 2
+    assert package_trust.assertions == 2
+    assert system_trust.closed
+    assert package_trust.closed
+    assert process_api.starts == [(request, True, 2)]
 
 
 def test_public_provider_child_execution_rejects_mismatched_child_before_start() -> (

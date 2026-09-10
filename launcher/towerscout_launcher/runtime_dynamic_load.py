@@ -50,7 +50,11 @@ from .runtime_provider_child import (
     ProcessImagePolicy,
     ProcessImageRole,
     ProviderChildProcessRequest,
+    TargetObservationProviderChildProcessRequest,
 )
+from .runtime_target_observation import TargetObservationProcessPlan
+from .runtime_target_observation_backend import TargetObservationProcessResult
+from .target_contracts import RuntimeProduct
 from .windows_path_trust import (
     PathTrustPurpose,
     WindowsPathTrustApi,
@@ -704,6 +708,30 @@ class ProviderChildCommandResult:
     def __repr__(self) -> str:
         return (
             "ProviderChildCommandResult("
+            f"exit_code={self.command.exit_code}, "
+            f"child_processes={self.enforcement.child_process_count}, <redacted>)"
+        )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class TargetObservationProviderChildCommandResult:
+    command: TargetObservationProcessResult = field(repr=False)
+    enforcement: ProviderChildEnforcementEvidence
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.command) is not TargetObservationProcessResult
+            or type(self.enforcement) is not ProviderChildEnforcementEvidence
+            or self.command.provider_child_claimed is not True
+            or self.command.provider_child_claim_sha256
+            != self.enforcement.evidence_sha256
+        ):
+            raise ValueError("Target-observation provider-child result is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "TargetObservationProviderChildCommandResult("
+            f"operation={self.command.operation.value!r}, "
             f"exit_code={self.command.exit_code}, "
             f"child_processes={self.enforcement.child_process_count}, <redacted>)"
         )
@@ -1415,7 +1443,11 @@ class NativeWindowsCpythonDynamicLoadBackend:
 
     def _execute_worker(
         self,
-        request: CommandProcessRequest | ProviderChildProcessRequest,
+        request: (
+            CommandProcessRequest
+            | ProviderChildProcessRequest
+            | TargetObservationProviderChildProcessRequest
+        ),
         policy: _ImagePolicy,
         policy_sha256: str,
         system_directory_identity: StableFileIdentity,
@@ -1424,7 +1456,11 @@ class NativeWindowsCpythonDynamicLoadBackend:
         child_policy: _ImagePolicy | None = None,
         child_policy_sha256: str = "",
         request_binding_sha256: str = "",
-    ) -> DynamicLoadCommandResult | ProviderChildCommandResult:
+    ) -> (
+        DynamicLoadCommandResult
+        | ProviderChildCommandResult
+        | TargetObservationProviderChildCommandResult
+    ):
         process: _NativeProcess | None = None
         try:
             if child_policy is None:
@@ -1602,21 +1638,21 @@ class NativeWindowsCpythonDynamicLoadBackend:
                 raise DynamicLoadEnforcementError(
                     DynamicLoadEnforcementErrorCode.CONTAINMENT_FAILED
                 ) from None
-            command = CommandProcessResult(
-                stdout=stdout.data,
-                stderr=stderr.data,
-                exit_code=exit_code,
-                stdin_closed=True,
-                stdout_streamed=True,
-                stderr_streamed=True,
-                process_tree_contained=True,
-                process_tree_empty=True,
-            )
             if child_policy is None:
                 if type(monitor) is not _EventMonitor:
                     raise DynamicLoadEnforcementError(
                         DynamicLoadEnforcementErrorCode.CONTAINMENT_FAILED
                     )
+                command = CommandProcessResult(
+                    stdout=stdout.data,
+                    stderr=stderr.data,
+                    exit_code=exit_code,
+                    stdin_closed=True,
+                    stdout_streamed=True,
+                    stderr_streamed=True,
+                    process_tree_contained=True,
+                    process_tree_empty=True,
+                )
                 return DynamicLoadCommandResult(
                     command,
                     monitor.evidence(policy_sha256, system_directory_identity),
@@ -1629,14 +1665,38 @@ class NativeWindowsCpythonDynamicLoadBackend:
                 raise DynamicLoadEnforcementError(
                     DynamicLoadEnforcementErrorCode.CONTAINMENT_FAILED
                 )
+            enforcement = monitor.evidence(
+                request_binding_sha256,
+                policy_sha256,
+                child_policy_sha256,
+                system_directory_identity,
+            )
+            if type(request) is TargetObservationProviderChildProcessRequest:
+                observation_command = TargetObservationProcessResult.from_plan(
+                    request.plan,
+                    stdout=stdout.data,
+                    stderr=stderr.data,
+                    exit_code=exit_code,
+                    provider_child_claimed=True,
+                    provider_child_claim_sha256=enforcement.evidence_sha256,
+                )
+                return TargetObservationProviderChildCommandResult(
+                    observation_command,
+                    enforcement,
+                )
+            command = CommandProcessResult(
+                stdout=stdout.data,
+                stderr=stderr.data,
+                exit_code=exit_code,
+                stdin_closed=True,
+                stdout_streamed=True,
+                stderr_streamed=True,
+                process_tree_contained=True,
+                process_tree_empty=True,
+            )
             return ProviderChildCommandResult(
                 command,
-                monitor.evidence(
-                    request_binding_sha256,
-                    policy_sha256,
-                    child_policy_sha256,
-                    system_directory_identity,
-                ),
+                enforcement,
             )
         except DynamicLoadEnforcementError:
             cleaned = self._terminate_and_drain(process, pending, pending_image_closed)
@@ -1738,6 +1798,38 @@ class NativeWindowsProviderChildDynamicLoadBackend:
                 DynamicLoadEnforcementErrorCode.PLAN_REJECTED
             )
 
+    @staticmethod
+    def _validate_observation_policies(
+        plan: TargetObservationProcessPlan,
+        provider_policy: ProcessImagePolicy,
+        child_policy: ProcessImagePolicy,
+    ) -> None:
+        provider_images = {
+            (item.identity, item.sha256, item.final_path_sha256)
+            for item in provider_policy.exact_files
+        }
+        child_images = {
+            (item.identity, item.sha256, item.final_path_sha256)
+            for item in child_policy.exact_files
+        }
+        if (
+            type(plan) is not TargetObservationProcessPlan
+            or plan.target.runtime.product is not RuntimeProduct.PODMAN
+            or type(provider_policy) is not ProcessImagePolicy
+            or provider_policy.role is not ProcessImageRole.PROVIDER
+            or type(child_policy) is not ProcessImagePolicy
+            or child_policy.role is not ProcessImageRole.RUNTIME_CHILD
+            or provider_policy.content_sha256 == child_policy.content_sha256
+            or not provider_policy.entrypoint.matches_file_identity(plan.executable)
+            or not child_policy.entrypoint.matches_file_identity(
+                plan.target.runtime.executable
+            )
+            or provider_images.intersection(child_images)
+        ):
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.PLAN_REJECTED
+            )
+
     def execute(
         self,
         plan: ProcessCommandPlan,
@@ -1801,6 +1893,95 @@ class NativeWindowsProviderChildDynamicLoadBackend:
                 )
                 system_trust.assert_unchanged()
                 package_trust.assert_unchanged()
+                if type(result) is not ProviderChildCommandResult:
+                    raise DynamicLoadEnforcementError(
+                        DynamicLoadEnforcementErrorCode.CONTAINMENT_FAILED
+                    )
+                return result
+        except DynamicLoadEnforcementError:
+            raise
+        except (TypeError, ValueError, WindowsSecurityError):
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.PLAN_REJECTED
+            ) from None
+        except Exception:
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.START_FAILED
+            ) from None
+
+    def execute_observation(
+        self,
+        plan: TargetObservationProcessPlan,
+        provider_policy: ProcessImagePolicy,
+        child_policy: ProcessImagePolicy,
+    ) -> TargetObservationProviderChildCommandResult:
+        """Execute one held Podman Compose observation with role evidence."""
+
+        if self.supported is not True:
+            raise DynamicLoadEnforcementError(
+                DynamicLoadEnforcementErrorCode.UNAVAILABLE
+            )
+        try:
+            self._validate_observation_policies(
+                plan,
+                provider_policy,
+                child_policy,
+            )
+            request = TargetObservationProviderChildProcessRequest.from_plan(plan)
+            system_directory = PureWindowsPath(
+                self._delegate._process_api.system_directory()
+            )
+            expected_system = plan.target.process_environment.system_root.final_path / (
+                "System32"
+            )
+            if _canonical_path(str(system_directory)) != _canonical_path(
+                str(expected_system)
+            ):
+                raise ValueError("System directory mismatch.")
+            if plan.working_directory != plan.target.package_root.final_path:
+                raise ValueError("Package working directory mismatch.")
+            with ExitStack() as stack:
+                system_trust = stack.enter_context(
+                    capture_path_hierarchy(
+                        str(system_directory),
+                        purpose=PathTrustPurpose.RUNTIME_INSTALL,
+                        api=self._delegate._path_api,
+                    )
+                )
+                package_trust = stack.enter_context(
+                    capture_path_hierarchy(
+                        str(plan.working_directory),
+                        purpose=PathTrustPurpose.PACKAGE_ROOT,
+                        api=self._delegate._path_api,
+                    )
+                )
+                system_trust.assert_unchanged()
+                package_trust.assert_unchanged()
+                expected_package_identity = StableFileIdentity(
+                    plan.target.package_root.volume_serial,
+                    plan.target.package_root.file_id,
+                )
+                if (
+                    package_trust.evidence.root_identity != expected_package_identity
+                    or _canonical_path(package_trust.root_snapshot.final_path)
+                    != _canonical_path(str(plan.target.package_root.final_path))
+                ):
+                    raise DynamicLoadEnforcementError(
+                        DynamicLoadEnforcementErrorCode.PLAN_REJECTED
+                    )
+                result = self._execute_provider_request(
+                    request,
+                    provider_policy,
+                    child_policy,
+                    system_directory=system_directory,
+                    system_directory_identity=system_trust.evidence.root_identity,
+                )
+                system_trust.assert_unchanged()
+                package_trust.assert_unchanged()
+                if type(result) is not TargetObservationProviderChildCommandResult:
+                    raise DynamicLoadEnforcementError(
+                        DynamicLoadEnforcementErrorCode.CONTAINMENT_FAILED
+                    )
                 return result
         except DynamicLoadEnforcementError:
             raise
@@ -1815,15 +1996,21 @@ class NativeWindowsProviderChildDynamicLoadBackend:
 
     def _execute_provider_request(
         self,
-        request: ProviderChildProcessRequest,
+        request: (
+            ProviderChildProcessRequest | TargetObservationProviderChildProcessRequest
+        ),
         provider_policy: ProcessImagePolicy,
         child_policy: ProcessImagePolicy,
         *,
         system_directory: PureWindowsPath,
         system_directory_identity: StableFileIdentity,
-    ) -> ProviderChildCommandResult:
+    ) -> ProviderChildCommandResult | TargetObservationProviderChildCommandResult:
         if (
-            type(request) is not ProviderChildProcessRequest
+            type(request)
+            not in {
+                ProviderChildProcessRequest,
+                TargetObservationProviderChildProcessRequest,
+            }
             or type(provider_policy) is not ProcessImagePolicy
             or type(child_policy) is not ProcessImagePolicy
             or type(system_directory) is not PureWindowsPath
@@ -1836,7 +2023,9 @@ class NativeWindowsProviderChildDynamicLoadBackend:
         provider = _ImagePolicy(provider_policy, system_directory)
         child = _ImagePolicy(child_policy, system_directory)
         cancellation = threading.Event()
-        results: list[ProviderChildCommandResult] = []
+        results: list[
+            ProviderChildCommandResult | TargetObservationProviderChildCommandResult
+        ] = []
         failures: list[BaseException] = []
 
         def run() -> None:
@@ -1851,7 +2040,12 @@ class NativeWindowsProviderChildDynamicLoadBackend:
                     child_policy_sha256=child_policy.content_sha256,
                     request_binding_sha256=request.binding_sha256,
                 )
-                if type(result) is not ProviderChildCommandResult:
+                expected_type = (
+                    TargetObservationProviderChildCommandResult
+                    if type(request) is TargetObservationProviderChildProcessRequest
+                    else ProviderChildCommandResult
+                )
+                if type(result) is not expected_type:
                     raise TypeError("Provider-child execution result is invalid.")
                 results.append(result)
             except BaseException as error:
@@ -1919,4 +2113,5 @@ __all__ = [
     "NativeWindowsProviderChildDynamicLoadBackend",
     "ProviderChildCommandResult",
     "ProviderChildEnforcementEvidence",
+    "TargetObservationProviderChildCommandResult",
 ]

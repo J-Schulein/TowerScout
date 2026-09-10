@@ -14,7 +14,7 @@ import os
 import subprocess
 import threading
 from dataclasses import dataclass, field
-from typing import Any, NoReturn, Protocol
+from typing import Any, NoReturn, Protocol, cast
 
 from .runtime_command_version import (
     CommandExecutionError,
@@ -25,6 +25,13 @@ from .runtime_command_version import (
 from .runtime_docker_endpoint import DockerEndpointCommandRequest
 from .runtime_podman_endpoint import PodmanEndpointCommandRequest
 from .runtime_provider_child import ProviderChildProcessRequest
+from .runtime_provider_child import TargetObservationProviderChildProcessRequest
+from .runtime_target_observation import (
+    ObservationOperation,
+    TargetObservationProcessRequest,
+)
+from .runtime_target_observation_backend import TargetObservationProcessResult
+from .target_contracts import RuntimeProduct
 
 CREATE_SUSPENDED = 0x00000004
 DEBUG_PROCESS = 0x00000001
@@ -309,6 +316,8 @@ class _ProcessApi(Protocol):
             | DockerEndpointCommandRequest
             | PodmanEndpointCommandRequest
             | ProviderChildProcessRequest
+            | TargetObservationProcessRequest
+            | TargetObservationProviderChildProcessRequest
         ),
         *,
         debug_process_tree: bool = False,
@@ -609,9 +618,17 @@ class _NativeWindowsProcessApi:
 
     @staticmethod
     def _provider_environment_block(
-        request: ProviderChildProcessRequest,
+        request: (
+            ProviderChildProcessRequest
+            | TargetObservationProcessRequest
+            | TargetObservationProviderChildProcessRequest
+        ),
     ) -> str:
-        if type(request) is not ProviderChildProcessRequest:
+        if type(request) not in {
+            ProviderChildProcessRequest,
+            TargetObservationProcessRequest,
+            TargetObservationProviderChildProcessRequest,
+        }:
             raise ValueError("The provider-child environment is invalid.")
         rendered: list[str] = []
         previous = ""
@@ -723,6 +740,8 @@ class _NativeWindowsProcessApi:
             | DockerEndpointCommandRequest
             | PodmanEndpointCommandRequest
             | ProviderChildProcessRequest
+            | TargetObservationProcessRequest
+            | TargetObservationProviderChildProcessRequest
         ),
         *,
         debug_process_tree: bool = False,
@@ -735,6 +754,8 @@ class _NativeWindowsProcessApi:
                 DockerEndpointCommandRequest,
                 PodmanEndpointCommandRequest,
                 ProviderChildProcessRequest,
+                TargetObservationProcessRequest,
+                TargetObservationProviderChildProcessRequest,
             }
             or type(debug_process_tree) is not bool
             or type(active_process_limit) is not int
@@ -742,7 +763,11 @@ class _NativeWindowsProcessApi:
             or (not debug_process_tree and active_process_limit != 1)
             or (
                 active_process_limit == 2
-                and type(request) is not ProviderChildProcessRequest
+                and type(request)
+                not in {
+                    ProviderChildProcessRequest,
+                    TargetObservationProviderChildProcessRequest,
+                }
             )
         ):
             raise ValueError("Contained command request is invalid.")
@@ -879,10 +904,21 @@ class _NativeWindowsProcessApi:
                 (str(request.executable_path), *request.arguments)
             )
             command_buffer = ctypes.create_unicode_buffer(command_line)
+            provider_request = cast(
+                ProviderChildProcessRequest
+                | TargetObservationProcessRequest
+                | TargetObservationProviderChildProcessRequest,
+                request,
+            )
             environment_buffer = ctypes.create_unicode_buffer(
                 (
-                    self._provider_environment_block(request)
-                    if type(request) is ProviderChildProcessRequest
+                    self._provider_environment_block(provider_request)
+                    if type(request)
+                    in {
+                        ProviderChildProcessRequest,
+                        TargetObservationProcessRequest,
+                        TargetObservationProviderChildProcessRequest,
+                    }
                     else self._environment_block(request.environment)
                 )
             )
@@ -1187,7 +1223,10 @@ class NativeWindowsCommandVersionBackend:
     def execute(self, request: CommandProcessRequest) -> CommandProcessResult:
         if type(request) is not CommandProcessRequest or self.supported is not True:
             raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE)
-        return self._execute_contained(request)
+        result = self._execute_contained(request)
+        if type(result) is not CommandProcessResult:
+            raise CommandExecutionError(CommandExecutionErrorCode.CONTAINMENT_FAILED)
+        return result
 
     def _execute_contained(
         self,
@@ -1195,8 +1234,9 @@ class NativeWindowsCommandVersionBackend:
             CommandProcessRequest
             | DockerEndpointCommandRequest
             | PodmanEndpointCommandRequest
+            | TargetObservationProcessRequest
         ),
-    ) -> CommandProcessResult:
+    ) -> CommandProcessResult | TargetObservationProcessResult:
         try:
             process = self._api.start(request)
         except CommandExecutionError:
@@ -1260,6 +1300,14 @@ class NativeWindowsCommandVersionBackend:
                 raise CommandExecutionError(
                     CommandExecutionErrorCode.CONTAINMENT_FAILED
                 ) from None
+            if type(request) is TargetObservationProcessRequest:
+                return TargetObservationProcessResult.from_plan(
+                    request.plan,
+                    stdout=stdout.data,
+                    stderr=stderr.data,
+                    exit_code=exit_code,
+                    provider_child_claimed=False,
+                )
             return CommandProcessResult(
                 stdout=stdout.data,
                 stderr=stderr.data,
@@ -1330,7 +1378,10 @@ class NativeWindowsPodmanEndpointCommandBackend:
             or self.supported is not True
         ):
             raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE)
-        return self._contained._execute_contained(request)
+        result = self._contained._execute_contained(request)
+        if type(result) is not CommandProcessResult:
+            raise CommandExecutionError(CommandExecutionErrorCode.CONTAINMENT_FAILED)
+        return result
 
     def __repr__(self) -> str:
         state = "supported" if self.supported else "unavailable"
@@ -1372,15 +1423,62 @@ class NativeWindowsDockerEndpointCommandBackend:
             or self.supported is not True
         ):
             raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE)
-        return self._contained._execute_contained(request)
+        result = self._contained._execute_contained(request)
+        if type(result) is not CommandProcessResult:
+            raise CommandExecutionError(CommandExecutionErrorCode.CONTAINMENT_FAILED)
+        return result
 
     def __repr__(self) -> str:
         state = "supported" if self.supported else "unavailable"
         return f"NativeWindowsDockerEndpointCommandBackend(state={state!r})"
 
 
+class NativeWindowsTargetObservationCommandBackend:
+    """Execute non-provider target observations in native Job containment."""
+
+    __slots__ = ("_contained",)
+
+    def __init__(
+        self,
+        *,
+        api: _ProcessApi | None = None,
+        clock: _Clock | None = None,
+    ) -> None:
+        self._contained = NativeWindowsCommandVersionBackend(api=api, clock=clock)
+
+    @property
+    def supported(self) -> bool:
+        return self._contained.supported
+
+    def execute(
+        self, request: TargetObservationProcessRequest
+    ) -> TargetObservationProcessResult:
+        if (
+            type(request) is not TargetObservationProcessRequest
+            or self.supported is not True
+            or (
+                request.plan.target.runtime.product is RuntimeProduct.PODMAN
+                and request.plan.operation
+                in {
+                    ObservationOperation.COMPOSE_MODEL_CURRENT,
+                    ObservationOperation.COMPOSE_MODEL_PLANNED,
+                }
+            )
+        ):
+            raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE)
+        result = self._contained._execute_contained(request)
+        if type(result) is not TargetObservationProcessResult:
+            raise CommandExecutionError(CommandExecutionErrorCode.CONTAINMENT_FAILED)
+        return result
+
+    def __repr__(self) -> str:
+        state = "supported" if self.supported else "unavailable"
+        return f"NativeWindowsTargetObservationCommandBackend(state={state!r})"
+
+
 __all__ = [
     "NativeWindowsCommandVersionBackend",
     "NativeWindowsDockerEndpointCommandBackend",
     "NativeWindowsPodmanEndpointCommandBackend",
+    "NativeWindowsTargetObservationCommandBackend",
 ]

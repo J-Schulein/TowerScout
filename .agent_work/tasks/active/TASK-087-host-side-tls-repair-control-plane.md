@@ -1356,6 +1356,90 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-10 - Native Target-Observation Authority Added Locally
+
+**Objective**: Complete the source-only native execution and ownership
+sub-boundary needed to turn the reviewed observation plans into real bounded
+Docker/Podman observations without yet connecting launcher discovery, repair,
+or mutation.
+
+**Context**: Checkpoint `80cc413` reconciles the fixed Gate A burn-down. Slices
+2-3 remained built but unwired because the normalization backend still depended
+on injected claims rather than the existing native Job Object and provider-child
+monitor, and the launcher build did not include its strict YAML parser.
+
+**Decision**: Reuse the existing suspended-process/Job Object runner for Docker
+and engine commands, and require Podman Compose current/planned operations to
+use the existing debug-event provider-child monitor. Transfer all plan inputs,
+verified executable owners, immediate load surfaces, and the Podman provider's
+exact CPython dependency inventory into one authority lease for the complete
+observation. Reopen Docker CLI, Docker Compose, and Podman CLI through their
+package-bound installation/publisher/version verifiers instead of treating a
+constructible plan identity as provenance. Keep the boundary inert until the
+production resolver constructs the plan and the resulting target is wired into
+confirmation and transaction revalidation.
+
+**Execution**:
+
+- Added immutable native observation requests bound to the exact operation,
+  executable, arguments, minimal environment, authenticated files, limits, and
+  authority digest.
+- Extended the native Windows process runner to return bounded observation
+  results while preserving its suspended launch, restricted handle inheritance,
+  closed stdin, streamed output budgets, timeout handling, kill-on-close Job
+  Object, and verified empty process tree.
+- Extended the provider-child path so Podman Compose observations receive a
+  claim bound to actual debug-event enforcement evidence; the generic backend
+  rejects attempts to bypass that path.
+- Added `runtime_target_observation_native.py`, whose factory recaptures every
+  plan file/directory, reopens verified package-bound Docker/Podman entrypoints,
+  holds immediate load prerequisites, separately verifies Podman's base CPython
+  and provider dependency inventory, and transfers one owned backend.
+- Preserved the original process/parse failure after post-operation authority
+  revalidation instead of incorrectly reclassifying every child failure as an
+  input-identity change. Cleanup retains interruption semantics.
+- Added the exact CPython 3.12 Windows AMD64 PyYAML 6.0.3 wheel URL and SHA-256
+  to launcher build requirements, recorded its provenance, and included `yaml`
+  in the PyInstaller analysis.
+
+**Adversarial Coverage**: New tests bind and redact both request types, hold all
+owners through the complete callback, reject execution outside the lease,
+preserve a normal process failure, reject a verified executable that differs
+from the plan, prevent Podman Compose from entering the generic runner, carry
+real provider-child monitor evidence, retain the larger observation output
+budget, verify Docker/Podman factory routing and cleanup, and assert the new
+module remains unwired. Existing provider-child tests now exercise observation
+requests through the same debug monitor used by the transaction boundary.
+
+**Validation**: The native observation/provider-child focus passes `70/70`,
+including the empty-`.env` regression; and the canonical source-only launcher
+selection passes `1273/1273` with the documented Defender-blocked dormant-helper
+file and restricted-host native hard-link smoke excluded. An earlier overbroad
+selection reached the four known Defender parser blocks in the dormant-helper
+file; it found no implementation failure. Compileall, Black, strict mypy for
+the six affected source modules, single-process blocking Flake8, and
+`git diff --check` pass. No Docker, Podman, Compose, launcher, certificate,
+`.env`, container, image, volume, or host mutation command ran.
+
+**Independent Review**: The review-only sub-agent found two Medium issues: the
+dependency provenance initially described planned PyYAML inclusion as if it had
+already been observed in the August 5 artifact, and the native default file
+capture rejected a valid empty `.env`. The corrected provenance now separates
+the historical artifact from the next controlled build, and empty files are
+accepted with a positive native read bound. Independent re-review confirmed
+the corrections and the focused `70/70` result; no blocking finding remains.
+
+**Boundary**: This materially completes the concrete execution/authority
+component described as the first half of the exact-target wiring outcome. It
+has passed independent review and is ready for checkpointing, but remains
+unavailable to the launcher until the production resolver and confirmation
+path are wired. The Gate A dashboard therefore remains at its committed status
+until checkpointing.
+
+**Next**: Checkpoint the reviewed slice. Then connect the production resolver
+owners to this factory, construct the exact target before confirmation, and add
+pre-write/pre-restart/terminal stage revalidation without enabling mutation.
+
 ### 2026-09-10 - Gate A Documentation Burn-Down Reconciled
 
 **Objective**: Make material Gate A progress and remaining work visible without

@@ -7,8 +7,10 @@ accepted source ref and resolve the open notice questions below.
 
 ## Build toolchain
 
-The isolated August 5, 2026 build used CPython 3.12.5 and the exact packages
-pinned in `requirements-build.txt`:
+The isolated August 5, 2026 build used CPython 3.12.5 and the then-current
+exact packages listed below. PyYAML 6.0.3 is separately pinned in the current
+`requirements-build.txt` for the next controlled build; it was not present in
+or observed from the August 5 artifact.
 
 | Component | Version | License metadata observed locally | Role |
 | --- | --- | --- | --- |
@@ -17,6 +19,7 @@ pinned in `requirements-build.txt`:
 | altgraph | 0.17.5 | MIT | PyInstaller dependency analysis |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | Version and requirement handling |
 | pefile | 2023.2.7 | MIT | Windows PE processing during the build |
+| PyYAML | 6.0.3 | MIT | Planned next-build dependency for strictly parsing bounded Podman Compose configuration output; the reviewed CPython 3.12 Windows wheel is URL- and SHA-256-locked in the build requirements |
 | pywin32-ctypes | 0.2.3 | BSD-3-Clause | Windows build support |
 | setuptools | 83.0.0 | MIT | PyInstaller build dependency |
 
@@ -33,6 +36,11 @@ Static inventory of the prototype output identified:
 - PyInstaller's Windows AMD64 GUI bootloader and Python archive;
 - Windows extension modules and runtime DLLs selected by PyInstaller; and
 - TowerScout launcher modules `app`, `coordination`, `discovery`, and `models`.
+
+The next controlled launcher build is expected to add PyYAML 6.0.3 and its
+Windows AMD64 extension for the bounded safe Podman Compose configuration
+parser. That expected inventory must be regenerated and verified from the new
+artifact before it is treated as build evidence.
 
 The launcher package contains no TowerScout model/data assets, provider keys,
 dormant helper, PowerShell/CMD/BAT files, certificate/key files, or container

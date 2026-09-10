@@ -23,7 +23,11 @@ from .runtime_command_version import (
     COMMAND_TIMEOUT_MS,
 )
 from .runtime_execution import CommandKind, ProcessCommandPlan
-from .target_contracts import FileIdentity
+from .runtime_target_observation import (
+    ObservationOperation,
+    TargetObservationProcessPlan,
+)
+from .target_contracts import FileIdentity, RuntimeProduct
 from .windows_security import FileSnapshot, StableFileIdentity
 
 _PATH_DOMAIN = b"TowerScout.ProviderChildImagePath.v1"
@@ -283,6 +287,39 @@ def _request_digest(plan: ProcessCommandPlan) -> str:
     return digest.hexdigest()
 
 
+def _observation_request_digest(plan: TargetObservationProcessPlan) -> str:
+    digest = hashlib.sha256()
+    values: list[bytes] = [
+        b"TowerScout.TargetObservationProviderChildRequest.v1",
+        plan.authority_sha256.encode("ascii"),
+        plan.operation.value.encode("ascii"),
+        str(plan.executable.final_path).encode("utf-16-le", errors="strict"),
+    ]
+    values.extend(
+        argument.encode("utf-8", errors="strict") for argument in plan.arguments
+    )
+    for name, value in plan.environment_items:
+        values.extend(
+            (
+                name.encode("ascii", errors="strict"),
+                value.encode("utf-8", errors="strict"),
+            )
+        )
+    values.append(str(plan.working_directory).encode("utf-16-le", errors="strict"))
+    for identity in plan.authenticated_files:
+        values.extend(
+            (
+                identity.volume_serial.to_bytes(8, "big"),
+                identity.file_id,
+                identity.sha256.encode("ascii") if identity.sha256 else b"<directory>",
+                identity.canonical_path_sha256.encode("ascii"),
+            )
+        )
+    for encoded_value in values:
+        _add(digest, encoded_value)
+    return digest.hexdigest()
+
+
 @dataclass(frozen=True, slots=True, repr=False)
 class ProviderChildProcessRequest:
     """Exact, shell-free request derived from one validated Podman plan."""
@@ -396,9 +433,92 @@ class ProviderChildProcessRequest:
         )
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class TargetObservationProviderChildProcessRequest:
+    """Exact provider-child request derived from a Podman observation plan."""
+
+    plan: TargetObservationProcessPlan = field(repr=False)
+    binding_sha256: str = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.plan) is not TargetObservationProcessPlan
+            or self.plan.target.runtime.product is not RuntimeProduct.PODMAN
+            or self.plan.operation
+            not in {
+                ObservationOperation.COMPOSE_MODEL_CURRENT,
+                ObservationOperation.COMPOSE_MODEL_PLANNED,
+            }
+        ):
+            raise ValueError("Target-observation provider-child plan is invalid.")
+        try:
+            binding = _observation_request_digest(self.plan)
+        except (OverflowError, TypeError, UnicodeError, ValueError):
+            raise ValueError(
+                "Target-observation provider-child plan is invalid."
+            ) from None
+        object.__setattr__(self, "binding_sha256", binding)
+
+    @classmethod
+    def from_plan(
+        cls, plan: TargetObservationProcessPlan
+    ) -> "TargetObservationProviderChildProcessRequest":
+        return cls(plan)
+
+    @property
+    def executable_path(self) -> PureWindowsPath:
+        return self.plan.executable.final_path
+
+    @property
+    def arguments(self) -> tuple[str, ...]:
+        return self.plan.arguments
+
+    @property
+    def environment(self) -> tuple[tuple[str, str], ...]:
+        return tuple(
+            sorted(self.plan.environment_items, key=lambda item: item[0].casefold())
+        )
+
+    @property
+    def working_directory(self) -> PureWindowsPath:
+        return self.plan.working_directory
+
+    @property
+    def timeout_ms(self) -> int:
+        return self.plan.timeout_ms
+
+    @property
+    def stdout_limit_bytes(self) -> int:
+        return self.plan.stdout_limit_bytes
+
+    @property
+    def stderr_limit_bytes(self) -> int:
+        return self.plan.stderr_limit_bytes
+
+    @property
+    def authority_sha256(self) -> str:
+        return self.plan.authority_sha256
+
+    @property
+    def stdin_closed(self) -> bool:
+        return self.plan.stdin_closed
+
+    @property
+    def shell(self) -> bool:
+        return self.plan.shell
+
+    def __repr__(self) -> str:
+        return (
+            "TargetObservationProviderChildProcessRequest("
+            f"operation={self.plan.operation.value!r}, "
+            f"arguments={len(self.plan.arguments)}, path='<redacted>')"
+        )
+
+
 __all__ = [
     "ProcessImageBinding",
     "ProcessImagePolicy",
     "ProcessImageRole",
     "ProviderChildProcessRequest",
+    "TargetObservationProviderChildProcessRequest",
 ]

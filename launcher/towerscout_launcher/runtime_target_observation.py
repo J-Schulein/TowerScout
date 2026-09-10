@@ -532,6 +532,68 @@ class TargetObservationProcessPlan:
 
 
 @dataclass(frozen=True, slots=True, repr=False)
+class TargetObservationProcessRequest:
+    """Native-process request that can only wrap one validated observation plan."""
+
+    plan: TargetObservationProcessPlan = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if type(self.plan) is not TargetObservationProcessPlan:
+            _reject(TargetObservationBindingErrorCode.PLAN_REJECTED)
+
+    @classmethod
+    def from_plan(
+        cls, plan: TargetObservationProcessPlan
+    ) -> "TargetObservationProcessRequest":
+        return cls(plan)
+
+    @property
+    def executable_path(self) -> PureWindowsPath:
+        return self.plan.executable.final_path
+
+    @property
+    def arguments(self) -> tuple[str, ...]:
+        return self.plan.arguments
+
+    @property
+    def environment(self) -> tuple[tuple[str, str], ...]:
+        return tuple(
+            sorted(self.plan.environment_items, key=lambda item: item[0].casefold())
+        )
+
+    @property
+    def working_directory(self) -> PureWindowsPath:
+        return self.plan.working_directory
+
+    @property
+    def timeout_ms(self) -> int:
+        return self.plan.timeout_ms
+
+    @property
+    def stdout_limit_bytes(self) -> int:
+        return self.plan.stdout_limit_bytes
+
+    @property
+    def stderr_limit_bytes(self) -> int:
+        return self.plan.stderr_limit_bytes
+
+    @property
+    def stdin_closed(self) -> bool:
+        return self.plan.stdin_closed
+
+    @property
+    def shell(self) -> bool:
+        return self.plan.shell
+
+    def __repr__(self) -> str:
+        return (
+            "TargetObservationProcessRequest("
+            f"operation={self.plan.operation.value!r}, "
+            f"arguments={len(self.plan.arguments)}, path='<redacted>')"
+        )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
 class TargetObservationExecutionBinding:
     """Construct only the reviewed observation commands for one target plan."""
 
@@ -625,4 +687,5 @@ __all__ = [
     "TargetObservationBindingErrorCode",
     "TargetObservationExecutionBinding",
     "TargetObservationProcessPlan",
+    "TargetObservationProcessRequest",
 ]

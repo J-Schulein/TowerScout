@@ -15,7 +15,7 @@ analysis = Analysis(
         (str(runtime_policy_path), "towerscout_launcher"),
         (str(runtime_dependency_policy_path), "towerscout_launcher"),
     ],
-    hiddenimports=["tkinter", "tkinter.messagebox", "tkinter.ttk"],
+    hiddenimports=["tkinter", "tkinter.messagebox", "tkinter.ttk", "yaml"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
