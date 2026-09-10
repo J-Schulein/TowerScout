@@ -2,7 +2,7 @@
 
 **As Of**: September 10, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `dd1af9cfa2e70735e39410ca04951eb2012052a1`
+**Implementation Head**: `2d885ccd1a9f2832e447feace46c266c0bd88755`
 **Draft PR**: [#67](https://github.com/J-Schulein/TowerScout/pull/67)
 **Overall State**: IN_PROGRESS / Gate A source implementation
 **Gate A Exit**: NOT MET
@@ -36,8 +36,8 @@ Status in this file answers four separate questions:
 | ID | Approved slice | State | Material evidence already completed | Remaining before this slice is complete |
 | ---: | --- | --- | --- | --- |
 | 1 | Contracts and models | **COMPLETE** | Immutable target/plan contracts, redacted summaries, mutation-off default, Windows-path portability, and adversarial contracts are checkpointed from `7ad221d` through `0eebe7b`. | Keep the contracts stable while later integration consumes them. |
-| 2 | Runtime resolver | **BUILT BUT UNWIRED** | Runtime/Compose authentication, exact CPython dependency and dynamic-load policy, provider-child containment, held ownership, rootless Podman resolution, package configuration, and Docker named-pipe capture are implemented and independently reviewed. Key checkpoints include `1970f76`, `2d37e66`, `e18fb3a`, `d40bb7f`, `f423da4`, `30acb79`, `a4e7015`, `81f82b3`, `8076823`, and `dd1af9c`; the latest checkpoint adds the ownership-preserving native observation executor and production authority factory. | Connect the resolved runtime and its transferred authority to the exact-target path. |
-| 3 | Target resolver | **BUILT BUT UNWIRED** | `0704974` defines the normalized target and revalidation contract; `215d520` defines immutable observation commands; `0674805` strictly normalizes Docker/Podman Compose, container, image, and all eight volume observations; `dd1af9c` executes those plans through the authenticated native boundary while retaining exact owners. | Construct the production target before confirmation and wire stage-specific revalidation into the transaction. |
+| 2 | Runtime resolver | **BUILT BUT UNWIRED** | Runtime/Compose authentication, exact CPython dependency and dynamic-load policy, provider-child containment, held ownership, rootless Podman resolution, package configuration, and Docker named-pipe capture are implemented and independently reviewed. Key checkpoints include `1970f76`, `2d37e66`, `e18fb3a`, `d40bb7f`, `f423da4`, `30acb79`, `a4e7015`, `81f82b3`, `8076823`, `dd1af9c`, and `2d885cc`; the latest checkpoint transfers the production native observation authority directly into an owned exact target. | Construct the immutable production plan from authenticated inputs and connect the resulting exact target ahead of confirmation. |
+| 3 | Target resolver | **BUILT BUT UNWIRED** | `0704974` defines the normalized target and revalidation contract; `215d520` defines immutable observation commands; `0674805` strictly normalizes Docker/Podman Compose, container, image, and all eight volume observations; `dd1af9c` executes those plans through the authenticated native boundary while retaining exact owners; and `2d885cc` bridges that native authority into the bound resolver with fail-closed ownership cleanup. | Assemble the production plan before confirmation, then wire exact-target confirmation and stage-specific revalidation into the transaction. |
 | 4 | Windows trust proof | **PARTIAL** | Pure Windows-root eligibility and exact-root selection contracts exist in `trust_policy.py`, with bounded/redacted target fields. | Implement native Windows `ROOT`/`CA` acquisition and server-auth chain verification, reject environment/OpenSSL trust injection, export only the selected root, and integrate the private CA identity into the target. |
 | 5 | Windows security proof | **PARTIAL** | `2d37e66` implements handle/file-ID, owner, DACL, reparse, hard-link, and supported cloud/OneDrive path controls. `f7d21a9` and `16604c8` implement secured cross-session mutexes and ordered `.env`/target lock ownership. | Add protected Local AppData state, current-user DPAPI, secure absence proof, and ACL-preserving atomic `.env` replacement; then exercise the completed primitives together. |
 | 6 | Recovery manager | **NOT STARTED** | The approved journal/recovery contract and adversarial scenarios are documented. | Implement the versioned write-ahead journal, encrypted exact-state backups, authenticated startup reconciliation, fresh-process idempotent recovery, verified rollback, and recovery-pending retention. |
@@ -50,17 +50,17 @@ Status in this file answers four separate questions:
 Gate A is materially advanced but is not near exit. The exact-runtime and
 exact-target foundation is approaching end-to-end integration. The durable
 mutation and recovery half remains. Since reviewed lifecycle head `6e0f744`,
-the branch has accumulated 35 Gate A commits, including 26 implementation/test
+the branch has accumulated 38 Gate A commits, including 27 implementation/test
 commits touching 34 launcher-source files and 30 unit-test files. Those counts
 show implementation activity; the slice states above, not commit count or line
 count, determine completion.
 
 ## Remaining Outcome Sequence
 
-1. **Finish exact-target wiring (slices 2-3).** The native observation executor
-   and authority factory are checkpointed. Connect the resolved runtime and
-   transferred authority, then bind the resulting exact target into
-   confirmation and stage-specific revalidation.
+1. **Finish exact-target wiring (slices 2-3).** The native observation executor,
+   authority factory, and owned exact-target bridge are checkpointed. Build the
+   authenticated production plan assembler, connect the resulting target ahead
+   of confirmation, and wire stage-specific revalidation.
 2. **Finish Windows mutation foundations (slices 4-5).** Complete Windows-store
    CA verification plus DPAPI-backed, ACL-preserving atomic `.env` handling by
    reusing the already reviewed path and mutex controls.
