@@ -2,19 +2,20 @@
 
 **Sprint Period**: August 8-August 21, 2026
 **Last Updated**: September 10, 2026
-**Focus**: Task-101 is complete. Task-087 Docker endpoint checkpoint `8076823`
-passed exact-head CI/CD run `34487846481`, Task-087 run `34487846501`, and
-external Trivy; all nine applicable pull-request checks succeeded after
-independent corrected-diff CLEAN/PASS review. The current local source-only
-follow-up adds the provider-neutral normalized target-resolution contract. It
-binds the authenticated plan, strict pre/post Compose models, exactly one
-running container plus its security/runtime state, pinned image, loopback
-publication, and all eight named volumes through two matching read-only
-observations and later held revalidation. The production Docker/Podman
-observation adapter remains the next
-target-resolution increment; no live launcher path imports this module and no
-repair or mutation is enabled. Durable recovery, Windows-store CA selection,
-and ACL-preserving `.env` replacement remain later Gate A work.
+**Focus**: Task-101 is complete. Task-087 normalized target-resolution
+checkpoint `0704974` passed exact-head CI/CD run `34500079631`, Task-087 run
+`34500079667`, and external Trivy run `102948482699`; all nine applicable pull-
+request checks succeeded after independent corrected-diff CLEAN/PASS review.
+The current local source-only follow-up defines immutable explicit-endpoint
+process plans for the current/planned Compose models, exact TowerScout container
+selection, full container/image inspection, and all eight volume inspections.
+It binds the complete authenticated input inventory, constructs a minimal child
+environment, and permits only the two fixed planned CA overrides; it does not
+execute or parse any runtime command. The held native executor and provider-
+specific normalizers remain the next target-resolution increments. No live
+launcher path imports this module and no repair or mutation is enabled. Durable
+recovery, Windows-store CA selection, and ACL-preserving `.env` replacement
+remain later Gate A work.
 Unsigned preview integration remains later under ADR-019. Production signing
 remains Task-100 work in October after the package is satisfactory.
 
@@ -522,26 +523,38 @@ timing; preview integration remains a later gate
   remains unwired and performs no live runtime operation, repair, or mutation.
   Exact-head CI/CD run `34487846481`, Task-087 run `34487846501`, and external
   Trivy passed with all nine applicable pull-request checks successful.
-- The current local source-only increment adds an immutable normalized target-
-  resolution plan, bounded duplicate-safe JSON observations, exact Docker and
-  Podman CPU/GPU Compose policy, one running container and pinned-image binding,
-  loopback-only publication, and exact ordered identity for all eight named
-  volumes. Two complete observations must match before a closeable target owner
-  is returned; later checks and held operations revalidate the same binding
-  before and after use. Malformed, ambiguous, changed, non-loopback, bind-mount,
-  wrong-image, wrong-volume, unsafe-environment, and private backend failures
-  fail closed with sanitized errors. The focused resolver suite passes `89/89`,
-  the target-contract/resolver/execution set passes `168/168`, and the canonical
-  launcher selection passes `1124/1124` with only the documented restricted-
-  host native hardlink case deselected. Strict mypy, single-process blocking
-  Flake8/complexity, medium/high Bandit, Black, and compilation pass. The
-  normalized backend is intentionally injected and test-only; an authenticated
-  native Docker/Podman observation adapter and live-path wiring remain separate
-  reviewable work, and no runtime command, repair, or mutation ran. Independent
-  review found five Medium binding/lifetime/sanitization gaps and six Low
-  schema/coverage/typing/ownership/evidence gaps across its passes; all were
-  corrected, and final corrected-diff review returned CLEAN/PASS with no
-  remaining finding after independently reproducing every listed gate.
+- Checkpoint `0704974` adds an immutable normalized target-resolution plan,
+  bounded duplicate-safe JSON observations, exact Docker and Podman CPU/GPU
+  Compose policy, one running container and pinned-image binding, loopback-only
+  publication, and exact ordered identity for all eight named volumes. Two
+  complete observations must match before a closeable target owner is returned;
+  later checks and held operations revalidate the same binding before and after
+  use. Malformed, ambiguous, changed, non-loopback, bind-mount, wrong-image,
+  wrong-volume, unsafe-environment, and private backend failures fail closed
+  with sanitized errors. Independent review found and closed five Medium and
+  six Low issues across its passes, returned final CLEAN/PASS, and reproduced
+  every listed gate. Exact-head CI/CD run `34500079631`, Task-087 run
+  `34500079667`, and external Trivy run `102948482699` passed with all nine
+  applicable pull-request checks successful; the PR-only build job skipped as
+  designed.
+- The current local source-only increment defines immutable, explicit-endpoint
+  process plans for current/planned Compose reads, exact container listing and
+  inspection, digest-form image inspection, and all eight ordered named-volume
+  inspections. Docker binds the captured pipe and authenticated standalone
+  Compose executable; Podman binds the captured rootless URI/key, authenticated
+  CPython provider/module, and fixed Podman child path. Ambient environment
+  state is discarded, only the two planned CA variables are added, Windows
+  command/environment shape and dynamic selectors are strictly bounded, and
+  every command names the full authenticated inventory its future owner must
+  retain. The focused suite passes `21/21`, the related contract/resolver/
+  execution selection passes `189/189`, and the canonical launcher selection
+  passes `1145/1145` with only
+  the documented restricted-host hardlink case deselected. Static/security
+  checks pass. Independent review found and closed three Low process-bound/
+  constant-drift/coverage gaps; corrected-diff re-review returned CLEAN/PASS
+  with no remaining finding. This source remains inert and unwired: held native
+  execution, provider-specific output normalization, and live-path integration
+  are separate reviewable work, and no runtime command, repair, or mutation ran.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

@@ -54,17 +54,21 @@ exact-head CI/CD run `34487846481`, Task-087 run `34487846501`, and external
 Trivy with all nine applicable pull-request checks successful after independent
 corrected-diff CLEAN/PASS review. Both remain unwired. Existing `.env` state is
 supported; absent `.env` deliberately fails closed until atomic replacement
-supplies secure absence proof and authenticated template fallback. The current
-local source-only follow-up implements the provider-neutral normalized target-
-resolution contract: strict pre/post Compose policy, one running container and
-pinned image, its exact security/runtime state, loopback publication, and all
-eight exact named volumes must match across two read-only observations and later
-held revalidation. Its backend is
-injected and test-only; the authenticated native Docker/Podman observation
-adapter remains the next target-resolution increment. No live launcher path
-imports the module and no runtime command, repair, or host/container mutation
-ran. Recovery, Windows-store CA selection, and secure `.env` replacement remain
-open Gate A work. Merge/publication retain their separate applicable gates.
+supplies secure absence proof and authenticated template fallback. Normalized
+target-resolution checkpoint `0704974` passed exact-head CI/CD run
+`34500079631`, Task-087 run `34500079667`, and external Trivy run
+`102948482699`, with all nine applicable pull-request checks successful; the
+main-only build job skipped as designed. The current local source-only follow-up
+defines every current/planned Compose and exact container/image/volume
+observation as an immutable, explicit-endpoint process plan. It binds the
+complete authenticated plan inventory, discards ambient environment state,
+permits only two fixed planned CA overrides, and accepts only full container/
+image IDs or the eight derived volume names. It remains inert: the held native
+executor and provider-specific output normalizers are still the next target-
+resolution increments. No live launcher path imports the module and no runtime
+command, repair, or host/container mutation ran. Recovery, Windows-store CA
+selection, and secure `.env` replacement remain open Gate A work. Merge/
+publication retain their separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -1411,6 +1415,83 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-10 - Exact Target-Observation Command Plans Added Locally
+
+**Objective**: Continue target resolution with the smallest reviewable command-
+boundary increment, without executing Docker, Podman, or Compose and without
+wiring launcher behavior or mutation.
+
+**Checkpoint Context**: Independently reviewed normalized target-resolution
+checkpoint `0704974` is the exact local and remote base. It passed exact-head
+CI/CD run `34500079631`, Task-087 run `34500079667`, and external Trivy run
+`102948482699`; all nine applicable pull-request checks succeeded and the main-
+only build job skipped as designed for a pull request.
+
+**Decision**: Separate immutable observation-command construction from native
+process execution and provider-specific parsing. Construct planned Compose
+configuration by giving the authenticated provider only the two fixed container
+CA overrides in its otherwise minimal process environment; the exact held
+`.env`/template still supplies every other interpolation value. This avoids an
+ordinary secret-bearing temporary environment file while retaining the current
+and planned environment hashes in the parent target authority.
+
+**Execution**: Added `runtime_target_observation.py`. Its binding produces only
+six read classes: current and planned Compose configuration, exact TowerScout
+container listing, full container inspection, digest-form image inspection, and
+the eight ordered named-volume inspections. Docker uses the captured named pipe
+through explicit `--host` and the authenticated standalone Compose executable.
+Podman uses the captured rootless URI/key through explicit `--url`/`--identity`
+and the authenticated CPython/module provider with its fixed Podman child path.
+All commands use absolute executable paths, the authenticated package working
+directory, closed stdin, `shell=False`, fixed time/output limits, and a newly
+constructed minimal environment. Conservative Windows command-line argument/
+aggregate and environment-item/block limits reject unrepresentable process
+shapes before execution. The command owner must retain the runtime, provider,
+Compose/environment/security inputs, package/process-environment directories,
+and endpoint material named by the plan.
+
+**Adversarial Coverage**: Tests cover Docker and Podman command shape, explicit
+endpoint propagation, absence of ambient path/proxy/runtime redirect variables,
+planned-CA-only environment expansion, exact provider/file inventory, read-only
+container selection, all eight volumes in canonical order, strict full
+container and image IDs, invalid volume names, argument/environment/identity/
+executable/limit/stdio tampering, aggregate Windows command/environment limits,
+nonempty endpoint discovery ownership, sanitized representations, invalid
+target types, and continued isolation from live launcher modules. The planned
+CA destination aliases the canonical target-contract constant rather than
+creating an independent path value.
+
+**Validation**: Tests were written first; collection initially failed because
+the new module did not exist. The focused suite passes `21/21`; the target-
+contract/runtime-execution/target-resolution/observation set passes `189/189`.
+The canonical launcher selection passes `1145/1145`, with only the documented
+restricted-host native hardlink case deselected. Black, strict mypy, single-
+process blocking/fatal Flake8 plus complexity, medium/high Bandit, compilation,
+and `git diff --check` pass.
+
+**Independent Review**: Initial inspect-only review found three Low hardening
+gaps: aggregate Windows process-shape limits were missing, the planned CA path
+duplicated a canonical target-contract constant, and tests did not exercise
+nonempty endpoint discovery artifacts. All three are corrected with conservative
+UTF-16 process bounds, a canonical constant alias, and adversarial regressions.
+Corrected-diff re-review returned CLEAN/PASS with no remaining Critical, High,
+Medium, or Low finding after independently reproducing `21/21` focused tests,
+`189/189` related tests, and every scoped static/hygiene gate. The reviewer made
+no repository edit and ran no live runtime command.
+
+**Boundary**: This source is an inert plan constructor, not a process backend or
+target-resolution backend. It does not parse provider output, claim that live
+endpoint/container/volume state was observed, or authorize a repair. No Docker,
+Podman, Compose, launcher, package, repair, filesystem-write, publication, or
+installed-binary command ran. Raw environment values remain private and no
+temporary `.env` was created.
+
+**Next**: Add the ownership-preserving native observation executor and strict
+Docker/Podman output normalizers that consume only these plans and emit the
+existing bounded `TargetResolutionSnapshot`. Reuse the held runtime/provider/
+endpoint/file owners, keep Podman's provider-child propagation enforced, and
+leave live launcher wiring for a later independently reviewed boundary.
 
 ### 2026-09-10 - Normalized Exact Target Resolution Added Locally
 
