@@ -1356,7 +1356,7 @@ Exit criteria:
 
 ## Implementation Log
 
-### 2026-09-10 - Owned Production Target-Plan Assembly Added Locally
+### 2026-09-10 - Owned Production Target-Plan Assembly Checkpointed
 
 **Objective**: Build the missing source-only handoff from one coherent set of
 authenticated resolver inputs to the checkpointed native exact-target bridge,
@@ -1411,6 +1411,9 @@ unwired boundary, test adequacy, documentation accuracy, and the Task-092
 model-upgrade handoff note. Its independent focused selection passed `11/11`
 with `90` tests deselected; it made no working-tree changes.
 
+**Checkpoint**: Implementation, tests, handoff note, and review evidence were
+committed as `eaa2116` (`feat(launcher): assemble authenticated target plans`).
+
 **Boundary**: This materially implements the plan-assembly and ownership
 handoff sub-increment in slices 2-3. Those slices remain **BUILT BUT UNWIRED**:
 the launcher still needs a concrete authenticated-input owner and must consume
@@ -1418,10 +1421,9 @@ the resulting resolved target before confirmation. Native Windows-store
 certificate proof from slice 4 remains a required input to that final wiring;
 this is an existing dependency, not a new Gate A slice.
 
-**Next**: Checkpoint this independently reviewed increment. Then implement the
-concrete authenticated-input capture/owner alongside the native Windows-store
-certificate proof before connecting exact-target confirmation and
-stage-specific transaction revalidation.
+**Next**: Implement the concrete authenticated-input capture/owner alongside
+the native Windows-store certificate proof before connecting exact-target
+confirmation and stage-specific transaction revalidation.
 
 ### 2026-09-10 - Native Exact-Target Resolver Bridge Added Locally
 

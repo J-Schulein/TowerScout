@@ -7,15 +7,15 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, built-but-unwired, partial,
-not-started, and validation states. At source head `2d885ccd1a9f`, contracts are
+not-started, and validation states. At source head `eaa2116363f0`, contracts are
 complete; runtime/target foundations, including the reviewed native observation
-executor, production authority factory, and owned exact-target bridge, are
-substantially built but unwired;
+executor, production authority factory, owned exact-target bridge, and stable
+authenticated target-plan assembler, are substantially built but unwired;
 Windows trust/security are partial; durable recovery, transaction refactoring,
 provider-installer completion, and final proof remain. At earlier source head
 `0674805`, all applicable checks passed in CI/CD run `34515408041`, Task-087 run
 `34515408156`, and external Trivy job `102999589403`; the PR-only build skipped
-as designed. Current head `2d885ccd1a9f` is locally and independently validated
+as designed. Source head `eaa2116363f0` is locally and independently validated
 and awaits its new exact-head workflows after push. No repair or mutation is
 enabled. Gate B preview integration and Task-100 signing remain separate.
 
@@ -28,8 +28,9 @@ enabled. Gate B preview integration and Task-100 signing remain separate.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Draft PR #67 is at `2d885ccd1a9f`. Gate A remains open and mutation remains
-  disabled. The detailed status and evidence pointers are maintained in the
+- Task-087 source checkpoint `eaa2116363f0` is ready; PR #67 remains Draft.
+  Gate A remains open and mutation remains disabled. Detailed status and
+  evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
   in this release-state summary.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
@@ -144,8 +145,9 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced but not
-near exit. At `2d885ccd1a9f`, slice 1 is complete; slices 2-3 are substantially
-built but unwired, with the owned native exact-target bridge now checkpointed;
+near exit. At `eaa2116363f0`, slice 1 is complete; slices 2-3 are substantially
+built but unwired, with the owned native exact-target bridge and stable
+authenticated target-plan assembler now checkpointed;
 slices 4-5 and 8 are partial; slices 6-7 are not started;
 and slice 9 continues incrementally but lacks its final live proof. Mutation is
 disabled and PR #67 remains Draft.
@@ -175,8 +177,8 @@ canonical burn-down; re-estimate after exact-target wiring
 - Keep Gate A source acceptance, Gate B artifact/preview integrity, and
   Gate C/Task-100 signing and managed-endpoint qualification separate. PR #67
   remains Draft.
-- The immediate outcome is to finish slices 2-3 by building the authenticated
-  production plan assembler, connecting the checkpointed owned exact target
+- The immediate outcome is to finish slices 2-3 by implementing the concrete
+  authenticated-input owner, connecting the checkpointed owned exact target
   ahead of confirmation, and wiring stage-specific revalidation.
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
