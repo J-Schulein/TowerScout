@@ -1,4 +1,4 @@
-"""Native Windows process containment for authenticated version commands.
+"""Native Windows process containment for authenticated read-only commands.
 
 The adapter launches one exact absolute application path suspended, assigns it
 to a kill-on-close Job Object before its first instruction, restricts inherited
@@ -22,6 +22,7 @@ from .runtime_command_version import (
     CommandProcessRequest,
     CommandProcessResult,
 )
+from .runtime_podman_endpoint import PodmanEndpointCommandRequest
 from .runtime_provider_child import ProviderChildProcessRequest
 
 CREATE_SUSPENDED = 0x00000004
@@ -298,7 +299,11 @@ class _ProcessApi(Protocol):
 
     def start(
         self,
-        request: CommandProcessRequest | ProviderChildProcessRequest,
+        request: (
+            CommandProcessRequest
+            | PodmanEndpointCommandRequest
+            | ProviderChildProcessRequest
+        ),
         *,
         debug_process_tree: bool = False,
         active_process_limit: int = 1,
@@ -623,13 +628,22 @@ class _NativeWindowsProcessApi:
 
     def start(
         self,
-        request: CommandProcessRequest | ProviderChildProcessRequest,
+        request: (
+            CommandProcessRequest
+            | PodmanEndpointCommandRequest
+            | ProviderChildProcessRequest
+        ),
         *,
         debug_process_tree: bool = False,
         active_process_limit: int = 1,
     ) -> _NativeProcess:
         if (
-            type(request) not in {CommandProcessRequest, ProviderChildProcessRequest}
+            type(request)
+            not in {
+                CommandProcessRequest,
+                PodmanEndpointCommandRequest,
+                ProviderChildProcessRequest,
+            }
             or type(debug_process_tree) is not bool
             or type(active_process_limit) is not int
             or active_process_limit not in {1, 2}
@@ -1075,6 +1089,12 @@ class NativeWindowsCommandVersionBackend:
     def execute(self, request: CommandProcessRequest) -> CommandProcessResult:
         if type(request) is not CommandProcessRequest or self.supported is not True:
             raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE)
+        return self._execute_contained(request)
+
+    def _execute_contained(
+        self,
+        request: CommandProcessRequest | PodmanEndpointCommandRequest,
+    ) -> CommandProcessResult:
         try:
             process = self._api.start(request)
         except CommandExecutionError:
@@ -1176,4 +1196,46 @@ class NativeWindowsCommandVersionBackend:
         return f"NativeWindowsCommandVersionBackend(state={state!r})"
 
 
-__all__ = ["NativeWindowsCommandVersionBackend"]
+class NativeWindowsPodmanEndpointCommandBackend:
+    """Execute only validated Podman endpoint queries in native containment."""
+
+    __slots__ = ("_contained",)
+
+    def __init__(
+        self,
+        *,
+        api: _ProcessApi | None = None,
+        clock: _Clock | None = None,
+    ) -> None:
+        self._contained = NativeWindowsCommandVersionBackend(api=api, clock=clock)
+
+    @property
+    def supported(self) -> bool:
+        return self._contained.supported
+
+    def windows_directory(self) -> str:
+        return self._contained.windows_directory()
+
+    def system_directory(self) -> str:
+        return self._contained.system_directory()
+
+    def execute(
+        self,
+        request: PodmanEndpointCommandRequest,
+    ) -> CommandProcessResult:
+        if (
+            type(request) is not PodmanEndpointCommandRequest
+            or self.supported is not True
+        ):
+            raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE)
+        return self._contained._execute_contained(request)
+
+    def __repr__(self) -> str:
+        state = "supported" if self.supported else "unavailable"
+        return f"NativeWindowsPodmanEndpointCommandBackend(state={state!r})"
+
+
+__all__ = [
+    "NativeWindowsCommandVersionBackend",
+    "NativeWindowsPodmanEndpointCommandBackend",
+]

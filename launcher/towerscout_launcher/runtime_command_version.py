@@ -17,7 +17,7 @@ import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import PureWindowsPath
-from typing import Any, NoReturn, Protocol, Sequence
+from typing import Any, Callable, NoReturn, Protocol, Sequence, TypeVar
 
 from .authenticode import (
     AuthenticodeBackend,
@@ -88,6 +88,7 @@ _RESERVED_LEAVES = frozenset(
         *(f"lpt{index}" for index in range(1, 10)),
     }
 )
+_HeldResult = TypeVar("_HeldResult")
 
 
 class CommandExecutionErrorCode(str, Enum):
@@ -804,6 +805,63 @@ class BoundCommandRuntimeEvidence:
             if not _snapshot_matches(snapshot, self._evidence):
                 _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
             return self._evidence
+        finally:
+            self._active_owner = None
+            self._lifetime_lock.release()
+
+    def _run_while_held(
+        self,
+        operation: Callable[[PureWindowsPath], _HeldResult],
+    ) -> _HeldResult:
+        """Run one internal read-only operation while the runtime stays leased.
+
+        The callback receives only the already authenticated final executable
+        path.  It never receives the file handle or ownership capability.  A
+        close or transfer from another thread waits until the callback and the
+        final installation/same-handle revalidation both finish.
+        """
+
+        if not callable(operation):
+            _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+        self._lifetime_lock.acquire()
+        if self._active_owner is not None or self._candidate.closed:
+            self._lifetime_lock.release()
+            _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+        self._active_owner = threading.get_ident()
+        try:
+            try:
+                before = self._candidate.assert_unchanged()
+            except RuntimeIdentityVerificationError as error:
+                _map_identity_error(error)
+            except Exception:
+                _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+            if not _snapshot_matches(before, self._evidence):
+                _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+            executable_path = _canonical_windows_path(
+                before.final_path,
+                allow_extended=True,
+            )
+            try:
+                result = operation(executable_path)
+            except BaseException:
+                try:
+                    after_error = self._candidate.assert_unchanged()
+                except RuntimeIdentityVerificationError as error:
+                    _map_identity_error(error)
+                except Exception:
+                    _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+                if not _snapshot_matches(after_error, self._evidence):
+                    _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+                raise
+            try:
+                after = self._candidate.assert_unchanged()
+            except RuntimeIdentityVerificationError as error:
+                _map_identity_error(error)
+            except Exception:
+                _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+            if not _snapshot_matches(after, self._evidence):
+                _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+            return result
         finally:
             self._active_owner = None
             self._lifetime_lock.release()

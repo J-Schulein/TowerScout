@@ -1,6 +1,6 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: September 9, 2026
+**Last Updated**: September 10, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases until the
 normal-user package is satisfactory, then complete Task-100 production signing
@@ -144,7 +144,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT; independently reviewed provider-composition checkpoint `5950188` passed exact-head CI/CD run `34392071456`, Task-087 run `34392071573`, and external Trivy. The current local source-only fixed-runtime-resolver increment passed corrected-diff independent review after closing one Medium asynchronous-interruption ownership gap; it remains unwired, enables no execution or mutation, and requires exact-head checks after push. PR #67 remains Draft through Gate A remediation; preview/Task-100 gates remain separate |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT; independently reviewed fixed-runtime-resolver checkpoint `30acb79` passed exact-head CI/CD run `34402177675`, Task-087 run `34402177705`, and external Trivy. Corrected-diff independent review of the current local source-only rootless-Podman endpoint increment is CLEAN/PASS after binding exact WSL VM type; it remains unwired, verified package machine-name provenance plus key-parent path trust remain prerequisites, and no repair or mutation is enabled. PR #67 remains Draft through Gate A remediation; preview/Task-100 gates remain separate |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---

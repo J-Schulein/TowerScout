@@ -1,23 +1,24 @@
 # Current Tasks - Sprint 09
 
 **Sprint Period**: August 8-August 21, 2026
-**Last Updated**: September 9, 2026
-**Focus**: Task-101 is complete. Task-087 provider-composition checkpoint
-`5950188` passed exact-head CI/CD run `34392071456`, Task-087 run `34392071573`,
+**Last Updated**: September 10, 2026
+**Focus**: Task-101 is complete. Task-087 fixed-runtime-resolver checkpoint
+`30acb79` passed exact-head CI/CD run `34402177675`, Task-087 run `34402177705`,
 and external Trivy; all nine applicable pull-request checks succeeded after
-independent CLEAN/PASS review. The current local source-only follow-up replaces
-caller-supplied runtime handles with package-policy-fixed CPython and Podman
-installation resolution through the reviewed Windows installation,
-Authenticode, PE/version, and command-version evidence owners. It performs a
-final same-handle revalidation and transfers each executable exactly once into
-the complete held-and-locked transaction owner. Existing `.env` state is
-supported; absent-`.env` acquisition still fails closed until the atomic
-replacement slice supplies a secure absence proof. Live Podman machine/daemon/
-endpoint resolution and revalidation, durable recovery, Windows-store CA
-selection, and ACL-preserving `.env` replacement remain later Gate A work. The
-new factory remains unwired and enables no execution or mutation. Unsigned
-preview integration remains later under ADR-019. Production signing remains
-Task-100 work in October after the package is satisfactory.
+independent CLEAN/PASS review. The current local source-only follow-up resolves
+one explicitly configured, running rootless Podman WSL machine to its loopback
+SSH endpoint, retains its single-link local identity key by handle, verifies
+the WSL provider plus endpoint-bound rootless socket/store/version facts, and
+revalidates the full binding before use. Independent corrected-diff review is
+CLEAN/PASS. The resolver remains unwired and enables no repair or mutation.
+Verified package `.env`/template provenance for the configured machine and key-
+parent owner/DACL/path-trust composition remain prerequisites.
+Existing `.env` state is supported; absent-`.env` acquisition still fails
+closed until the atomic replacement slice supplies a secure absence proof.
+Final target resolution, durable recovery, Windows-store CA selection, and ACL-
+preserving `.env` replacement remain later Gate A work. Unsigned preview
+integration remains later under ADR-019. Production signing remains Task-100
+work in October after the package is satisfactory.
 
 **Current Release State**:
 
@@ -477,22 +478,29 @@ timing; preview integration remains a later gate
   static/security/task-hygiene checks. Exact-head CI/CD run `34392071456`,
   Task-087 run `34392071573`, and external Trivy passed with all nine applicable
   pull-request checks successful.
-- The current local source-only increment opens package-policy-fixed CPython
-  and Podman candidates through the reviewed installation, signer, PE/version,
-  and command-version evidence owners. It verifies the immutable Podman plan
-  against the package policy and resolved version/file evidence, performs a
-  final same-handle revalidation, and transfers both executable handles exactly
-  once into the complete held-and-locked transaction owner. Repeated transfer,
-  mismatch, partial transfer, downstream failure, and asynchronous interruption
-  all fail closed without leaking ownership. It remains unwired and performs no
-  live machine/daemon/endpoint discovery, execution, repair, or mutation. The
-  four focused files pass `237/237`; the launcher selection passes `971/971`
-  with the documented native hardlink case deselected. The first independent
-  review found one Medium asynchronous-interruption ownership gap; an armed
-  transfer ledger and targeted regressions now correct it. Corrected-diff
-  re-review returned CLEAN/PASS with no open findings after independently
-  reproducing all `237` focused tests. Exact-head checks remain required before
-  this slice is accepted.
+- Checkpoint `30acb79` opens package-policy-fixed CPython and Podman candidates
+  through the reviewed installation, signer, PE/version, and command-version
+  evidence owners, then transfers their handles exactly once into the complete
+  held-and-locked transaction owner. Repeated transfer, mismatch, partial
+  transfer, downstream failure, and asynchronous interruption fail closed
+  without leaking ownership. Corrected-diff independent re-review returned
+  CLEAN/PASS with no open findings. Exact-head CI/CD run `34402177675`, Task-087
+  run `34402177705`, and external Trivy passed with all nine applicable pull-
+  request checks successful.
+- The current local source-only increment resolves one explicitly configured,
+  running rootless Podman WSL machine to exactly one loopback SSH connection,
+  binds and retains its single-link local identity key, and verifies the WSL
+  provider plus the explicit endpoint's rootless socket/store/version facts.
+  It treats connection names and default flags as metadata, rejects the ambient
+  root connection and ambiguity, observes the endpoint around key capture, and
+  revalidates runtime, VM provider, key, and endpoint under held lifetime locks.
+  The initial independent review found one Medium missing-VM-provider binding;
+  the correction requires and binds exact `VMType=wsl`, rejects missing/Hyper-V
+  values, and covers provider drift. Corrected-diff re-review returned
+  CLEAN/PASS with no open blockers. It remains unwired; verified package
+  machine-name provenance and key-parent owner/DACL/path trust remain
+  prerequisites. The focused selection passes `133/133`; the launcher selection
+  passes `953/953` with the documented native hardlink case deselected.
 - Keep source, preview, and signing gates separate. Findings 1-8 and the
   source-level provider `.env` correction gate PR #67 source re-review;
   staged-copy/provenance-v2 and the explicitly approved exact-patch/hash-locked

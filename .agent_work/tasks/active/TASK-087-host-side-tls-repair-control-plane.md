@@ -43,13 +43,18 @@ applicable pull-request checks successful after independent CLEAN/PASS review.
 Provider-composition checkpoint `5950188` passed exact-head CI/CD run
 `34392071456`, Task-087 run `34392071573`, and external Trivy, with all nine
 applicable pull-request checks successful after independent CLEAN/PASS review.
-The current local source-only follow-up now opens package-policy-fixed CPython
-and Podman installations through the reviewed Windows installation,
-Authenticode, PE/version, and command-version evidence owners. After a final
-same-handle revalidation, it transfers each executable exactly once into the
-complete held-and-locked transaction owner. It does not discover a live daemon
-or endpoint, execute a repair, or mutate host/container state, and it remains
-unwired. Merge/publication retain their separate applicable gates.
+Fixed-runtime-resolver checkpoint `30acb79` passed exact-head CI/CD run
+`34402177675`, Task-087 run `34402177705`, and external Trivy, with all nine
+applicable pull-request checks successful after independent CLEAN/PASS review.
+The current local source-only follow-up resolves one explicitly configured,
+running rootless Podman WSL machine to its loopback SSH endpoint, retains the
+single-link local identity-key file by handle, verifies the WSL provider plus
+endpoint-bound rootless socket/store/version facts, and revalidates the full
+binding before use. Corrected-diff independent review is CLEAN/PASS. It remains
+unwired. The configured machine must still be sourced from the verified package
+`.env`/template, and key-parent owner/DACL/path-trust composition remains
+required before execution wiring. It executes no repair and mutates no host/
+container state. Merge/publication retain their separate applicable gates.
 Signing and representative managed-endpoint validation remain Task-100 work in
 October.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -1396,6 +1401,78 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-09 - Rootless Podman Endpoint Resolver Added Locally
+
+**Objective**: Resolve and retain one explicit local rootless Podman endpoint
+through the authenticated Podman CLI, without changing the user's default
+connection or enabling any repair or runtime mutation.
+
+**Checkpoint Context**: Fixed-runtime-resolver checkpoint `30acb79` is the exact
+remote head. It passed CI/CD run `34402177675`, Task-087 run `34402177705`, and
+external Trivy with all nine applicable pull-request checks successful after
+independent CLEAN/PASS review; the pull-request-only build skipped as designed.
+
+**Decision**: Treat connection names and the ambient default flag as metadata
+only. Select exactly one machine connection whose canonical SSH URI, non-root
+user, port, user socket, and identity-key path agree with the configured
+running `Rootful=false`, `VMType=wsl` machine. Require an explicit endpoint-
+bound `info` query to prove rootless mode, the expected user socket/store
+paths, and the package-policy Podman version. Retain the key as a single-link
+local file and bind only hashes and private endpoint metadata into public
+evidence.
+
+**Execution**: Added a strict, redacted Podman endpoint evidence owner and a
+native contained-command adapter. The resolver issues only fixed read-only
+`machine inspect`, `system connection list`, and explicit `--url`/`--identity`
+`info` requests through the authenticated runtime lease, with a minimal
+Windows environment, closed stdin, bounded output/time, and existing Job Object
+process-tree containment. It rejects duplicate or over-complex JSON, rootful,
+stopped, missing-provider, or non-WSL machines, root/non-loopback/ambiguous
+endpoints, unexpected stores or sockets, version drift, and identity-key drift.
+It binds the exact WSL provider and observes the full endpoint on both sides of
+key capture, then retains the key handle for later revalidation. The private
+key does not permit the cloud-placeholder exception.
+
+**Adversarial Coverage**: Tests cover metadata-only connection label/default
+changes, ambient root rejection, remote and ambiguous endpoints, rootful or
+stopped machines, missing/Hyper-V VM providers, provider drift between
+observations, endpoint-bound rootless/socket/store/version mismatch, identity-
+key final-path and content drift, duplicate JSON members, other endpoint drift,
+unsafe key paths, out-of-range user IDs, asynchronous interruption cleanup,
+exact request/environment shape, redaction, native-backend type restriction,
+and concurrent close/revalidation ownership.
+
+**Validation**: The command-version, dynamic-load, and endpoint selection
+passes `133/133`. The canonical launcher selection passes `953/953`, with the
+one documented restricted-host native hardlink case deselected. Black, strict
+mypy, blocking single-job Flake8, medium/high Bandit, compilation, both task-
+hygiene validators, and `git diff --check` pass.
+
+**Independent Review**: The initial inspect-only review found one Medium
+blocker: the endpoint kind asserted WSL without verifying or binding the
+machine inspection's VM provider. The correction requires exact
+`VMType=wsl`, retains it in the private machine model and cryptographic binding,
+and adds missing-provider, Hyper-V, and between-observation provider-drift
+regressions with key cleanup. Corrected-diff re-review returned CLEAN/PASS with
+no remaining technical/security blocker, independently reproduced all
+`133/133` focused tests, and passed `git diff --check`. The reviewer made no
+repository edit and invoked no Docker or Podman command.
+
+**Boundary**: The new resolver and native backend are not imported by the live
+app, discovery, repair, or runtime-execution paths. The caller-provided machine
+name is not yet trusted configuration; later composition must derive it from
+the verified package `.env`/template. The retained key leaf is handle-bound,
+but key-parent owner/DACL/path trust must be composed before execution wiring.
+No Docker or Podman runtime was invoked during this source slice. It does not
+discover provider children, bind the final container/image/volume target,
+select a CA, replace `.env`, create recovery state, execute a repair, or mutate
+the host or a runtime.
+
+**Next**: Checkpoint and push this independently reviewed source slice. After
+exact-head checks, continue with the remaining endpoint/target composition,
+including verified package machine-name provenance and key-parent path trust,
+before any execution wiring.
 
 ### 2026-09-09 - Fixed Runtime Resolver Ownership Bridge Added Locally
 
