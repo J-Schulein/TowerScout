@@ -2,7 +2,7 @@
 
 **Sprint Period**: August 8-August 21, 2026; active-task continuation retained
 through the current Task-087 Gate A work
-**Last Updated**: September 10, 2026
+**Last Updated**: September 11, 2026
 **Focus**: Task-101 is complete. Task-087 is the active implementation task.
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
@@ -15,9 +15,12 @@ Windows trust/security are partial; durable recovery, transaction refactoring,
 provider-installer completion, and final proof remain. At earlier source head
 `0674805`, all applicable checks passed in CI/CD run `34515408041`, Task-087 run
 `34515408156`, and external Trivy job `102999589403`; the PR-only build skipped
-as designed. Source head `f0a9d81bf6a8` is locally and independently validated
-and awaits its new exact-head workflows after push. No repair or mutation is
-enabled. Gate B preview integration and Task-100 signing remain separate.
+as designed. Documentation head `c15967e` also passed all applicable exact-head
+checks in CI/CD run `34535776318` and Task-087 run `34535776293`; its PR-only
+build skipped as designed. Independently reviewed source checkpoint `7f354bc`
+binds the target plan to native Windows trust and awaits exact-head workflows.
+No repair or mutation is enabled. Gate B preview integration and Task-100
+signing remain separate.
 
 **Current Release State**:
 
@@ -28,7 +31,8 @@ enabled. Gate B preview integration and Task-100 signing remain separate.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 source checkpoint `f0a9d81bf6a8` is ready; PR #67 remains Draft.
+- Task-087 source checkpoint `7f354bcc8d20` is independently validated locally;
+  PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -178,10 +182,12 @@ canonical burn-down; re-estimate after exact-target wiring
   Gate C/Task-100 signing and managed-endpoint qualification separate. PR #67
   remains Draft.
 - Source checkpoint `f0a9d81` implements the independently reviewed native
-  Windows-store trust provider under slice 4 while keeping it unwired. Finish
-  slices 2-3 by implementing the concrete
-  authenticated-input owner, connecting the checkpointed owned exact target
-  ahead of confirmation, and wiring stage-specific revalidation.
+  Windows-store trust provider under slice 4 while keeping it unwired. Source
+  checkpoint `7f354bc` binds that native result into target-plan ownership and
+  discards caller-asserted certificate identity. Finish slices 2-3 by
+  constructing the remaining retained non-certificate inputs, connecting the
+  checkpointed owned exact target ahead of confirmation, and wiring stage-
+  specific revalidation.
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
 

@@ -3,15 +3,14 @@
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A source work is active under the
 approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). At reviewed source
-head `f0a9d81bf6a8`, contracts are complete; the runtime and target foundations
+head `7f354bcc8d20`, contracts are complete; the runtime and target foundations
 are substantially built but unwired; Windows trust/security are partial;
 durable recovery, transaction refactoring, and the final Gate A proof remain
-open. Earlier exact head `0674805a6624` passed all applicable checks in CI/CD
-run `34515408041`, Task-087 run `34515408156`, and external Trivy job
-`102999589403`; the PR-only build skipped as designed. PR #67 remains Draft,
-mutation remains disabled, and no live
-runtime, repair, or host/container mutation occurred in the current source
-sequence. Gate B preview work and Task-100 signing remain separate.
+open. Documentation head `c15967e` passed all applicable checks in CI/CD run
+`34535776318` and Task-087 run `34535776293`; Trivy passed and the PR-only build
+skipped as designed. PR #67 remains Draft, mutation remains disabled, and no
+live runtime, repair, or host/container mutation occurred in the current
+source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Track the remaining four outcome groups in the Gate A
@@ -1356,6 +1355,71 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-11 - Native Windows Trust Bound Into Target Inputs
+
+**Objective**: Remove the last caller-asserted certificate identity from the
+production target-plan handoff while preserving the reviewed retained-input
+and native exact-target ownership boundaries.
+
+**Context**: Native trust source checkpoint `f0a9d81` and documentation head
+`c15967e` are pushed. At `c15967e`, all applicable checks passed in CI/CD run
+`34535776318` and Task-087 run `34535776293`; Trivy passed and the PR-only build
+skipped as designed.
+
+**Decision**: Wrap every production handoff in one internal concrete Windows-
+trusted input owner. The caller's certificate field is never authoritative.
+For each of the two stable plan captures, call only the fixed native Windows
+trust provider, derive `CertificateIdentity` from the selected root's DER
+fingerprint and exact PEM content hash, and compare the resulting complete plan
+authority before entering native target resolution. Retain the existing input
+owner through native recapture and close it exactly once through the wrapper.
+
+**Execution**:
+
+- Added `_WindowsTrustedPlanInputOwner` inside `runtime_target_plan.py`; its
+  production constructor accepts no hostname, environment, trust adapter,
+  certificate material, or policy override.
+- Changed `capture_native_windows_resolved_target_from_inputs()` to construct
+  that owner unconditionally. Both stable captures now obtain fresh native
+  trust, and a changed root changes the complete authority hash before the
+  native bridge can run.
+- Preserved sanitized ordinary failures, `BaseException` propagation, serialized
+  capture/close behavior, and the existing ownership transfer/cleanup rules.
+- Kept `app.py`, `discovery.py`, `repair.py`, confirmation, and mutation paths
+  unwired.
+
+**Adversarial Coverage**: Tests prove that caller-supplied certificate hashes
+are discarded, the fixed provider is captured twice, the DER fingerprint and
+PEM content hash become the target identity, native-root drift blocks the
+bridge, native trust failure is sanitized, interruption still closes the input
+owner, and a mismatched provider fails closed. Existing target/input drift,
+native-bridge failure, close-failure, and interruption tests continue to pass.
+
+**Independent Review**: The inspect-only reviewer found no correctness or
+security defect in trust binding, provider/type validation, drift detection,
+authority binding, sanitization, interruption propagation, locking, cleanup,
+or ownership transfer. One Low documentation mismatch noted that the module
+header still denied certificate-store access even though the new path performs
+read-only verification. The header now explicitly distinguishes read-only
+Windows certificate-store verification from mutation; re-review confirmed the
+finding closed and the complete five-file diff clean to commit.
+
+**Validation**: The target-resolution, pure trust, and native trust suites pass
+`159/159`. Scoped Black, strict mypy, fatal/syntax Flake8, high-severity Bandit,
+and `git diff --check` pass. No Docker, Podman, Compose, certificate-store,
+launcher, `.env`, container, image, volume, or host mutation ran.
+
+**Boundary**: Source checkpoint `7f354bc` records this independently reviewed
+sub-increment across slices 2-4. It closes caller-asserted certificate identity
+at the production target-plan handoff, but it does not yet construct the
+retained non-certificate input owner from launcher/package/runtime discovery,
+connect the resulting target before confirmation, export a root, or enable
+repair. Gate A remains open and mutation remains disabled.
+
+**Next**: Construct the remaining retained non-certificate inputs and connect
+the trust-backed exact target ahead of confirmation with stage-specific
+revalidation.
 
 ### 2026-09-10 - Native Windows-Store TLS Trust Provider Checkpointed
 
