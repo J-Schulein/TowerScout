@@ -3,6 +3,7 @@
 **As Of**: September 11, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
 **Implementation Head**: `db7aee877a67107a52c4add9371040f4f3b0fa73`
+**Validated Branch Head**: `9993b4db7c7b7edafeb850f1e33e6c6f7229408c`
 **Draft PR**: [#67](https://github.com/J-Schulein/TowerScout/pull/67)
 **Overall State**: IN_PROGRESS / Gate A source implementation
 **Gate A Exit**: NOT MET
@@ -43,7 +44,7 @@ Status in this file answers four separate questions:
 | 6 | Recovery manager | **NOT STARTED** | The approved journal/recovery contract and adversarial scenarios are documented. | Implement the versioned write-ahead journal, encrypted exact-state backups, authenticated startup reconciliation, fresh-process idempotent recovery, verified rollback, and recovery-pending retention. |
 | 7 | Transaction refactor | **NOT STARTED** | The older prototype transaction and historical live evidence remain available as behavior references only. | Refactor `repair.py` to consume the immutable resolved target and recovery manager, remove process-memory-only backup and unchecked rollback, and enforce pre-write/pre-restart/terminal revalidation. |
 | 8 | Provider installer hardening | **PARTIAL** | Historical checkpoint `3990bc0` closed provider dependency/wheel reproducibility and version verification. Independently reviewed checkpoint `7a0c35a` makes the installed `site-packages` inventory deterministic and provider-only by replacing pip-added metadata with the exact retained wheel inventory, prevents wrapper/bootstrap drift, and suppresses bytecode across the current PowerShell provider path. Its ambient Python compatibility probe is not authentication. | Reuse the protected atomic `.env` contract, change only `PODMAN_COMPOSE_PROVIDER`, remove persistent whole-file plaintext backup/output, and add crash/orphan reconciliation. |
-| 9 | Gate A source validation and review | **VALIDATION CONTINUES** | Every completed increment has focused tests and independent review. At exact head `454af79`, all applicable checks passed in CI/CD run `34630327246`, Task-087 run `34630327259`, and external Trivy job `103365410429`; the PR-only build skipped as designed. | After slices 2-8 are integrated, run the final broad/adversarial set, fresh-process recovery, isolated Docker CPU then approved rootless-Podman CPU mutation/recovery, OneDrive and two-session Windows proofs, all-volume verification, exact-head workflows, and final independent review. |
+| 9 | Gate A source validation and review | **VALIDATION CONTINUES** | Every completed increment has focused tests and independent review. Test-only checkpoint `9993b4d` repaired Linux import portability in four runtime/target test modules without changing production bytes. At that exact branch head, all applicable checks passed in CI/CD run `34650679798`, Task-087 run `34650679809`, and external Trivy job `103431962097`; both Python unit-matrix jobs passed and the PR-only build skipped as designed. | After slices 2-8 are integrated, run the final broad/adversarial set, fresh-process recovery, isolated Docker CPU then approved rootless-Podman CPU mutation/recovery, OneDrive and two-session Windows proofs, all-volume verification, exact-head workflows, and final independent review. |
 
 ## Progress Interpretation
 
@@ -79,6 +80,22 @@ count, determine completion.
 Sub-increments may be implemented and reviewed within these outcomes, but they
 do not create new Gate A slices or change a slice state unless they satisfy the
 state definitions above.
+
+## Next-Session Resume Point
+
+Begin with the confirmation boundary for slices 2-3. Make the inert
+confirmation transaction acquire and consume the production facade's held
+exact target, derive only its bounded public summary for display, preserve its
+owner through confirmation, and close it on cancel or error. Then add the
+stage-specific revalidation hooks required by the approved design. Do not
+enable repair or mutation in this increment. Run focused and related tests,
+static checks, and an independent review before checkpointing it.
+
+The fixed Gate A plan still has four outcome groups total. This resume work
+advances group 1; after it, finish that group's fixed-host Windows trust proof,
+then complete group 2's slice 5 DPAPI/ACL-preserving atomic `.env` foundations,
+group 3's slices 6-7 recovery and transaction refactor, and group 4's slice 8
+installer hardening plus slice 9 final Gate A proof.
 
 ## Scope Control
 

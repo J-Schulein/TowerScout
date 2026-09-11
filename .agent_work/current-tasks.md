@@ -14,9 +14,10 @@ bridge, stable authenticated target-plan assembler, retained package/process
 environment and acceleration authorities, final exact-input composer, and the
 native pre-confirmation exact-target facade, are substantially built but unwired;
 Windows trust/security are partial; durable recovery, transaction refactoring,
-provider-installer completion, and final proof remain. At exact head `454af79`,
-all applicable checks passed in CI/CD run `34630327246`, Task-087 run
-`34630327259`, and external Trivy job `103365410429`; the PR-only build skipped
+provider-installer completion, and final proof remain. Test-only checkpoint
+`9993b4db7c7` is the current validated branch head. At that exact head, all
+applicable checks passed in CI/CD run `34650679798`, Task-087 run
+`34650679809`, and external Trivy job `103431962097`; the PR-only build skipped
 as designed.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. The latest independently reviewed source checkpoint,
@@ -36,8 +37,11 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 source checkpoint `db7aee877a67` is independently validated locally;
-  PR #67 remains Draft.
+- Task-087 production source checkpoint `db7aee877a67` is independently
+  validated locally; test-portability checkpoint `9993b4db7c7` is the current
+  validated branch head. At that exact head, all applicable checks passed in
+  CI/CD run `34650679798`, Task-087 run `34650679809`, and external Trivy job
+  `103431962097`; the PR-only build skipped as designed. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -217,8 +221,11 @@ canonical burn-down; re-estimate after exact-target wiring
   Checkpoint `caf3f1c` adds the retained package/process environment and
   acceleration authorities plus the final exact-input composer. Checkpoint
   `db7aee8` connects those inputs through Windows trust and native observation
-  to one revalidated, still-held exact target. Finish slices 2-3 by making
-  confirmation consume that owner and wiring stage-specific revalidation.
+  to one revalidated, still-held exact target. Test-only checkpoint `9993b4d`
+  repairs Linux package imports in the four new runtime/target test modules;
+  both Python 3.11 and 3.12 GitHub unit jobs pass at that exact branch head.
+  Finish slices 2-3 by making confirmation consume that owner and wiring
+  stage-specific revalidation.
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
 

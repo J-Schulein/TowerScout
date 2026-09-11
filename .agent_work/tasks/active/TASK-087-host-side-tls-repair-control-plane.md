@@ -7,9 +7,10 @@ head `db7aee877a67`, contracts are complete; the runtime and target foundations,
 including the native pre-confirmation exact-target facade, are substantially
 built but unwired; Windows trust/security are partial;
 durable recovery, transaction refactoring, and the final Gate A proof remain
-open. All applicable exact-head checks passed in CI/CD run `34630327246`,
-Task-087 run `34630327259`, and external Trivy job `103365410429`; the PR-only
-build skipped as designed. PR #67 remains Draft, mutation remains disabled, and no
+open. Test-only checkpoint `9993b4db7c7` is the current validated branch head:
+CI/CD run `34650679798`, Task-087 run `34650679809`, and external Trivy job
+`103431962097` all passed there, with the PR-only build skipped as designed.
+PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -1356,6 +1357,48 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-11 - Linux CI Import Portability Repaired And Session Handoff Recorded
+
+**Objective**: Resolve the current exact-head Python matrix collection failure
+and leave one accurate, durable resume point without changing production
+launcher behavior or enabling mutation.
+
+**Context**: At the prior documentation head, both GitHub Python jobs failed
+during collection because four new runtime/target tests imported through the
+repository-root `launcher` namespace. That namespace was available in the
+Windows development invocation but not in the isolated Linux CI import path.
+The frontend, Docker frontend stage, security, Task-087 browser/contracts, and
+external Trivy checks were otherwise successful.
+
+**Execution**: Updated
+`tests/unit/test_launcher_runtime_acceleration_inputs.py`,
+`tests/unit/test_launcher_runtime_acceleration_probe.py`,
+`tests/unit/test_launcher_runtime_target_inputs.py`, and
+`tests/unit/test_launcher_runtime_target_factory.py` to use the repository's
+established launcher test convention: insert the fixed `launcher` directory
+and import from `towerscout_launcher`. No production source, workflow, package,
+runtime, or repair path changed. The correction was committed as `9993b4d`.
+
+**Validation**: The affected local set passed `93/93`; Black, fatal Flake8,
+compile checks, and isolated `python -I` imports passed. At exact branch head
+`9993b4db7c7b7edafeb850f1e33e6c6f7229408c`, all applicable PR checks passed:
+CI/CD run `34650679798` (including Python 3.11 and 3.12), Task-087 run
+`34650679809`, and external Trivy job `103431962097`; the PR-only build skipped
+as designed. A broader local unit run remained limited by previously observed
+workstation Temp-root permissions and Defender/AMSI blocking of the PowerShell
+host helper; the exact GitHub Linux unit matrix is green.
+
+**Boundary**: Production implementation head remains `db7aee8`; `9993b4d` is
+test-only. Gate A remains open, runtime mutation remains disabled, PR #67 stays
+Draft, and this checkpoint does not establish package, live-runtime, preview,
+merge, or release acceptance.
+
+**Next**: Resume at the slices 2-3 confirmation boundary. Make confirmation
+consume the held exact target and bounded public summary, preserve owner
+lifetime through confirmation and cancellation, close it on every terminal
+path, and wire stage-specific revalidation without enabling repair. Then run
+focused and related validation plus independent review before checkpointing.
 
 ### 2026-09-11 - Native Exact-Target Factory Checkpointed
 
