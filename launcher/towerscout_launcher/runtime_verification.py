@@ -7,7 +7,8 @@ import struct
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import NoReturn, Sequence
+from pathlib import PureWindowsPath
+from typing import Callable, NoReturn, Sequence, TypeVar
 
 from .authenticode import (
     AuthenticodeBackend,
@@ -45,6 +46,7 @@ from .windows_security import (
 
 _EVIDENCE_DOMAIN = b"TowerScout.CombinedRuntimeEvidence.v1"
 _VERSION_CHARACTERS = frozenset("0123456789")
+_HeldResult = TypeVar("_HeldResult")
 
 
 class RuntimeVerificationErrorCode(str, Enum):
@@ -306,6 +308,78 @@ class BoundRuntimeEvidence:
             if not _snapshot_matches(snapshot, self._evidence):
                 _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
             return self._evidence
+        finally:
+            self._active_owner = None
+            self._lifetime_lock.release()
+
+    def _run_while_held(
+        self,
+        operation: Callable[[PureWindowsPath], _HeldResult],
+    ) -> _HeldResult:
+        """Run one internal read-only operation under the runtime lease."""
+
+        if not callable(operation):
+            _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+        self._lifetime_lock.acquire()
+        if self._active_owner is not None or self._candidate.closed:
+            self._lifetime_lock.release()
+            _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+        self._active_owner = threading.get_ident()
+        try:
+            try:
+                before = self._candidate.assert_unchanged()
+            except RuntimeIdentityVerificationError as error:
+                _map_identity_error(error)
+            except Exception:
+                _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+            if not _snapshot_matches(before, self._evidence):
+                _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+            executable_path = PureWindowsPath(before.final_path)
+            if not executable_path.is_absolute():
+                _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+            try:
+                result = operation(executable_path)
+            except BaseException:
+                try:
+                    after_error = self._candidate.assert_unchanged()
+                except RuntimeIdentityVerificationError as error:
+                    _map_identity_error(error)
+                except Exception:
+                    _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+                if not _snapshot_matches(after_error, self._evidence):
+                    _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+                raise
+            try:
+                after = self._candidate.assert_unchanged()
+            except RuntimeIdentityVerificationError as error:
+                _map_identity_error(error)
+            except Exception:
+                _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+            if not _snapshot_matches(after, self._evidence):
+                _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+            return result
+        finally:
+            self._active_owner = None
+            self._lifetime_lock.release()
+
+    def _capture_file_snapshot(self) -> FileSnapshot:
+        """Return a fresh snapshot from the same retained runtime handle."""
+
+        self._lifetime_lock.acquire()
+        if self._active_owner is not None or self._candidate.closed:
+            self._lifetime_lock.release()
+            _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+        self._active_owner = threading.get_ident()
+        try:
+            try:
+                snapshot = self._candidate.assert_unchanged()
+            except RuntimeIdentityVerificationError as error:
+                _map_identity_error(error)
+            except Exception:
+                _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+            if not _snapshot_matches(snapshot, self._evidence):
+                _fail(RuntimeVerificationErrorCode.RUNTIME_REPLACED)
+            return snapshot
         finally:
             self._active_owner = None
             self._lifetime_lock.release()

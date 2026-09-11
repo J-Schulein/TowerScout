@@ -1356,6 +1356,73 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-11 - Native Docker Runtime/Endpoint Input Owner Implemented Locally
+
+**Objective**: Begin the concrete retained non-certificate source owner with
+the reviewed Docker runtime and endpoint sources, without wiring launcher
+confirmation, repair, or mutation.
+
+**Context**: Checkpoints `c84998c` and `0a4ceac` leave only non-certificate
+inputs for the production source owner. Source mapping found a concrete adapter
+blocker: Docker endpoint capture required `BoundCommandRuntimeEvidence`, but the
+runtime policy authenticates `docker.exe` through PE version data and returns
+`BoundRuntimeEvidence`. The command-evidence factory cannot produce the type
+the endpoint required.
+
+**Decision**: Preserve `runtime_verification.py` as a target-contract-independent
+trust layer. Add private serialized operations that execute a read-only callback
+and return a fresh file snapshot only while the exact PE/Authenticode runtime
+handle remains retained and revalidated. Make Docker endpoint capture consume
+that producible owner. Add a fixed native factory and composite owner that
+retain the runtime and endpoint together, derive the exact redacted
+`RuntimeIdentity`, and revalidate runtime/endpoint coherence on every capture.
+
+**Execution**:
+
+- Replaced the impossible Docker command-owner contract with the package-bound
+  PE/Authenticode runtime owner used by actual production policy.
+- Added before/after same-handle runtime checks around every internal read-only
+  endpoint query, serialized against close.
+- Added a redacted immutable Docker runtime/endpoint input pair and a retained
+  owner with coherent capture, complete cleanup, and fixed native construction.
+- Kept all new source paths absent from `app.py`, `discovery.py`, `repair.py`,
+  and the mutation path.
+
+**Adversarial Coverage**: Tests prove the native factory requests only the
+closed Docker product enum, derives the runtime target identity from the same
+retained file, binds the explicit local named pipe, rejects runtime drift,
+maps private runtime failure to a sanitized category, closes the runtime when
+endpoint capture fails, redacts private paths, and owns both lifetimes through
+explicit close. Existing endpoint drift, remote endpoint, bounded command,
+interruption, and concurrent-close tests now exercise the real runtime-owner
+type.
+
+**Validation**: Runtime verification and Docker endpoint tests pass `100/100`.
+The broader runtime-identity, verification, Docker-endpoint, target-resolution,
+and native-observation selection passes `296/296`. Scoped Black, strict mypy,
+fatal/syntax Flake8, high-severity Bandit, compileall, and `git diff --check`
+pass. No Docker, Podman, Compose, certificate-store, launcher, `.env`,
+container, image, volume, or host mutation ran.
+
+**Independent Review**: A fresh read-only sub-agent review found no actionable
+correctness, security, lifecycle, redaction, test-coverage, or documentation
+defects. The reviewer independently reproduced the `100/100` focused and
+`296/296` broader passes plus the scoped static, security, documentation, and
+diff gates. Residual end-to-end native execution and final owner-composition
+work remains explicitly deferred within Gate A.
+
+**Boundary**: This is an independently reviewed local sub-increment of slice 2.
+It closes a real production-type mismatch and constructs the Docker
+runtime/endpoint part of the final source owner. It does not yet add the
+authenticated Docker Compose provider, Podman provider, package/environment,
+process-environment, acceleration, or complete `TargetResolutionPlanInputs`;
+connect confirmation; or enable repair. Gate A remains open and mutation
+remains disabled.
+
+**Next**: Checkpoint this clean review. Then add the authenticated Docker
+Compose identity/lifetime to this source owner and build the remaining
+package/environment inputs before final owner composition.
+
 ### 2026-09-11 - Certificate-Free Target Input Contract Independently Reviewed
 
 **Objective**: Make the retained production input-owner boundary structurally

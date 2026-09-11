@@ -26,13 +26,22 @@ from .runtime_command_version import (
     COMMAND_STDERR_LIMIT_BYTES,
     COMMAND_STDOUT_LIMIT_BYTES,
     COMMAND_TIMEOUT_MS,
-    BoundCommandRuntimeEvidence,
     CommandExecutionError,
     CommandProcessResult,
-    RuntimeCommandVerificationError,
 )
 from .runtime_policy import RuntimeProductId
-from .target_contracts import EndpointIdentity, EndpointKind, RuntimeProduct
+from .runtime_verification import (
+    BoundRuntimeEvidence,
+    RuntimeVerificationError,
+    open_package_bound_runtime_evidence,
+)
+from .target_contracts import (
+    EndpointIdentity,
+    EndpointKind,
+    FileIdentity,
+    RuntimeIdentity,
+    RuntimeProduct,
+)
 
 _PIPE_PREFIX = "npipe:////./pipe/"
 _PIPE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -593,7 +602,7 @@ def _execute(
 
 
 def _observe_under_runtime(
-    runtime: BoundCommandRuntimeEvidence,
+    runtime: BoundRuntimeEvidence,
     backend: DockerEndpointCommandBackend,
 ) -> _Observation:
     environment, working_directory, configuration = _environment(backend)
@@ -641,7 +650,7 @@ def _observe_under_runtime(
         return runtime._run_while_held(run)  # noqa: SLF001
     except DockerEndpointError:
         raise
-    except RuntimeCommandVerificationError:
+    except RuntimeVerificationError:
         _fail(DockerEndpointErrorCode.RUNTIME_INVALID)
     except (OSError, RuntimeError, TypeError, ValueError):
         _fail(DockerEndpointErrorCode.VERIFICATION_UNAVAILABLE)
@@ -666,7 +675,7 @@ def _observation_fields(observation: _Observation) -> tuple[bytes, ...]:
 
 
 def _binding_sha256(
-    runtime: BoundCommandRuntimeEvidence,
+    runtime: BoundRuntimeEvidence,
     observation: _Observation,
 ) -> str:
     return _digest(
@@ -713,11 +722,11 @@ class BoundDockerEndpointEvidence:
 
     def assert_unchanged(
         self,
-        runtime: BoundCommandRuntimeEvidence,
+        runtime: BoundRuntimeEvidence,
         backend: DockerEndpointCommandBackend,
     ) -> DockerEndpointEvidence:
         if (
-            type(runtime) is not BoundCommandRuntimeEvidence
+            type(runtime) is not BoundRuntimeEvidence
             or runtime.closed
             or runtime.evidence.product_id is not RuntimeProductId.DOCKER_CLI
         ):
@@ -767,14 +776,14 @@ class BoundDockerEndpointEvidence:
 
 
 def capture_bound_docker_endpoint(
-    runtime: BoundCommandRuntimeEvidence,
+    runtime: BoundRuntimeEvidence,
     *,
     backend: DockerEndpointCommandBackend | None = None,
 ) -> BoundDockerEndpointEvidence:
     """Resolve and retain one explicit local Docker named-pipe binding."""
 
     if (
-        type(runtime) is not BoundCommandRuntimeEvidence
+        type(runtime) is not BoundRuntimeEvidence
         or runtime.closed
         or runtime.evidence.product_id is not RuntimeProductId.DOCKER_CLI
     ):
@@ -822,8 +831,259 @@ def capture_bound_docker_endpoint(
     return BoundDockerEndpointEvidence(evidence)
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class DockerRuntimeEndpointInputs:
+    """Exact target inputs emitted by the retained Docker source owners."""
+
+    runtime: RuntimeIdentity = field(repr=False)
+    endpoint: EndpointIdentity = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.runtime) is not RuntimeIdentity
+            or self.runtime.product is not RuntimeProduct.DOCKER
+            or type(self.endpoint) is not EndpointIdentity
+            or self.endpoint.product is not RuntimeProduct.DOCKER
+        ):
+            raise ValueError("Docker runtime endpoint inputs are invalid.")
+
+    def __repr__(self) -> str:
+        return "DockerRuntimeEndpointInputs(<redacted>)"
+
+
+class BoundDockerRuntimeEndpointInputs:
+    """Retain and jointly revalidate the Docker runtime and local endpoint."""
+
+    __slots__ = (
+        "_active_owner",
+        "_backend",
+        "_endpoint",
+        "_lifetime_lock",
+        "_runtime",
+    )
+
+    def __init__(
+        self,
+        *,
+        runtime: BoundRuntimeEvidence,
+        endpoint: BoundDockerEndpointEvidence,
+        backend: DockerEndpointCommandBackend,
+    ) -> None:
+        try:
+            supported = backend.supported is True
+        except Exception:
+            supported = False
+        if (
+            type(runtime) is not BoundRuntimeEvidence
+            or runtime.closed
+            or runtime.evidence.product_id is not RuntimeProductId.DOCKER_CLI
+            or type(endpoint) is not BoundDockerEndpointEvidence
+            or endpoint.closed
+            or not supported
+        ):
+            raise ValueError("Bound Docker runtime endpoint inputs are invalid.")
+        self._lifetime_lock = threading.RLock()
+        self._active_owner: int | None = None
+        self._runtime: BoundRuntimeEvidence | None = runtime
+        self._endpoint: BoundDockerEndpointEvidence | None = endpoint
+        self._backend = backend
+
+    @property
+    def supported(self) -> bool:
+        with self._lifetime_lock:
+            runtime = self._runtime
+            endpoint = self._endpoint
+            try:
+                backend_supported = self._backend.supported is True
+            except Exception:
+                backend_supported = False
+            return bool(
+                runtime is not None
+                and not runtime.closed
+                and endpoint is not None
+                and not endpoint.closed
+                and backend_supported
+            )
+
+    @property
+    def closed(self) -> bool:
+        with self._lifetime_lock:
+            runtime = self._runtime
+            endpoint = self._endpoint
+            return bool(
+                (runtime is None or runtime.closed)
+                and (endpoint is None or endpoint.closed)
+            )
+
+    def capture(self) -> DockerRuntimeEndpointInputs:
+        self._lifetime_lock.acquire()
+        if self._active_owner is not None:
+            self._lifetime_lock.release()
+            _fail(DockerEndpointErrorCode.ENDPOINT_CHANGED)
+        runtime = self._runtime
+        endpoint = self._endpoint
+        if runtime is None or runtime.closed or endpoint is None or endpoint.closed:
+            self._lifetime_lock.release()
+            _fail(DockerEndpointErrorCode.ENDPOINT_CHANGED)
+        self._active_owner = threading.get_ident()
+        try:
+            first_runtime = _runtime_identity(runtime)
+            endpoint_evidence = endpoint.assert_unchanged(runtime, self._backend)
+            second_runtime = _runtime_identity(runtime)
+            if (
+                first_runtime != second_runtime
+                or endpoint_evidence.endpoint != endpoint.endpoint
+            ):
+                _fail(DockerEndpointErrorCode.ENDPOINT_CHANGED)
+            return DockerRuntimeEndpointInputs(
+                runtime=second_runtime,
+                endpoint=endpoint_evidence.endpoint,
+            )
+        except DockerEndpointError:
+            raise
+        except RuntimeVerificationError:
+            raise DockerEndpointError(DockerEndpointErrorCode.RUNTIME_INVALID) from None
+        except BaseException as error:
+            if not isinstance(error, Exception):
+                raise
+            _fail(DockerEndpointErrorCode.VERIFICATION_UNAVAILABLE)
+        finally:
+            self._active_owner = None
+            self._lifetime_lock.release()
+
+    def close(self) -> None:
+        with self._lifetime_lock:
+            if self._active_owner is not None:
+                _fail(DockerEndpointErrorCode.ENDPOINT_CHANGED)
+            runtime = self._runtime
+            endpoint = self._endpoint
+            failed = False
+            interruption: BaseException | None = None
+            if endpoint is not None:
+                try:
+                    endpoint.close()
+                except BaseException as error:
+                    if isinstance(error, Exception):
+                        failed = True
+                    else:
+                        interruption = error
+                if endpoint.closed:
+                    self._endpoint = None
+                else:
+                    failed = True
+            if runtime is not None:
+                try:
+                    runtime.close()
+                except BaseException as error:
+                    if isinstance(error, Exception):
+                        failed = True
+                    elif interruption is None:
+                        interruption = error
+                if runtime.closed:
+                    self._runtime = None
+                else:
+                    failed = True
+            if interruption is not None:
+                raise interruption
+            if failed:
+                _fail(DockerEndpointErrorCode.ENDPOINT_CHANGED)
+
+    def __enter__(self) -> "BoundDockerRuntimeEndpointInputs":
+        if self.closed:
+            _fail(DockerEndpointErrorCode.ENDPOINT_CHANGED)
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        self.close()
+
+    def __repr__(self) -> str:
+        state = "closed" if self.closed else "open"
+        return f"BoundDockerRuntimeEndpointInputs(state={state!r}, <redacted>)"
+
+
+def _runtime_identity(runtime: BoundRuntimeEvidence) -> RuntimeIdentity:
+    try:
+        snapshot = runtime._capture_file_snapshot()  # noqa: SLF001
+        evidence = runtime.evidence
+        path = PureWindowsPath(snapshot.final_path)
+        if (
+            evidence.product_id is not RuntimeProductId.DOCKER_CLI
+            or not path.is_absolute()
+            or path.name.casefold() != "docker.exe"
+        ):
+            _fail(DockerEndpointErrorCode.RUNTIME_INVALID)
+        return RuntimeIdentity(
+            product=RuntimeProduct.DOCKER,
+            executable=FileIdentity(
+                logical_name="docker.exe",
+                final_path=path,
+                volume_serial=snapshot.identity.volume_serial,
+                file_id=snapshot.identity.file_id,
+                sha256=snapshot.sha256,
+                size_bytes=snapshot.size,
+            ),
+            version=evidence.exact_version,
+            publisher_policy_sha256=evidence.policy_sha256,
+        )
+    except DockerEndpointError:
+        raise
+    except RuntimeVerificationError:
+        raise DockerEndpointError(DockerEndpointErrorCode.RUNTIME_INVALID) from None
+    except (TypeError, ValueError, UnicodeError):
+        _fail(DockerEndpointErrorCode.RUNTIME_INVALID)
+
+
+def _native_docker_endpoint_backend() -> DockerEndpointCommandBackend:
+    from .runtime_command_native import NativeWindowsDockerEndpointCommandBackend
+
+    return NativeWindowsDockerEndpointCommandBackend()
+
+
+def capture_native_windows_docker_runtime_endpoint_inputs() -> (
+    BoundDockerRuntimeEndpointInputs
+):
+    """Capture the policy-selected Docker runtime and its explicit endpoint."""
+
+    runtime: BoundRuntimeEvidence | None = None
+    endpoint: BoundDockerEndpointEvidence | None = None
+    transferred = False
+    try:
+        backend = _native_docker_endpoint_backend()
+        runtime = open_package_bound_runtime_evidence(RuntimeProductId.DOCKER_CLI)
+        endpoint = capture_bound_docker_endpoint(runtime, backend=backend)
+        owner = BoundDockerRuntimeEndpointInputs(
+            runtime=runtime,
+            endpoint=endpoint,
+            backend=backend,
+        )
+        transferred = True
+        return owner
+    except DockerEndpointError:
+        raise
+    except RuntimeVerificationError:
+        raise DockerEndpointError(DockerEndpointErrorCode.RUNTIME_INVALID) from None
+    except BaseException as error:
+        if not isinstance(error, Exception):
+            raise
+        _fail(DockerEndpointErrorCode.VERIFICATION_UNAVAILABLE)
+    finally:
+        if not transferred:
+            if endpoint is not None:
+                try:
+                    endpoint.close()
+                except BaseException:
+                    pass
+            if runtime is not None:
+                try:
+                    runtime.close()
+                except BaseException:
+                    pass
+
+
 __all__ = [
+    "BoundDockerRuntimeEndpointInputs",
     "BoundDockerEndpointEvidence",
+    "DockerRuntimeEndpointInputs",
     "DockerEndpointCommandBackend",
     "DockerEndpointCommandKind",
     "DockerEndpointCommandRequest",
@@ -831,4 +1091,5 @@ __all__ = [
     "DockerEndpointErrorCode",
     "DockerEndpointEvidence",
     "capture_bound_docker_endpoint",
+    "capture_native_windows_docker_runtime_endpoint_inputs",
 ]

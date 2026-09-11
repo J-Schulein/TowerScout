@@ -20,22 +20,27 @@ if str(LAUNCHER_ROOT) not in sys.path:
     sys.path.insert(0, str(LAUNCHER_ROOT))
 
 import towerscout_launcher.runtime_command_native as native_module  # noqa: E402
-import towerscout_launcher.runtime_command_version as command_module  # noqa: E402
 import towerscout_launcher.runtime_docker_endpoint as endpoint_module  # noqa: E402
 from towerscout_launcher.runtime_command_version import (  # noqa: E402
-    BoundCommandRuntimeEvidence,
     CommandExecutionError,
     CommandProcessResult,
 )
 from towerscout_launcher.runtime_docker_endpoint import (  # noqa: E402
     BoundDockerEndpointEvidence,
+    BoundDockerRuntimeEndpointInputs,
     DockerEndpointCommandKind,
     DockerEndpointCommandRequest,
     DockerEndpointError,
     DockerEndpointErrorCode,
     capture_bound_docker_endpoint,
+    capture_native_windows_docker_runtime_endpoint_inputs,
 )
 from towerscout_launcher.runtime_policy import RuntimeProductId  # noqa: E402
+from towerscout_launcher.runtime_verification import (  # noqa: E402
+    BoundRuntimeEvidence,
+    RuntimeVerificationError,
+    RuntimeVerificationErrorCode,
+)
 from towerscout_launcher.target_contracts import (  # noqa: E402
     EndpointKind,
     RuntimeProduct,
@@ -183,21 +188,19 @@ class _RuntimeCandidate:
 
 def _runtime(
     *, product: RuntimeProductId = RuntimeProductId.DOCKER_CLI
-) -> tuple[BoundCommandRuntimeEvidence, _RuntimeCandidate]:
+) -> tuple[BoundRuntimeEvidence, _RuntimeCandidate]:
     snapshot = _runtime_snapshot()
     candidate = _RuntimeCandidate(snapshot)
-    owner = object.__new__(BoundCommandRuntimeEvidence)
+    owner = object.__new__(BoundRuntimeEvidence)
     owner._active_owner = None  # noqa: SLF001
     owner._candidate = candidate  # type: ignore[assignment]  # noqa: SLF001
     owner._evidence = SimpleNamespace(  # type: ignore[assignment]  # noqa: SLF001
         product_id=product,
         exact_version=_VERSION,
         evidence_sha256="a" * 64,
+        policy_sha256="b" * 64,
         file_identity=snapshot.identity,
         file_sha256=snapshot.sha256,
-        executable_path_sha256=command_module._path_sha256(  # noqa: SLF001
-            PureWindowsPath(snapshot.final_path)
-        ),
     )
     owner._lifetime_lock = threading.RLock()  # noqa: SLF001
     return owner, candidate
@@ -245,7 +248,7 @@ def _capture(
     responses: list[object] | None = None,
 ) -> tuple[
     BoundDockerEndpointEvidence,
-    BoundCommandRuntimeEvidence,
+    BoundRuntimeEvidence,
     _RuntimeCandidate,
     _Backend,
 ]:
@@ -309,9 +312,184 @@ def test_capture_binds_explicit_named_pipe_with_minimal_environment() -> None:
     assert _CONTEXT_NAME not in rendered
 
     owner.close()
-    owner.close()
     assert owner.closed
     assert runtime.closed is False
+
+
+def test_native_source_owner_retains_exact_runtime_and_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime, candidate = _runtime()
+    backend = _Backend([*_cycle(), *_cycle(), *_cycle()])
+    opened: list[RuntimeProductId] = []
+
+    def open_runtime(product: RuntimeProductId) -> BoundRuntimeEvidence:
+        opened.append(product)
+        return runtime
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_runtime_evidence",
+        open_runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_docker_endpoint_backend",
+        lambda: backend,
+    )
+
+    owner = capture_native_windows_docker_runtime_endpoint_inputs()
+    inputs = owner.capture()
+
+    assert isinstance(owner, BoundDockerRuntimeEndpointInputs)
+    assert owner.supported
+    assert not owner.closed
+    assert opened == [RuntimeProductId.DOCKER_CLI]
+    assert inputs.runtime.product is RuntimeProduct.DOCKER
+    assert inputs.runtime.executable.logical_name == "docker.exe"
+    assert inputs.runtime.executable.final_path == PureWindowsPath(_DOCKER_FINAL)
+    assert inputs.runtime.version == _VERSION
+    assert inputs.endpoint is owner._endpoint.endpoint  # noqa: SLF001
+    assert len(backend.requests) == 6
+    assert "redacted" in repr(inputs).lower()
+    assert _DOCKER_FINAL not in repr(inputs)
+
+    owner.close()
+    owner.close()
+    assert owner.closed
+    assert candidate.closed
+
+
+def test_native_source_factory_closes_runtime_when_endpoint_capture_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime, candidate = _runtime()
+    backend = _Backend(_cycle(context=_context(endpoint="tcp://127.0.0.1:2375")))
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_runtime_evidence",
+        lambda _product: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_docker_endpoint_backend",
+        lambda: backend,
+    )
+
+    with pytest.raises(DockerEndpointError) as captured:
+        capture_native_windows_docker_runtime_endpoint_inputs()
+
+    assert captured.value.code is DockerEndpointErrorCode.ENDPOINT_INVALID
+    assert candidate.closed
+
+
+def test_native_source_factory_maps_runtime_failure_without_private_detail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    backend = _Backend([])
+
+    def reject_runtime(_product: RuntimeProductId) -> BoundRuntimeEvidence:
+        raise RuntimeVerificationError(
+            RuntimeVerificationErrorCode.RUNTIME_REPLACED
+        ) from RuntimeError(_PROFILE)
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_runtime_evidence",
+        reject_runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_docker_endpoint_backend",
+        lambda: backend,
+    )
+
+    with pytest.raises(DockerEndpointError) as captured:
+        capture_native_windows_docker_runtime_endpoint_inputs()
+
+    assert captured.value.code is DockerEndpointErrorCode.RUNTIME_INVALID
+    assert _PROFILE not in str(captured.value)
+    assert not backend.requests
+
+
+def test_native_source_owner_rejects_runtime_drift_and_remains_closeable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime, candidate = _runtime()
+    backend = _Backend([*_cycle(), *_cycle()])
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_runtime_evidence",
+        lambda _product: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_docker_endpoint_backend",
+        lambda: backend,
+    )
+    owner = capture_native_windows_docker_runtime_endpoint_inputs()
+    candidate.snapshot = replace(
+        candidate.snapshot,
+        sha256="c" * 64,
+    )
+
+    with pytest.raises(DockerEndpointError) as captured:
+        owner.capture()
+
+    assert captured.value.code is DockerEndpointErrorCode.RUNTIME_INVALID
+    owner.close()
+    assert candidate.closed
+
+
+def test_native_source_owner_serializes_capture_against_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime, candidate = _runtime()
+    backend = _Backend([*_cycle(), *_cycle(), *_cycle()])
+    entered = threading.Event()
+    release = threading.Event()
+    closed = threading.Event()
+    failures: list[BaseException] = []
+
+    def block(_request: DockerEndpointCommandRequest) -> None:
+        if len(backend.requests) == 5:
+            entered.set()
+            assert release.wait(timeout=5)
+
+    backend.on_execute = block
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_runtime_evidence",
+        lambda _product: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_docker_endpoint_backend",
+        lambda: backend,
+    )
+    owner = capture_native_windows_docker_runtime_endpoint_inputs()
+
+    def capture() -> None:
+        try:
+            owner.capture()
+        except BaseException as error:  # pragma: no cover - thread handoff
+            failures.append(error)
+
+    worker = threading.Thread(target=capture)
+    closer = threading.Thread(target=lambda: (owner.close(), closed.set()))
+    worker.start()
+    assert entered.wait(timeout=5)
+    closer.start()
+    assert not closed.wait(timeout=0.1)
+    release.set()
+    worker.join(timeout=5)
+    closer.join(timeout=5)
+
+    assert not worker.is_alive()
+    assert not closer.is_alive()
+    assert failures == []
+    assert closed.is_set()
+    assert candidate.closed
 
 
 def test_context_labels_and_volatile_counts_are_not_security_identity() -> None:
@@ -824,6 +1002,7 @@ def test_default_backend_is_lazy_and_resolver_remains_unwired(
         assert not any("runtime_docker_endpoint" in item for item in imports)
 
     source = Path(endpoint_module.__file__).read_text(encoding="utf-8")
+    assert "BoundCommandRuntimeEvidence" not in source
     assert "os.environ" not in source
     assert "subprocess.run" not in source
     assert "subprocess.Popen" not in source
