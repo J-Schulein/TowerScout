@@ -7,27 +7,26 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, built-but-unwired, partial,
-not-started, and validation states. At committed source head `e59f1505871c`,
+not-started, and validation states. At committed source head `7a0c35a33adc`,
 contracts are complete; runtime/target foundations, including the reviewed
 native observation
 executor, production authority factory, owned exact-target bridge, and stable
 authenticated target-plan assembler, are substantially built but unwired;
 Windows trust/security are partial; durable recovery, transaction refactoring,
-provider-installer completion, and final proof remain. At earlier source head
-`0674805`, all applicable checks passed in CI/CD run `34515408041`, Task-087 run
-`34515408156`, and external Trivy job `102999589403`; the PR-only build skipped
-as designed. Documentation head `c15967e` also passed all applicable exact-head
-checks in CI/CD run `34535776318` and Task-087 run `34535776293`; its PR-only
-build skipped as designed. Independently reviewed source checkpoint `7f354bc`
-binds the target plan to native Windows trust and awaits exact-head workflows.
+provider-installer completion, and final proof remain. At exact head `454af79`,
+all applicable checks passed in CI/CD run `34630327246`, Task-087 run
+`34630327259`, and external Trivy job `103365410429`; the PR-only build skipped
+as designed.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. The latest pushed checkpoint retains
 the authenticated Podman runtime together with its package-selected rootless
-endpoint, machine configuration, and identity key. The current independently
-reviewed local follow-on authenticates the exact managed-provider catalog bytes
+endpoint, machine configuration, and identity key. Independently reviewed and
+pushed checkpoint `c0639c7` authenticates the exact managed-provider catalog bytes
 and pinned wheels, reconstructs the exact allowed installed distribution
-inventory, and rejects drift and Python startup-hook surfaces before the native
-retained provider adapter is added.
+inventory, and rejects drift and Python startup-hook surfaces. Corrective
+checkpoint `454af79` synchronizes the build-inspector integrity pin and prevents
+future package-policy pin drift before the native retained provider adapter is
+added.
 
 **Current Release State**:
 
@@ -156,7 +155,7 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced but not
-near exit. At committed source head `e59f1505871c`, slice 1 is complete; slices
+near exit. At committed source head `7a0c35a33adc`, slice 1 is complete; slices
 2-3 are substantially built but unwired, with the owned native exact-target
 bridge and stable
 authenticated target-plan assembler now checkpointed;
@@ -204,9 +203,18 @@ canonical burn-down; re-estimate after exact-target wiring
   only redacted target identities. Independently reviewed and pushed checkpoint
   `e59f150` jointly retains and revalidates the authenticated Podman runtime,
   package-selected rootless endpoint, machine configuration, and identity key.
-  The current local follow-on authenticates the exact managed-provider catalog
-  bytes and wheel-derived installed inventory. Finish slices 2-3 by reconciling
-  a deterministic provider-only installation layout, completing the retained
+  Independently reviewed and pushed checkpoint `c0639c7` authenticates the exact
+  managed-provider catalog bytes and wheel-derived installed inventory;
+  corrective checkpoint `454af79` keeps the build-inspector policy pin in sync.
+  Independently reviewed checkpoint `7a0c35a` reconciles the deterministic provider-only
+  installed `site-packages` inventory with retained verified wheels, a self-reported compatible
+  CPython 3.12.10 installer input, exact wheel-byte materialization, no embedded
+  packaging bootstrap or wrapper, and bytecode suppression across the current
+  PowerShell Podman-provider path. The future native command adds `-I -B` but
+  remains unwired. The external
+  installer does not authenticate that ambient Python; the retained native
+  owner must establish interpreter trust before any provider use.
+  Finish slices 2-3 by completing the retained
   native provider adapter, and adding the remaining package/environment,
   process-environment, and acceleration inputs;
   compose the final owner; connect its exact target ahead of confirmation; and

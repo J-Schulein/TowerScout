@@ -3,12 +3,12 @@
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A source work is active under the
 approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). At reviewed source
-head `7f354bcc8d20`, contracts are complete; the runtime and target foundations
+head `7a0c35a33adc`, contracts are complete; the runtime and target foundations
 are substantially built but unwired; Windows trust/security are partial;
 durable recovery, transaction refactoring, and the final Gate A proof remain
-open. Documentation head `c15967e` passed all applicable checks in CI/CD run
-`34535776318` and Task-087 run `34535776293`; Trivy passed and the PR-only build
-skipped as designed. PR #67 remains Draft, mutation remains disabled, and no
+open. All applicable exact-head checks passed in CI/CD run `34630327246`,
+Task-087 run `34630327259`, and external Trivy job `103365410429`; the PR-only
+build skipped as designed. PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
@@ -1356,7 +1356,69 @@ Exit criteria:
 
 ## Implementation Log
 
-### 2026-09-11 - Managed Podman Provider Inventory Verifier Implemented Locally
+### 2026-09-11 - Deterministic Managed Provider Layout Checkpointed
+
+**Objective**: Remove the installation-layout ambiguity blocking the retained
+native managed-provider owner without enabling launcher repair or mutation.
+
+**Execution**: The explicit connected installer now requires a self-reported
+compatible CPython 3.12.10 Windows AMD64 input, retains all three already
+hash-verified wheels under the policy-declared package-local `wheelhouse`,
+creates the virtual environment with `--without-pip --copies`, and uses the
+ambient interpreter's packaging tool only to create the console entry point.
+It then deletes pip's generated `site-packages` tree and uses a package-local,
+standard-library-only helper to materialize the exact wheel `RECORD` inventory,
+so `INSTALLER`, `REQUESTED`, `direct_url.json`, and other pip-added metadata
+cannot drift from the native verifier's expected bytes. It rejects embedded
+`pip`, `setuptools`, or `wheel` bootstrap
+distributions and commands, `.pth` files, generated `.pyc`/`__pycache__`
+content, duplicate wheel names, and post-copy wheel hash drift. The obsolete
+command wrapper is no longer created. Provider validation and every current
+PowerShell `podman compose` child run with `PYTHONDONTWRITEBYTECODE=1`, so legacy
+use cannot invalidate the installed inventory by generating bytecode. The
+future package-bound native runtime command is exactly
+`python -I -B -m podman_compose`, but remains unwired. The runtime policy and build-inspector pins
+were updated together, and user/support docs now distinguish explicit connected
+installation from implicit launcher behavior.
+
+**Validation**: PowerShell parses the installer successfully. The focused
+installer, runtime-policy, execution, provider-inventory, target-observation,
+launcher-build, legacy bootstrap, and Podman GPU suites pass `303/303`, including an actual exact-wheel
+materialization-to-inventory-verifier proof; the prior focused set passes
+`89/89`. The Windows release-package suite passes `5/5` outside the managed
+sandbox, confirming the new helper is staged in generated packages. Sixteen
+direct adversarial materializer tests cover unsafe paths, Unicode normalization,
+reserved names, Python startup hooks and bytecode, case and cross-wheel
+collisions, RECORD hash/size/set drift, nonempty destinations, and cleanup after
+a partial write failure.
+Independent sub-agent review initially found the ambient-Python trust overclaim,
+pip metadata drift, legacy-path bytecode risk, and missing adversarial coverage.
+After correction, the final inspect-only re-review returned `CLEAN/PASS` with no
+remaining material findings.
+The broad launcher plus legacy provider-hardening run reached `1338` passes;
+its only error occurred during test setup when the managed sandbox denied
+pytest access to its inherited temporary-directory root for the already-known
+native hard-link test. No product assertion failed.
+No provider was downloaded, installed, or executed, and no Docker, Podman,
+Compose, `.env`, certificate, container, image, volume, or application state
+was changed.
+
+**Checkpoint**: Independently reviewed source commit `7a0c35a` records this
+bounded increment spanning the provider prerequisite in slice 2 and the
+installation-layout portion of slice 8. It does not yet capture
+the wheelhouse, installed files, entry point, venv configuration, or interpreter
+under retained native handles; prove the venv/base-CPython relationship; emit a
+`ComposeProviderIdentity`; join the Podman owner; update `.env` through the
+future protected atomic protocol; connect confirmation; or enable mutation.
+The installer-side version/platform probe is compatibility evidence only: it
+does not authenticate the caller-selected ambient Python. Gate A trust remains
+closed until the native retained owner authenticates the base CPython closure,
+venv relationship, entry point, wheels, and installed files before use.
+
+**Next**: Build the retained native provider adapter from these deterministic
+artifacts.
+
+### 2026-09-11 - Managed Podman Provider Inventory Verifier Checkpointed
 
 **Objective**: Establish the missing trust proof beneath the managed Podman
 Compose source owner without trusting ambient Python metadata or an
@@ -1418,7 +1480,13 @@ No wheel was installed or executed. No Docker, Podman, Compose, Python provider,
 certificate store, launcher, `.env`, container, image, volume, or application
 runtime state was changed.
 
-**Boundary**: This is an independently reviewed local sub-increment of slice 2.
+**Checkpoint**: Independently reviewed implementation commit `c0639c7` was
+pushed. Its first CI/CD run exposed only a stale duplicate runtime-policy digest
+in the build inspector. Corrective commit `454af79` synchronized that pin and
+added a parity regression. At `454af79`, CI/CD run `34630327246`, Task-087 run
+`34630327259`, and external Trivy job `103365410429` all passed.
+
+**Boundary**: This is an independently reviewed and pushed sub-increment of slice 2.
 It closes the pure catalog/wheel/installed-distribution verification gap but
 does not yet
 capture or retain native Windows handles for the package root, wheelhouse,
@@ -3887,7 +3955,8 @@ identity expectations, reviewed signer-certificate identities and install
 records, embedded Authenticode only, SHA-256/RSA, cache-only whole-chain
 revocation, trusted RFC3161 expiry handling, and reviewed-updates-only
 semantics. Its inline Podman Compose catalog admits only the TowerScout-managed
-direct `python -I -m podman_compose` closure with exact interpreter,
+direct `python -I -B -m podman_compose` closure with exact interpreter and
+bytecode writes disabled,
 distribution, wheel/input, inventory, endpoint-propagation, and reconstruction
 contracts; external, Docker Desktop, wrapper, delegation, and name/version-only
 routes remain invalid.
