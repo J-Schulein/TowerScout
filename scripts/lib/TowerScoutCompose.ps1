@@ -48,7 +48,11 @@ function Test-TowerScoutEngineReady {
 function Get-TowerScoutComposeCommand {
     param(
         [ValidateSet("auto", "docker", "podman")]
-        [string] $Engine = "auto"
+        [string] $Engine = "auto",
+
+        [switch] $RequireWindowsRootless,
+
+        [string] $PodmanMachineName = ""
     )
 
     if ($Engine -eq "auto") {
@@ -84,6 +88,9 @@ function Get-TowerScoutComposeCommand {
 
     if (-not (Test-TowerScoutCommand "podman")) {
         throw "Podman was selected but the podman command was not found."
+    }
+    if ($RequireWindowsRootless) {
+        Assert-TowerScoutPodmanWindowsRootlessMode -MachineName $PodmanMachineName
     }
     Initialize-TowerScoutPodmanComposeProvider | Out-Null
 
@@ -406,8 +413,10 @@ function Initialize-TowerScoutPodmanComposeProvider {
 
 function Get-TowerScoutPodmanComposeVersionResult {
     $previousErrorActionPreference = $ErrorActionPreference
+    $previousNoBytecode = [Environment]::GetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "Process")
     $ErrorActionPreference = "Continue"
     try {
+        $env:PYTHONDONTWRITEBYTECODE = "1"
         $versionOutput = & podman compose version 2>&1
         return [pscustomobject]@{
             ExitCode = $LASTEXITCODE
@@ -415,6 +424,12 @@ function Get-TowerScoutPodmanComposeVersionResult {
         }
     }
     finally {
+        if ($null -eq $previousNoBytecode) {
+            Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:PYTHONDONTWRITEBYTECODE = $previousNoBytecode
+        }
         $ErrorActionPreference = $previousErrorActionPreference
     }
 }
@@ -839,6 +854,53 @@ function Get-TowerScoutFirstJsonObject {
     return $null
 }
 
+function Get-TowerScoutPodmanWindowsMachineMode {
+    param(
+        [object] $Machine
+    )
+
+    if ($null -eq $Machine) {
+        return "unknown"
+    }
+
+    $rootful = ([string](Get-TowerScoutObjectPropertyValue -InputObject $Machine -Name "Rootful")).Trim().ToLowerInvariant()
+    if ($rootful -in @("false", "0")) {
+        return "rootless"
+    }
+    if ($rootful -in @("true", "1")) {
+        return "rootful"
+    }
+
+    return "unknown"
+}
+
+function Assert-TowerScoutPodmanWindowsRootlessMode {
+    param(
+        [string] $MachineName = $(Get-TowerScoutConfiguredPodmanMachineName)
+    )
+
+    if ($env:OS -ne "Windows_NT") {
+        return
+    }
+
+    $MachineName = Get-TowerScoutConfiguredPodmanMachineName -MachineName $MachineName
+    $inspect = Invoke-TowerScoutPodmanCommand -Arguments @("machine", "inspect", $MachineName) -TimeoutSeconds 15
+    if ($inspect.ExitCode -ne 0) {
+        throw "TowerScout could not inspect Podman machine '$MachineName'. Start the machine and retry. TowerScout did not change the Podman machine."
+    }
+
+    $machine = Get-TowerScoutFirstJsonObject -Json $inspect.StdOut
+    $mode = Get-TowerScoutPodmanWindowsMachineMode -Machine $machine
+    if ($mode -eq "rootless") {
+        return
+    }
+    if ($mode -eq "rootful") {
+        throw "TowerScout's Windows Podman path requires a rootless Podman machine so published ports can reach Windows localhost. Stop '$MachineName', run 'podman machine set --rootful=false $MachineName', start it again, then rerun TowerScout. Rootful and rootless Podman use separate containers and volumes. TowerScout did not change the Podman machine."
+    }
+
+    throw "TowerScout could not verify that Podman machine '$MachineName' is rootless. Update or repair Podman, confirm 'podman machine inspect $MachineName' reports Rootful=false, then retry. TowerScout did not change the Podman machine."
+}
+
 function Get-TowerScoutPodmanMachineVmType {
     param(
         [object] $Machine
@@ -1045,12 +1107,17 @@ function Get-TowerScoutComposeServiceContainerIds {
 
     $repoRoot = Get-TowerScoutRepoRoot
     $command = Get-TowerScoutComposeCommand -Engine $Engine
+    $isPodmanCompose = $Engine -eq "podman" -or [string] $command["Executable"] -eq "podman"
     $composeFiles = @("-f", (Join-Path $repoRoot "compose.yaml"))
 
     Push-Location $repoRoot
     try {
         $previousErrorActionPreference = $ErrorActionPreference
+        $previousNoBytecode = [Environment]::GetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "Process")
         $ErrorActionPreference = "Continue"
+        if ($isPodmanCompose) {
+            $env:PYTHONDONTWRITEBYTECODE = "1"
+        }
         $output = & $command["Executable"] @(($command["Arguments"]) + $composeFiles + @("ps", "-a", "-q", $ServiceName)) 2>$null
         if ($LASTEXITCODE -ne 0) {
             return @()
@@ -1059,6 +1126,14 @@ function Get-TowerScoutComposeServiceContainerIds {
         return @($output | ForEach-Object { ([string] $_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     }
     finally {
+        if ($isPodmanCompose) {
+            if ($null -eq $previousNoBytecode) {
+                Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:PYTHONDONTWRITEBYTECODE = $previousNoBytecode
+            }
+        }
         $ErrorActionPreference = $previousErrorActionPreference
         Pop-Location
     }
@@ -1703,6 +1778,7 @@ function Invoke-TowerScoutCompose {
     $repoRoot = Get-TowerScoutRepoRoot
     $command = Get-TowerScoutComposeCommand -Engine $Engine
     $effectiveEngine = [string] $command["Executable"]
+    $isPodmanCompose = $Engine -eq "podman" -or $effectiveEngine -eq "podman"
     $gpuOverlayFile = ""
     if ($effectiveEngine -in @("docker", "podman")) {
         $gpuOverlayFile = Resolve-TowerScoutGpuComposeOverlay `
@@ -1736,11 +1812,23 @@ function Invoke-TowerScoutCompose {
     Push-Location $repoRoot
     try {
         $previousErrorActionPreference = $ErrorActionPreference
+        $previousNoBytecode = [Environment]::GetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "Process")
         $ErrorActionPreference = "Continue"
+        if ($isPodmanCompose) {
+            $env:PYTHONDONTWRITEBYTECODE = "1"
+        }
         & $command["Executable"] @(($command["Arguments"]) + $composeFiles + $ComposeArguments)
         $script:TowerScoutComposeExitCode = $LASTEXITCODE
     }
     finally {
+        if ($isPodmanCompose) {
+            if ($null -eq $previousNoBytecode) {
+                Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:PYTHONDONTWRITEBYTECODE = $previousNoBytecode
+            }
+        }
         $ErrorActionPreference = $previousErrorActionPreference
         Pop-Location
     }

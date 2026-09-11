@@ -1,6 +1,6 @@
 # TowerScout Handoff Guide
 
-**Last Updated**: August 20, 2026
+**Last Updated**: August 21, 2026
 **Operational Closeout**: October 30, 2026
 **Hard Project End**: October 31, 2026
 
@@ -13,8 +13,10 @@ The validated fork-side `v0.1.2` release is the immutable Pilot Package:
 The cdcai owner selected a fix-first path:
 
 - Keep pilot users on unchanged `v0.1.2`.
-- Develop and qualify new candidates in `J-Schulein/TowerScout`.
-- Name fork candidates `v0.1.3-rc.N`.
+- Develop and refine unsigned normal-user previews in
+  `J-Schulein/TowerScout` as `v0.1.3-preview.N` GitHub prereleases.
+- Reserve `v0.1.3-rc.N` for the production-shaped package built, signed, and
+  qualified within Task-100; publish it only after the gates pass.
 - Keep `cdcai/TowerScout` unchanged until owner qualification and explicit
   adoption approval.
 - Select the official cdcai tag and display title before the official build.
@@ -38,12 +40,21 @@ The current Pilot/cdcai hold is:
   contained the eight documented torch residuals
 - Task-101 high-severity development-transitive `extract-zip` remediation and
   release-gate disposition: PR #72 squash-merged as `0cc189c`, exact-main checks
-  passed, and alert `#76` closed as fixed without dismissal; PR #67 semantic
-  integration and exact-head validation remain before Task-087 resumes
-- Task-087 Google/Azure guided provider TLS repair on Docker/Podman: paused /
-  reconciliation-gated while Draft PR #67 remains open for reviewer input
+  passed, and alert `#76` closed as fixed without dismissal; PR #73 recorded
+  the checkpoint and squash-merged as `9276084`, with exact-main CI/CD and
+  Task-087 workflows passing; the merge integrated that `main` into PR #67,
+  and reconciliation commit `946deaf` passed exact-head CI/CD run `32383065903`
+  plus Task-087 run `32383065959`; Task-101 is complete
+- Task-087 Google/Azure guided provider TLS repair on Docker/Podman: active /
+  IMPLEMENT after lifecycle head `6e0f744` passed CI/CD run
+  `32385304086` and Task-087 run `32385304052`; Draft PR #67 remains Draft while
+  project-lead approval on August 21 activated Gate A exact-target, durable-
+  recovery, Windows trust/filesystem, and provider `.env` implementation;
+  staged-byte/build-integrity Gate B and exact-head re-review remain pending
 - Task-096 user-confirmed Exit/Stop on Docker/Podman
 - Task-097 Podman CPU/GPU final-path qualification
+- Task-100 October production signing and representative managed-endpoint
+  qualification after the unsigned package is satisfactory
 - Docker CPU, Docker GPU, Podman CPU, and Podman GPU qualification
 - owner-runnable qualification, documentation, recovery, governance, backlog,
   and handoff work
@@ -75,14 +86,23 @@ are recorded in
 Task-099 records the completed post-closeout advisory remediation, including
 the later js-yaml npm audit finding and root graph reconciliation, in
 `.agent_work/tasks/active/TASK-099-august-dependency-advisory-follow-up.md`.
-Alert `#76` opened after that closeout and is owned by active Task-101 in
+Alert `#76` opened after that closeout and is owned by the completed Task-101
+record in
 `.agent_work/tasks/active/TASK-101-extract-zip-advisory-release-gate.md`.
-Task-087 remains preserved and reviewable in PR #67, but new implementation,
-merge, and candidate publication wait for semantic integration of current
-`main` into PR #67 and green checks at that branch's new exact head. PR #72 and
-alert `#76` default-branch reconciliation already passed. Its other package,
-signing, provider/recovery, Podman, and representative managed-endpoint gates
-remain closed.
+Task-087 remains preserved and reviewable in PR #67. Reconciliation commit
+`946deaf` passed exact-head CI/CD run `32383065903` and Task-087 run
+`32383065959`, completing Task-101's remaining gate. This governance update
+explicitly resumed Task-087, and lifecycle head `6e0f744` then passed CI/CD run
+`32385304086` plus Task-087 run `32385304052`. Independent technical/security
+review requested source changes at that exact head. The current remediation
+design is
+[`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](.agent_work/tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md);
+the project lead approved Gate A IMPLEMENT on August 21. Existing Task-087
+validation artifacts remain nonpublishable. Merge to `main` and preview/
+candidate publication remain behind Task-087's source-re-review and other
+applicable gates. Task-100 owns production signing, signed-candidate packaging,
+and representative managed-endpoint qualification in October; Task-087's
+remaining package, provider/recovery, Podman, and endpoint gates remain closed.
 
 ## Runtime And Package Model
 
@@ -92,6 +112,12 @@ Normal release delivery uses:
 - digest-pinned GHCR image
 - checksummed shared Model & Data Package
 - Docker- and Podman-compatible Compose paths
+
+Unsigned iteration uses immutable `v0.1.3-preview.N` GitHub prereleases on
+approved clean unmanaged Windows machines. After the package is satisfactory,
+Task-100 builds/signs under `v0.1.3-rc.N`, qualifies those exact bytes, and
+publishes/freezes them only after the gates pass. Neither identity authorizes a
+cdcai change by itself.
 
 The final support matrix requires:
 
@@ -118,6 +144,9 @@ Static review, planning, and documentation work do not require runtime startup.
 ## Safety And Custody
 
 - Do not replace released `v0.1.2` assets.
+- Do not relabel Task-087 validation ZIPs as previews, mark unsigned previews
+  `Latest`, or give unsigned bytes an RC identity.
+- Do not ask preview testers to disable Windows security controls.
 - Do not publish `v0.1.3` final prematurely.
 - Do not modify cdcai without explicit owner authorization.
 - Do not mount Docker/Podman sockets into the application container.
@@ -134,6 +163,8 @@ release assets, SHA-256 sidecars, `webapp/asset_manifest.v1.json`, and
 Before October 30:
 
 - final candidate is qualified and accepted
+- Task-100 production signing and representative managed-endpoint
+  qualification are complete
 - official cdcai identity is selected and built consistently
 - release, rollback/reject, recovery, and cleanup are rehearsed by the owner
 - repository, Actions, package, documentation, video, and backlog custody are

@@ -77,7 +77,9 @@ function Invoke-TowerScoutBootstrapCommand {
 
         [string[]] $Arguments = @(),
 
-        [int] $TimeoutSeconds = 15
+        [int] $TimeoutSeconds = 15,
+
+        [switch] $DisablePythonBytecode
     )
 
     $process = New-Object System.Diagnostics.Process
@@ -87,6 +89,9 @@ function Invoke-TowerScoutBootstrapCommand {
     $process.StartInfo.RedirectStandardOutput = $true
     $process.StartInfo.RedirectStandardError = $true
     $process.StartInfo.CreateNoWindow = $true
+    if ($DisablePythonBytecode) {
+        $process.StartInfo.EnvironmentVariables["PYTHONDONTWRITEBYTECODE"] = "1"
+    }
 
     try {
         [void] $process.Start()
@@ -255,6 +260,19 @@ function Test-TowerScoutPodmanPreflight {
         else {
             $warnings += "Podman machine state could not be read. Support may need to run 'podman machine list'."
         }
+
+        if (Get-Command "Assert-TowerScoutPodmanWindowsRootlessMode" -ErrorAction SilentlyContinue) {
+            try {
+                Assert-TowerScoutPodmanWindowsRootlessMode
+                $details += "The selected Podman machine is rootless for Windows localhost forwarding."
+            }
+            catch {
+                $failures += $_.Exception.Message
+            }
+        }
+        else {
+            $failures += "TowerScout could not load the Windows Podman rootless-mode preflight. Re-extract the complete application package and retry."
+        }
     }
 
     if (Get-Command "Initialize-TowerScoutPodmanComposeProvider" -ErrorAction SilentlyContinue) {
@@ -280,7 +298,7 @@ function Test-TowerScoutPodmanPreflight {
         }
     }
 
-    $compose = Invoke-TowerScoutBootstrapCommand -FileName "podman" -Arguments @("compose", "version") -TimeoutSeconds 15
+    $compose = Invoke-TowerScoutBootstrapCommand -FileName "podman" -Arguments @("compose", "version") -TimeoutSeconds 15 -DisablePythonBytecode
     if ($compose.ExitCode -ne 0) {
         $message = ($compose.StdErr + $compose.StdOut).Trim()
         if ([string]::IsNullOrWhiteSpace($message)) {

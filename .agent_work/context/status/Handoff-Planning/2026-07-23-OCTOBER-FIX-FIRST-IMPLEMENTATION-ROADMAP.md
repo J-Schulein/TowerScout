@@ -2,12 +2,122 @@
 
 **Status**: CURRENT - canonical forward execution roadmap
 **Approved**: July 23, 2026
-**Last Reconciled**: August 20, 2026
+**Last Reconciled**: August 21, 2026
 **Decision Owners**: Project lead and cdcai owner
 **Pilot Baseline**: Immutable fork-side `v0.1.2`
-**Candidate Convention**: `v0.1.3-rc.N`
+**Unsigned Preview Convention**: `v0.1.3-preview.N`
+**Signed Candidate Convention**: `v0.1.3-rc.N`
 **Operational Closeout**: October 30, 2026
 **Hard Project End**: October 31, 2026
+
+## August 19 Preview-To-Signing Sequence Override
+
+ADR-019 controls release and signing sequence wherever older sections below
+conflict. The project lead selected Proceed to unsigned preview integration
+after the Task-087 functional package gates passed.
+
+- Keep all existing `Task-087-validation-*` artifacts validation-only and
+  nonpublishable.
+- Complete technical/security review and add the launcher to a new normal-user
+  release-package path.
+- Publish iterative packages only as immutable unsigned
+  `v0.1.3-preview.N` fork-side GitHub prereleases, never `Latest`, with clear
+  unmanaged-test-machine and non-production wording.
+- Test the actual GitHub download/extract/setup/use path on an approved clean
+  unmanaged Windows machine without security exclusions or bypass guidance.
+- Record package satisfaction only when the stable executable/entry-point
+  shape, exact source, fresh pinned image, manifests/checksums/notices/docs,
+  required functional flows, and supported runtime boundaries are accepted.
+- Start `TASK-100` in October after that decision. It owns production signing,
+  post-sign packaging/checksums, representative managed-endpoint validation,
+  and the signed `v0.1.3-rc.N` candidate.
+- Keep `cdcai/TowerScout` unchanged until the signed candidate is qualified and
+  the owner explicitly approves adoption.
+
+Target the satisfactory unsigned package by September 25, Task-100 activation
+no earlier than October 1, signed-candidate freeze by October 9, and Task-100
+acceptance by October 16. Existing historical evidence and decisions remain
+valid for the exact artifacts they describe, but do not reinstate the former
+parallel-signing or signing-before-merge sequence.
+
+## Historical August 11 Task-087 Override
+
+Draft PR #67 was reconciled locally with then-current `main` at `3932abf`,
+preserving the Sprint 09/Task-099 closeout and the final Task-087 implementation
+tree. The native Python/Tkinter transaction and typed-confirmation UI were
+implemented. One separately authorized isolated Google/Docker source-adapter
+repair passed while preserving all eight named volumes; it did not validate the
+combined full-runnable packaged UI. This historical override controlled the
+older August 5-6 wording below until the later August 19-20 amendments.
+
+- Publish and require green checks at the new exact PR head.
+- Generate a new exact-source full-runnable package in an approved environment;
+  do not reuse the historical `4327fb6` or `4fc5390` artifacts.
+- Validate packaged UI-driven Docker Google, Azure, and controlled recovery.
+- Validate Podman only after an approved non-Docker-Desktop Compose provider is
+  configured separately.
+- Keep Task-086 as the supported fallback. Technical/security review and
+  normal-user preview integration are the next gates; Task-100 owns signing
+  and representative managed-endpoint validation in October.
+- The overdue disposition was recorded August 19 as Proceed to unsigned
+  preview integration under ADR-019.
+
+## Historical August 5 Task-087 Provisional Addendum
+
+ADR-018 authorizes a reversible Windows launcher feasibility prototype instead
+of continuing directly toward activation of the dormant browser-to-loopback
+helper. This addendum controls where the July 23 Task-087 mechanism conflicts;
+the required user outcome, Task-086 fallback, runtime matrix, and final
+milestones remain unchanged.
+
+- Keep all browser/helper activation gates off and PR #64 on hold.
+- Build a thin visible launcher proof, beginning with non-mutating status and
+  TLS repair preview.
+- Publish the bounded proof as a Draft PR and build only
+  `Task-087-validation-<short-SHA>` from its exact commit. This artifact is not
+  a candidate and receives no tag, GitHub Release, or cdcai publication.
+- Start approved signing-path coordination in parallel with development.
+- Do not merge or ship the launcher until the production-shaped signed artifact
+  passes representative managed-endpoint validation.
+- Decide proceed, conditional, or stop by August 14. A failed proof returns to
+  the Task-086 user-run command repair without moving the September/October
+  milestones.
+
+### Historical August 5-6 Checkpoint Status
+
+- Draft PR #67 remains the review surface; all browser/helper activation gates
+  remain off.
+- Commits `18082cf` and `4327fb6` stabilized the fixed shell-free Windows
+  runtime probe and added clean-source build provenance plus atomic validation
+  artifact publication. The assembler now distinguishes the non-runnable
+  `launcher-policy` artifact from the `full-runnable` functional package.
+- The exact-source unsigned `full-runnable` package from
+  `4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6` passed pristine sidecar/internal
+  checksum verification and fresh isolated Docker CPU setup on port 5008. It
+  reached healthy `setup_required` readiness with verified assets, CPU selected,
+  and the exact pinned image digest.
+- On August 6, reboot persistence and automatic Docker-project resume passed.
+  The exact launcher reported Docker running and reachable across three
+  consecutive refreshes, and its fixed Google/Docker preview displayed the
+  expected target, CPU/GPU-off profile, and port 5008. The preview inspected no
+  certificates, changed no trust, stopped or restarted no container, and did
+  not run the dormant helper.
+- A provider key entered only in the Setup Wizard produced the sanitized
+  expected `tls_ca_untrusted` category and Task-086 repair-command guidance.
+  No key, raw provider response, or certificate detail was captured. Normal-
+  size controls were clipped at this host's display scaling and became visible
+  when maximized; that is a non-blocking UI follow-up before the signed build.
+- The next external gate is an organization-approved signed production-shaped
+  build running under representative managed endpoint policies. The current
+  artifact remains unsigned validation-only evidence, not a release candidate
+  or release. The later isolated source-adapter transaction is governed by the
+  August 11 override and does not authorize tag, merge, shipment, additional
+  mutation, or cdcai change before the applicable gates pass.
+
+Current sanitized evidence:
+[`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](../../../tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md).
+The earlier `REVIEW-EVIDENCE-2026-08-05.md` remains historical static-review
+evidence.
 
 ## Executive Decision
 
@@ -27,6 +137,8 @@ Before final-candidate freeze, TowerScout must:
 - update the external Setup Guide and demo video
 - leave a tool-neutral maintenance and AI-assisted-development foundation
 - complete owner-operated qualification, recovery, release, and handoff
+- complete Task-100 production signing and representative managed-endpoint
+  qualification after the unsigned package is satisfactory
 
 Task-058 and Task-059 are stretch work. They cannot displace required release,
 runtime, documentation, or handoff work.
@@ -36,7 +148,8 @@ runtime, documentation, or handoff work.
 ### `J-Schulein/TowerScout`
 
 - Hosts the immutable `v0.1.2` pilot.
-- Hosts development and immutable `v0.1.3-rc.N` candidates.
+- Hosts development, immutable unsigned `v0.1.3-preview.N` prereleases, and
+  signed `v0.1.3-rc.N` candidates.
 - Retains pilot, release, and source-provenance history after handoff.
 
 ### `cdcai/TowerScout`
@@ -47,7 +160,10 @@ runtime, documentation, or handoff work.
 
 ### Release Naming
 
-- Fork candidate tags use `v0.1.3-rc.N`.
+- Fork unsigned previews use `v0.1.3-preview.N`, remain GitHub prereleases, and
+  are never marked `Latest`.
+- Task-100 builds/signs under `v0.1.3-rc.N`; that exact candidate is published
+  and frozen only after Task-100 qualification passes.
 - A candidate tag does not reserve or authorize `v0.1.3` final.
 - Before official publication, the cdcai owner and project lead select the
   cdcai tag and display title.
@@ -65,11 +181,25 @@ runtime, documentation, or handoff work.
 and historical. Four advisories disclosed August 4-5 are owned by the new
 Task-099 follow-up rather than reopening Tasks 090/098. Task-099 cleared its
 critical/high and default-branch alert-reconciliation gates on August 11
-through PRs #68/#69. High-severity development-transitive `extract-zip` alert
-`#76` opened afterward and is owned by active Task-101. PR #72 restored the
-blocking frontend dependency gate, exact-main validation passed, and alert
-`#76` closed as fixed without dismissal. Task-087 is preserved but paused
-through Task-101's downstream PR #67 reconciliation gate.
+through PRs #68/#69.
+
+**August 20 Task-101 Reconciliation Amendment**: High-severity development-
+transitive `extract-zip` alert `#76` opened after Task-099 and is owned by active
+Task-101 without rewriting that dated closeout. PR #72's Node/Puppeteer
+remediation restored the blocking frontend dependency gate, exact-main
+validation passed, and alert `#76` closed as fixed without dismissal or a
+residual-high exception. PR #73's checkpoint then merged as `9276084` and
+passed exact-main checks. The merge integrated that current `main` into Draft
+PR #67 while preserving ADR-019 and the branch's evidence. Reconciliation
+commit `946deaf` then passed exact-head CI/CD run `32383065903` and Task-087 run
+`32383065959`, satisfying Task-101's remaining acceptance gate. This governance
+update marks Task-101 complete and explicitly resumes Task-087 from its
+preserved checkpoint. Lifecycle head `6e0f744` then passed CI/CD run
+`32385304086` and Task-087 run `32385304052`, closing that revalidation hold.
+Independent technical/security review requested source changes at that exact
+head. The project lead approved Gate A IMPLEMENT under the August 20
+remediation design on August 21, so bounded source work is active while PR #67
+remains Draft.
 
 1. Task-095 Phase A roadmap/workspace rebaseline and readiness cleanup:
    complete July 23.
@@ -102,19 +232,49 @@ July 27 exit evidence:
 2. [x] Pass PR #72's final exact-head checks and squash-merge it as `0cc189c`.
 3. [x] Pass exact-main checks and confirm alert `#76` closes as fixed on the
    default branch without dismissal.
-4. [ ] Merge current `main` normally into Draft PR #67 and preserve ADR-019 plus
-   the branch's recorded evidence during semantic reconciliation.
-5. [ ] Require PR #67's new exact-head matrix to pass.
-6. [ ] Explicitly resume Task-087 from its preserved checkpoint only after
-   steps 4-5 pass.
-7. [ ] Support guided repair for Google and Azure.
-8. [ ] Support application-provider TLS repair on Docker and Podman.
-9. [ ] Validate on the available managed CDC network.
-10. [ ] Complete Task-096 Exit/Stop TowerScout for Docker and Podman.
+4. [x] Record the post-merge checkpoint in PR #73, squash-merge it as `9276084`,
+   and pass its exact-main CI/CD and Task-087 workflows.
+5. [x] Merge current `main` through `9276084` normally into Draft PR #67 and
+   preserve ADR-019 plus the branch's recorded evidence during semantic
+   reconciliation.
+6. [x] Pass PR #67 reconciliation commit `946deaf` through exact-head CI/CD run
+   `32383065903` and Task-087 run `32383065959`.
+7. [x] In this governance update, mark Task-101 complete and explicitly resume
+   Task-087 from its preserved checkpoint.
+8. [x] Pass CI/CD run `32385304086` and Task-087 run `32385304052` at lifecycle
+   head `6e0f744` before additional implementation-producing change.
+9. [x] Validate and explicitly approve the PR #67 remediation design; the
+   project lead approved Gate A IMPLEMENT on August 21. Now correct exact
+   runtime/target binding, Windows trust, durable recovery,
+   cross-session/filesystem safety, and provider `.env` handling while
+   preserving the exact-source Docker/Podman evidence and Task-086 fallback.
+10. [x] Preserve the August 19 Proceed-to-unsigned-preview disposition under
+    ADR-019 during reconciliation and the lifecycle transition.
+11. [ ] Pass exact-head workflows and independent source re-review, then
+    complete staged-byte/archive and explicitly approved exact-patch/hash-locked
+    Python 3.12 build integrity.
+12. [ ] Integrate the accepted launcher into the normal release-package path;
+    do not publish or relabel any Task-087 validation-only ZIP.
+13. [ ] Publish and refine immutable unsigned `v0.1.3-preview.N` GitHub
+    prereleases through approved clean unmanaged-machine testing until the
+    package is declared satisfactory.
+14. [ ] Reuse Task-087's fixed-target confirmation, runtime validation,
+    sanitized state, and recovery pattern for Task-096 Exit/Stop on Docker and
+    Podman.
+15. [ ] Preserve Task-086 as the supported fallback for every scope not yet
+    accepted in a preview or signed candidate.
 
 Exit:
 
-- Guided TLS repair passes security, product, and managed-network gates.
+- Task-087 has a recorded August 19 Proceed-to-preview decision.
+- Task-101 is complete after reconciliation commit `946deaf` passed its
+  exact-head matrix. Task-087 is explicitly resumed, and lifecycle head
+  `6e0f744` passed its required workflows.
+- Independent review requested source changes at `6e0f744`. PR #67 merge and
+  preview publication still require Task-087's exact-target/recovery source
+  remediation, re-review, product, and package-integrity gates.
+- Guided TLS repair passes technical/security, product, package, and clean
+  unmanaged-machine preview gates for its stated scope.
 - Exit/Stop safely removes the selected application container while retaining
   named volumes.
 
@@ -141,8 +301,9 @@ Task-058 may begin immediately when all of the following are true:
 
 - Tasks 090 and 098 are complete.
 - Task-099 passes its August dependency-security follow-up gate.
-- Task-101 passes its `extract-zip` dependency-security gate.
-- Task-087 passes managed-network validation.
+- Task-101 is complete.
+- Task-087's governance-transition head is green, and Task-087 passes its
+  functional/security and unsigned-preview package gates.
 - Task-096 passes Docker and Podman acceptance.
 - Task-097 passes required final-path qualification.
 - No pilot blocker requires priority.
@@ -157,7 +318,8 @@ remain protected.
 
 Required work:
 
-- Task-091 minimum owner-runnable release qualification
+- Task-091 preview-based owner-runnable harness/custody rehearsal; the final
+  signed acceptance run occurs under Task-100
 - Task-092 repository/user documentation currentness
 - Task-093 persistent-data lifecycle and recovery rehearsal
 - Task-094 only when pilot/support evidence justifies it
@@ -175,21 +337,27 @@ Documentation includes:
 Exit:
 
 - September 18: code complete.
-- September 25: feature, package, and documentation complete.
-- October 9: final candidate frozen; blocker-only change rule begins.
+- September 25: feature/documentation complete and the satisfactory unsigned
+  package decision targeted.
+- October 1: Task-100 may start only if that decision is recorded.
 
 ### Phase 6 - Owner Acceptance And Transfer
 
-1. Project lead and cdcai owner qualify the final candidate.
-2. Select the official cdcai tag and display title.
-3. Build the official cdcai image/package consistently.
-4. Exercise release, rollback/reject, recovery, and known-risk procedures.
-5. Complete Task-089 only after explicit adoption authorization.
-6. Transfer backlog, custody, access, and maintenance procedures.
+1. Complete Task-100 controlled production signing, post-sign package/hash
+   generation, and representative managed-endpoint qualification.
+2. Freeze the signed `v0.1.3-rc.N` candidate under the blocker-only rule.
+3. Project lead and cdcai owner qualify the signed final candidate.
+4. Select the official cdcai tag and display title.
+5. Build/sign the official cdcai image/package consistently under the approved
+   identity and custody model.
+6. Exercise release, rollback/reject, recovery, and known-risk procedures.
+7. Complete Task-089 only after explicit adoption authorization.
+8. Transfer backlog, custody, access, and maintenance procedures.
 
 Exit:
 
-- October 16: acceptance complete.
+- October 9: signed candidate frozen; blocker-only change rule begins.
+- October 16: Task-100 and acceptance complete.
 - October 23: owner-operated handoff rehearsal complete.
 - October 30: operational closeout and sign-off complete.
 - October 31: no planned work or outgoing-developer dependency remains.
@@ -198,11 +366,11 @@ Exit:
 
 | Task | Canonical purpose | Disposition |
 | --- | --- | --- |
-| `TASK-087` | Universal guided Google/Azure provider TLS repair on Docker/Podman | Required |
+| `TASK-087` | Universal guided Google/Azure provider TLS repair on Docker/Podman | Required; active / PR #67 technical-security review remediation gated |
 | `TASK-088` | Immutable `v0.1.2` pilot distribution and custody | Complete |
 | `TASK-089` | Owner-gated cdcai release/adoption and ownership transfer | Required after qualification |
 | `TASK-090` | Runtime, custom-image, and dependency-security investigation, including the 62-alert Trivy baseline | Complete July 23 |
-| `TASK-091` | Minimum owner-runnable release qualification | Required |
+| `TASK-091` | Preview-based owner-runnable qualification harness and custody rehearsal; signed acceptance reused under Task-100 | Required |
 | `TASK-092` | Documentation currentness and information architecture | Required minimum; broader redesign bounded |
 | `TASK-093` | Persistent-data lifecycle and recovery rehearsal | Required minimum |
 | `TASK-094` | Sanitized support snapshot | Evidence-gated |
@@ -211,7 +379,8 @@ Exit:
 | `TASK-097` | Podman CPU/GPU final-path hardening and qualification | Required |
 | `TASK-098` | Dependency-security remediation, compatibility validation, and release disposition | Complete July 27 |
 | `TASK-099` | August dependency-advisory remediation and release-gate reconciliation | Complete August 11 |
-| `TASK-101` | `extract-zip` advisory remediation and current dependency release-gate disposition | Active downstream PR #67 reconciliation/exact-head gate before Task-087 resumes, PR #67 merges, or candidate publication |
+| `TASK-100` | October production signing, post-sign package verification, and representative managed-endpoint qualification | Required after satisfactory unsigned package |
+| `TASK-101` | `extract-zip` advisory remediation and current dependency release-gate disposition | Complete August 20 - reconciliation commit `946deaf` passed exact-head CI/CD and Task-087 workflows; no exception or dismissal was used |
 | `TASK-058` | Background jobs and durable run state | Conditional stretch |
 | `TASK-059` | Backend decomposition and logging consolidation | Conditional stretch after Task-058 |
 
@@ -228,9 +397,22 @@ Task-099 was added August 6 for alerts `#72-#75`, which GitHub disclosed after
 the Task-098 closeout. While it remained active, the August 7 npm audit added
 `GHSA-5p4m-2wfm-xmqj`. Its narrow `aiohttp`, transitive `ip-address`, and
 transitive `js-yaml` remediation plus stale root-graph refresh completed
-August 11. Alert `#74` closed without dismissal, the inventory returned to the
-eight documented torch residuals, and Task-099 no longer blocks signing or
-candidate inclusion; Task-087's own gates still apply.
+August 11. Alert `#74` closed without dismissal, and the inventory returned at
+that closeout to the eight documented torch residuals. High-severity alert
+`#76` opened August 12 and is tracked separately by Task-101 rather than
+rewriting Task-099 history. Task-101's remediation, default-main reconciliation,
+and PR #73 checkpoint passed; current `main` is integrated into PR #67, and
+reconciliation commit `946deaf` passed its exact-head matrix. This governance
+update completes Task-101 and explicitly resumes Task-087. Technical/security
+review at lifecycle head `6e0f744` requested source changes after that head's
+CI/CD and Task-087 workflows passed. PR #67 remains Draft; exact-target,
+durable-recovery, Windows trust/filesystem, staged-byte, and preview-build
+integrity work plus re-review now precede merge or preview publication.
+
+Task-100 was added August 19 after the project lead chose to refine unsigned
+normal-user previews before production signing. It stays in the backlog until
+October and the ADR-019 satisfactory-package decision, then must complete
+before signed-candidate acceptance or official cdcai publication.
 
 Task-101 was created and selected August 19 for Dependabot alert `#76` /
 `GHSA-jmr9-qjv8-65gv` in development-transitive `extract-zip==2.0.1`. Its Node
@@ -238,10 +420,19 @@ Task-101 was created and selected August 19 for Dependabot alert `#76` /
 exception was approved. Final PR #72 CI/CD run `32308971393` and Task-087 run
 `32308971392` passed at `820b649`, and the PR squash-merged as `0cc189c`.
 Exact-main CI/CD run `32310281115` and Task-087 run `32310281051` passed; alert
-`#76` closed as fixed without dismissal. Task-087 remains paused without
-invalidating its recorded evidence and resumes only after current `main` is
-semantically integrated into PR #67 and that branch's new exact-head matrix
-passes.
+`#76` closed as fixed without dismissal. PR #73 then recorded the post-merge
+checkpoint and squash-merged as `9276084`; exact-main CI/CD run `32377736719`
+and Task-087 run `32377736797` passed. The merge integrated `main` through
+`9276084` into Draft PR #67 while preserving ADR-019 and the branch's recorded
+evidence. Reconciliation commit `946deaf` then passed CI/CD run `32383065903`
+and Task-087 run `32383065959`, completing Task-101's remaining acceptance
+gate. This governance update marks Task-101 complete and explicitly resumes
+Task-087 without invalidating its recorded evidence. Lifecycle head `6e0f744`
+then passed CI/CD run `32385304086` and Task-087 run `32385304052`, closing that
+temporary governance hold. Independent technical/security review of that exact
+head requested source changes, so explicit approval of the remediation design,
+source implementation, exact-head re-review, ADR-019 preview gate, PR #67
+merge, and Task-100 gates remain open.
 
 ## Stop Rules
 
@@ -252,12 +443,15 @@ Stop or defer optional work when:
   approved residual-risk disposition
 - required work threatens September 18 code complete
 - documentation/package work threatens September 25
+- the satisfactory unsigned package slips past September 30 and leaves
+  insufficient time for Task-100 before October 16
 - a non-blocker change would enter after October 9 freeze
 - owner rehearsal or custody work is not on track for October 23
 
 Do not:
 
 - modify released `v0.1.2` bytes
+- relabel validation-only artifacts as previews or use an unsigned `-rc.N`
 - publish `v0.1.3` final prematurely
 - treat candidate naming as the final cdcai decision
 - change cdcai without explicit owner authorization

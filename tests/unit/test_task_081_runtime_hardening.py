@@ -44,6 +44,7 @@ def _run_powershell(command: str):
 def _write_podman_compose_provider(path: Path, version: str = "1.5.0"):
     path.write_text(
         "@echo off\r\n"
+        'if not "%PYTHONDONTWRITEBYTECODE%"=="1" exit /b 9\r\n'
         "if \"%1\"==\"version\" (\r\n"
         f"  echo podman-compose version {version}\r\n"
         "  exit /b 0\r\n"
@@ -70,25 +71,77 @@ def test_compose_defaults_use_cpu_tag_restart_and_runtime_guards():
     assert "PODMAN_COMPOSE_PROVIDER=" in env_example
     assert "auto-detect exactly one" in env_example
     assert "install-podman-compose-provider.cmd -Apply" in env_example
+    assert '"scripts\\install_podman_provider_layout.py"' in package_script
 
 
-def test_podman_compose_provider_installer_uses_isolated_venv_and_pinned_deps():
+def test_podman_compose_provider_installer_uses_provider_only_venv_and_pinned_deps():
     installer = PROVIDER_INSTALL_SCRIPT.read_text(encoding="utf-8")
     catalog = json.loads(PROVIDER_CATALOG.read_text(encoding="utf-8"))
     provider = next(
-        item for item in catalog["providers"] if item["id"] == "podman-compose-pypi-1.5.0"
+        item
+        for item in catalog["providers"]
+        if item["id"] == "podman-compose-pypi-1.5.0"
     )
 
-    requirements = {dependency["requirement"] for dependency in provider["dependencies"]}
+    requirements = {
+        dependency["requirement"] for dependency in provider["dependencies"]
+    }
     assert provider["requires_python"] == ">=3.9"
-    assert requirements == {"python-dotenv==1.1.1", "PyYAML==6.0.2"}
-    assert "Join-Path $InstallDir \".venv\"" in installer
-    assert "@(\"-m\", \"venv\", $venvDir)" in installer
-    assert "\"pip\"" in installer
-    assert "\"install\"" in installer
-    assert "--only-binary" in installer
+    assert requirements == {"python-dotenv==1.1.1", "PyYAML==6.0.3"}
+    dependency_artifacts = {
+        dependency["name"]: dependency["artifacts"]
+        for dependency in provider["dependencies"]
+    }
+    assert {artifact["python_tag"] for artifact in dependency_artifacts["PyYAML"]} == {
+        "cp39",
+        "cp310",
+        "cp311",
+        "cp312",
+        "cp313",
+        "cp314",
+        "cp314t",
+    }
+    assert {
+        artifact["platform_tag"] for artifact in dependency_artifacts["PyYAML"]
+    } == {"win_amd64"}
+    assert dependency_artifacts["python-dotenv"][0]["python_tag"] == "py3"
+    assert dependency_artifacts["python-dotenv"][0]["platform_tag"] == "any"
+    for artifacts in dependency_artifacts.values():
+        for artifact in artifacts:
+            assert artifact["source_url"].startswith("https://files.pythonhosted.org/")
+            assert len(artifact["sha256"]) == 64
+            assert artifact["source_url"].endswith(artifact["filename"])
+    assert 'Join-Path $InstallDir ".venv"' in installer
+    assert 'Join-Path $InstallDir "wheelhouse"' in installer
+    assert '@("-m", "venv", "--without-pip", "--copies", $venvDir)' in installer
+    assert 'Join-Path $venvDir "Lib\\site-packages"' in installer
+    assert 'Join-Path $PSScriptRoot "install_podman_provider_layout.py"' in installer
+    assert '"--site-packages"' in installer
+    assert '"pip"' in installer
+    assert '"--python"' in installer
+    assert '"install"' in installer
+    assert '"--no-index"' in installer
+    assert '"--no-deps"' in installer
+    assert '"--no-compile"' in installer
+    assert '@("-m", "pip", "check", "--disable-pip-version-check")' not in installer
+    assert "Assert-TowerScoutInstallerProviderOnlyLayout" in installer
+    assert '"^(pip|setuptools|wheel)(?:-|$)"' in installer
+    assert '"*.pyc"' in installer
+    assert '"*.pth"' in installer
     assert "foreach ($dependency in @($provider.dependencies))" in installer
-    assert "\"%~dp0.venv\\Scripts\\podman-compose.exe\" %*" in installer
+    assert "Resolve-TowerScoutInstallerDependencyArtifact" in installer
+    assert "Invoke-TowerScoutInstallerVerifiedDownload" in installer
+    assert "Assert-TowerScoutInstallerPackageVersion" in installer
+    assert 'python_version -ne "3.12.10"' in installer
+    assert 'python_tag -ne "cp312"' in installer
+    assert "compatible CPython 3.12.10 runtime" in installer
+    assert "requires the approved CPython" not in installer
+    assert "TOWERSCOUT_PODMAN_COMPOSE_PROVIDER_HOME" not in installer
+    assert (
+        "Set-TowerScoutPodmanComposeProviderEnv -ProviderPath $venvProviderPath"
+        in installer
+    )
+    assert "-ProviderPath $wrapperPath -RootPath $repoRoot" not in installer
     assert "System.IO.Compression.ZipFile" not in installer
     assert "podman_compose.py" not in installer
 
@@ -232,6 +285,84 @@ def test_auto_engine_selection_prefers_reachable_podman_when_docker_is_down():
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")
+def test_windows_podman_rootless_preflight_fails_closed_without_mutation():
+    command = f"""
+    $ErrorActionPreference = "Stop"
+    . "{COMPOSE_LIB}"
+    $env:OS = "Windows_NT"
+
+    if ((Get-TowerScoutPodmanWindowsMachineMode -Machine ([pscustomobject]@{{ Rootful = $false }})) -ne "rootless") {{
+        throw "A Boolean Rootful=false value was not recognized as rootless."
+    }}
+    if ((Get-TowerScoutPodmanWindowsMachineMode -Machine ([pscustomobject]@{{ Rootful = $true }})) -ne "rootful") {{
+        throw "A Boolean Rootful=true value was not recognized as rootful."
+    }}
+
+    function Invoke-TowerScoutPodmanCommand {{
+        param([string[]] $Arguments, [int] $TimeoutSeconds)
+        return [pscustomobject]@{{
+            ExitCode = 0
+            TimedOut = $false
+            StdOut = $script:MachineInspectJson
+            StdErr = ""
+        }}
+    }}
+
+    $script:MachineInspectJson = '[{{"Name":"podman-machine-default","Rootful":false}}]'
+    Assert-TowerScoutPodmanWindowsRootlessMode -MachineName "podman-machine-default"
+
+    $script:MachineInspectJson = '[{{"Name":"podman-machine-default","Rootful":true}}]'
+    function Initialize-TowerScoutPodmanComposeProvider {{
+        throw "Provider discovery ran before rootless preflight."
+    }}
+    try {{
+        Assert-TowerScoutPodmanWindowsRootlessMode -MachineName "podman-machine-default"
+        throw "Rootful Podman was accepted."
+    }}
+    catch {{
+        if ($_.Exception.Message -notmatch "requires a rootless Podman machine") {{
+            throw
+        }}
+        if ($_.Exception.Message -notmatch "separate containers and volumes") {{
+            throw "Rootful guidance omitted the storage boundary."
+        }}
+        if ($_.Exception.Message -notmatch "did not change the Podman machine") {{
+            throw "Rootful guidance did not preserve explicit user control."
+        }}
+    }}
+
+    try {{
+        Get-TowerScoutComposeCommand `
+            -Engine podman `
+            -RequireWindowsRootless `
+            -PodmanMachineName "podman-machine-default" | Out-Null
+        throw "Rootful Podman reached provider discovery."
+    }}
+    catch {{
+        if ($_.Exception.Message -notmatch "requires a rootless Podman machine") {{
+            throw
+        }}
+    }}
+
+    $script:MachineInspectJson = '[{{"Name":"podman-machine-default"}}]'
+    try {{
+        Assert-TowerScoutPodmanWindowsRootlessMode -MachineName "podman-machine-default"
+        throw "Unknown Podman mode was accepted."
+    }}
+    catch {{
+        if ($_.Exception.Message -notmatch "could not verify") {{
+            throw
+        }}
+    }}
+    "ok"
+    """
+    result = _run_powershell(command)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "ok" in result.stdout
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")
 def test_compose_invocation_allows_successful_provider_stderr_banner():
     command = f"""
     $ErrorActionPreference = "Stop"
@@ -240,6 +371,7 @@ def test_compose_invocation_allows_successful_provider_stderr_banner():
     New-Item -ItemType Directory -Force -Path $stubDir | Out-Null
     $stubPath = Join-Path $stubDir "task081-provider-stderr.ps1"
     $stubScript = @(
+        "if (`$env:PYTHONDONTWRITEBYTECODE -ne '1') {{ exit 9 }}",
         "[Console]::Error.WriteLine('provider banner')",
         "Write-Output 'abc123'",
         "exit 0"
@@ -275,14 +407,21 @@ def test_compose_invocation_allows_successful_provider_stderr_banner():
         )
     }}
 
+    $env:PYTHONDONTWRITEBYTECODE = "preserve"
     $containerIds = @(Get-TowerScoutComposeServiceContainerIds -Engine podman)
     if ($containerIds.Count -ne 1 -or $containerIds[0] -ne "abc123") {{
         throw "Expected compose ps to return abc123 despite provider stderr banner."
+    }}
+    if ($env:PYTHONDONTWRITEBYTECODE -ne "preserve") {{
+        throw "Expected compose ps to restore the caller's bytecode setting."
     }}
 
     Invoke-TowerScoutCompose -Engine podman -ComposeArguments @("up", "-d")
     if ($script:TowerScoutComposeExitCode -ne 0) {{
         throw "Expected provider command to exit 0, got $script:TowerScoutComposeExitCode"
+    }}
+    if ($env:PYTHONDONTWRITEBYTECODE -ne "preserve") {{
+        throw "Expected compose invocation to restore the caller's bytecode setting."
     }}
     "ok"
     """
@@ -517,12 +656,16 @@ def test_podman_compose_provider_override_uses_env_file_and_rejects_docker_deskt
         }}
 
         $env:PODMAN_COMPOSE_PROVIDER = ""
+        $env:PYTHONDONTWRITEBYTECODE = "preserve"
         $resolved = Initialize-TowerScoutPodmanComposeProvider
         if ($resolved -ne "{provider}") {{
             throw "Expected provider from .env, got $resolved"
         }}
         if ($env:PODMAN_COMPOSE_PROVIDER -ne "{provider}") {{
             throw "Expected environment override to be set for podman compose."
+        }}
+        if ($env:PYTHONDONTWRITEBYTECODE -ne "preserve") {{
+            throw "Expected provider validation to restore the caller's bytecode setting."
         }}
 
         $env:PODMAN_COMPOSE_PROVIDER = "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker-compose.exe"

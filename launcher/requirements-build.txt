@@ -1,0 +1,8 @@
+altgraph==0.17.5
+packaging==26.3
+pefile==2023.2.7
+pyinstaller==6.15.0
+pyinstaller-hooks-contrib==2026.6
+PyYAML @ https://files.pythonhosted.org/packages/86/bf/899e81e4cce32febab4fb42bb97dcdf66bc135272882d1987881a4b519e9/pyyaml-6.0.3-cp312-cp312-win_amd64.whl#sha256=5fcd34e47f6e0b794d17de1b4ff496c00986e1c83f7ab2fb8fcfe9616ff7477b
+pywin32-ctypes==0.2.3
+setuptools==83.0.0

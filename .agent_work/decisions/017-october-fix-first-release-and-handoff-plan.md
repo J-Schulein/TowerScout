@@ -1,8 +1,15 @@
 # ADR-017: October Fix-First Release And Handoff Plan
 
-**Status**: Accepted
+**Status**: Accepted - release naming/signing sequence superseded in part by
+ADR-019
 **Date**: July 23, 2026
 **Decision Owners**: Project lead and cdcai owner
+
+**Supersession Note (August 19, 2026)**: ADR-019 preserves this ADR's immutable
+`v0.1.2`, fix-first fork, cdcai hold, runtime matrix, and owner-approval
+boundaries. It replaces the single candidate line with unsigned
+`v0.1.3-preview.N` prereleases followed by Task-100 production signing and
+signed `v0.1.3-rc.N` candidates in October.
 
 ## Decision
 

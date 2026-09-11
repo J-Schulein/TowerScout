@@ -1,21 +1,51 @@
 # Current Tasks - Sprint 09
 
-**Sprint Period**: August 8-August 21, 2026
-**Last Updated**: August 20, 2026
-**Focus**: Reconcile the accepted Task-101 dependency-security change into
-Draft PR #67 and validate that branch's new exact head before Task-087 resumes.
-PR #72 and the default-branch alert gate have passed; new Task-087
-implementation and package work remain paused through the downstream branch
-gate.
+**Sprint Period**: August 8-August 21, 2026; active-task continuation retained
+through the current Task-087 Gate A work
+**Last Updated**: September 11, 2026
+**Focus**: Task-101 is complete. Task-087 is the active implementation task.
+Its canonical detailed
+[`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
+nine-slice scope and distinguishes complete, built-but-unwired, partial,
+not-started, and validation states. At committed source head `db7aee877a67`,
+contracts are complete; runtime/target foundations, including the reviewed
+native observation executor, production authority factory, owned exact-target
+bridge, stable authenticated target-plan assembler, retained package/process
+environment and acceleration authorities, final exact-input composer, and the
+native pre-confirmation exact-target facade, are substantially built but unwired;
+Windows trust/security are partial; durable recovery, transaction refactoring,
+provider-installer completion, and final proof remain. Test-only checkpoint
+`9993b4db7c7` is the validated code/test baseline. At that exact head, all
+applicable checks passed in CI/CD run `34650679798`, Task-087 run
+`34650679809`, and external Trivy job `103431962097`; the PR-only build skipped
+as designed.
+No repair or mutation is enabled. Gate B preview integration and Task-100
+signing remain separate. The latest independently reviewed source checkpoint,
+`db7aee8`, connects the retained inputs through Windows trust and native
+observation to a revalidated, still-held exact target. Earlier checkpoint
+`caf3f1c` retains the package and Windows process environment, runtime and
+endpoint, acceleration evidence, and final exact-plan inputs. Earlier
+checkpoint `17d813f` retains the authenticated managed Podman provider and its
+base CPython dependency closure.
 
 **Current Release State**:
 
 - Fork-side `v0.1.2` is the immutable pilot package.
-- New development uses immutable `v0.1.3-rc.N` candidate identities.
-- Dependabot alert `#76` closed as fixed, without dismissal, after PR #72
-  squash-merged as `0cc189c`. Task-101 remains active only for PR #67 semantic
-  integration and exact-head validation; Task-087 remains paused through that
-  downstream gate.
+- Iterative unsigned fork packages use immutable `v0.1.3-preview.N` GitHub
+  prereleases and are never marked `Latest`.
+- `v0.1.3-rc.N` is reserved for the signed production-shaped candidate created
+  under Task-100.
+- Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
+  reconciliation and lifecycle evidence remains in the completed-task record.
+- Task-087 production source checkpoint `db7aee877a67` is independently
+  validated locally; test-portability checkpoint `9993b4db7c7` is the
+  validated code/test baseline. At that exact head, all applicable checks passed in
+  CI/CD run `34650679798`, Task-087 run `34650679809`, and external Trivy job
+  `103431962097`; the PR-only build skipped as designed. PR #67 remains Draft.
+  Gate A remains open and mutation remains disabled. Detailed status and
+  evidence are maintained in the
+  [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
+  in this release-state summary.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
   explicit adoption approval.
 - October 30 is operational closeout; October 31 is the hard project end.
@@ -70,15 +100,17 @@ inventory was exactly the eight documented torch residuals
 **Release Boundary**: Task-099 cleared its scoped dependency-security gate on
 August 11. Alert `#76` opened afterward and belongs to separately activated
 Task-101 rather than rewriting Task-099. PR #72 restored the blocking frontend
-gate and alert `#76` closed as fixed; Task-087 resumption, PR #67 merge, and
-candidate publication remain paused through Task-101's downstream
-reconciliation gate. Reviewer input may continue.
+gate, alert `#76` closed as fixed, and Task-101's downstream PR #67 exact-head
+gate passed at `946deaf`. Task-099 remains the dated August 11 closeout;
+reviewer input may continue.
 
 ### **TASK-101: extract-zip Advisory Assessment And Release-Gate Disposition**
 
-**Status**: IN_PROGRESS - PR #72 squash-merged as `0cc189c`, alert `#76` closed
-as fixed without dismissal, and exact-main CI passed August 19; PR #67 semantic
-integration and exact-head validation remain open
+**Status**: COMPLETED - PR #72/default-branch security gates and PR #73's
+checkpoint passed; PR #67 reconciliation head `946deaf` then passed CI/CD run
+`32383065903` and Task-087 run `32383065959`, and this lifecycle update records
+Task-101 completion plus Task-087's explicit resume
+**Completed**: August 20, 2026
 **Type**: C (Security Remediation / CI And Release Gate)
 **Priority**: HIGH
 **Estimated Effort**: 1-2 days plus CI rerun timing
@@ -101,6 +133,10 @@ integration and exact-head validation remain open
   post-merge evidence at squash commit `0cc189c`: CI/CD run `32310281115` and
   Task-087 run `32310281051` passed, and alert `#76` closed as fixed without
   dismissal.
+- Preserve PR #73's post-merge governance checkpoint at squash commit
+  `9276084`: exact-main CI/CD run `32377736719` and Task-087 run `32377736797`
+  passed. This merge semantically integrates that current `main` into PR #67
+  while preserving ADR-019 and the branch's recorded evidence.
 - Align the maintained Node baseline across CI, `package.json`, and the Docker
   frontend stage, and remove the redundant Puppeteer browser-download path
   from Task-087 workflows that already install a pinned browser separately.
@@ -108,48 +144,88 @@ integration and exact-head validation remain open
   runtime-image build remains the separately documented main-branch advisory
   check.
 - Treat those narrowly scoped Task-101 security-workflow edits as gate work;
-  they do not resume broader Task-087 implementation.
+  those edits alone did not resume broader Task-087 implementation. Resumption
+  occurs only through this explicit post-green lifecycle update.
 - Require clean install/audit/lock-graph, frontend bundle/contracts, Task-087
   browser/Windows-helper, and Docker build validation before acceptance.
-- Bring current `main` into PR #67 through semantic reconciliation while
-  preserving ADR-019 and the branch's review evidence. New Task-087
-  implementation, merge, and candidate-package work remain paused until the
-  reconciled branch's required exact-head matrix passes.
+- Preserve the green PR #67 reconciliation evidence at `946deaf`: CI/CD run
+  `32383065903` and Task-087 run `32383065959` passed with all required jobs
+  successful.
+- The lifecycle update marked Task-101 complete and explicitly resumed
+  Task-087. Exact-head CI/CD run `32385304086` and Task-087 run `32385304052`
+  passed at `6e0f744`; Task-101 has no remaining acceptance gate.
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: PAUSED / RECONCILIATION-GATED - PR #72 and alert `#76` default-branch
-reconciliation passed. Draft PR #67 and its recorded Task-087 evidence remain
-preserved and reviewable; no new launcher or package implementation,
-merge, or publication proceeds until current `main` is semantically integrated
-there and the branch's required exact-head matrix passes.
+**Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced but not
+near exit. At committed source head `db7aee877a67`, slice 1 is complete; slices
+2-3 are substantially built but unwired, with the owned native exact-target
+bridge, stable authenticated target-plan assembler, retained package/process
+environment and acceleration authorities, final exact-input composer, and the
+native pre-confirmation exact-target facade now checkpointed;
+slices 4-5 and 8 are partial; slices 6-7 are not started;
+and slice 9 continues incrementally but lacks its final live proof. Mutation is
+disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: 1-2 days after PR #67 reconciliation from the
-preserved PR #67 checkpoint
+**Remaining Estimate**: Track the four remaining outcome groups in the
+canonical burn-down; re-estimate after exact-target wiring
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
+**Canonical Gate A Burn-Down**:
+[`TASK-087/GATE-A-STATUS.md`](./tasks/active/TASK-087/GATE-A-STATUS.md)
 
 **Current Scope And Gates**:
 
-- Preserve the visible Python/Tkinter launcher, bounded native transaction,
-  existing evidence, and reviewer context through the PR #67 reconciliation
-  gate.
-- Queue implementation-producing review changes until Task-087 resumes;
-  clarification and documentation review may continue.
-- Generate the full-runnable validation package from the accepted
-  post-reconciliation commit in an approved environment; local PowerShell
-  policy blocks the normal base-package generator on this workstation.
-- Run UI-driven Docker Google Maps, Azure Maps, and controlled
-  recovery/rollback validation while preserving named volumes.
-- Configure an approved non-Docker-Desktop Podman Compose provider separately
-  before any Podman mutation; do not silently install or select a provider.
-- Keep signing, representative managed-endpoint validation, candidate
-  inclusion, and merge as separate later gates.
-- Preserve PR #67's August 19 proceed disposition under ADR-019 for semantic
-  reconciliation after Task-101; do not restate it as a new decision here.
-- Keep Task-086 as the supported command-based fallback until every Task-087
-  gate passes.
+- Use the [fixed Gate A burn-down](./tasks/active/TASK-087/GATE-A-STATUS.md)
+  for present status, evidence pointers, remaining criteria, and the next
+  outcome sequence.
+- Implement only the approved August 20 source-remediation design. Mutation
+  remains disabled until the exact target, Windows trust/security, durable
+  recovery, and transaction requirements are integrated and reviewed.
+- Preserve the visible Python/Tkinter launcher, Google/Azure and Docker/rootless-
+  Podman boundaries, all eight named volumes, supported OneDrive behavior, and
+  the independent Task-086 fallback.
+- Keep historical package/runtime evidence in the Task-087 file. It proves only
+  the exact bytes and environments previously tested and does not close the
+  current Gate A source findings.
+- Keep Gate A source acceptance, Gate B artifact/preview integrity, and
+  Gate C/Task-100 signing and managed-endpoint qualification separate. PR #67
+  remains Draft.
+- Source checkpoint `f0a9d81` implements the independently reviewed native
+  Windows-store trust provider under slice 4 while keeping it unwired. Source
+  checkpoint `7f354bc` binds that native result into target-plan ownership and
+  discards caller-asserted certificate identity. Independently reviewed
+  checkpoint `c84998c` removes certificate identity from the retained
+  input-owner contract entirely; the public production handoff accepts it only
+  from its internal fixed Windows-trust wrapper before assembly. Reviewed and
+  pushed checkpoint `ebd53c9` corrects the Docker source adapter to use the real
+  retained PE/Authenticode runtime owner and jointly revalidates the exact
+  Docker runtime/endpoint pair. Independently reviewed and pushed checkpoint
+  `6c51441` adds the separately authenticated Docker Compose executable, binds
+  both Docker executables to one policy and installation directory, and emits
+  only redacted target identities. Independently reviewed and pushed checkpoint
+  `e59f150` jointly retains and revalidates the authenticated Podman runtime,
+  package-selected rootless endpoint, machine configuration, and identity key.
+  Independently reviewed and pushed checkpoint `c0639c7` authenticates the exact
+  managed-provider catalog bytes and wheel-derived installed inventory;
+  corrective checkpoint `454af79` keeps the build-inspector policy pin in sync.
+  Independently reviewed checkpoint `7a0c35a` reconciles the deterministic provider-only
+  installed `site-packages` inventory with retained verified wheels, a self-reported compatible
+  CPython 3.12.10 installer input, exact wheel-byte materialization, no embedded
+  packaging bootstrap or wrapper, and bytecode suppression across the current
+  PowerShell Podman-provider path. The future native command adds `-I -B` but
+  remains unwired. The external
+  installer does not authenticate that ambient Python; the retained native
+  owner must establish interpreter trust before any provider use.
+  Checkpoint `caf3f1c` adds the retained package/process environment and
+  acceleration authorities plus the final exact-input composer. Checkpoint
+  `db7aee8` connects those inputs through Windows trust and native observation
+  to one revalidated, still-held exact target. Test-only checkpoint `9993b4d`
+  repairs Linux package imports in the four new runtime/target test modules;
+  both Python 3.11 and 3.12 GitHub unit jobs pass at that exact branch head.
+  Finish slices 2-3 by making confirmation consume that owner and wiring
+  stage-specific revalidation.
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
 
@@ -163,7 +239,10 @@ preserved PR #67 checkpoint
 **Current Boundary**:
 
 - The final cdcai tag and release title are selected before the official build.
-- `v0.1.3-rc.N` candidate names do not dictate the final cdcai identity.
+- Neither `v0.1.3-preview.N` nor `v0.1.3-rc.N` dictates the final cdcai
+  identity.
+- Task-100 must complete the signed-candidate and managed-endpoint gate before
+  official publication.
 - Execution waits for owner qualification, explicit adoption approval, and an
   approved release/package/backlog transfer plan.
 
@@ -178,23 +257,41 @@ preserved PR #67 checkpoint
    Docker-build validation.
 3. [x] Merge PR #72 after its final exact-head checks pass, then confirm alert
    `#76` closes without dismissal on the default branch.
-4. [ ] Bring the accepted Task-101 change into Draft PR #67 and preserve its
+4. [x] Bring the accepted Task-101 change into Draft PR #67 and preserve its
    recorded ADR-019 proceed disposition during semantic reconciliation.
-5. [ ] Require green checks at the new exact PR #67 head.
-6. [ ] Explicitly resume Task-087 only after steps 4-5 pass.
-7. [ ] Generate and verify the exact-source full-runnable Task-087 package in an
-   approved environment.
-8. [ ] Complete the Docker Google/Azure and controlled recovery validation, then
-   the approved-provider Podman coverage.
-9. [ ] Complete technical/security review, signing-path coordination, and
-   representative managed-endpoint validation as applicable.
-10. [ ] If Task-087 proceeds, select Task-096 next, followed by Task-097. Keep Tasks
-   091-093 behind the stable candidate/runtime boundary.
+5. [x] Require green checks at the new exact PR #67 head.
+6. [x] Explicitly resume Task-087 only after steps 4-5 pass.
+7. [x] Require green checks on the Task-101 completion / Task-087 resume
+   lifecycle head. At `6e0f744`, CI/CD run `32385304086` and Task-087 run
+   `32385304052` passed.
+8. [x] Validate the PR #67 technical/security remediation design through both
+   `.agent_work` validators, diff/link/sanitization checks, current upstream
+   toolchain review, and independent runtime/recovery/security-boundary audits.
+9. [x] Obtain explicit project-lead approval before IMPLEMENT; approval was
+   recorded August 21 for the August 20 remediation design.
+10. [ ] Implement the exact-target, trusted-runtime, Windows-trust, durable-
+   recovery, cross-session-lock, filesystem, and provider `.env` source gate;
+   run adversarial/local/live-isolated validation without reviving earlier
+   helper, bypass, admin, runtime-default, or volume-deletion paths.
+11. [ ] Require exact-head CI/Task-087 checks and independent technical/security
+    re-review before any PR #67 merge decision.
+12. [ ] Complete staged-byte/archive verification and the explicit hash-locked
+    Python 3.12 provenance-v2 build gate, then integrate a new normal-user
+    unsigned preview-package path with accurate manifests, checksums, notices,
+    and user guidance.
+13. [ ] Test each published `v0.1.3-preview.N` through the actual GitHub download
+    path on an approved unmanaged clean Windows machine without security
+    exclusions or bypass instructions.
+14. [ ] Keep production signing and representative managed-endpoint validation
+    scheduled as Task-100 after the ADR-019 satisfactory-package decision.
+15. [ ] Select Task-096 next, followed by Task-097. Keep Tasks 091-093 behind
+    the stable unsigned package/runtime-shape boundary; Task-091 prepares the
+    owner-runnable harness before Task-100.
 
 Task-058 and Task-059 remain conditional stretch work. Task-094 remains
-evidence-gated. Task-101 is active for downstream PR #67 reconciliation;
-Task-087 remains active in tracking but paused on that gate. Task-099 stays in
-`tasks/active/` until Sprint 09 closeout.
+evidence-gated. Task-101 is completed, and Task-087 is active in PR #67 Gate A
+IMPLEMENT. Task-099 and Task-101 stay in `tasks/active/` until
+Sprint 09 closeout.
 
 ---
 

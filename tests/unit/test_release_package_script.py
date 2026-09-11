@@ -114,6 +114,7 @@ def test_package_release_stages_digest_pinned_image():
         assert result.returncode == 0, result.stderr + result.stdout
         stage_path = output_path / f"towerscout-{package_id}"
         env_example = (stage_path / ".env.example").read_text(encoding="utf-8")
+        staged_compose = (stage_path / "compose.yaml").read_text(encoding="utf-8")
         image_txt = (stage_path / "IMAGE.txt").read_text(encoding="utf-8")
         asset_readme = (stage_path / "assets" / "README.txt").read_text(encoding="utf-8")
         release_manifest = json.loads(
@@ -123,6 +124,8 @@ def test_package_release_stages_digest_pinned_image():
         assert f"TOWERSCOUT_IMAGE=ghcr.io/j-schulein/towerscout:pytest-digest-cuda126@{digest}" in env_example
         assert f"TOWERSCOUT_IMAGE_DIGEST={digest}" in env_example
         assert "TOWERSCOUT_PYTORCH_FLAVOR=cuda126" in env_example
+        assert "TOWERSCOUT_HOST_HELPER" not in env_example
+        assert "TOWERSCOUT_HOST_HELPER" not in staged_compose
         assert f"Image: ghcr.io/j-schulein/towerscout:pytest-digest-cuda126@{digest}" in image_txt
         assert "PyTorch flavor: cuda126" in image_txt
         assert release_manifest["track"] == "agpl-yolo"
@@ -164,10 +167,17 @@ def test_package_release_stages_digest_pinned_image():
         assert (stage_path / "scripts" / "enable-podman-gpu.ps1").is_file()
         assert (stage_path / "scripts" / "lib" / "TowerScoutPodmanGpu.ps1").is_file()
         assert (stage_path / "scripts" / "lib" / "TowerScoutCertificateStore.ps1").is_file()
-        assert (stage_path / "scripts" / "lib" / "TowerScoutHostHelperState.ps1").is_file()
-        assert (stage_path / "scripts" / "host-helper-worker.ps1").is_file()
         assert (stage_path / "scripts" / "repair-provider-tls.cmd").is_file()
         assert (stage_path / "scripts" / "repair-provider-tls.ps1").is_file()
+        for relative_path in [
+            "docs/support/host-helper.md",
+            "scripts/lib/TowerScoutHostHelper.ps1",
+            "scripts/lib/TowerScoutHostHelperState.ps1",
+            "scripts/host-helper.cmd",
+            "scripts/host-helper.ps1",
+            "scripts/host-helper-worker.ps1",
+        ]:
+            assert not (stage_path / relative_path).exists()
         for relative_path in [
             "LICENSE",
             "NOTICE",

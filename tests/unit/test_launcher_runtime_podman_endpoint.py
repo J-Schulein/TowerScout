@@ -1,0 +1,1587 @@
+from __future__ import annotations
+
+import ast
+import dataclasses
+import hashlib
+import json
+import sys
+import threading
+from dataclasses import replace
+from pathlib import Path, PureWindowsPath
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+LAUNCHER_ROOT = ROOT / "launcher"
+if str(LAUNCHER_ROOT) not in sys.path:
+    sys.path.insert(0, str(LAUNCHER_ROOT))
+
+import towerscout_launcher.runtime_command_version as command_module  # noqa: E402
+import towerscout_launcher.runtime_command_native as native_module  # noqa: E402
+import towerscout_launcher.runtime_podman_endpoint as endpoint_module  # noqa: E402
+from towerscout_launcher.runtime_package_config import (  # noqa: E402
+    BoundPodmanMachineConfiguration,
+    capture_bound_podman_machine_configuration,
+)
+from towerscout_launcher.runtime_command_version import (  # noqa: E402
+    BoundCommandRuntimeEvidence,
+    CommandExecutionError,
+    CommandProcessResult,
+)
+from towerscout_launcher.runtime_podman_endpoint import (  # noqa: E402
+    BoundPodmanEndpointEvidence,
+    BoundPodmanRuntimeEndpointInputs,
+    PodmanEndpointCommandKind,
+    PodmanEndpointCommandRequest,
+    PodmanEndpointError,
+    PodmanEndpointErrorCode,
+    PodmanRuntimeEndpointInputs,
+    capture_bound_podman_endpoint,
+    capture_native_windows_podman_runtime_endpoint_inputs,
+)
+from towerscout_launcher.runtime_policy import RuntimeProductId  # noqa: E402
+from towerscout_launcher.target_contracts import (  # noqa: E402
+    EndpointKind,
+    RuntimeProduct,
+)
+from towerscout_launcher.windows_security import (  # noqa: E402
+    KNOWN_CLOUD_REPARSE_TAGS,
+    FileSnapshot,
+    NativeFileFacts,
+    PathClassification,
+    PathLocality,
+    ReparseKind,
+    StableFileIdentity,
+)
+from towerscout_launcher.windows_path_trust import (  # noqa: E402
+    AccessAllowedAce,
+    NativeDirectoryFacts,
+    NativeSecurityFacts,
+)
+
+_MACHINE = "podman-machine-default"
+_USERNAME = "core"
+_PORT = 52123
+_UID = 1000
+_KEY_PATH = r"C:\Users\reviewed-user\AppData\Local\containers\podman\machine\machine"
+_KEY_FINAL = (
+    r"\\?\C:\Users\reviewed-user\AppData\Local\containers\podman\machine\machine"
+)
+_PODMAN_FINAL = r"\\?\C:\Users\reviewed-user\AppData\Local\Programs\Podman\podman.exe"
+_ENDPOINT = (
+    f"ssh://{_USERNAME}@127.0.0.1:{_PORT}" f"/run/user/{_UID}/podman/podman.sock"
+)
+_WINDOWS = r"C:\Windows"
+_SYSTEM = r"C:\Windows\System32"
+_VERSION = "6.0.2"
+_PACKAGE_ROOT = PureWindowsPath(r"C:\Users\reviewed-user\TowerScout")
+_ENV_FINAL = r"\\?\C:\Users\reviewed-user\TowerScout\.env"
+_USER_SID = "S-1-5-21-1000"
+
+
+def _json(value: Any) -> bytes:
+    return json.dumps(value, separators=(",", ":")).encode("utf-8")
+
+
+def _result(value: Any) -> CommandProcessResult:
+    return CommandProcessResult(
+        stdout=_json(value),
+        stderr=b"",
+        exit_code=0,
+        stdin_closed=True,
+        stdout_streamed=True,
+        stderr_streamed=True,
+        process_tree_contained=True,
+        process_tree_empty=True,
+    )
+
+
+def _machine(
+    *,
+    name: str = _MACHINE,
+    vm_type: str | None = "wsl",
+    rootful: bool = False,
+    state: str = "running",
+    username: str = _USERNAME,
+    port: int = _PORT,
+    identity: str = _KEY_PATH,
+) -> list[dict[str, Any]]:
+    machine: dict[str, Any] = {
+        "Name": name,
+        "State": state,
+        "Rootful": rootful,
+        "UserModeNetworking": True,
+        "SSHConfig": {
+            "IdentityPath": identity,
+            "Port": port,
+            "RemoteUsername": username,
+        },
+    }
+    if vm_type is not None:
+        machine["VMType"] = vm_type
+    return [machine]
+
+
+def _connections(
+    *,
+    endpoint: str = _ENDPOINT,
+    identity: str = _KEY_PATH,
+    name: str = _MACHINE,
+    duplicate: bool = False,
+    user_only: bool = False,
+) -> list[dict[str, Any]]:
+    user = {
+        "Name": name,
+        "URI": endpoint,
+        "Identity": identity,
+        "IsMachine": True,
+        "Default": True,
+        "ReadWrite": True,
+    }
+    output = [user]
+    if duplicate:
+        output.append({**user, "Name": f"{name}-duplicate", "Default": False})
+    if not user_only:
+        output.append(
+            {
+                "Name": f"{name}-root",
+                "URI": f"ssh://root@127.0.0.1:{_PORT}/run/podman/podman.sock",
+                "Identity": identity,
+                "IsMachine": True,
+                "Default": False,
+                "ReadWrite": True,
+            }
+        )
+    return output
+
+
+def _info(
+    *,
+    rootless: bool = True,
+    socket: str = f"/run/user/{_UID}/podman/podman.sock",
+    graph_root: str = f"/home/{_USERNAME}/.local/share/containers/storage",
+    run_root: str = f"/run/user/{_UID}/containers",
+    version: str = _VERSION,
+) -> dict[str, Any]:
+    return {
+        "host": {
+            "hostname": "podman-machine-default",
+            "remoteSocket": {"path": socket},
+            "security": {"rootless": rootless},
+            "serviceIsRemote": False,
+        },
+        "store": {"graphRoot": graph_root, "runRoot": run_root},
+        "version": {"Version": version},
+    }
+
+
+def _cycle(
+    *,
+    machine: Any | None = None,
+    connections: Any | None = None,
+    info: Any | None = None,
+) -> list[CommandProcessResult]:
+    return [
+        _result(_machine() if machine is None else machine),
+        _result(_connections() if connections is None else connections),
+        _result(_info() if info is None else info),
+    ]
+
+
+def _runtime_snapshot() -> FileSnapshot:
+    content = b"authenticated-podman-runtime"
+    return FileSnapshot(
+        identity=StableFileIdentity(0x1020304050607080, bytes.fromhex("11" * 16)),
+        sha256=hashlib.sha256(content).hexdigest(),
+        size=len(content),
+        attributes=0x80,
+        creation_time=10,
+        last_write_time=20,
+        reparse_tag=0,
+        final_path=_PODMAN_FINAL,
+        classification=PathClassification(
+            locality=PathLocality.FIXED_LOCAL,
+            reparse_kind=ReparseKind.NONE,
+            hydrated=True,
+            regular_file=True,
+            single_link=True,
+        ),
+    )
+
+
+class _RuntimeCandidate:
+    def __init__(self, snapshot: FileSnapshot) -> None:
+        self.snapshot = snapshot
+        self.closed = False
+        self.assert_count = 0
+
+    def assert_unchanged(self) -> FileSnapshot:
+        if self.closed:
+            raise RuntimeError("closed")
+        self.assert_count += 1
+        return self.snapshot
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def _runtime() -> tuple[BoundCommandRuntimeEvidence, _RuntimeCandidate]:
+    snapshot = _runtime_snapshot()
+    candidate = _RuntimeCandidate(snapshot)
+    owner = object.__new__(BoundCommandRuntimeEvidence)
+    owner._active_owner = None  # noqa: SLF001
+    owner._candidate = candidate  # type: ignore[assignment]  # noqa: SLF001
+    owner._evidence = SimpleNamespace(  # type: ignore[assignment]  # noqa: SLF001
+        product_id=RuntimeProductId.PODMAN_CLI,
+        exact_version=_VERSION,
+        evidence_sha256="a" * 64,
+        policy_sha256="b" * 64,
+        file_identity=snapshot.identity,
+        file_sha256=snapshot.sha256,
+        executable_path_sha256=command_module._path_sha256(  # noqa: SLF001
+            PureWindowsPath(snapshot.final_path)
+        ),
+    )
+    owner._lifetime_lock = threading.RLock()  # noqa: SLF001
+    return owner, candidate
+
+
+class _PathApi:
+    supported = True
+
+    def __init__(self, *, unsafe_acl: bool = False) -> None:
+        self.opened: list[tuple[str, bool]] = []
+        self.closed: list[object] = []
+        self.changed = False
+        self.unsafe_acl = unsafe_acl
+
+    def current_user_sid(self) -> str:
+        return _USER_SID
+
+    def open_directory(self, path: str, *, follow_reparse: bool) -> object:
+        handle = SimpleNamespace(path=path, follow_reparse=follow_reparse)
+        self.opened.append((path, follow_reparse))
+        return handle
+
+    def query_directory(self, handle: object) -> NativeDirectoryFacts:
+        path = str(handle.path)  # type: ignore[attr-defined]
+        identity = hashlib.sha256(path.casefold().encode("utf-16-le")).digest()[:16]
+        if self.changed:
+            identity = bytes([identity[0] ^ 0xFF]) + identity[1:]
+        return NativeDirectoryFacts(
+            final_path=path,
+            volume_serial=0xABCDEF,
+            file_id=identity,
+            attributes=0x10,
+            drive_type=3,
+            file_type=1,
+            reparse_tag=0,
+        )
+
+    def query_security(self, handle: object) -> NativeSecurityFacts:
+        _ = handle
+        aces = (AccessAllowedAce("S-1-1-0", 0x00000002, 0),) if self.unsafe_acl else ()
+        return NativeSecurityFacts(
+            owner_sid=_USER_SID,
+            dacl_present=True,
+            allowed_aces=aces,
+        )
+
+    def close_handle(self, handle: object) -> None:
+        self.closed.append(handle)
+
+
+class _ConfigurationFileApi:
+    supported = True
+
+    def __init__(self) -> None:
+        self.content = f"TOWERSCOUT_PODMAN_MACHINE={_MACHINE}\n".encode("ascii")
+        self.handle = object()
+        self.cursor = 0
+        self.close_count = 0
+
+    def open_file_for_identity(self, path: str) -> object:
+        assert path.casefold().endswith(r"\towerscout\.env")
+        return self.handle
+
+    def open_file_for_hydrated_identity(self, path: str) -> object:
+        return self.open_file_for_identity(path)
+
+    def query_file(self, handle: object) -> NativeFileFacts:
+        assert handle is self.handle
+        return NativeFileFacts(
+            final_path=_ENV_FINAL,
+            volume_serial=0xABCDEF,
+            file_id=bytes.fromhex("33" * 16),
+            attributes=0x80,
+            link_count=1,
+            size=len(self.content),
+            creation_time=50,
+            last_write_time=60,
+            drive_type=3,
+            file_type=1,
+            reparse_tag=0,
+        )
+
+    def rewind_file(self, handle: object) -> None:
+        assert handle is self.handle
+        self.cursor = 0
+
+    def seek_file(self, handle: object, offset: int) -> None:
+        assert handle is self.handle
+        self.cursor = offset
+
+    def read_file(self, handle: object, maximum: int) -> bytes:
+        assert handle is self.handle
+        chunk = self.content[self.cursor : self.cursor + maximum]
+        self.cursor += len(chunk)
+        return chunk
+
+    def close_handle(self, handle: object) -> None:
+        assert handle is self.handle
+        self.close_count += 1
+
+
+def _configuration(
+    *,
+    path_api: _PathApi | None = None,
+    file_api: _ConfigurationFileApi | None = None,
+) -> BoundPodmanMachineConfiguration:
+    return capture_bound_podman_machine_configuration(
+        _PACKAGE_ROOT,
+        path_api=path_api or _PathApi(),  # type: ignore[arg-type]
+        file_api=file_api or _ConfigurationFileApi(),  # type: ignore[arg-type]
+    )
+
+
+class _FileApi:
+    supported = True
+
+    def __init__(self, *, final_path: str = _KEY_FINAL) -> None:
+        self.content = b"private-key-material"
+        self.facts = NativeFileFacts(
+            final_path=final_path,
+            volume_serial=0x8877665544332211,
+            file_id=bytes.fromhex("22" * 16),
+            attributes=0x80,
+            link_count=1,
+            size=len(self.content),
+            creation_time=30,
+            last_write_time=40,
+            drive_type=3,
+            file_type=1,
+            reparse_tag=0,
+        )
+        self.handle = object()
+        self.cursor = 0
+        self.opened: list[str] = []
+        self.close_count = 0
+
+    def open_file_for_identity(self, path: str) -> object:
+        self.opened.append(path)
+        return self.handle
+
+    def open_file_for_hydrated_identity(self, path: str) -> object:
+        return self.open_file_for_identity(path)
+
+    def query_file(self, handle: object) -> NativeFileFacts:
+        assert handle is self.handle
+        return replace(self.facts, size=len(self.content))
+
+    def rewind_file(self, handle: object) -> None:
+        assert handle is self.handle
+        self.cursor = 0
+
+    def read_file(self, handle: object, maximum: int) -> bytes:
+        assert handle is self.handle
+        chunk = self.content[self.cursor : self.cursor + maximum]
+        self.cursor += len(chunk)
+        return chunk
+
+    def close_handle(self, handle: object) -> None:
+        assert handle is self.handle
+        self.close_count += 1
+
+
+class _Backend:
+    supported = True
+
+    def __init__(self, responses: list[object]) -> None:
+        self.responses = list(responses)
+        self.requests: list[PodmanEndpointCommandRequest] = []
+        self.on_execute: Any | None = None
+
+    def windows_directory(self) -> str:
+        return _WINDOWS
+
+    def system_directory(self) -> str:
+        return _SYSTEM
+
+    def execute(self, request: PodmanEndpointCommandRequest) -> CommandProcessResult:
+        self.requests.append(request)
+        if self.on_execute is not None:
+            self.on_execute(request)
+        response = self.responses.pop(0)
+        if isinstance(response, BaseException):
+            raise response
+        assert isinstance(response, CommandProcessResult)
+        return response
+
+
+def _capture_endpoint(
+    runtime: BoundCommandRuntimeEvidence,
+    *,
+    backend: _Backend,
+    file_api: _FileApi,
+    path_api: _PathApi | None = None,
+) -> BoundPodmanEndpointEvidence:
+    configuration = _configuration()
+    try:
+        return capture_bound_podman_endpoint(
+            runtime,
+            configuration,
+            backend=backend,
+            file_api=file_api,  # type: ignore[arg-type]
+            path_api=path_api or _PathApi(),  # type: ignore[arg-type]
+        )
+    except BaseException:
+        try:
+            configuration.close()
+        except BaseException:
+            pass
+        raise
+
+
+def _capture(
+    *,
+    responses: list[object] | None = None,
+    api: _FileApi | None = None,
+    path_api: _PathApi | None = None,
+) -> tuple[
+    BoundPodmanEndpointEvidence,
+    BoundCommandRuntimeEvidence,
+    _RuntimeCandidate,
+    _FileApi,
+    _Backend,
+]:
+    runtime, candidate = _runtime()
+    selected_api = api or _FileApi()
+    backend = _Backend(responses or [*_cycle(), *_cycle()])
+    owner = _capture_endpoint(
+        runtime,
+        backend=backend,
+        file_api=selected_api,  # type: ignore[arg-type]
+        path_api=path_api,
+    )
+    return owner, runtime, candidate, selected_api, backend
+
+
+def test_capture_binds_fixed_explicit_rootless_endpoint_and_retains_key() -> None:
+    owner, runtime, candidate, api, backend = _capture()
+
+    assert owner.endpoint.product is RuntimeProduct.PODMAN
+    assert owner.endpoint.kind is EndpointKind.PODMAN_ROOTLESS_WSL
+    assert owner.endpoint.rootless is True
+    assert owner.endpoint.canonical_endpoint == _ENDPOINT
+    assert owner.endpoint.identity_key is not None
+    assert owner.endpoint.identity_key.final_path == PureWindowsPath(_KEY_FINAL)
+    assert owner.endpoint.discovery_artifacts == ()
+    assert owner.evidence.binding_sha256 == owner.endpoint.private_metadata_sha256
+    assert owner.evidence.runtime_evidence_sha256 == "a" * 64
+    assert api.opened == [_KEY_PATH]
+    assert api.close_count == 0
+    assert candidate.closed is False
+    assert candidate.assert_count == 4
+
+    assert [request.kind for request in backend.requests] == [
+        PodmanEndpointCommandKind.MACHINE_INSPECT,
+        PodmanEndpointCommandKind.CONNECTION_LIST,
+        PodmanEndpointCommandKind.ENDPOINT_INFO,
+    ] * 2
+    info_request = backend.requests[2]
+    assert info_request.arguments == (
+        "--url",
+        _ENDPOINT,
+        "--identity",
+        _KEY_PATH,
+        "info",
+        "--format",
+        "json",
+    )
+    for request in backend.requests:
+        assert request.executable_path == PureWindowsPath(_PODMAN_FINAL)
+        assert request.environment == (("SystemRoot", _WINDOWS), ("WINDIR", _WINDOWS))
+        assert request.working_directory == PureWindowsPath(_SYSTEM)
+        assert request.stdin_closed is True
+        assert request.shell is False
+
+    rendered = "\n".join((repr(owner), repr(owner.evidence), repr(info_request)))
+    assert _ENDPOINT not in rendered
+    assert _KEY_PATH not in rendered
+    assert _KEY_FINAL not in rendered
+    assert _MACHINE not in rendered
+
+    owner.close()
+    assert owner.closed
+    assert api.close_count == 1
+    assert runtime.closed is False
+
+
+def test_capture_binds_verified_configuration_and_transfers_owner() -> None:
+    runtime, _candidate = _runtime()
+    configuration = _configuration()
+    api = _FileApi()
+    path_api = _PathApi()
+    backend = _Backend([*_cycle(), *_cycle()])
+
+    owner = capture_bound_podman_endpoint(
+        runtime,
+        configuration,
+        backend=backend,
+        file_api=api,  # type: ignore[arg-type]
+        path_api=path_api,  # type: ignore[arg-type]
+    )
+
+    assert configuration.closed is False
+    assert (
+        owner.evidence.configuration_source == configuration.evidence.environment_source
+    )
+    assert (
+        owner.evidence.configuration_binding_sha256
+        == configuration.evidence.binding_sha256
+    )
+    assert owner.evidence.identity_key_parent_sha256
+    assert _MACHINE not in repr(owner.evidence)
+
+    owner.close()
+    assert configuration.closed
+
+
+def test_capture_rejects_closed_configuration_before_runtime_query() -> None:
+    runtime, _candidate = _runtime()
+    configuration = _configuration()
+    configuration.close()
+    api = _FileApi()
+    backend = _Backend([*_cycle(), *_cycle()])
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        capture_bound_podman_endpoint(
+            runtime,
+            configuration,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+            path_api=_PathApi(),  # type: ignore[arg-type]
+        )
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
+    assert not backend.requests
+    assert not api.opened
+
+
+def test_revalidation_detects_post_capture_package_env_drift() -> None:
+    runtime, _candidate = _runtime()
+    configuration_api = _ConfigurationFileApi()
+    configuration = _configuration(file_api=configuration_api)
+    api = _FileApi()
+    backend = _Backend([*_cycle(), *_cycle(), *_cycle()])
+    owner = capture_bound_podman_endpoint(
+        runtime,
+        configuration,
+        backend=backend,
+        file_api=api,  # type: ignore[arg-type]
+        path_api=_PathApi(),  # type: ignore[arg-type]
+    )
+    configuration_api.content = b"TOWERSCOUT_PODMAN_MACHINE=replaced-machine\n"
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        owner.assert_unchanged(runtime, backend)
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_CHANGED
+    assert len(backend.requests) == 6
+    owner.close()
+
+
+def test_capture_detects_package_env_drift_between_observations() -> None:
+    runtime, _candidate = _runtime()
+    configuration_api = _ConfigurationFileApi()
+    configuration = _configuration(file_api=configuration_api)
+    api = _FileApi()
+    backend = _Backend([*_cycle(), *_cycle()])
+
+    def mutate_configuration(_request: PodmanEndpointCommandRequest) -> None:
+        if len(backend.requests) == 4:
+            configuration_api.content = b"TOWERSCOUT_PODMAN_MACHINE=replaced-machine\n"
+
+    backend.on_execute = mutate_configuration
+    with pytest.raises(PodmanEndpointError) as captured:
+        capture_bound_podman_endpoint(
+            runtime,
+            configuration,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+            path_api=_PathApi(),  # type: ignore[arg-type]
+        )
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_CHANGED
+    assert api.close_count == 1
+    configuration.close()
+
+
+def test_capture_rejects_unsafe_identity_key_parent_before_opening_key() -> None:
+    runtime, _candidate = _runtime()
+    api = _FileApi()
+    path_api = _PathApi(unsafe_acl=True)
+    backend = _Backend(_cycle())
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        _capture_endpoint(
+            runtime,
+            backend=backend,
+            file_api=api,
+            path_api=path_api,
+        )
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
+    assert not api.opened
+    assert len(path_api.closed) == len(path_api.opened)
+
+
+def test_revalidation_detects_identity_key_parent_drift() -> None:
+    path_api = _PathApi()
+    owner, runtime, _candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()],
+        path_api=path_api,
+    )
+    path_api.changed = True
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        owner.assert_unchanged(runtime, backend)
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_CHANGED
+    assert owner.closed is False
+    owner.close()
+    assert api.close_count == 1
+    assert len(path_api.closed) == len(path_api.opened)
+
+
+def test_connection_name_and_default_are_metadata_only() -> None:
+    first = _cycle(connections=_connections(name="first-label"))
+    second = _cycle(
+        connections=[
+            {
+                **_connections(name="second-label", user_only=True)[0],
+                "Default": False,
+            },
+            *_connections(user_only=False)[1:],
+        ]
+    )
+    third = _cycle(connections=_connections(name="third-label"))
+    owner, runtime, _candidate, api, backend = _capture(
+        responses=[*first, *second, *third]
+    )
+
+    assert owner.assert_unchanged(runtime, backend) is owner.evidence
+    assert api.close_count == 0
+    owner.close()
+
+
+@pytest.mark.parametrize(
+    ("responses", "expected_requests"),
+    (
+        (_cycle(machine=_machine(rootful=True)), 1),
+        (_cycle(machine=_machine(state="stopped")), 1),
+        (_cycle(machine=_machine(vm_type=None)), 1),
+        (_cycle(machine=_machine(vm_type="hyperv")), 1),
+        (
+            _cycle(
+                connections=_connections(
+                    endpoint=(
+                        f"ssh://{_USERNAME}@192.0.2.10:{_PORT}"
+                        f"/run/user/{_UID}/podman/podman.sock"
+                    )
+                )
+            ),
+            2,
+        ),
+        (_cycle(connections=_connections(duplicate=True)), 2),
+        (
+            _cycle(
+                connections=_connections(
+                    endpoint=(
+                        f"ssh://{_USERNAME}@127.0.0.1:{_PORT}"
+                        "/run/user/4294967295/podman/podman.sock"
+                    )
+                )
+            ),
+            2,
+        ),
+        (
+            _cycle(
+                connections=[
+                    {
+                        **_connections(user_only=True)[0],
+                        "URI": (f"ssh://root@127.0.0.1:{_PORT}/run/podman/podman.sock"),
+                    }
+                ]
+            ),
+            2,
+        ),
+        (_cycle(info=_info(rootless=False)), 3),
+        (_cycle(info=_info(socket="/run/podman/podman.sock")), 3),
+        (_cycle(info=_info(graph_root="/var/lib/containers/storage")), 3),
+        (_cycle(info=_info(run_root="/run/containers/storage")), 3),
+        (_cycle(info=_info(version="6.0.1")), 3),
+    ),
+)
+def test_capture_rejects_unsafe_or_ambiguous_endpoint_facts(
+    responses: list[CommandProcessResult], expected_requests: int
+) -> None:
+    runtime, _candidate = _runtime()
+    api = _FileApi()
+    backend = _Backend(list(responses))
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        _capture_endpoint(
+            runtime,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+        )
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
+    assert len(backend.requests) == expected_requests
+    assert api.opened == []
+    assert api.close_count == 0
+    assert _ENDPOINT not in str(captured.value)
+    assert _KEY_PATH not in repr(captured.value)
+
+
+def test_endpoint_change_between_observations_closes_captured_key() -> None:
+    changed_endpoint = (
+        f"ssh://{_USERNAME}@127.0.0.1:{_PORT + 1}"
+        f"/run/user/{_UID}/podman/podman.sock"
+    )
+    responses = [
+        *_cycle(),
+        *_cycle(
+            machine=_machine(port=_PORT + 1),
+            connections=_connections(endpoint=changed_endpoint),
+        ),
+    ]
+    runtime, _candidate = _runtime()
+    api = _FileApi()
+    backend = _Backend(responses)
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        _capture_endpoint(
+            runtime,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+        )
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_CHANGED
+    assert api.close_count == 1
+
+
+def test_machine_provider_change_between_observations_closes_captured_key() -> None:
+    responses = [
+        *_cycle(),
+        *_cycle(machine=_machine(vm_type="hyperv")),
+    ]
+    runtime, _candidate = _runtime()
+    api = _FileApi()
+    backend = _Backend(responses)
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        _capture_endpoint(
+            runtime,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+        )
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
+    assert len(backend.requests) == 4
+    assert api.close_count == 1
+
+
+def test_identity_key_final_path_must_match_discovered_key() -> None:
+    api = _FileApi(final_path=r"\\?\C:\Users\reviewed-user\wrong-key")
+    runtime, _candidate = _runtime()
+    backend = _Backend([*_cycle(), *_cycle()])
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        _capture_endpoint(
+            runtime,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+        )
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
+    assert len(backend.requests) == 3
+    assert api.close_count == 1
+
+
+@pytest.mark.parametrize(
+    "identity_path",
+    (
+        f"{_KEY_PATH}:alternate-stream",
+        r"C:\Users\reviewed-user\AppData\Local\CON",
+        r"C:\Users\reviewed-user\\AppData\Local\containers\key",
+    ),
+)
+def test_identity_key_rejects_unsafe_discovered_path(identity_path: str) -> None:
+    runtime, _candidate = _runtime()
+    api = _FileApi()
+    backend = _Backend(_cycle(machine=_machine(identity=identity_path)))
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        _capture_endpoint(
+            runtime,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+        )
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
+    assert len(backend.requests) == 1
+    assert api.opened == []
+
+
+def test_identity_key_rejects_cloud_placeholder_leaf() -> None:
+    api = _FileApi()
+    api.facts = replace(
+        api.facts,
+        attributes=api.facts.attributes | 0x00000400,
+        reparse_tag=next(iter(KNOWN_CLOUD_REPARSE_TAGS)),
+    )
+    runtime, _candidate = _runtime()
+    backend = _Backend([*_cycle(), *_cycle()])
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        _capture_endpoint(
+            runtime,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+        )
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
+    assert len(backend.requests) == 3
+    assert api.close_count == 1
+
+
+def test_interruption_during_second_observation_closes_captured_key() -> None:
+    runtime, _candidate = _runtime()
+    api = _FileApi()
+    path_api = _PathApi()
+    backend = _Backend([*_cycle(), KeyboardInterrupt()])
+
+    with pytest.raises(KeyboardInterrupt):
+        _capture_endpoint(
+            runtime,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+            path_api=path_api,
+        )
+
+    assert len(backend.requests) == 4
+    assert api.close_count == 1
+    assert len(path_api.closed) == len(path_api.opened)
+
+
+def test_interruption_after_owner_assembly_closes_transferred_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime, _candidate = _runtime()
+    api = _FileApi()
+    path_api = _PathApi()
+    backend = _Backend([*_cycle(), *_cycle()])
+    original = BoundPodmanEndpointEvidence
+    accepted: list[BoundPodmanEndpointEvidence] = []
+
+    def interrupt_after_acceptance(**kwargs: Any) -> BoundPodmanEndpointEvidence:
+        accepted.append(original(**kwargs))
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "BoundPodmanEndpointEvidence",
+        interrupt_after_acceptance,
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        _capture_endpoint(
+            runtime,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+            path_api=path_api,
+        )
+
+    assert len(accepted) == 1
+    assert accepted[0].closed
+    assert api.close_count == 1
+    assert len(path_api.closed) == len(path_api.opened)
+
+
+def test_revalidation_detects_endpoint_repointing_and_keeps_owner_closeable() -> None:
+    owner, runtime, _candidate, api, backend = _capture(
+        responses=[
+            *_cycle(),
+            *_cycle(),
+            *_cycle(info=_info(rootless=False)),
+        ]
+    )
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        owner.assert_unchanged(runtime, backend)
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_CHANGED
+    assert owner.closed is False
+    owner.close()
+    assert api.close_count == 1
+
+
+def test_revalidation_detects_identity_key_content_change() -> None:
+    owner, runtime, _candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    api.content = b"replaced-private-key-material"
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        owner.assert_unchanged(runtime, backend)
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_CHANGED
+    assert len(backend.requests) == 6
+    owner.close()
+    assert api.close_count == 1
+
+
+def test_close_waits_for_active_endpoint_revalidation() -> None:
+    owner, runtime, _candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    entered = threading.Event()
+    release = threading.Event()
+    closed = threading.Event()
+
+    def block(request: PodmanEndpointCommandRequest) -> None:
+        if len(backend.requests) == 7:
+            entered.set()
+            assert release.wait(timeout=5)
+
+    backend.on_execute = block
+    worker = threading.Thread(target=lambda: owner.assert_unchanged(runtime, backend))
+    closer = threading.Thread(target=lambda: (owner.close(), closed.set()))
+    worker.start()
+    assert entered.wait(timeout=5)
+    closer.start()
+    assert not closed.wait(timeout=0.1)
+    release.set()
+    worker.join(timeout=5)
+    closer.join(timeout=5)
+
+    assert not worker.is_alive()
+    assert not closer.is_alive()
+    assert closed.is_set()
+    assert api.close_count == 1
+
+
+def test_configuration_close_waits_for_active_endpoint_revalidation() -> None:
+    runtime, _candidate = _runtime()
+    configuration = _configuration()
+    api = _FileApi()
+    backend = _Backend([*_cycle(), *_cycle(), *_cycle()])
+    owner = capture_bound_podman_endpoint(
+        runtime,
+        configuration,
+        backend=backend,
+        file_api=api,  # type: ignore[arg-type]
+        path_api=_PathApi(),  # type: ignore[arg-type]
+    )
+    entered = threading.Event()
+    release = threading.Event()
+    operation_complete = threading.Event()
+    configuration_closed = threading.Event()
+
+    def block(_request: PodmanEndpointCommandRequest) -> None:
+        if len(backend.requests) == 7:
+            entered.set()
+            assert release.wait(timeout=5)
+
+    def revalidate() -> None:
+        owner.assert_unchanged(runtime, backend)
+        operation_complete.set()
+
+    backend.on_execute = block
+    worker = threading.Thread(target=revalidate)
+    closer = threading.Thread(
+        target=lambda: (configuration.close(), configuration_closed.set())
+    )
+    worker.start()
+    assert entered.wait(timeout=5)
+    closer.start()
+    assert not configuration_closed.wait(timeout=0.1)
+    release.set()
+    worker.join(timeout=5)
+    closer.join(timeout=5)
+
+    assert not worker.is_alive()
+    assert not closer.is_alive()
+    assert operation_complete.is_set()
+    assert configuration_closed.is_set()
+    assert owner.closed
+    owner.close()
+    assert api.close_count == 1
+
+
+def test_runtime_lease_blocks_close_during_endpoint_query() -> None:
+    owner, runtime, candidate, _api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    entered = threading.Event()
+    release = threading.Event()
+    runtime_closed = threading.Event()
+
+    def block(_request: PodmanEndpointCommandRequest) -> None:
+        if len(backend.requests) == 7:
+            entered.set()
+            assert release.wait(timeout=5)
+
+    backend.on_execute = block
+    worker = threading.Thread(target=lambda: owner.assert_unchanged(runtime, backend))
+    closer = threading.Thread(target=lambda: (runtime.close(), runtime_closed.set()))
+    worker.start()
+    assert entered.wait(timeout=5)
+    closer.start()
+    assert not runtime_closed.wait(timeout=0.1)
+    release.set()
+    worker.join(timeout=5)
+    closer.join(timeout=5)
+
+    assert runtime_closed.is_set()
+    assert candidate.closed
+    owner.close()
+
+
+def test_command_request_is_frozen_fixed_and_redacted() -> None:
+    request = PodmanEndpointCommandRequest(
+        kind=PodmanEndpointCommandKind.ENDPOINT_INFO,
+        executable_path=PureWindowsPath(_PODMAN_FINAL),
+        arguments=(
+            "--url",
+            _ENDPOINT,
+            "--identity",
+            _KEY_PATH,
+            "info",
+            "--format",
+            "json",
+        ),
+        environment=(("SystemRoot", _WINDOWS), ("WINDIR", _WINDOWS)),
+        working_directory=PureWindowsPath(_SYSTEM),
+    )
+
+    assert dataclasses.is_dataclass(request)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        request.kind = PodmanEndpointCommandKind.CONNECTION_LIST  # type: ignore[misc]
+    assert _ENDPOINT not in repr(request)
+    assert _KEY_PATH not in repr(request)
+    with pytest.raises(ValueError):
+        replace(request, arguments=("info", "--format", "json"))
+    with pytest.raises(ValueError):
+        replace(
+            request,
+            environment=(
+                ("SystemRoot", _WINDOWS, "unexpected"),
+                ("WINDIR", _WINDOWS, "unexpected"),
+            ),  # type: ignore[arg-type]
+        )
+    with pytest.raises(ValueError):
+        replace(request, shell=True)
+
+
+def test_native_endpoint_backend_accepts_only_endpoint_request_type() -> None:
+    request = PodmanEndpointCommandRequest(
+        kind=PodmanEndpointCommandKind.CONNECTION_LIST,
+        executable_path=PureWindowsPath(_PODMAN_FINAL),
+        arguments=("system", "connection", "list", "--format", "json"),
+        environment=(("SystemRoot", _WINDOWS), ("WINDIR", _WINDOWS)),
+        working_directory=PureWindowsPath(_SYSTEM),
+    )
+    expected = _result(_connections())
+
+    class _Contained:
+        supported = True
+
+        def __init__(self) -> None:
+            self.requests: list[PodmanEndpointCommandRequest] = []
+
+        def windows_directory(self) -> str:
+            return _WINDOWS
+
+        def system_directory(self) -> str:
+            return _SYSTEM
+
+        def _execute_contained(
+            self, selected: PodmanEndpointCommandRequest
+        ) -> CommandProcessResult:
+            self.requests.append(selected)
+            return expected
+
+    contained = _Contained()
+    backend = object.__new__(native_module.NativeWindowsPodmanEndpointCommandBackend)
+    backend._contained = contained  # type: ignore[assignment]  # noqa: SLF001
+
+    assert backend.execute(request) is expected
+    assert contained.requests == [request]
+    assert _ENDPOINT not in repr(backend)
+    with pytest.raises(CommandExecutionError):
+        backend.execute(object())  # type: ignore[arg-type]
+
+
+def test_duplicate_json_members_fail_closed_without_raw_output() -> None:
+    runtime, _candidate = _runtime()
+    api = _FileApi()
+    duplicate = CommandProcessResult(
+        stdout=(
+            b'[{"Name":"podman-machine-default",'
+            b'"Name":"other","State":"running","Rootful":false,'
+            b'"SSHConfig":{"IdentityPath":"C:\\\\key",'
+            b'"Port":52123,"RemoteUsername":"core"}}]'
+        ),
+        stderr=b"",
+        exit_code=0,
+        stdin_closed=True,
+        stdout_streamed=True,
+        stderr_streamed=True,
+        process_tree_contained=True,
+        process_tree_empty=True,
+    )
+    backend = _Backend([duplicate])
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        _capture_endpoint(
+            runtime,
+            backend=backend,
+            file_api=api,  # type: ignore[arg-type]
+        )
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
+    assert "other" not in str(captured.value)
+
+
+def test_podman_endpoint_resolver_remains_unwired_from_live_launcher_paths() -> None:
+    forbidden = (
+        LAUNCHER_ROOT / "towerscout_launcher" / "app.py",
+        LAUNCHER_ROOT / "towerscout_launcher" / "discovery.py",
+        LAUNCHER_ROOT / "towerscout_launcher" / "repair.py",
+        LAUNCHER_ROOT / "towerscout_launcher" / "runtime_execution.py",
+    )
+    for path in forbidden:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        imports = {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+        }
+        imports.update(
+            node.module or ""
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+        )
+        assert not any(
+            module_name in item
+            for item in imports
+            for module_name in (
+                "runtime_package_config",
+                "runtime_podman_endpoint",
+            )
+        )
+
+    source = (
+        LAUNCHER_ROOT / "towerscout_launcher" / "runtime_podman_endpoint.py"
+    ).read_text(encoding="utf-8")
+    assert "subprocess.run" not in source
+    assert "subprocess.Popen" not in source
+    assert "os.environ" not in source
+
+
+def test_runtime_endpoint_owner_emits_exact_jointly_retained_inputs() -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    owner = BoundPodmanRuntimeEndpointInputs(
+        runtime=runtime,
+        endpoint=endpoint,
+        backend=backend,
+    )
+
+    inputs = owner.capture()
+
+    assert isinstance(inputs, PodmanRuntimeEndpointInputs)
+    assert inputs.runtime.product is RuntimeProduct.PODMAN
+    assert inputs.runtime.version == _VERSION
+    assert inputs.runtime.publisher_policy_sha256 == "b" * 64
+    assert inputs.runtime.executable.final_path == PureWindowsPath(_PODMAN_FINAL)
+    assert inputs.endpoint is endpoint.endpoint
+    assert owner.supported is True
+    assert repr(inputs) == "PodmanRuntimeEndpointInputs(<redacted>)"
+    assert _ENDPOINT not in repr(owner)
+
+    owner.close()
+    assert owner.closed
+    assert candidate.closed
+    assert api.close_count == 1
+
+
+def test_runtime_endpoint_owner_rejects_endpoint_drift_and_remains_closeable() -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle(info=_info(rootless=False))]
+    )
+    owner = BoundPodmanRuntimeEndpointInputs(
+        runtime=runtime,
+        endpoint=endpoint,
+        backend=backend,
+    )
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        owner.capture()
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_CHANGED
+    assert owner.closed is False
+    owner.close()
+    assert candidate.closed
+    assert api.close_count == 1
+
+
+def test_runtime_endpoint_owner_rejects_mismatched_runtime_binding() -> None:
+    endpoint, runtime, _candidate, _api, backend = _capture()
+    endpoint._evidence = replace(  # noqa: SLF001
+        endpoint.evidence,
+        runtime_evidence_sha256="c" * 64,
+    )
+
+    with pytest.raises(ValueError, match="Bound Podman runtime endpoint inputs"):
+        BoundPodmanRuntimeEndpointInputs(
+            runtime=runtime,
+            endpoint=endpoint,
+            backend=backend,
+        )
+
+    endpoint.close()
+    runtime.close()
+
+
+def test_runtime_endpoint_owner_serializes_capture_and_close() -> None:
+    endpoint, runtime, _candidate, _api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    owner = BoundPodmanRuntimeEndpointInputs(
+        runtime=runtime,
+        endpoint=endpoint,
+        backend=backend,
+    )
+    entered = threading.Event()
+    release = threading.Event()
+    capture_complete = threading.Event()
+    close_complete = threading.Event()
+
+    def block(_request: PodmanEndpointCommandRequest) -> None:
+        if len(backend.requests) == 7:
+            entered.set()
+            assert release.wait(timeout=5)
+
+    def capture() -> None:
+        owner.capture()
+        capture_complete.set()
+
+    backend.on_execute = block
+    worker = threading.Thread(target=capture)
+    closer = threading.Thread(target=lambda: (owner.close(), close_complete.set()))
+    worker.start()
+    assert entered.wait(timeout=5)
+    closer.start()
+    assert not close_complete.wait(timeout=0.1)
+    release.set()
+    worker.join(timeout=5)
+    closer.join(timeout=5)
+
+    assert capture_complete.is_set()
+    assert close_complete.is_set()
+    assert owner.closed
+
+
+def test_native_runtime_endpoint_factory_uses_fixed_sources_and_transfers_owners(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle(), *_cycle()]
+    )
+    configuration = endpoint._configuration  # noqa: SLF001
+    assert configuration is not None
+    selected_products: list[RuntimeProductId] = []
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_podman_endpoint_backend",
+        lambda: backend,
+    )
+
+    def open_runtime(product_id: RuntimeProductId) -> BoundCommandRuntimeEvidence:
+        selected_products.append(product_id)
+        return runtime
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_command_runtime_evidence",
+        open_runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_machine_configuration",
+        lambda package_root: configuration,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_endpoint",
+        lambda selected_runtime, selected_configuration, *, backend: endpoint,
+    )
+
+    owner = capture_native_windows_podman_runtime_endpoint_inputs(_PACKAGE_ROOT)
+
+    assert selected_products == [RuntimeProductId.PODMAN_CLI]
+    assert owner.capture().endpoint is endpoint.endpoint
+    owner.close()
+    assert candidate.closed
+    assert api.close_count == 1
+
+
+def test_native_runtime_endpoint_factory_closes_partial_owners_on_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime, candidate = _runtime()
+    configuration = _configuration()
+    backend = _Backend([])
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_podman_endpoint_backend",
+        lambda: backend,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_command_runtime_evidence",
+        lambda _product_id: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_machine_configuration",
+        lambda _package_root: configuration,
+    )
+
+    def reject_endpoint(*_args: object, **_kwargs: object) -> None:
+        raise PodmanEndpointError(PodmanEndpointErrorCode.ENDPOINT_INVALID)
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_endpoint",
+        reject_endpoint,
+    )
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        capture_native_windows_podman_runtime_endpoint_inputs(_PACKAGE_ROOT)
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
+    assert candidate.closed
+    assert configuration.closed
+
+
+def test_runtime_endpoint_owner_retries_a_partially_failed_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    endpoint, runtime, candidate, api, backend = _capture()
+    configuration = endpoint._configuration  # noqa: SLF001
+    assert configuration is not None
+    owner = BoundPodmanRuntimeEndpointInputs(
+        runtime=runtime,
+        endpoint=endpoint,
+        backend=backend,
+    )
+    original_close = BoundPodmanMachineConfiguration.close
+    attempts = 0
+
+    def fail_once(selected: BoundPodmanMachineConfiguration) -> None:
+        nonlocal attempts
+        if selected is configuration and attempts == 0:
+            attempts += 1
+            raise RuntimeError("private close failure")
+        original_close(selected)
+
+    monkeypatch.setattr(BoundPodmanMachineConfiguration, "close", fail_once)
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        owner.close()
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_CHANGED
+    assert not owner.closed
+    assert candidate.closed
+    assert api.close_count == 1
+
+    owner.close()
+    assert owner.closed
+    assert configuration.closed
+
+
+def test_native_factory_interruption_at_return_boundary_closes_assembled_owner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    configuration = endpoint._configuration  # noqa: SLF001
+    assert configuration is not None
+    accepted: list[BoundPodmanRuntimeEndpointInputs] = []
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_podman_endpoint_backend",
+        lambda: backend,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_command_runtime_evidence",
+        lambda _product_id: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_machine_configuration",
+        lambda _package_root: configuration,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_endpoint",
+        lambda selected_runtime, selected_configuration, *, backend: endpoint,
+    )
+
+    def interrupt(
+        owner: BoundPodmanRuntimeEndpointInputs,
+    ) -> BoundPodmanRuntimeEndpointInputs:
+        accepted.append(owner)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_return_podman_runtime_endpoint_owner",
+        interrupt,
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        capture_native_windows_podman_runtime_endpoint_inputs(_PACKAGE_ROOT)
+
+    assert len(accepted) == 1
+    assert accepted[0].closed
+    assert endpoint._fully_closed  # noqa: SLF001
+    assert candidate.closed
+    assert api.close_count == 1
+
+
+def test_native_factory_ignores_an_unrelated_caller_exception_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    configuration = endpoint._configuration  # noqa: SLF001
+    assert configuration is not None
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_podman_endpoint_backend",
+        lambda: backend,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_command_runtime_evidence",
+        lambda _product_id: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_machine_configuration",
+        lambda _package_root: configuration,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_endpoint",
+        lambda selected_runtime, selected_configuration, *, backend: endpoint,
+    )
+
+    try:
+        raise RuntimeError("unrelated caller failure")
+    except RuntimeError:
+        owner = capture_native_windows_podman_runtime_endpoint_inputs(_PACKAGE_ROOT)
+
+    assert owner.supported
+    assert not owner.closed
+    assert not candidate.closed
+    assert api.close_count == 0
+    owner.close()
+    assert owner.closed
+
+
+def test_native_factory_retries_cleanup_and_propagates_cleanup_interruption(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    configuration = endpoint._configuration  # noqa: SLF001
+    assert configuration is not None
+    original_path_close = type(endpoint._key_parent).close  # noqa: SLF001
+    path_close_attempts = 0
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_podman_endpoint_backend",
+        lambda: backend,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_command_runtime_evidence",
+        lambda _product_id: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_machine_configuration",
+        lambda _package_root: configuration,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_endpoint",
+        lambda selected_runtime, selected_configuration, *, backend: endpoint,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "_return_podman_runtime_endpoint_owner",
+        lambda _owner: (_ for _ in ()).throw(RuntimeError("primary failure")),
+    )
+
+    def interrupt_first_path_close(selected: object) -> None:
+        nonlocal path_close_attempts
+        path_close_attempts += 1
+        if path_close_attempts == 1:
+            raise KeyboardInterrupt
+        original_path_close(selected)
+
+    monkeypatch.setattr(
+        type(endpoint._key_parent),  # noqa: SLF001
+        "close",
+        interrupt_first_path_close,
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        capture_native_windows_podman_runtime_endpoint_inputs(_PACKAGE_ROOT)
+
+    assert path_close_attempts >= 3
+    assert endpoint._fully_closed  # noqa: SLF001
+    assert configuration._fully_closed  # noqa: SLF001
+    assert candidate.closed
+    assert api.close_count == 1
