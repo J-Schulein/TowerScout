@@ -3,7 +3,7 @@
 **As Of**: September 11, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
 **Implementation Head**: `db7aee877a67107a52c4add9371040f4f3b0fa73`
-**Validated Branch Head**: `9993b4db7c7b7edafeb850f1e33e6c6f7229408c`
+**Validated Code/Test Head**: `9993b4db7c7b7edafeb850f1e33e6c6f7229408c`
 **Draft PR**: [#67](https://github.com/J-Schulein/TowerScout/pull/67)
 **Overall State**: IN_PROGRESS / Gate A source implementation
 **Gate A Exit**: NOT MET

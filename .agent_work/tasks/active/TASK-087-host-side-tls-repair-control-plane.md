@@ -7,7 +7,7 @@ head `db7aee877a67`, contracts are complete; the runtime and target foundations,
 including the native pre-confirmation exact-target facade, are substantially
 built but unwired; Windows trust/security are partial;
 durable recovery, transaction refactoring, and the final Gate A proof remain
-open. Test-only checkpoint `9993b4db7c7` is the current validated branch head:
+open. Test-only checkpoint `9993b4db7c7` is the validated code/test baseline:
 CI/CD run `34650679798`, Task-087 run `34650679809`, and external Trivy job
 `103431962097` all passed there, with the PR-only build skipped as designed.
 PR #67 remains Draft, mutation remains disabled, and no

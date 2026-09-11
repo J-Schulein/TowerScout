@@ -15,7 +15,7 @@ environment and acceleration authorities, final exact-input composer, and the
 native pre-confirmation exact-target facade, are substantially built but unwired;
 Windows trust/security are partial; durable recovery, transaction refactoring,
 provider-installer completion, and final proof remain. Test-only checkpoint
-`9993b4db7c7` is the current validated branch head. At that exact head, all
+`9993b4db7c7` is the validated code/test baseline. At that exact head, all
 applicable checks passed in CI/CD run `34650679798`, Task-087 run
 `34650679809`, and external Trivy job `103431962097`; the PR-only build skipped
 as designed.
@@ -38,8 +38,8 @@ base CPython dependency closure.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
 - Task-087 production source checkpoint `db7aee877a67` is independently
-  validated locally; test-portability checkpoint `9993b4db7c7` is the current
-  validated branch head. At that exact head, all applicable checks passed in
+  validated locally; test-portability checkpoint `9993b4db7c7` is the
+  validated code/test baseline. At that exact head, all applicable checks passed in
   CI/CD run `34650679798`, Task-087 run `34650679809`, and external Trivy job
   `103431962097`; the PR-only build skipped as designed. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
