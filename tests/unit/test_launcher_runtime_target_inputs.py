@@ -18,13 +18,27 @@ from launcher.towerscout_launcher.runtime_acceleration_probe import (
     AccelerationProbeErrorCode,
     EngineAccelerationSnapshot,
 )
-from launcher.towerscout_launcher.runtime_docker_inputs import DockerTargetSourceInputs
+from launcher.towerscout_launcher.runtime_docker_inputs import (
+    DockerInputError,
+    DockerInputErrorCode,
+    DockerTargetSourceInputs,
+)
 from launcher.towerscout_launcher.runtime_package_inputs import (
+    PackageInputError,
+    PackageInputErrorCode,
     PackageEnvironmentInputs,
     _package_binding,
     _ParsedPackage,
 )
-from launcher.towerscout_launcher.runtime_podman_inputs import PodmanTargetSourceInputs
+from launcher.towerscout_launcher.runtime_podman_inputs import (
+    PodmanInputError,
+    PodmanInputErrorCode,
+    PodmanTargetSourceInputs,
+)
+from launcher.towerscout_launcher.runtime_process_environment import (
+    ProcessEnvironmentInputError,
+    ProcessEnvironmentInputErrorCode,
+)
 from launcher.towerscout_launcher.runtime_target_inputs import (
     BoundNativeTargetResolutionPlanInputs,
     TargetInputError,
@@ -437,8 +451,86 @@ def test_owner_sanitizes_probe_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(TargetInputError) as raised:
         owner.capture()
 
-    assert raised.value.code is TargetInputErrorCode.INPUTS_CHANGED
+    assert raised.value.code is TargetInputErrorCode.VERIFICATION_UNAVAILABLE
     assert "private" not in str(raised.value)
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    (
+        (
+            AccelerationProbeError(AccelerationProbeErrorCode.INPUTS_INVALID),
+            TargetInputErrorCode.INPUTS_INVALID,
+        ),
+        (
+            AccelerationProbeError(AccelerationProbeErrorCode.INPUTS_CHANGED),
+            TargetInputErrorCode.INPUTS_CHANGED,
+        ),
+        (
+            AccelerationProbeError(AccelerationProbeErrorCode.VERIFICATION_UNAVAILABLE),
+            TargetInputErrorCode.VERIFICATION_UNAVAILABLE,
+        ),
+        (
+            DockerInputError(DockerInputErrorCode.COMPOSE_INVALID),
+            TargetInputErrorCode.INPUTS_INVALID,
+        ),
+        (
+            DockerInputError(DockerInputErrorCode.INPUTS_CHANGED),
+            TargetInputErrorCode.INPUTS_CHANGED,
+        ),
+        (
+            DockerInputError(DockerInputErrorCode.VERIFICATION_UNAVAILABLE),
+            TargetInputErrorCode.VERIFICATION_UNAVAILABLE,
+        ),
+        (
+            PackageInputError(PackageInputErrorCode.PACKAGE_INVALID),
+            TargetInputErrorCode.INPUTS_INVALID,
+        ),
+        (
+            PackageInputError(PackageInputErrorCode.INPUTS_CHANGED),
+            TargetInputErrorCode.INPUTS_CHANGED,
+        ),
+        (
+            PackageInputError(PackageInputErrorCode.VERIFICATION_UNAVAILABLE),
+            TargetInputErrorCode.VERIFICATION_UNAVAILABLE,
+        ),
+        (
+            PodmanInputError(PodmanInputErrorCode.PROVIDER_INVALID),
+            TargetInputErrorCode.INPUTS_INVALID,
+        ),
+        (
+            PodmanInputError(PodmanInputErrorCode.INPUTS_CHANGED),
+            TargetInputErrorCode.INPUTS_CHANGED,
+        ),
+        (
+            PodmanInputError(PodmanInputErrorCode.VERIFICATION_UNAVAILABLE),
+            TargetInputErrorCode.VERIFICATION_UNAVAILABLE,
+        ),
+        (
+            ProcessEnvironmentInputError(
+                ProcessEnvironmentInputErrorCode.ENVIRONMENT_INVALID
+            ),
+            TargetInputErrorCode.INPUTS_INVALID,
+        ),
+        (
+            ProcessEnvironmentInputError(
+                ProcessEnvironmentInputErrorCode.INPUTS_CHANGED
+            ),
+            TargetInputErrorCode.INPUTS_CHANGED,
+        ),
+        (
+            ProcessEnvironmentInputError(
+                ProcessEnvironmentInputErrorCode.VERIFICATION_UNAVAILABLE
+            ),
+            TargetInputErrorCode.VERIFICATION_UNAVAILABLE,
+        ),
+    ),
+)
+def test_source_error_categories_remain_distinct(
+    error: Exception,
+    expected: TargetInputErrorCode,
+) -> None:
+    assert target_inputs._source_error_code(error) is expected
 
 
 def test_close_retries_and_releases_sole_owned_evidence(

@@ -22,6 +22,7 @@ from .runtime_acceleration_inputs import (
 )
 from .runtime_acceleration_probe import (
     AccelerationProbeError,
+    AccelerationProbeErrorCode,
     BoundEngineAccelerationEvidence,
     EngineAccelerationSnapshot,
     capture_native_windows_engine_acceleration_evidence,
@@ -29,22 +30,26 @@ from .runtime_acceleration_probe import (
 from .runtime_docker_inputs import (
     BoundDockerTargetSourceInputs,
     DockerInputError,
+    DockerInputErrorCode,
     DockerTargetSourceInputs,
     capture_native_windows_docker_target_source_inputs,
 )
 from .runtime_package_inputs import (
     BoundPackageEnvironmentInputs,
     PackageInputError,
+    PackageInputErrorCode,
     capture_native_windows_package_environment_inputs,
 )
 from .runtime_process_environment import (
     BoundWindowsProcessEnvironment,
     ProcessEnvironmentInputError,
+    ProcessEnvironmentInputErrorCode,
     capture_native_windows_process_environment,
 )
 from .runtime_podman_inputs import (
     BoundPodmanTargetSourceInputs,
     PodmanInputError,
+    PodmanInputErrorCode,
     PodmanTargetSourceInputs,
     capture_native_windows_podman_target_source_inputs,
 )
@@ -93,6 +98,31 @@ class TargetInputError(RuntimeError):
 
 def _fail(code: TargetInputErrorCode) -> NoReturn:
     raise TargetInputError(code)
+
+
+def _source_error_code(error: Exception) -> TargetInputErrorCode:
+    """Preserve stable subordinate invalid/changed/unavailable categories."""
+
+    invalid_codes = {
+        AccelerationProbeErrorCode.INPUTS_INVALID,
+        DockerInputErrorCode.COMPOSE_INVALID,
+        PackageInputErrorCode.PACKAGE_INVALID,
+        PodmanInputErrorCode.PROVIDER_INVALID,
+        ProcessEnvironmentInputErrorCode.ENVIRONMENT_INVALID,
+    }
+    changed_codes = {
+        AccelerationProbeErrorCode.INPUTS_CHANGED,
+        DockerInputErrorCode.INPUTS_CHANGED,
+        PackageInputErrorCode.INPUTS_CHANGED,
+        PodmanInputErrorCode.INPUTS_CHANGED,
+        ProcessEnvironmentInputErrorCode.INPUTS_CHANGED,
+    }
+    code = getattr(error, "code", None)
+    if code in invalid_codes:
+        return TargetInputErrorCode.INPUTS_INVALID
+    if code in changed_codes:
+        return TargetInputErrorCode.INPUTS_CHANGED
+    return TargetInputErrorCode.VERIFICATION_UNAVAILABLE
 
 
 class _CloseableOwner(Protocol):
@@ -299,8 +329,8 @@ class BoundNativeTargetResolutionPlanInputs:
             return second_inputs
         except TargetInputError:
             raise
-        except AccelerationProbeError:
-            raise TargetInputError(TargetInputErrorCode.INPUTS_CHANGED) from None
+        except AccelerationProbeError as error:
+            raise TargetInputError(_source_error_code(error)) from None
         except BaseException as error:
             if not isinstance(error, Exception):
                 raise
@@ -488,7 +518,7 @@ def capture_native_windows_target_resolution_plan_inputs(
             ProcessEnvironmentInputError,
         ),
     ):
-        raise TargetInputError(TargetInputErrorCode.INPUTS_CHANGED) from None
+        raise TargetInputError(_source_error_code(primary)) from None
     raise TargetInputError(TargetInputErrorCode.VERIFICATION_UNAVAILABLE) from None
 
 
