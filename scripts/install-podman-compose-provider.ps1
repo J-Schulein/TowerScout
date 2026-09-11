@@ -41,7 +41,7 @@ function Invoke-TowerScoutInstallerCommand {
         [string] $FailureMessage
     )
 
-    Write-Host "Running approved installer command."
+    Write-Host "Running fixed installer command."
     $previousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Stop"
     try {
@@ -115,14 +115,17 @@ function Get-TowerScoutInstallerPythonRuntime {
         [string] $Python
     )
 
-    $runtimeProbe = 'import json, platform, sys, sysconfig; free_threaded = bool(sysconfig.get_config_var(''Py_GIL_DISABLED'')); python_tag = ''cp%d%d%s'' % (sys.version_info.major, sys.version_info.minor, ''t'' if free_threaded else ''''); machine = platform.machine().lower(); platform_tag = ''win_amd64'' if sys.platform == ''win32'' and machine in (''amd64'', ''x86_64'') else ''unsupported''; print(json.dumps({''python_tag'': python_tag, ''platform_tag'': platform_tag}))'
+    $runtimeProbe = 'import json, platform, sys, sysconfig; free_threaded = bool(sysconfig.get_config_var(''Py_GIL_DISABLED'')); python_tag = ''cp%d%d%s'' % (sys.version_info.major, sys.version_info.minor, ''t'' if free_threaded else ''''); machine = platform.machine().lower(); platform_tag = ''win_amd64'' if sys.platform == ''win32'' and machine in (''amd64'', ''x86_64'') else ''unsupported''; print(json.dumps({''python_version'': platform.python_version(), ''python_tag'': python_tag, ''platform_tag'': platform_tag}))'
     $output = Invoke-TowerScoutInstallerCommand `
         -FileName $Python `
         -Arguments @("-c", $runtimeProbe) `
         -FailureMessage "Failed to determine the provider Python runtime tag."
     $runtime = ([string]::Join("", @($output))).Trim() | ConvertFrom-Json
     if ([string] $runtime.platform_tag -eq "unsupported") {
-        throw "The approved Podman Compose provider installer currently supports 64-bit Windows Python only."
+        throw "The Podman Compose provider installer currently supports 64-bit Windows Python only."
+    }
+    if ([string] $runtime.python_version -ne "3.12.10" -or [string] $runtime.python_tag -ne "cp312") {
+        throw "The Podman Compose provider installer requires a compatible CPython 3.12.10 runtime."
     }
 
     return $runtime
@@ -210,6 +213,51 @@ function Assert-TowerScoutInstallerPackageVersion {
         -FailureMessage "Installed package version verification failed for $Distribution." | Out-Null
 }
 
+function Assert-TowerScoutInstallerProviderOnlyLayout {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $VenvDir,
+
+        [Parameter(Mandatory = $true)]
+        [string] $SitePackagesDir
+    )
+
+    if (-not (Test-Path -LiteralPath $SitePackagesDir -PathType Container)) {
+        throw "The provider-only site-packages directory is missing."
+    }
+
+    $bootstrapEntries = @(Get-ChildItem -LiteralPath $SitePackagesDir -Force | Where-Object {
+        $_.Name -match "^(pip|setuptools|wheel)(?:-|$)"
+    })
+    if ($bootstrapEntries.Count -ne 0) {
+        throw "The managed provider environment contains an unapproved packaging bootstrap distribution."
+    }
+
+    $scriptsDir = Join-Path $VenvDir "Scripts"
+    $bootstrapCommands = @()
+    if (Test-Path -LiteralPath $scriptsDir -PathType Container) {
+        $bootstrapCommands = @(Get-ChildItem -LiteralPath $scriptsDir -Force | Where-Object {
+            $_.Name -match "^(pip|easy_install)(?:[0-9.]*)(?:\.exe|-script\.py)?$"
+        })
+    }
+    if ($bootstrapCommands.Count -ne 0) {
+        throw "The managed provider environment contains an unapproved packaging bootstrap command."
+    }
+
+    $bytecodeFiles = @(Get-ChildItem -LiteralPath $SitePackagesDir -Recurse -Force -File -Filter "*.pyc")
+    $bytecodeDirectories = @(Get-ChildItem -LiteralPath $SitePackagesDir -Recurse -Force -Directory | Where-Object {
+        $_.Name -eq "__pycache__"
+    })
+    if ($bytecodeFiles.Count -ne 0 -or $bytecodeDirectories.Count -ne 0) {
+        throw "The managed provider environment contains generated Python bytecode."
+    }
+
+    $pathFiles = @(Get-ChildItem -LiteralPath $SitePackagesDir -Recurse -Force -File -Filter "*.pth")
+    if ($pathFiles.Count -ne 0) {
+        throw "The managed provider environment contains an unapproved Python path file."
+    }
+}
+
 $repoRoot = Get-TowerScoutProviderRepoRoot
 $managedInstallRoot = Join-Path $repoRoot "tools\podman-compose-provider"
 
@@ -261,17 +309,26 @@ try {
         -Artifact $providerArtifact `
         -DestinationRoot $downloadRoot `
         -DisplayName "provider"
+    $approvedWheelArtifacts = @([pscustomobject]@{
+        path = $providerWheel
+        filename = [string] $providerArtifact.filename
+        sha256 = [string] $providerArtifact.sha256
+    })
 
-    $dependencyWheels = @()
     foreach ($dependency in @($provider.dependencies)) {
         $artifact = Resolve-TowerScoutInstallerDependencyArtifact `
             -Dependency $dependency `
             -PythonTag ([string] $pythonRuntime.python_tag) `
             -PlatformTag ([string] $pythonRuntime.platform_tag)
-        $dependencyWheels += Invoke-TowerScoutInstallerVerifiedDownload `
+        $dependencyWheel = Invoke-TowerScoutInstallerVerifiedDownload `
             -Artifact $artifact `
             -DestinationRoot $downloadRoot `
             -DisplayName ([string] $dependency.name)
+        $approvedWheelArtifacts += [pscustomobject]@{
+            path = $dependencyWheel
+            filename = [string] $artifact.filename
+            sha256 = ([string] $artifact.sha256).Trim().ToLowerInvariant()
+        }
     }
 
     if (Test-Path -LiteralPath $InstallDir) {
@@ -281,31 +338,76 @@ try {
     New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
     $installCreated = $true
 
+    $wheelhouseDir = Join-Path $InstallDir "wheelhouse"
+    New-Item -ItemType Directory -Path $wheelhouseDir | Out-Null
+    $persistentWheels = @()
+    foreach ($approvedWheel in $approvedWheelArtifacts) {
+        $persistentWheel = Join-Path $wheelhouseDir ([string] $approvedWheel.filename)
+        if (Test-Path -LiteralPath $persistentWheel) {
+            throw "The approved provider wheel inventory contains a duplicate filename."
+        }
+        Copy-Item -LiteralPath ([string] $approvedWheel.path) -Destination $persistentWheel
+        $persistentSha256 = (Get-FileHash -LiteralPath $persistentWheel -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($persistentSha256 -ne ([string] $approvedWheel.sha256)) {
+            throw "The persisted provider wheel SHA-256 did not match the approved catalog."
+        }
+        $persistentWheels += $persistentWheel
+    }
+
     $venvDir = Join-Path $InstallDir ".venv"
     Invoke-TowerScoutInstallerCommand `
         -FileName $Python `
-        -Arguments @("-m", "venv", $venvDir) `
+        -Arguments @("-m", "venv", "--without-pip", "--copies", $venvDir) `
         -FailureMessage "Failed to create the provider virtual environment." | Out-Null
 
     $venvPython = Get-TowerScoutInstallerVenvPython -VenvDir $venvDir
+    $sitePackagesDir = Join-Path $venvDir "Lib\site-packages"
     $pipInstallArguments = @(
         "-m",
         "pip",
+        "--python",
+        $venvPython,
         "install",
         "--disable-pip-version-check",
         "--no-warn-script-location",
         "--no-index",
         "--no-deps",
-        $providerWheel
-    ) + $dependencyWheels
+        "--no-compile"
+    ) + $persistentWheels
     Invoke-TowerScoutInstallerCommand `
-        -FileName $venvPython `
+        -FileName $Python `
         -Arguments $pipInstallArguments `
         -FailureMessage "Failed to install the approved Podman Compose provider wheelhouse." | Out-Null
+
+    $venvProviderPath = Join-Path $venvDir "Scripts\podman-compose.exe"
+    if (-not (Test-Path -LiteralPath $venvProviderPath -PathType Leaf)) {
+        throw "Provider installation completed, but the expected virtual-environment executable was not found."
+    }
+
+    # pip creates the console entry point, but it also adds installer-specific
+    # metadata. Replace only site-packages from the retained, hash-verified wheel
+    # bytes so the native verifier can later require the exact RECORD inventory.
+    $layoutHelper = Join-Path $PSScriptRoot "install_podman_provider_layout.py"
+    if (-not (Test-Path -LiteralPath $layoutHelper -PathType Leaf)) {
+        throw "The exact provider-layout helper is missing from this package."
+    }
+    if (-not (Test-TowerScoutInstallerChildPath -Parent $venvDir -Child $sitePackagesDir)) {
+        throw "The provider site-packages path is outside its virtual environment."
+    }
+    if (Test-Path -LiteralPath $sitePackagesDir) {
+        Remove-Item -LiteralPath $sitePackagesDir -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $sitePackagesDir | Out-Null
+    $layoutArguments = @(
+        "-I",
+        $layoutHelper,
+        "--site-packages",
+        $sitePackagesDir
+    ) + $persistentWheels
     Invoke-TowerScoutInstallerCommand `
-        -FileName $venvPython `
-        -Arguments @("-m", "pip", "check", "--disable-pip-version-check") `
-        -FailureMessage "The approved Podman Compose provider environment failed pip check." | Out-Null
+        -FileName $Python `
+        -Arguments $layoutArguments `
+        -FailureMessage "Failed to materialize the exact Podman Compose provider layout." | Out-Null
 
     Assert-TowerScoutInstallerPackageVersion `
         -Python $venvPython `
@@ -317,23 +419,25 @@ try {
             -Distribution ([string] $dependency.name) `
             -Version ([string] $dependency.version)
     }
+    Assert-TowerScoutInstallerProviderOnlyLayout -VenvDir $venvDir -SitePackagesDir $sitePackagesDir
 
-    $venvProviderPath = Join-Path $venvDir "Scripts\podman-compose.exe"
-    if (-not (Test-Path -LiteralPath $venvProviderPath -PathType Leaf)) {
-        throw "Provider installation completed, but the expected virtual-environment executable was not found."
+    $previousNoBytecode = [Environment]::GetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "Process")
+    try {
+        $env:PYTHONDONTWRITEBYTECODE = "1"
+        $check = Test-TowerScoutApprovedPodmanComposeProvider -ProviderPath $venvProviderPath -Provider $provider
     }
-
-    $wrapperPath = Join-Path $InstallDir "podman-compose.cmd"
-    @"
-@echo off
-set "TOWERSCOUT_PODMAN_COMPOSE_PROVIDER_HOME=%~dp0"
-"%~dp0.venv\Scripts\podman-compose.exe" %*
-"@ | Set-Content -LiteralPath $wrapperPath -Encoding ASCII
-
-    $check = Test-TowerScoutApprovedPodmanComposeProvider -ProviderPath $venvProviderPath -Provider $provider
+    finally {
+        if ($null -eq $previousNoBytecode) {
+            Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:PYTHONDONTWRITEBYTECODE = $previousNoBytecode
+        }
+    }
     if (-not $check.Accepted) {
         throw "Installed provider did not pass the approved-provider check: $($check.Reason)"
     }
+    Assert-TowerScoutInstallerProviderOnlyLayout -VenvDir $venvDir -SitePackagesDir $sitePackagesDir
 
     Set-TowerScoutPodmanComposeProviderEnv -ProviderPath $venvProviderPath -RootPath $repoRoot -Apply:$Apply | Out-Null
     if (-not [string]::IsNullOrWhiteSpace($backupDir) -and (Test-Path -LiteralPath $backupDir)) {

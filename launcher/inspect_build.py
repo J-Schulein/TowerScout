@@ -12,7 +12,7 @@ RUNTIME_POLICY_RELATIVE_PATH = (
     Path("_internal") / "towerscout_launcher" / "runtime-policy.v1.json"
 )
 RUNTIME_POLICY_SHA256 = (
-    "cde7244660ed54a26a1420aa43a4c350783538b73ebb032c241666dfcfa95d1e"
+    "c4dbf79f6732290ccb9c525f6493662de59cb5960fc2f4228fae518eb89702c4"
 )
 RUNTIME_DEPENDENCY_POLICY_RELATIVE_PATH = (
     Path("_internal") / "towerscout_launcher" / "runtime-dependency-policy.v1.json"

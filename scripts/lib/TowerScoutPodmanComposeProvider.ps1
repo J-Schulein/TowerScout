@@ -90,8 +90,10 @@ function Invoke-TowerScoutProviderCommand {
     )
 
     $previousErrorActionPreference = $ErrorActionPreference
+    $previousNoBytecode = [Environment]::GetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "Process")
     $ErrorActionPreference = "Continue"
     try {
+        $env:PYTHONDONTWRITEBYTECODE = "1"
         $output = & $ProviderPath @Arguments 2>&1
         return [pscustomobject]@{
             ExitCode = $LASTEXITCODE
@@ -105,6 +107,12 @@ function Invoke-TowerScoutProviderCommand {
         }
     }
     finally {
+        if ($null -eq $previousNoBytecode) {
+            Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:PYTHONDONTWRITEBYTECODE = $previousNoBytecode
+        }
         $ErrorActionPreference = $previousErrorActionPreference
     }
 }

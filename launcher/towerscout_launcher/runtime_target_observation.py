@@ -292,6 +292,7 @@ def _compose_expected(
         _require_executable(target.runtime.executable, "podman.exe")
         arguments = (
             "-I",
+            "-B",
             "-m",
             "podman_compose",
             "--podman-path",

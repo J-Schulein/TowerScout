@@ -272,6 +272,7 @@ $releaseFiles = @(
     "scripts\enable-podman-gpu.ps1",
     "scripts\install-podman-compose-provider.cmd",
     "scripts\install-podman-compose-provider.ps1",
+    "scripts\install_podman_provider_layout.py",
     "scripts\launch.ps1",
     "scripts\start.cmd",
     "scripts\start.ps1",

@@ -5,19 +5,25 @@ import csv
 import hashlib
 import io
 import json
+import shutil
 import sys
+import uuid
 import zipfile
 from dataclasses import replace
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 LAUNCHER_ROOT = ROOT / "launcher"
+SCRIPTS_ROOT = ROOT / "scripts"
 if str(LAUNCHER_ROOT) not in sys.path:
     sys.path.insert(0, str(LAUNCHER_ROOT))
+if str(SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_ROOT))
 
+from install_podman_provider_layout import install_exact_wheels  # noqa: E402
 import towerscout_launcher.runtime_podman_provider as provider_module  # noqa: E402
 from towerscout_launcher.runtime_podman_provider import (  # noqa: E402
     InstalledProviderFile,
@@ -247,6 +253,60 @@ def test_verifier_authenticates_catalog_wheels_and_exact_installed_inventory(
     )
     assert "redacted" in repr(evidence).lower()
     assert "VERSION =" not in repr(evidence)
+
+
+def test_exact_materializer_output_matches_inventory_verifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    catalog, wheels, _installed = _fixture(monkeypatch)
+    temp_root = (
+        ROOT
+        / ".agent_work"
+        / "pytest-temp"
+        / f"task087-exact-provider-layout-{uuid.uuid4().hex}"
+    )
+    temp_root.mkdir(parents=True)
+    try:
+        wheel_paths = []
+        for wheel in wheels:
+            wheel_path = temp_root / wheel.filename
+            wheel_path.write_bytes(wheel.contents)
+            wheel_paths.append(wheel_path)
+        site_packages = temp_root / "site-packages"
+        site_packages.mkdir()
+
+        install_exact_wheels(tuple(wheel_paths), site_packages)
+
+        installed = tuple(
+            InstalledProviderFile(
+                relative_path=str(
+                    PureWindowsPath(
+                        ".venv",
+                        "Lib",
+                        "site-packages",
+                        *path.relative_to(site_packages).parts,
+                    )
+                ),
+                sha256=_digest(path.read_bytes()),
+                size_bytes=path.stat().st_size,
+            )
+            for path in sorted(
+                item for item in site_packages.rglob("*") if item.is_file()
+            )
+        )
+        evidence = verify_managed_podman_compose_source_inventory(
+            catalog_bytes=catalog,
+            wheels=wheels,
+            installed_files=installed,
+        )
+
+        assert evidence.installed_file_count == len(installed)
+        assert not any(
+            path.name.casefold() in {"installer", "requested", "direct_url.json"}
+            for path in site_packages.rglob("*")
+        )
+    finally:
+        shutil.rmtree(temp_root, ignore_errors=True)
 
 
 def test_checked_in_provider_catalog_matches_package_bound_runtime_policy() -> None:

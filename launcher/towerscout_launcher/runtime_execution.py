@@ -370,6 +370,7 @@ class ProcessCommandPlan:
             _require_endpoint_key(identity_key)
             prefix = (
                 "-I",
+                "-B",
                 "-m",
                 "podman_compose",
                 "--podman-path",
@@ -620,6 +621,7 @@ class RuntimeExecutionBinding:
             _reject(BindingErrorCode.ENDPOINT_MATERIAL_REJECTED)
         arguments = (
             "-I",
+            "-B",
             "-m",
             "podman_compose",
             "--podman-path",

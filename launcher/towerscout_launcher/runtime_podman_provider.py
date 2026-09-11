@@ -284,7 +284,7 @@ def _policy() -> tuple[RuntimePolicy, PodmanComposePolicy]:
         or provider.catalog.authentication
         is not CatalogAuthentication.RUNTIME_POLICY_EXACT_BYTES
         or provider.invocation.kind is not InvocationKind.PYTHON_ISOLATED_MODULE
-        or provider.invocation.arguments != ("-I", "-m", "podman_compose")
+        or provider.invocation.arguments != ("-I", "-B", "-m", "podman_compose")
         or provider.interpreter.base_product_id is not RuntimeProductId.CPYTHON
         or provider.allow_external
         or provider.allow_docker_desktop

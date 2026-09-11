@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 _POLICY_RESOURCE = Path(__file__).with_name("runtime-policy.v1.json")
 _PACKAGE_POLICY_SHA256 = (
-    "cde7244660ed54a26a1420aa43a4c350783538b73ebb032c241666dfcfa95d1e"
+    "c4dbf79f6732290ccb9c525f6493662de59cb5960fc2f4228fae518eb89702c4"
 )
 _MAX_POLICY_BYTES = 128 * 1024
 _MAX_JSON_DEPTH = 16
@@ -363,6 +363,7 @@ class ProviderVerificationPolicy:
 
 @dataclass(frozen=True, slots=True, repr=False)
 class ProviderInventoryPolicy:
+    wheelhouse_relative_path: str = field(repr=False)
     site_packages_relative_path: str = field(repr=False)
     module_relative_path: str = field(repr=False)
     generated_entrypoint_relative_path: str = field(repr=False)
@@ -1433,6 +1434,7 @@ def _parse_provider_inventory(value: Any) -> ProviderInventoryPolicy:
         value,
         frozenset(
             {
+                "wheelhouse_relative_path",
                 "site_packages_relative_path",
                 "module_relative_path",
                 "generated_entrypoint_relative_path",
@@ -1448,6 +1450,7 @@ def _parse_provider_inventory(value: Any) -> ProviderInventoryPolicy:
             }
         ),
     )
+    wheelhouse = _safe_relative_path(item["wheelhouse_relative_path"])
     site_packages = _safe_relative_path(item["site_packages_relative_path"])
     module_path = _safe_relative_path(
         item["module_relative_path"], expected_leaf="podman_compose.py"
@@ -1465,7 +1468,8 @@ def _parse_provider_inventory(value: Any) -> ProviderInventoryPolicy:
         for candidate in _array(item["loadable_suffixes"], minimum=5, maximum=5)
     )
     if (
-        site_packages != r".venv\Lib\site-packages"
+        wheelhouse != "wheelhouse"
+        or site_packages != r".venv\Lib\site-packages"
         or module_path != r".venv\Lib\site-packages\podman_compose.py"
         or entrypoint_path != r".venv\Scripts\podman-compose.exe"
         or venv_config_path != r".venv\pyvenv.cfg"
@@ -1475,6 +1479,7 @@ def _parse_provider_inventory(value: Any) -> ProviderInventoryPolicy:
     ):
         _fail_schema()
     return ProviderInventoryPolicy(
+        wheelhouse_relative_path=wheelhouse,
         site_packages_relative_path=site_packages,
         module_relative_path=module_path,
         generated_entrypoint_relative_path=entrypoint_path,
@@ -1530,7 +1535,7 @@ def _parse_provider(value: Any) -> PodmanComposePolicy:
         ),
         module=_text(invocation_item["module"]),
     )
-    if invocation.arguments != ("-I", "-m", "podman_compose") or (
+    if invocation.arguments != ("-I", "-B", "-m", "podman_compose") or (
         invocation.module != "podman_compose"
     ):
         _fail_schema()

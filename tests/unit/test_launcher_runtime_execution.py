@@ -360,6 +360,7 @@ def test_podman_plans_bind_exact_url_key_python_module_and_child_endpoint():
     assert compose.command == (
         str(python.final_path),
         "-I",
+        "-B",
         "-m",
         "podman_compose",
         "--podman-path",
@@ -386,7 +387,7 @@ def test_podman_plans_bind_exact_url_key_python_module_and_child_endpoint():
     }
     assert compose.environment["CONTAINER_HOST"] == engine.command[2]
     assert compose.environment["CONTAINER_SSHKEY"] == engine.command[4]
-    assert compose.command[5] == engine.command[0]
+    assert compose.command[6] == engine.command[0]
     assert "connection" not in compose.command
     assert compose.command[compose.command.index("--env-file") + 1] == str(
         target.compose.environment_file.final_path

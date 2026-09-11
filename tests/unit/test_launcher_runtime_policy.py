@@ -375,7 +375,7 @@ def test_managed_podman_compose_policy_is_reproducible_and_direct() -> None:
     assert provider.interpreter.require_authenticated_base_runtime_closure is True
     assert provider.interpreter.require_venv_config_base_path_match is True
     assert provider.invocation.kind is InvocationKind.PYTHON_ISOLATED_MODULE
-    assert provider.invocation.arguments == ("-I", "-m", "podman_compose")
+    assert provider.invocation.arguments == ("-I", "-B", "-m", "podman_compose")
     assert provider.invocation.module == "podman_compose"
     assert provider.catalog.catalog_id == (
         "towerscout-managed-podman-compose-2026-08-21"
@@ -419,6 +419,7 @@ def test_managed_podman_compose_policy_is_reproducible_and_direct() -> None:
     assert provider.verification.require_generated_entrypoint_hash is True
     assert provider.verification.require_stable_file_identity is True
     assert provider.verification.receipt_is_trust_anchor is False
+    assert provider.inventory.wheelhouse_relative_path == "wheelhouse"
     assert provider.inventory.site_packages_relative_path == (
         r".venv\Lib\site-packages"
     )

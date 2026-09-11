@@ -77,7 +77,9 @@ function Invoke-TowerScoutBootstrapCommand {
 
         [string[]] $Arguments = @(),
 
-        [int] $TimeoutSeconds = 15
+        [int] $TimeoutSeconds = 15,
+
+        [switch] $DisablePythonBytecode
     )
 
     $process = New-Object System.Diagnostics.Process
@@ -87,6 +89,9 @@ function Invoke-TowerScoutBootstrapCommand {
     $process.StartInfo.RedirectStandardOutput = $true
     $process.StartInfo.RedirectStandardError = $true
     $process.StartInfo.CreateNoWindow = $true
+    if ($DisablePythonBytecode) {
+        $process.StartInfo.EnvironmentVariables["PYTHONDONTWRITEBYTECODE"] = "1"
+    }
 
     try {
         [void] $process.Start()
@@ -293,7 +298,7 @@ function Test-TowerScoutPodmanPreflight {
         }
     }
 
-    $compose = Invoke-TowerScoutBootstrapCommand -FileName "podman" -Arguments @("compose", "version") -TimeoutSeconds 15
+    $compose = Invoke-TowerScoutBootstrapCommand -FileName "podman" -Arguments @("compose", "version") -TimeoutSeconds 15 -DisablePythonBytecode
     if ($compose.ExitCode -ne 0) {
         $message = ($compose.StdErr + $compose.StdOut).Trim()
         if ([string]::IsNullOrWhiteSpace($message)) {

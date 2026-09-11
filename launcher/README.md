@@ -101,7 +101,9 @@ signed launcher executable.
 
 Podman remains fail-closed on this workstation because `podman compose` does
 not currently have an approved non-Docker-Desktop provider. Task-087 will not
-install or silently substitute that separate dependency.
+silently substitute that separate dependency. Connected setup may invoke the
+explicit `scripts\install-podman-compose-provider.cmd -Apply` workflow; the
+launcher itself does not install the provider implicitly.
 
 The integrated UI was built from clean source `0901cc5b8a2e` and packaged as
 an exact-source launcher-policy artifact. Its ZIP sidecar, inventory, internal

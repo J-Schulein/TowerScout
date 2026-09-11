@@ -95,6 +95,7 @@
     "invocation": {
       "arguments": [
         "-I",
+        "-B",
         "-m",
         "podman_compose"
       ],
@@ -105,6 +106,7 @@
     "managed_install_root": "tools\\podman-compose-provider\\podman-compose-pypi-1.5.0",
     "provider_id": "podman-compose-pypi-1.5.0",
     "inventory": {
+      "wheelhouse_relative_path": "wheelhouse",
       "generated_entrypoint_relative_path": ".venv\\Scripts\\podman-compose.exe",
       "loadable_suffixes": [
         ".py",

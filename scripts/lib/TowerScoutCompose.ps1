@@ -413,8 +413,10 @@ function Initialize-TowerScoutPodmanComposeProvider {
 
 function Get-TowerScoutPodmanComposeVersionResult {
     $previousErrorActionPreference = $ErrorActionPreference
+    $previousNoBytecode = [Environment]::GetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "Process")
     $ErrorActionPreference = "Continue"
     try {
+        $env:PYTHONDONTWRITEBYTECODE = "1"
         $versionOutput = & podman compose version 2>&1
         return [pscustomobject]@{
             ExitCode = $LASTEXITCODE
@@ -422,6 +424,12 @@ function Get-TowerScoutPodmanComposeVersionResult {
         }
     }
     finally {
+        if ($null -eq $previousNoBytecode) {
+            Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:PYTHONDONTWRITEBYTECODE = $previousNoBytecode
+        }
         $ErrorActionPreference = $previousErrorActionPreference
     }
 }
@@ -1099,12 +1107,17 @@ function Get-TowerScoutComposeServiceContainerIds {
 
     $repoRoot = Get-TowerScoutRepoRoot
     $command = Get-TowerScoutComposeCommand -Engine $Engine
+    $isPodmanCompose = $Engine -eq "podman" -or [string] $command["Executable"] -eq "podman"
     $composeFiles = @("-f", (Join-Path $repoRoot "compose.yaml"))
 
     Push-Location $repoRoot
     try {
         $previousErrorActionPreference = $ErrorActionPreference
+        $previousNoBytecode = [Environment]::GetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "Process")
         $ErrorActionPreference = "Continue"
+        if ($isPodmanCompose) {
+            $env:PYTHONDONTWRITEBYTECODE = "1"
+        }
         $output = & $command["Executable"] @(($command["Arguments"]) + $composeFiles + @("ps", "-a", "-q", $ServiceName)) 2>$null
         if ($LASTEXITCODE -ne 0) {
             return @()
@@ -1113,6 +1126,14 @@ function Get-TowerScoutComposeServiceContainerIds {
         return @($output | ForEach-Object { ([string] $_).Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     }
     finally {
+        if ($isPodmanCompose) {
+            if ($null -eq $previousNoBytecode) {
+                Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:PYTHONDONTWRITEBYTECODE = $previousNoBytecode
+            }
+        }
         $ErrorActionPreference = $previousErrorActionPreference
         Pop-Location
     }
@@ -1757,6 +1778,7 @@ function Invoke-TowerScoutCompose {
     $repoRoot = Get-TowerScoutRepoRoot
     $command = Get-TowerScoutComposeCommand -Engine $Engine
     $effectiveEngine = [string] $command["Executable"]
+    $isPodmanCompose = $Engine -eq "podman" -or $effectiveEngine -eq "podman"
     $gpuOverlayFile = ""
     if ($effectiveEngine -in @("docker", "podman")) {
         $gpuOverlayFile = Resolve-TowerScoutGpuComposeOverlay `
@@ -1790,11 +1812,23 @@ function Invoke-TowerScoutCompose {
     Push-Location $repoRoot
     try {
         $previousErrorActionPreference = $ErrorActionPreference
+        $previousNoBytecode = [Environment]::GetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "Process")
         $ErrorActionPreference = "Continue"
+        if ($isPodmanCompose) {
+            $env:PYTHONDONTWRITEBYTECODE = "1"
+        }
         & $command["Executable"] @(($command["Arguments"]) + $composeFiles + $ComposeArguments)
         $script:TowerScoutComposeExitCode = $LASTEXITCODE
     }
     finally {
+        if ($isPodmanCompose) {
+            if ($null -eq $previousNoBytecode) {
+                Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:PYTHONDONTWRITEBYTECODE = $previousNoBytecode
+            }
+        }
         $ErrorActionPreference = $previousErrorActionPreference
         Pop-Location
     }

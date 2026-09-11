@@ -281,7 +281,7 @@ def test_compose_reads_bind_exact_provider_files_endpoint_and_environment(
         assert command[1:3] == ("--host", plan.endpoint.canonical_endpoint)
         assert command[-3:] == ("config", "--format", "json")
     else:
-        assert command[1:4] == ("-I", "-m", "podman_compose")
+        assert command[1:5] == ("-I", "-B", "-m", "podman_compose")
         assert current.environment["CONTAINER_HOST"] == plan.endpoint.canonical_endpoint
         assert current.environment["CONTAINER_SSHKEY"] == str(
             plan.endpoint.identity_key.final_path  # type: ignore[union-attr]
