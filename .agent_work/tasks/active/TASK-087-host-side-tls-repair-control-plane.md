@@ -1399,15 +1399,16 @@ corrected and accepted on re-review with no remaining findings. No Docker,
 Podman, Compose, certificate-store, launcher, `.env`, container, image, volume,
 or host mutation ran.
 
-**Boundary**: This is an independently reviewed local contract sub-increment
-across slices 2 and 4. It is an implementation of the already approved
-trust/source separation, not a new Gate A requirement. It does not yet build
-the concrete package/runtime source owner, connect the exact target to
-confirmation, export a root, or enable repair. Gate A remains open and mutation
-remains disabled.
+**Checkpoint**: Independently reviewed implementation commit `c84998c`.
 
-**Next**: Checkpoint the clean review. Then implement the concrete retained
-non-certificate source owner and connect its exact target ahead of confirmation.
+**Boundary**: This checkpoint is a contract sub-increment across slices 2 and
+4. It is an implementation of the already approved trust/source separation,
+not a new Gate A requirement. It does not yet build the concrete package/runtime
+source owner, connect the exact target to confirmation, export a root, or enable
+repair. Gate A remains open and mutation remains disabled.
+
+**Next**: Implement the concrete retained non-certificate source owner and
+connect its exact target ahead of confirmation.
 
 ### 2026-09-11 - Native Windows Trust Bound Into Target Inputs
 
