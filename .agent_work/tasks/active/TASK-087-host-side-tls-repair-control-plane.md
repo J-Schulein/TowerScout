@@ -3,7 +3,7 @@
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A source work is active under the
 approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). At reviewed source
-head `7a0c35a33adc`, contracts are complete; the runtime and target foundations
+head `17d813fe816c`, contracts are complete; the runtime and target foundations
 are substantially built but unwired; Windows trust/security are partial;
 durable recovery, transaction refactoring, and the final Gate A proof remain
 open. All applicable exact-head checks passed in CI/CD run `34630327246`,
@@ -1355,6 +1355,63 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-11 - Retained Managed Podman Provider Owner Checkpointed
+
+**Objective**: Close the next runtime-resolver sub-boundary by authenticating
+and retaining the deterministic managed Podman Compose installation, its base
+CPython closure, and its relationship to the already retained rootless Podman
+runtime/endpoint owner without wiring confirmation or mutation.
+
+**Execution**: Added a native source adapter that opens and retains trusted
+path hierarchies and same-file handles for the exact package-bound provider
+catalog, all pinned wheels, every allowed installed provider file and
+directory, the generated entry point, `pyvenv.cfg`, and the copied venv
+interpreter. It requires `pyvenv.cfg` to identify the exact separately
+authenticated base CPython executable and version, transfers and retains that
+base executable plus its authenticated dependency closure, and revalidates all
+held files and complete directory inventories during each capture. A joined
+owner now revalidates that provider with the retained Podman runtime, rootless
+endpoint, machine configuration, and identity key twice under one lifetime.
+The adapter rejects venv `Scripts` subdirectories and CPython path/startup
+override surfaces including `._pth`, `.pth`, adjacent `pyvenv.cfg`,
+`.exe.local`, ZIP, native-library, and Python-source/bytecode entries. Public
+native factories expose no injectable trust seams, errors and representations
+remain sanitized, and the new source is still absent from `app.py`,
+`discovery.py`, `repair.py`, and `runtime_execution.py`. Execution-side
+admission of the pinned PyYAML native extension remains deliberately deferred
+until the source-owner attestation is explicitly consumed by that execution
+boundary; this checkpoint does not widen the existing provider child-image
+policy based only on caller-plan identities.
+
+**Validation**: The focused new suite passes `18/18`. The combined managed
+provider, Podman endpoint, Docker input-owner, provider-child, CPython
+dependency-capture, and runtime-verification set passes `200/200`. Strict mypy,
+Black, fatal/syntax Flake8, high-severity Bandit, compileall, and diff hygiene
+pass for the implementation boundary. A broader unit attempt was blocked by
+the managed Windows environment denying pytest access to its temporary root;
+the first `91` tests passed and no product assertion failed before that setup
+error. No provider, runtime, container, certificate, `.env`, image, volume, or
+application state was changed.
+
+**Independent Review**: The first review found a CPython startup-path bypass
+beside the venv interpreter and an execution-policy widening that trusted
+caller-plan native-extension identities without consuming the source proof.
+The corrected adapter rejects the adjacent configuration/load surfaces with
+six targeted adversarial cases. The unattested execution-policy widening was
+removed and explicitly deferred. Independent re-review returned `CLEAN/PASS`
+with no remaining material findings.
+
+**Checkpoint And Boundary**: Independently reviewed source commit `17d813f`
+records this increment and becomes the canonical implementation head. It
+materially removes the retained-provider and Podman-join items from slice 2,
+but does not construct package/environment, process-environment, or
+acceleration inputs; compose the final target owner; connect confirmation;
+refactor recovery/repair; or enable mutation. Gate A remains open.
+
+**Next**: Implement the remaining package/environment, process-environment,
+and acceleration source owners before composing the final exact target ahead
+of confirmation.
 
 ### 2026-09-11 - Deterministic Managed Provider Layout Checkpointed
 
