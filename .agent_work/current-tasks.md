@@ -184,10 +184,13 @@ canonical burn-down; re-estimate after exact-target wiring
 - Source checkpoint `f0a9d81` implements the independently reviewed native
   Windows-store trust provider under slice 4 while keeping it unwired. Source
   checkpoint `7f354bc` binds that native result into target-plan ownership and
-  discards caller-asserted certificate identity. Finish slices 2-3 by
-  constructing the remaining retained non-certificate inputs, connecting the
-  checkpointed owned exact target ahead of confirmation, and wiring stage-
-  specific revalidation.
+  discards caller-asserted certificate identity. The independently reviewed
+  local follow-on removes certificate identity from the retained input-owner
+  contract entirely; the public production handoff accepts it only from its
+  internal fixed Windows-trust wrapper before assembly.
+  Finish slices 2-3 by constructing the remaining retained non-certificate
+  inputs from reviewed sources, connecting the checkpointed owned exact target
+  ahead of confirmation, and wiring stage-specific revalidation.
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
 

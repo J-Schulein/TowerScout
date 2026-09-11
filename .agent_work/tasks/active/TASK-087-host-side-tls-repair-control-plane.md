@@ -1356,6 +1356,59 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-11 - Certificate-Free Target Input Contract Independently Reviewed
+
+**Objective**: Make the retained production input-owner boundary structurally
+incapable of supplying certificate identity, so the remaining concrete source
+owner has only package/runtime/configuration inputs to construct.
+
+**Context**: Independently reviewed source checkpoint `7f354bc` already ignores
+the caller's certificate field and replaces it with fixed native Windows trust.
+That behavior was safe, but the public input dataclass and pure assembler still
+carried a certificate-shaped seam that the future concrete owner did not need.
+
+**Decision**: Remove `certificate` from `TargetResolutionPlanInputs`. Pair the
+non-certificate snapshot with `CertificateIdentity` only inside a private,
+redacted `_WindowsTrustedTargetResolutionPlanInputs` after native trust succeeds.
+Make plan assembly private and require the separated trust result explicitly.
+The public production handoff continues to accept only the non-certificate owner
+and continues to construct the internal trust wrapper unconditionally.
+
+**Execution**:
+
+- Removed certificate identity from the public retained-input dataclass and
+  owner protocol.
+- Added an exact-type, provider-matched private trust-bound snapshot.
+- Made the low-level assembler private and removed it from the module export
+  surface, marking it as unavailable for production wiring as an alternative
+  public handoff.
+- Generalized only the private lifecycle checks needed by both the pre-trust and
+  trust-bound owners; capture result types remain distinct and exact-checked.
+
+**Adversarial Coverage**: The plan tests now prove the public input snapshot has
+no certificate attribute, the public production handoff's assembly receives
+certificate identity from the separate private path, and the existing native-root drift, provider/type
+mismatch, failure sanitization, interruption, cleanup, and authority-transfer
+tests remain green.
+
+**Validation**: The target-resolution, pure trust, and native trust suites pass
+`159/159`. Scoped Black, strict mypy, fatal/syntax Flake8, high-severity Bandit,
+both agent-work validators, the sensitive-term scan, and `git diff --check`
+pass. Independent review identified one low-severity wording issue, which was
+corrected and accepted on re-review with no remaining findings. No Docker,
+Podman, Compose, certificate-store, launcher, `.env`, container, image, volume,
+or host mutation ran.
+
+**Boundary**: This is an independently reviewed local contract sub-increment
+across slices 2 and 4. It is an implementation of the already approved
+trust/source separation, not a new Gate A requirement. It does not yet build
+the concrete package/runtime source owner, connect the exact target to
+confirmation, export a root, or enable repair. Gate A remains open and mutation
+remains disabled.
+
+**Next**: Checkpoint the clean review. Then implement the concrete retained
+non-certificate source owner and connect its exact target ahead of confirmation.
+
 ### 2026-09-11 - Native Windows Trust Bound Into Target Inputs
 
 **Objective**: Remove the last caller-asserted certificate identity from the

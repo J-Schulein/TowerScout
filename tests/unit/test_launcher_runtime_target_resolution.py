@@ -18,7 +18,6 @@ if str(LAUNCHER_ROOT) not in sys.path:
 from towerscout_launcher import runtime_target_plan  # noqa: E402
 from towerscout_launcher.runtime_target_plan import (  # noqa: E402
     TargetResolutionPlanInputs,
-    assemble_target_resolution_plan,
     capture_native_windows_resolved_target_from_inputs,
 )
 from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
@@ -260,7 +259,6 @@ def _plan_inputs(plan: TargetResolutionPlan) -> TargetResolutionPlanInputs:
         port=plan.port,
         configured_image_reference=plan.configured_image_reference,
         pinned_image_digest=plan.pinned_image_digest,
-        certificate=plan.certificate,
     )
 
 
@@ -1473,12 +1471,16 @@ def test_plan_assembler_constructs_the_exact_redacted_plan() -> None:
     expected = _plan(RuntimeProduct.PODMAN)
     inputs = _plan_inputs(expected)
 
-    assembled = assemble_target_resolution_plan(inputs)
+    assembled = runtime_target_plan._assemble_target_resolution_plan(  # noqa: SLF001
+        inputs,
+        certificate=expected.certificate,
+    )
 
     assert assembled == expected
     assert assembled.authority_sha256 == expected.authority_sha256
     assert repr(inputs) == "TargetResolutionPlanInputs(<redacted>)"
     assert "PRIVATE-PATH" not in repr(inputs)
+    assert not hasattr(inputs, "certificate")
 
 
 def test_plan_assembler_sanitizes_mixed_or_invalid_inputs() -> None:
@@ -1487,7 +1489,10 @@ def test_plan_assembler_sanitizes_mixed_or_invalid_inputs() -> None:
     invalid = replace(_plan_inputs(docker), endpoint=podman.endpoint)
 
     with pytest.raises(TargetResolutionError) as caught:
-        assemble_target_resolution_plan(invalid)
+        runtime_target_plan._assemble_target_resolution_plan(  # noqa: SLF001
+            invalid,
+            certificate=docker.certificate,
+        )
 
     assert caught.value.code is TargetResolutionErrorCode.AUTHORITY_MISMATCH
     assert "PRIVATE-PATH" not in str(caught.value)
@@ -1504,12 +1509,16 @@ def test_owned_plan_assembly_transfers_the_second_stable_plan(
     resolved = _ResolvedTargetOwner()
     captured: list[TargetResolutionPlan] = []
     assembled: list[TargetResolutionPlan] = []
-    real_assembler = assemble_target_resolution_plan
+    real_assembler = (
+        runtime_target_plan._assemble_target_resolution_plan
+    )  # noqa: SLF001
 
     def tracking_assembler(
         snapshot: TargetResolutionPlanInputs,
+        *,
+        certificate: CertificateIdentity,
     ) -> TargetResolutionPlan:
-        plan = real_assembler(snapshot)
+        plan = real_assembler(snapshot, certificate=certificate)
         assembled.append(plan)
         return plan
 
@@ -1526,7 +1535,7 @@ def test_owned_plan_assembly_transfers_the_second_stable_plan(
     )
     monkeypatch.setattr(
         runtime_target_plan,
-        "assemble_target_resolution_plan",
+        "_assemble_target_resolution_plan",
         tracking_assembler,
     )
     monkeypatch.setattr(
@@ -1542,7 +1551,7 @@ def test_owned_plan_assembly_transfers_the_second_stable_plan(
     assert len(captured) == 1
     assert captured[0] is assembled[1]
     assert captured[0] == _windows_trusted_plan(_plan())
-    assert captured[0].certificate != inputs.certificate
+    assert captured[0].certificate != _plan().certificate
     assert _fixed_native_windows_root == [MapProvider.GOOGLE, MapProvider.GOOGLE]
     assert owner.capture_calls == 2
     assert owner.close_calls == 1

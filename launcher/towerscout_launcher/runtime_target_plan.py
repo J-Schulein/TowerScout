@@ -8,7 +8,7 @@ process execution, certificate-store mutation, repair, or other mutation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 import threading
 from typing import Any, Protocol
 
@@ -38,7 +38,7 @@ from .trust_windows_native import capture_selected_windows_root
 
 @dataclass(frozen=True, slots=True, repr=False)
 class TargetResolutionPlanInputs:
-    """One immutable snapshot emitted by an authenticated input owner."""
+    """One immutable non-certificate snapshot from an authenticated owner."""
 
     package_root: FileIdentity
     process_environment: WindowsProcessEnvironment
@@ -58,10 +58,28 @@ class TargetResolutionPlanInputs:
     port: int
     configured_image_reference: str = field(repr=False)
     pinned_image_digest: str = field(repr=False)
-    certificate: CertificateIdentity = field(repr=False)
 
     def __repr__(self) -> str:
         return "TargetResolutionPlanInputs(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class _WindowsTrustedTargetResolutionPlanInputs:
+    """Internal snapshot after the fixed native trust provider adds identity."""
+
+    inputs: TargetResolutionPlanInputs = field(repr=False)
+    certificate: CertificateIdentity = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.inputs) is not TargetResolutionPlanInputs
+            or type(self.certificate) is not CertificateIdentity
+            or self.certificate.provider is not self.inputs.provider
+        ):
+            raise ValueError("Trusted target-plan inputs are invalid.")
+
+    def __repr__(self) -> str:
+        return "_WindowsTrustedTargetResolutionPlanInputs(<redacted>)"
 
 
 class TargetResolutionPlanInputOwner(Protocol):
@@ -78,13 +96,27 @@ class TargetResolutionPlanInputOwner(Protocol):
     def close(self) -> None: ...
 
 
+class _PlanInputOwnerLifecycle(Protocol):
+    """Common lifecycle surface for pre-trust and trust-bound owners."""
+
+    @property
+    def supported(self) -> bool: ...
+
+    @property
+    def closed(self) -> bool: ...
+
+    def capture(self) -> object: ...
+
+    def close(self) -> None: ...
+
+
 class _WindowsTrustedPlanInputOwner:
     """Bind every captured plan snapshot to fresh native Windows trust.
 
     The wrapped owner remains responsible for retaining the package, runtime,
-    endpoint, and file authorities.  This owner deliberately ignores its
-    caller-provided certificate field and replaces it with the identity of the
-    root selected through the fixed, non-injectable Windows trust provider.
+    endpoint, and file authorities.  Its snapshots contain no certificate
+    identity.  This owner adds the identity of the root selected through the
+    fixed, non-injectable Windows trust provider.
     """
 
     __slots__ = ("_active_owner", "_closed", "_lifetime_lock", "_owner")
@@ -110,7 +142,7 @@ class _WindowsTrustedPlanInputOwner:
             except Exception:
                 return True
 
-    def capture(self) -> TargetResolutionPlanInputs:
+    def capture(self) -> _WindowsTrustedTargetResolutionPlanInputs:
         self._lifetime_lock.acquire()
         if self._active_owner is not None or self._closed:
             self._lifetime_lock.release()
@@ -158,7 +190,7 @@ class _WindowsTrustedPlanInputOwner:
                     windows_root_fingerprint_sha256=selected.fingerprint_sha256,
                     candidate_content_sha256=selected.pem_sha256,
                 )
-                return replace(inputs, certificate=certificate)
+                return _WindowsTrustedTargetResolutionPlanInputs(inputs, certificate)
             except (OverflowError, TypeError, UnicodeError, ValueError):
                 raise TargetResolutionError(
                     TargetResolutionErrorCode.AUTHORITY_MISMATCH
@@ -198,10 +230,12 @@ class _WindowsTrustedPlanInputOwner:
         return f"_WindowsTrustedPlanInputOwner(state={state!r}, <redacted>)"
 
 
-def assemble_target_resolution_plan(
+def _assemble_target_resolution_plan(
     inputs: TargetResolutionPlanInputs,
+    *,
+    certificate: CertificateIdentity,
 ) -> TargetResolutionPlan:
-    """Construct the strict plan without leaking invalid private input data."""
+    """Construct the strict plan from separate non-certificate/trust inputs."""
 
     plan: TargetResolutionPlan | None = None
     if type(inputs) is TargetResolutionPlanInputs:
@@ -225,7 +259,7 @@ def assemble_target_resolution_plan(
                 port=inputs.port,
                 configured_image_reference=inputs.configured_image_reference,
                 pinned_image_digest=inputs.pinned_image_digest,
-                certificate=inputs.certificate,
+                certificate=certificate,
             )
         except (OverflowError, TypeError, UnicodeError, ValueError):
             pass
@@ -237,27 +271,30 @@ def assemble_target_resolution_plan(
 
 
 def _capture_plan(
-    owner: TargetResolutionPlanInputOwner,
+    owner: _WindowsTrustedPlanInputOwner,
 ) -> TargetResolutionPlan:
-    inputs: TargetResolutionPlanInputs | None = None
+    trusted: _WindowsTrustedTargetResolutionPlanInputs | None = None
     failure: TargetResolutionErrorCode | None = None
     try:
-        inputs = owner.capture()
+        trusted = owner.capture()
     except TargetResolutionError as error:
         failure = error.code
     except Exception:
         failure = TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
     if failure is not None:
         raise TargetResolutionError(failure) from None
-    if type(inputs) is not TargetResolutionPlanInputs:
+    if type(trusted) is not _WindowsTrustedTargetResolutionPlanInputs:
         raise TargetResolutionError(
             TargetResolutionErrorCode.AUTHORITY_MISMATCH
         ) from None
-    return assemble_target_resolution_plan(inputs)
+    return _assemble_target_resolution_plan(
+        trusted.inputs,
+        certificate=trusted.certificate,
+    )
 
 
 def _recapture_plan(
-    owner: TargetResolutionPlanInputOwner,
+    owner: _WindowsTrustedPlanInputOwner,
 ) -> TargetResolutionPlan:
     plan: TargetResolutionPlan | None = None
     interrupted: BaseException | None = None
@@ -273,7 +310,7 @@ def _recapture_plan(
     return plan
 
 
-def _owner_is_available(owner: TargetResolutionPlanInputOwner) -> bool:
+def _owner_is_available(owner: _PlanInputOwnerLifecycle) -> bool:
     try:
         return bool(
             owner.supported is True
@@ -285,7 +322,7 @@ def _owner_is_available(owner: TargetResolutionPlanInputOwner) -> bool:
         return False
 
 
-def _close_owner(owner: TargetResolutionPlanInputOwner) -> bool:
+def _close_owner(owner: _PlanInputOwnerLifecycle) -> bool:
     failed = False
     try:
         owner.close()
@@ -312,9 +349,9 @@ def capture_native_windows_resolved_target_from_inputs(
 ) -> BoundResolvedRepairTarget:
     """Bind native Windows trust, transfer stable inputs, then close them.
 
-    Caller-provided certificate identity is never authoritative.  An internal
-    owner replaces it with fresh fixed-host Windows-store evidence on both
-    stable captures.  The input owner remains open until the native bridge has
+    Input snapshots contain no caller-provided certificate identity.  An
+    internal owner adds fresh fixed-host Windows-store evidence on both stable
+    captures.  The input owner remains open until the native bridge has
     independently recaptured every plan authority.  After a successful
     handoff, only the returned resolved-target owner remains live.
     """
@@ -371,6 +408,5 @@ def capture_native_windows_resolved_target_from_inputs(
 __all__ = [
     "TargetResolutionPlanInputOwner",
     "TargetResolutionPlanInputs",
-    "assemble_target_resolution_plan",
     "capture_native_windows_resolved_target_from_inputs",
 ]
