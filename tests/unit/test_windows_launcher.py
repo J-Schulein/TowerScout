@@ -55,7 +55,7 @@ from build_provenance import (  # noqa: E402
     PROVENANCE_FILENAME,
     create_build_provenance_payload,
 )
-from inspect_build import inspect_build  # noqa: E402
+from inspect_build import RUNTIME_POLICY_SHA256, inspect_build  # noqa: E402
 from package_validation import (  # noqa: E402
     FULL_PACKAGE_REQUIRED_FILES,
     assemble_full_validation_package,
@@ -165,6 +165,14 @@ def _write_package_bound_runtime_policy(root: Path) -> Path:
         ).read_bytes()
     )
     return destination
+
+
+def test_build_inspector_runtime_policy_pin_matches_package_resource() -> None:
+    policy_bytes = (
+        LAUNCHER_ROOT / "towerscout_launcher" / "runtime-policy.v1.json"
+    ).read_bytes()
+
+    assert RUNTIME_POLICY_SHA256 == hashlib.sha256(policy_bytes).hexdigest()
 
 
 def _write_test_checksums(root: Path) -> None:
