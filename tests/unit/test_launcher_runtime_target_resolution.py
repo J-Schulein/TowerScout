@@ -54,6 +54,10 @@ from towerscout_launcher.target_contracts import (  # noqa: E402
     SecurityArtifactInventory,
     WindowsProcessEnvironment,
 )
+from towerscout_launcher.trust_policy import (  # noqa: E402
+    SelectedWindowsRootMaterial,
+    TrustPolicyError,
+)
 
 
 def _digest(value: str) -> str:
@@ -258,6 +262,42 @@ def _plan_inputs(plan: TargetResolutionPlan) -> TargetResolutionPlanInputs:
         pinned_image_digest=plan.pinned_image_digest,
         certificate=plan.certificate,
     )
+
+
+def _selected_root(
+    provider: MapProvider,
+    der_bytes: bytes = b"native-windows-root",
+) -> SelectedWindowsRootMaterial:
+    return SelectedWindowsRootMaterial(provider, der_bytes)
+
+
+def _windows_trusted_plan(
+    plan: TargetResolutionPlan,
+    der_bytes: bytes = b"native-windows-root",
+) -> TargetResolutionPlan:
+    selected = _selected_root(plan.provider, der_bytes)
+    return replace(
+        plan,
+        certificate=CertificateIdentity(
+            provider=plan.provider,
+            windows_root_fingerprint_sha256=selected.fingerprint_sha256,
+            candidate_content_sha256=selected.pem_sha256,
+        ),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _fixed_native_windows_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[MapProvider]:
+    calls: list[MapProvider] = []
+
+    def capture(provider: MapProvider) -> SelectedWindowsRootMaterial:
+        calls.append(provider)
+        return _selected_root(provider)
+
+    monkeypatch.setattr(runtime_target_plan, "capture_selected_windows_root", capture)
+    return calls
 
 
 class _PlanInputOwner:
@@ -1457,6 +1497,7 @@ def test_plan_assembler_sanitizes_mixed_or_invalid_inputs() -> None:
 
 def test_owned_plan_assembly_transfers_the_second_stable_plan(
     monkeypatch: pytest.MonkeyPatch,
+    _fixed_native_windows_root: list[MapProvider],
 ) -> None:
     inputs = _plan_inputs(_plan())
     owner = _PlanInputOwner(inputs, inputs)
@@ -1500,11 +1541,157 @@ def test_owned_plan_assembly_transfers_the_second_stable_plan(
     assert len(assembled) == 2
     assert len(captured) == 1
     assert captured[0] is assembled[1]
-    assert captured[0] == _plan()
+    assert captured[0] == _windows_trusted_plan(_plan())
+    assert captured[0].certificate != inputs.certificate
+    assert _fixed_native_windows_root == [MapProvider.GOOGLE, MapProvider.GOOGLE]
     assert owner.capture_calls == 2
     assert owner.close_calls == 1
     assert owner.closed is True
     assert resolved.closed is False
+
+
+def test_owned_plan_assembly_rejects_native_root_drift_before_bridge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(inputs, inputs)
+    roots = iter((b"first-root", b"second-root"))
+    bridge_calls = 0
+
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "capture_selected_windows_root",
+        lambda provider: _selected_root(provider, next(roots)),
+    )
+
+    def bridge(_plan: TargetResolutionPlan) -> BoundResolvedRepairTarget:
+        nonlocal bridge_calls
+        bridge_calls += 1
+        raise AssertionError("bridge must not run")
+
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "capture_native_windows_resolved_repair_target",
+        bridge,
+    )
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.TARGET_CHANGED
+    assert bridge_calls == 0
+    assert owner.capture_calls == 2
+    assert owner.close_calls == 1
+    assert owner.closed is True
+
+
+def test_owned_plan_assembly_sanitizes_native_trust_failure_and_closes_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(inputs)
+
+    def fail(_provider: MapProvider) -> SelectedWindowsRootMaterial:
+        raise TrustPolicyError("windows_trust_unavailable")
+
+    monkeypatch.setattr(runtime_target_plan, "capture_selected_windows_root", fail)
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+    assert "trust" not in str(caught.value).casefold()
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+    assert owner.capture_calls == 1
+    assert owner.close_calls == 1
+    assert owner.closed is True
+
+
+def test_owned_plan_assembly_maps_second_native_trust_failure_to_changed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(inputs, inputs)
+    calls = 0
+
+    def capture(provider: MapProvider) -> SelectedWindowsRootMaterial:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise TrustPolicyError("windows_trust_unavailable")
+        return _selected_root(provider)
+
+    monkeypatch.setattr(runtime_target_plan, "capture_selected_windows_root", capture)
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.TARGET_CHANGED
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+    assert calls == 2
+    assert owner.capture_calls == 2
+    assert owner.close_calls == 1
+
+
+def test_owned_plan_assembly_preserves_native_trust_interruption_and_closes_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(inputs)
+
+    def interrupt(_provider: MapProvider) -> SelectedWindowsRootMaterial:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "capture_selected_windows_root",
+        interrupt,
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert owner.capture_calls == 1
+    assert owner.close_calls == 1
+    assert owner.closed is True
+
+
+def test_owned_plan_assembly_rejects_mismatched_native_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(inputs)
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "capture_selected_windows_root",
+        lambda _provider: _selected_root(MapProvider.AZURE),
+    )
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+    assert owner.close_calls == 1
+
+
+def test_owned_plan_assembly_rejects_untyped_native_trust_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    inputs = _plan_inputs(_plan())
+    owner = _PlanInputOwner(inputs)
+    monkeypatch.setattr(
+        runtime_target_plan,
+        "capture_selected_windows_root",
+        lambda _provider: object(),
+    )
+
+    with pytest.raises(TargetResolutionError) as caught:
+        capture_native_windows_resolved_target_from_inputs(owner)
+
+    assert caught.value.code is TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+    assert owner.close_calls == 1
 
 
 def test_owned_plan_assembly_rejects_changed_inputs_before_native_capture(

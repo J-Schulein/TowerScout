@@ -1,13 +1,15 @@
 """Assemble one exact target plan and hand it to the native resolver.
 
 This module is the ownership boundary between authenticated input discovery and
-the already-reviewed native observation bridge.  It performs no discovery,
-process execution, certificate-store access, repair, or mutation itself.
+the already-reviewed native observation bridge.  It performs fixed-host,
+read-only Windows certificate-store verification, but no input discovery,
+process execution, certificate-store mutation, repair, or other mutation.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+import threading
 from typing import Any, Protocol
 
 from .runtime_target_observation_native import (
@@ -30,6 +32,8 @@ from .target_contracts import (
     SecurityArtifactInventory,
     WindowsProcessEnvironment,
 )
+from .trust_policy import SelectedWindowsRootMaterial, TrustPolicyError
+from .trust_windows_native import capture_selected_windows_root
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -72,6 +76,126 @@ class TargetResolutionPlanInputOwner(Protocol):
     def capture(self) -> TargetResolutionPlanInputs: ...
 
     def close(self) -> None: ...
+
+
+class _WindowsTrustedPlanInputOwner:
+    """Bind every captured plan snapshot to fresh native Windows trust.
+
+    The wrapped owner remains responsible for retaining the package, runtime,
+    endpoint, and file authorities.  This owner deliberately ignores its
+    caller-provided certificate field and replaces it with the identity of the
+    root selected through the fixed, non-injectable Windows trust provider.
+    """
+
+    __slots__ = ("_active_owner", "_closed", "_lifetime_lock", "_owner")
+
+    def __init__(self, owner: TargetResolutionPlanInputOwner) -> None:
+        self._owner = owner
+        self._lifetime_lock = threading.RLock()
+        self._active_owner: int | None = None
+        self._closed = False
+
+    @property
+    def supported(self) -> bool:
+        with self._lifetime_lock:
+            return bool(not self._closed and _owner_is_available(self._owner))
+
+    @property
+    def closed(self) -> bool:
+        with self._lifetime_lock:
+            if self._closed:
+                return True
+            try:
+                return self._owner.closed is True
+            except Exception:
+                return True
+
+    def capture(self) -> TargetResolutionPlanInputs:
+        self._lifetime_lock.acquire()
+        if self._active_owner is not None or self._closed:
+            self._lifetime_lock.release()
+            raise TargetResolutionError(
+                TargetResolutionErrorCode.TARGET_CHANGED
+            ) from None
+        self._active_owner = threading.get_ident()
+        try:
+            if not _owner_is_available(self._owner):
+                raise TargetResolutionError(
+                    TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+                ) from None
+            inputs = self._owner.capture()
+            if type(inputs) is not TargetResolutionPlanInputs:
+                raise TargetResolutionError(
+                    TargetResolutionErrorCode.AUTHORITY_MISMATCH
+                ) from None
+            provider = inputs.provider
+            if type(provider) is not MapProvider:
+                raise TargetResolutionError(
+                    TargetResolutionErrorCode.AUTHORITY_MISMATCH
+                ) from None
+            try:
+                selected = capture_selected_windows_root(provider)
+            except TrustPolicyError:
+                raise TargetResolutionError(
+                    TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+                ) from None
+            except BaseException as error:
+                if not isinstance(error, Exception):
+                    raise
+                raise TargetResolutionError(
+                    TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+                ) from None
+            if (
+                type(selected) is not SelectedWindowsRootMaterial
+                or selected.provider is not provider
+            ):
+                raise TargetResolutionError(
+                    TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+                ) from None
+            try:
+                certificate = CertificateIdentity(
+                    provider=provider,
+                    windows_root_fingerprint_sha256=selected.fingerprint_sha256,
+                    candidate_content_sha256=selected.pem_sha256,
+                )
+                return replace(inputs, certificate=certificate)
+            except (OverflowError, TypeError, UnicodeError, ValueError):
+                raise TargetResolutionError(
+                    TargetResolutionErrorCode.AUTHORITY_MISMATCH
+                ) from None
+        finally:
+            self._active_owner = None
+            self._lifetime_lock.release()
+
+    def close(self) -> None:
+        with self._lifetime_lock:
+            if self._active_owner is not None:
+                raise TargetResolutionError(
+                    TargetResolutionErrorCode.TARGET_CHANGED
+                ) from None
+            if self._closed:
+                return
+            error: BaseException | None = None
+            try:
+                self._owner.close()
+            except BaseException as caught:
+                error = caught
+            try:
+                closed = self._owner.closed is True
+            except Exception:
+                closed = False
+            if closed:
+                self._closed = True
+            if error is not None:
+                raise error
+            if not closed:
+                raise TargetResolutionError(
+                    TargetResolutionErrorCode.TARGET_CHANGED
+                ) from None
+
+    def __repr__(self) -> str:
+        state = "closed" if self.closed else "open"
+        return f"_WindowsTrustedPlanInputOwner(state={state!r}, <redacted>)"
 
 
 def assemble_target_resolution_plan(
@@ -186,24 +310,27 @@ def _suppress_resolved_close(owner: Any) -> None:
 def capture_native_windows_resolved_target_from_inputs(
     owner: TargetResolutionPlanInputOwner,
 ) -> BoundResolvedRepairTarget:
-    """Consume stable inputs, transfer to native ownership, then close inputs.
+    """Bind native Windows trust, transfer stable inputs, then close them.
 
-    The input owner remains open through both stable captures and until the
-    native bridge has independently recaptured every plan authority.  After a
-    successful handoff, only the returned resolved-target owner remains live.
+    Caller-provided certificate identity is never authoritative.  An internal
+    owner replaces it with fresh fixed-host Windows-store evidence on both
+    stable captures.  The input owner remains open until the native bridge has
+    independently recaptured every plan authority.  After a successful
+    handoff, only the returned resolved-target owner remains live.
     """
 
+    trusted_owner = _WindowsTrustedPlanInputOwner(owner)
     resolved: BoundResolvedRepairTarget | None = None
     primary_error: BaseException | None = None
     cleanup_interruption: BaseException | None = None
     cleanup_failed = False
     try:
-        if not _owner_is_available(owner):
+        if not _owner_is_available(trusted_owner):
             raise TargetResolutionError(
                 TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
             ) from None
-        first = _capture_plan(owner)
-        second = _recapture_plan(owner)
+        first = _capture_plan(trusted_owner)
+        second = _recapture_plan(trusted_owner)
         if first.authority_sha256 != second.authority_sha256:
             raise TargetResolutionError(
                 TargetResolutionErrorCode.TARGET_CHANGED
@@ -222,7 +349,7 @@ def capture_native_windows_resolved_target_from_inputs(
             )
 
     try:
-        cleanup_failed = _close_owner(owner)
+        cleanup_failed = _close_owner(trusted_owner)
     except BaseException as error:
         cleanup_interruption = error
 
