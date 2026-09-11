@@ -1356,6 +1356,70 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-11 - Authenticated Docker Compose Source Owner Implemented Locally
+
+**Objective**: Extend the retained native Docker source boundary with the exact
+authenticated Docker Compose executable, without wiring launcher confirmation,
+repair, or mutation.
+
+**Checkpoint**: Independently reviewed commit `ebd53c9` passed all nine
+applicable PR checks in CI/CD run `34619844090`, Task-087 run `34619843884`,
+and external Trivy job `103330944634`; the pull-request-only build skipped as
+designed.
+
+**Decision**: Keep the Docker runtime/endpoint pair as its own reviewed owner
+and compose it under a new source-only owner with the package-bound
+`DOCKER_COMPOSE` command-evidence owner. Expose a fresh immutable file snapshot
+only while the command runtime's exact handle remains retained and revalidated.
+Require the runtime and Compose evidence to use the same runtime-policy digest
+and require `docker.exe` and `docker-compose.exe` to be siblings in one
+authenticated installation directory.
+
+**Execution**:
+
+- Added a private serialized same-handle snapshot operation to the existing
+  command-runtime owner without expanding its public executable capability.
+- Added a fixed native Docker source factory that retains runtime, endpoint,
+  and Compose owners and performs runtime/endpoint, Compose, runtime/endpoint,
+  and Compose recapture before returning target identities.
+- Derived `ComposeProviderIdentity` only from fresh retained file and verified
+  command evidence, with the fixed executable invocation and endpoint binding.
+- Kept the new source factory absent from `app.py`, `discovery.py`, `repair.py`,
+  and `runtime_execution.py`.
+
+**Adversarial Coverage**: Tests prove fixed `DOCKER_COMPOSE` selection,
+same-policy and same-installation binding, Compose drift rejection, partial
+factory cleanup, redaction, idempotent ownership cleanup, capture/close
+serialization, and the unwired boundary.
+
+**Validation**: Command-version, Docker-endpoint, and Docker-input tests pass
+`139/139`. The broader runtime identity, verification, command-version,
+Docker-endpoint/input, target-resolution, and native-observation selection
+passes `375/375`. Scoped Black, strict mypy, fatal/syntax Flake8,
+high-severity Bandit, compileall, both agent-work validators, sensitive-term
+review, and `git diff --check` pass. No Docker, Podman, Compose, certificate
+store, launcher, `.env`, container, image, volume, or host mutation ran.
+
+**Independent Review**: A fresh read-only sub-agent review reported no findings
+and independently reproduced the focused `139/139` tests, Black, strict mypy,
+and `git diff --check`. The review confirmed same-handle serialization,
+two-pass drift detection, policy and sibling-installation binding, fixed source
+selection, cleanup, redaction, and the unwired boundary. Native Windows
+Docker/Compose integration and specialized partial-close interruption tests
+remain explicit follow-on evidence rather than claims of this source-only
+checkpoint.
+
+**Boundary**: This is an independently reviewed local sub-increment of slice 2.
+It completes the concrete Docker runtime/endpoint/Compose portion of the
+retained source owner. It does not yet add the Podman provider,
+package/environment, process-environment, acceleration, or complete
+`TargetResolutionPlanInputs`; connect confirmation; or enable repair. Gate A
+remains open and mutation remains disabled.
+
+**Next**: Checkpoint this reviewed source owner. Then build the authenticated
+Podman provider source owner and remaining package/environment inputs before
+final owner composition.
+
 ### 2026-09-11 - Native Docker Runtime/Endpoint Input Owner Implemented Locally
 
 **Objective**: Begin the concrete retained non-certificate source owner with

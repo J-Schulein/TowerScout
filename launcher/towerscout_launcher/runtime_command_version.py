@@ -866,6 +866,28 @@ class BoundCommandRuntimeEvidence:
             self._active_owner = None
             self._lifetime_lock.release()
 
+    def _capture_file_snapshot(self) -> FileSnapshot:
+        """Return a fresh snapshot from the same retained command-runtime handle."""
+
+        self._lifetime_lock.acquire()
+        if self._active_owner is not None or self._candidate.closed:
+            self._lifetime_lock.release()
+            _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+        self._active_owner = threading.get_ident()
+        try:
+            try:
+                snapshot = self._candidate.assert_unchanged()
+            except RuntimeIdentityVerificationError as error:
+                _map_identity_error(error)
+            except Exception:
+                _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+            if not _snapshot_matches(snapshot, self._evidence):
+                _fail(RuntimeCommandVerificationErrorCode.RUNTIME_REPLACED)
+            return snapshot
+        finally:
+            self._active_owner = None
+            self._lifetime_lock.release()
+
     def _transfer_bound_file(self, slot: _BoundFileTransferSlot) -> None:
         """Transfer into an armed internal slot after final revalidation."""
 

@@ -187,13 +187,17 @@ canonical burn-down; re-estimate after exact-target wiring
   discards caller-asserted certificate identity. Independently reviewed
   checkpoint `c84998c` removes certificate identity from the retained
   input-owner contract entirely; the public production handoff accepts it only
-  from its internal fixed Windows-trust wrapper before assembly. The current
-  local follow-on corrects the Docker source adapter to use the real retained
-  PE/Authenticode runtime owner and adds a native factory that jointly retains
-  and revalidates the exact Docker runtime/endpoint pair. Finish slices 2-3 by
-  adding the authenticated Docker Compose, Podman provider, package/environment,
-  process-environment, and acceleration inputs; compose the final owner; connect
-  its exact target ahead of confirmation; and wire stage-specific revalidation.
+  from its internal fixed Windows-trust wrapper before assembly. Reviewed and
+  pushed checkpoint `ebd53c9` corrects the Docker source adapter to use the real
+  retained PE/Authenticode runtime owner and jointly revalidates the exact
+  Docker runtime/endpoint pair. The current independently reviewed local
+  follow-on adds the separately authenticated Docker Compose executable to a
+  retained Docker source owner, binds both executables to one policy and
+  installation directory, and emits only redacted target identities. Finish
+  slices 2-3 by adding the Podman
+  provider, package/environment, process-environment, and acceleration inputs;
+  compose the final owner; connect its exact target ahead of confirmation; and
+  wire stage-specific revalidation.
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
 
