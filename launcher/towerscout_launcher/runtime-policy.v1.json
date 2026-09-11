@@ -46,7 +46,8 @@
     "allow_podman_compose_delegation": false,
     "catalog": {
       "authentication": "runtime_policy_exact_bytes",
-      "catalog_id": "towerscout-managed-podman-compose-2026-08-21"
+      "catalog_id": "towerscout-managed-podman-compose-2026-08-21",
+      "content_sha256": "a58b76843fb38370e0dc0a907a89ef08714c108694b2b5e4f2bf1c358cf1bf4f"
     },
     "distributions": [
       {

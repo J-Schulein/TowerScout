@@ -383,6 +383,9 @@ def test_managed_podman_compose_policy_is_reproducible_and_direct() -> None:
     assert provider.catalog.authentication is (
         CatalogAuthentication.RUNTIME_POLICY_EXACT_BYTES
     )
+    assert provider.catalog.content_sha256 == (
+        "a58b76843fb38370e0dc0a907a89ef08714c108694b2b5e4f2bf1c358cf1bf4f"
+    )
     assert {
         (distribution.name, distribution.version, distribution.wheel_sha256)
         for distribution in provider.distributions
@@ -726,6 +729,7 @@ def test_install_record_ids_and_candidates_must_be_nonempty_and_unique() -> None
         (("verification", "require_hash_verified_installer_inputs"), False),
         (("catalog", "authentication"), "external_catalog"),
         (("catalog", "catalog_id"), "unreviewed-catalog"),
+        (("catalog", "content_sha256"), "0" * 64),
         (("inventory", "require_exact_authenticated_install_tree"), False),
         (("inventory", "reject_unowned_loadable_files"), False),
         (("inventory", "reject_pth_files"), False),

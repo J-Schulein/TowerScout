@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 _POLICY_RESOURCE = Path(__file__).with_name("runtime-policy.v1.json")
 _PACKAGE_POLICY_SHA256 = (
-    "6c198c097b511d9a73c168a244c89f5932a27abd12b5870118a80c46c5356011"
+    "cde7244660ed54a26a1420aa43a4c350783538b73ebb032c241666dfcfa95d1e"
 )
 _MAX_POLICY_BYTES = 128 * 1024
 _MAX_JSON_DEPTH = 16
@@ -295,6 +295,7 @@ class ProductPolicy:
 class CatalogPolicy:
     catalog_id: str
     authentication: CatalogAuthentication
+    content_sha256: str = field(repr=False)
 
     def __repr__(self) -> str:
         return f"CatalogPolicy(id={self.catalog_id!r})"
@@ -1293,14 +1294,20 @@ def _validate_product_approval(product: ProductPolicy) -> None:
 
 
 def _parse_catalog(value: Any) -> CatalogPolicy:
-    item = _object(value, frozenset({"catalog_id", "authentication"}))
+    item = _object(value, frozenset({"catalog_id", "authentication", "content_sha256"}))
     catalog_id = _text(item["catalog_id"], pattern=_POLICY_ID)
     authentication = _enum(item["authentication"], CatalogAuthentication)
-    if catalog_id != "towerscout-managed-podman-compose-2026-08-21":
+    content_sha256 = _text(item["content_sha256"], pattern=_SHA256)
+    if (
+        catalog_id != "towerscout-managed-podman-compose-2026-08-21"
+        or content_sha256
+        != "a58b76843fb38370e0dc0a907a89ef08714c108694b2b5e4f2bf1c358cf1bf4f"
+    ):
         _fail_schema()
     return CatalogPolicy(
         catalog_id=catalog_id,
         authentication=authentication,
+        content_sha256=content_sha256,
     )
 
 

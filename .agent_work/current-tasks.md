@@ -7,7 +7,7 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, built-but-unwired, partial,
-not-started, and validation states. At committed source head `6c5144147c54`,
+not-started, and validation states. At committed source head `e59f1505871c`,
 contracts are complete; runtime/target foundations, including the reviewed
 native observation
 executor, production authority factory, owned exact-target bridge, and stable
@@ -21,10 +21,13 @@ checks in CI/CD run `34535776318` and Task-087 run `34535776293`; its PR-only
 build skipped as designed. Independently reviewed source checkpoint `7f354bc`
 binds the target plan to native Windows trust and awaits exact-head workflows.
 No repair or mutation is enabled. Gate B preview integration and Task-100
-signing remain separate. The current independently reviewed local follow-on
-retains the authenticated Podman runtime together with its package-selected
-rootless endpoint, machine configuration, and identity key; its next boundary
-is the managed Podman Compose provider.
+signing remain separate. The latest pushed checkpoint retains
+the authenticated Podman runtime together with its package-selected rootless
+endpoint, machine configuration, and identity key. The current independently
+reviewed local follow-on authenticates the exact managed-provider catalog bytes
+and pinned wheels, reconstructs the exact allowed installed distribution
+inventory, and rejects drift and Python startup-hook surfaces before the native
+retained provider adapter is added.
 
 **Current Release State**:
 
@@ -153,7 +156,7 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced but not
-near exit. At committed source head `6c5144147c54`, slice 1 is complete; slices
+near exit. At committed source head `e59f1505871c`, slice 1 is complete; slices
 2-3 are substantially built but unwired, with the owned native exact-target
 bridge and stable
 authenticated target-plan assembler now checkpointed;
@@ -198,11 +201,14 @@ canonical burn-down; re-estimate after exact-target wiring
   Docker runtime/endpoint pair. Independently reviewed and pushed checkpoint
   `6c51441` adds the separately authenticated Docker Compose executable, binds
   both Docker executables to one policy and installation directory, and emits
-  only redacted target identities. The current local follow-on jointly retains
-  and revalidates the authenticated Podman runtime, package-selected rootless
-  endpoint, machine configuration, and identity key. Finish slices 2-3 by
-  authenticating the managed Podman Compose provider and adding the remaining
-  package/environment, process-environment, and acceleration inputs;
+  only redacted target identities. Independently reviewed and pushed checkpoint
+  `e59f150` jointly retains and revalidates the authenticated Podman runtime,
+  package-selected rootless endpoint, machine configuration, and identity key.
+  The current local follow-on authenticates the exact managed-provider catalog
+  bytes and wheel-derived installed inventory. Finish slices 2-3 by reconciling
+  a deterministic provider-only installation layout, completing the retained
+  native provider adapter, and adding the remaining package/environment,
+  process-environment, and acceleration inputs;
   compose the final owner; connect its exact target ahead of confirmation; and
   wire stage-specific revalidation.
 
