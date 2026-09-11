@@ -3,7 +3,7 @@
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A source work is active under the
 approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). At reviewed source
-head `17d813fe816c`, contracts are complete; the runtime and target foundations
+head `caf3f1c6f1af`, contracts are complete; the runtime and target foundations
 are substantially built but unwired; Windows trust/security are partial;
 durable recovery, transaction refactoring, and the final Gate A proof remain
 open. All applicable exact-head checks passed in CI/CD run `34630327246`,
@@ -1355,6 +1355,64 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-11 - Retained Runtime And Final Target Inputs Checkpointed
+
+**Objective**: Complete the parallelizable retained-input portions and their
+final source-only composer for the remaining Gate A runtime-resolver work
+without connecting confirmation or enabling repair.
+
+**Execution**: Added a retained package/environment owner that holds the
+package hierarchy, exact release manifest and runtime policies, all three
+Compose files, and the selected `.env` or authenticated template while binding
+the release, image digest, engine, project, port, GPU gates, flavor, and Podman
+machine. Added a fixed-native Windows process-environment owner that resolves
+Windows, Temp, profile, Local AppData, and Roaming AppData through Win32/Known
+Folder APIs, retains all five trusted hierarchies, and emits only the seven
+required aliases. Added pure acceleration policy that binds package choices to
+the retained runtime and endpoint, selects only the approved Docker/Podman
+Compose overlay, and fails closed for unavailable or mismatched GPU requests.
+A retained capability owner now joins those three authorities, skips probing
+for explicit GPU-off, otherwise executes only fixed endpoint-bound read-only
+Docker NVIDIA-runtime or Podman machine/GPU/CDI queries, and returns one
+redacted aggregate containing the exact stable package, runtime/endpoint,
+process-environment, and attestation snapshots. All boundaries remain
+source-only, non-mutating, and unwired. Added the final retained composer that
+sole-owns that aggregate, requires two identical complete captures, accepts
+only the approved map-provider choice at its public boundary, and constructs
+every `TargetResolutionPlanInputs` field from the authenticated package,
+runtime/endpoint, process-environment, Compose, image, and acceleration
+authorities. Blank or ambiguous engine selection fails closed.
+
+**Validation**: The combined focused suite passes `113/113`; the related target,
+observation, endpoint, provider, execution, and contract suite passes
+`581/581`. Strict mypy, Black, single-process fatal/syntax Flake8,
+high-severity Bandit, and diff hygiene pass for the new source. A read-only
+native process-directory smoke loaded the fixed APIs and accepted four of five
+hierarchies; this workstation's Temp directory failed closed under the existing
+DACL policy with a sanitized error. That host-policy result caused no mutation
+and is retained as explicit compatibility evidence rather than being bypassed.
+The Docker probe proves that the selected daemon advertises the NVIDIA runtime;
+actual transient GPU-container execution remains outside this non-mutating
+source slice and is not claimed.
+
+**Independent Review**: A separate read-only sub-agent review passed this
+combined source-only checkpoint with no blocking correctness or security
+findings. It confirmed retained ownership and recapture, serialized lifecycle
+handling, endpoint-bound fixed command shapes, aggregate authority binding,
+exact plan-field construction, redaction, and the absence of live launcher,
+confirmation, repair, or mutation imports. Its `113/113` focused run passed.
+Preserving subordinate invalid/changed/unavailable diagnostic categories is a
+non-blocking follow-up for the confirmation connection, where those categories
+first become user/support-facing.
+
+**Checkpoint And Boundary**: This is material progress within approved Gate A
+slice 2, not a new slice. Independently reviewed source checkpoint `caf3f1c`
+records the retained-input boundary. Confirmation wiring, stage-specific
+transaction revalidation, durable recovery, protected atomic mutation, and
+repair remain open. Runtime mutation remains disabled.
+
+**Next**: Connect the checkpointed exact target ahead of confirmation.
 
 ### 2026-09-11 - Retained Managed Podman Provider Owner Checkpointed
 
