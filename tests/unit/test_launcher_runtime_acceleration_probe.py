@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import replace
-from pathlib import PureWindowsPath
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 import pytest
 
-from launcher.towerscout_launcher.runtime_acceleration_probe import (
+LAUNCHER_ROOT = Path(__file__).resolve().parents[2] / "launcher"
+if str(LAUNCHER_ROOT) not in sys.path:
+    sys.path.insert(0, str(LAUNCHER_ROOT))
+
+from towerscout_launcher.runtime_acceleration_probe import (  # noqa: E402
     AccelerationProbeError,
     AccelerationProbeErrorCode,
     BoundEngineAccelerationEvidence,
@@ -17,22 +22,22 @@ from launcher.towerscout_launcher.runtime_acceleration_probe import (
     _open_engine_acceleration_evidence,
     capture_native_windows_engine_acceleration_evidence,
 )
-from launcher.towerscout_launcher.runtime_docker_inputs import (
+from towerscout_launcher.runtime_docker_inputs import (  # noqa: E402
     DockerTargetSourceInputs,
 )
-from launcher.towerscout_launcher.runtime_package_inputs import (
+from towerscout_launcher.runtime_package_inputs import (  # noqa: E402
     PackageEnvironmentInputs,
     _package_binding,
     _ParsedPackage,
 )
-from launcher.towerscout_launcher.runtime_podman_inputs import (
+from towerscout_launcher.runtime_podman_inputs import (  # noqa: E402
     PodmanTargetSourceInputs,
 )
-from launcher.towerscout_launcher.runtime_command_version import (
+from towerscout_launcher.runtime_command_version import (  # noqa: E402
     CommandProcessRequest,
     CommandProcessResult,
 )
-from launcher.towerscout_launcher.target_contracts import (
+from towerscout_launcher.target_contracts import (  # noqa: E402
     ComposeInvocationKind,
     ComposeProviderIdentity,
     EndpointBindingKind,

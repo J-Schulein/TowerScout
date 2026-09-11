@@ -3,25 +3,30 @@
 from __future__ import annotations
 
 import inspect
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-import launcher.towerscout_launcher.runtime_target_factory as target_factory
-from launcher.towerscout_launcher.runtime_target_factory import (
+LAUNCHER_ROOT = Path(__file__).resolve().parents[2] / "launcher"
+if str(LAUNCHER_ROOT) not in sys.path:
+    sys.path.insert(0, str(LAUNCHER_ROOT))
+
+import towerscout_launcher.runtime_target_factory as target_factory  # noqa: E402
+from towerscout_launcher.runtime_target_factory import (  # noqa: E402
     capture_native_windows_resolved_target,
 )
-from launcher.towerscout_launcher.runtime_target_inputs import (
+from towerscout_launcher.runtime_target_inputs import (  # noqa: E402
     TargetInputError,
     TargetInputErrorCode,
 )
-from launcher.towerscout_launcher.runtime_target_resolution import (
+from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
     TargetResolutionError,
     TargetResolutionErrorCode,
 )
-from launcher.towerscout_launcher.target_contracts import MapProvider
+from towerscout_launcher.target_contracts import MapProvider  # noqa: E402
 
 
 class _Inputs:

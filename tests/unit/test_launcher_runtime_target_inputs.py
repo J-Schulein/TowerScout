@@ -3,50 +3,55 @@
 from __future__ import annotations
 
 import inspect
+import sys
 from dataclasses import replace
 from pathlib import Path, PureWindowsPath
 from typing import Any
 
 import pytest
 
-import launcher.towerscout_launcher.runtime_target_inputs as target_inputs
-from launcher.towerscout_launcher.runtime_acceleration_inputs import (
+LAUNCHER_ROOT = Path(__file__).resolve().parents[2] / "launcher"
+if str(LAUNCHER_ROOT) not in sys.path:
+    sys.path.insert(0, str(LAUNCHER_ROOT))
+
+import towerscout_launcher.runtime_target_inputs as target_inputs  # noqa: E402
+from towerscout_launcher.runtime_acceleration_inputs import (  # noqa: E402
     AttestedEngineAccelerationEvidence,
 )
-from launcher.towerscout_launcher.runtime_acceleration_probe import (
+from towerscout_launcher.runtime_acceleration_probe import (  # noqa: E402
     AccelerationProbeError,
     AccelerationProbeErrorCode,
     EngineAccelerationSnapshot,
 )
-from launcher.towerscout_launcher.runtime_docker_inputs import (
+from towerscout_launcher.runtime_docker_inputs import (  # noqa: E402
     DockerInputError,
     DockerInputErrorCode,
     DockerTargetSourceInputs,
 )
-from launcher.towerscout_launcher.runtime_package_inputs import (
+from towerscout_launcher.runtime_package_inputs import (  # noqa: E402
     PackageInputError,
     PackageInputErrorCode,
     PackageEnvironmentInputs,
     _package_binding,
     _ParsedPackage,
 )
-from launcher.towerscout_launcher.runtime_podman_inputs import (
+from towerscout_launcher.runtime_podman_inputs import (  # noqa: E402
     PodmanInputError,
     PodmanInputErrorCode,
     PodmanTargetSourceInputs,
 )
-from launcher.towerscout_launcher.runtime_process_environment import (
+from towerscout_launcher.runtime_process_environment import (  # noqa: E402
     ProcessEnvironmentInputError,
     ProcessEnvironmentInputErrorCode,
 )
-from launcher.towerscout_launcher.runtime_target_inputs import (
+from towerscout_launcher.runtime_target_inputs import (  # noqa: E402
     BoundNativeTargetResolutionPlanInputs,
     TargetInputError,
     TargetInputErrorCode,
     _compose_plan_inputs,
     capture_native_windows_target_resolution_plan_inputs,
 )
-from launcher.towerscout_launcher.target_contracts import (
+from towerscout_launcher.target_contracts import (  # noqa: E402
     ComposeInvocationKind,
     ComposeProviderIdentity,
     EffectiveProfile,

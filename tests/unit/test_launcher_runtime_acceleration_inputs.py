@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import replace
 from pathlib import Path, PureWindowsPath
 
 import pytest
 
-from launcher.towerscout_launcher.runtime_acceleration_inputs import (
+LAUNCHER_ROOT = Path(__file__).resolve().parents[2] / "launcher"
+if str(LAUNCHER_ROOT) not in sys.path:
+    sys.path.insert(0, str(LAUNCHER_ROOT))
+
+from towerscout_launcher.runtime_acceleration_inputs import (  # noqa: E402
     AttestedEngineAccelerationEvidence,
     AuthenticatedAccelerationPackageValues,
     PackageComputeFlavor,
@@ -17,7 +22,7 @@ from launcher.towerscout_launcher.runtime_acceleration_inputs import (
     construct_runtime_acceleration_inputs,
     construct_windows_process_environment,
 )
-from launcher.towerscout_launcher.target_contracts import (
+from towerscout_launcher.target_contracts import (  # noqa: E402
     AccelerationPlan,
     EffectiveProfile,
     EndpointIdentity,
