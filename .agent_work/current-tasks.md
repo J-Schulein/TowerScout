@@ -7,12 +7,12 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, built-but-unwired, partial,
-not-started, and validation states. At committed source head `caf3f1c6f1af`,
+not-started, and validation states. At committed source head `db7aee877a67`,
 contracts are complete; runtime/target foundations, including the reviewed
 native observation executor, production authority factory, owned exact-target
 bridge, stable authenticated target-plan assembler, retained package/process
-environment and acceleration authorities, and final exact-input composer, are
-substantially built but unwired;
+environment and acceleration authorities, final exact-input composer, and the
+native pre-confirmation exact-target facade, are substantially built but unwired;
 Windows trust/security are partial; durable recovery, transaction refactoring,
 provider-installer completion, and final proof remain. At exact head `454af79`,
 all applicable checks passed in CI/CD run `34630327246`, Task-087 run
@@ -20,7 +20,9 @@ all applicable checks passed in CI/CD run `34630327246`, Task-087 run
 as designed.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. The latest independently reviewed source checkpoint,
-`caf3f1c`, retains the package and Windows process environment, runtime and
+`db7aee8`, connects the retained inputs through Windows trust and native
+observation to a revalidated, still-held exact target. Earlier checkpoint
+`caf3f1c` retains the package and Windows process environment, runtime and
 endpoint, acceleration evidence, and final exact-plan inputs. Earlier
 checkpoint `17d813f` retains the authenticated managed Podman provider and its
 base CPython dependency closure.
@@ -34,7 +36,7 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 source checkpoint `caf3f1c6f1af` is independently validated locally;
+- Task-087 source checkpoint `db7aee877a67` is independently validated locally;
   PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
@@ -152,11 +154,11 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced but not
-near exit. At committed source head `caf3f1c6f1af`, slice 1 is complete; slices
+near exit. At committed source head `db7aee877a67`, slice 1 is complete; slices
 2-3 are substantially built but unwired, with the owned native exact-target
 bridge, stable authenticated target-plan assembler, retained package/process
-environment and acceleration authorities, and final exact-input composer now
-checkpointed;
+environment and acceleration authorities, final exact-input composer, and the
+native pre-confirmation exact-target facade now checkpointed;
 slices 4-5 and 8 are partial; slices 6-7 are not started;
 and slice 9 continues incrementally but lacks its final live proof. Mutation is
 disabled and PR #67 remains Draft.
@@ -213,9 +215,10 @@ canonical burn-down; re-estimate after exact-target wiring
   installer does not authenticate that ambient Python; the retained native
   owner must establish interpreter trust before any provider use.
   Checkpoint `caf3f1c` adds the retained package/process environment and
-  acceleration authorities plus the final exact-input composer. Finish slices
-  2-3 by connecting that exact target ahead of confirmation and wiring
-  stage-specific revalidation.
+  acceleration authorities plus the final exact-input composer. Checkpoint
+  `db7aee8` connects those inputs through Windows trust and native observation
+  to one revalidated, still-held exact target. Finish slices 2-3 by making
+  confirmation consume that owner and wiring stage-specific revalidation.
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
 

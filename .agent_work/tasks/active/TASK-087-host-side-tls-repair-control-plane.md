@@ -3,8 +3,9 @@
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A source work is active under the
 approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). At reviewed source
-head `caf3f1c6f1af`, contracts are complete; the runtime and target foundations
-are substantially built but unwired; Windows trust/security are partial;
+head `db7aee877a67`, contracts are complete; the runtime and target foundations,
+including the native pre-confirmation exact-target facade, are substantially
+built but unwired; Windows trust/security are partial;
 durable recovery, transaction refactoring, and the final Gate A proof remain
 open. All applicable exact-head checks passed in CI/CD run `34630327246`,
 Task-087 run `34630327259`, and external Trivy job `103365410429`; the PR-only
@@ -1355,6 +1356,46 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-11 - Native Exact-Target Factory Checkpointed
+
+**Objective**: Connect the checkpointed retained-input owner through the
+existing Windows-trust and native target-observation bridge so one exact target
+exists before confirmation, without importing the facade into the live
+launcher or enabling repair.
+
+**Execution**: Added a production native facade whose sole public input is the
+approved `MapProvider`. It internally creates the fixed retained plan-input
+owner, passes that exact owner through fresh Windows-store trust and the native
+Compose/container/image/mount/all-volume resolver, verifies that input
+ownership was closed during transfer, rejects provider or target-token drift,
+and performs one further held revalidation before returning the
+`BoundResolvedRepairTarget`. Failure cleanup retries all acquired owners and
+preserves process-control interruptions. The input boundary now preserves
+invalid, changed, and verification-unavailable categories from package,
+Docker, Podman, process-environment, and acceleration sources instead of
+flattening them.
+
+**Validation**: The focused input/factory/resolver suite passes `153/153`; the
+related target, trust handoff, observation, endpoint, provider, execution, and
+contract suite passes `607/607`. Strict mypy, Black, fatal/syntax Flake8,
+high-severity Bandit, and diff hygiene pass. Adversarial tests cover exact owner
+transfer, non-enum and provider mismatch rejection, target-token binding,
+post-handoff drift, distinct error categories, cleanup retry/interruption, and
+the absence of live app, discovery, repair, subprocess, or ambient-environment
+connections.
+
+**Independent Review**: A separate read-only security/correctness review found
+no blocking issues. Its focused resolver/input/native suite passed `169/169`,
+and both task-state validators plus diff hygiene passed.
+
+**Checkpoint And Boundary**: This is material progress within approved Gate A
+slices 2-3, not a new requirement. The facade is source-only and independently
+reviewed at source checkpoint `db7aee8`. The live launcher still uses the legacy
+inert confirmation path, and runtime mutation remains disabled.
+
+**Next**: Make the confirmation transaction consume the held exact target and
+its bounded public summary.
 
 ### 2026-09-11 - Retained Runtime And Final Target Inputs Checkpointed
 
