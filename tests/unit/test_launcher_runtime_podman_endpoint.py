@@ -32,11 +32,14 @@ from towerscout_launcher.runtime_command_version import (  # noqa: E402
 )
 from towerscout_launcher.runtime_podman_endpoint import (  # noqa: E402
     BoundPodmanEndpointEvidence,
+    BoundPodmanRuntimeEndpointInputs,
     PodmanEndpointCommandKind,
     PodmanEndpointCommandRequest,
     PodmanEndpointError,
     PodmanEndpointErrorCode,
+    PodmanRuntimeEndpointInputs,
     capture_bound_podman_endpoint,
+    capture_native_windows_podman_runtime_endpoint_inputs,
 )
 from towerscout_launcher.runtime_policy import RuntimeProductId  # noqa: E402
 from towerscout_launcher.target_contracts import (  # noqa: E402
@@ -234,6 +237,7 @@ def _runtime() -> tuple[BoundCommandRuntimeEvidence, _RuntimeCandidate]:
         product_id=RuntimeProductId.PODMAN_CLI,
         exact_version=_VERSION,
         evidence_sha256="a" * 64,
+        policy_sha256="b" * 64,
         file_identity=snapshot.identity,
         file_sha256=snapshot.sha256,
         executable_path_sha256=command_module._path_sha256(  # noqa: SLF001
@@ -1199,3 +1203,385 @@ def test_podman_endpoint_resolver_remains_unwired_from_live_launcher_paths() -> 
     assert "subprocess.run" not in source
     assert "subprocess.Popen" not in source
     assert "os.environ" not in source
+
+
+def test_runtime_endpoint_owner_emits_exact_jointly_retained_inputs() -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    owner = BoundPodmanRuntimeEndpointInputs(
+        runtime=runtime,
+        endpoint=endpoint,
+        backend=backend,
+    )
+
+    inputs = owner.capture()
+
+    assert isinstance(inputs, PodmanRuntimeEndpointInputs)
+    assert inputs.runtime.product is RuntimeProduct.PODMAN
+    assert inputs.runtime.version == _VERSION
+    assert inputs.runtime.publisher_policy_sha256 == "b" * 64
+    assert inputs.runtime.executable.final_path == PureWindowsPath(_PODMAN_FINAL)
+    assert inputs.endpoint is endpoint.endpoint
+    assert owner.supported is True
+    assert repr(inputs) == "PodmanRuntimeEndpointInputs(<redacted>)"
+    assert _ENDPOINT not in repr(owner)
+
+    owner.close()
+    assert owner.closed
+    assert candidate.closed
+    assert api.close_count == 1
+
+
+def test_runtime_endpoint_owner_rejects_endpoint_drift_and_remains_closeable() -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle(info=_info(rootless=False))]
+    )
+    owner = BoundPodmanRuntimeEndpointInputs(
+        runtime=runtime,
+        endpoint=endpoint,
+        backend=backend,
+    )
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        owner.capture()
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_CHANGED
+    assert owner.closed is False
+    owner.close()
+    assert candidate.closed
+    assert api.close_count == 1
+
+
+def test_runtime_endpoint_owner_rejects_mismatched_runtime_binding() -> None:
+    endpoint, runtime, _candidate, _api, backend = _capture()
+    endpoint._evidence = replace(  # noqa: SLF001
+        endpoint.evidence,
+        runtime_evidence_sha256="c" * 64,
+    )
+
+    with pytest.raises(ValueError, match="Bound Podman runtime endpoint inputs"):
+        BoundPodmanRuntimeEndpointInputs(
+            runtime=runtime,
+            endpoint=endpoint,
+            backend=backend,
+        )
+
+    endpoint.close()
+    runtime.close()
+
+
+def test_runtime_endpoint_owner_serializes_capture_and_close() -> None:
+    endpoint, runtime, _candidate, _api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    owner = BoundPodmanRuntimeEndpointInputs(
+        runtime=runtime,
+        endpoint=endpoint,
+        backend=backend,
+    )
+    entered = threading.Event()
+    release = threading.Event()
+    capture_complete = threading.Event()
+    close_complete = threading.Event()
+
+    def block(_request: PodmanEndpointCommandRequest) -> None:
+        if len(backend.requests) == 7:
+            entered.set()
+            assert release.wait(timeout=5)
+
+    def capture() -> None:
+        owner.capture()
+        capture_complete.set()
+
+    backend.on_execute = block
+    worker = threading.Thread(target=capture)
+    closer = threading.Thread(target=lambda: (owner.close(), close_complete.set()))
+    worker.start()
+    assert entered.wait(timeout=5)
+    closer.start()
+    assert not close_complete.wait(timeout=0.1)
+    release.set()
+    worker.join(timeout=5)
+    closer.join(timeout=5)
+
+    assert capture_complete.is_set()
+    assert close_complete.is_set()
+    assert owner.closed
+
+
+def test_native_runtime_endpoint_factory_uses_fixed_sources_and_transfers_owners(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle(), *_cycle()]
+    )
+    configuration = endpoint._configuration  # noqa: SLF001
+    assert configuration is not None
+    selected_products: list[RuntimeProductId] = []
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_podman_endpoint_backend",
+        lambda: backend,
+    )
+
+    def open_runtime(product_id: RuntimeProductId) -> BoundCommandRuntimeEvidence:
+        selected_products.append(product_id)
+        return runtime
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_command_runtime_evidence",
+        open_runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_machine_configuration",
+        lambda package_root: configuration,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_endpoint",
+        lambda selected_runtime, selected_configuration, *, backend: endpoint,
+    )
+
+    owner = capture_native_windows_podman_runtime_endpoint_inputs(_PACKAGE_ROOT)
+
+    assert selected_products == [RuntimeProductId.PODMAN_CLI]
+    assert owner.capture().endpoint is endpoint.endpoint
+    owner.close()
+    assert candidate.closed
+    assert api.close_count == 1
+
+
+def test_native_runtime_endpoint_factory_closes_partial_owners_on_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime, candidate = _runtime()
+    configuration = _configuration()
+    backend = _Backend([])
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_podman_endpoint_backend",
+        lambda: backend,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_command_runtime_evidence",
+        lambda _product_id: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_machine_configuration",
+        lambda _package_root: configuration,
+    )
+
+    def reject_endpoint(*_args: object, **_kwargs: object) -> None:
+        raise PodmanEndpointError(PodmanEndpointErrorCode.ENDPOINT_INVALID)
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_endpoint",
+        reject_endpoint,
+    )
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        capture_native_windows_podman_runtime_endpoint_inputs(_PACKAGE_ROOT)
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
+    assert candidate.closed
+    assert configuration.closed
+
+
+def test_runtime_endpoint_owner_retries_a_partially_failed_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    endpoint, runtime, candidate, api, backend = _capture()
+    configuration = endpoint._configuration  # noqa: SLF001
+    assert configuration is not None
+    owner = BoundPodmanRuntimeEndpointInputs(
+        runtime=runtime,
+        endpoint=endpoint,
+        backend=backend,
+    )
+    original_close = BoundPodmanMachineConfiguration.close
+    attempts = 0
+
+    def fail_once(selected: BoundPodmanMachineConfiguration) -> None:
+        nonlocal attempts
+        if selected is configuration and attempts == 0:
+            attempts += 1
+            raise RuntimeError("private close failure")
+        original_close(selected)
+
+    monkeypatch.setattr(BoundPodmanMachineConfiguration, "close", fail_once)
+
+    with pytest.raises(PodmanEndpointError) as captured:
+        owner.close()
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_CHANGED
+    assert not owner.closed
+    assert candidate.closed
+    assert api.close_count == 1
+
+    owner.close()
+    assert owner.closed
+    assert configuration.closed
+
+
+def test_native_factory_interruption_at_return_boundary_closes_assembled_owner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    configuration = endpoint._configuration  # noqa: SLF001
+    assert configuration is not None
+    accepted: list[BoundPodmanRuntimeEndpointInputs] = []
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_podman_endpoint_backend",
+        lambda: backend,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_command_runtime_evidence",
+        lambda _product_id: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_machine_configuration",
+        lambda _package_root: configuration,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_endpoint",
+        lambda selected_runtime, selected_configuration, *, backend: endpoint,
+    )
+
+    def interrupt(
+        owner: BoundPodmanRuntimeEndpointInputs,
+    ) -> BoundPodmanRuntimeEndpointInputs:
+        accepted.append(owner)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_return_podman_runtime_endpoint_owner",
+        interrupt,
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        capture_native_windows_podman_runtime_endpoint_inputs(_PACKAGE_ROOT)
+
+    assert len(accepted) == 1
+    assert accepted[0].closed
+    assert endpoint._fully_closed  # noqa: SLF001
+    assert candidate.closed
+    assert api.close_count == 1
+
+
+def test_native_factory_ignores_an_unrelated_caller_exception_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    configuration = endpoint._configuration  # noqa: SLF001
+    assert configuration is not None
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_podman_endpoint_backend",
+        lambda: backend,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_command_runtime_evidence",
+        lambda _product_id: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_machine_configuration",
+        lambda _package_root: configuration,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_endpoint",
+        lambda selected_runtime, selected_configuration, *, backend: endpoint,
+    )
+
+    try:
+        raise RuntimeError("unrelated caller failure")
+    except RuntimeError:
+        owner = capture_native_windows_podman_runtime_endpoint_inputs(_PACKAGE_ROOT)
+
+    assert owner.supported
+    assert not owner.closed
+    assert not candidate.closed
+    assert api.close_count == 0
+    owner.close()
+    assert owner.closed
+
+
+def test_native_factory_retries_cleanup_and_propagates_cleanup_interruption(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    endpoint, runtime, candidate, api, backend = _capture(
+        responses=[*_cycle(), *_cycle(), *_cycle()]
+    )
+    configuration = endpoint._configuration  # noqa: SLF001
+    assert configuration is not None
+    original_path_close = type(endpoint._key_parent).close  # noqa: SLF001
+    path_close_attempts = 0
+
+    monkeypatch.setattr(
+        endpoint_module,
+        "_native_podman_endpoint_backend",
+        lambda: backend,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "open_package_bound_command_runtime_evidence",
+        lambda _product_id: runtime,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_machine_configuration",
+        lambda _package_root: configuration,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "capture_bound_podman_endpoint",
+        lambda selected_runtime, selected_configuration, *, backend: endpoint,
+    )
+    monkeypatch.setattr(
+        endpoint_module,
+        "_return_podman_runtime_endpoint_owner",
+        lambda _owner: (_ for _ in ()).throw(RuntimeError("primary failure")),
+    )
+
+    def interrupt_first_path_close(selected: object) -> None:
+        nonlocal path_close_attempts
+        path_close_attempts += 1
+        if path_close_attempts == 1:
+            raise KeyboardInterrupt
+        original_path_close(selected)
+
+    monkeypatch.setattr(
+        type(endpoint._key_parent),  # noqa: SLF001
+        "close",
+        interrupt_first_path_close,
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        capture_native_windows_podman_runtime_endpoint_inputs(_PACKAGE_ROOT)
+
+    assert path_close_attempts >= 3
+    assert endpoint._fully_closed  # noqa: SLF001
+    assert configuration._fully_closed  # noqa: SLF001
+    assert candidate.closed
+    assert api.close_count == 1

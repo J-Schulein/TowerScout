@@ -23,6 +23,7 @@ from towerscout_launcher.windows_path_trust import (  # noqa: E402
     AccessAllowedAce,
     NativeDirectoryFacts,
     NativeSecurityFacts,
+    PathHierarchyTrust,
 )
 from towerscout_launcher.windows_security import (  # noqa: E402
     KNOWN_CLOUD_REPARSE_TAGS,
@@ -395,3 +396,32 @@ def test_ambient_environment_is_never_read_by_configuration_module() -> None:
     assert "os.environ" not in source
     assert "os.getenv" not in source
     assert "dotenv" not in source
+
+
+def test_close_retries_package_root_after_interruption_closes_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner, path_api, file_api = _capture()
+    original_close = PathHierarchyTrust.close
+    attempts = 0
+
+    def interrupt_once(selected: PathHierarchyTrust) -> None:
+        nonlocal attempts
+        if attempts == 0:
+            attempts += 1
+            raise KeyboardInterrupt
+        original_close(selected)
+
+    monkeypatch.setattr(PathHierarchyTrust, "close", interrupt_once)
+
+    with pytest.raises(KeyboardInterrupt):
+        owner.close()
+
+    assert owner.closed
+    assert not owner._fully_closed  # noqa: SLF001
+    assert len(file_api.closed) == 1
+    assert not path_api.closed
+
+    owner.close()
+    assert owner._fully_closed  # noqa: SLF001
+    assert len(path_api.closed) == len(path_api.opened)

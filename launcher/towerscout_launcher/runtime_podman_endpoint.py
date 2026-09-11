@@ -21,7 +21,7 @@ import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path, PureWindowsPath
-from typing import Any, NoReturn, Protocol, Sequence
+from typing import Any, Callable, NoReturn, Protocol, Sequence
 from urllib.parse import urlsplit
 
 from .runtime_command_version import (
@@ -32,17 +32,20 @@ from .runtime_command_version import (
     CommandExecutionError,
     CommandProcessResult,
     RuntimeCommandVerificationError,
+    open_package_bound_command_runtime_evidence,
 )
 from .runtime_policy import RuntimeProductId
 from .runtime_package_config import (
     BoundPodmanMachineConfiguration,
     PackageConfigurationError,
     PodmanMachineConfigurationEvidence,
+    capture_bound_podman_machine_configuration,
 )
 from .target_contracts import (
     EndpointIdentity,
     EndpointKind,
     FileIdentity,
+    RuntimeIdentity,
     RuntimeProduct,
 )
 from .windows_security import (
@@ -934,6 +937,18 @@ class BoundPodmanEndpointEvidence:
                 or self._key_parent.closed
             )
 
+    @property
+    def _fully_closed(self) -> bool:
+        with self._lifetime_lock:
+            configuration = self._configuration
+            key = self._key
+            key_parent = self._key_parent
+            return bool(
+                (configuration is None or configuration._fully_closed)  # noqa: SLF001
+                and (key is None or key.closed)
+                and (key_parent is None or key_parent.closed)
+            )
+
     def assert_unchanged(
         self,
         runtime: BoundCommandRuntimeEvidence,
@@ -1016,27 +1031,48 @@ class BoundPodmanEndpointEvidence:
             configuration = self._configuration
             key = self._key
             key_parent = self._key_parent
-            self._configuration = None
-            self._key = None
-            self._key_parent = None
             if configuration is None and key is None and key_parent is None:
                 return
             failed = False
+            interruption: BaseException | None = None
             if configuration is not None:
                 try:
                     configuration.close()
-                except PackageConfigurationError:
+                except BaseException as error:
+                    if isinstance(error, Exception):
+                        failed = True
+                    else:
+                        interruption = error
+                if configuration._fully_closed:  # noqa: SLF001
+                    self._configuration = None
+                else:
                     failed = True
             if key is not None:
                 try:
                     key.close()
-                except WindowsSecurityError:
+                except BaseException as error:
+                    if isinstance(error, Exception):
+                        failed = True
+                    elif interruption is None:
+                        interruption = error
+                if key.closed:
+                    self._key = None
+                else:
                     failed = True
             if key_parent is not None:
                 try:
                     key_parent.close()
-                except WindowsSecurityError:
+                except BaseException as error:
+                    if isinstance(error, Exception):
+                        failed = True
+                    elif interruption is None:
+                        interruption = error
+                if key_parent.closed:
+                    self._key_parent = None
+                else:
                     failed = True
+            if interruption is not None:
+                raise interruption
             if failed:
                 _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
 
@@ -1204,13 +1240,326 @@ def capture_bound_podman_endpoint(
                     pass
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class PodmanRuntimeEndpointInputs:
+    """Exact Podman runtime and endpoint emitted by retained native owners."""
+
+    runtime: RuntimeIdentity = field(repr=False)
+    endpoint: EndpointIdentity = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.runtime) is not RuntimeIdentity
+            or self.runtime.product is not RuntimeProduct.PODMAN
+            or type(self.endpoint) is not EndpointIdentity
+            or self.endpoint.product is not RuntimeProduct.PODMAN
+            or self.endpoint.kind is not EndpointKind.PODMAN_ROOTLESS_WSL
+            or self.endpoint.rootless is not True
+        ):
+            raise ValueError("Podman runtime endpoint inputs are invalid.")
+
+    def __repr__(self) -> str:
+        return "PodmanRuntimeEndpointInputs(<redacted>)"
+
+
+def _runtime_identity(runtime: BoundCommandRuntimeEvidence) -> RuntimeIdentity:
+    try:
+        snapshot = runtime._capture_file_snapshot()  # noqa: SLF001
+        evidence = runtime.evidence
+        path = PureWindowsPath(snapshot.final_path)
+        if (
+            evidence.product_id is not RuntimeProductId.PODMAN_CLI
+            or not path.is_absolute()
+            or path.name.casefold() != "podman.exe"
+        ):
+            _fail(PodmanEndpointErrorCode.RUNTIME_INVALID)
+        return RuntimeIdentity(
+            product=RuntimeProduct.PODMAN,
+            executable=FileIdentity(
+                logical_name="podman.exe",
+                final_path=path,
+                volume_serial=snapshot.identity.volume_serial,
+                file_id=snapshot.identity.file_id,
+                sha256=snapshot.sha256,
+                size_bytes=snapshot.size,
+            ),
+            version=evidence.exact_version,
+            publisher_policy_sha256=evidence.policy_sha256,
+        )
+    except PodmanEndpointError:
+        raise
+    except RuntimeCommandVerificationError:
+        raise PodmanEndpointError(PodmanEndpointErrorCode.RUNTIME_INVALID) from None
+    except (TypeError, ValueError, UnicodeError):
+        _fail(PodmanEndpointErrorCode.RUNTIME_INVALID)
+
+
+class BoundPodmanRuntimeEndpointInputs:
+    """Retain and jointly revalidate the Podman runtime and rootless endpoint."""
+
+    __slots__ = (
+        "_active_owner",
+        "_backend",
+        "_endpoint",
+        "_lifetime_lock",
+        "_runtime",
+    )
+
+    def __init__(
+        self,
+        *,
+        runtime: BoundCommandRuntimeEvidence,
+        endpoint: BoundPodmanEndpointEvidence,
+        backend: PodmanEndpointCommandBackend,
+    ) -> None:
+        try:
+            supported = backend.supported is True
+        except Exception:
+            supported = False
+        if (
+            type(runtime) is not BoundCommandRuntimeEvidence
+            or runtime.closed
+            or runtime.evidence.product_id is not RuntimeProductId.PODMAN_CLI
+            or type(endpoint) is not BoundPodmanEndpointEvidence
+            or endpoint.closed
+            or endpoint.evidence.runtime_evidence_sha256
+            != runtime.evidence.evidence_sha256
+            or not supported
+        ):
+            raise ValueError("Bound Podman runtime endpoint inputs are invalid.")
+        self._lifetime_lock = threading.RLock()
+        self._active_owner: int | None = None
+        self._runtime: BoundCommandRuntimeEvidence | None = runtime
+        self._endpoint: BoundPodmanEndpointEvidence | None = endpoint
+        self._backend = backend
+
+    @property
+    def supported(self) -> bool:
+        with self._lifetime_lock:
+            runtime = self._runtime
+            endpoint = self._endpoint
+            try:
+                backend_supported = self._backend.supported is True
+            except Exception:
+                backend_supported = False
+            return bool(
+                runtime is not None
+                and not runtime.closed
+                and endpoint is not None
+                and not endpoint.closed
+                and backend_supported
+            )
+
+    @property
+    def closed(self) -> bool:
+        with self._lifetime_lock:
+            runtime = self._runtime
+            endpoint = self._endpoint
+            return bool(
+                (runtime is None or runtime.closed)
+                and (endpoint is None or endpoint._fully_closed)  # noqa: SLF001
+            )
+
+    def capture(self) -> PodmanRuntimeEndpointInputs:
+        self._lifetime_lock.acquire()
+        if self._active_owner is not None:
+            self._lifetime_lock.release()
+            _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
+        runtime = self._runtime
+        endpoint = self._endpoint
+        if runtime is None or runtime.closed or endpoint is None or endpoint.closed:
+            self._lifetime_lock.release()
+            _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
+        self._active_owner = threading.get_ident()
+        try:
+            first_runtime = _runtime_identity(runtime)
+            endpoint_evidence = endpoint.assert_unchanged(runtime, self._backend)
+            second_runtime = _runtime_identity(runtime)
+            if (
+                first_runtime != second_runtime
+                or endpoint_evidence.endpoint != endpoint.endpoint
+                or endpoint_evidence.runtime_evidence_sha256
+                != runtime.evidence.evidence_sha256
+            ):
+                _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
+            return PodmanRuntimeEndpointInputs(
+                runtime=second_runtime,
+                endpoint=endpoint_evidence.endpoint,
+            )
+        except PodmanEndpointError:
+            raise
+        except RuntimeCommandVerificationError:
+            raise PodmanEndpointError(PodmanEndpointErrorCode.RUNTIME_INVALID) from None
+        except BaseException as error:
+            if not isinstance(error, Exception):
+                raise
+            _fail(PodmanEndpointErrorCode.VERIFICATION_UNAVAILABLE)
+        finally:
+            self._active_owner = None
+            self._lifetime_lock.release()
+
+    def close(self) -> None:
+        with self._lifetime_lock:
+            if self._active_owner is not None:
+                _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
+            endpoint = self._endpoint
+            runtime = self._runtime
+            failed = False
+            interruption: BaseException | None = None
+            if endpoint is not None:
+                try:
+                    endpoint.close()
+                except BaseException as error:
+                    if isinstance(error, Exception):
+                        failed = True
+                    else:
+                        interruption = error
+                if endpoint._fully_closed:  # noqa: SLF001
+                    self._endpoint = None
+                else:
+                    failed = True
+            if runtime is not None:
+                try:
+                    runtime.close()
+                except BaseException as error:
+                    if isinstance(error, Exception):
+                        failed = True
+                    elif interruption is None:
+                        interruption = error
+                if runtime.closed:
+                    self._runtime = None
+                else:
+                    failed = True
+            if interruption is not None:
+                raise interruption
+            if failed:
+                _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
+
+    def __enter__(self) -> "BoundPodmanRuntimeEndpointInputs":
+        if self.closed:
+            _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        self.close()
+
+    def __repr__(self) -> str:
+        state = "closed" if self.closed else "open"
+        return f"BoundPodmanRuntimeEndpointInputs(state={state!r}, <redacted>)"
+
+
+def _native_podman_endpoint_backend() -> PodmanEndpointCommandBackend:
+    from .runtime_command_native import NativeWindowsPodmanEndpointCommandBackend
+
+    return NativeWindowsPodmanEndpointCommandBackend()
+
+
+def _return_podman_runtime_endpoint_owner(
+    owner: BoundPodmanRuntimeEndpointInputs,
+) -> BoundPodmanRuntimeEndpointInputs:
+    """Return seam used to prove interruption-safe final ownership handoff."""
+
+    return owner
+
+
+def _close_failed_podman_runtime_endpoint_capture(
+    endpoint: BoundPodmanEndpointEvidence | None,
+    configuration: BoundPodmanMachineConfiguration | None,
+    runtime: BoundCommandRuntimeEvidence | None,
+) -> tuple[BaseException | None, bool]:
+    """Retry partial owners, preserving the first cleanup interruption."""
+
+    cleanup_interruption: BaseException | None = None
+    incomplete = False
+    closeables: tuple[tuple[Callable[[], None], Callable[[], bool]], ...] = ()
+    if endpoint is not None:
+        closeables += (
+            (endpoint.close, lambda: endpoint._fully_closed),  # noqa: SLF001
+        )
+    elif configuration is not None:
+        closeables += (
+            (
+                configuration.close,
+                lambda: configuration._fully_closed,  # noqa: SLF001
+            ),
+        )
+    if runtime is not None:
+        closeables += ((runtime.close, lambda: runtime.closed),)
+
+    for close, fully_closed in closeables:
+        for _attempt in range(3):
+            if fully_closed():
+                break
+            try:
+                close()
+            except BaseException as error:
+                if not isinstance(error, Exception) and cleanup_interruption is None:
+                    cleanup_interruption = error
+        if not fully_closed():
+            incomplete = True
+    return cleanup_interruption, incomplete
+
+
+def capture_native_windows_podman_runtime_endpoint_inputs(
+    package_root: PureWindowsPath,
+) -> BoundPodmanRuntimeEndpointInputs:
+    """Capture the package-selected Podman runtime and rootless endpoint owner."""
+
+    runtime: BoundCommandRuntimeEvidence | None = None
+    configuration: BoundPodmanMachineConfiguration | None = None
+    endpoint: BoundPodmanEndpointEvidence | None = None
+    try:
+        backend = _native_podman_endpoint_backend()
+        runtime = open_package_bound_command_runtime_evidence(
+            RuntimeProductId.PODMAN_CLI
+        )
+        configuration = capture_bound_podman_machine_configuration(package_root)
+        endpoint = capture_bound_podman_endpoint(
+            runtime,
+            configuration,
+            backend=backend,
+        )
+        configuration = None
+        owner = BoundPodmanRuntimeEndpointInputs(
+            runtime=runtime,
+            endpoint=endpoint,
+            backend=backend,
+        )
+        owner.capture()
+        return _return_podman_runtime_endpoint_owner(owner)
+    except BaseException as error:
+        cleanup_interruption, cleanup_incomplete = (
+            _close_failed_podman_runtime_endpoint_capture(
+                endpoint,
+                configuration,
+                runtime,
+            )
+        )
+        if not isinstance(error, Exception):
+            raise
+        if cleanup_interruption is not None:
+            raise cleanup_interruption
+        if cleanup_incomplete:
+            _fail(PodmanEndpointErrorCode.ENDPOINT_CHANGED)
+        if isinstance(error, PodmanEndpointError):
+            raise
+        if isinstance(error, PackageConfigurationError):
+            _fail(PodmanEndpointErrorCode.ENDPOINT_INVALID)
+        if isinstance(error, RuntimeCommandVerificationError):
+            _fail(PodmanEndpointErrorCode.RUNTIME_INVALID)
+        _fail(PodmanEndpointErrorCode.VERIFICATION_UNAVAILABLE)
+
+
 __all__ = [
     "BoundPodmanEndpointEvidence",
+    "BoundPodmanRuntimeEndpointInputs",
     "PodmanEndpointCommandBackend",
     "PodmanEndpointCommandKind",
     "PodmanEndpointCommandRequest",
     "PodmanEndpointError",
     "PodmanEndpointErrorCode",
     "PodmanEndpointEvidence",
+    "PodmanRuntimeEndpointInputs",
     "capture_bound_podman_endpoint",
+    "capture_native_windows_podman_runtime_endpoint_inputs",
 ]

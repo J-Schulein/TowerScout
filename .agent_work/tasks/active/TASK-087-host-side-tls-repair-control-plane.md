@@ -1356,6 +1356,79 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-11 - Native Podman Runtime/Endpoint Input Owner Implemented Locally
+
+**Objective**: Build the retained Podman runtime/endpoint half of the native
+source owner before attaching the managed Compose provider, without wiring
+launcher confirmation, repair, or mutation.
+
+**Checkpoint**: Independently reviewed commit `6c51441` passed all applicable
+PR checks in CI/CD run `34622212390`, Task-087 run `34622212470`, and external
+Trivy job `103338815999`; the pull-request-only build skipped as designed.
+
+**Decision**: Treat the authenticated `podman.exe`, package-selected machine
+configuration, rootless loopback/WSL endpoint, and exact identity key as one
+retained lifecycle unit. Accept the package root only through the existing
+handle-bound configuration capture, construct the native endpoint backend
+internally, and recapture the runtime around endpoint revalidation. Keep the
+managed Python Compose provider as a separate next trust boundary.
+
+**Execution**:
+
+- Added an immutable redacted Podman runtime/endpoint input snapshot and a
+  closeable owner that retains the command-runtime and endpoint authorities.
+- Added a native factory that fixes runtime selection to `PODMAN_CLI`, captures
+  the package `.env` machine selector, resolves the rootless endpoint through
+  the contained native backend, validates a stable capture before transfer,
+  and cleans partial ownership on failure.
+- Made endpoint cleanup retry-safe by distinguishing an unavailable partial
+  owner from one whose configuration, identity key, and trusted parent are all
+  fully released.
+- Kept the new owner absent from `app.py`, `discovery.py`, `repair.py`, and
+  `runtime_execution.py`.
+
+**Adversarial Coverage**: Tests prove exact runtime/endpoint output, runtime
+evidence binding, endpoint drift rejection, fixed production source selection,
+partial-factory cleanup, capture/close serialization, successful retry after a
+partial close failure, nested partial-release retention, return-boundary
+interruption cleanup, cleanup-interruption propagation, and safe factory use
+inside an unrelated caller exception handler.
+
+**Validation**: Tests were added before the production symbols existed and
+initially failed collection as expected. The completed Podman endpoint set
+and package-configuration set passes `70/70`; the broader runtime identity,
+verification, command-version,
+package-configuration, Podman-endpoint, target-resolution, and native-
+observation set passes `378/378`. Scoped Black and strict mypy pass. No Docker,
+Podman, Compose, certificate store, launcher, `.env`, container, image, volume,
+or host mutation ran.
+
+**Independent Review**: A fresh read-only sub-agent review found four
+lifecycle defects and one documentation defect before declaring the corrected
+diff clean. The implementation now distinguishes unavailable nested
+configuration from fully released ownership, closes and retains partially
+released children safely, removes a pre-return ownership-transfer window,
+does not mistake a caller's unrelated active exception for factory failure,
+and retries cleanup while preserving non-ordinary interruptions. The stale
+Gate A implementation-head label was also corrected. The same reviewer
+confirmed the corrected ownership, retry, interruption, serialization, fixed-
+source, and unwired behavior. Native Windows/Podman execution remains deferred;
+the bounded three-attempt cleanup ceiling fails closed but cannot prove an OS
+resource release under persistent injected close failure.
+
+**Boundary**: This is an independently reviewed local sub-increment of slice 2.
+It completes the concrete Podman runtime/endpoint portion but does not
+authenticate or emit the managed Podman Compose provider identity; add
+remaining package/environment, process-environment, or acceleration inputs;
+complete
+`TargetResolutionPlanInputs`; connect confirmation; or enable repair. Gate A
+remains open and mutation remains disabled.
+
+**Next**: Checkpoint this reviewed owner. Then implement the managed Podman
+Compose provider source owner against the package-bound catalog, exact
+distribution inventory, interpreter relationship, and stable artifact
+identities.
+
 ### 2026-09-11 - Authenticated Docker Compose Source Owner Implemented Locally
 
 **Objective**: Extend the retained native Docker source boundary with the exact

@@ -298,6 +298,16 @@ class BoundPodmanMachineConfiguration:
         with self._lifetime_lock:
             return self._package_root is None or self._environment is None
 
+    @property
+    def _fully_closed(self) -> bool:
+        with self._lifetime_lock:
+            package_root = self._package_root
+            environment = self._environment
+            return bool(
+                (package_root is None or package_root.closed)
+                and (environment is None or environment.closed)
+            )
+
     def _begin_use(self) -> tuple[PathHierarchyTrust, HandleBoundFile]:
         self._lifetime_lock.acquire()
         if self._active_owner is not None:
@@ -362,19 +372,34 @@ class BoundPodmanMachineConfiguration:
                 _fail(PackageConfigurationErrorCode.CONFIGURATION_CHANGED)
             environment = self._environment
             package_root = self._package_root
-            self._environment = None
-            self._package_root = None
             failed = False
+            interruption: BaseException | None = None
             if environment is not None:
                 try:
                     environment.close()
-                except WindowsSecurityError:
+                except BaseException as error:
+                    if isinstance(error, Exception):
+                        failed = True
+                    else:
+                        interruption = error
+                if environment.closed:
+                    self._environment = None
+                else:
                     failed = True
             if package_root is not None:
                 try:
                     package_root.close()
-                except WindowsSecurityError:
+                except BaseException as error:
+                    if isinstance(error, Exception):
+                        failed = True
+                    elif interruption is None:
+                        interruption = error
+                if package_root.closed:
+                    self._package_root = None
+                else:
                     failed = True
+            if interruption is not None:
+                raise interruption
             if failed:
                 _fail(PackageConfigurationErrorCode.CONFIGURATION_CHANGED)
 
