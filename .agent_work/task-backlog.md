@@ -13,7 +13,9 @@ revalidation hooks on top of reviewed source head `db7aee877a67`. Slice 4
 remains partial: restored cache-only revocation fails closed with
 offline/unknown status on this workstation, so earlier Docker/rootless-Podman
 single-root checks prove transport containment only. Durable Windows
-mutation/recovery and final validation remain. PR #67
+mutation/recovery and final validation remain. Independently reviewed
+checkpoint `2edcb8e` supplies slice 5's protected Local AppData/current-user
+DPAPI foundation; secure absence and atomic `.env` replacement remain. PR #67
 stays Draft and Gate A source remediation/re-review precedes preview integration.
 Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
@@ -159,7 +161,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT. Slices 1-3 are complete after the independently reviewed September 14 exact-target confirmation checkpoint. Slice 4 remains partial: the bounded Windows trust implementation is reviewed, but its revocation-aware fixed-host and repeated container proof remain open. Earlier Docker/rootless-Podman checks prove one-root transport containment only. Slices 5 and 8 are partial; slices 6-7 are not started; final validation continues. Mutation is disabled and PR #67 remains Draft; preview and Task-100 gates remain separate. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT. Slices 1-3 are complete after the independently reviewed September 14 exact-target confirmation checkpoint. Slice 4 remains partial: the bounded Windows trust implementation is reviewed, but its revocation-aware fixed-host and repeated container proof remain open. Earlier Docker/rootless-Podman checks prove one-root transport containment only. Independently reviewed checkpoint `2edcb8e` supplies slice 5's protected Local AppData/current-user DPAPI foundation; secure absence and atomic `.env` replacement remain. Slice 8 is partial; slices 6-7 are not started; final validation continues. Mutation is disabled and PR #67 remains Draft; preview and Task-100 gates remain separate. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---

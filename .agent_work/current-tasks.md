@@ -14,17 +14,21 @@ remains partial: cache-only revocation was restored during independent review,
 and the current workstation now fails closed for Azure because cached
 revocation status is offline/unknown. Earlier network-disabled Docker and
 rootless-Podman checks prove one-root transport containment only. Windows
-security remains partial; durable recovery, transaction refactoring,
-provider-installer completion, and final proof remain. Test-only checkpoint
-`9993b4db7c7` is the validated code/test baseline. At that exact head, all
-applicable checks passed in CI/CD run `34650679798`, Task-087 run
-`34650679809`, and external Trivy job `103431962097`; the PR-only build skipped
+security remains partial, but the protected Local AppData and current-user
+DPAPI foundation is now independently reviewed with focused/native proof.
+Secure absence, atomic `.env` replacement, durable
+recovery, transaction refactoring, provider-installer completion, and final
+proof remain. Independently reviewed
+checkpoint `088201722355` is the validated code/test head. At that exact head,
+all applicable checks passed in CI/CD run `34885500402`, Task-087 run
+`34885500661`, and external Trivy job `104115152725`; the PR-only build skipped
 as designed.
 No repair or mutation is enabled. Gate B preview integration and Task-100
-signing remain separate. The latest independently reviewed source checkpoint,
-`db7aee8`, connects the retained inputs through Windows trust and native
-observation to a revalidated, still-held exact target; the current checkpoint
-consumes that owner in production confirmation. Earlier checkpoint
+signing remain separate. The latest independently reviewed implementation
+checkpoint, `2edcb8e`, adds the protected Local AppData/current-user DPAPI
+foundation. Earlier checkpoint `0882017` connects the retained inputs through
+Windows trust and native observation to a revalidated, still-held exact target
+and consumes that owner in production confirmation. Earlier checkpoint
 `caf3f1c` retains the package and Windows process environment, runtime and
 endpoint, acceleration evidence, and final exact-plan inputs. Earlier
 checkpoint `17d813f` retains the authenticated managed Podman provider and its
@@ -39,11 +43,12 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 production source checkpoint `db7aee877a67` is independently
-  validated locally; test-portability checkpoint `9993b4db7c7` is the
-  validated code/test baseline. At that exact head, all applicable checks passed in
-  CI/CD run `34650679798`, Task-087 run `34650679809`, and external Trivy job
-  `103431962097`; the PR-only build skipped as designed. PR #67 remains Draft.
+- Task-087 source checkpoint `088201722355` is independently reviewed and is
+  the validated code/test head. At that exact head, all applicable checks
+  passed in CI/CD run `34885500402`, Task-087 run `34885500661`, and external
+  Trivy job `104115152725`; the PR-only build skipped as designed. PR #67
+  remains Draft. Independently reviewed implementation checkpoint `2edcb8e`
+  adds the protected-state/DPAPI foundation and awaits exact-head CI.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -167,7 +172,9 @@ path limits authorization to one eligible Windows root and a bounded exact
 intermediate snapshot, but the supported fixed-host proof remains open because
 cache-only revocation currently fails closed with offline/unknown status.
 Earlier Docker/rootless-Podman checks prove transport containment only. Slices
-5 and 8 are partial; slices 6-7 are not started; slice 9 continues
+5 and 8 are partial; slice 5's protected Local AppData/current-user DPAPI
+foundation is independently reviewed, while its secure-absence and atomic
+`.env` work remains. Slices 6-7 are not started; slice 9 continues
 incrementally. Mutation is disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH

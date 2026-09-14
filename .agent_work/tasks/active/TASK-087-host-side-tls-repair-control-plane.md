@@ -7,11 +7,15 @@ checkpoint closes slices 2-3 exact-target confirmation ownership and ordered
 revalidation hooks on top of reviewed source head `db7aee877a67`. Slice 4
 remains partial: cache-only revocation fails closed with offline/unknown status
 on this workstation, so its successful Windows/Docker/Podman proof remains
-open. Windows security is partial;
+open. Windows security is partial; its protected Local AppData/current-user
+DPAPI foundation is independently reviewed with native/focused proof, while
+secure absence and atomic `.env` replacement remain;
 durable recovery, transaction refactoring, and the final Gate A proof remain
-open. Test-only checkpoint `9993b4db7c7` is the validated code/test baseline:
-CI/CD run `34650679798`, Task-087 run `34650679809`, and external Trivy job
-`103431962097` all passed there, with the PR-only build skipped as designed.
+open. Independently reviewed implementation checkpoint `2edcb8e5372b` adds the
+protected-state/DPAPI foundation. Checkpoint `088201722355` remains the
+validated code/test head: CI/CD run `34885500402`, Task-087 run `34885500661`,
+and external Trivy job `104115152725` all passed there, with the PR-only build
+skipped as designed.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1360,6 +1364,59 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-14 - Protected State And Current-User DPAPI Foundation Independently Reviewed
+
+**Objective**: Record the exact-head green checkpoint, retry the blocked slice
+4 proof without weakening trust, and begin slice 5's protected durable-state
+foundation without enabling mutation.
+
+**Execution**: Confirmed pushed head `088201722355ffeb8911fa58a469b6b2815645d8`
+green in CI/CD run `34885500402`, Task-087 run `34885500661`, and external
+Trivy job `104115152725`. A fresh fixed-host probe failed closed with the
+sanitized category `chain_unverified` for both approved hosts; no certificate
+bytes, fingerprints, subjects, or chains were persisted, and no container
+containment run was authorized from an unverified root.
+
+The local source now resolves Local AppData through `SHGetKnownFolderPath`,
+creates only the fixed `TowerScout\Recovery\v1` hierarchy, validates each
+directory before creating its child, and retains handle-bound trust across the
+hierarchy. Every protected state directory must have a protected DACL with
+exactly current-user and SYSTEM full-control, object/container-inheritable ACEs;
+extra, inherit-only, unprotected, or insufficient grants fail closed. The same
+increment adds purpose-separated current-user DPAPI with UI disabled and no
+machine-scope flag. Public evidence and exception text remain redacted.
+
+**Validation**: The focused native/policy set passes `42/42`, including real
+Windows Known Folder lookup, exact protected-DACL inspection, and a real
+current-user DPAPI round trip. The related Windows security, path, mutex,
+package-input, and provider/transaction regression set passes `209/209`.
+Black and strict mypy pass for the affected source/tests. The native smoke's
+exact disposable pytest tree was removed after validation. No package `.env`,
+container, named volume, runtime, or Local AppData recovery directory was
+changed. A full `1,997`-test unit attempt produced `1,904` passes and `74`
+skips; its `19` failures were the existing endpoint-antivirus refusal to load
+`TowerScoutHostHelper.ps1`, not failures in the changed Python modules.
+Independent review found no blocking correctness, security, secret-safety, or
+documentation issue. It reproduced `41/41` focused tests without the protected
+DACL pytest teardown, confirmed the DACL assertions before that endpoint ACL
+teardown, and separately proved the complete native parent-held creation
+sequence. The reviewer also reproduced strict mypy, Black, blocking Flake8,
+medium/high Bandit, compilation, diff, secret, and task-hygiene checks. Its
+only non-blocking observations were that deeper injected native failure-path
+tests can accompany later slice 5 integration and that sanitized cleanup errors
+intentionally trade detailed diagnostics for redaction.
+
+**Boundary**: This is an independently reviewed slice 5 foundation, not slice 5
+completion. Secure absence proof, ACL-preserving atomic `.env`
+replacement, integrated slice 5 proof, and slices 6-9 remain. Slice 4 also
+remains partial until cache-only revocation succeeds in a supported context and
+the same selected root repeats Docker/rootless-Podman containment proof.
+
+**Checkpoint**: `2edcb8e5372b9f3bc3c6d8758e1e2e2e07319460`
+
+**Next**: Add secure absence proof and ACL-preserving atomic `.env` replacement
+while repair and mutation remain disabled.
+
 ### 2026-09-14 - Exact-Target Confirmation Reviewed; Trust Proof Remains Open
 
 **Objective**: Complete slices 2-3 and advance slice 4 of Gate A Group 1
@@ -1405,6 +1462,11 @@ proof. No certificate bytes, fingerprints, subjects, or chains were written to
 repository evidence. A broad unit attempt reached all `1,955` selected tests,
 but the workstation's existing pytest temporary-directory ACL behavior caused
 unrelated fixture setup/session-cleanup errors.
+
+Exact pushed checkpoint `088201722355ffeb8911fa58a469b6b2815645d8` passed all
+applicable PR checks: CI/CD run `34885500402`, Task-087 run `34885500661`, and
+external Trivy job `104115152725`. Both Python unit-matrix jobs passed and the
+PR-only build skipped as designed.
 
 **Boundary**: Independent review and reconciliation close slices 2-3 in this
 checkpoint. Slice 4 remains `PARTIAL` until a supported Windows context produces
