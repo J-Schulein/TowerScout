@@ -396,18 +396,30 @@ def test_root_enumeration_uses_combined_eku_and_prefers_server_auth() -> None:
     assert crypt32.freed == []
 
 
+def test_intermediate_snapshot_copies_only_store_and_server_intermediates() -> None:
+    crypt32 = _RootEnumerationCrypt()
+    api = _RootEnumerationApi(crypt32)
+
+    snapshot = api._intermediate_snapshot(
+        (ctypes.c_void_p(11), ctypes.c_void_p(12)),
+        (b"leaf", b"server-intermediate", b"server-terminal"),
+    )
+
+    assert set(snapshot) == {
+        b"eligible-root",
+        b"client-root",
+        b"server-intermediate",
+    }
+    assert b"leaf" not in snapshot
+    assert b"server-terminal" not in snapshot
+
+
 class _CaptureCrypt:
     def __init__(self) -> None:
-        self.collection_additions: list[tuple[int | None, int | None]] = []
-        self.engine_configs: list[tuple[int | None, int | None, int, int, int]] = []
+        self.engine_configs: list[tuple[int | None, int | None, int, int, int, int]] = (
+            []
+        )
         self.freed_engines: list[int | None] = []
-
-    def CertAddStoreToCollection(
-        self, collection: object, store: object, priority: int, flags: int
-    ) -> int:
-        assert (priority, flags) == (0, 0)
-        self.collection_additions.append((_void_value(collection), _void_value(store)))
-        return 1
 
     def CertCreateCertificateChainEngine(
         self, config_pointer: object, engine_pointer: object
@@ -416,12 +428,16 @@ class _CaptureCrypt:
             config_pointer,
             ctypes.POINTER(native_module._CertChainEngineConfig),
         ).contents
+        additional_store = None
+        if config.additional_store_count:
+            additional_store = _void_value(config.additional_stores[0])
         self.engine_configs.append(
             (
                 _void_value(config.restricted_other),
                 _void_value(config.exclusive_root),
+                int(config.additional_store_count),
+                additional_store,
                 int(config.flags),
-                int(config.exclusive_flags),
                 int(config.url_retrieval_timeout),
             )
         )
@@ -444,10 +460,13 @@ class _CaptureApi(native_module._CtypesWindowsTrustApi):
         self.memory_provider_calls: list[int] = []
         self.eligible_store_values: tuple[int | None, ...] = ()
         self.der_additions: list[tuple[int | None, bytes]] = []
+        self.intermediate_snapshot_calls: list[
+            tuple[tuple[int | None, ...], tuple[bytes, ...]]
+        ] = []
         self.build_calls: list[tuple[str, bytes, int | None]] = []
         self.closed: list[int | None] = []
         self._system_handles = iter((11, 12, 21, 22))
-        self._memory_handles = iter((31, 32, 33))
+        self._memory_handles = iter((31, 32))
 
     def _open_system_store(self, name: str, location: int) -> ctypes.c_void_p:
         self.system_store_calls.append((name, location))
@@ -465,6 +484,16 @@ class _CaptureApi(native_module._CtypesWindowsTrustApi):
 
     def _add_der(self, store: ctypes.c_void_p, der_bytes: bytes) -> None:
         self.der_additions.append((_void_value(store), der_bytes))
+
+    def _intermediate_snapshot(
+        self,
+        stores: tuple[ctypes.c_void_p, ...],
+        server_chain: tuple[bytes, ...],
+    ) -> tuple[bytes, ...]:
+        self.intermediate_snapshot_calls.append(
+            (tuple(_void_value(store) for store in stores), server_chain)
+        )
+        return (b"windows-ca", b"intermediate")
 
     def _server_chain(self, hostname: str) -> tuple[bytes, ...]:
         assert hostname == "maps.googleapis.com"
@@ -497,28 +526,30 @@ def test_native_capture_separates_roots_intermediates_and_cleans_up() -> None:
     assert api.memory_provider_calls == [
         native_module._CERT_STORE_PROV_MEMORY,
         native_module._CERT_STORE_PROV_MEMORY,
-        native_module._CERT_STORE_PROV_COLLECTION,
     ]
     assert api.eligible_store_values == (11, 12)
     assert api.der_additions == [
         (31, b"eligible-root"),
-        (32, b"leaf"),
+        (32, b"windows-ca"),
         (32, b"intermediate"),
     ]
-    assert api.crypt32.collection_additions == [(33, 21), (33, 22), (33, 32)]
+    assert api.intermediate_snapshot_calls == [
+        ((21, 22), (b"leaf", b"intermediate", b"intermediate"))
+    ]
     assert api.crypt32.engine_configs == [
         (
-            33,
+            None,
             31,
+            1,
+            32,
             native_module._CERT_CHAIN_CACHE_ONLY_URL_RETRIEVAL
             | native_module._CERT_CHAIN_DISABLE_AIA,
-            0,
             10_000,
         )
     ]
     assert api.build_calls == [("maps.googleapis.com", b"leaf", 90)]
     assert api.crypt32.freed_engines == [90]
-    assert api.closed == [33, 32, 31, 22, 21, 12, 11]
+    assert api.closed == [32, 31, 22, 21, 12, 11]
 
 
 @pytest.mark.parametrize("error", (OSError("capture failed"), _Interruption()))
@@ -532,8 +563,31 @@ def test_native_capture_preserves_primary_error_and_cleans_once(
 
     assert failure.value is error
     assert api.crypt32.freed_engines == [90]
-    assert api.closed == [33, 32, 31, 22, 21, 12, 11]
+    assert api.closed == [32, 31, 22, 21, 12, 11]
     assert len(api.closed) == len(set(api.closed))
+
+
+def test_native_capture_rejects_candidate_from_ambient_intermediate_store() -> None:
+    api = _CaptureApi()
+    root = EligibleWindowsRoot(b"eligible-root", TrustPurpose.SERVER_AUTH)
+    api._build_candidates = lambda _hostname, _leaf, _engine: (  # type: ignore[method-assign]
+        NativeChainCandidate(
+            (
+                hashlib.sha256(b"leaf").hexdigest(),
+                hashlib.sha256(b"ambient-my-or-trust").hexdigest(),
+                root.fingerprint_sha256,
+            ),
+            0,
+            0,
+        ),
+    )
+
+    with pytest.raises(TrustPolicyError) as raised:
+        api.capture(MapProvider.GOOGLE, "maps.googleapis.com")
+
+    assert raised.value.code == "chain_unverified"
+    assert api.crypt32.freed_engines == [90]
+    assert api.closed == [32, 31, 22, 21, 12, 11]
 
 
 class _RecordingPolicyCrypt:

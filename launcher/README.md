@@ -4,8 +4,9 @@ This directory contains the Task-087 visible Windows launcher prototype. The
 current UI reports TowerScout/package status, probes Docker and Podman with
 fixed read-only commands, identifies the selected package/runtime profile,
 displays a non-mutating TLS repair plan for Google Maps or Azure Maps, and can
-start the controlled native repair only after exact-target preparation and a
-typed `REPAIR TLS AND RESTART` confirmation.
+resolve and retain one exact Windows-trusted target before a bounded typed
+`REPAIR TLS AND RESTART` confirmation. Runtime mutation remains disabled while
+the remaining Gate A recovery and Windows-security work is incomplete.
 
 ## August 19 release sequencing
 
@@ -62,9 +63,37 @@ The prototype:
 
 The existing Task-086 command-based repair remains unchanged and available.
 
-## Controlled-repair implementation
+## Exact-target confirmation implementation
 
-`towerscout_launcher/repair.py` implements the bounded native continuation:
+`towerscout_launcher/exact_target_confirmation.py` is the current production
+confirmation boundary. It:
+
+- accepts only the selected Google/Azure provider enum and internally resolves
+  runtime, endpoint, Compose model, container, image, all eight volumes, and
+  one Windows-store-selected root;
+- retains that exact target owner through the confirmation lifetime and shows
+  only its bounded public summary;
+- closes the owner on rejection, the fixed 120-second timeout, error, or the
+  mutation-disabled terminal path;
+- revalidates immediately before accepting confirmation and again at the named
+  pre-mutation boundary; and
+- exposes ordered pre-restart and terminal hooks for the durable transaction
+  refactor, while continuing to fail closed before any repair mutation.
+
+The Windows trust adapter uses Current User and Local Machine `ROOT` entries as
+eligible anchors, Windows `CA` plus server-supplied intermediates only as chain
+inputs, and one filtered exclusive root store as the sole trust-anchor source.
+It accepts a rebuilt candidate only when every exact intermediate belongs to
+the bounded captured Windows-`CA`/server set, requires cache-only chain
+revocation status, and fails closed when that status is unavailable. The
+launcher does not export the leaf or intermediates.
+
+## Historical controlled-repair implementation
+
+`towerscout_launcher/repair.py` preserves the older bounded native continuation
+as a behavior reference for the later durable refactor. It is not the live
+production coordinator and remains unsuitable for enabling mutation because
+its process-memory recovery and rollback model do not satisfy Gate A:
 
 - exact package, provider, engine, GPU mode, port, Compose project, image, and
   digest binding;
@@ -86,8 +115,7 @@ The existing Task-086 command-based repair remains unchanged and available.
   staging, restart, or readiness failure;
 - explicit rejection of missing, ambiguous, or Docker Desktop-backed Podman
   Compose providers; and
-- a coordinator mutation gate that is off by default; the visible prototype
-  explicitly enables it behind the typed-confirmation flow.
+- a coordinator mutation gate that is off by default.
 
 The first direct Task-086 script-adapter proof was rejected on the development
 workstation because ordinary no-bypass PowerShell script execution is blocked
@@ -127,6 +155,9 @@ Run from the repository root:
 
 ```powershell
 python -m pytest tests/unit/test_windows_launcher.py -q -p no:cacheprovider
+python -m pytest tests/unit/test_launcher_exact_target_confirmation.py `
+  tests/unit/test_launcher_runtime_target_factory.py `
+  tests/unit/test_launcher_trust_windows_native.py -q -p no:cacheprovider
 python -m compileall -q launcher/towerscout_launcher `
   launcher/inspect_build.py launcher/build_provenance.py `
   launcher/package_validation.py

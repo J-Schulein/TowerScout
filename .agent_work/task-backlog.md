@@ -1,21 +1,20 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: September 11, 2026
+**Last Updated**: September 14, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases until the
 normal-user package is satisfactory, then complete Task-100 production signing
 and managed-endpoint qualification in October. Task-099's scoped August gate
 and Task-101's full dependency/reconciliation gate passed. Task-101 is complete.
-Task-087 is active at production source head `db7aee877a67`, with test-only
-portability checkpoint `9993b4db7c7` as the validated code/test baseline,
-under its fixed nine-slice
-[`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md): exact-runtime
-and exact-target foundations, including the owned native exact-target bridge
-and stable authenticated target-plan assembler plus the native pre-confirmation
-facade, are materially advanced but unwired. Confirmation consumption,
-stage-specific revalidation, durable mutation/recovery, and final validation
-remain. PR #67 remains Draft and Gate A source remediation/re-review precedes
-preview integration.
+Task-087 is active under its fixed nine-slice
+[`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md). The September 14
+checkpoint closes slices 2-3 exact-target confirmation ownership and ordered
+revalidation hooks on top of reviewed source head `db7aee877a67`. Slice 4
+remains partial: restored cache-only revocation fails closed with
+offline/unknown status on this workstation, so earlier Docker/rootless-Podman
+single-root checks prove transport containment only. Durable Windows
+mutation/recovery and final validation remain. PR #67
+stays Draft and Gate A source remediation/re-review precedes preview integration.
 Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
 
@@ -160,7 +159,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at production source head `db7aee877a67`; test-only checkpoint `9993b4db7c7` is the validated code/test baseline. The [fixed Gate A burn-down](./tasks/active/TASK-087/GATE-A-STATUS.md) records slice 1 complete; slices 2-3 substantially built but unwired, including the native pre-confirmation exact-target facade; slices 4-5 and 8 partial; slices 6-7 not started; and final validation continuing. Mutation is disabled and PR #67 remains Draft; preview and Task-100 gates remain separate. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT. Slices 1-3 are complete after the independently reviewed September 14 exact-target confirmation checkpoint. Slice 4 remains partial: the bounded Windows trust implementation is reviewed, but its revocation-aware fixed-host and repeated container proof remain open. Earlier Docker/rootless-Podman checks prove one-root transport containment only. Slices 5 and 8 are partial; slices 6-7 are not started; final validation continues. Mutation is disabled and PR #67 remains Draft; preview and Task-100 gates remain separate. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---

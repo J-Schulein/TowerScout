@@ -6,28 +6,83 @@ from typing import Callable
 
 from .coordination import OperationGuard
 from .discovery import build_repair_preview, choose_engine, collect_snapshot
+from .exact_target_confirmation import (
+    CONFIRMATION_TEXT,
+    DEFAULT_CONFIRMATION_TIMEOUT_SECONDS,
+    ExactTargetConfirmationCoordinator,
+    ExactTargetConfirmationError,
+    ExactTargetConfirmationTransaction,
+)
 from .models import LauncherSnapshot, PublicState
 from .repair import (
-    NativeRepairAdapter,
-    RepairCoordinator,
-    RepairError,
     RepairState,
     RepairTarget,
     RepairTransaction,
 )
-
+from .target_contracts import MapProvider
 
 _STATE_COLORS = {
     PublicState.SUCCESS: "#157347",
     PublicState.UNAVAILABLE: "#8a6116",
     PublicState.ERROR: "#b02a37",
 }
-_USER_CONFIRMATION = "REPAIR TLS AND RESTART"
+_USER_CONFIRMATION = CONFIRMATION_TEXT
 
 
-def _build_default_repair_coordinator() -> RepairCoordinator:
-    """Keep production mutation closed until every Gate-A prerequisite is wired."""
-    return RepairCoordinator(NativeRepairAdapter(), mutation_enabled=False)
+def _build_default_repair_coordinator() -> ExactTargetConfirmationCoordinator:
+    """Resolve one native exact target while keeping production mutation closed."""
+    return ExactTargetConfirmationCoordinator()
+
+
+class _TimedTypedConfirmationDialog(simpledialog.Dialog):
+    """Modal typed confirmation that releases its target after a fixed timeout."""
+
+    def __init__(
+        self,
+        parent: tk.Misc,
+        *,
+        title: str,
+        prompt: str,
+        timeout_seconds: float,
+    ) -> None:
+        self.prompt = prompt
+        self.timeout_milliseconds = max(1, int(timeout_seconds * 1000))
+        self.value: str | None = None
+        self._timeout_id: str | None = None
+        self._entry: ttk.Entry | None = None
+        super().__init__(parent, title)
+
+    def body(self, master: tk.Misc) -> tk.Widget:
+        ttk.Label(master, text=self.prompt, justify=tk.LEFT, wraplength=680).pack(
+            fill=tk.X, padx=6, pady=(4, 10)
+        )
+        self._entry = ttk.Entry(master, width=52)
+        self._entry.pack(fill=tk.X, padx=6, pady=(0, 4))
+        self._timeout_id = self.after(self.timeout_milliseconds, self.cancel)
+        return self._entry
+
+    def apply(self) -> None:
+        if self._entry is not None:
+            self.value = self._entry.get()
+
+    def cancel(self, event: tk.Event[tk.Misc] | None = None) -> None:
+        if self._timeout_id is not None:
+            try:
+                self.after_cancel(self._timeout_id)
+            except tk.TclError:
+                pass
+            self._timeout_id = None
+        super().cancel(event)
+
+
+def _ask_typed_confirmation(parent: tk.Misc, prompt: str) -> str | None:
+    dialog = _TimedTypedConfirmationDialog(
+        parent,
+        title="Confirm TowerScout TLS repair",
+        prompt=prompt,
+        timeout_seconds=DEFAULT_CONFIRMATION_TIMEOUT_SECONDS,
+    )
+    return dialog.value
 
 
 def build_confirmation_summary(target: RepairTarget) -> str:
@@ -55,7 +110,7 @@ class TowerScoutLauncherApp:
         root: tk.Tk,
         *,
         snapshot_loader: Callable[[], LauncherSnapshot] = collect_snapshot,
-        repair_coordinator: RepairCoordinator | None = None,
+        repair_coordinator: ExactTargetConfirmationCoordinator | None = None,
     ) -> None:
         self.root = root
         self.snapshot_loader = snapshot_loader
@@ -301,7 +356,6 @@ class TowerScoutLauncherApp:
             )
 
     def repair_tls_and_restart(self) -> None:
-        refresh_after = False
         with self.operations.begin() as started:
             if not started:
                 self.footer_var.set("A launcher operation is already in progress.")
@@ -309,29 +363,27 @@ class TowerScoutLauncherApp:
             if self.snapshot is None:
                 self.footer_var.set("Refresh status before repairing TowerScout.")
                 return
-            provider = "google" if self.provider_var.get() == "Google Maps" else "azure"
-            engine = self.engine_var.get().strip().lower()
+            provider = (
+                MapProvider.GOOGLE
+                if self.provider_var.get() == "Google Maps"
+                else MapProvider.AZURE
+            )
             self._set_busy(True)
-            self.footer_var.set("Selecting one Windows-trusted CA privately...")
+            self.footer_var.set(
+                "Resolving and retaining one exact Windows-trusted target..."
+            )
             self.root.update_idletasks()
-            transaction: RepairTransaction | None = None
+            transaction: ExactTargetConfirmationTransaction | None = None
             try:
-                transaction = self.repair_coordinator.prepare(
-                    self.snapshot, provider=provider, engine=engine
-                )
-                summary = build_confirmation_summary(transaction.target)
-                typed = simpledialog.askstring(
-                    "Confirm TowerScout TLS repair",
-                    summary
+                transaction = self.repair_coordinator.prepare(provider)
+                typed = _ask_typed_confirmation(
+                    self.root,
+                    transaction.summary.render()
                     + "\n\nType REPAIR TLS AND RESTART to continue. "
                     "Anything else cancels without a change.",
-                    parent=self.root,
                 )
                 if typed != _USER_CONFIRMATION:
-                    try:
-                        self.repair_coordinator.confirm(transaction, "")
-                    except RepairError:
-                        pass
+                    self.repair_coordinator.cancel(transaction)
                     self.footer_var.set("Repair cancelled. No changes were made.")
                     self._replace_preview_text(
                         "TLS repair cancelled",
@@ -339,20 +391,9 @@ class TowerScoutLauncherApp:
                         "were made.",
                     )
                     return
-                self.repair_coordinator.confirm(
-                    transaction, "repair_tls_and_restart"
-                )
-                self.repair_coordinator.execute(
-                    transaction, on_transition=self._show_transaction_progress
-                )
-                refresh_after = True
-                messagebox.showinfo(
-                    "TowerScout TLS repair",
-                    "TLS repair completed and TowerScout returned to an acceptable "
-                    "readiness state.",
-                    parent=self.root,
-                )
-            except RepairError as exc:
+                self.repair_coordinator.confirm(transaction, typed)
+                self.repair_coordinator.execute(transaction)
+            except ExactTargetConfirmationError as exc:
                 messagebox.showerror(
                     "TowerScout TLS repair",
                     exc.public_message,
@@ -379,9 +420,12 @@ class TowerScoutLauncherApp:
                     parent=self.root,
                 )
             finally:
+                if transaction is not None:
+                    try:
+                        transaction.close()
+                    except ExactTargetConfirmationError:
+                        pass
                 self._set_busy(False)
-        if refresh_after:
-            self.root.after(50, self.refresh)
 
 
 def run_app() -> int:

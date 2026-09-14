@@ -2,10 +2,12 @@
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A source work is active under the
 approved August 20 remediation design. The canonical detailed status is the
-[`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). At reviewed source
-head `db7aee877a67`, contracts are complete; the runtime and target foundations,
-including the native pre-confirmation exact-target facade, are substantially
-built but unwired; Windows trust/security are partial;
+[`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md). The September 14
+checkpoint closes slices 2-3 exact-target confirmation ownership and ordered
+revalidation hooks on top of reviewed source head `db7aee877a67`. Slice 4
+remains partial: cache-only revocation fails closed with offline/unknown status
+on this workstation, so its successful Windows/Docker/Podman proof remains
+open. Windows security is partial;
 durable recovery, transaction refactoring, and the final Gate A proof remain
 open. Test-only checkpoint `9993b4db7c7` is the validated code/test baseline:
 CI/CD run `34650679798`, Task-087 run `34650679809`, and external Trivy job
@@ -15,8 +17,8 @@ live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Track the remaining four outcome groups in the Gate A
-burn-down; re-estimate elapsed effort after exact-target wiring rather than
+**Estimated Effort**: Complete slice 4's revocation-aware proof, then track the
+remaining three implementation/proof outcome groups in the Gate A burn-down rather than
 using the superseded August 21 day estimate as a completion measure
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
 and the canonical October roadmap
@@ -1357,6 +1359,63 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-14 - Exact-Target Confirmation Reviewed; Trust Proof Remains Open
+
+**Objective**: Complete slices 2-3 and advance slice 4 of Gate A Group 1
+without enabling TLS repair or changing a
+TowerScout container, package, environment file, or named volume.
+
+**Execution**: Added a mutation-free production confirmation coordinator that
+consumes `capture_native_windows_resolved_target()` using only the approved
+provider enum. It retains the exact owner through a bounded 120-second typed
+confirmation, displays only the target's `PublicRepairSummary`, revalidates the
+same owner before accepting confirmation, and closes it on rejection, timeout,
+error, or the disabled execution path. Ordered `BEFORE_MUTATION`,
+`BEFORE_RESTART`, and `TERMINAL` revalidation hooks now define the transaction
+boundaries that slice 7 must implement across its authorized stop/recreation
+states. Those hooks must be traversed exactly once in sequence; skipped,
+repeated, or backward stages fail closed. The current launcher reaches the
+pre-mutation hook and then reports the unchanged mutation-disabled gate.
+
+The live Windows trust probe exposed `ERROR_INVALID_PARAMETER` when a memory
+store was supplied through Crypt32's `hRestrictedOther`. The reviewed native
+provider instead captures a bounded exact snapshot of Windows `CA` plus
+server-supplied intermediates and supplies it through the additional-store
+array while retaining a filtered Windows `ROOT` memory store as the sole
+exclusive trust-anchor store. It rejects a rebuilt candidate unless every
+intermediate fingerprint belongs to that captured snapshot. The leaf is passed
+directly and the server-chain terminal certificate is not staged as an
+intermediate. The rebuilt chain disables AIA and root auto-update, restores
+cache-only chain revocation, and applies Windows SSL hostname policy.
+
+**Validation**: The focused exact-target/confirmation/trust/observation and
+legacy-launcher compatibility set passes `336/336`. Independent review
+identified and reconciled three findings:
+invalid stage ordering now closes and invalidates the retained transaction,
+cache-only revocation is restored, and an adversarial ambient-store test proves
+that an intermediate outside the captured snapshot cannot authorize a
+candidate. The final focused count and strict-check results are recorded by
+this checkpoint's validation run. The current native Azure probe fails closed
+because cached revocation status is offline/unknown; Google also fails closed.
+Earlier disposable network-disabled Docker and rootless-Podman checks each
+received exactly one selected PEM and proved transport containment, but those
+checks predate restored revocation and do not complete the current fixed-host
+proof. No certificate bytes, fingerprints, subjects, or chains were written to
+repository evidence. A broad unit attempt reached all `1,955` selected tests,
+but the workstation's existing pytest temporary-directory ACL behavior caused
+unrelated fixture setup/session-cleanup errors.
+
+**Boundary**: Independent review and reconciliation close slices 2-3 in this
+checkpoint. Slice 4 remains `PARTIAL` until a supported Windows context produces
+a successful fixed-host proof with current cache-only revocation enforcement
+and the same reviewed bytes repeat the one-root Docker/rootless-Podman
+containment proof. Runtime mutation remains disabled, PR #67 remains Draft, and
+Gate A remains open.
+
+**Next**: Complete slice 4's revocation-aware fixed-host and container proof.
+Then begin Group 2 / slice 5 protected Local AppData, DPAPI, secure absence
+proof, and ACL-preserving atomic `.env` work.
 
 ### 2026-09-11 - Linux CI Import Portability Repaired And Session Handoff Recorded
 

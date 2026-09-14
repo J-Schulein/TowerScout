@@ -275,7 +275,7 @@ def test_cleanup_preserves_interruption_after_retry(
     assert inputs.close_calls == 2
 
 
-def test_facade_remains_outside_confirmation_repair_and_discovery() -> None:
+def test_facade_is_consumed_only_by_confirmation_composition() -> None:
     root = Path(target_factory.__file__).resolve().parent
     source = Path(target_factory.__file__).read_text(encoding="utf-8")
 
@@ -284,6 +284,11 @@ def test_facade_remains_outside_confirmation_repair_and_discovery() -> None:
     assert "from .app" not in source
     assert "from .repair" not in source
     assert "from .discovery" not in source
-    for relative in ("app.py", "repair.py", "discovery.py"):
+    confirmation_source = (root / "exact_target_confirmation.py").read_text(
+        encoding="utf-8"
+    )
+    assert "runtime_target_factory" in confirmation_source
+    assert "exact_target_confirmation" in (root / "app.py").read_text(encoding="utf-8")
+    for relative in ("repair.py", "discovery.py"):
         consumer = (root / relative).read_text(encoding="utf-8")
         assert "runtime_target_factory" not in consumer

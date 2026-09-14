@@ -2,18 +2,19 @@
 
 **Sprint Period**: August 8-August 21, 2026; active-task continuation retained
 through the current Task-087 Gate A work
-**Last Updated**: September 11, 2026
+**Last Updated**: September 14, 2026
 **Focus**: Task-101 is complete. Task-087 is the active implementation task.
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
-nine-slice scope and distinguishes complete, built-but-unwired, partial,
-not-started, and validation states. At committed source head `db7aee877a67`,
-contracts are complete; runtime/target foundations, including the reviewed
-native observation executor, production authority factory, owned exact-target
-bridge, stable authenticated target-plan assembler, retained package/process
-environment and acceleration authorities, final exact-input composer, and the
-native pre-confirmation exact-target facade, are substantially built but unwired;
-Windows trust/security are partial; durable recovery, transaction refactoring,
+nine-slice scope and distinguishes complete, partial, not-started, and
+validation states. The September 14 checkpoint closes slices 2-3: confirmation
+now consumes and retains the native exact target, shows only its public summary,
+times out and cleans up safely, and exposes ordered revalidation hooks. Slice 4
+remains partial: cache-only revocation was restored during independent review,
+and the current workstation now fails closed for Azure because cached
+revocation status is offline/unknown. Earlier network-disabled Docker and
+rootless-Podman checks prove one-root transport containment only. Windows
+security remains partial; durable recovery, transaction refactoring,
 provider-installer completion, and final proof remain. Test-only checkpoint
 `9993b4db7c7` is the validated code/test baseline. At that exact head, all
 applicable checks passed in CI/CD run `34650679798`, Task-087 run
@@ -22,7 +23,8 @@ as designed.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. The latest independently reviewed source checkpoint,
 `db7aee8`, connects the retained inputs through Windows trust and native
-observation to a revalidated, still-held exact target. Earlier checkpoint
+observation to a revalidated, still-held exact target; the current checkpoint
+consumes that owner in production confirmation. Earlier checkpoint
 `caf3f1c` retains the package and Windows process environment, runtime and
 endpoint, acceleration evidence, and final exact-plan inputs. Earlier
 checkpoint `17d813f` retains the authenticated managed Podman provider and its
@@ -157,19 +159,21 @@ Task-101 completion plus Task-087's explicit resume
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced but not
-near exit. At committed source head `db7aee877a67`, slice 1 is complete; slices
-2-3 are substantially built but unwired, with the owned native exact-target
-bridge, stable authenticated target-plan assembler, retained package/process
-environment and acceleration authorities, final exact-input composer, and the
-native pre-confirmation exact-target facade now checkpointed;
-slices 4-5 and 8 are partial; slices 6-7 are not started;
-and slice 9 continues incrementally but lacks its final live proof. Mutation is
-disabled and PR #67 remains Draft.
+**Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
+open. Slices 1-3 are complete. The September 14 checkpoint connects the
+retained exact-target facade to bounded typed confirmation and adds ordered
+revalidation hooks. Slice 4 remains partial: the independently reviewed native
+path limits authorization to one eligible Windows root and a bounded exact
+intermediate snapshot, but the supported fixed-host proof remains open because
+cache-only revocation currently fails closed with offline/unknown status.
+Earlier Docker/rootless-Podman checks prove transport containment only. Slices
+5 and 8 are partial; slices 6-7 are not started; slice 9 continues
+incrementally. Mutation is disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Track the four remaining outcome groups in the
-canonical burn-down; re-estimate after exact-target wiring
+**Remaining Estimate**: Complete slice 4's revocation-aware fixed-host and
+container proof, then track the three remaining implementation/proof outcome
+groups in the canonical burn-down
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 **Canonical Gate A Burn-Down**:
@@ -224,8 +228,13 @@ canonical burn-down; re-estimate after exact-target wiring
   to one revalidated, still-held exact target. Test-only checkpoint `9993b4d`
   repairs Linux package imports in the four new runtime/target test modules;
   both Python 3.11 and 3.12 GitHub unit jobs pass at that exact branch head.
-  Finish slices 2-3 by making confirmation consume that owner and wiring
-  stage-specific revalidation.
+  The September 14 checkpoint makes confirmation consume that owner and adds
+  ordered stage-specific revalidation. Independent review reconciled three
+  findings: invalid ordering now invalidates the transaction, cache-only
+  revocation is enforced, and candidate intermediates must belong to the exact
+  bounded Windows-`CA`/server snapshot. Slices 2-3 close here; slice 4 remains
+  open pending a successful revocation-aware fixed-host and repeated container
+  containment proof.
 
 ### **TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer**
 

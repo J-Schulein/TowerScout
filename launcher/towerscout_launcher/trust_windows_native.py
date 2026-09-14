@@ -41,7 +41,6 @@ _KNOWN_ENCODINGS = _X509_ASN_ENCODING | _PKCS_7_ASN_ENCODING
 
 _CERT_STORE_PROV_MEMORY = 2
 _CERT_STORE_PROV_SYSTEM_W = 10
-_CERT_STORE_PROV_COLLECTION = 11
 _CERT_STORE_CREATE_NEW_FLAG = 0x00002000
 _CERT_STORE_OPEN_EXISTING_FLAG = 0x00004000
 _CERT_STORE_READONLY_FLAG = 0x00008000
@@ -83,8 +82,10 @@ _ANY_PURPOSE_OID = "2.5.29.37.0"
 _MAX_CHAIN_ELEMENTS = 16
 _MAX_CANDIDATES = 16
 _MAX_ELIGIBLE_ROOTS = 2048
+_MAX_INTERMEDIATE_CERTIFICATES = 2048
 _MAX_CERTIFICATE_DER_BYTES = 128 * 1024
 _MAX_ROOT_SNAPSHOT_BYTES = 32 * 1024 * 1024
+_MAX_INTERMEDIATE_SNAPSHOT_BYTES = 32 * 1024 * 1024
 _MAX_EKU_BYTES = 64 * 1024
 _MAX_EKU_ITEMS = 64
 _WINHTTP_TIMEOUT_MS = 10_000
@@ -404,13 +405,6 @@ class _CtypesWindowsTrustApi:
             ctypes.c_void_p,
         )
         crypt32.CertAddEncodedCertificateToStore.restype = ctypes.c_int
-        crypt32.CertAddStoreToCollection.argtypes = (
-            ctypes.c_void_p,
-            ctypes.c_void_p,
-            ctypes.c_uint32,
-            ctypes.c_uint32,
-        )
-        crypt32.CertAddStoreToCollection.restype = ctypes.c_int
         crypt32.CertCreateCertificateContext.argtypes = (
             ctypes.c_uint32,
             ctypes.c_void_p,
@@ -652,6 +646,58 @@ class _CtypesWindowsTrustApi:
             None,
         ):
             raise OSError("Certificate material could not be staged.")
+
+    def _intermediate_snapshot(
+        self,
+        stores: tuple[ctypes.c_void_p, ...],
+        server_chain: tuple[bytes, ...],
+    ) -> tuple[bytes, ...]:
+        """Copy only Windows CA and server-intermediate bytes into one bound set."""
+
+        crypt32, _winhttp = self._require_libraries()
+        certificates: dict[str, bytes] = {}
+        total_bytes = 0
+
+        def add(der_bytes: bytes) -> None:
+            nonlocal total_bytes
+            if (
+                type(der_bytes) is not bytes
+                or not 1 <= len(der_bytes) <= _MAX_CERTIFICATE_DER_BYTES
+            ):
+                raise ValueError("Windows intermediate snapshot is invalid.")
+            fingerprint = hashlib.sha256(der_bytes).hexdigest()
+            if fingerprint in certificates:
+                return
+            total_bytes += len(der_bytes)
+            if (
+                len(certificates) >= _MAX_INTERMEDIATE_CERTIFICATES
+                or total_bytes > _MAX_INTERMEDIATE_SNAPSHOT_BYTES
+            ):
+                raise ValueError("Windows intermediate snapshot is too large.")
+            certificates[fingerprint] = der_bytes
+
+        for store in stores:
+            current = ctypes.POINTER(_CertContext)()
+            try:
+                while True:
+                    self._set_last_error(0)
+                    following = crypt32.CertEnumCertificatesInStore(store, current)
+                    current = ctypes.POINTER(_CertContext)()
+                    if not following:
+                        if self._get_last_error() != _CRYPT_E_NOT_FOUND:
+                            raise OSError("Windows certificate enumeration failed.")
+                        break
+                    current = following
+                    add(_copy_certificate(current))
+            finally:
+                if current and not crypt32.CertFreeCertificateContext(current):
+                    raise OSError("Windows certificate cleanup failed.")
+
+        # The leaf is supplied directly and the server terminal may only match
+        # an eligible certificate in the exclusive ROOT snapshot.
+        for certificate in server_chain[1:-1]:
+            add(certificate)
+        return tuple(certificates[key] for key in sorted(certificates))
 
     def _set_option_dword(
         self, handle: ctypes.c_void_p, option: int, value: int
@@ -970,6 +1016,26 @@ class _CtypesWindowsTrustApi:
             raise OSError("Windows TLS chain could not be built.")
         return result
 
+    @staticmethod
+    def _retain_allowed_intermediate_candidates(
+        candidates: tuple[NativeChainCandidate, ...],
+        intermediate_der: tuple[bytes, ...],
+    ) -> tuple[NativeChainCandidate, ...]:
+        """Reject any chain using intermediate DER outside the captured set."""
+
+        allowed = {hashlib.sha256(value).hexdigest() for value in intermediate_der}
+        retained = tuple(
+            candidate
+            for candidate in candidates
+            if all(
+                fingerprint in allowed
+                for fingerprint in candidate.element_fingerprints_sha256[1:-1]
+            )
+        )
+        if not retained:
+            raise TrustPolicyError("chain_unverified")
+        return retained
+
     def capture(
         self, provider: MapProvider, hostname: str
     ) -> NativeWindowsTrustEvidence:
@@ -1008,25 +1074,26 @@ class _CtypesWindowsTrustApi:
                 self._add_der(root_memory, root.der_bytes)
 
             server_chain = self._server_chain(hostname)
-            server_memory = self._open_memory_store(_CERT_STORE_PROV_MEMORY)
-            cleanups.append(_Cleanup(lambda: self._close_store(server_memory)))
-            for certificate in dict.fromkeys(server_chain):
-                self._add_der(server_memory, certificate)
-            intermediate_collection = self._open_memory_store(
-                _CERT_STORE_PROV_COLLECTION
-            )
-            cleanups.append(
-                _Cleanup(lambda: self._close_store(intermediate_collection))
-            )
-            for store in (*ca_stores, server_memory):
-                if not crypt32.CertAddStoreToCollection(
-                    intermediate_collection, store, 0, 0
-                ):
-                    raise OSError("Windows intermediate store could not be assembled.")
+            intermediate_memory = self._open_memory_store(_CERT_STORE_PROV_MEMORY)
+            cleanups.append(_Cleanup(lambda: self._close_store(intermediate_memory)))
+            intermediate_der = self._intermediate_snapshot(ca_stores, server_chain)
+            for certificate in intermediate_der:
+                self._add_der(intermediate_memory, certificate)
 
+            # Windows rejects an arbitrary server-intermediate MEMORY store as
+            # hRestrictedOther because that field must be a restriction of the
+            # system search set. Supply the bounded snapshot as an additional
+            # build store, then reject every resulting candidate unless each
+            # exact intermediate DER belongs to that captured Windows-CA/server
+            # set. Ambient My/Trust certificates therefore cannot authorize a
+            # result, while ``root_memory`` remains the only anchor source.
+            additional_stores = (ctypes.c_void_p * 1)(intermediate_memory)
             config = _CertChainEngineConfig()
             config.size = ctypes.sizeof(_CertChainEngineConfig)
-            config.restricted_other = intermediate_collection
+            config.additional_store_count = 1
+            config.additional_stores = ctypes.cast(
+                additional_stores, ctypes.POINTER(ctypes.c_void_p)
+            )
             config.flags = (
                 _CERT_CHAIN_CACHE_ONLY_URL_RETRIEVAL | _CERT_CHAIN_DISABLE_AIA
             )
@@ -1044,7 +1111,10 @@ class _CtypesWindowsTrustApi:
             cleanups.append(
                 _Cleanup(lambda: crypt32.CertFreeCertificateChainEngine(engine))
             )
-            candidates = self._build_candidates(hostname, server_chain[0], engine)
+            candidates = self._retain_allowed_intermediate_candidates(
+                self._build_candidates(hostname, server_chain[0], engine),
+                intermediate_der,
+            )
             result = NativeWindowsTrustEvidence(
                 provider,
                 hostname,
