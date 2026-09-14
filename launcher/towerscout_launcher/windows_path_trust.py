@@ -30,6 +30,10 @@ _FILE_ATTRIBUTE_RECALL_ON_OPEN = 0x00040000
 _FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x00400000
 _IO_REPARSE_TAG_NAME_SURROGATE = 0x20000000
 _INHERIT_ONLY_ACE = 0x08
+_OBJECT_INHERIT_ACE = 0x01
+_CONTAINER_INHERIT_ACE = 0x02
+_SE_DACL_PROTECTED = 0x1000
+_FILE_ALL_ACCESS = 0x001F01FF
 _Result = TypeVar("_Result")
 
 _ACCESS_ALLOWED_ACE_TYPES = frozenset({0, 5, 9, 11})
@@ -100,6 +104,8 @@ class PathTrustPurpose(str, Enum):
     PROCESS_ENVIRONMENT = "process_environment"
     RUNTIME_INSTALL = "runtime_install"
     PODMAN_IDENTITY_KEY = "podman_identity_key"
+    LOCAL_APP_DATA = "local_app_data"
+    PROTECTED_STATE = "protected_state"
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -131,6 +137,7 @@ class NativeSecurityFacts:
     owner_sid: str = field(repr=False)
     dacl_present: bool
     allowed_aces: tuple[AccessAllowedAce, ...] = field(repr=False)
+    dacl_protected: bool = False
 
     def __post_init__(self) -> None:
         if (
@@ -139,6 +146,7 @@ class NativeSecurityFacts:
             or type(self.allowed_aces) is not tuple
             or len(self.allowed_aces) > _MAX_ACES
             or any(type(ace) is not AccessAllowedAce for ace in self.allowed_aces)
+            or type(self.dacl_protected) is not bool
         ):
             raise ValueError("Windows security descriptor facts are invalid.")
 
@@ -146,6 +154,7 @@ class NativeSecurityFacts:
         return (
             "NativeSecurityFacts("
             f"dacl_present={self.dacl_present}, "
+            f"dacl_protected={self.dacl_protected}, "
             f"allowed_ace_count={len(self.allowed_aces)}, <redacted>)"
         )
 
@@ -326,6 +335,7 @@ def validate_security_facts(
     *,
     current_user_sid: str,
     trusted_root: bool,
+    protected_state_root: bool = False,
 ) -> None:
     """Apply TowerScout's explicit owner and authorized-writer policy."""
 
@@ -342,6 +352,24 @@ def validate_security_facts(
         raise WindowsSecurityError(
             "path_acl_unsafe", "The Windows path access policy is not trusted."
         )
+    if protected_state_root:
+        accepted = {current_user_sid.upper(), _SYSTEM_SID}
+        allowed = security.allowed_aces
+        if (
+            security.owner_sid.upper() not in accepted
+            or not security.dacl_protected
+            or len(allowed) != 2
+            or {ace.principal_sid.upper() for ace in allowed} != accepted
+            or any(
+                ace.access_mask != _FILE_ALL_ACCESS
+                or ace.flags != (_OBJECT_INHERIT_ACE | _CONTAINER_INHERIT_ACE)
+                for ace in allowed
+            )
+        ):
+            raise WindowsSecurityError(
+                "path_acl_unsafe", "The Windows path access policy is not trusted."
+            )
+        return
     forbidden = _ROOT_MUTATION_MASK if trusted_root else _ANCESTOR_RETARGET_MASK
     accepted_writers = _accepted_owner_sids(current_user_sid)
     for ace in security.allowed_aces:
@@ -357,7 +385,9 @@ def validate_security_facts(
             )
 
 
-def _validate_directory_facts(facts: NativeDirectoryFacts) -> None:
+def _validate_directory_facts(
+    facts: NativeDirectoryFacts, *, purpose: PathTrustPurpose
+) -> None:
     if (
         type(facts) is not NativeDirectoryFacts
         or facts.drive_type != 3
@@ -370,6 +400,14 @@ def _validate_directory_facts(facts: NativeDirectoryFacts) -> None:
         )
     if not facts.attributes & _FILE_ATTRIBUTE_REPARSE_POINT:
         return
+    if purpose in {
+        PathTrustPurpose.LOCAL_APP_DATA,
+        PathTrustPurpose.PROTECTED_STATE,
+    }:
+        raise WindowsSecurityError(
+            "path_reparse_unsafe",
+            "The Windows directory has an unsupported reparse state.",
+        )
     hydration_markers = (
         _FILE_ATTRIBUTE_OFFLINE
         | _FILE_ATTRIBUTE_RECALL_ON_OPEN
@@ -435,6 +473,7 @@ def _capture_one(
     *,
     current_user_sid: str,
     trusted_root: bool,
+    purpose: PathTrustPurpose,
 ) -> DirectoryTrustSnapshot:
     try:
         facts = api.query_directory(handle)
@@ -444,11 +483,14 @@ def _capture_one(
             "path_security_unavailable",
             "The Windows directory trust facts could not be inspected.",
         ) from None
-    _validate_directory_facts(facts)
+    _validate_directory_facts(facts, purpose=purpose)
     validate_security_facts(
         security,
         current_user_sid=current_user_sid,
         trusted_root=trusted_root,
+        protected_state_root=(
+            purpose is PathTrustPurpose.PROTECTED_STATE and trusted_root
+        ),
     )
     return DirectoryTrustSnapshot(
         identity=StableFileIdentity(facts.volume_serial, facts.file_id),
@@ -532,6 +574,7 @@ class PathHierarchyTrust:
                     handle,
                     current_user_sid=self._current_user_sid,
                     trusted_root=expected.is_trusted_root,
+                    purpose=self._evidence.purpose,
                 )
                 if current != expected:
                     raise WindowsSecurityError(
@@ -659,6 +702,7 @@ def capture_path_hierarchy(
                     handle,
                     current_user_sid=current_user_sid,
                     trusted_root=index == len(lexical) - 1,
+                    purpose=purpose,
                 )
             )
 
@@ -668,6 +712,7 @@ def capture_path_hierarchy(
             followed,
             current_user_sid=current_user_sid,
             trusted_root=True,
+            purpose=purpose,
         )
         snapshots.append(followed_snapshot)
         resolved = _directory_chain(followed_snapshot.final_path)
@@ -681,6 +726,7 @@ def capture_path_hierarchy(
                     handle,
                     current_user_sid=current_user_sid,
                     trusted_root=index == len(resolved) - 1,
+                    purpose=purpose,
                 )
             )
         if snapshots[-1].identity != followed_snapshot.identity:
@@ -835,6 +881,12 @@ class NativeWindowsPathTrustApi:
             ctypes.POINTER(ctypes.c_void_p),
         )
         advapi32.GetAce.restype = ctypes.c_int
+        advapi32.GetSecurityDescriptorControl.argtypes = (
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_ushort),
+            ctypes.POINTER(ctypes.c_uint32),
+        )
+        advapi32.GetSecurityDescriptorControl.restype = ctypes.c_int
         advapi32.IsValidSid.argtypes = (ctypes.c_void_p,)
         advapi32.IsValidSid.restype = ctypes.c_int
         advapi32.GetLengthSid.argtypes = (ctypes.c_void_p,)
@@ -1043,7 +1095,20 @@ class NativeWindowsPathTrustApi:
                 )
             owner_sid = self._sid_text(owner)
             allowed = self._allowed_aces(dacl) if dacl else ()
-            return NativeSecurityFacts(owner_sid, bool(dacl), allowed)
+            control = ctypes.c_ushort()
+            revision = ctypes.c_uint32()
+            if not advapi32.GetSecurityDescriptorControl(
+                descriptor,
+                ctypes.byref(control),
+                ctypes.byref(revision),
+            ):
+                self._last_error("Native Windows DACL control query failed.")
+            return NativeSecurityFacts(
+                owner_sid,
+                bool(dacl),
+                allowed,
+                dacl_protected=bool(control.value & _SE_DACL_PROTECTED),
+            )
         finally:
             if descriptor:
                 try:

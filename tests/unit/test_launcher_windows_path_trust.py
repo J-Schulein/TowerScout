@@ -22,6 +22,7 @@ from towerscout_launcher.windows_path_trust import (  # noqa: E402
     NativeWindowsPathTrustApi,
     PathTrustPurpose,
     capture_path_hierarchy,
+    validate_security_facts,
 )
 from towerscout_launcher.windows_security import (  # noqa: E402
     KNOWN_CLOUD_REPARSE_TAGS,
@@ -66,6 +67,18 @@ def _safe_security(owner: str = _CURRENT_USER) -> NativeSecurityFacts:
         owner_sid=owner,
         dacl_present=True,
         allowed_aces=(AccessAllowedAce(_CURRENT_USER, 0x001F01FF, 0),),
+    )
+
+
+def _protected_security() -> NativeSecurityFacts:
+    return NativeSecurityFacts(
+        owner_sid=_CURRENT_USER,
+        dacl_present=True,
+        allowed_aces=(
+            AccessAllowedAce(_CURRENT_USER, 0x001F01FF, 0x03),
+            AccessAllowedAce(_SYSTEM, 0x001F01FF, 0x03),
+        ),
+        dacl_protected=True,
     )
 
 
@@ -400,6 +413,75 @@ def test_inherited_read_and_inherit_only_write_do_not_reject_current_object() ->
         _SECRET, purpose=PathTrustPurpose.PACKAGE_ROOT, api=api
     ) as trust:
         assert trust.assert_unchanged() == trust.evidence
+
+
+def test_protected_state_accepts_only_the_exact_protected_dacl() -> None:
+    validate_security_facts(
+        _protected_security(),
+        current_user_sid=_CURRENT_USER,
+        trusted_root=True,
+        protected_state_root=True,
+    )
+
+
+@pytest.mark.parametrize(
+    "security",
+    (
+        replace(_protected_security(), dacl_protected=False),
+        replace(
+            _protected_security(),
+            allowed_aces=_protected_security().allowed_aces
+            + (AccessAllowedAce("S-1-5-4", 0x001F01FF, 0x0B),),
+        ),
+        replace(
+            _protected_security(),
+            allowed_aces=(
+                AccessAllowedAce(_CURRENT_USER, 0x001F01FF, 0x03),
+                AccessAllowedAce(_SYSTEM, 0x001F01FF, 0x0B),
+            ),
+        ),
+        replace(
+            _protected_security(),
+            allowed_aces=(
+                AccessAllowedAce(_CURRENT_USER, 0x001F01BF, 0x03),
+                AccessAllowedAce(_SYSTEM, 0x001F01FF, 0x03),
+            ),
+        ),
+    ),
+)
+def test_protected_state_rejects_nonexact_or_inheritable_extra_grants(
+    security: NativeSecurityFacts,
+) -> None:
+    with pytest.raises(WindowsSecurityError) as exc_info:
+        validate_security_facts(
+            security,
+            current_user_sid=_CURRENT_USER,
+            trusted_root=True,
+            protected_state_root=True,
+        )
+
+    assert exc_info.value.category == "path_acl_unsafe"
+
+
+def test_local_app_data_route_rejects_even_known_cloud_reparse_points() -> None:
+    api = _FakePathTrustApi()
+    api.next_facts = [
+        _directory_facts(
+            "C:\\",
+            attributes=0x410,
+            reparse_tag=min(KNOWN_CLOUD_REPARSE_TAGS),
+        )
+    ]
+
+    with pytest.raises(WindowsSecurityError) as exc_info:
+        capture_path_hierarchy(
+            _SECRET,
+            purpose=PathTrustPurpose.LOCAL_APP_DATA,
+            api=api,
+        )
+
+    assert exc_info.value.category == "path_reparse_unsafe"
+    assert len(api.closed) == len(api.opened) == 1
 
 
 def test_security_or_identity_drift_fails_closed_and_repr_is_redacted() -> None:
