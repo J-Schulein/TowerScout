@@ -1,16 +1,18 @@
-"""Native Windows persistence for immutable recovery-journal generations.
+"""Native Windows persistence for recovery-journal generations and pointers.
 
-This adapter implements only bounded enumeration and protected generation-file
-create/read operations. Pointer replacement, cleanup, recovery, package-file
+This adapter implements bounded protected generation-file persistence and
+same-volume metadata-pointer replacement. Cleanup, recovery, package-file
 promotion, and runtime mutation remain outside this module.
 """
 
 from __future__ import annotations
 
+import ctypes
 import ntpath
 import os
 import re
-from typing import Callable, NoReturn, Protocol, TypeVar
+import secrets
+from typing import Any, Callable, NoReturn, Protocol, TypeVar
 
 from .windows_environment_replacement_native import (
     NativeWindowsEnvironmentReplacementApi,
@@ -20,11 +22,13 @@ from .windows_recovery_journal_storage import (
     RecoveryJournalStorageError,
     RecoveryJournalStorageErrorCode,
     StoredJournalGenerationFile,
+    StoredJournalPointerFile,
 )
-from .windows_security import NativeFileFacts, StableFileIdentity
+from .windows_security import NativeFileFacts, NativeWindowsFileApi, StableFileIdentity
 
 _MAX_PATH_CHARACTERS = 32_768
 _MAX_PROTECTED_GENERATION_BYTES = 4 * 1024 * 1024
+_MAX_POINTER_BYTES = 1_024
 _MAX_ROOT_ENTRIES = 256
 _HASH_CHUNK_BYTES = 65_536
 _FILE_ATTRIBUTE_DIRECTORY = 0x00000010
@@ -33,16 +37,18 @@ _FILE_ALL_ACCESS = 0x001F01FF
 _SYSTEM_SID = "S-1-5-18"
 _SID = re.compile(r"^S-(?:[0-9]+-){1,14}[0-9]+$", re.IGNORECASE)
 _GENERATION_NAME = re.compile(r"^journal-[0-9a-f]{32}-[0-9]{20}\.generation$")
+_POINTER_NAME = re.compile(r"^journal-[0-9a-f]{32}\.pointer$")
+_POINTER_TEMP_NAME = re.compile(r"^\.journal-pointer-[0-9a-f]{32}\.tmp$")
+_MOVEFILE_REPLACE_EXISTING = 0x00000001
+_MOVEFILE_WRITE_THROUGH = 0x00000008
 _Result = TypeVar("_Result")
 
 
-class _WindowsJournalGenerationApi(Protocol):
+class _WindowsJournalFileApi(Protocol):
     @property
     def supported(self) -> bool: ...
 
     def current_user_sid(self) -> str: ...
-
-    def list_names(self, root_path: str, maximum: int) -> tuple[str, ...]: ...
 
     def create_new_restricted_file(self, path: str, *, owner_sid: str) -> object: ...
 
@@ -61,6 +67,24 @@ class _WindowsJournalGenerationApi(Protocol):
     def read_file(self, handle: object, maximum: int) -> bytes: ...
 
     def close_handle(self, handle: object) -> None: ...
+
+
+class _WindowsJournalGenerationApi(_WindowsJournalFileApi, Protocol):
+    def list_names(self, root_path: str, maximum: int) -> tuple[str, ...]: ...
+
+
+class _WindowsJournalPointerApi(_WindowsJournalFileApi, Protocol):
+    def reopen_file_if_exists(self, path: str) -> object | None: ...
+
+    def move_file_replace_write_through(
+        self,
+        source_path: str,
+        destination_path: str,
+    ) -> None: ...
+
+
+class JournalPointerTempNameSource(Protocol):
+    def new_pointer_temp_name(self) -> str: ...
 
 
 class NativeWindowsJournalGenerationApi:
@@ -125,6 +149,87 @@ class NativeWindowsJournalGenerationApi:
         self._files.close_handle(handle)
 
 
+class NativeWindowsJournalPointerApi(NativeWindowsJournalGenerationApi):
+    """Protected-file operations plus exact write-through pointer replacement."""
+
+    __slots__ = ("_kernel32", "_pointer_file_api")
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._kernel32: Any | None = None
+        self._pointer_file_api: NativeWindowsFileApi | None = None
+        loader = getattr(ctypes, "WinDLL", None)
+        if os.name != "nt" or loader is None:
+            return
+        try:
+            self._pointer_file_api = NativeWindowsFileApi()
+            self._kernel32 = loader("kernel32", use_last_error=True)
+            self._bind_pointer_move()
+        except (AttributeError, OSError, TypeError, ValueError):
+            self._kernel32 = None
+            self._pointer_file_api = None
+
+    @property
+    def supported(self) -> bool:
+        return (
+            super().supported
+            and self._kernel32 is not None
+            and self._pointer_file_api is not None
+            and self._pointer_file_api.supported
+        )
+
+    def _require_pointer_api(self) -> tuple[Any, NativeWindowsFileApi]:
+        if self._kernel32 is None or self._pointer_file_api is None:
+            raise OSError("Native Windows journal pointer storage is unavailable.")
+        return self._kernel32, self._pointer_file_api
+
+    def _bind_pointer_move(self) -> None:
+        kernel32, _file_api = self._require_pointer_api()
+        kernel32.MoveFileExW.argtypes = (
+            ctypes.c_wchar_p,
+            ctypes.c_wchar_p,
+            ctypes.c_uint32,
+        )
+        kernel32.MoveFileExW.restype = ctypes.c_int
+
+    def reopen_file_if_exists(self, path: str) -> object | None:
+        _kernel32, file_api = self._require_pointer_api()
+        return file_api.open_file_if_exists(path)
+
+    def move_file_replace_write_through(
+        self,
+        source_path: str,
+        destination_path: str,
+    ) -> None:
+        if (
+            type(source_path) is not str
+            or not source_path
+            or "\x00" in source_path
+            or len(source_path) > _MAX_PATH_CHARACTERS
+            or type(destination_path) is not str
+            or not destination_path
+            or "\x00" in destination_path
+            or len(destination_path) > _MAX_PATH_CHARACTERS
+        ):
+            raise ValueError("Native Windows journal pointer move is invalid.")
+        kernel32, _file_api = self._require_pointer_api()
+        ctypes.set_last_error(0)
+        if not kernel32.MoveFileExW(
+            source_path,
+            destination_path,
+            _MOVEFILE_REPLACE_EXISTING | _MOVEFILE_WRITE_THROUGH,
+        ):
+            raise OSError(
+                ctypes.get_last_error(),
+                "Native Windows journal pointer move failed.",
+            )
+
+
+class NativeJournalPointerTempNameSource:
+    def new_pointer_temp_name(self) -> str:
+        return f".journal-pointer-{secrets.token_hex(16)}.tmp"
+
+
 def _fail(code: RecoveryJournalStorageErrorCode) -> NoReturn:
     raise RecoveryJournalStorageError(code)
 
@@ -141,7 +246,7 @@ def _call(
         _fail(code)
 
 
-def _safe_close(api: _WindowsJournalGenerationApi, handle: object) -> None:
+def _safe_close(api: _WindowsJournalFileApi, handle: object) -> None:
     try:
         api.close_handle(handle)
     except BaseException:
@@ -180,8 +285,32 @@ def _generation_path(root_path: str, name: str) -> str:
     return path
 
 
+def _pointer_path(root_path: str, name: str) -> str:
+    _validate_root_path(root_path)
+    if type(name) is not str or _POINTER_NAME.fullmatch(name) is None:
+        _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+    path = ntpath.join(root_path, name)
+    if len(path) > _MAX_PATH_CHARACTERS or _path_key(ntpath.dirname(path)) != _path_key(
+        root_path
+    ):
+        _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+    return path
+
+
+def _pointer_temp_path(root_path: str, name: object) -> str:
+    _validate_root_path(root_path)
+    if type(name) is not str or _POINTER_TEMP_NAME.fullmatch(name) is None:
+        _fail(RecoveryJournalStorageErrorCode.WRITE_FAILED)
+    path = ntpath.join(root_path, name)
+    if len(path) > _MAX_PATH_CHARACTERS or _path_key(ntpath.dirname(path)) != _path_key(
+        root_path
+    ):
+        _fail(RecoveryJournalStorageErrorCode.WRITE_FAILED)
+    return path
+
+
 def _current_user_sid(
-    api: _WindowsJournalGenerationApi,
+    api: _WindowsJournalFileApi,
     code: RecoveryJournalStorageErrorCode,
 ) -> str:
     sid = _call(api.current_user_sid, code)
@@ -250,7 +379,7 @@ def _validate_file(
 
 
 def _write_all(
-    api: _WindowsJournalGenerationApi,
+    api: _WindowsJournalFileApi,
     handle: object,
     contents: bytes,
 ) -> None:
@@ -266,7 +395,7 @@ def _write_all(
 
 
 def _read_exact(
-    api: _WindowsJournalGenerationApi,
+    api: _WindowsJournalFileApi,
     handle: object,
     expected_size: int,
     code: RecoveryJournalStorageErrorCode,
@@ -283,6 +412,46 @@ def _read_exact(
         chunks.append(chunk)
         remaining -= len(chunk)
     return b"".join(chunks)
+
+
+def _read_verified_pointer(
+    api: _WindowsJournalPointerApi,
+    handle: object,
+    *,
+    path: str,
+    current_user_sid: str,
+    expected_size: int | None,
+    expected_identity: StableFileIdentity | None,
+    code: RecoveryJournalStorageErrorCode,
+) -> StoredJournalPointerFile:
+    identity, size = _validate_file(
+        _call(lambda: api.query_file(handle), code),
+        expected_path=path,
+        maximum_size=_MAX_POINTER_BYTES,
+        expected_size=expected_size,
+        expected_identity=expected_identity,
+        code=code,
+    )
+    _validate_security(
+        _call(lambda: api.query_security(handle), code),
+        current_user_sid,
+        code,
+    )
+    contents = _read_exact(api, handle, size, code)
+    _validate_file(
+        _call(lambda: api.query_file(handle), code),
+        expected_path=path,
+        maximum_size=_MAX_POINTER_BYTES,
+        expected_size=size,
+        expected_identity=identity,
+        code=code,
+    )
+    _validate_security(
+        _call(lambda: api.query_security(handle), code),
+        current_user_sid,
+        code,
+    )
+    return StoredJournalPointerFile(identity, contents)
 
 
 class NativeWindowsJournalGenerationStorage:
@@ -537,7 +706,227 @@ class NativeWindowsJournalGenerationStorage:
         return StoredJournalGenerationFile(identity, reopened_contents)
 
 
+class NativeWindowsJournalPointerStorage:
+    """Native protected-file implementation of the pointer storage port."""
+
+    __slots__ = ("_api", "_name_source")
+
+    def __init__(
+        self,
+        *,
+        api: _WindowsJournalPointerApi | None = None,
+        name_source: JournalPointerTempNameSource | None = None,
+    ) -> None:
+        self._api = NativeWindowsJournalPointerApi() if api is None else api
+        self._name_source = (
+            NativeJournalPointerTempNameSource() if name_source is None else name_source
+        )
+
+    def __repr__(self) -> str:
+        return "NativeWindowsJournalPointerStorage(<redacted>)"
+
+    def _require_supported(self) -> None:
+        supported = _call(
+            lambda: self._api.supported,
+            RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE)
+
+    def read_pointer(
+        self,
+        root_path: str,
+        name: str,
+        maximum: int,
+    ) -> StoredJournalPointerFile | None:
+        self._require_supported()
+        if type(maximum) is not int or not 1 <= maximum <= _MAX_POINTER_BYTES:
+            _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+        path = _pointer_path(root_path, name)
+        current_user_sid = _current_user_sid(
+            self._api,
+            RecoveryJournalStorageErrorCode.STORAGE_INVALID,
+        )
+        handle = _call(
+            lambda: self._api.reopen_file_if_exists(path),
+            RecoveryJournalStorageErrorCode.STORAGE_INVALID,
+        )
+        if handle is None:
+            return None
+        held: object | None = handle
+        try:
+            stored = _read_verified_pointer(
+                self._api,
+                handle,
+                path=path,
+                current_user_sid=current_user_sid,
+                expected_size=None,
+                expected_identity=None,
+                code=RecoveryJournalStorageErrorCode.STORAGE_INVALID,
+            )
+            _call(
+                lambda: self._api.close_handle(handle),
+                RecoveryJournalStorageErrorCode.STORAGE_INVALID,
+            )
+            held = None
+        finally:
+            if held is not None:
+                _safe_close(self._api, held)
+        return stored
+
+    def replace_pointer(
+        self,
+        root_path: str,
+        name: str,
+        contents: bytes,
+    ) -> StoredJournalPointerFile:
+        self._require_supported()
+        if type(contents) is not bytes or not 1 <= len(contents) <= _MAX_POINTER_BYTES:
+            _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+        destination_path = _pointer_path(root_path, name)
+        temp_name = _call(
+            self._name_source.new_pointer_temp_name,
+            RecoveryJournalStorageErrorCode.WRITE_FAILED,
+        )
+        temp_path = _pointer_temp_path(root_path, temp_name)
+        current_user_sid = _current_user_sid(
+            self._api,
+            RecoveryJournalStorageErrorCode.WRITE_FAILED,
+        )
+        handle = _call(
+            lambda: self._api.create_new_restricted_file(
+                temp_path,
+                owner_sid=current_user_sid,
+            ),
+            RecoveryJournalStorageErrorCode.WRITE_FAILED,
+        )
+        if handle is None:
+            _fail(RecoveryJournalStorageErrorCode.WRITE_FAILED)
+        created_handle: object | None = handle
+        temp_identity: StableFileIdentity
+        try:
+            temp_identity, _size = _validate_file(
+                _call(
+                    lambda: self._api.query_file(handle),
+                    RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+                ),
+                expected_path=temp_path,
+                maximum_size=_MAX_POINTER_BYTES,
+                expected_size=0,
+                expected_identity=None,
+                code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            )
+            _validate_security(
+                _call(
+                    lambda: self._api.query_security(handle),
+                    RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+                ),
+                current_user_sid,
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            )
+            _write_all(self._api, handle, contents)
+            _call(
+                lambda: self._api.flush_file(handle),
+                RecoveryJournalStorageErrorCode.WRITE_FAILED,
+            )
+            same_handle = _read_verified_pointer(
+                self._api,
+                handle,
+                path=temp_path,
+                current_user_sid=current_user_sid,
+                expected_size=len(contents),
+                expected_identity=temp_identity,
+                code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            )
+            if same_handle.contents != contents:
+                _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+            _call(
+                lambda: self._api.close_handle(handle),
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            )
+            created_handle = None
+        finally:
+            if created_handle is not None:
+                _safe_close(self._api, created_handle)
+
+        reopened = _call(
+            lambda: self._api.reopen_file_for_verification(temp_path),
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        if reopened is None:
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        reopened_handle: object | None = reopened
+        try:
+            reopened_pointer = _read_verified_pointer(
+                self._api,
+                reopened,
+                path=temp_path,
+                current_user_sid=current_user_sid,
+                expected_size=len(contents),
+                expected_identity=temp_identity,
+                code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            )
+            if reopened_pointer.contents != contents:
+                _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+            _call(
+                lambda: self._api.close_handle(reopened),
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            )
+            reopened_handle = None
+        finally:
+            if reopened_handle is not None:
+                _safe_close(self._api, reopened_handle)
+
+        _call(
+            lambda: self._api.move_file_replace_write_through(
+                temp_path,
+                destination_path,
+            ),
+            RecoveryJournalStorageErrorCode.WRITE_FAILED,
+        )
+        unexpected_temp = _call(
+            lambda: self._api.reopen_file_if_exists(temp_path),
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        if unexpected_temp is not None:
+            _safe_close(self._api, unexpected_temp)
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+
+        destination = _call(
+            lambda: self._api.reopen_file_for_verification(destination_path),
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        if destination is None:
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        destination_handle: object | None = destination
+        try:
+            stored = _read_verified_pointer(
+                self._api,
+                destination,
+                path=destination_path,
+                current_user_sid=current_user_sid,
+                expected_size=len(contents),
+                expected_identity=temp_identity,
+                code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            )
+            if stored.contents != contents:
+                _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+            _call(
+                lambda: self._api.close_handle(destination),
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            )
+            destination_handle = None
+        finally:
+            if destination_handle is not None:
+                _safe_close(self._api, destination_handle)
+        return stored
+
+
 __all__ = [
+    "JournalPointerTempNameSource",
+    "NativeJournalPointerTempNameSource",
     "NativeWindowsJournalGenerationApi",
     "NativeWindowsJournalGenerationStorage",
+    "NativeWindowsJournalPointerApi",
+    "NativeWindowsJournalPointerStorage",
 ]

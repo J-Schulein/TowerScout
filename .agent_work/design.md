@@ -357,17 +357,28 @@ findings. This checkpoint still does not write or repair the metadata pointer,
 recover, clean artifacts, wire staging/promotion, replace `.env`, or enable
 runtime mutation.
 
-A local pure-orchestration candidate adds a separate pointer storage port and
-keeps metadata pointer bytes subordinate to the authenticated generation chain.
+Independently reviewed and exact-head validated checkpoint `221612c` adds a
+separate pointer storage port and keeps metadata pointer bytes subordinate to
+the authenticated generation chain.
 Present-invalid, foreign, unknown, and pointer-without-generation states fail
 closed; current pointers are no-ops; only missing or stale pointers may be
 repaired. The synthesized tip pointer is proved `CURRENT` before the injected
 write, then pointer and generations are reread under the same retained-root
 callback and must reproduce the exact chain, file identity, bytes, and
-`CURRENT` disposition. Native pointer-file creation/DACL checks,
-`MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`, indeterminate rename
-classification, cleanup, backup/recovery action, staging/promotion, `.env`
-replacement, and runtime mutation remain unimplemented.
+`CURRENT` disposition.
+
+A local native-adapter candidate implements bounded no-follow pointer reads and
+same-directory `.journal-pointer-<32hex>.tmp` `CREATE_NEW` staging with the
+current-user/SYSTEM protected DACL. It completes bounded writes, flushes,
+verifies the temp on the creation handle and a no-follow reopen, closes both
+handles before calling `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`, proves
+the source name absent after reported success, and verifies the destination has
+the moved temp identity plus exact path, local-volume, regular-file,
+single-link, DACL, size, and bytes. A move API error remains an indeterminate
+`WRITE_FAILED` with the protected temp retained for later reconciliation.
+Same-call error-result classification, cleanup, backup/recovery action,
+staging/promotion integration, `.env` replacement, and runtime mutation remain
+unimplemented.
 
 ## Exit/Stop Design Boundary
 

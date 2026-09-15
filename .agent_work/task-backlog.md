@@ -26,18 +26,21 @@ It adds the private journal-gated native candidate-temp prerequisite; durable
 journal storage and native ACL-preserving promotion/replacement remain open.
 Documentation checkpoint `42180b1` also passed its exact-head CI/CD, Task-087,
 and Trivy gates. Independently reviewed implementation checkpoints `8bb6b33`
-and `53bed46` are exact-head validated. Implementation checkpoint `4a96dd2` is
-exact-head validated. Documentation checkpoint `050dc5c` is the latest
-validated branch head: CI/CD run `35018010005`, Task-087 run `35018010006`, and
-Trivy passed; the main-only build was neutral as designed. A local source
-candidate adds protected-root-owned pure metadata-pointer load, strict
-classification, and idempotent missing/stale repair orchestration through an
-injected port. It does not implement native pointer file I/O, `MoveFileExW`,
-indeterminate rename classification, cleanup, backup/recovery action, staging
-integration, promotion, `.env` replacement, or runtime mutation. Focused,
-adjacent, and late-launcher tests pass `19/19`, `192/192`, and `195/195`; initial
-independent source/security review returned `CLEAN/PASS`. PR #67 stays Draft and
-Gate A source remediation/re-review precedes preview integration.
+and `53bed46` are exact-head validated. Implementation checkpoints `4a96dd2`
+and `221612c` are independently reviewed and exact-head validated. The latter
+passed CI/CD run `35019327044`, Task-087 run `35019327058`, and Trivy; the
+main-only build was neutral as designed. It adds protected-root-owned pure
+metadata-pointer load, strict classification, and idempotent missing/stale
+repair orchestration through an injected port. A local source candidate adds
+native pointer reads and same-directory protected temp creation, complete
+write/flush/dual verification, close-before-rename
+`MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`, source-name absence proof, and
+exact destination verification. It does not implement same-call classification
+after a move API error, cleanup, backup/recovery action, staging integration,
+promotion, `.env` replacement, or runtime mutation. Focused, adjacent, and
+late-launcher tests pass `32/32`, `206/206`, and `209/209`; initial independent
+source/security review returned `CLEAN/PASS`. PR #67 stays Draft and Gate A
+source remediation/re-review precedes preview integration.
 Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
 

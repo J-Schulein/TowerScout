@@ -18,16 +18,17 @@ reviewed checkpoint `1c45445df82e` adds private journal-gated restrictive native
 candidate-temp staging. Independently reviewed checkpoint `8bb6b33` adds pure
 current-user-DPAPI generation/pointer codecs and fail-closed environment-temp
 chain selection. Independently reviewed checkpoint `53bed469a8a2` adds
-  protected-root-owned pure generation persistence/enumeration orchestration over
-  an injected storage port. Independently reviewed and pushed checkpoint
-  `4a96dd2e81aa` adds native protected-DACL generation enumeration/create/read and
-  is exact-head validated. Documentation checkpoint `050dc5c` is the latest
-  validated exact branch head: CI/CD run `35018010005`, Task-087 run
-  `35018010006`, and Trivy passed; the main-only build was neutral as designed. A
-  local source candidate adds pure metadata-pointer load, strict classification,
-  and missing/stale repair orchestration through an injected storage port. Native
-  pointer I/O and replacement, backup/recovery action, cleanup, staging
-  integration, promotion/replacement, and runtime mutation remain open.
+protected-root-owned pure generation persistence/enumeration orchestration over
+an injected storage port. Independently reviewed checkpoint `4a96dd2e81aa` adds
+native protected-DACL generation enumeration/create/read. Independently reviewed
+and exact-head validated checkpoint `221612c2228` adds pure metadata-pointer
+load, strict classification, and missing/stale repair orchestration through an
+injected storage port; CI/CD run `35019327044`, Task-087 run `35019327058`, and
+Trivy passed, while the main-only build was neutral as designed. A local source
+candidate adds native protected pointer reads and write-through replacement.
+Same-call classification after a move API error, backup/recovery action,
+cleanup, staging integration, promotion/replacement, and runtime mutation remain
+open.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1376,7 +1377,60 @@ Exit criteria:
 
 ## Implementation Log
 
-### 2026-09-15 - Pure Journal Pointer Orchestration Candidate
+### 2026-09-15 - Native Journal Pointer Adapter Candidate
+
+**Objective**: Implement the native Windows pointer storage port beneath the
+reviewed pure pointer policy without wiring recovery actions or runtime
+mutation.
+
+**Context**: Independently reviewed checkpoint `221612c` supplies pointer-aware
+load, strict classification, and idempotent missing/stale repair through an
+injected port. That checkpoint passed exact-head CI/CD run `35019327044`,
+Task-087 run `35019327058`, and Trivy. The remaining dependency was a native
+adapter that makes a successful pointer replacement durable and verifiable.
+
+**Decision**: Keep pointer persistence in the recovery-journal native module.
+Use a same-directory unpredictable `CREATE_NEW` temp with the existing exact
+current-user/SYSTEM protected DACL, close every temp handle before rename, call
+only `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`, and verify the destination
+by the moved temp's stable identity and exact security/path/size/bytes.
+
+**Execution**: Added a pointer-specific native API and storage adapter. Missing
+reads use the no-follow `FILE_NOT_FOUND`/`PATH_NOT_FOUND` distinction. Replace
+performs bounded complete writes, `FlushFileBuffers`, same-handle and no-follow
+reopen verification, close-before-rename, source-name absence proof after
+reported success, and no-follow destination verification. Native/API failures
+are sanitized while process-control exceptions propagate.
+
+**Output**: The local candidate implements the success-path native pointer
+contract and leaves a protected temp in place when `MoveFileExW` reports an
+error. It does not classify that indeterminate API-error result in the same
+call, delete an orphan, create an exact-state backup, execute recovery, connect
+staging/promotion, replace `.env`, stop/restart a runtime, or enable mutation.
+
+**Validation**: The focused native suite passes `32/32`, including a real
+Windows missing/create/replace/reread round trip and exact `0x9` move-flag proof.
+The adjacent recovery ring passes `206/206`; the isolated late-launcher ring
+passes `209/209`. Black, strict mypy, blocking Flake8, Bandit, and compilation
+pass. Adversarial coverage includes moved identity/bytes/path/DACL drift, source
+name persistence after reported success, post-read DACL drift, close failure
+before move, sanitized move failure with retained temp, bad names/oversize, and
+process-control propagation.
+
+**Independent Review**: Source/security/test review returned `CLEAN/PASS` with
+no actionable Low-or-higher findings and confirmed exact flags, missing-only
+absence, path containment, handle lifecycle, identity/DACL/byte verification,
+sanitization, and scope boundaries.
+
+**Boundary**: Slices 5 and 6 remain `PARTIAL`. PR #67 remains Draft, mutation
+remains disabled, Task-086 remains the supported fallback, and Gate B/Task-100
+remain separate.
+
+**Next**: Add explicit indeterminate move-result reconciliation and exact
+journal-bound pointer-temp cleanup before encrypted backup and recovery-state
+work. Do not wire staging, promotion, `.env` replacement, or runtime mutation.
+
+### 2026-09-15 - Pure Journal Pointer Orchestration Checkpointed
 
 **Objective**: Add the smallest pointer-aware load and repair layer above the
 authenticated generation chain without implementing native pointer-file I/O or
@@ -1403,7 +1457,7 @@ requires an unchanged chain, matching identity/bytes, and `CURRENT`
 classification. Current pointers are no-ops. Dependency failures are sanitized;
 process-control exceptions propagate.
 
-**Output**: The local candidate defines pure protected-root-owned pointer policy
+**Output**: Checkpoint `221612c` defines pure protected-root-owned pointer policy
 and repair orchestration only. It does not create a native pointer temp, enforce
 a pointer-file DACL, flush or close a native temp, invoke `MoveFileExW`, classify
 an indeterminate rename result, clean an orphan, execute backup/recovery,
@@ -1416,13 +1470,17 @@ Coverage includes missing/current/stale pointers; corrupt, foreign, unknown, and
 pointer-without-chain failures; wrong returned/persisted bytes; returned-identity
 drift; dependency-error sanitization; and process-control propagation.
 
-**Independent Review**: Initial source/security review returned `CLEAN/PASS`
-with no actionable Low-or-higher findings and suggested the added identity-drift
-and pointer-read sanitization regressions.
+**Independent Review**: Initial and final exact-diff source/security reviews
+returned `CLEAN/PASS` with no actionable Low-or-higher findings. The initial
+review suggested the added identity-drift and pointer-read sanitization
+regressions.
 
 **Boundary**: Slices 5 and 6 remain `PARTIAL`. PR #67 remains Draft, mutation
 remains disabled, Task-086 remains the supported fallback, and Gate B/Task-100
 remain separate.
+
+**Exact-Head Validation**: CI/CD run `35019327044`, Task-087 run `35019327058`,
+and Trivy passed at `221612c`; the main-only build was neutral as designed.
 
 **Next**: Implement the native same-directory pointer temp/create/DACL/write/
 flush/reopen/close-before-rename adapter, `MoveFileExW(REPLACE_EXISTING |
