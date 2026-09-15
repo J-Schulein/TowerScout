@@ -19,11 +19,13 @@ DPAPI foundation is now independently reviewed with focused/native proof.
 Secure `.env` absence ownership is independently reviewed and checkpointed.
 The pure, unwired `.env` byte-transform/state-classification prerequisite for
 atomic replacement is committed, independently reviewed, and exact-head
-validated; native ACL-preserving replacement, durable recovery,
+validated. Documentation head `2996df167116` then passed CI/CD run
+`35002372195`, Task-087 run `35002372219`, and Trivy; the main-only build
+skipped as designed. A local source candidate now adds private, journal-gated,
+same-directory native candidate staging with restrictive ACL, identity,
+flush/readback, and no-follow reopen verification. Durable journal storage,
+native promotion/replacement, indeterminate-result classification, recovery,
 transaction refactoring, provider-installer completion, and final proof remain.
-Implementation checkpoint `0efeff75f63e` is the latest validated exact branch
-head and passed CI/CD run `34999494411`, Task-087 run `34999494398`, and Trivy;
-the main-only build skipped as designed.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -44,11 +46,12 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `0efeff75f63e` is independently reviewed
-  and is the latest validated exact branch head: CI/CD run `34999494411`,
-  Task-087 run `34999494398`, and Trivy passed; the main-only build skipped as
-  designed. It commits the pure `.env` replacement plan without adding file
-  mutation.
+- Task-087 implementation checkpoint `0efeff75f63e` is independently reviewed.
+  Documentation head `2996df167116` is the latest validated exact branch head:
+  CI/CD run `35002372195`, Task-087 run `35002372219`, and Trivy passed; the
+  main-only build skipped as designed. A local source candidate builds the
+  journal-gated restrictive temp-staging prerequisite, but does not promote a
+  candidate, replace `.env`, or wire repair mutation.
   PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
@@ -176,10 +179,12 @@ Earlier Docker/rootless-Podman checks prove transport containment only. Slices
 5 and 8 are partial; slice 5's protected Local AppData/current-user DPAPI
 foundation and secure-absence owner are independently reviewed and
 checkpointed. Its pure `.env` byte-transform/state-classification prerequisite
-is committed, independently reviewed, and exact-head validated. Native
-ACL-preserving atomic `.env` replacement remains open. Slices 6-7 are not
-started; slice 9 continues incrementally. Mutation is disabled and PR #67
-remains Draft.
+is committed, independently reviewed, and exact-head validated. A local source
+candidate adds private journal-gated restrictive temp staging with native
+Windows DACL, identity, complete-write, flush/readback, and no-follow reopen
+proof. Durable journal storage, native promotion/replacement, indeterminate-
+result classification, and cleanup remain open. Slices 6-7 are not started;
+slice 9 continues incrementally. Mutation is disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Remaining Estimate**: Complete slice 4's revocation-aware fixed-host and

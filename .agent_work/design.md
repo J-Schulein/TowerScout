@@ -298,13 +298,19 @@ unwired prerequisite is committed, independently reviewed, and exact-head
 validated at `0efeff7`:
 strict bounded UTF-8/BOM/NUL validation, exact two-setting byte transformation,
 newline/trailing-form preservation, immutable original/candidate hashes, and
-exact original/candidate/absent/third-state classification. Native same-
-directory ACL-preserving replacement and its indeterminate-result handling
-remain open. Implementation checkpoint `0efeff7` is the latest validated exact
-branch head: CI/CD run `34999494411`, Task-087 run `34999494398`, and Trivy
-passed. Mutation remains
-disabled, PR #67 remains Draft, and the detailed current state and remaining
-outcome sequence are maintained in the
+exact original/candidate/absent/third-state classification. Documentation head
+`2996df1` is the latest validated exact branch head: CI/CD run `35002372195`,
+Task-087 run `35002372219`, and Trivy passed. A local source candidate adds an
+unwired journal port and private native temp-staging boundary. It holds package-
+root trust while a durable planned receipt precedes restrictive same-directory
+`CREATE_NEW`; verifies zero-byte identity and exact current-user/SYSTEM DACL
+before requiring the created receipt; completes bounded writes and
+`FlushFileBuffers`; then verifies same-handle bytes and a no-follow reopened
+identity, DACL, and hash before accepting the verified receipt. No production
+durable journal provider, promotion, replacement, deletion, cleanup, recovery,
+or repair integration exists yet. Mutation remains disabled, PR #67 remains
+Draft, and the detailed current state and remaining outcome sequence are
+maintained in the
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md).
 
 ## Exit/Stop Design Boundary

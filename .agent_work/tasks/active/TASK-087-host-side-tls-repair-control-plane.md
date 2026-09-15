@@ -12,14 +12,18 @@ DPAPI foundation is independently reviewed with native/focused proof, while
 secure absence ownership is locally implemented and validated with independent
 review and exact-head checks clean at checkpoint `14b77e4`. The pure `.env`
 byte-transform/state-classification prerequisite is committed, independently
-reviewed, and exact-head validated at `0efeff7`; native ACL-preserving atomic
-replacement remains;
+reviewed, and exact-head validated at `0efeff7`. Documentation head `2996df1`
+then passed its exact-head CI/CD, Task-087, and Trivy gates. A local source
+candidate adds private journal-gated restrictive native candidate-temp staging;
+durable journal storage and native ACL-preserving promotion/replacement remain;
 durable recovery, transaction refactoring, and the final Gate A proof remain
 open. Independently reviewed implementation checkpoint `0efeff75f63e` adds the
 pure replacement planner on the secure-absence/protected-state/DPAPI
 foundation and is the latest validated exact branch head: CI/CD run
 `34999494411`, Task-087 run `34999494398`, and Trivy passed, with the main-only
-build skipped as designed.
+build skipped as designed. Documentation head `2996df167116` is the latest
+validated exact branch head: CI/CD run `35002372195`, Task-087 run
+`35002372219`, and Trivy passed; the main-only build skipped as designed.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1367,6 +1371,66 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-15 - Journal-Gated Native Environment Temp Staging Implemented Locally
+
+**Objective**: Add the smallest native candidate-file prerequisite for safe
+package `.env` replacement without implementing destination promotion,
+deletion, recovery, transaction wiring, or repair activation.
+
+**Context**: The pure replacement planner is exact-head validated at
+`0efeff7`, and documentation head `2996df1` passed CI/CD run `35002372195`,
+Task-087 run `35002372219`, and Trivy. The approved design requires a durable
+planned-name/hash/parent receipt before `CREATE_NEW`, a durable zero-byte file-
+identity/DACL receipt before writing, and a durable verified receipt only after
+flush, readback, close, and no-follow reopen verification. Slice 6 has not yet
+implemented the durable journal provider.
+
+**Decision**: Keep orchestration private and dependency-injected. Require a
+journal port to return an exact matching receipt before each next side effect;
+retain package-root trust through the whole operation; leave the temporary file
+in place for future authenticated reconciliation after any post-create failure.
+Expose native primitives and redacted immutable records, but no production
+entry point that can stage or promote a candidate without durable receipts.
+
+**Execution**: Added `windows_environment_replacement_native.py` with
+unpredictable contract-bound names, restrictive same-directory `CREATE_NEW`,
+no write/delete sharing, exact current-user/SYSTEM protected DACL and owner
+checks, fixed-local/single-link/no-reparse identity checks, complete bounded
+writes, `FlushFileBuffers`, same-handle byte verification, and no-follow reopen
+identity/DACL/hash verification. Added adversarial tests for journal ordering
+and receipt mismatch, collision, partial/zero-progress writes, flush failure,
+readback corruption, identity/path/volume/DACL/reparse/hard-link drift,
+sanitization, orphan retention, name generation, and the real Windows ctypes
+create/write/flush/reopen path in an isolated pytest temporary directory.
+
+**Output**: The local candidate can stage and verify only a journal-authorized
+temporary file through its private testable boundary. It cannot replace `.env`,
+move or delete a file, invoke repair/runtime code, or enable mutation.
+
+**Validation**: Focused staging tests pass `24/24`, including real native
+Windows ctypes and retained-native-handle smokes. The directly adjacent Windows
+security/path-trust, absence, planner, staging, and package-input set passes
+`169/169`. An expanded
+`tests/unit -k launcher` run passed `1612` tests and failed only four unchanged
+dormant-host-helper cases because Windows Defender blocked
+`TowerScoutHostHelper.ps1` as `ScriptContainedMaliciousContent`; no changed
+staging test failed. Black, strict mypy,
+blocking Flake8, Bandit, compilation, editor diagnostics, advisory complexity,
+and diff whitespace checks pass for the changed source/tests; unrestricted
+Flake8 reports only its known 79-column/Black compatibility findings.
+
+**Boundary**: Slice 5 remains `PARTIAL`. There is no durable journal
+implementation, `ReplaceFileW`, write-through absent-file move, destination
+classification, orphan deletion, cleanup, recovery, transaction integration,
+or production call site. The native smoke mutates only an isolated pytest temp
+and removes it after verification. Repair and runtime mutation remain disabled,
+PR #67 remains Draft, Gate B remains separate, and Task-100 is unchanged.
+
+**Next**: Obtain a fresh independent source/security review of the complete
+source, tests, and canonical records. Commit and push only if that review is
+clean, require exact-head workflows, then implement the durable journal/recovery
+foundation before wiring production staging or destination promotion.
 
 ### 2026-09-15 - Environment Replacement Planner Exact-Head Checks Reconciled
 
