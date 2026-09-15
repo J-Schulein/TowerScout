@@ -289,8 +289,8 @@ and any resulting identity replacement must remain recovery-pending rather than
 being reported as successful repair or rollback.
 
 As of September 15, the canonical Gate A burn-down records slices 1-3 as
-complete, slices 4, 5, and 8 as partial, slices 6-7 as not started, and slice 9
-as continuing validation. Independently reviewed implementation checkpoint
+complete, slices 4-6 and 8 as partial, slice 7 as not started, and slice 9 as
+continuing validation. Independently reviewed implementation checkpoint
 `2edcb8e` adds the protected Local AppData/current-user DPAPI foundation.
 Slice 5 now has independently reviewed, handle-bound secure absence ownership
 for the exact package-root `.env`, checkpointed at `14b77e4`. Its next pure,
@@ -330,7 +330,8 @@ persist journal files, mutate a pointer, implement encrypted backups or
 recovery, clean an orphan, stage a package file, promote `.env`, or integrate
 with repair/runtime code.
 
-A local, unwired follow-up now defines the next pure storage boundary. The
+A reviewed, unwired checkpoint at `53bed46` defines the next pure storage
+boundary. The
 protected-state owner exposes its internal root path only through a synchronous
 callback while every retained hierarchy handle remains revalidated and held.
 The storage orchestrator accepts an injected create/read/list port, derives

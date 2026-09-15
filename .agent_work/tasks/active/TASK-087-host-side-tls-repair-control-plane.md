@@ -14,18 +14,16 @@ review and exact-head checks clean at checkpoint `14b77e4`. The pure `.env`
 byte-transform/state-classification prerequisite is committed, independently
 reviewed, and exact-head validated at `0efeff7`. Documentation head `2996df1`
 then passed its exact-head CI/CD, Task-087, and Trivy gates. Independently
-reviewed and pushed implementation checkpoint `1c45445df82e` adds private
-journal-gated restrictive native candidate-temp staging and is the latest
-validated exact branch head: CI/CD run `35005869321`, Task-087 run
-`35005869200`, and Trivy passed; the main-only build skipped as designed.
-Documentation checkpoint `42180b10e7f` then passed CI/CD run `35006846090`,
-Task-087 run `35006846025`, and Trivy; the main-only build skipped as designed.
-Durable journal storage and native ACL-preserving promotion/replacement remain;
-durable recovery, transaction refactoring, and the final Gate A proof remain
-open. A local Slice 6 source candidate adds pure current-user-DPAPI generation
-and pointer codecs plus fail-closed environment-temp chain selection; it has no
-native journal persistence/enumeration, pointer repair, backup/recovery action,
-cleanup, staging integration, or mutation path.
+reviewed checkpoint `1c45445df82e` adds private journal-gated restrictive native
+candidate-temp staging. Independently reviewed checkpoint `8bb6b33` adds pure
+current-user-DPAPI generation/pointer codecs and fail-closed environment-temp
+chain selection. Independently reviewed and pushed checkpoint `53bed469a8a2`
+adds protected-root-owned pure generation persistence/enumeration orchestration
+over an injected storage port and is the latest validated exact branch head:
+CI/CD run `35013069183`, Task-087 run `35013069124`, and Trivy passed; the
+main-only build was neutral as designed. Native journal file I/O, pointer
+repair, backup/recovery action, cleanup, staging integration, promotion/
+replacement, and runtime mutation remain open.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1374,7 +1372,7 @@ Exit criteria:
 
 ## Implementation Log
 
-### 2026-09-15 - Root-Owned Journal Storage Orchestration Implemented Locally
+### 2026-09-15 - Root-Owned Journal Storage Orchestration Checkpointed
 
 **Objective**: Add the smallest dependency-ordered persistence/enumeration
 boundary after the authenticated generation/chain checkpoint, without crossing
@@ -1425,14 +1423,17 @@ callback, process-control exception preservation, pre-create and post-create
 chain authentication, identity/filename checks, redaction, and documented
 native-adapter boundary.
 
+**Checkpoint**: Commit `53bed46` was pushed to Draft PR #67. Exact-head CI/CD
+run `35013069183`, Task-087 run `35013069124`, and Trivy passed; the main-only
+build was neutral as designed.
+
 **Boundary**: Slices 5 and 6 remain `PARTIAL`. This is a pure storage authority
 and sequencing layer, not native durable persistence or pointer repair. PR #67
 remains Draft, mutation remains disabled, Task-086 remains the supported
 fallback, Gate B remains separate, and Task-100 is unchanged.
 
-**Next**: Checkpoint and exact-head validate this reviewed increment. Then add
-the native protected-DACL, create/flush/reopen/enumeration adapter and only
-afterward add same-volume pointer update/repair.
+**Next**: Add the native protected-DACL, create/flush/reopen/enumeration adapter
+and only afterward add same-volume pointer update/repair.
 
 ### 2026-09-15 - Authenticated Environment Journal Chain Foundation Checkpointed
 

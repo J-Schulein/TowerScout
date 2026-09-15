@@ -51,15 +51,13 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `8bb6b3333534` is independently reviewed,
-  pushed, and exact-head validated. Documentation checkpoint `e86c41cfa6a0` is
-  the latest validated branch head: CI/CD run `35011029262`, Task-087 run
-  `35011029309`, and Trivy passed; the main-only build skipped as designed. A
-  local source candidate adds protected-root-owned pure generation persistence/
+- Task-087 implementation checkpoint `53bed469a8a2` is independently reviewed,
+  pushed, and the latest validated exact branch head: CI/CD run `35013069183`,
+  Task-087 run `35013069124`, and Trivy passed; the main-only build was neutral
+  as designed. It adds protected-root-owned pure generation persistence/
   enumeration orchestration over an injected storage port. It has no native
   file adapter, pointer write/repair, recovery, cleanup, staging integration,
-  promotion, `.env` replacement, or repair mutation. Fresh independent review
-  returned CLEAN/PASS with no actionable findings; checkpointing remains.
+  promotion, `.env` replacement, or repair mutation.
   PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
@@ -197,9 +195,9 @@ reviewed and exact-head validated checkpoint `8bb6b33` adds strict DPAPI-
 protected generation/pointer codecs and unique-chain selection for the
 environment-temp prelude. The selector authenticates every sealed candidate
 internally. A local source candidate now adds only root-owned persistence/
-enumeration orchestration over an injected storage port; no native persistence,
-pointer repair, backup, or recovery action exists. Fresh independent review
-returned CLEAN/PASS with no actionable findings; checkpointing remains. Slice 7
+enumeration orchestration over an injected storage port. That increment is
+independently reviewed, checkpointed at `53bed46`, and exact-head validated. No
+native persistence, pointer repair, backup, or recovery action exists. Slice 7
 is not started; slice 9 continues incrementally. Mutation is disabled and PR
 #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
