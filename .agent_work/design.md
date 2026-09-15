@@ -316,7 +316,8 @@ current state and remaining outcome sequence are maintained in the
 
 Documentation checkpoint `42180b1` passed exact-head CI/CD run `35006846090`,
 Task-087 run `35006846025`, and Trivy; the main-only build skipped as designed.
-A local, unwired Slice 6 candidate now defines strict canonical JSON for the
+Independently reviewed and exact-head validated Slice 6 checkpoint `8bb6b33`
+defines strict canonical JSON for the
 planned/created/verified environment-temp generation records, protects and
 authenticates each generation through the existing current-user DPAPI boundary,
 and links transitions by the actual predecessor ciphertext digest. The selector

@@ -51,16 +51,14 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `1c45445df82e` is independently reviewed,
-  pushed, and exact-head validated. Documentation checkpoint `42180b10e7f` is
-  the latest validated exact branch head: CI/CD run `35006846090`, Task-087 run
-  `35006846025`, and Trivy passed; the main-only build skipped as designed. A
-  local source candidate builds the pure authenticated environment-journal
-  generation/chain prerequisite. Initial independent review findings are
-  remediated and corrected-diff re-review is CLEAN/PASS with no remaining
-  findings. The candidate does not persist or enumerate journal files, repair a
+- Task-087 implementation checkpoint `8bb6b3333534` is independently reviewed,
+  pushed, and the latest validated exact branch head: CI/CD run `35010304611`,
+  Task-087 run `35010304675`, and Trivy passed; the main-only build skipped as
+  designed. It adds the pure authenticated environment-journal generation/
+  chain prerequisite after corrected-diff review returned CLEAN/PASS with no
+  remaining findings. It does not persist or enumerate journal files, repair a
   pointer, recover, promote a candidate, replace `.env`, or wire repair
-  mutation. Checkpointing remains pending.
+  mutation.
   PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
@@ -193,14 +191,13 @@ reviewed checkpoint `1c45445` adds private journal-gated restrictive temp
 staging with native Windows DACL, identity, complete-write, flush/readback, and
 no-follow reopen proof. Its exact-head CI/CD and Task-087 workflows pass.
 Durable journal storage, native promotion/replacement, indeterminate-result
-classification, and cleanup remain open. Slice 6 is now partial: a local source
-candidate adds strict DPAPI-protected generation/pointer codecs and unique-chain
-selection for the environment-temp prelude. The selector authenticates every
-sealed candidate internally; initial independent-review findings are remediated
-and corrected-diff re-review is CLEAN/PASS with no remaining findings. No native
-persistence, enumeration, pointer repair, backup, or recovery action exists.
-Checkpointing remains pending. Slice 7 is not started; slice 9 continues
-incrementally. Mutation is disabled and PR #67 remains Draft.
+classification, and cleanup remain open. Slice 6 is now partial: independently
+reviewed and exact-head validated checkpoint `8bb6b33` adds strict DPAPI-
+protected generation/pointer codecs and unique-chain selection for the
+environment-temp prelude. The selector authenticates every sealed candidate
+internally. No native persistence, enumeration, pointer repair, backup, or
+recovery action exists. Slice 7 is not started; slice 9 continues incrementally.
+Mutation is disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Remaining Estimate**: Complete slice 4's revocation-aware fixed-host and

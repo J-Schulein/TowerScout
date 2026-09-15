@@ -1374,7 +1374,7 @@ Exit criteria:
 
 ## Implementation Log
 
-### 2026-09-15 - Authenticated Environment Journal Chain Foundation Implemented Locally
+### 2026-09-15 - Authenticated Environment Journal Chain Foundation Checkpointed
 
 **Objective**: Add the smallest pure journal-generation prerequisite needed
 before durable native persistence or startup recovery can be implemented.
@@ -1406,7 +1406,7 @@ classified for later repair; branches, gaps, duplicates, foreign streams,
 unknown/future pointers, record drift, and authentication or schema failures
 are sanitized and rejected.
 
-**Output**: The local candidate can encode, protect, authenticate, and select a
+**Output**: Checkpoint `8bb6b33` can encode, protect, authenticate, and select a
 single environment-temp journal chain in memory. It cannot enumerate or write a
 journal file, update or repair a pointer, implement encrypted backups or
 recovery, clean an orphan, invoke native staging, promote or replace `.env`, or
@@ -1420,7 +1420,10 @@ Flake8, Bandit, compilation, editor diagnostics, diff whitespace, and a focused
 sensitive-term scan pass. A broad launcher run showed no changed-journal
 failure, but its final terminal summary remained unavailable around the same
 Defender-sensitive dormant-helper area recorded for the prior checkpoint, so it
-is not claimed as passing evidence.
+is not claimed as passing evidence. Exact-head CI/CD run `35010304611`,
+Task-087 run `35010304675`, and Trivy pass at
+`8bb6b333353401d8ba9c0aefc8006f5a17ee3ada`; the main-only build skips as
+designed.
 
 **Independent Review**: The initial review found one High issue, two Medium
 issues, and one Low issue: caller-forgeable authenticated wrappers, permissive
@@ -1442,8 +1445,7 @@ runtime, or Git mutation.
 PR #67 remains Draft, mutation remains disabled, Task-086 remains the supported
 fallback, Gate B remains separate, and Task-100 is unchanged.
 
-**Next**: Checkpoint and push this clean-reviewed increment, require exact-head
-workflows, then implement protected-root generation enumeration/persistence and
+**Next**: Implement protected-root generation enumeration/persistence and
 durable pointer update/repair without wiring staging, promotion, cleanup, or
 recovery actions.
 
