@@ -13,17 +13,14 @@ secure absence ownership is locally implemented and validated with independent
 review and exact-head checks clean at checkpoint `14b77e4`. The pure `.env`
 byte-transform/state-classification prerequisite is committed, independently
 reviewed, and exact-head validated at `0efeff7`. Documentation head `2996df1`
-then passed its exact-head CI/CD, Task-087, and Trivy gates. A local source
-candidate adds private journal-gated restrictive native candidate-temp staging;
-durable journal storage and native ACL-preserving promotion/replacement remain;
+then passed its exact-head CI/CD, Task-087, and Trivy gates. Independently
+reviewed and pushed implementation checkpoint `1c45445df82e` adds private
+journal-gated restrictive native candidate-temp staging and is the latest
+validated exact branch head: CI/CD run `35005869321`, Task-087 run
+`35005869200`, and Trivy passed; the main-only build skipped as designed.
+Durable journal storage and native ACL-preserving promotion/replacement remain;
 durable recovery, transaction refactoring, and the final Gate A proof remain
-open. Independently reviewed implementation checkpoint `0efeff75f63e` adds the
-pure replacement planner on the secure-absence/protected-state/DPAPI
-foundation and is the latest validated exact branch head: CI/CD run
-`34999494411`, Task-087 run `34999494398`, and Trivy passed, with the main-only
-build skipped as designed. Documentation head `2996df167116` is the latest
-validated exact branch head: CI/CD run `35002372195`, Task-087 run
-`35002372219`, and Trivy passed; the main-only build skipped as designed.
+open.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1371,6 +1368,38 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-15 - Native Environment Temp-Staging Checkpoint Reconciled
+
+**Objective**: Close the review, commit, push, and exact-head workflow gate for
+the journal-gated native package `.env` candidate-temp prerequisite.
+
+**Context**: The complete source, adversarial/native tests, and canonical
+records received a fresh independent source/security review before commit. The
+review returned `CLEAN` with no correctness, security, secret-safety, boundary,
+or documentation finding.
+
+**Execution**: Committed the reviewed increment as `1c45445df82e` with message
+`feat(task-087): add journal-gated env staging`, pushed it to
+`feature/task-087-windows-launcher-prototype`, and confirmed the local and
+upstream full commit identities match.
+
+**Output**: The branch now has a reviewed, durable checkpoint for restrictive
+native temp staging. The private orchestration still requires exact journal
+receipts and remains unavailable to production repair/runtime paths.
+
+**Validation**: Exact-head CI/CD run `35005869321` completed successfully with
+Python 3.11 and 3.12, frontend, Docker frontend-stage, and security jobs green;
+the main-only runtime-image build skipped as designed. Exact-head Task-087 run
+`35005869200` completed successfully across all three jobs, and Trivy passed.
+
+**Boundary**: Slice 5 remains `PARTIAL`. This checkpoint does not add a durable
+journal provider, promotion, replacement, deletion, cleanup, recovery,
+transaction integration, repair activation, or runtime mutation. PR #67
+remains Draft, Gate B remains separate, and Task-100 is unchanged.
+
+**Next**: Implement durable journal generations and authenticated startup
+reconciliation before wiring production staging or destination promotion.
 
 ### 2026-09-15 - Journal-Gated Native Environment Temp Staging Implemented Locally
 
