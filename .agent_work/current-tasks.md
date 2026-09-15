@@ -16,17 +16,15 @@ revocation status is offline/unknown. Earlier network-disabled Docker and
 rootless-Podman checks prove one-root transport containment only. Windows
 security remains partial, but the protected Local AppData and current-user
 DPAPI foundation is now independently reviewed with focused/native proof.
-Secure `.env` absence ownership is locally implemented and validated but still
-awaits a committed checkpoint after a clean independent review; atomic
-replacement, durable recovery, transaction refactoring, provider-installer
-completion, and final proof remain.
-Implementation checkpoint `2edcb8e5372b` is independently reviewed.
-Documentation checkpoint `1897874136bd` is the latest validated exact
-branch head: CI/CD run `34972376946` and Task-087 run `34972376954` passed;
-the PR-only build skipped as designed.
+Secure `.env` absence ownership is independently reviewed and checkpointed;
+atomic replacement, durable recovery, transaction refactoring, provider-
+installer completion, and final proof remain. Implementation and validated
+exact-head checkpoint `14b77e42936f` passed CI/CD run `34992510420`, Task-087
+run `34992510222`, and Trivy;
+the main-only build skipped as designed.
 No repair or mutation is enabled. Gate B preview integration and Task-100
-signing remain separate. The latest independently reviewed implementation
-checkpoint, `2edcb8e`, adds the protected Local AppData/current-user DPAPI
+signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
+adds the protected Local AppData/current-user DPAPI
 foundation. Earlier checkpoint `0882017` connects the retained inputs through
 Windows trust and native observation to a revalidated, still-held exact target
 and consumes that owner in production confirmation. Earlier checkpoint
@@ -44,10 +42,10 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `2edcb8e5372b` is independently reviewed.
-  Documentation checkpoint `1897874136bd` is the latest validated exact branch
-  head: CI/CD run `34972376946` and Task-087 run `34972376954` passed; the
-  PR-only build skipped as designed. PR #67 remains Draft.
+- Task-087 implementation checkpoint `14b77e42936f` is independently reviewed
+  and is the latest validated exact branch head: CI/CD run `34992510420`,
+  Task-087 run `34992510222`, and Trivy passed; the main-only build skipped as
+  designed. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -173,10 +171,10 @@ cache-only revocation currently fails closed with offline/unknown status.
 Earlier Docker/rootless-Podman checks prove transport containment only. Slices
 5 and 8 are partial; slice 5's protected Local AppData/current-user DPAPI
 foundation is independently reviewed, and its secure-absence owner is locally
-implemented, validated, and independently reviewed with its committed
-checkpoint pending. ACL-preserving atomic `.env` replacement remains open.
-Slices 6-7 are not started; slice 9 continues incrementally. Mutation is
-disabled and PR #67 remains Draft.
+implemented, validated, independently reviewed, and checkpointed at `14b77e4`.
+ACL-preserving atomic `.env` replacement remains open. Slices 6-7 are not
+started; slice 9 continues incrementally. Mutation is disabled and PR #67
+remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Remaining Estimate**: Complete slice 4's revocation-aware fixed-host and

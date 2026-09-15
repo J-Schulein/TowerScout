@@ -294,10 +294,10 @@ as continuing validation. Independently reviewed implementation checkpoint
 `2edcb8e` adds the protected Local AppData/current-user DPAPI foundation.
 The next slice 5 increment now has locally validated, handle-bound secure
 absence ownership for the exact package-root `.env`; its independent review is
-clean, while its committed checkpoint and ACL-preserving atomic replacement
-remain open. The new primitive is not wired to a mutation path.
-Documentation checkpoint `1897874` is the latest validated exact branch head:
-CI/CD run `34972376946` and Task-087 run `34972376954` passed. Mutation remains
+clean and checkpointed at `14b77e4`, while ACL-preserving atomic replacement
+remains open. The new primitive is not wired to a mutation path. Checkpoint
+`14b77e4` is the latest validated exact branch head: CI/CD run `34992510420`,
+Task-087 run `34992510222`, and Trivy passed. Mutation remains
 disabled, PR #67 remains Draft, and the detailed current state and remaining
 outcome sequence are maintained in the
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md).

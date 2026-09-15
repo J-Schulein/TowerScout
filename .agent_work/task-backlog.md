@@ -9,17 +9,17 @@ and Task-101's full dependency/reconciliation gate passed. Task-101 is complete.
 Task-087 is active under its fixed nine-slice
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md). The September 14
 checkpoint closes slices 2-3 exact-target confirmation ownership and ordered
-revalidation hooks on top of reviewed source head `db7aee877a67`. Slice 4
-remains partial: restored cache-only revocation fails closed with
+revalidation hooks. Slice 4 remains partial: restored cache-only revocation
+fails closed with
 offline/unknown status on this workstation, so earlier Docker/rootless-Podman
 single-root checks prove transport containment only. Durable Windows
 mutation/recovery and final validation remain. Independently reviewed
 checkpoint `2edcb8e` supplies slice 5's protected Local AppData/current-user
 DPAPI foundation. Secure `.env` absence ownership is locally implemented and
-validated, and its independent review is clean; its committed checkpoint and
-ACL-preserving atomic replacement remain open.
-Documentation checkpoint `1897874` is the latest validated exact branch head;
-CI/CD run `34972376946` and Task-087 run `34972376954` passed. PR #67 stays
+validated, independently reviewed, and checkpointed at `14b77e4`;
+ACL-preserving atomic replacement remains open. Checkpoint `14b77e4` is the
+latest validated exact branch head; CI/CD run `34992510420`, Task-087 run
+`34992510222`, and Trivy passed. PR #67 stays
 Draft and Gate A source remediation/re-review precedes preview integration.
 Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
