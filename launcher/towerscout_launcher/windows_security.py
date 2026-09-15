@@ -1132,6 +1132,49 @@ class NativeWindowsFileApi:
             0x08000000,  # FILE_FLAG_SEQUENTIAL_SCAN; follow/hydrate the leaf
         )
 
+    def open_file_if_exists(self, path: str) -> object | None:
+        """Open one leaf without following a reparse point, or prove it absent."""
+
+        if (
+            type(path) is not str
+            or not path
+            or "\x00" in path
+            or len(path) > _MAX_FINAL_PATH_CHARACTERS
+        ):
+            raise ValueError("Windows file path is invalid.")
+        kernel32 = self._require_kernel32()
+        invalid = ctypes.c_void_p(-1).value
+        native: int | None = None
+        handle: int | None = None
+        try:
+            ctypes.set_last_error(0)
+            native = kernel32.CreateFileW(
+                path,
+                0x80000000,  # GENERIC_READ
+                0x00000001,  # FILE_SHARE_READ; deny write and delete sharing
+                None,
+                3,  # OPEN_EXISTING
+                0x00200000 | 0x08000000,  # OPEN_REPARSE_POINT | SEQUENTIAL_SCAN
+                None,
+            )
+            if native is None or native == invalid:
+                error = ctypes.get_last_error()
+                if error in {2, 3}:  # FILE_NOT_FOUND | PATH_NOT_FOUND
+                    return None
+                raise OSError(error, "Native Windows file presence probe failed.")
+            handle = int(native)
+            return handle
+        except BaseException:
+            to_close = handle
+            if to_close is None and type(native) is int and native > 0:
+                to_close = native
+            if to_close is not None and to_close != invalid:
+                try:
+                    kernel32.CloseHandle(ctypes.c_void_p(to_close))
+                except BaseException:
+                    pass
+            raise
+
     def _open_file(self, kernel32: Any, path: str, flags: int) -> object:
         invalid = ctypes.c_void_p(-1).value
         native: int | None = None

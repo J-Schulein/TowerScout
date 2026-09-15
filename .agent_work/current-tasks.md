@@ -16,10 +16,12 @@ revocation status is offline/unknown. Earlier network-disabled Docker and
 rootless-Podman checks prove one-root transport containment only. Windows
 security remains partial, but the protected Local AppData and current-user
 DPAPI foundation is now independently reviewed with focused/native proof.
-Secure absence, atomic `.env` replacement, durable
-recovery, transaction refactoring, provider-installer completion, and final
-proof remain. Implementation checkpoint `2edcb8e5372b` is independently
-reviewed. Documentation checkpoint `1897874136bd` is the latest validated exact
+Secure `.env` absence ownership is locally implemented and validated but still
+awaits a committed checkpoint after a clean independent review; atomic
+replacement, durable recovery, transaction refactoring, provider-installer
+completion, and final proof remain.
+Implementation checkpoint `2edcb8e5372b` is independently reviewed.
+Documentation checkpoint `1897874136bd` is the latest validated exact
 branch head: CI/CD run `34972376946` and Task-087 run `34972376954` passed;
 the PR-only build skipped as designed.
 No repair or mutation is enabled. Gate B preview integration and Task-100
@@ -170,9 +172,11 @@ intermediate snapshot, but the supported fixed-host proof remains open because
 cache-only revocation currently fails closed with offline/unknown status.
 Earlier Docker/rootless-Podman checks prove transport containment only. Slices
 5 and 8 are partial; slice 5's protected Local AppData/current-user DPAPI
-foundation is independently reviewed, while its secure-absence and atomic
-`.env` work remains. Slices 6-7 are not started; slice 9 continues
-incrementally. Mutation is disabled and PR #67 remains Draft.
+foundation is independently reviewed, and its secure-absence owner is locally
+implemented, validated, and independently reviewed with its committed
+checkpoint pending. ACL-preserving atomic `.env` replacement remains open.
+Slices 6-7 are not started; slice 9 continues incrementally. Mutation is
+disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Remaining Estimate**: Complete slice 4's revocation-aware fixed-host and

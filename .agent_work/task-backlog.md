@@ -15,7 +15,9 @@ offline/unknown status on this workstation, so earlier Docker/rootless-Podman
 single-root checks prove transport containment only. Durable Windows
 mutation/recovery and final validation remain. Independently reviewed
 checkpoint `2edcb8e` supplies slice 5's protected Local AppData/current-user
-DPAPI foundation; secure absence and atomic `.env` replacement remain.
+DPAPI foundation. Secure `.env` absence ownership is locally implemented and
+validated, and its independent review is clean; its committed checkpoint and
+ACL-preserving atomic replacement remain open.
 Documentation checkpoint `1897874` is the latest validated exact branch head;
 CI/CD run `34972376946` and Task-087 run `34972376954` passed. PR #67 stays
 Draft and Gate A source remediation/re-review precedes preview integration.

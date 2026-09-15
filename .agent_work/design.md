@@ -292,6 +292,10 @@ As of September 15, the canonical Gate A burn-down records slices 1-3 as
 complete, slices 4, 5, and 8 as partial, slices 6-7 as not started, and slice 9
 as continuing validation. Independently reviewed implementation checkpoint
 `2edcb8e` adds the protected Local AppData/current-user DPAPI foundation.
+The next slice 5 increment now has locally validated, handle-bound secure
+absence ownership for the exact package-root `.env`; its independent review is
+clean, while its committed checkpoint and ACL-preserving atomic replacement
+remain open. The new primitive is not wired to a mutation path.
 Documentation checkpoint `1897874` is the latest validated exact branch head:
 CI/CD run `34972376946` and Task-087 run `34972376954` passed. Mutation remains
 disabled, PR #67 remains Draft, and the detailed current state and remaining

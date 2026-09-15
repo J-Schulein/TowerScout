@@ -9,7 +9,9 @@ remains partial: cache-only revocation fails closed with offline/unknown status
 on this workstation, so its successful Windows/Docker/Podman proof remains
 open. Windows security is partial; its protected Local AppData/current-user
 DPAPI foundation is independently reviewed with native/focused proof, while
-secure absence and atomic `.env` replacement remain;
+secure absence ownership is locally implemented and validated with independent
+review clean and a committed checkpoint pending, and ACL-preserving atomic
+`.env` replacement remains;
 durable recovery, transaction refactoring, and the final Gate A proof remain
 open. Independently reviewed implementation checkpoint `2edcb8e5372b` adds the
 protected-state/DPAPI foundation. Documentation checkpoint `1897874136bd` is
@@ -1362,6 +1364,52 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-15 - Handle-Bound Package Environment Absence Implemented Locally
+
+**Objective**: Add the secure-absence prerequisite for slice 5 without
+creating, replacing, deleting, or otherwise mutating the package `.env`.
+
+**Context**: The independently reviewed protected Local AppData/current-user
+DPAPI foundation is checkpointed at `2edcb8e`. Slice 5 still requires a secure
+absence owner before ACL-preserving atomic replacement can be designed and
+integrated.
+
+**Decision**: Retain the existing `PathHierarchyTrust` package-root owner and
+bind versioned evidence to its stable identity, the exact `.env` leaf name, and
+the canonical absent-file SHA-256 marker. Recheck absence with a native
+`CreateFileW` no-follow probe while the root trust owner remains held. Keep the
+new primitive unwired so this increment cannot perform repair or mutation.
+
+**Execution**: Added `NativeWindowsFileApi.open_file_if_exists()` with exact
+not-found handling, no reparse following, and restrictive sharing. Added the
+unwired `windows_environment` source layer with sanitized failure codes,
+redacted evidence, exact-child containment, retained root ownership,
+idempotent cleanup, and revalidation. Added adversarial tests for absent and
+present leaves, post-capture creation, root drift, unsupported/failing native
+probes, invalid roots/evidence, constructor containment, cleanup, and the real
+Windows present/absent probe.
+
+**Output**: Secure `.env` absence ownership is locally implemented. No file
+creation, replacement, cleanup, journal, recovery, launcher wiring, container
+operation, or runtime mutation was added.
+
+**Validation**: The new focused module passes `13/13`; the neighboring Windows
+security/path/protected-state/package-config set passes `127/127`. Black,
+strict mypy, blocking Flake8 (`E9,F63,F7,F82`), medium/high Bandit, compilation,
+editor diagnostics, and diff whitespace checks pass. The repository's
+127-column advisory Flake8 profile reports only the two pre-existing complexity
+findings in `windows_security.py`; the new module and tests add none. A fresh
+independent inspect-only source/security/documentation review returned `CLEAN`
+with no finding that blocks commit or push.
+
+**Boundary**: Slice 5 remains `PARTIAL`. This local increment has not yet
+been committed. ACL-preserving atomic `.env` replacement and integrated slice
+5 proof remain open; mutation remains disabled.
+
+**Next**: Checkpoint this independently reviewed increment and require
+exact-head workflows before beginning the ACL-preserving atomic replacement
+sub-increment.
 
 ### 2026-09-15 - Current Documentation Head Workflows Reconciled
 
