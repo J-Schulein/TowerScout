@@ -367,7 +367,8 @@ write, then pointer and generations are reread under the same retained-root
 callback and must reproduce the exact chain, file identity, bytes, and
 `CURRENT` disposition.
 
-A local native-adapter candidate implements bounded no-follow pointer reads and
+Independently reviewed and exact-head validated checkpoint `95ca37d` implements
+bounded no-follow pointer reads and
 same-directory `.journal-pointer-<32hex>.tmp` `CREATE_NEW` staging with the
 current-user/SYSTEM protected DACL. It completes bounded writes, flushes,
 verifies the temp on the creation handle and a no-follow reopen, closes both
@@ -375,7 +376,8 @@ handles before calling `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`, proves
 the source name absent after reported success, and verifies the destination has
 the moved temp identity plus exact path, local-volume, regular-file,
 single-link, DACL, size, and bytes. A move API error remains an indeterminate
-`WRITE_FAILED` with the protected temp retained for later reconciliation.
+`WRITE_FAILED`; the adapter neither deletes a surviving temp nor assumes
+whether the move occurred.
 Same-call error-result classification, cleanup, backup/recovery action,
 staging/promotion integration, `.env` replacement, and runtime mutation remain
 unimplemented.

@@ -24,11 +24,13 @@ native protected-DACL generation enumeration/create/read. Independently reviewed
 and exact-head validated checkpoint `221612c2228` adds pure metadata-pointer
 load, strict classification, and missing/stale repair orchestration through an
 injected storage port; CI/CD run `35019327044`, Task-087 run `35019327058`, and
-Trivy passed, while the main-only build was neutral as designed. A local source
-candidate adds native protected pointer reads and write-through replacement.
-Same-call classification after a move API error, backup/recovery action,
-cleanup, staging integration, promotion/replacement, and runtime mutation remain
-open.
+Trivy passed, while the main-only build was neutral as designed. Independently
+reviewed and exact-head validated checkpoint `95ca37d68e2` adds native protected
+pointer reads and write-through replacement; CI/CD run `35021545053`, Task-087
+run `35021545062`, and Trivy passed, while the main-only build was neutral as
+designed. Same-call classification after a move API error, backup/recovery
+action, cleanup, staging integration, promotion/replacement, and runtime
+mutation remain open.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1377,7 +1379,7 @@ Exit criteria:
 
 ## Implementation Log
 
-### 2026-09-15 - Native Journal Pointer Adapter Candidate
+### 2026-09-15 - Native Journal Pointer Adapter Checkpointed
 
 **Objective**: Implement the native Windows pointer storage port beneath the
 reviewed pure pointer policy without wiring recovery actions or runtime
@@ -1402,10 +1404,11 @@ reopen verification, close-before-rename, source-name absence proof after
 reported success, and no-follow destination verification. Native/API failures
 are sanitized while process-control exceptions propagate.
 
-**Output**: The local candidate implements the success-path native pointer
-contract and leaves a protected temp in place when `MoveFileExW` reports an
-error. It does not classify that indeterminate API-error result in the same
-call, delete an orphan, create an exact-state backup, execute recovery, connect
+**Output**: Checkpoint `95ca37d` implements the success-path native pointer
+contract. When `MoveFileExW` reports an error, the adapter returns a sanitized
+indeterminate failure; it neither deletes a surviving temp nor assumes whether
+the move occurred. It does not classify that API-error result in the same call,
+delete an orphan, create an exact-state backup, execute recovery, connect
 staging/promotion, replace `.env`, stop/restart a runtime, or enable mutation.
 
 **Validation**: The focused native suite passes `32/32`, including a real
@@ -1417,14 +1420,18 @@ name persistence after reported success, post-read DACL drift, close failure
 before move, sanitized move failure with retained temp, bad names/oversize, and
 process-control propagation.
 
-**Independent Review**: Source/security/test review returned `CLEAN/PASS` with
-no actionable Low-or-higher findings and confirmed exact flags, missing-only
-absence, path containment, handle lifecycle, identity/DACL/byte verification,
-sanitization, and scope boundaries.
+**Independent Review**: Initial and final exact-diff source/security/test/
+documentation reviews returned `CLEAN/PASS` with no actionable Low-or-higher
+findings and confirmed exact flags, missing-only absence, path containment,
+handle lifecycle, identity/DACL/byte verification, sanitization, and scope
+boundaries.
 
 **Boundary**: Slices 5 and 6 remain `PARTIAL`. PR #67 remains Draft, mutation
 remains disabled, Task-086 remains the supported fallback, and Gate B/Task-100
 remain separate.
+
+**Exact-Head Validation**: CI/CD run `35021545053`, Task-087 run `35021545062`,
+and Trivy passed at `95ca37d`; the main-only build was neutral as designed.
 
 **Next**: Add explicit indeterminate move-result reconciliation and exact
 journal-bound pointer-temp cleanup before encrypted backup and recovery-state
