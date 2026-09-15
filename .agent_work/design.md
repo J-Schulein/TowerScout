@@ -378,7 +378,15 @@ the moved temp identity plus exact path, local-volume, regular-file,
 single-link, DACL, size, and bytes. A move API error remains an indeterminate
 `WRITE_FAILED`; the adapter neither deletes a surviving temp nor assumes
 whether the move occurred.
-Same-call error-result classification, cleanup, backup/recovery action,
+
+A local independently reviewed source candidate performs bounded same-call
+reconciliation after an ordinary move API error. It accepts success only when
+the source name is absent and the destination reopens with the exact pre-move
+temp identity, protected DACL, path, local regular single-link facts, size, and
+bytes. Source presence, destination absence or drift, and reconciliation I/O
+failure remain sanitized `WRITE_FAILED`; process-control exceptions propagate.
+The adapter does not delete either path. Restart classification, durable
+authenticated temp-identity binding, cleanup, backup/recovery action,
 staging/promotion integration, `.env` replacement, and runtime mutation remain
 unimplemented.
 

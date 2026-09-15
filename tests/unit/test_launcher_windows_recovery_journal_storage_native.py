@@ -217,6 +217,7 @@ class _PointerApi:
         self.leave_temp_after_move = False
         self.close_error: BaseException | None = None
         self.move_error: BaseException | None = None
+        self.move_error_after_move: BaseException | None = None
         self.events: list[str] = []
 
     def current_user_sid(self) -> str:
@@ -328,6 +329,8 @@ class _PointerApi:
             self.destination_identity or identity,
             self.destination_contents or contents,
         )
+        if self.move_error_after_move is not None:
+            raise self.move_error_after_move
 
 
 class _PointerNameSource:
@@ -633,6 +636,73 @@ def test_pointer_move_failure_is_sanitized_and_process_control_propagates() -> N
     )
     with pytest.raises(KeyboardInterrupt) as raised:
         storage.replace_pointer(_ROOT, _POINTER_NAME, _POINTER_CONTENTS)
+    assert raised.value is interruption
+
+
+def test_pointer_move_error_accepts_only_exact_completed_move() -> None:
+    api = _PointerApi()
+    api.move_error_after_move = OSError("sensitive pointer path")
+    storage = native.NativeWindowsJournalPointerStorage(
+        api=api,
+        name_source=_PointerNameSource(),
+    )
+
+    stored = storage.replace_pointer(_ROOT, _POINTER_NAME, _POINTER_CONTENTS)
+
+    assert stored.identity == api.temp_identity
+    assert stored.contents == _POINTER_CONTENTS
+    assert _POINTER_TEMP_PATH not in api.files
+    assert api.files[_POINTER_PATH] == (api.temp_identity, _POINTER_CONTENTS)
+
+
+@pytest.mark.parametrize(
+    "failure_mode",
+    ("identity", "contents", "path", "security", "source-remains"),
+)
+def test_pointer_move_error_reconciliation_rejects_destination_drift(
+    failure_mode: str,
+) -> None:
+    api = _PointerApi()
+    api.move_error_after_move = OSError("sensitive pointer path")
+    if failure_mode == "identity":
+        api.destination_identity = _identity("55")
+    elif failure_mode == "contents":
+        api.destination_contents = b"wrong-pointer"
+    elif failure_mode == "path":
+        api.destination_path = rf"{_ROOT}\other.pointer"
+    elif failure_mode == "security":
+        api.destination_security = NativeSecurityFacts(
+            owner_sid=_USER_SID,
+            dacl_present=True,
+            allowed_aces=(AccessAllowedAce(_USER_SID, 0x001F01FF, 0),),
+            dacl_protected=True,
+        )
+    else:
+        api.leave_temp_after_move = True
+    storage = native.NativeWindowsJournalPointerStorage(
+        api=api,
+        name_source=_PointerNameSource(),
+    )
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        storage.replace_pointer(_ROOT, _POINTER_NAME, _POINTER_CONTENTS)
+
+    assert failure.value.code is RecoveryJournalStorageErrorCode.WRITE_FAILED
+    assert "sensitive" not in str(failure.value)
+
+
+def test_pointer_move_process_control_after_move_is_not_reconciled() -> None:
+    interruption = KeyboardInterrupt()
+    api = _PointerApi()
+    api.move_error_after_move = interruption
+    storage = native.NativeWindowsJournalPointerStorage(
+        api=api,
+        name_source=_PointerNameSource(),
+    )
+
+    with pytest.raises(KeyboardInterrupt) as raised:
+        storage.replace_pointer(_ROOT, _POINTER_NAME, _POINTER_CONTENTS)
+
     assert raised.value is interruption
 
 
