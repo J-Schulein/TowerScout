@@ -23,10 +23,14 @@ from typing import Callable, NoReturn, Protocol, Sequence, TypeVar
 from .runtime_load_trust import DirectoryEntry, NativeRuntimeLoadInventoryApi
 from .target_contracts import (
     ABSENT_FILE_SHA256,
-    CONTAINER_BUNDLE_DESTINATION,
     FileIdentity,
     GpuMode,
     SecurityArtifactInventory,
+)
+from .windows_environment_replacement import (
+    EnvironmentReplacementError,
+    MAX_ENVIRONMENT_BYTES,
+    plan_ca_environment_replacement,
 )
 from .windows_path_trust import (
     PathHierarchyTrust,
@@ -45,7 +49,7 @@ from .windows_security import (
     capture_handle_bound_file,
 )
 
-_MAX_ENV_BYTES = 262_144
+_MAX_ENV_BYTES = MAX_ENVIRONMENT_BYTES
 _MAX_MANIFEST_BYTES = 1_048_576
 _MAX_POLICY_BYTES = 2 * 1_048_576
 _MAX_COMPOSE_BYTES = 2 * 1_048_576
@@ -425,49 +429,17 @@ def _parse_env(contents: bytes) -> dict[str, str]:
     return result
 
 
-def _planned_environment_sha256(contents: bytes) -> str:
-    text = _decode_utf8(contents, _MAX_ENV_BYTES, preserve_newlines=True)
-    has_bom = contents.startswith(b"\xef\xbb\xbf")
-    targets = {
-        "REQUESTS_CA_BUNDLE": CONTAINER_BUNDLE_DESTINATION,
-        "SSL_CERT_FILE": CONTAINER_BUNDLE_DESTINATION,
-    }
-    output: list[str] = []
-    replaced: set[str] = set()
-    selected_newline = "\r\n" if "\r\n" in text else "\n"
-    for line in text.splitlines(keepends=True):
-        if line.endswith("\r\n"):
-            content, ending = line[:-2], "\r\n"
-        elif line.endswith("\n"):
-            content, ending = line[:-1], "\n"
-        else:
-            content, ending = line, ""
-        name, separator, _value = content.partition("=")
-        key = name.strip()
-        matching = tuple(
-            target for target in targets if key.casefold() == target.casefold()
+def _planned_environment_sha256(contents: bytes, *, original_present: bool) -> str:
+    try:
+        plan = plan_ca_environment_replacement(
+            contents,
+            original_present=original_present,
         )
-        if matching:
-            target = matching[0]
-            if separator != "=" or key != target or target in replaced:
-                _fail(PackageInputErrorCode.PACKAGE_INVALID)
-            output.append(f"{target}={targets[target]}{ending}")
-            replaced.add(target)
-        else:
-            output.append(line)
-    updated = "".join(output)
-    for target, value in targets.items():
-        if target in replaced:
-            continue
-        if updated and not updated.endswith(("\r", "\n")):
-            updated += selected_newline
-        updated += f"{target}={value}{selected_newline}"
-    encoded = updated.encode("utf-8", errors="strict")
-    if has_bom:
-        encoded = b"\xef\xbb\xbf" + encoded
-    if not 1 <= len(encoded) <= _MAX_ENV_BYTES:
+    except EnvironmentReplacementError:
+        plan = None
+    if plan is None:
         _fail(PackageInputErrorCode.PACKAGE_INVALID)
-    return hashlib.sha256(encoded).hexdigest()
+    return plan.candidate_sha256
 
 
 def _reject_constant(value: str) -> NoReturn:
@@ -538,7 +510,12 @@ def _exact_text(mapping: dict[str, object], name: str, maximum: int = 512) -> st
     return value
 
 
-def _parse_package(manifest_bytes: bytes, env_bytes: bytes) -> _ParsedPackage:
+def _parse_package(
+    manifest_bytes: bytes,
+    env_bytes: bytes,
+    *,
+    environment_present: bool,
+) -> _ParsedPackage:
     manifest = _parse_manifest(manifest_bytes)
     env = _parse_env(env_bytes)
     schema = manifest.get("schema_version")
@@ -601,7 +578,10 @@ def _parse_package(manifest_bytes: bytes, env_bytes: bytes) -> _ParsedPackage:
         configured_image_reference=image,
         pinned_image_digest=digest,
         podman_machine=machine,
-        planned_environment_sha256=_planned_environment_sha256(env_bytes),
+        planned_environment_sha256=_planned_environment_sha256(
+            env_bytes,
+            original_present=environment_present,
+        ),
     )
 
 
@@ -1047,6 +1027,7 @@ def _new_bound_owner(
     parsed = _parse_package(
         _read_file(by_name["release-manifest.v1.json"], _MAX_MANIFEST_BYTES),
         _read_file(by_name[source_name], _MAX_ENV_BYTES),
+        environment_present=environment_present,
     )
     return BoundPackageEnvironmentInputs(
         package_root=package_owner,

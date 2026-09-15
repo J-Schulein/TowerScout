@@ -16,11 +16,13 @@ revocation status is offline/unknown. Earlier network-disabled Docker and
 rootless-Podman checks prove one-root transport containment only. Windows
 security remains partial, but the protected Local AppData and current-user
 DPAPI foundation is now independently reviewed with focused/native proof.
-Secure `.env` absence ownership is independently reviewed and checkpointed;
-atomic replacement, durable recovery, transaction refactoring, provider-
-installer completion, and final proof remain. Implementation and validated
-exact-head checkpoint `14b77e42936f` passed CI/CD run `34992510420`, Task-087
-run `34992510222`, and Trivy;
+Secure `.env` absence ownership is independently reviewed and checkpointed.
+The pure, unwired `.env` byte-transform/state-classification prerequisite for
+atomic replacement is locally implemented, validated, and independently
+reviewed clean; native ACL-preserving replacement, durable recovery,
+transaction refactoring, provider-installer completion, and final proof remain.
+Documentation checkpoint `5469bfde8bb6` is the latest validated exact branch
+head and passed CI/CD run `34994918340`, Task-087 run `34994918554`, and Trivy;
 the main-only build skipped as designed.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
@@ -42,10 +44,12 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `14b77e42936f` is independently reviewed
-  and is the latest validated exact branch head: CI/CD run `34992510420`,
-  Task-087 run `34992510222`, and Trivy passed; the main-only build skipped as
-  designed. PR #67 remains Draft.
+- Task-087 implementation checkpoint `14b77e42936f` is independently reviewed.
+  Documentation checkpoint `5469bfde8bb6` is the latest validated exact branch
+  head: CI/CD run `34994918340`, Task-087 run `34994918554`, and Trivy passed;
+  the main-only build skipped as designed. The locally staged pure `.env`
+  replacement plan is independently reviewed clean but not yet checkpointed.
+  PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -170,8 +174,9 @@ intermediate snapshot, but the supported fixed-host proof remains open because
 cache-only revocation currently fails closed with offline/unknown status.
 Earlier Docker/rootless-Podman checks prove transport containment only. Slices
 5 and 8 are partial; slice 5's protected Local AppData/current-user DPAPI
-foundation is independently reviewed, and its secure-absence owner is locally
-implemented, validated, independently reviewed, and checkpointed at `14b77e4`.
+foundation and secure-absence owner are independently reviewed and
+checkpointed. Its pure `.env` byte-transform/state-classification prerequisite
+is locally implemented, validated, and independently reviewed clean. Native
 ACL-preserving atomic `.env` replacement remains open. Slices 6-7 are not
 started; slice 9 continues incrementally. Mutation is disabled and PR #67
 remains Draft.

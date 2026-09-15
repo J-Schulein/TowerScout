@@ -292,12 +292,16 @@ As of September 15, the canonical Gate A burn-down records slices 1-3 as
 complete, slices 4, 5, and 8 as partial, slices 6-7 as not started, and slice 9
 as continuing validation. Independently reviewed implementation checkpoint
 `2edcb8e` adds the protected Local AppData/current-user DPAPI foundation.
-The next slice 5 increment now has locally validated, handle-bound secure
-absence ownership for the exact package-root `.env`; its independent review is
-clean and checkpointed at `14b77e4`, while ACL-preserving atomic replacement
-remains open. The new primitive is not wired to a mutation path. Checkpoint
-`14b77e4` is the latest validated exact branch head: CI/CD run `34992510420`,
-Task-087 run `34992510222`, and Trivy passed. Mutation remains
+Slice 5 now has independently reviewed, handle-bound secure absence ownership
+for the exact package-root `.env`, checkpointed at `14b77e4`. Its next pure,
+unwired prerequisite is locally implemented and independently reviewed clean:
+strict bounded UTF-8/BOM/NUL validation, exact two-setting byte transformation,
+newline/trailing-form preservation, immutable original/candidate hashes, and
+exact original/candidate/absent/third-state classification. Native same-
+directory ACL-preserving replacement and its indeterminate-result handling
+remain open. Documentation checkpoint `5469bfd` is the latest validated exact
+branch head: CI/CD run `34994918340`, Task-087 run `34994918554`, and Trivy
+passed. Mutation remains
 disabled, PR #67 remains Draft, and the detailed current state and remaining
 outcome sequence are maintained in the
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md).

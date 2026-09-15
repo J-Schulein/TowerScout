@@ -3,12 +3,13 @@
 **As Of**: September 15, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
 **Implementation Head**: `14b77e42936f229e2270254dc9d16ddc253d8b3b`
-**Validated Exact Head**: `14b77e42936f229e2270254dc9d16ddc253d8b3b`
+**Validated Exact Head**: `5469bfde8bb6f4f2334125f82999772f8c546ecf`
 **Current Checkpoint**: Slices 2-3 exact-target confirmation wiring complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
 hosts, so slice 4 remains partial. Slice 5 has independently reviewed protected-
-state/DPAPI and handle-bound secure `.env` absence foundations checkpointed;
-ACL-preserving atomic replacement remains open.
+its pure byte-transform/state-classification prerequisite is locally validated
+and independently reviewed clean. Native ACL-preserving atomic replacement
+remains open.
 **Draft PR**: [#67](https://github.com/J-Schulein/TowerScout/pull/67)
 **Overall State**: IN_PROGRESS / Gate A source implementation
 **Gate A Exit**: NOT MET
@@ -49,11 +50,11 @@ Status in this file answers four separate questions:
 | 2 | Runtime resolver | **COMPLETE** | The reviewed resolver/facade chain through `db7aee8` remains unchanged. The September 14 checkpoint makes the production confirmation coordinator call that facade with only the provider enum, retain its exact owner across typed confirmation, and close it on rejection, timeout, error, invalid stage, or the mutation-disabled terminal path. Independent review findings are reconciled. | Keep the exact owner contract stable while later transaction work consumes it. |
 | 3 | Target resolver | **COMPLETE** | The reviewed normalized target, observation, ownership, and factory chain through `db7aee8` remains unchanged. The September 14 checkpoint displays only `PublicRepairSummary`, revalidates immediately before accepting confirmation, and requires `BEFORE_MUTATION`, `BEFORE_RESTART`, and `TERMINAL` exactly once in order. A skipped, repeated, or backward stage closes the owner and invalidates authorization. Current execution reaches `BEFORE_MUTATION` and then fails closed because mutation is disabled; slice 7 must implement the authorized stop/recreation semantics behind later hooks. Independent review findings are reconciled. | Preserve these hooks while slice 7 implements the authorized stop/recreation semantics. |
 | 4 | Windows trust proof | **PARTIAL** | The reviewed Windows-root eligibility and exact-root selection contracts remain. The September 14 review remediation creates a bounded exact Windows-`CA` plus server-intermediate snapshot, supplies it as an additional build store, rejects every candidate whose intermediate fingerprint is outside that snapshot, retains one exclusive filtered root store, restores cache-only chain revocation, disables AIA/root auto-update, and applies SSL hostname policy. A fresh sanitized retry returned `chain_unverified` for both Azure and Google, consistent with the earlier detailed offline/unknown cached-revocation failure. Earlier disposable network-disabled Docker and rootless-Podman checks showed exactly one selected PEM crossed the boundary, but that selection predates restored revocation and therefore proves transport containment only, not current end-to-end trust success. No certificate bytes or identity were stored as evidence. | Obtain a successful fixed-host proof with current revocation enforcement in a supported Windows context, then repeat the one-selected-root Docker and rootless-Podman containment proof from those same reviewed bytes. |
-| 5 | Windows security proof | **PARTIAL** | Independently reviewed checkpoint `2edcb8e` resolves Local AppData through the Windows Known Folder API; creates only `TowerScout\Recovery\v1`; requires each state directory to have a protected, exact current-user/SYSTEM full-control DACL; retains and revalidates its handle-bound hierarchy; and adds UI-forbidden, current-user-only, purpose-separated DPAPI. Earlier checkpoints `2d37e66`, `f7d21a9`, and `16604c8` provide the handle/file-ID, owner, DACL, reparse, hard-link, supported cloud/OneDrive, secured cross-session mutex, and ordered `.env`/target-lock foundations. Checkpoint `14b77e4` retains package-root trust, binds canonical absence evidence to that root identity, and rechecks the exact `.env` child through a no-follow native open. Focused and neighboring Windows tests, independent review, exact-head CI/CD and Task-087 workflows, and Trivy pass. | Add ACL-preserving atomic `.env` replacement, then exercise all slice 5 primitives together. |
+| 5 | Windows security proof | **PARTIAL** | Independently reviewed checkpoint `2edcb8e` resolves Local AppData through the Windows Known Folder API; creates only `TowerScout\Recovery\v1`; requires each state directory to have a protected, exact current-user/SYSTEM full-control DACL; retains and revalidates its handle-bound hierarchy; and adds UI-forbidden, current-user-only, purpose-separated DPAPI. Earlier checkpoints `2d37e66`, `f7d21a9`, and `16604c8` provide the handle/file-ID, owner, DACL, reparse, hard-link, supported cloud/OneDrive, secured cross-session mutex, and ordered `.env`/target-lock foundations. Checkpoint `14b77e4` retains package-root trust, binds canonical absence evidence to that root identity, and rechecks the exact `.env` child through a no-follow native open. The locally staged pure planner now enforces bounded strict UTF-8/BOM/NUL policy, changes only the two CA settings while preserving unrelated bytes/newline form, retains immutable original/candidate hashes, and classifies exact original/candidate/absent/third state; focused/full launcher validation and independent source review pass. | Add native restrictive temp creation, ACL/identity verification, durable flush/readback, replacement/move plus indeterminate-result classification and cleanup; then exercise all slice 5 primitives together. |
 | 6 | Recovery manager | **NOT STARTED** | The approved journal/recovery contract and adversarial scenarios are documented. | Implement the versioned write-ahead journal, encrypted exact-state backups, authenticated startup reconciliation, fresh-process idempotent recovery, verified rollback, and recovery-pending retention. |
 | 7 | Transaction refactor | **NOT STARTED** | The older prototype transaction and historical live evidence remain available as behavior references only. | Refactor `repair.py` to consume the immutable resolved target and recovery manager, remove process-memory-only backup and unchecked rollback, and enforce pre-write/pre-restart/terminal revalidation. |
 | 8 | Provider installer hardening | **PARTIAL** | Historical checkpoint `3990bc0` closed provider dependency/wheel reproducibility and version verification. Independently reviewed checkpoint `7a0c35a` makes the installed `site-packages` inventory deterministic and provider-only by replacing pip-added metadata with the exact retained wheel inventory, prevents wrapper/bootstrap drift, and suppresses bytecode across the current PowerShell provider path. Its ambient Python compatibility probe is not authentication. | Reuse the protected atomic `.env` contract, change only `PODMAN_COMPOSE_PROVIDER`, remove persistent whole-file plaintext backup/output, and add crash/orphan reconciliation. |
-| 9 | Gate A source validation and review | **VALIDATION CONTINUES** | Every completed increment has focused tests and independent review. Secure-absence checkpoint `14b77e4` passed CI/CD run `34992510420`, Task-087 run `34992510222`, and Trivy; both Python unit-matrix jobs passed and the main-only build skipped as designed. | After slices 2-8 are integrated, run the final broad/adversarial set, fresh-process recovery, isolated Docker CPU then approved rootless-Podman CPU mutation/recovery, OneDrive and two-session Windows proofs, all-volume verification, exact-head workflows, and final independent review. |
+| 9 | Gate A source validation and review | **VALIDATION CONTINUES** | Every completed increment has focused tests and independent review. Secure-absence checkpoint `14b77e4` passed its exact-head gates. Documentation checkpoint `5469bfd` then passed CI/CD run `34994918340`, Task-087 run `34994918554`, and Trivy; both Python unit-matrix jobs passed and the main-only build skipped as designed. The locally staged pure replacement plan passes `47/47` focused and `1536/1536` launcher tests plus static checks and independent source review. | After slices 2-8 are integrated, run the final broad/adversarial set, fresh-process recovery, isolated Docker CPU then approved rootless-Podman CPU mutation/recovery, OneDrive and two-session Windows proofs, all-volume verification, exact-head workflows, and final independent review. |
 
 ## Progress Interpretation
 
@@ -63,8 +64,9 @@ review-remediated, but its successful
 fixed-host proof remains open because the current workstation correctly fails
 closed when it cannot construct the required revocation-aware chain. Slice 5's
 protected-state and DPAPI foundation is now independently reviewed, while
-secure absence is locally validated and independently reviewed with its
-checkpoint and exact-head gates complete; atomic mutation and durable recovery
+secure absence is independently reviewed with its checkpoint and exact-head
+gates complete. The pure transform/state planner is locally validated and
+independently reviewed clean; native atomic mutation and durable recovery
 remain. The
 branch has accumulated substantial
 implementation, test, review, and documentation activity since reviewed
@@ -76,9 +78,10 @@ count, determine completion.
 1. **Finish slice 4.** Obtain a successful current fixed-host Windows trust
    proof with cache-only revocation,
    then repeat Docker/rootless-Podman one-root containment. Keep mutation disabled.
-2. **Finish Windows mutation foundations (slice 5).** Use the reviewed secure
-  absence, protected Local AppData, current-user DPAPI, path, and mutex
-  controls to implement ACL-preserving atomic replacement.
+2. **Finish Windows mutation foundations (slice 5).** Use the reviewed pure
+  transform/state plan, secure absence, protected Local AppData, current-user
+  DPAPI, path, and mutex controls to implement native ACL-preserving atomic
+  replacement and exact post-call classification.
 3. **Build durable recovery and refactor repair (slices 6-7).** Implement the
    fresh-process journal/recovery manager before enabling the refactored
    transaction.
@@ -92,8 +95,9 @@ state definitions above.
 
 ## Next-Session Resume Point
 
-Implement ACL-preserving atomic replacement on the independently reviewed
-slice 5 secure-absence/protected-state/DPAPI foundation. Retry
+Implement the unwired native ACL-preserving replacement boundary around the
+independently reviewed pure plan and secure-absence/protected-state/DPAPI
+foundation. Retry
 slice 4's successful revocation-aware fixed-host and
 Docker/rootless-Podman containment proof only in a context able to satisfy the
 cache-only revocation policy. Do not enable repair or mutation. Then complete

@@ -10,13 +10,16 @@ on this workstation, so its successful Windows/Docker/Podman proof remains
 open. Windows security is partial; its protected Local AppData/current-user
 DPAPI foundation is independently reviewed with native/focused proof, while
 secure absence ownership is locally implemented and validated with independent
-review and exact-head checks clean at checkpoint `14b77e4`, and ACL-preserving
-atomic `.env` replacement remains;
+review and exact-head checks clean at checkpoint `14b77e4`. The pure `.env`
+byte-transform/state-classification prerequisite is locally implemented,
+validated, and independently reviewed clean; native ACL-preserving atomic
+replacement remains;
 durable recovery, transaction refactoring, and the final Gate A proof remain
 open. Independently reviewed implementation checkpoint `14b77e42936f` adds the
-secure-absence owner on the protected-state/DPAPI foundation and is the latest
-validated exact branch head: CI/CD run `34992510420`, Task-087 run
-`34992510222`, and Trivy passed, with the main-only build skipped as designed.
+secure-absence owner on the protected-state/DPAPI foundation. Documentation
+checkpoint `5469bfde8bb6` is the latest validated exact branch head: CI/CD run
+`34994918340`, Task-087 run `34994918554`, and Trivy passed, with the main-only
+build skipped as designed.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1364,6 +1367,57 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-15 - Pure Environment Replacement Planning Implemented Locally
+
+**Objective**: Add the byte-transform and exact-state-classification
+prerequisite for ACL-preserving package `.env` replacement without adding file
+I/O, replacement, journal, recovery, repair wiring, or runtime mutation.
+
+**Context**: Secure absence is checkpointed at `14b77e4`, and documentation
+checkpoint `5469bfd` passed its exact-head CI/CD, Task-087, and Trivy checks.
+The approved design requires strict bounded UTF-8 parsing, optional preserved
+BOM, no NUL, duplicate/malformed target rejection, unrelated-byte and newline
+preservation, and exact original/candidate/absent/third-state classification
+before native replacement is introduced.
+
+**Decision**: Extract the existing planned-hash transformation into one frozen,
+redacted in-memory plan and make retained package-input parsing consume that
+same owner. Preserve an absent original with the canonical absent-file marker;
+derive its candidate only from the already authenticated package template.
+
+**Execution**: Added `windows_environment_replacement.py` with bounded strict
+decoding, exact `REQUESTS_CA_BUNDLE` and `SSL_CERT_FILE` value replacement,
+CRLF/LF and trailing-newline preservation, CRLF output for an empty source,
+immutable original/candidate bytes and SHA-256 values, and exact four-state
+classification. Updated `runtime_package_inputs.py` to use the new planner for
+its planned environment hash and pass truthful present/template source state.
+Added focused adversarial tests. No open/create/write/rename/delete,
+subprocess, runtime, provider, or repair operation is present in the module.
+
+**Output**: The pure replacement plan is locally staged and independently
+reviewed clean. It is not a file-replacement implementation and does not enable
+mutation.
+
+**Validation**: Focused replacement/package-input tests pass `47/47`; the
+complete launcher unit surface passes `1536/1536`. Black, strict mypy, blocking
+Flake8 including unused imports, medium/high Bandit, compilation, editor
+diagnostics, and diff whitespace checks pass. The new module adds no advisory
+complexity finding. Independent inspect-only review returned `CLEAN`, reran 21
+replacement-module tests and compilation, and independently verified that the
+real `.env.example` changes only the two active CA value spans while retaining
+its line/trailing-newline form.
+
+**Boundary**: Slice 5 remains `PARTIAL`. Native restrictive temp creation,
+DACL/owner/identity verification, flush/readback, `ReplaceFileW` or same-volume
+write-through move, post-call classification, cleanup, and integrated slice 5
+proof remain open. Durable journaling and recovery remain slice 6. Mutation is
+disabled and PR #67 remains Draft.
+
+**Next**: Freeze the complete source/documentation candidate, rerun final
+validation, and obtain a fresh independent review before commit or push. Then
+implement the unwired native ACL-preserving replacement boundary around this
+reviewed plan.
 
 ### 2026-09-15 - Secure-Absence Exact-Head Checks Reconciled
 

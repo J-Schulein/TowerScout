@@ -17,9 +17,11 @@ mutation/recovery and final validation remain. Independently reviewed
 checkpoint `2edcb8e` supplies slice 5's protected Local AppData/current-user
 DPAPI foundation. Secure `.env` absence ownership is locally implemented and
 validated, independently reviewed, and checkpointed at `14b77e4`;
-ACL-preserving atomic replacement remains open. Checkpoint `14b77e4` is the
-latest validated exact branch head; CI/CD run `34992510420`, Task-087 run
-`34992510222`, and Trivy passed. PR #67 stays
+the pure `.env` byte-transform and exact state-classification prerequisite is
+also locally implemented, validated, and independently reviewed clean. Native
+ACL-preserving atomic replacement remains open. Documentation checkpoint
+`5469bfd` is the latest validated exact branch head; CI/CD run `34994918340`,
+Task-087 run `34994918554`, and Trivy passed. PR #67 stays
 Draft and Gate A source remediation/re-review precedes preview integration.
 Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
