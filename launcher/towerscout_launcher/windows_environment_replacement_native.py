@@ -118,7 +118,8 @@ class EnvironmentTempPlanRecord:
 
     def __post_init__(self) -> None:
         if (
-            self.schema_version != _SCHEMA_VERSION
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
             or type(self.package_root_identity) is not StableFileIdentity
             or not _valid_hash(self.original_sha256)
             or not _valid_hash(self.candidate_sha256)
@@ -148,7 +149,8 @@ class EnvironmentTempCreatedRecord:
 
     def __post_init__(self) -> None:
         if (
-            self.schema_version != _SCHEMA_VERSION
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
             or not _valid_hash(self.planned_generation_sha256)
             or type(self.package_root_identity) is not StableFileIdentity
             or type(self.temp_identity) is not StableFileIdentity
@@ -179,7 +181,8 @@ class EnvironmentTempVerifiedRecord:
 
     def __post_init__(self) -> None:
         if (
-            self.schema_version != _SCHEMA_VERSION
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
             or not _valid_hash(self.created_generation_sha256)
             or type(self.package_root_identity) is not StableFileIdentity
             or type(self.temp_identity) is not StableFileIdentity

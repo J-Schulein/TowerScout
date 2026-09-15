@@ -18,9 +18,14 @@ reviewed and pushed implementation checkpoint `1c45445df82e` adds private
 journal-gated restrictive native candidate-temp staging and is the latest
 validated exact branch head: CI/CD run `35005869321`, Task-087 run
 `35005869200`, and Trivy passed; the main-only build skipped as designed.
+Documentation checkpoint `42180b10e7f` then passed CI/CD run `35006846090`,
+Task-087 run `35006846025`, and Trivy; the main-only build skipped as designed.
 Durable journal storage and native ACL-preserving promotion/replacement remain;
 durable recovery, transaction refactoring, and the final Gate A proof remain
-open.
+open. A local Slice 6 source candidate adds pure current-user-DPAPI generation
+and pointer codecs plus fail-closed environment-temp chain selection; it has no
+native journal persistence/enumeration, pointer repair, backup/recovery action,
+cleanup, staging integration, or mutation path.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1368,6 +1373,79 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-15 - Authenticated Environment Journal Chain Foundation Implemented Locally
+
+**Objective**: Add the smallest pure journal-generation prerequisite needed
+before durable native persistence or startup recovery can be implemented.
+
+**Context**: Independently reviewed staging checkpoint `1c45445` requires exact
+durable receipts before each native side effect. Documentation checkpoint
+`42180b1` reconciled that source state and passed exact-head CI/CD run
+`35006846090`, Task-087 run `35006846025`, and Trivy. The approved recovery
+design requires immutable current-user-DPAPI generations, ciphertext-digest
+links, a metadata-only pointer, and fail-closed startup chain selection.
+
+**Decision**: Keep this increment pure and unwired. Model only the three
+environment-temp prelude states, while keeping the stream identity suitable for
+later recovery states. Accept only sealed generations at chain selection and
+authenticate every candidate inside the selector through the existing
+protected-state boundary; treat every candidate as authoritative input so an
+invalid or competing generation cannot be ignored in favor of a convenient
+chain.
+
+**Execution**: Added `windows_recovery_journal.py` with redacted immutable
+stream, generation, sealed-generation, pointer, and chain-selection models.
+Added strict canonical JSON encoding/decoding, current-user DPAPI protection/
+authentication through a narrow port, links over the actual predecessor
+ciphertext digest, exact existing staging-record reconstruction, and
+deterministic planned/created/verified chain validation. The selector owns
+authentication of every sealed input and exposes only decoded generations plus
+their verified ciphertext digests. Missing and stale ancestor pointers are
+classified for later repair; branches, gaps, duplicates, foreign streams,
+unknown/future pointers, record drift, and authentication or schema failures
+are sanitized and rejected.
+
+**Output**: The local candidate can encode, protect, authenticate, and select a
+single environment-temp journal chain in memory. It cannot enumerate or write a
+journal file, update or repair a pointer, implement encrypted backups or
+recovery, clean an orphan, invoke native staging, promote or replace `.env`, or
+enable repair/runtime mutation.
+
+**Validation**: Focused adversarial journal tests pass `26/26`. The directly adjacent
+protected-state, staging, replacement-planner, secure-absence, path-trust, and
+package-input set passes `152/152`; the isolated late launcher security/mutex/
+path/protected-state/journal set passes `155/155`. Black, strict mypy, blocking
+Flake8, Bandit, compilation, editor diagnostics, diff whitespace, and a focused
+sensitive-term scan pass. A broad launcher run showed no changed-journal
+failure, but its final terminal summary remained unavailable around the same
+Defender-sensitive dormant-helper area recorded for the prior checkpoint, so it
+is not claimed as passing evidence.
+
+**Independent Review**: The initial review found one High issue, two Medium
+issues, and one Low issue: caller-forgeable authenticated wrappers, permissive
+Boolean/float schema acceptance, unsanitized deep-JSON recursion, and leaking
+ordinary protection-port failures. The corrected local diff removes the public
+authenticated authority type, makes the selector authenticate all sealed
+candidates internally, enforces exact integer schema versions across journal
+and staging records, sanitizes recursion, validates the protection port, and
+sanitizes ordinary protection failures while preserving process-control
+exceptions. Adversarial regressions cover each correction. Corrected-diff
+independent re-review returned CLEAN/PASS with no Critical, High, Medium, Low,
+or unresolved findings. The reviewer verified the four remediations, public API
+boundary, fail-closed chain and pointer behavior, redaction, adversarial tests,
+documentation claims, and intentionally unwired scope without product,
+runtime, or Git mutation.
+
+**Boundary**: Slice 6 moves from `NOT STARTED` to `PARTIAL`; Slice 5 remains
+`PARTIAL`. This is not a durable journal provider or startup recovery manager.
+PR #67 remains Draft, mutation remains disabled, Task-086 remains the supported
+fallback, Gate B remains separate, and Task-100 is unchanged.
+
+**Next**: Checkpoint and push this clean-reviewed increment, require exact-head
+workflows, then implement protected-root generation enumeration/persistence and
+durable pointer update/repair without wiring staging, promotion, cleanup, or
+recovery actions.
 
 ### 2026-09-15 - Native Environment Temp-Staging Checkpoint Reconciled
 

@@ -24,7 +24,14 @@ validated exact branch head; CI/CD run `35005869321`, Task-087 run
 `35005869200`, and Trivy passed, while the main-only build skipped as designed.
 It adds the private journal-gated native candidate-temp prerequisite; durable
 journal storage and native ACL-preserving promotion/replacement remain open.
-PR #67 stays Draft and Gate A source remediation/re-review precedes preview
+Documentation checkpoint `42180b1` also passed its exact-head CI/CD, Task-087,
+and Trivy gates. A local source candidate adds strict protected generation and
+pointer codecs plus fail-closed environment-temp chain selection with
+selector-owned authentication of every sealed candidate. Initial independent-
+review findings are remediated and corrected-diff re-review is CLEAN/PASS with
+no remaining findings; checkpointing remains pending. Native journal
+persistence/enumeration, pointer repair, backups, and recovery remain open. PR
+#67 stays Draft and Gate A source remediation/re-review precedes preview
 integration.
 Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
@@ -170,7 +177,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT. Slices 1-3 are complete after the independently reviewed September 14 exact-target confirmation checkpoint. Slice 4 remains partial: the bounded Windows trust implementation is reviewed, but its revocation-aware fixed-host and repeated container proof remain open. Earlier Docker/rootless-Podman checks prove one-root transport containment only. Slice 5 has independently reviewed protected-state, DPAPI, secure-absence, and pure-planner foundations; reviewed and exact-head validated checkpoint `1c45445` adds journal-gated restrictive native temp staging. Durable journal storage and native promotion/replacement remain open. Slice 8 is partial; slices 6-7 are not started; final validation continues. Mutation is disabled and PR #67 remains Draft; preview and Task-100 gates remain separate. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT. Slices 1-3 are complete after the independently reviewed September 14 exact-target confirmation checkpoint. Slice 4 remains partial: the bounded Windows trust implementation is reviewed, but its revocation-aware fixed-host and repeated container proof remain open. Earlier Docker/rootless-Podman checks prove one-root transport containment only. Slice 5 has independently reviewed protected-state, DPAPI, secure-absence, pure-planner, and native temp-staging foundations. Slice 6 is partial: a local source candidate adds strict authenticated environment-generation/pointer codecs and selector-owned unique-chain authentication/selection; initial review findings are remediated and corrected-diff re-review is CLEAN/PASS with no remaining findings, while native persistence, pointer repair, backups, and recovery remain open. Checkpointing remains pending. Slice 8 is partial; slice 7 is not started; final validation continues. Mutation is disabled and PR #67 remains Draft; preview and Task-100 gates remain separate. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---

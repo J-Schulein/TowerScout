@@ -314,6 +314,21 @@ exists yet. Mutation remains disabled, PR #67 remains Draft, and the detailed
 current state and remaining outcome sequence are maintained in the
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md).
 
+Documentation checkpoint `42180b1` passed exact-head CI/CD run `35006846090`,
+Task-087 run `35006846025`, and Trivy; the main-only build skipped as designed.
+A local, unwired Slice 6 candidate now defines strict canonical JSON for the
+planned/created/verified environment-temp generation records, protects and
+authenticates each generation through the existing current-user DPAPI boundary,
+and links transitions by the actual predecessor ciphertext digest. The selector
+accepts only sealed generations, authenticates every candidate internally, and
+returns only decoded generations plus verified ciphertext digests after choosing
+one complete chain. Missing or ancestor pointers are classified for later
+repair; foreign, future, branched, gapped, cross-stream, drifted, noncanonical,
+or unauthenticated records fail closed. This pure layer does not enumerate or
+persist journal files, mutate a pointer, implement encrypted backups or
+recovery, clean an orphan, stage a package file, promote `.env`, or integrate
+with repair/runtime code.
+
 ## Exit/Stop Design Boundary
 
 If the Task-087 launcher proof passes, Task-096 will reuse the launcher's
