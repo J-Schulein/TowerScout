@@ -52,13 +52,15 @@ base CPython dependency closure.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
 - Task-087 implementation checkpoint `53bed469a8a2` is independently reviewed,
-  pushed, and the latest validated exact branch head: CI/CD run `35013069183`,
-  Task-087 run `35013069124`, and Trivy passed; the main-only build was neutral
-  as designed. It adds protected-root-owned pure generation persistence/
-  enumeration orchestration over an injected storage port. It has no native
-  file adapter, pointer write/repair, recovery, cleanup, staging integration,
-  promotion, `.env` replacement, or repair mutation.
-  PR #67 remains Draft.
+  pushed, and exact-head validated. Documentation checkpoint `2e0f90e` is the
+  latest validated branch head: CI/CD run `35014300773`, Task-087 run
+  `35014300816`, and Trivy passed; the main-only build was neutral as designed.
+  A local source candidate adds the native protected-DACL generation adapter
+  with bounded enumeration and create/flush/reopen/read verification. It has no
+  pointer write/repair, recovery, cleanup, staging integration, promotion,
+  `.env` replacement, or repair mutation. Independent source/security review
+  returned `CLEAN/PASS` with no actionable Low-or-higher findings; checkpointing
+  remains pending. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -197,9 +199,11 @@ environment-temp prelude. The selector authenticates every sealed candidate
 internally. A local source candidate now adds only root-owned persistence/
 enumeration orchestration over an injected storage port. That increment is
 independently reviewed, checkpointed at `53bed46`, and exact-head validated. No
-native persistence, pointer repair, backup, or recovery action exists. Slice 7
-is not started; slice 9 continues incrementally. Mutation is disabled and PR
-#67 remains Draft.
+pointer repair, backup, or recovery action exists. A local source candidate now
+implements only the native generation-file adapter. Independent source/security
+review returned `CLEAN/PASS` with no actionable Low-or-higher findings;
+checkpointing remains pending. Slice 7 is not started; slice 9 continues
+incrementally. Mutation is disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Remaining Estimate**: Complete slice 4's revocation-aware fixed-host and

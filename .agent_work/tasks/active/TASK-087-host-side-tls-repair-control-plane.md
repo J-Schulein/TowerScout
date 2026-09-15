@@ -1372,6 +1372,63 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-15 - Native Journal Generation Adapter Implemented Locally
+
+**Objective**: Implement the native Windows storage port for immutable recovery
+journal generations without adding pointer mutation or recovery behavior.
+
+**Context**: Independently reviewed checkpoint `53bed46` supplies the root-owned
+pure list/read/create orchestration. Documentation checkpoint `2e0f90e` passed
+exact-head CI/CD run `35014300773`, Task-087 run `35014300816`, and Trivy. The
+remaining dependency is a native adapter that makes the injected storage
+contract durable and verifies each file without following a reparsed leaf.
+
+**Decision**: Keep the adapter in a separate recovery-journal module and compose
+the reviewed `NativeWindowsEnvironmentReplacementApi` for restrictive
+`CREATE_NEW`, current-user/SYSTEM DACL creation, native writes, flushes, handle
+queries, and no-follow reopens. Add only bounded name enumeration locally; do
+not modify the staging implementation or add pointer semantics.
+
+**Execution**: Added `windows_recovery_journal_storage_native.py`. The adapter
+validates an absolute protected-root path and exact generation filename, bounds
+enumeration, creates each generation with the protected DACL, writes all bytes,
+calls `FlushFileBuffers`, verifies same-handle path/identity/local-volume/
+regular-file/single-link/DACL/size/content state, closes, reopens without
+following a reparse point, and repeats identity, DACL, size, and byte checks.
+Existing generations use the same no-follow file, identity, DACL, bounded-size,
+and before/after-read verification. Ordinary dependency errors become stable
+storage error codes while process-control exceptions propagate.
+
+**Output**: The local candidate implements the native generation-file port and
+passes one real Windows create/list/read round trip in an isolated pytest
+directory. It does not create or replace a pointer, delete an orphan, recover a
+transaction, call the environment staging journal, promote or replace `.env`,
+or enable repair/runtime mutation.
+
+**Validation**: The focused fake-API and native Windows suite passes `18/18`.
+The adjacent recovery set passes `182/182`; the isolated late-launcher set
+passes `185/185`. Black, strict mypy, blocking Flake8, Bandit, compilation, and
+editor diagnostics pass. Black reformatted the initial test/source draft and
+blocking Flake8 identified one unused import; the final clean rerun includes
+both corrections.
+
+**Independent Review**: A fresh read-only source/security review returned
+`CLEAN/PASS` with no actionable Low-or-higher findings. It confirmed bounded
+enumeration and name containment; path, reparse, hard-link, local-volume, and
+stable-identity checks; strict owner/DACL verification; complete handle cleanup
+with process-control exception propagation; protocol-result validation; native
+smoke and fake-API fidelity; and the declared no-pointer/no-recovery boundary.
+
+**Boundary**: Slices 5 and 6 remain `PARTIAL`; native generation persistence is
+not a pointer protocol or recovery manager. PR #67 remains Draft, mutation
+remains disabled, Task-086 remains the supported fallback, and Gate B/Task-100
+remain separate.
+
+**Next**: Revalidate and independently review the exact documented diff, then
+checkpoint only if it remains clean. After checkpoint validation, implement
+same-volume pointer create/flush/reopen/replace/repair without wiring production
+staging, promotion, cleanup, or recovery.
+
 ### 2026-09-15 - Root-Owned Journal Storage Orchestration Checkpointed
 
 **Objective**: Add the smallest dependency-ordered persistence/enumeration

@@ -344,6 +344,18 @@ sealed blobs, and authenticates the selected chain. This candidate does not
 implement native file I/O or DACL checks, pointer files or repair, cleanup,
 recovery, staging integration, promotion/replacement, or runtime mutation.
 
+A local native-adapter candidate composes the reviewed restrictive Windows file
+API with bounded root enumeration. Generation create uses `CREATE_NEW`, exact
+current-user/SYSTEM protected-DACL checks, complete bounded writes,
+`FlushFileBuffers`, same-handle verification, close, no-follow reopen, stable
+identity/path/local-volume/regular-file/single-link checks, and exact byte
+reread. Generation reads apply the same no-follow identity, DACL, size, and byte
+checks while the protected root callback remains active. Independent
+source/security review returned `CLEAN/PASS` with no actionable Low-or-higher
+findings. This candidate still does not write or repair the metadata pointer,
+recover, clean artifacts, wire staging/promotion, replace `.env`, or enable
+runtime mutation.
+
 ## Exit/Stop Design Boundary
 
 If the Task-087 launcher proof passes, Task-096 will reuse the launcher's
