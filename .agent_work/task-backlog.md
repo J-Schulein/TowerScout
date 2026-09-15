@@ -1,6 +1,6 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: September 14, 2026
+**Last Updated**: September 15, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases until the
 normal-user package is satisfactory, then complete Task-100 production signing
@@ -15,8 +15,10 @@ offline/unknown status on this workstation, so earlier Docker/rootless-Podman
 single-root checks prove transport containment only. Durable Windows
 mutation/recovery and final validation remain. Independently reviewed
 checkpoint `2edcb8e` supplies slice 5's protected Local AppData/current-user
-DPAPI foundation; secure absence and atomic `.env` replacement remain. PR #67
-stays Draft and Gate A source remediation/re-review precedes preview integration.
+DPAPI foundation; secure absence and atomic `.env` replacement remain. Its
+documentation reconciliation head `51e6786` passed all applicable exact-head
+checks. PR #67 stays Draft and Gate A source remediation/re-review precedes
+preview integration.
 Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
 

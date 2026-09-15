@@ -1,9 +1,9 @@
 # TASK-087 Gate A Status
 
-**As Of**: September 14, 2026
+**As Of**: September 15, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
 **Implementation Head**: `2edcb8e5372b9f3bc3c6d8758e1e2e2e07319460`
-**Validated Code/Test Head**: `088201722355ffeb8911fa58a469b6b2815645d8`
+**Validated Exact Head**: `51e6786185b15722be3c449ed262abd0f002e4c0`
 **Current Checkpoint**: Slices 2-3 exact-target confirmation wiring complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
 hosts, so slice 4 remains partial. Slice 5 now has a locally implemented,
@@ -53,7 +53,7 @@ Status in this file answers four separate questions:
 | 6 | Recovery manager | **NOT STARTED** | The approved journal/recovery contract and adversarial scenarios are documented. | Implement the versioned write-ahead journal, encrypted exact-state backups, authenticated startup reconciliation, fresh-process idempotent recovery, verified rollback, and recovery-pending retention. |
 | 7 | Transaction refactor | **NOT STARTED** | The older prototype transaction and historical live evidence remain available as behavior references only. | Refactor `repair.py` to consume the immutable resolved target and recovery manager, remove process-memory-only backup and unchecked rollback, and enforce pre-write/pre-restart/terminal revalidation. |
 | 8 | Provider installer hardening | **PARTIAL** | Historical checkpoint `3990bc0` closed provider dependency/wheel reproducibility and version verification. Independently reviewed checkpoint `7a0c35a` makes the installed `site-packages` inventory deterministic and provider-only by replacing pip-added metadata with the exact retained wheel inventory, prevents wrapper/bootstrap drift, and suppresses bytecode across the current PowerShell provider path. Its ambient Python compatibility probe is not authentication. | Reuse the protected atomic `.env` contract, change only `PODMAN_COMPOSE_PROVIDER`, remove persistent whole-file plaintext backup/output, and add crash/orphan reconciliation. |
-| 9 | Gate A source validation and review | **VALIDATION CONTINUES** | Every completed increment has focused tests and independent review. Exact checkpoint `0882017` passed CI/CD run `34885500402`, Task-087 run `34885500661`, and external Trivy job `104115152725`; both Python unit-matrix jobs passed and the PR-only build skipped as designed. | After slices 2-8 are integrated, run the final broad/adversarial set, fresh-process recovery, isolated Docker CPU then approved rootless-Podman CPU mutation/recovery, OneDrive and two-session Windows proofs, all-volume verification, exact-head workflows, and final independent review. |
+| 9 | Gate A source validation and review | **VALIDATION CONTINUES** | Every completed increment has focused tests and independent review. Documentation reconciliation head `51e6786`, containing independently reviewed implementation checkpoint `2edcb8e`, passed CI/CD run `34892815759`, Task-087 run `34892816254`, and external Trivy job `104139549709`; both Python unit-matrix jobs passed and the PR-only build skipped as designed. | After slices 2-8 are integrated, run the final broad/adversarial set, fresh-process recovery, isolated Docker CPU then approved rootless-Podman CPU mutation/recovery, OneDrive and two-session Windows proofs, all-volume verification, exact-head workflows, and final independent review. |
 
 ## Progress Interpretation
 

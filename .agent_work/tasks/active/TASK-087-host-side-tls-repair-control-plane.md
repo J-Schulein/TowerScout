@@ -12,10 +12,10 @@ DPAPI foundation is independently reviewed with native/focused proof, while
 secure absence and atomic `.env` replacement remain;
 durable recovery, transaction refactoring, and the final Gate A proof remain
 open. Independently reviewed implementation checkpoint `2edcb8e5372b` adds the
-protected-state/DPAPI foundation. Checkpoint `088201722355` remains the
-validated code/test head: CI/CD run `34885500402`, Task-087 run `34885500661`,
-and external Trivy job `104115152725` all passed there, with the PR-only build
-skipped as designed.
+protected-state/DPAPI foundation. Its documentation reconciliation head
+`51e6786185b1` is the validated exact branch head: CI/CD run `34892815759`,
+Task-087 run `34892816254`, and external Trivy job `104139549709` all passed
+there, with the PR-only build skipped as designed.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1363,6 +1363,31 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-15 - Protected-State Exact-Head CI Reconciled
+
+**Objective**: Reconcile the independently reviewed protected-state checkpoint
+with its completed GitHub checks and leave one accurate Gate A resume point.
+
+**Execution**: Verified Draft PR #67 still targets the isolated
+`feature/task-087-windows-launcher-prototype` branch at documentation
+reconciliation head `51e6786185b15722be3c449ed262abd0f002e4c0`. That head
+contains independently reviewed implementation checkpoint
+`2edcb8e5372b9f3bc3c6d8758e1e2e2e07319460` without a later source change.
+Reconciled the sprint summary, backlog, technical design, canonical Gate A
+burn-down, and this chronological record to the completed exact-head evidence.
+
+**Validation**: All nine applicable pull-request checks succeeded: CI/CD run
+`34892815759`, Task-087 run `34892816254`, and external Trivy job
+`104139549709`. Both Python unit-matrix jobs passed; the pull-request-only build
+job skipped as designed. The PR remains Draft.
+
+**Boundary**: This closes only the exact-head CI follow-up for the protected
+state/DPAPI foundation. Slice 5 remains partial; no slice state changed, no
+repair or mutation was enabled, and Gate A remains open.
+
+**Next**: Implement secure `.env` absence proof and ACL-preserving atomic
+replacement, then exercise the complete slice 5 Windows-security contract.
 
 ### 2026-09-14 - Protected State And Current-User DPAPI Foundation Independently Reviewed
 

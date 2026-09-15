@@ -2,7 +2,7 @@
 
 **Sprint Period**: August 8-August 21, 2026; active-task continuation retained
 through the current Task-087 Gate A work
-**Last Updated**: September 14, 2026
+**Last Updated**: September 15, 2026
 **Focus**: Task-101 is complete. Task-087 is the active implementation task.
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
@@ -19,9 +19,10 @@ DPAPI foundation is now independently reviewed with focused/native proof.
 Secure absence, atomic `.env` replacement, durable
 recovery, transaction refactoring, provider-installer completion, and final
 proof remain. Independently reviewed
-checkpoint `088201722355` is the validated code/test head. At that exact head,
-all applicable checks passed in CI/CD run `34885500402`, Task-087 run
-`34885500661`, and external Trivy job `104115152725`; the PR-only build skipped
+implementation checkpoint `2edcb8e5372b` is independently reviewed. Its
+documentation reconciliation head `51e6786185b1` is the validated exact branch
+head: all applicable checks passed in CI/CD run `34892815759`, Task-087 run
+`34892816254`, and external Trivy job `104139549709`; the PR-only build skipped
 as designed.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. The latest independently reviewed implementation
@@ -43,12 +44,11 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 source checkpoint `088201722355` is independently reviewed and is
-  the validated code/test head. At that exact head, all applicable checks
-  passed in CI/CD run `34885500402`, Task-087 run `34885500661`, and external
-  Trivy job `104115152725`; the PR-only build skipped as designed. PR #67
-  remains Draft. Independently reviewed implementation checkpoint `2edcb8e`
-  adds the protected-state/DPAPI foundation and awaits exact-head CI.
+- Task-087 implementation checkpoint `2edcb8e5372b` is independently reviewed.
+  Its documentation reconciliation head `51e6786185b1` is the validated exact
+  branch head: all applicable checks passed in CI/CD run `34892815759`,
+  Task-087 run `34892816254`, and external Trivy job `104139549709`; the
+  PR-only build skipped as designed. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
