@@ -35,16 +35,15 @@ verification, close-before-rename
 `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`, source-name absence proof, and
 exact destination verification above the pure pointer policy. It does not
 implement cleanup, backup/recovery action, staging integration, promotion,
-`.env` replacement, or runtime mutation. Documentation checkpoint `145e0b9`
-also passed exact-head CI/CD run `35022713082`, Task-087 run `35022713013`, and
-Trivy; the main-only build was neutral as designed. A local independently
-reviewed source candidate now accepts a move API error as success only after
-same-call source-absence and exact destination identity/DACL/path/size/byte
-proof. It does not implement restart classification, durable temp-identity
-binding, or cleanup. Focused, adjacent, and full launcher tests pass `39/39`,
-`105/105`, and `1647/1647`; initial independent review returned `CLEAN/PASS`.
-PR #67 stays Draft and Gate A source remediation/re-review precedes preview
-integration.
+`.env` replacement, or runtime mutation. Independently reviewed and exact-head
+validated checkpoint `ebb9d69` now accepts a move API error as success only
+after same-call source-absence and exact destination identity/DACL/path/size/
+byte proof. It passed CI/CD run `35025200641`, Task-087 run `35025200635`, and
+Trivy; the main-only build was neutral as designed. It does not implement
+restart classification, durable temp-identity binding, or cleanup. Focused,
+adjacent, and full launcher tests pass `39/39`, `105/105`, and `1647/1647`;
+initial and final independent reviews returned `CLEAN/PASS`. PR #67 stays Draft
+and Gate A source remediation/re-review precedes preview integration.
 Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
 

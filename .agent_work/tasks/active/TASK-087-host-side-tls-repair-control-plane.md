@@ -30,10 +30,12 @@ pointer reads and write-through replacement; CI/CD run `35021545053`, Task-087
 run `35021545062`, and Trivy passed, while the main-only build was neutral as
 designed. Documentation checkpoint `145e0b91cca` then passed exact-head CI/CD
 run `35022713082`, Task-087 run `35022713013`, and Trivy; the main-only build was
-neutral as designed. A local independently reviewed source candidate adds
-same-call completed-move reconciliation after an ordinary API error. Restart
-classification, durable temp-identity binding, backup/recovery action, cleanup,
-staging integration, promotion/replacement, and runtime mutation remain open.
+neutral as designed. Independently reviewed and exact-head validated checkpoint
+`ebb9d69eb42` adds same-call completed-move reconciliation after an ordinary API
+error; CI/CD run `35025200641`, Task-087 run `35025200635`, and Trivy passed,
+while the main-only build was neutral as designed. Restart classification,
+durable temp-identity binding, backup/recovery action, cleanup, staging
+integration, promotion/replacement, and runtime mutation remain open.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1382,7 +1384,7 @@ Exit criteria:
 
 ## Implementation Log
 
-### 2026-09-15 - Same-Call Pointer Move Reconciliation Candidate
+### 2026-09-15 - Same-Call Pointer Move Reconciliation Checkpointed
 
 **Objective**: Classify the narrow case where pointer replacement completed but
 `MoveFileExW` reported an ordinary API error, without deleting any artifact or
@@ -1410,8 +1412,8 @@ returns the verified destination only for the exact completed-move state.
 Adversarial fake cases cover identity, bytes, path, DACL, and source-presence
 drift plus process-control propagation.
 
-**Output**: The local source candidate can recover same-call success when the
-move completed despite an API error. It does not classify unresolved state
+**Output**: Checkpoint `ebb9d69` can recover same-call success when the move
+completed despite an API error. It does not classify unresolved state
 across restart, bind a surviving pointer temp identity durably, clean an orphan,
 create a backup, execute recovery, connect staging/promotion, replace `.env`,
 stop/restart a runtime, or enable mutation.
@@ -1421,8 +1423,9 @@ replacement boundary passes `105/105`; the complete launcher unit surface
 passes `1647/1647`. Black, strict mypy, blocking Flake8, medium/high Bandit, and
 editor diagnostics pass.
 
-**Independent Review**: Initial source/security/test review returned
-`CLEAN/PASS` with no actionable Low-or-higher findings. It confirmed exact
+**Independent Review**: Initial source/security/test and final exact-diff
+reviews returned `CLEAN/PASS` with no actionable Low-or-higher findings. They
+confirmed exact
 source-absence and destination identity/DACL/path/size/byte proof, sanitized
 ordinary failures, handle closure, process-control propagation, and the
 no-cleanup/no-runtime-mutation boundary.
@@ -1430,6 +1433,9 @@ no-cleanup/no-runtime-mutation boundary.
 **Boundary**: Slices 5 and 6 remain `PARTIAL`; slice 7 remains `NOT STARTED`.
 PR #67 remains Draft, mutation remains disabled, Task-086 remains the supported
 fallback, and Gate B/Task-100 remain separate.
+
+**Exact-Head Validation**: CI/CD run `35025200641`, Task-087 run `35025200635`,
+and Trivy passed at `ebb9d69`; the main-only build was neutral as designed.
 
 **Next**: Design durable authenticated exact pointer-temp identity binding for
 restart classification before adding any orphan cleanup. Do not delete by name

@@ -54,22 +54,16 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `95ca37d68e2` is independently reviewed,
-  pushed, and exact-head validated: CI/CD run
-  `35021545053`, Task-087 run `35021545062`, and Trivy passed; the main-only
-  build was neutral as designed. It adds native protected pointer reads and
-  same-directory temp creation, write/flush/dual verification,
-  close-before-rename `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`,
-  source-name absence proof, and destination identity/DACL/path/byte
-  verification above checkpoint `221612c`'s pure pointer policy. Documentation
-  checkpoint `145e0b9` passed exact-head CI/CD run `35022713082`, Task-087 run
-  `35022713013`, and Trivy; the main-only build was neutral as designed. A local
-  independently reviewed source candidate now accepts an ordinary move API
-  error as success only when the same call proves the source absent and the
-  destination has the exact pre-move identity, protected DACL, path, size, and
-  bytes. It performs no cleanup and has no restart classification, durable
-  temp-identity binding, backup/recovery action, staging integration, promotion,
-  `.env` replacement, or repair mutation. PR #67 remains Draft.
+- Task-087 implementation checkpoint `ebb9d69eb42` is independently reviewed,
+  pushed, and exact-head validated: CI/CD run `35025200641`, Task-087 run
+  `35025200635`, and Trivy passed; the main-only build was neutral as designed.
+  Above checkpoint `95ca37d`'s protected pointer replacement, it accepts an
+  ordinary move API error as success only when the same call proves the source
+  absent and the destination has the exact pre-move identity, protected DACL,
+  path, size, and bytes. It performs no cleanup and has no restart
+  classification, durable temp-identity binding, backup/recovery action,
+  staging integration, promotion, `.env` replacement, or repair mutation. PR
+  #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -215,8 +209,8 @@ validated. Checkpoint `221612c` adds pointer-aware authenticated load and pure
 missing/stale pointer repair orchestration through an injected port and is
 exact-head validated. Checkpoint `95ca37d` adds native pointer replacement and
 exact success-path verification and is independently reviewed and exact-head
-validated. A local independently reviewed source candidate adds exact same-call
-completed-move reconciliation after an ordinary API error. Restart
+validated. Independently reviewed and exact-head validated checkpoint `ebb9d69`
+adds exact same-call completed-move reconciliation after an ordinary API error. Restart
 classification, durable temp-identity binding, and cleanup remain open. Slice 7
 is not started; slice 9 continues incrementally. Mutation is disabled and PR #67
 remains Draft.
