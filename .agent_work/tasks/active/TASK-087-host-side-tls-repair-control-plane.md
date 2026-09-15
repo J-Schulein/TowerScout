@@ -11,14 +11,14 @@ open. Windows security is partial; its protected Local AppData/current-user
 DPAPI foundation is independently reviewed with native/focused proof, while
 secure absence ownership is locally implemented and validated with independent
 review and exact-head checks clean at checkpoint `14b77e4`. The pure `.env`
-byte-transform/state-classification prerequisite is locally implemented,
-validated, and independently reviewed clean; native ACL-preserving atomic
+byte-transform/state-classification prerequisite is committed, independently
+reviewed, and exact-head validated at `0efeff7`; native ACL-preserving atomic
 replacement remains;
 durable recovery, transaction refactoring, and the final Gate A proof remain
-open. Independently reviewed implementation checkpoint `14b77e42936f` adds the
-secure-absence owner on the protected-state/DPAPI foundation. Documentation
-checkpoint `5469bfde8bb6` is the latest validated exact branch head: CI/CD run
-`34994918340`, Task-087 run `34994918554`, and Trivy passed, with the main-only
+open. Independently reviewed implementation checkpoint `0efeff75f63e` adds the
+pure replacement planner on the secure-absence/protected-state/DPAPI
+foundation and is the latest validated exact branch head: CI/CD run
+`34999494411`, Task-087 run `34999494398`, and Trivy passed, with the main-only
 build skipped as designed.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
@@ -1367,6 +1367,31 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-15 - Environment Replacement Planner Exact-Head Checks Reconciled
+
+**Objective**: Close the checkpoint and exact-head workflow gate for the
+independently reviewed pure package `.env` replacement planner.
+
+**Execution**: Confirmed local and origin branch head
+`0efeff75f63ecb2bada6c7a45d33230b1140baa7`. Reconciled the sprint summary,
+backlog, technical design, canonical Gate A burn-down, and this chronological
+record to distinguish the committed pure planner from the still-open native
+ACL-preserving replacement and recovery work.
+
+**Validation**: CI/CD run `34999494411` and Task-087 run `34999494398`
+completed successfully at exact head `0efeff7`. Nine checks succeeded,
+including Trivy, both Python unit-matrix jobs, Docker frontend, frontend tests,
+security, and all three Task-087 jobs; the main-only build skipped as designed.
+
+**Boundary**: Slice 5 remains `PARTIAL`, repair and mutation remain disabled,
+and PR #67 remains Draft. This checkpoint does not implement native file
+replacement, durable recovery, transaction wiring, Gate B artifact integrity,
+Task-100 signing, or Gate A exit.
+
+**Next**: Implement the smallest unwired journal-gated native replacement
+prerequisite, then run focused/adversarial validation and independent review
+before any commit or push.
 
 ### 2026-09-15 - Pure Environment Replacement Planning Implemented Locally
 

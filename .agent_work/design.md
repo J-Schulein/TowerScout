@@ -294,13 +294,14 @@ as continuing validation. Independently reviewed implementation checkpoint
 `2edcb8e` adds the protected Local AppData/current-user DPAPI foundation.
 Slice 5 now has independently reviewed, handle-bound secure absence ownership
 for the exact package-root `.env`, checkpointed at `14b77e4`. Its next pure,
-unwired prerequisite is locally implemented and independently reviewed clean:
+unwired prerequisite is committed, independently reviewed, and exact-head
+validated at `0efeff7`:
 strict bounded UTF-8/BOM/NUL validation, exact two-setting byte transformation,
 newline/trailing-form preservation, immutable original/candidate hashes, and
 exact original/candidate/absent/third-state classification. Native same-
 directory ACL-preserving replacement and its indeterminate-result handling
-remain open. Documentation checkpoint `5469bfd` is the latest validated exact
-branch head: CI/CD run `34994918340`, Task-087 run `34994918554`, and Trivy
+remain open. Implementation checkpoint `0efeff7` is the latest validated exact
+branch head: CI/CD run `34999494411`, Task-087 run `34999494398`, and Trivy
 passed. Mutation remains
 disabled, PR #67 remains Draft, and the detailed current state and remaining
 outcome sequence are maintained in the
