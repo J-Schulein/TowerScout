@@ -357,6 +357,18 @@ findings. This checkpoint still does not write or repair the metadata pointer,
 recover, clean artifacts, wire staging/promotion, replace `.env`, or enable
 runtime mutation.
 
+A local pure-orchestration candidate adds a separate pointer storage port and
+keeps metadata pointer bytes subordinate to the authenticated generation chain.
+Present-invalid, foreign, unknown, and pointer-without-generation states fail
+closed; current pointers are no-ops; only missing or stale pointers may be
+repaired. The synthesized tip pointer is proved `CURRENT` before the injected
+write, then pointer and generations are reread under the same retained-root
+callback and must reproduce the exact chain, file identity, bytes, and
+`CURRENT` disposition. Native pointer-file creation/DACL checks,
+`MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`, indeterminate rename
+classification, cleanup, backup/recovery action, staging/promotion, `.env`
+replacement, and runtime mutation remain unimplemented.
+
 ## Exit/Stop Design Boundary
 
 If the Task-087 launcher proof passes, Task-096 will reuse the launcher's

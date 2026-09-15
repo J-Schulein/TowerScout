@@ -55,12 +55,16 @@ base CPython dependency closure.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
 - Task-087 implementation checkpoint `4a96dd2e81aa` is independently reviewed,
-  pushed, and the latest validated branch head: CI/CD run `35016174147`,
-  Task-087 run `35016174145`, and Trivy passed; the main-only build was neutral
-  as designed. It adds the native protected-DACL generation adapter with
-  bounded enumeration and create/flush/reopen/read verification. It has no
-  pointer write/repair, recovery, cleanup, staging integration, promotion,
-  `.env` replacement, or repair mutation. PR #67 remains Draft.
+  pushed, and exact-head validated. Documentation checkpoint `050dc5c` is the
+  latest validated branch head: CI/CD run `35018010005`, Task-087 run
+  `35018010006`, and Trivy passed; the main-only build was neutral as designed.
+  A local source candidate adds pure protected-root-owned metadata-pointer load,
+  classification, idempotent missing/stale repair orchestration, and complete
+  post-write chain/pointer revalidation through injected ports. It has no native
+  pointer file I/O, `MoveFileExW`, cleanup, backup/recovery action, staging
+  integration, promotion, `.env` replacement, or repair mutation. Independent
+  source/security review returned `CLEAN/PASS`; checkpointing remains pending.
+  PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -199,12 +203,14 @@ environment-temp prelude. The selector authenticates every sealed candidate
 internally. A local source candidate now adds only root-owned persistence/
 enumeration orchestration over an injected storage port. That increment is
 independently reviewed, checkpointed at `53bed46`, and exact-head validated. No
-pointer repair, backup, or recovery action exists. A local source candidate now
-implements only the native generation-file adapter. That increment passed two
-independent source/security reviews, was checkpointed at `4a96dd2`, and is
-exact-head validated. Pointer repair, backup, and recovery remain open. Slice 7
-is not started; slice 9 continues incrementally. Mutation is disabled and PR
-#67 remains Draft.
+pointer repair, backup, or recovery action existed at that checkpoint. The next
+increment implemented the native generation-file adapter, passed two independent
+source/security reviews, was checkpointed at `4a96dd2`, and is exact-head
+validated. A local source candidate adds pointer-aware authenticated
+load and pure missing/stale pointer repair orchestration through an injected
+port; native pointer-file replacement and indeterminate-result classification
+remain open. Slice 7 is not started; slice 9 continues incrementally. Mutation
+is disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Remaining Estimate**: Complete slice 4's revocation-aware fixed-host and

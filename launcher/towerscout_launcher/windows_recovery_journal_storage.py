@@ -1,9 +1,9 @@
-"""Root-owned persistence orchestration for sealed recovery generations.
+"""Root-owned persistence orchestration for recovery generations and pointers.
 
 This source-only layer validates immutable create-only generation storage and
-authenticated restart-style enumeration through injected ports. It does not
-implement native file I/O, pointer updates, cleanup, recovery, package staging,
-or runtime mutation.
+authenticated restart-style enumeration plus metadata-pointer repair through
+injected ports. It does not implement native file I/O, cleanup, recovery,
+package staging, or runtime mutation.
 """
 
 from __future__ import annotations
@@ -16,15 +16,20 @@ from typing import Callable, NoReturn, Protocol, TypeVar, cast
 from .windows_protected_state import CurrentUserProtectedBlob, ProtectedDataPurpose
 from .windows_recovery_journal import (
     EnvironmentJournalChainSelection,
+    EnvironmentJournalPointer,
+    JournalPointerDisposition,
     JournalProtectionPort,
     JournalStreamIdentity,
     RecoveryJournalError,
     SealedEnvironmentJournalGeneration,
+    decode_environment_journal_pointer,
+    encode_environment_journal_pointer,
     select_environment_journal_chain,
 )
 from .windows_security import StableFileIdentity
 
 _MAX_PROTECTED_GENERATION_BYTES = 4 * 1024 * 1024
+_MAX_POINTER_BYTES = 1_024
 _MAX_ROOT_ENTRIES = 256
 _MAX_SEQUENCE = 2**63 - 1
 _GENERATION_NAME = re.compile(r"^journal-([0-9a-f]{32})-([0-9]{20})\.generation$")
@@ -53,10 +58,10 @@ class RecoveryJournalStorageError(RuntimeError):
             "Protected recovery journal storage is invalid."
         ),
         RecoveryJournalStorageErrorCode.WRITE_FAILED: (
-            "The recovery journal generation could not be written durably."
+            "Recovery journal data could not be written durably."
         ),
         RecoveryJournalStorageErrorCode.VERIFY_FAILED: (
-            "The recovery journal generation could not be verified durably."
+            "Recovery journal data could not be verified durably."
         ),
     }
 
@@ -89,6 +94,23 @@ class StoredJournalGenerationFile:
 
     def __repr__(self) -> str:
         return "StoredJournalGenerationFile(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class StoredJournalPointerFile:
+    identity: StableFileIdentity = field(repr=False)
+    contents: bytes = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.identity) is not StableFileIdentity
+            or type(self.contents) is not bytes
+            or not 1 <= len(self.contents) <= _MAX_POINTER_BYTES
+        ):
+            raise ValueError("Stored recovery journal pointer is invalid.")
+
+    def __repr__(self) -> str:
+        return "StoredJournalPointerFile(<redacted>)"
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -151,6 +173,22 @@ class JournalGenerationStoragePort(Protocol):
     ) -> StoredJournalGenerationFile: ...
 
 
+class JournalPointerStoragePort(Protocol):
+    def read_pointer(
+        self,
+        root_path: str,
+        name: str,
+        maximum: int,
+    ) -> StoredJournalPointerFile | None: ...
+
+    def replace_pointer(
+        self,
+        root_path: str,
+        name: str,
+        contents: bytes,
+    ) -> StoredJournalPointerFile: ...
+
+
 def _generation_name(journal_id: str, sequence: int) -> str:
     if (
         type(journal_id) is not str
@@ -162,8 +200,14 @@ def _generation_name(journal_id: str, sequence: int) -> str:
     return f"journal-{journal_id}-{sequence:020d}.generation"
 
 
+def _pointer_name(journal_id: str) -> str:
+    if type(journal_id) is not str or re.fullmatch(r"[0-9a-f]{32}", journal_id) is None:
+        _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+    return f"journal-{journal_id}.pointer"
+
+
 def _storage_call(
-    storage: JournalGenerationStoragePort,
+    storage: object,
     method: str,
     *arguments: object,
     code: RecoveryJournalStorageErrorCode,
@@ -220,6 +264,7 @@ def _load_while_root_held(
     stream: JournalStreamIdentity,
     storage: JournalGenerationStoragePort,
     protection: JournalProtectionPort,
+    pointer: EnvironmentJournalPointer | None = None,
 ) -> PersistedEnvironmentJournalChain | None:
     candidates = _names_for_stream(root_path, stream, storage)
     if not candidates:
@@ -255,7 +300,7 @@ def _load_while_root_held(
         _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
     selection = select_environment_journal_chain(
         tuple(sealed),
-        None,
+        pointer,
         expected_stream=stream,
         protection=protection,
     )
@@ -271,6 +316,55 @@ def _load_while_root_held(
         )
     except ValueError:
         _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+
+
+def _read_pointer_while_root_held(
+    root_path: str,
+    stream: JournalStreamIdentity,
+    pointer_storage: JournalPointerStoragePort,
+) -> tuple[EnvironmentJournalPointer, StoredJournalPointerFile] | None:
+    stored = _storage_call(
+        pointer_storage,
+        "read_pointer",
+        root_path,
+        _pointer_name(stream.journal_id),
+        _MAX_POINTER_BYTES,
+        code=RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE,
+    )
+    if stored is None:
+        return None
+    if type(stored) is not StoredJournalPointerFile:
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    pointer = decode_environment_journal_pointer(stored.contents)
+    return pointer, stored
+
+
+def _load_with_pointer_while_root_held(
+    root_path: str,
+    stream: JournalStreamIdentity,
+    generation_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    protection: JournalProtectionPort,
+) -> tuple[
+    PersistedEnvironmentJournalChain | None,
+    StoredJournalPointerFile | None,
+]:
+    persisted_pointer = _read_pointer_while_root_held(
+        root_path,
+        stream,
+        pointer_storage,
+    )
+    pointer = None if persisted_pointer is None else persisted_pointer[0]
+    persisted = _load_while_root_held(
+        root_path,
+        stream,
+        generation_storage,
+        protection,
+        pointer,
+    )
+    if persisted is None and persisted_pointer is not None:
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    return persisted, None if persisted_pointer is None else persisted_pointer[1]
 
 
 def _run_under_root(
@@ -311,6 +405,112 @@ def load_persisted_environment_journal_chain(
             protection,
         ),
     )
+
+
+def load_persisted_environment_journal_chain_with_pointer(
+    stream: JournalStreamIdentity,
+    *,
+    root: JournalStorageRootPort,
+    generation_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain | None:
+    """Load one authenticated stream and classify its persisted pointer."""
+
+    if type(stream) is not JournalStreamIdentity:
+        _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+    return _run_under_root(
+        root,
+        lambda root_path: _load_with_pointer_while_root_held(
+            root_path,
+            stream,
+            generation_storage,
+            pointer_storage,
+            protection,
+        )[0],
+    )
+
+
+def ensure_persisted_environment_journal_pointer(
+    stream: JournalStreamIdentity,
+    *,
+    root: JournalStorageRootPort,
+    generation_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain | None:
+    """Create or repair a metadata pointer and prove it names the selected tip."""
+
+    if type(stream) is not JournalStreamIdentity:
+        _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+
+    def ensure(root_path: str) -> PersistedEnvironmentJournalChain | None:
+        persisted, _stored_pointer = _load_with_pointer_while_root_held(
+            root_path,
+            stream,
+            generation_storage,
+            pointer_storage,
+            protection,
+        )
+        if persisted is None:
+            return None
+        if persisted.selection.pointer_disposition is JournalPointerDisposition.CURRENT:
+            return persisted
+        try:
+            pointer = EnvironmentJournalPointer(
+                stream.schema_version,
+                stream.journal_id,
+                persisted.selection.tip.sequence,
+                persisted.selection.tip_generation_sha256,
+            )
+        except ValueError:
+            _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+        encoded = encode_environment_journal_pointer(pointer)
+        decoded = decode_environment_journal_pointer(encoded)
+        expected = select_environment_journal_chain(
+            persisted.sealed_generations,
+            decoded,
+            expected_stream=stream,
+            protection=protection,
+        )
+        if (
+            expected.pointer_disposition is not JournalPointerDisposition.CURRENT
+            or expected.generation_sha256s != persisted.selection.generation_sha256s
+        ):
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        written = _storage_call(
+            pointer_storage,
+            "replace_pointer",
+            root_path,
+            _pointer_name(stream.journal_id),
+            encoded,
+            code=RecoveryJournalStorageErrorCode.WRITE_FAILED,
+        )
+        if type(written) is not StoredJournalPointerFile or written.contents != encoded:
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        try:
+            verified, reread = _load_with_pointer_while_root_held(
+                root_path,
+                stream,
+                generation_storage,
+                pointer_storage,
+                protection,
+            )
+        except (RecoveryJournalError, RecoveryJournalStorageError):
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        if (
+            verified is None
+            or reread is None
+            or reread.identity != written.identity
+            or reread.contents != encoded
+            or verified.selection.pointer_disposition
+            is not JournalPointerDisposition.CURRENT
+            or verified.selection.generation_sha256s != expected.generation_sha256s
+        ):
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        return verified
+
+    return _run_under_root(root, ensure)
 
 
 def append_persisted_environment_journal_generation(
@@ -369,11 +569,15 @@ def append_persisted_environment_journal_generation(
 
 __all__ = [
     "JournalGenerationStoragePort",
+    "JournalPointerStoragePort",
     "JournalStorageRootPort",
     "PersistedEnvironmentJournalChain",
     "RecoveryJournalStorageError",
     "RecoveryJournalStorageErrorCode",
     "StoredJournalGenerationFile",
+    "StoredJournalPointerFile",
     "append_persisted_environment_journal_generation",
+    "ensure_persisted_environment_journal_pointer",
     "load_persisted_environment_journal_chain",
+    "load_persisted_environment_journal_chain_with_pointer",
 ]

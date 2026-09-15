@@ -18,13 +18,16 @@ reviewed checkpoint `1c45445df82e` adds private journal-gated restrictive native
 candidate-temp staging. Independently reviewed checkpoint `8bb6b33` adds pure
 current-user-DPAPI generation/pointer codecs and fail-closed environment-temp
 chain selection. Independently reviewed checkpoint `53bed469a8a2` adds
-protected-root-owned pure generation persistence/enumeration orchestration over
-an injected storage port. Independently reviewed and pushed checkpoint
-`4a96dd2e81aa` adds native protected-DACL generation enumeration/create/read and
-is the latest validated exact branch head: CI/CD run `35016174147`, Task-087 run
-`35016174145`, and Trivy passed; the main-only build was neutral as designed.
-Pointer repair, backup/recovery action, cleanup, staging integration, promotion/
-replacement, and runtime mutation remain open.
+  protected-root-owned pure generation persistence/enumeration orchestration over
+  an injected storage port. Independently reviewed and pushed checkpoint
+  `4a96dd2e81aa` adds native protected-DACL generation enumeration/create/read and
+  is exact-head validated. Documentation checkpoint `050dc5c` is the latest
+  validated exact branch head: CI/CD run `35018010005`, Task-087 run
+  `35018010006`, and Trivy passed; the main-only build was neutral as designed. A
+  local source candidate adds pure metadata-pointer load, strict classification,
+  and missing/stale repair orchestration through an injected storage port. Native
+  pointer I/O and replacement, backup/recovery action, cleanup, staging
+  integration, promotion/replacement, and runtime mutation remain open.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1372,6 +1375,59 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-15 - Pure Journal Pointer Orchestration Candidate
+
+**Objective**: Add the smallest pointer-aware load and repair layer above the
+authenticated generation chain without implementing native pointer-file I/O or
+any recovery action.
+
+**Context**: Exact-head validated checkpoint `4a96dd2` supplies native durable
+generation enumeration/create/read. Documentation checkpoint `050dc5c` passed
+CI/CD run `35018010005`, Task-087 run `35018010006`, and Trivy. The next
+dependency is a pure policy boundary that can classify pointer metadata and
+prove a requested repair remains subordinate to the authenticated chain.
+
+**Decision**: Add an injected pointer storage port beside the generation port.
+Treat present-invalid, foreign-stream, unknown-generation, and
+pointer-without-chain states as terminal failures. Permit only missing or stale
+pointers to target the already authenticated tip, and require complete
+post-write generation/pointer reread verification under one retained-root
+callback.
+
+**Execution**: Added pointer file and port contracts plus pointer-aware load and
+ensure operations. The ensure path first proves synthesized canonical tip bytes
+classify as `CURRENT`, invokes the injected replacement, requires exact returned
+identity/bytes, rereads the authenticated generation chain and pointer, and
+requires an unchanged chain, matching identity/bytes, and `CURRENT`
+classification. Current pointers are no-ops. Dependency failures are sanitized;
+process-control exceptions propagate.
+
+**Output**: The local candidate defines pure protected-root-owned pointer policy
+and repair orchestration only. It does not create a native pointer temp, enforce
+a pointer-file DACL, flush or close a native temp, invoke `MoveFileExW`, classify
+an indeterminate rename result, clean an orphan, execute backup/recovery,
+integrate staging, promote or replace `.env`, or enable runtime mutation.
+
+**Validation**: The focused suite passes `19/19`; the adjacent recovery ring
+passes `192/192`; the isolated late-launcher ring passes `195/195`. Black,
+strict mypy, blocking Flake8, Bandit, compilation, and editor diagnostics pass.
+Coverage includes missing/current/stale pointers; corrupt, foreign, unknown, and
+pointer-without-chain failures; wrong returned/persisted bytes; returned-identity
+drift; dependency-error sanitization; and process-control propagation.
+
+**Independent Review**: Initial source/security review returned `CLEAN/PASS`
+with no actionable Low-or-higher findings and suggested the added identity-drift
+and pointer-read sanitization regressions.
+
+**Boundary**: Slices 5 and 6 remain `PARTIAL`. PR #67 remains Draft, mutation
+remains disabled, Task-086 remains the supported fallback, and Gate B/Task-100
+remain separate.
+
+**Next**: Implement the native same-directory pointer temp/create/DACL/write/
+flush/reopen/close-before-rename adapter, `MoveFileExW(REPLACE_EXISTING |
+WRITE_THROUGH)`, and exact destination verification without wiring backup,
+recovery actions, cleanup, staging, promotion, or runtime mutation.
 
 ### 2026-09-15 - Native Journal Generation Adapter Checkpointed
 
