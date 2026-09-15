@@ -80,6 +80,7 @@ def _fail(category: str) -> NoReturn:
 
 class ProtectedDataPurpose(str, Enum):
     JOURNAL_GENERATION = "journal_generation"
+    POINTER_TRANSITION = "pointer_transition"
     ENVIRONMENT_BACKUP = "environment_backup"
     CERTIFICATE_BACKUP = "certificate_backup"
 

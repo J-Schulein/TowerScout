@@ -268,26 +268,26 @@ def test_dpapi_purpose_mismatch_and_tampering_fail_without_detail() -> None:
     api = _FakeProtectedStateApi()
     blob = protected_state._protect_current_user_data_with_api(
         b"secret",
-        ProtectedDataPurpose.JOURNAL_GENERATION,
+        ProtectedDataPurpose.POINTER_TRANSITION,
         api=api,
     )
 
     with pytest.raises(ProtectedStateError) as mismatch:
         protected_state._unprotect_current_user_data_with_api(
             blob,
-            ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+            ProtectedDataPurpose.JOURNAL_GENERATION,
             api=api,
         )
     assert mismatch.value.category == "protected_data_invalid"
 
     tampered = protected_state.CurrentUserProtectedBlob(
-        ProtectedDataPurpose.JOURNAL_GENERATION,
+        ProtectedDataPurpose.POINTER_TRANSITION,
         b"tampered",
     )
     with pytest.raises(ProtectedStateError) as invalid:
         protected_state._unprotect_current_user_data_with_api(
             tampered,
-            ProtectedDataPurpose.JOURNAL_GENERATION,
+            ProtectedDataPurpose.POINTER_TRANSITION,
             api=api,
         )
     assert invalid.value.category == "protected_data_invalid"
