@@ -25,12 +25,15 @@ restrictive ACL, identity, flush/readback, and no-follow reopen verification.
 It passed exact-head CI/CD run `35005869321`, Task-087 run `35005869200`, and
 Trivy; the main-only build skipped as designed. Documentation checkpoint
 `42180b10e7f` then passed CI/CD run `35006846090`, Task-087 run `35006846025`,
-and Trivy, with the main-only build skipped as designed. A local source
-candidate now adds strict canonical encoding and DPAPI-backed authentication for
-the three environment-temp generation types plus fail-closed unique-chain and
-pointer classification. Native journal persistence/enumeration, pointer repair,
-backup/recovery actions, promotion/replacement, transaction refactoring,
-provider-installer completion, and final proof remain.
+and Trivy, with the main-only build skipped as designed. Independently reviewed
+and exact-head validated checkpoint `8bb6b33` adds strict canonical encoding,
+DPAPI-backed generation authentication, and fail-closed unique-chain/pointer
+classification for the environment-temp prelude. Checkpoint `53bed46` adds
+protected-root-owned persistence/enumeration orchestration, and checkpoint
+`4a96dd2` adds native protected-DACL generation enumeration/create/read with
+flush/reopen verification. Pointer repair, backup/recovery actions,
+promotion/replacement, transaction refactoring, provider-installer completion,
+and final proof remain.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -51,16 +54,13 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `53bed469a8a2` is independently reviewed,
-  pushed, and exact-head validated. Documentation checkpoint `2e0f90e` is the
-  latest validated branch head: CI/CD run `35014300773`, Task-087 run
-  `35014300816`, and Trivy passed; the main-only build was neutral as designed.
-  A local source candidate adds the native protected-DACL generation adapter
-  with bounded enumeration and create/flush/reopen/read verification. It has no
+- Task-087 implementation checkpoint `4a96dd2e81aa` is independently reviewed,
+  pushed, and the latest validated branch head: CI/CD run `35016174147`,
+  Task-087 run `35016174145`, and Trivy passed; the main-only build was neutral
+  as designed. It adds the native protected-DACL generation adapter with
+  bounded enumeration and create/flush/reopen/read verification. It has no
   pointer write/repair, recovery, cleanup, staging integration, promotion,
-  `.env` replacement, or repair mutation. Independent source/security review
-  returned `CLEAN/PASS` with no actionable Low-or-higher findings; checkpointing
-  remains pending. PR #67 remains Draft.
+  `.env` replacement, or repair mutation. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -200,10 +200,11 @@ internally. A local source candidate now adds only root-owned persistence/
 enumeration orchestration over an injected storage port. That increment is
 independently reviewed, checkpointed at `53bed46`, and exact-head validated. No
 pointer repair, backup, or recovery action exists. A local source candidate now
-implements only the native generation-file adapter. Independent source/security
-review returned `CLEAN/PASS` with no actionable Low-or-higher findings;
-checkpointing remains pending. Slice 7 is not started; slice 9 continues
-incrementally. Mutation is disabled and PR #67 remains Draft.
+implements only the native generation-file adapter. That increment passed two
+independent source/security reviews, was checkpointed at `4a96dd2`, and is
+exact-head validated. Pointer repair, backup, and recovery remain open. Slice 7
+is not started; slice 9 continues incrementally. Mutation is disabled and PR
+#67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Remaining Estimate**: Complete slice 4's revocation-aware fixed-host and

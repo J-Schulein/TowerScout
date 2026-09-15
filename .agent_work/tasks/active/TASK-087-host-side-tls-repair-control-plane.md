@@ -17,12 +17,13 @@ then passed its exact-head CI/CD, Task-087, and Trivy gates. Independently
 reviewed checkpoint `1c45445df82e` adds private journal-gated restrictive native
 candidate-temp staging. Independently reviewed checkpoint `8bb6b33` adds pure
 current-user-DPAPI generation/pointer codecs and fail-closed environment-temp
-chain selection. Independently reviewed and pushed checkpoint `53bed469a8a2`
-adds protected-root-owned pure generation persistence/enumeration orchestration
-over an injected storage port and is the latest validated exact branch head:
-CI/CD run `35013069183`, Task-087 run `35013069124`, and Trivy passed; the
-main-only build was neutral as designed. Native journal file I/O, pointer
-repair, backup/recovery action, cleanup, staging integration, promotion/
+chain selection. Independently reviewed checkpoint `53bed469a8a2` adds
+protected-root-owned pure generation persistence/enumeration orchestration over
+an injected storage port. Independently reviewed and pushed checkpoint
+`4a96dd2e81aa` adds native protected-DACL generation enumeration/create/read and
+is the latest validated exact branch head: CI/CD run `35016174147`, Task-087 run
+`35016174145`, and Trivy passed; the main-only build was neutral as designed.
+Pointer repair, backup/recovery action, cleanup, staging integration, promotion/
 replacement, and runtime mutation remain open.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
@@ -1372,7 +1373,7 @@ Exit criteria:
 
 ## Implementation Log
 
-### 2026-09-15 - Native Journal Generation Adapter Implemented Locally
+### 2026-09-15 - Native Journal Generation Adapter Checkpointed
 
 **Objective**: Implement the native Windows storage port for immutable recovery
 journal generations without adding pointer mutation or recovery behavior.
@@ -1399,7 +1400,7 @@ Existing generations use the same no-follow file, identity, DACL, bounded-size,
 and before/after-read verification. Ordinary dependency errors become stable
 storage error codes while process-control exceptions propagate.
 
-**Output**: The local candidate implements the native generation-file port and
+**Output**: Checkpoint `4a96dd2` implements the native generation-file port and
 passes one real Windows create/list/read round trip in an isolated pytest
 directory. It does not create or replace a pointer, delete an orphan, recover a
 transaction, call the environment staging journal, promote or replace `.env`,
@@ -1412,22 +1413,24 @@ editor diagnostics pass. Black reformatted the initial test/source draft and
 blocking Flake8 identified one unused import; the final clean rerun includes
 both corrections.
 
-**Independent Review**: A fresh read-only source/security review returned
-`CLEAN/PASS` with no actionable Low-or-higher findings. It confirmed bounded
-enumeration and name containment; path, reparse, hard-link, local-volume, and
-stable-identity checks; strict owner/DACL verification; complete handle cleanup
-with process-control exception propagation; protocol-result validation; native
-smoke and fake-API fidelity; and the declared no-pointer/no-recovery boundary.
+**Independent Review**: The source/security and final exact-diff read-only
+reviews both returned `CLEAN/PASS` with no actionable Low-or-higher findings.
+They confirmed bounded enumeration and name containment; path, reparse,
+hard-link, local-volume, and stable-identity checks; strict owner/DACL
+verification; complete handle cleanup with process-control exception
+propagation; protocol-result validation; native smoke and fake-API fidelity;
+and the declared no-pointer/no-recovery boundary.
 
 **Boundary**: Slices 5 and 6 remain `PARTIAL`; native generation persistence is
 not a pointer protocol or recovery manager. PR #67 remains Draft, mutation
 remains disabled, Task-086 remains the supported fallback, and Gate B/Task-100
 remain separate.
 
-**Next**: Revalidate and independently review the exact documented diff, then
-checkpoint only if it remains clean. After checkpoint validation, implement
-same-volume pointer create/flush/reopen/replace/repair without wiring production
-staging, promotion, cleanup, or recovery.
+**Exact-Head Validation**: CI/CD run `35016174147`, Task-087 run `35016174145`,
+and Trivy passed at `4a96dd2`; the main-only build was neutral as designed.
+
+**Next**: Implement same-volume pointer create/flush/reopen/replace/repair
+without wiring production staging, promotion, cleanup, or recovery.
 
 ### 2026-09-15 - Root-Owned Journal Storage Orchestration Checkpointed
 
