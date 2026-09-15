@@ -291,11 +291,11 @@ being reported as successful repair or rollback.
 As of September 15, the canonical Gate A burn-down records slices 1-3 as
 complete, slices 4, 5, and 8 as partial, slices 6-7 as not started, and slice 9
 as continuing validation. Independently reviewed implementation checkpoint
-`2edcb8e` adds the protected Local AppData/current-user DPAPI foundation. Its
-documentation reconciliation head `51e6786` passed CI/CD run `34892815759`,
-Task-087 run `34892816254`, and external Trivy job `104139549709`. Mutation
-remains disabled, PR #67 remains Draft, and the detailed current state and
-remaining outcome sequence are maintained in the
+`2edcb8e` adds the protected Local AppData/current-user DPAPI foundation.
+Documentation checkpoint `1897874` is the latest validated exact branch head:
+CI/CD run `34972376946` and Task-087 run `34972376954` passed. Mutation remains
+disabled, PR #67 remains Draft, and the detailed current state and remaining
+outcome sequence are maintained in the
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md).
 
 ## Exit/Stop Design Boundary

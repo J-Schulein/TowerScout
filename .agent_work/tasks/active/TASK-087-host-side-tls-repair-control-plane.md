@@ -12,10 +12,9 @@ DPAPI foundation is independently reviewed with native/focused proof, while
 secure absence and atomic `.env` replacement remain;
 durable recovery, transaction refactoring, and the final Gate A proof remain
 open. Independently reviewed implementation checkpoint `2edcb8e5372b` adds the
-protected-state/DPAPI foundation. Its documentation reconciliation head
-`51e6786185b1` is the validated exact branch head: CI/CD run `34892815759`,
-Task-087 run `34892816254`, and external Trivy job `104139549709` all passed
-there, with the PR-only build skipped as designed.
+protected-state/DPAPI foundation. Documentation checkpoint `1897874136bd` is
+the latest validated exact branch head: CI/CD run `34972376946` and Task-087
+run `34972376954` passed there, with the PR-only build skipped as designed.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
@@ -1363,6 +1362,29 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-15 - Current Documentation Head Workflows Reconciled
+
+**Objective**: Reconcile the canonical Task-087 status with the successful
+workflows at the current documentation-only PR head before the next source
+increment.
+
+**Execution**: Confirmed local and origin branch head
+`1897874136bdcbc10c8249d5ec900b45d665bfa4`, whose parent contains the
+independently reviewed protected-state implementation checkpoint `2edcb8e`.
+Updated the sprint summary, backlog, technical design, canonical Gate A
+burn-down, and this chronological record to distinguish the reviewed
+implementation checkpoint from the latest validated documentation checkpoint.
+
+**Validation**: CI/CD run `34972376946` and Task-087 run `34972376954` passed
+at exact head `1897874`; the pull-request-only build skipped as designed. PR
+#67 remains Draft.
+
+**Boundary**: This is evidence reconciliation only. Slice 5 remains partial,
+mutation remains disabled, and Gate A remains open.
+
+**Next**: Implement secure `.env` absence proof and ACL-preserving atomic
+replacement, then exercise the complete slice 5 Windows-security contract.
 
 ### 2026-09-15 - Protected-State Exact-Head CI Reconciled
 
