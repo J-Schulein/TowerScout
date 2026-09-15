@@ -52,13 +52,14 @@ base CPython dependency closure.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
 - Task-087 implementation checkpoint `8bb6b3333534` is independently reviewed,
-  pushed, and the latest validated exact branch head: CI/CD run `35010304611`,
-  Task-087 run `35010304675`, and Trivy passed; the main-only build skipped as
-  designed. It adds the pure authenticated environment-journal generation/
-  chain prerequisite after corrected-diff review returned CLEAN/PASS with no
-  remaining findings. It does not persist or enumerate journal files, repair a
-  pointer, recover, promote a candidate, replace `.env`, or wire repair
-  mutation.
+  pushed, and exact-head validated. Documentation checkpoint `e86c41cfa6a0` is
+  the latest validated branch head: CI/CD run `35011029262`, Task-087 run
+  `35011029309`, and Trivy passed; the main-only build skipped as designed. A
+  local source candidate adds protected-root-owned pure generation persistence/
+  enumeration orchestration over an injected storage port. It has no native
+  file adapter, pointer write/repair, recovery, cleanup, staging integration,
+  promotion, `.env` replacement, or repair mutation. Fresh independent review
+  returned CLEAN/PASS with no actionable findings; checkpointing remains.
   PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
@@ -195,9 +196,12 @@ classification, and cleanup remain open. Slice 6 is now partial: independently
 reviewed and exact-head validated checkpoint `8bb6b33` adds strict DPAPI-
 protected generation/pointer codecs and unique-chain selection for the
 environment-temp prelude. The selector authenticates every sealed candidate
-internally. No native persistence, enumeration, pointer repair, backup, or
-recovery action exists. Slice 7 is not started; slice 9 continues incrementally.
-Mutation is disabled and PR #67 remains Draft.
+internally. A local source candidate now adds only root-owned persistence/
+enumeration orchestration over an injected storage port; no native persistence,
+pointer repair, backup, or recovery action exists. Fresh independent review
+returned CLEAN/PASS with no actionable findings; checkpointing remains. Slice 7
+is not started; slice 9 continues incrementally. Mutation is disabled and PR
+#67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Remaining Estimate**: Complete slice 4's revocation-aware fixed-host and

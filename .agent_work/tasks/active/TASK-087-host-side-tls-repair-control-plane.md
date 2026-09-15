@@ -1374,6 +1374,66 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-15 - Root-Owned Journal Storage Orchestration Implemented Locally
+
+**Objective**: Add the smallest dependency-ordered persistence/enumeration
+boundary after the authenticated generation/chain checkpoint, without crossing
+into native file I/O, pointer mutation, or recovery actions.
+
+**Context**: Independently reviewed source checkpoint `8bb6b33` adds the pure
+authenticated generation, pointer codec, and chain selector. Documentation
+checkpoint `e86c41c` passed exact-head CI/CD run `35011029262`, Task-087 run
+`35011029309`, and Trivy. The protected-state owner retained the exact Local
+AppData recovery hierarchy but did not expose a child-storage operation that
+could remain inside that ownership lease.
+
+**Decision**: Add a synchronous root-owned callback and a separate pure storage
+orchestrator over an injected list/read/create-only port. Authenticate the full
+existing chain before create and the full reread after create. Keep native
+handles, restrictive file DACL enforcement, durable Windows writes, and pointer
+replacement as later reviewed boundaries rather than implying that an in-memory
+test port proves them.
+
+**Execution**: Extended `ProtectedStateRoot` with `run_journal_storage`, which
+supplies its internal root path only while all retained hierarchy handles stay
+held and revalidated; caller-domain failures are rethrown only after that
+revalidation. Added `windows_recovery_journal_storage.py` with bounded opaque
+stream/sequence generation names, immutable stored-file receipts, duplicate-
+name and duplicate-file-identity rejection, restart-style enumeration,
+purpose-bound sealed-blob reconstruction, pre-create full-chain authentication,
+create-only write verification, and post-create full-chain authentication.
+
+**Output**: The local candidate can orchestrate append and restart-style load
+through a fake durable storage port while preserving the protected-root lease.
+It cannot perform native enumeration, create a protected-DACL file, flush or
+reopen a Windows file, write or repair the metadata pointer, recover or clean an
+artifact, call the staging journal port, promote or replace `.env`, or enable
+repair/runtime mutation.
+
+**Validation**: Focused storage/root tests pass `20/20`. The adjacent journal,
+protected-state, staging, planner, secure-absence, path-trust, and package-input
+set passes `164/164`; the isolated late launcher security/mutex/path/protected-
+state/journal/storage set passes `167/167`. Black, strict mypy, blocking Flake8,
+Bandit, compilation, and editor diagnostics pass. Strict mypy first exposed an
+`Any` result at the dynamically checked root port and blocking Flake8 found one
+unused test import; both were corrected before the clean rerun.
+
+**Independent Review**: A fresh source/security review of all four source/test
+files and the five canonical documentation updates returned CLEAN/PASS with no
+actionable Low-or-higher findings. The reviewer confirmed the protected-root
+callback, process-control exception preservation, pre-create and post-create
+chain authentication, identity/filename checks, redaction, and documented
+native-adapter boundary.
+
+**Boundary**: Slices 5 and 6 remain `PARTIAL`. This is a pure storage authority
+and sequencing layer, not native durable persistence or pointer repair. PR #67
+remains Draft, mutation remains disabled, Task-086 remains the supported
+fallback, Gate B remains separate, and Task-100 is unchanged.
+
+**Next**: Checkpoint and exact-head validate this reviewed increment. Then add
+the native protected-DACL, create/flush/reopen/enumeration adapter and only
+afterward add same-volume pointer update/repair.
+
 ### 2026-09-15 - Authenticated Environment Journal Chain Foundation Checkpointed
 
 **Objective**: Add the smallest pure journal-generation prerequisite needed

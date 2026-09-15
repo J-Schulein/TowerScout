@@ -180,6 +180,59 @@ def test_protected_root_uses_fixed_known_folder_hierarchy_and_redacts() -> None:
     assert api.protect_calls[0][0] == api.unprotect_calls[0][0]
 
 
+def test_protected_root_scopes_journal_storage_to_retained_hierarchy() -> None:
+    api = _FakeProtectedStateApi()
+    path_api = _FakePathApi()
+    root = protected_state._capture_protected_state_root_with_apis(
+        api=api,
+        path_api=path_api,
+    )
+    observed: list[str] = []
+
+    result = root.run_journal_storage(
+        lambda root_path: observed.append(root_path) or "completed"
+    )
+
+    assert result == "completed"
+    assert observed == [rf"{_LOCAL_APP_DATA}\TowerScout\Recovery\v1"]
+    root.close()
+    with pytest.raises(ProtectedStateError) as closed:
+        root.run_journal_storage(lambda root_path: root_path)
+    assert closed.value.category == "protected_state_unsafe"
+
+
+def test_protected_root_preserves_journal_callback_failure_after_revalidation() -> None:
+    api = _FakeProtectedStateApi()
+    path_api = _FakePathApi()
+    root = protected_state._capture_protected_state_root_with_apis(
+        api=api,
+        path_api=path_api,
+    )
+    failure = RuntimeError("caller-owned sanitized failure")
+
+    with pytest.raises(RuntimeError) as raised:
+        root.run_journal_storage(lambda root_path: (_ for _ in ()).throw(failure))
+
+    assert raised.value is failure
+    assert root.assert_unchanged() == root.evidence
+    root.close()
+
+
+def test_protected_root_preserves_process_control_exception() -> None:
+    root = protected_state._capture_protected_state_root_with_apis(
+        api=_FakeProtectedStateApi(),
+        path_api=_FakePathApi(),
+    )
+    interruption = KeyboardInterrupt()
+
+    with pytest.raises(KeyboardInterrupt) as raised:
+        root.run_journal_storage(lambda root_path: (_ for _ in ()).throw(interruption))
+
+    assert raised.value is interruption
+    assert root.assert_unchanged() == root.evidence
+    root.close()
+
+
 def test_protected_root_rejects_unprotected_state_and_closes_handles() -> None:
     api = _FakeProtectedStateApi()
     path_api = _FakePathApi(protected=False)

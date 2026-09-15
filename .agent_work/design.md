@@ -330,6 +330,19 @@ persist journal files, mutate a pointer, implement encrypted backups or
 recovery, clean an orphan, stage a package file, promote `.env`, or integrate
 with repair/runtime code.
 
+A local, unwired follow-up now defines the next pure storage boundary. The
+protected-state owner exposes its internal root path only through a synchronous
+callback while every retained hierarchy handle remains revalidated and held.
+The storage orchestrator accepts an injected create/read/list port, derives
+opaque stream-scoped immutable generation names, authenticates the complete
+existing chain before create, requires create-only write evidence with a new
+file identity and exact ciphertext, and authenticates the complete reread after
+create. Restart-style enumeration sorts bounded names, rejects malformed same-
+stream names and duplicate file identities, reconstructs only purpose-bound
+sealed blobs, and authenticates the selected chain. This candidate does not
+implement native file I/O or DACL checks, pointer files or repair, cleanup,
+recovery, staging integration, promotion/replacement, or runtime mutation.
+
 ## Exit/Stop Design Boundary
 
 If the Task-087 launcher proof passes, Task-096 will reuse the launcher's

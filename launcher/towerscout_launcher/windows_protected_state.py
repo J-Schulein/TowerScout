@@ -358,6 +358,28 @@ class ProtectedStateRoot:
             )
         )
 
+    def run_journal_storage(
+        self,
+        operation: Callable[[str], _Result],
+    ) -> _Result:
+        if not callable(operation):
+            _fail("protected_state_unavailable")
+        results: list[_Result] = []
+        failures: list[BaseException] = []
+
+        def invoke() -> None:
+            try:
+                results.append(operation(self._root_path))
+            except BaseException as error:
+                failures.append(error)
+
+        self._run(invoke)
+        if failures:
+            raise failures[0]
+        if len(results) != 1:
+            _fail("protected_state_unsafe")
+        return results[0]
+
     def close(self) -> None:
         with self._lock:
             paths = self._paths
