@@ -204,6 +204,7 @@ class _PointerHandle:
     path: str
     identity: StableFileIdentity
     cursor: int = 0
+    deletion_pending: bool = False
 
 
 class _PointerApi:
@@ -219,11 +220,20 @@ class _PointerApi:
         self.destination_path: str | None = None
         self.destination_security: NativeSecurityFacts | None = None
         self.post_read_security: NativeSecurityFacts | None = None
+        self.post_query_identity: StableFileIdentity | None = None
         self.path_overrides: dict[str, str] = {}
         self.security_overrides: dict[str, NativeSecurityFacts] = {}
+        self.file_queries: dict[str, int] = {}
         self.security_queries: dict[str, int] = {}
+        self.attributes = 0x80
+        self.drive_type = 3
+        self.link_count = 1
+        self.reparse_tag = 0
         self.leave_temp_after_move = False
+        self.leave_temp_after_delete = False
         self.close_error: BaseException | None = None
+        self.delete_error: BaseException | None = None
+        self.delete_error_after_mark: BaseException | None = None
         self.move_error: BaseException | None = None
         self.move_error_after_move: BaseException | None = None
         self.events: list[str] = []
@@ -254,10 +264,22 @@ class _PointerApi:
         identity, _contents = stored
         return _PointerHandle(path, identity)
 
+    def open_file_for_delete_if_exists(self, path: str) -> object | None:
+        self.events.append(f"delete-open:{path}")
+        stored = self.files.get(path)
+        if stored is None:
+            return None
+        identity, _contents = stored
+        return _PointerHandle(path, identity)
+
     def query_file(self, handle: object) -> NativeFileFacts:
         assert isinstance(handle, _PointerHandle)
         self.events.append(f"query:{handle.path}")
         identity, contents = self.files[handle.path]
+        queries = self.file_queries.get(handle.path, 0) + 1
+        self.file_queries[handle.path] = queries
+        if queries > 1 and self.post_query_identity is not None:
+            identity = self.post_query_identity
         return NativeFileFacts(
             final_path=self.path_overrides.get(
                 handle.path,
@@ -270,14 +292,14 @@ class _PointerApi:
             ),
             volume_serial=identity.volume_serial,
             file_id=identity.file_id,
-            attributes=0x80,
-            link_count=1,
+            attributes=self.attributes,
+            link_count=self.link_count,
             size=len(contents),
             creation_time=100,
             last_write_time=200,
-            drive_type=3,
+            drive_type=self.drive_type,
             file_type=1,
-            reparse_tag=0,
+            reparse_tag=self.reparse_tag,
         )
 
     def query_security(self, handle: object) -> NativeSecurityFacts:
@@ -324,6 +346,17 @@ class _PointerApi:
         self.events.append(f"close:{handle.path}")
         if self.close_error is not None:
             raise self.close_error
+        if handle.deletion_pending and not self.leave_temp_after_delete:
+            self.files.pop(handle.path, None)
+
+    def mark_file_for_deletion(self, handle: object) -> None:
+        assert isinstance(handle, _PointerHandle)
+        self.events.append(f"delete:{handle.path}")
+        if self.delete_error is not None:
+            raise self.delete_error
+        handle.deletion_pending = True
+        if self.delete_error_after_mark is not None:
+            raise self.delete_error_after_mark
 
     def move_file_replace_write_through(
         self,
@@ -612,6 +645,110 @@ def test_pointer_temp_storage_rejects_untrusted_name_and_oversized_bytes() -> No
         storage.create_pointer_temp(_ROOT, _POINTER_TEMP_NAME, b"x" * 1025)
     assert oversized.value.code is RecoveryJournalStorageErrorCode.INPUT_INVALID
     assert api.events == []
+
+
+def test_pointer_cleanup_accepts_absence_without_delete() -> None:
+    api = _PointerApi()
+    storage = native.NativeWindowsJournalPointerCleanupStorage(api=api)
+
+    storage.remove_empty_pointer_temp_if_exists(_ROOT, _POINTER_TEMP_NAME)
+
+    assert api.events == ["sid", f"delete-open:{_POINTER_TEMP_PATH}"]
+    assert api.files == {_POINTER_PATH: (_identity("33"), b"old-pointer")}
+
+
+def test_pointer_cleanup_deletes_only_twice_verified_empty_temp() -> None:
+    api = _PointerApi()
+    api.files[_POINTER_TEMP_PATH] = (api.temp_identity, b"")
+    storage = native.NativeWindowsJournalPointerCleanupStorage(api=api)
+
+    storage.remove_empty_pointer_temp_if_exists(_ROOT, _POINTER_TEMP_NAME)
+
+    assert api.files == {_POINTER_PATH: (_identity("33"), b"old-pointer")}
+    assert api.events.count(f"query:{_POINTER_TEMP_PATH}") == 2
+    assert api.events.count(f"security:{_POINTER_TEMP_PATH}") == 2
+    assert f"delete:{_POINTER_TEMP_PATH}" in api.events
+    assert api.events[-1] == f"optional:{_POINTER_TEMP_PATH}"
+
+
+@pytest.mark.parametrize(
+    "failure_mode",
+    (
+        "contents",
+        "identity",
+        "path",
+        "security",
+        "directory",
+        "reparse",
+        "links",
+        "remote",
+    ),
+)
+def test_pointer_cleanup_preserves_ambiguous_temp(failure_mode: str) -> None:
+    api = _PointerApi()
+    api.files[_POINTER_TEMP_PATH] = (
+        api.temp_identity,
+        b"written" if failure_mode == "contents" else b"",
+    )
+    if failure_mode == "identity":
+        api.post_query_identity = _identity("55")
+    elif failure_mode == "path":
+        api.path_overrides[_POINTER_TEMP_PATH] = rf"{_ROOT}\other.tmp"
+    elif failure_mode == "security":
+        api.post_read_security = NativeSecurityFacts(
+            owner_sid=_USER_SID,
+            dacl_present=True,
+            allowed_aces=(AccessAllowedAce(_USER_SID, 0x001F01FF, 0),),
+            dacl_protected=True,
+        )
+    elif failure_mode == "directory":
+        api.attributes = 0x10
+    elif failure_mode == "reparse":
+        api.attributes = 0x400
+        api.reparse_tag = 0xA000000C
+    elif failure_mode == "links":
+        api.link_count = 2
+    elif failure_mode == "remote":
+        api.drive_type = 4
+    storage = native.NativeWindowsJournalPointerCleanupStorage(api=api)
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        storage.remove_empty_pointer_temp_if_exists(_ROOT, _POINTER_TEMP_NAME)
+
+    assert failure.value.code is RecoveryJournalStorageErrorCode.VERIFY_FAILED
+    assert _POINTER_TEMP_PATH in api.files
+    assert f"delete:{_POINTER_TEMP_PATH}" not in api.events
+
+
+def test_pointer_cleanup_reconciles_exact_absence_after_delete_error() -> None:
+    api = _PointerApi()
+    api.files[_POINTER_TEMP_PATH] = (api.temp_identity, b"")
+    api.delete_error_after_mark = OSError("sensitive pointer path")
+    storage = native.NativeWindowsJournalPointerCleanupStorage(api=api)
+
+    storage.remove_empty_pointer_temp_if_exists(_ROOT, _POINTER_TEMP_NAME)
+
+    assert _POINTER_TEMP_PATH not in api.files
+
+
+def test_pointer_cleanup_sanitizes_failure_and_propagates_control() -> None:
+    api = _PointerApi()
+    api.files[_POINTER_TEMP_PATH] = (api.temp_identity, b"")
+    api.delete_error = OSError("sensitive pointer path")
+    storage = native.NativeWindowsJournalPointerCleanupStorage(api=api)
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        storage.remove_empty_pointer_temp_if_exists(_ROOT, _POINTER_TEMP_NAME)
+    assert failure.value.code is RecoveryJournalStorageErrorCode.WRITE_FAILED
+    assert "sensitive" not in str(failure.value)
+    assert _POINTER_TEMP_PATH in api.files
+
+    interruption = KeyboardInterrupt()
+    api.delete_error = interruption
+    with pytest.raises(KeyboardInterrupt) as raised:
+        storage.remove_empty_pointer_temp_if_exists(_ROOT, _POINTER_TEMP_NAME)
+    assert raised.value is interruption
+    assert _POINTER_TEMP_PATH in api.files
 
 
 def test_pointer_promotion_verifies_exact_source_and_prior_destination() -> None:
@@ -1060,6 +1197,33 @@ def test_native_pointer_temp_remains_verified_and_unpromoted(tmp_path: Path) -> 
     assert stored.contents == _POINTER_CONTENTS
     assert (tmp_path / _POINTER_TEMP_NAME).read_bytes() == _POINTER_CONTENTS
     assert not (tmp_path / _POINTER_NAME).exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires native Windows file APIs")
+def test_native_pointer_cleanup_deletes_only_empty_exact_temp(tmp_path: Path) -> None:
+    storage = native.NativeWindowsJournalPointerCleanupStorage()
+    creator = native.NativeWindowsJournalGenerationApi()
+    temp_storage = native.NativeWindowsJournalPointerTempStorage()
+    root_path = str(tmp_path)
+    temp_path = tmp_path / _POINTER_TEMP_NAME
+    handle = creator.create_new_restricted_file(
+        str(temp_path),
+        owner_sid=creator.current_user_sid(),
+    )
+    creator.close_handle(handle)
+
+    storage.remove_empty_pointer_temp_if_exists(root_path, _POINTER_TEMP_NAME)
+
+    assert not temp_path.exists()
+    temp_storage.create_pointer_temp(
+        root_path,
+        _POINTER_TEMP_NAME,
+        b"written",
+    )
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        storage.remove_empty_pointer_temp_if_exists(root_path, _POINTER_TEMP_NAME)
+    assert failure.value.code is RecoveryJournalStorageErrorCode.VERIFY_FAILED
+    assert temp_path.read_bytes() == b"written"
 
 
 @pytest.mark.skipif(os.name != "nt", reason="requires native Windows file APIs")

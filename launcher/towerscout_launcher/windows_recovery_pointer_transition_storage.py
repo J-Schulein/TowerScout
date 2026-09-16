@@ -1,9 +1,10 @@
 """Durable orchestration for authenticated journal-pointer transitions.
 
 This Gate-A layer stores create-only transition generations below the held
-protected recovery root, creates and verifies the exact planned pointer temp,
-and promotes only that authenticated temp to the recorded pointer path. It does
-not delete files or authorize repair or runtime mutation.
+protected recovery root, removes only an exact empty orphan authorized by an
+authenticated pointer-temp plan, creates and verifies that exact temp, and
+promotes only the authenticated created temp to the recorded pointer path. It
+does not authorize backup/recovery action, repair, or runtime mutation.
 """
 
 from __future__ import annotations
@@ -105,6 +106,14 @@ class JournalPointerTempStoragePort(Protocol):
         name: str,
         contents: bytes,
     ) -> StoredJournalPointerFile: ...
+
+
+class JournalPointerPlannedTempCleanupStoragePort(Protocol):
+    def remove_empty_pointer_temp_if_exists(
+        self,
+        root_path: str,
+        name: str,
+    ) -> None: ...
 
 
 class JournalPointerPromotionStoragePort(Protocol):
@@ -450,6 +459,7 @@ def _create_pointer_temp_while_root_held(
     root_path: str,
     stream: _TransitionStream,
     generation_storage: JournalGenerationStoragePort,
+    pointer_temp_cleanup_storage: JournalPointerPlannedTempCleanupStoragePort,
     pointer_temp_storage: JournalPointerTempStoragePort,
     protection: _TransitionProtection,
     environment_generations: tuple[SealedEnvironmentJournalGeneration, ...],
@@ -471,6 +481,15 @@ def _create_pointer_temp_while_root_held(
         _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
     plan = current.selection.tip.record
     contents = _pointer_contents(plan, stream)
+    cleanup_result = _storage_call(
+        pointer_temp_cleanup_storage,
+        "remove_empty_pointer_temp_if_exists",
+        root_path,
+        plan.pointer_temp_name,
+        code=RecoveryJournalStorageErrorCode.WRITE_FAILED,
+    )
+    if cleanup_result is not None:
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
     stored = _storage_call(
         pointer_temp_storage,
         "create_pointer_temp",
@@ -524,12 +543,13 @@ def create_persisted_journal_pointer_transition_temp(
     *,
     root: JournalStorageRootPort,
     generation_storage: JournalGenerationStoragePort,
+    pointer_temp_cleanup_storage: JournalPointerPlannedTempCleanupStoragePort,
     pointer_temp_storage: JournalPointerTempStoragePort,
     protection: _TransitionProtection,
     environment_generations: tuple[SealedEnvironmentJournalGeneration, ...],
     expected_environment_stream: JournalStreamIdentity,
 ) -> PersistedJournalPointerTransitionChain:
-    """Create the exact planned pointer temp and persist its verified identity."""
+    """Clean an exact empty planned orphan, then create and persist the temp."""
 
     if (
         type(stream) is not _TransitionStream
@@ -547,6 +567,7 @@ def create_persisted_journal_pointer_transition_temp(
             root_path,
             stream,
             generation_storage,
+            pointer_temp_cleanup_storage,
             pointer_temp_storage,
             protection,
             environment_generations,
@@ -701,6 +722,7 @@ def promote_persisted_journal_pointer_transition_temp(
 
 
 __all__ = [
+    "JournalPointerPlannedTempCleanupStoragePort",
     "JournalPointerPromotionStoragePort",
     "JournalPointerTempStoragePort",
     "PersistedJournalPointerTransitionChain",

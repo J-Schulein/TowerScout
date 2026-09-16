@@ -1024,6 +1024,10 @@ class _FileAttributeTagInformation(ctypes.Structure):
     _fields_ = (("attributes", ctypes.c_uint32), ("reparse_tag", ctypes.c_uint32))
 
 
+class _FileDispositionInformation(ctypes.Structure):
+    _fields_ = (("delete_file", ctypes.c_ubyte),)
+
+
 def _filetime_value(value: _FileTime) -> int:
     return (int(value.high) << 32) | int(value.low)
 
@@ -1082,6 +1086,13 @@ class NativeWindowsFileApi:
         kernel32.GetDriveTypeW.restype = ctypes.c_uint32
         kernel32.GetFileType.argtypes = (ctypes.c_void_p,)
         kernel32.GetFileType.restype = ctypes.c_uint32
+        kernel32.SetFileInformationByHandle.argtypes = (
+            ctypes.c_void_p,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            ctypes.c_uint32,
+        )
+        kernel32.SetFileInformationByHandle.restype = ctypes.c_int
         kernel32.SetFilePointerEx.argtypes = (
             ctypes.c_void_p,
             ctypes.c_int64,
@@ -1135,11 +1146,25 @@ class NativeWindowsFileApi:
     def open_file_if_exists(self, path: str) -> object | None:
         """Open one leaf without following a reparse point, or prove it absent."""
 
+        return self._open_file_if_exists(path, 0x80000000)  # GENERIC_READ
+
+    def open_file_for_delete_if_exists(self, path: str) -> object | None:
+        """Open one exact leaf with delete access, or prove it absent."""
+
+        return self._open_file_if_exists(
+            path,
+            0x00010000 | 0x00020000 | 0x00000080,
+            # DELETE | READ_CONTROL | FILE_READ_ATTRIBUTES
+        )
+
+    def _open_file_if_exists(self, path: str, desired_access: int) -> object | None:
         if (
             type(path) is not str
             or not path
             or "\x00" in path
             or len(path) > _MAX_FINAL_PATH_CHARACTERS
+            or type(desired_access) is not int
+            or desired_access <= 0
         ):
             raise ValueError("Windows file path is invalid.")
         kernel32 = self._require_kernel32()
@@ -1150,7 +1175,7 @@ class NativeWindowsFileApi:
             ctypes.set_last_error(0)
             native = kernel32.CreateFileW(
                 path,
-                0x80000000,  # GENERIC_READ
+                desired_access,
                 0x00000001,  # FILE_SHARE_READ; deny write and delete sharing
                 None,
                 3,  # OPEN_EXISTING
@@ -1174,6 +1199,17 @@ class NativeWindowsFileApi:
                 except BaseException:
                     pass
             raise
+
+    def mark_file_for_deletion(self, handle: object) -> None:
+        kernel32 = self._require_kernel32()
+        disposition = _FileDispositionInformation(1)
+        if not kernel32.SetFileInformationByHandle(
+            self._handle(handle),
+            4,  # FileDispositionInfo
+            ctypes.byref(disposition),
+            ctypes.sizeof(disposition),
+        ):
+            self._raise_last_error()
 
     def _open_file(self, kernel32: Any, path: str, flags: int) -> object:
         invalid = ctypes.c_void_p(-1).value

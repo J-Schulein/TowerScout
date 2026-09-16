@@ -1,9 +1,9 @@
 """Native Windows persistence for recovery-journal generations and pointers.
 
-This adapter implements bounded protected generation-file persistence and
-same-volume metadata-pointer replacement or journal-bound pointer-temp
-promotion. Cleanup, recovery, package-file promotion, and runtime mutation
-remain outside this module.
+This adapter implements bounded protected generation-file persistence,
+same-volume metadata-pointer replacement, journal-bound pointer-temp
+promotion, and exact empty planned-temp cleanup. Backup/recovery action,
+package-file promotion, and runtime mutation remain outside this module.
 """
 
 from __future__ import annotations
@@ -18,7 +18,11 @@ from typing import Any, Callable, NoReturn, Protocol, TypeVar
 from .windows_environment_replacement_native import (
     NativeWindowsEnvironmentReplacementApi,
 )
-from .windows_path_trust import AccessAllowedAce, NativeSecurityFacts
+from .windows_path_trust import (
+    AccessAllowedAce,
+    NativeSecurityFacts,
+    NativeWindowsPathTrustApi,
+)
 from .windows_recovery_journal_storage import (
     RecoveryJournalStorageError,
     RecoveryJournalStorageErrorCode,
@@ -47,19 +51,24 @@ _MOVEFILE_WRITE_THROUGH = 0x00000008
 _Result = TypeVar("_Result")
 
 
-class _WindowsJournalFileApi(Protocol):
+class _WindowsJournalInspectionApi(Protocol):
     @property
     def supported(self) -> bool: ...
 
     def current_user_sid(self) -> str: ...
 
-    def create_new_restricted_file(self, path: str, *, owner_sid: str) -> object: ...
-
-    def reopen_file_for_verification(self, path: str) -> object: ...
-
     def query_file(self, handle: object) -> NativeFileFacts: ...
 
     def query_security(self, handle: object) -> NativeSecurityFacts: ...
+
+    def close_handle(self, handle: object) -> None: ...
+
+
+class _WindowsJournalFileApi(_WindowsJournalInspectionApi, Protocol):
+
+    def create_new_restricted_file(self, path: str, *, owner_sid: str) -> object: ...
+
+    def reopen_file_for_verification(self, path: str) -> object: ...
 
     def write_file(self, handle: object, contents: bytes) -> int: ...
 
@@ -68,8 +77,6 @@ class _WindowsJournalFileApi(Protocol):
     def seek_file(self, handle: object, offset: int) -> None: ...
 
     def read_file(self, handle: object, maximum: int) -> bytes: ...
-
-    def close_handle(self, handle: object) -> None: ...
 
 
 class _WindowsJournalGenerationApi(_WindowsJournalFileApi, Protocol):
@@ -84,6 +91,14 @@ class _WindowsJournalPointerApi(_WindowsJournalFileApi, Protocol):
         source_path: str,
         destination_path: str,
     ) -> None: ...
+
+
+class _WindowsJournalPointerCleanupApi(_WindowsJournalInspectionApi, Protocol):
+    def open_file_for_delete_if_exists(self, path: str) -> object | None: ...
+
+    def reopen_file_if_exists(self, path: str) -> object | None: ...
+
+    def mark_file_for_deletion(self, handle: object) -> None: ...
 
 
 class JournalPointerTempNameSource(Protocol):
@@ -228,6 +243,41 @@ class NativeWindowsJournalPointerApi(NativeWindowsJournalGenerationApi):
             )
 
 
+class NativeWindowsJournalPointerCleanupApi:
+    """Native exact-leaf inspection and deletion without create/move methods."""
+
+    __slots__ = ("_files", "_paths")
+
+    def __init__(self) -> None:
+        self._files = NativeWindowsFileApi()
+        self._paths = NativeWindowsPathTrustApi()
+
+    @property
+    def supported(self) -> bool:
+        return self._files.supported and self._paths.supported
+
+    def current_user_sid(self) -> str:
+        return self._paths.current_user_sid()
+
+    def open_file_for_delete_if_exists(self, path: str) -> object | None:
+        return self._files.open_file_for_delete_if_exists(path)
+
+    def reopen_file_if_exists(self, path: str) -> object | None:
+        return self._files.open_file_if_exists(path)
+
+    def query_file(self, handle: object) -> NativeFileFacts:
+        return self._files.query_file(handle)
+
+    def query_security(self, handle: object) -> NativeSecurityFacts:
+        return self._paths.query_security(handle)
+
+    def mark_file_for_deletion(self, handle: object) -> None:
+        self._files.mark_file_for_deletion(handle)
+
+    def close_handle(self, handle: object) -> None:
+        self._files.close_handle(handle)
+
+
 class NativeJournalPointerTempNameSource:
     def new_pointer_temp_name(self) -> str:
         return f".journal-pointer-{secrets.token_hex(16)}.tmp"
@@ -249,7 +299,7 @@ def _call(
         _fail(code)
 
 
-def _safe_close(api: _WindowsJournalFileApi, handle: object) -> None:
+def _safe_close(api: _WindowsJournalInspectionApi, handle: object) -> None:
     try:
         api.close_handle(handle)
     except BaseException:
@@ -313,7 +363,7 @@ def _pointer_temp_path(root_path: str, name: object) -> str:
 
 
 def _current_user_sid(
-    api: _WindowsJournalFileApi,
+    api: _WindowsJournalInspectionApi,
     code: RecoveryJournalStorageErrorCode,
 ) -> str:
     sid = _call(api.current_user_sid, code)
@@ -642,6 +692,90 @@ def _verify_pointer_before_move(
     finally:
         if held is not None:
             _safe_close(api, held)
+
+
+def _remove_verified_empty_pointer_temp(
+    api: _WindowsJournalPointerCleanupApi,
+    *,
+    temp_path: str,
+    current_user_sid: str,
+) -> None:
+    handle = _call(
+        lambda: api.open_file_for_delete_if_exists(temp_path),
+        RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+    )
+    if handle is None:
+        return
+    held: object | None = handle
+    operation_failed = False
+    try:
+        identity, _size = _validate_file(
+            _call(
+                lambda: api.query_file(handle),
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            ),
+            expected_path=temp_path,
+            maximum_size=_MAX_POINTER_BYTES,
+            expected_size=0,
+            expected_identity=None,
+            code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        _validate_security(
+            _call(
+                lambda: api.query_security(handle),
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            ),
+            current_user_sid,
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        _validate_file(
+            _call(
+                lambda: api.query_file(handle),
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            ),
+            expected_path=temp_path,
+            maximum_size=_MAX_POINTER_BYTES,
+            expected_size=0,
+            expected_identity=identity,
+            code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        _validate_security(
+            _call(
+                lambda: api.query_security(handle),
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            ),
+            current_user_sid,
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        try:
+            api.mark_file_for_deletion(handle)
+        except RecoveryJournalStorageError:
+            raise
+        except Exception:
+            operation_failed = True
+        try:
+            api.close_handle(handle)
+        except RecoveryJournalStorageError:
+            raise
+        except Exception:
+            operation_failed = True
+        else:
+            held = None
+    finally:
+        if held is not None:
+            _safe_close(api, held)
+
+    remaining = _call(
+        lambda: api.reopen_file_if_exists(temp_path),
+        RecoveryJournalStorageErrorCode.WRITE_FAILED,
+    )
+    if remaining is not None:
+        _safe_close(api, remaining)
+        _fail(
+            RecoveryJournalStorageErrorCode.WRITE_FAILED
+            if operation_failed
+            else RecoveryJournalStorageErrorCode.VERIFY_FAILED
+        )
 
 
 class NativeWindowsJournalGenerationStorage:
@@ -1086,6 +1220,44 @@ class NativeWindowsJournalPointerTempStorage:
         )
 
 
+class NativeWindowsJournalPointerCleanupStorage:
+    """Remove only an exact empty planned pointer temp by its held handle."""
+
+    __slots__ = ("_api",)
+
+    def __init__(
+        self,
+        *,
+        api: _WindowsJournalPointerCleanupApi | None = None,
+    ) -> None:
+        self._api = NativeWindowsJournalPointerCleanupApi() if api is None else api
+
+    def __repr__(self) -> str:
+        return "NativeWindowsJournalPointerCleanupStorage(<redacted>)"
+
+    def remove_empty_pointer_temp_if_exists(
+        self,
+        root_path: str,
+        name: str,
+    ) -> None:
+        supported = _call(
+            lambda: self._api.supported,
+            RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE)
+        temp_path = _pointer_temp_path(root_path, name)
+        current_user_sid = _current_user_sid(
+            self._api,
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        _remove_verified_empty_pointer_temp(
+            self._api,
+            temp_path=temp_path,
+            current_user_sid=current_user_sid,
+        )
+
+
 class NativeWindowsJournalPointerPromotionStorage:
     """Promote one exact existing pointer temp without create/delete authority."""
 
@@ -1204,6 +1376,8 @@ __all__ = [
     "NativeWindowsJournalGenerationApi",
     "NativeWindowsJournalGenerationStorage",
     "NativeWindowsJournalPointerApi",
+    "NativeWindowsJournalPointerCleanupApi",
+    "NativeWindowsJournalPointerCleanupStorage",
     "NativeWindowsJournalPointerPromotionStorage",
     "NativeWindowsJournalPointerStorage",
     "NativeWindowsJournalPointerTempStorage",

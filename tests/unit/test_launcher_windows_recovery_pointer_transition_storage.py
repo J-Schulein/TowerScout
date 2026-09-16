@@ -74,6 +74,7 @@ class _Protection:
 class _Root:
     def __init__(self) -> None:
         self.active = False
+        self.pointer_events: list[str] = []
 
     def run_journal_storage(
         self,
@@ -150,6 +151,7 @@ class _PointerTempStorage:
     ) -> StoredJournalPointerFile:
         assert self.root.active
         assert root_path.endswith(r"TowerScout\Recovery\v1")
+        self.root.pointer_events.append("create")
         self.calls += 1
         if self.error is not None:
             raise self.error
@@ -161,6 +163,27 @@ class _PointerTempStorage:
         )
         self.files[name] = stored
         return stored
+
+
+class _PointerTempCleanupStorage:
+    def __init__(self, root: _Root) -> None:
+        self.root = root
+        self.error: BaseException | None = None
+        self.result: object | None = None
+        self.calls: list[str] = []
+
+    def remove_empty_pointer_temp_if_exists(
+        self,
+        root_path: str,
+        name: str,
+    ) -> None:
+        assert self.root.active
+        assert root_path.endswith(r"TowerScout\Recovery\v1")
+        self.root.pointer_events.append("cleanup")
+        self.calls.append(name)
+        if self.error is not None:
+            raise self.error
+        return cast(None, self.result)
 
 
 class _PointerPromotionStorage:
@@ -393,6 +416,7 @@ def test_create_temp_persists_exact_identity_and_restart_chain() -> None:
     )
     root = _Root()
     backend = _Storage(root)
+    cleanup = _PointerTempCleanupStorage(root)
     pointer_temps = _PointerTempStorage(root)
     planned = append_item(
         generations[0],
@@ -408,6 +432,7 @@ def test_create_temp_persists_exact_identity_and_restart_chain() -> None:
         stream,
         root=root,
         generation_storage=backend,
+        pointer_temp_cleanup_storage=cleanup,
         pointer_temp_storage=pointer_temps,
         protection=protection,
         environment_generations=environment_generations,
@@ -427,6 +452,8 @@ def test_create_temp_persists_exact_identity_and_restart_chain() -> None:
         transition.JournalPointerTransitionState.POINTER_TEMP_CREATED
     )
     assert len(backend.files) == 2
+    assert cleanup.calls == [plan.pointer_temp_name]
+    assert root.pointer_events == ["cleanup", "create"]
     restarted = _Root()
     backend.root = restarted
     loaded = load_transition(
@@ -442,6 +469,100 @@ def test_create_temp_persists_exact_identity_and_restart_chain() -> None:
     assert not restarted.active
 
 
+def test_create_temp_cleanup_failure_prevents_creation_and_generation_append() -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    cleanup = _PointerTempCleanupStorage(root)
+    pointer_temps = _PointerTempStorage(root)
+    append_item(
+        generations[0],
+        stream=stream,
+        root=root,
+        storage=backend,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+
+    cleanup.error = OSError("sensitive planned temp path")
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        create_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            pointer_temp_cleanup_storage=cleanup,
+            pointer_temp_storage=pointer_temps,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+
+    assert failure.value.code is StorageErrorCode.WRITE_FAILED
+    assert "sensitive" not in str(failure.value)
+    assert pointer_temps.calls == 0
+    assert len(backend.files) == 1
+
+    interruption = KeyboardInterrupt()
+    cleanup.error = interruption
+    with pytest.raises(KeyboardInterrupt) as raised:
+        create_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            pointer_temp_cleanup_storage=cleanup,
+            pointer_temp_storage=pointer_temps,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+    assert raised.value is interruption
+    assert pointer_temps.calls == 0
+    assert len(backend.files) == 1
+    assert not root.active
+
+
+def test_create_temp_rejects_malformed_cleanup_return_before_creation() -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    cleanup = _PointerTempCleanupStorage(root)
+    cleanup.result = object()
+    pointer_temps = _PointerTempStorage(root)
+    append_item(
+        generations[0],
+        stream=stream,
+        root=root,
+        storage=backend,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        create_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            pointer_temp_cleanup_storage=cleanup,
+            pointer_temp_storage=pointer_temps,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+
+    assert failure.value.code is StorageErrorCode.VERIFY_FAILED
+    assert pointer_temps.calls == 0
+    assert len(backend.files) == 1
+    assert not root.active
+
+
 def test_promote_temp_uses_exact_created_identity_and_prior_pointer() -> None:
     protection = _Protection()
     stream, environment_stream, environment_generations, generations = (
@@ -449,6 +570,7 @@ def test_promote_temp_uses_exact_created_identity_and_prior_pointer() -> None:
     )
     root = _Root()
     backend = _Storage(root)
+    cleanup = _PointerTempCleanupStorage(root)
     pointer_temps = _PointerTempStorage(root)
     promotions = _PointerPromotionStorage(root)
     append_item(
@@ -464,6 +586,7 @@ def test_promote_temp_uses_exact_created_identity_and_prior_pointer() -> None:
         stream,
         root=root,
         generation_storage=backend,
+        pointer_temp_cleanup_storage=cleanup,
         pointer_temp_storage=pointer_temps,
         protection=protection,
         environment_generations=environment_generations,
@@ -525,6 +648,7 @@ def test_promote_temp_requires_persisted_created_state(existing_state: str) -> N
     root = _Root()
     backend = _Storage(root)
     promotions = _PointerPromotionStorage(root)
+    cleanup = _PointerTempCleanupStorage(root)
     if existing_state == "planned":
         append_item(
             generations[0],
@@ -560,6 +684,7 @@ def test_promote_temp_rejects_returned_destination_drift(drift: str) -> None:
     )
     root = _Root()
     backend = _Storage(root)
+    cleanup = _PointerTempCleanupStorage(root)
     pointer_temps = _PointerTempStorage(root)
     promotions = _PointerPromotionStorage(root)
     append_item(
@@ -575,6 +700,7 @@ def test_promote_temp_rejects_returned_destination_drift(drift: str) -> None:
         stream,
         root=root,
         generation_storage=backend,
+        pointer_temp_cleanup_storage=cleanup,
         pointer_temp_storage=pointer_temps,
         protection=protection,
         environment_generations=environment_generations,
@@ -608,6 +734,7 @@ def test_promote_temp_sanitizes_dependency_failure_and_propagates_control() -> N
     )
     root = _Root()
     backend = _Storage(root)
+    cleanup = _PointerTempCleanupStorage(root)
     pointer_temps = _PointerTempStorage(root)
     promotions = _PointerPromotionStorage(root)
     append_item(
@@ -623,6 +750,7 @@ def test_promote_temp_sanitizes_dependency_failure_and_propagates_control() -> N
         stream,
         root=root,
         generation_storage=backend,
+        pointer_temp_cleanup_storage=cleanup,
         pointer_temp_storage=pointer_temps,
         protection=protection,
         environment_generations=environment_generations,
@@ -668,6 +796,7 @@ def test_create_temp_requires_exactly_one_persisted_plan(existing_state: str) ->
     )
     root = _Root()
     backend = _Storage(root)
+    cleanup = _PointerTempCleanupStorage(root)
     pointer_temps = _PointerTempStorage(root)
     if existing_state == "created":
         for generation in generations:
@@ -686,6 +815,7 @@ def test_create_temp_requires_exactly_one_persisted_plan(existing_state: str) ->
             stream,
             root=root,
             generation_storage=backend,
+            pointer_temp_cleanup_storage=cleanup,
             pointer_temp_storage=pointer_temps,
             protection=protection,
             environment_generations=environment_generations,
@@ -693,6 +823,7 @@ def test_create_temp_requires_exactly_one_persisted_plan(existing_state: str) ->
         )
 
     assert failure.value.code is StorageErrorCode.STORAGE_INVALID
+    assert cleanup.calls == []
     assert pointer_temps.calls == 0
     assert not root.active
 
@@ -704,6 +835,7 @@ def test_create_temp_rejects_returned_byte_drift_without_generation_append() -> 
     )
     root = _Root()
     backend = _Storage(root)
+    cleanup = _PointerTempCleanupStorage(root)
     pointer_temps = _PointerTempStorage(root)
     pointer_temps.return_wrong_contents = True
     append_item(
@@ -721,6 +853,7 @@ def test_create_temp_rejects_returned_byte_drift_without_generation_append() -> 
             stream,
             root=root,
             generation_storage=backend,
+            pointer_temp_cleanup_storage=cleanup,
             pointer_temp_storage=pointer_temps,
             protection=protection,
             environment_generations=environment_generations,
@@ -740,6 +873,7 @@ def test_create_temp_rejects_cross_volume_identity_without_generation_append() -
     )
     root = _Root()
     backend = _Storage(root)
+    cleanup = _PointerTempCleanupStorage(root)
     pointer_temps = _PointerTempStorage(root)
     pointer_temps.identity = StableFileIdentity(8, b"x" * 16)
     append_item(
@@ -757,6 +891,7 @@ def test_create_temp_rejects_cross_volume_identity_without_generation_append() -
             stream,
             root=root,
             generation_storage=backend,
+            pointer_temp_cleanup_storage=cleanup,
             pointer_temp_storage=pointer_temps,
             protection=protection,
             environment_generations=environment_generations,
@@ -776,6 +911,7 @@ def test_create_temp_sanitizes_dependency_failure_and_propagates_control() -> No
     )
     root = _Root()
     backend = _Storage(root)
+    cleanup = _PointerTempCleanupStorage(root)
     pointer_temps = _PointerTempStorage(root)
     append_item(
         generations[0],
@@ -793,6 +929,7 @@ def test_create_temp_sanitizes_dependency_failure_and_propagates_control() -> No
             stream,
             root=root,
             generation_storage=backend,
+            pointer_temp_cleanup_storage=cleanup,
             pointer_temp_storage=pointer_temps,
             protection=protection,
             environment_generations=environment_generations,
@@ -808,6 +945,7 @@ def test_create_temp_sanitizes_dependency_failure_and_propagates_control() -> No
             stream,
             root=root,
             generation_storage=backend,
+            pointer_temp_cleanup_storage=cleanup,
             pointer_temp_storage=pointer_temps,
             protection=protection,
             environment_generations=environment_generations,

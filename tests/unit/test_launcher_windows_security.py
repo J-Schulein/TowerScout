@@ -643,6 +643,24 @@ def test_native_api_degrades_closed_when_windows_is_unavailable(
     assert exc_info.value.category == "windows_security_unavailable"
 
 
+@pytest.mark.skipif(os.name != "nt", reason="requires native Windows file APIs")
+def test_native_file_api_deletes_only_the_opened_leaf_by_handle(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "planned-pointer.tmp"
+    path.touch()
+    api = NativeWindowsFileApi()
+
+    handle = api.open_file_for_delete_if_exists(str(path))
+
+    assert handle is not None
+    assert api.query_file(handle).size == 0
+    api.mark_file_for_deletion(handle)
+    assert path.exists()
+    api.close_handle(handle)
+    assert not path.exists()
+
+
 def test_query_and_read_failures_do_not_disclose_private_native_details() -> None:
     secret_message = f"failed at {_SECRET_PATH} with raw identity 00112233"
     for failure_mode in ("query", "read"):
