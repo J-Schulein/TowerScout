@@ -3,8 +3,8 @@
 The adapter writes one already-protected blob under its exact planned leaf,
 then verifies identity, bytes, locality, file type, and the protected current-
 user/SYSTEM DACL on the creation handle and a no-follow reopen. It can later
-reverify only an exact receipt and has no list, delete, move, replace, restore,
-or mutation-adjacent operation.
+reverify or read only an exact receipt and has no list, delete, move, replace,
+restore, or mutation-adjacent operation.
 """
 
 from __future__ import annotations
@@ -269,7 +269,7 @@ def _read_verified(
     expected_size: int,
     expected_sha256: str,
     expected_contents: bytes | None = None,
-) -> None:
+) -> bytes:
     _validate_file(
         _call(
             lambda: api.query_file(handle),
@@ -309,10 +309,11 @@ def _read_verified(
         ),
         current_user_sid,
     )
+    return contents
 
 
 class NativeWindowsRecoveryBackupBlobStorage:
-    """Create or reverify one exact encrypted backup blob."""
+    """Create, reverify, or read one exact encrypted backup blob."""
 
     __slots__ = ("_api",)
 
@@ -439,6 +440,23 @@ class NativeWindowsRecoveryBackupBlobStorage:
         root_path: str,
         expected: StoredRecoveryBackupBlob,
     ) -> StoredRecoveryBackupBlob:
+        self.read_backup_blob(root_path, expected)
+        try:
+            return StoredRecoveryBackupBlob(
+                expected.name,
+                expected.purpose,
+                expected.identity,
+                expected.ciphertext_sha256,
+                expected.ciphertext_size,
+            )
+        except ValueError:
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+
+    def read_backup_blob(
+        self,
+        root_path: str,
+        expected: StoredRecoveryBackupBlob,
+    ) -> CurrentUserProtectedBlob:
         supported = _call(
             lambda: self._api.supported,
             RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE,
@@ -457,7 +475,7 @@ class NativeWindowsRecoveryBackupBlobStorage:
             _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
         reopened_handle: object | None = reopened
         try:
-            _read_verified(
+            contents = _read_verified(
                 self._api,
                 reopened,
                 path=path,
@@ -475,15 +493,15 @@ class NativeWindowsRecoveryBackupBlobStorage:
             if reopened_handle is not None:
                 _safe_close(self._api, reopened_handle)
         try:
-            return StoredRecoveryBackupBlob(
-                expected.name,
-                expected.purpose,
-                expected.identity,
-                expected.ciphertext_sha256,
-                expected.ciphertext_size,
-            )
+            blob = CurrentUserProtectedBlob(expected.purpose, contents)
         except ValueError:
             _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        if (
+            blob.ciphertext_sha256 != expected.ciphertext_sha256
+            or len(blob.ciphertext) != expected.ciphertext_size
+        ):
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        return blob
 
 
 __all__ = [

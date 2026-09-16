@@ -194,6 +194,29 @@ def _rollback_started_record(
     )
 
 
+def _environment_restore_temp_plan_record(
+    rollback_started_generation_sha256: str,
+    started: journal.RollbackStartedRecord,
+    preparing: journal.BackupPreparingRecord,
+) -> journal.EnvironmentRestoreTempPlanRecord:
+    return journal.EnvironmentRestoreTempPlanRecord(
+        schema_version=1,
+        rollback_started_generation_sha256=rollback_started_generation_sha256,
+        package_root_identity=started.package_root_identity,
+        environment_backup_identity=started.environment_backup_identity,
+        environment_ciphertext_sha256=started.environment_ciphertext_sha256,
+        environment_ciphertext_size=started.environment_ciphertext_size,
+        environment_present=preparing.environment_present,
+        environment_sha256=preparing.environment_sha256,
+        environment_size=17,
+        environment_file_attributes=preparing.environment_file_attributes,
+        environment_security_descriptor_sha256=(
+            preparing.environment_security_descriptor_sha256
+        ),
+        temp_name=".towerscout-env-" + "a" * 32 + ".tmp",
+    )
+
+
 def _seal(
     generation: journal.EnvironmentJournalGeneration,
     protection: _Protection,
@@ -714,6 +737,226 @@ def test_rollback_started_rejects_receipt_drift_and_invalid_continuity() -> None
         with pytest.raises(journal.RecoveryJournalError) as failure:
             journal.select_environment_journal_chain(
                 (prepared, verified, armed, started),
+                None,
+                expected_stream=stream,
+                protection=protection,
+            )
+        assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+
+
+def test_environment_restore_temp_planned_round_trip_is_bound_and_redacted() -> None:
+    protection = _Protection()
+    stream = _stream()
+    preparing_record = _backup_preparing_record()
+    prepared = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            1,
+            journal.GENESIS_GENERATION_SHA256,
+            journal.EnvironmentJournalState.BACKUP_PREPARING,
+            preparing_record,
+        ),
+        protection,
+    )
+    verified_record = _backup_verified_record(prepared.generation_sha256)
+    verified = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            2,
+            prepared.generation_sha256,
+            journal.EnvironmentJournalState.BACKUP_VERIFIED,
+            verified_record,
+        ),
+        protection,
+    )
+    armed_record = _rollback_armed_record(verified.generation_sha256, verified_record)
+    armed = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            3,
+            verified.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_ARMED,
+            armed_record,
+        ),
+        protection,
+    )
+    started_record = _rollback_started_record(armed.generation_sha256, armed_record)
+    started = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            4,
+            armed.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_STARTED,
+            started_record,
+        ),
+        protection,
+    )
+    record = _environment_restore_temp_plan_record(
+        started.generation_sha256,
+        started_record,
+        preparing_record,
+    )
+    planned_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        5,
+        started.generation_sha256,
+        journal.EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_PLANNED,
+        record,
+    )
+    planned = _seal(planned_generation, protection)
+
+    selection = journal.select_environment_journal_chain(
+        (prepared, verified, armed, started, planned),
+        _pointer(stream, planned, 5),
+        expected_stream=stream,
+        protection=protection,
+    )
+
+    assert selection.tip == planned_generation
+    assert selection.pointer_disposition is journal.JournalPointerDisposition.CURRENT
+    rendered = repr(record) + repr(planned_generation) + repr(selection)
+    assert record.rollback_started_generation_sha256 not in rendered
+    assert record.environment_ciphertext_sha256 not in rendered
+    assert record.environment_sha256 not in rendered
+    assert record.temp_name not in rendered
+
+
+def test_environment_restore_temp_planned_supports_absent_original() -> None:
+    record = journal.EnvironmentRestoreTempPlanRecord(
+        1,
+        "1" * 64,
+        _identity(7),
+        _identity(21),
+        "2" * 64,
+        101,
+        False,
+    )
+
+    assert record.environment_sha256 is None
+    assert record.environment_size is None
+    assert record.temp_name is None
+
+
+def test_environment_restore_temp_planned_rejects_drift_and_invalid_shape() -> None:
+    with pytest.raises(ValueError):
+        journal.EnvironmentRestoreTempPlanRecord(
+            1,
+            "1" * 64,
+            _identity(7),
+            _identity(21),
+            "2" * 64,
+            101,
+            False,
+            environment_sha256="3" * 64,
+        )
+
+    protection = _Protection()
+    stream = _stream()
+    preparing_record = _backup_preparing_record()
+    prepared = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            1,
+            journal.GENESIS_GENERATION_SHA256,
+            journal.EnvironmentJournalState.BACKUP_PREPARING,
+            preparing_record,
+        ),
+        protection,
+    )
+    verified_record = _backup_verified_record(prepared.generation_sha256)
+    verified = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            2,
+            prepared.generation_sha256,
+            journal.EnvironmentJournalState.BACKUP_VERIFIED,
+            verified_record,
+        ),
+        protection,
+    )
+    armed_record = _rollback_armed_record(verified.generation_sha256, verified_record)
+    armed = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            3,
+            verified.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_ARMED,
+            armed_record,
+        ),
+        protection,
+    )
+    started_record = _rollback_started_record(armed.generation_sha256, armed_record)
+    started = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            4,
+            armed.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_STARTED,
+            started_record,
+        ),
+        protection,
+    )
+    valid = _environment_restore_temp_plan_record(
+        started.generation_sha256,
+        started_record,
+        preparing_record,
+    )
+    drifted = journal.EnvironmentRestoreTempPlanRecord(
+        1,
+        started.generation_sha256,
+        valid.package_root_identity,
+        valid.environment_backup_identity,
+        "8" * 64,
+        valid.environment_ciphertext_size,
+        valid.environment_present,
+        valid.environment_sha256,
+        valid.environment_size,
+        valid.environment_file_attributes,
+        valid.environment_security_descriptor_sha256,
+        valid.temp_name,
+    )
+    for previous_sha256, record in (
+        (started.generation_sha256, drifted),
+        (
+            "7" * 64,
+            _environment_restore_temp_plan_record(
+                started.generation_sha256,
+                started_record,
+                preparing_record,
+            ),
+        ),
+        (
+            started.generation_sha256,
+            _environment_restore_temp_plan_record(
+                "7" * 64,
+                started_record,
+                preparing_record,
+            ),
+        ),
+    ):
+        planned = _seal(
+            journal.EnvironmentJournalGeneration(
+                1,
+                stream,
+                5,
+                previous_sha256,
+                journal.EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_PLANNED,
+                record,
+            ),
+            protection,
+        )
+        with pytest.raises(journal.RecoveryJournalError) as failure:
+            journal.select_environment_journal_chain(
+                (prepared, verified, armed, started, planned),
                 None,
                 expected_stream=stream,
                 protection=protection,

@@ -168,6 +168,14 @@ class RecoveryBackupBlobVerificationPort(Protocol):
     ) -> StoredRecoveryBackupBlob: ...
 
 
+class RecoveryBackupBlobReadPort(Protocol):
+    def read_backup_blob(
+        self,
+        root_path: str,
+        expected: StoredRecoveryBackupBlob,
+    ) -> CurrentUserProtectedBlob: ...
+
+
 def _matches_environment_summary(
     record: BackupPreparingRecord,
     backup: EnvironmentExactStateBackup,
@@ -715,6 +723,7 @@ def activate_persisted_rollback_armed_generation(
 
 __all__ = [
     "PersistedRecoveryBackupBlobs",
+    "RecoveryBackupBlobReadPort",
     "RecoveryBackupBlobStoragePort",
     "RecoveryBackupBlobVerificationPort",
     "RecoveryBackupStorageError",

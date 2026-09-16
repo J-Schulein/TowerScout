@@ -226,6 +226,27 @@ def test_native_blob_reverifies_exact_receipt_without_create() -> None:
     assert api.events.count("security") == 2
 
 
+def test_native_blob_reads_verified_ciphertext_as_purpose_bound_blob() -> None:
+    api = _Api()
+    api.contents = _CIPHERTEXT
+    adapter = native.NativeWindowsRecoveryBackupBlobStorage(api=api)
+    expected = storage.StoredRecoveryBackupBlob(
+        _NAME,
+        ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+        api.identity,
+        hashlib.sha256(_CIPHERTEXT).hexdigest(),
+        len(_CIPHERTEXT),
+    )
+
+    protected = adapter.read_backup_blob(_ROOT, expected)
+
+    assert protected == _blob()
+    assert "create" not in api.events
+    assert api.events.count("reopen") == 1
+    assert api.events.count("query") == 2
+    assert api.events.count("security") == 2
+
+
 @pytest.mark.parametrize(
     ("change", "value"),
     (
