@@ -28,7 +28,14 @@ and repairs the metadata pointer to the exact armed tip. Already-current
 activation is idempotent and failed pointer writes are safely retryable. It
 does not authorize recovery, cleanup, `.env` replacement, certificate writes,
 repair, or runtime mutation.
-The expected remaining PR #67 path from `7b96a6b` is one
+Exact-head validated checkpoint `b12280d` adds fresh-process rollback admission
+from that armed state. It accepts only the authenticated three- or four-
+generation chain, derives both expected backup receipts only from durable
+records, reverifies both blobs under one held root, selects generation 3 before
+append, and persists and selects generation 4 `rollback_started` at most once.
+Retry repairs only the started pointer; no restore, cleanup, `.env`
+replacement, certificate write, repair, or runtime mutation is enabled.
+The expected remaining PR #67 path from `b12280d` is one
 substantive checkpoint and approximately 1-3
 actual commits,
 with environment-dependent Windows
@@ -209,7 +216,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at independently reviewed and exact-head validated checkpoint `7b96a6b`. Slices 1-3 are complete; slice 4 still needs successful revocation-aware fixed-host and repeated container proof. Slices 5-6 include reviewed protected state, DPAPI, exact generation/pointer storage, move reconciliation, authenticated pointer-transition/restart classification, protected transition persistence, exact pointer-temp identity binding, journal-bound promotion and orphan cleanup, encrypted exact-state backup persistence, authenticated `backup_verified`, durable generation 3 `rollback_armed`, and exact armed-tip pointer activation; full recovery states/actions, `.env` replacement, transaction refactor, provider `.env` hardening, and final validation remain. Mutation is disabled and PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before returning to Task-087 Gate B normal-package integration. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at independently reviewed and exact-head validated checkpoint `b12280d`. Slices 1-3 are complete; slice 4 still needs successful revocation-aware fixed-host and repeated container proof. Slices 5-6 include reviewed protected state, DPAPI, exact generation/pointer storage, move reconciliation, authenticated pointer-transition/restart classification, protected transition persistence, exact pointer-temp identity binding, journal-bound promotion and orphan cleanup, encrypted exact-state backup persistence, authenticated `backup_verified`, durable generation 3 `rollback_armed`, exact armed-tip pointer activation, and fresh-process idempotent generation 4 `rollback_started` admission; remaining recovery states/actions, `.env` replacement, transaction refactor, provider `.env` hardening, and final validation remain. Mutation is disabled and PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before returning to Task-087 Gate B normal-package integration. |
 | `TASK-096` Launcher Lifecycle Controls | Backlog / NOT_STARTED. Begins only after Task-087 Gate A acceptance and the PR #67 merge decision; owns native state-driven Start/Open/Stop/Restart. |
 | `TASK-102` Native Launcher First-Run Setup | Backlog / NOT_STARTED. Begins after Task-096; owns package/asset/runtime/readiness setup and opens the browser Setup Wizard for provider keys before Task-087 Gate B. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |

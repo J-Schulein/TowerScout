@@ -485,6 +485,17 @@ pointer is verified without replacement, and a failed replacement is safely
 retryable. No recovery action, cleanup, `.env` replacement, certificate write,
 repair, or runtime mutation is added.
 
+Independently reviewed and exact-head validated checkpoint `b12280d` adds the
+fresh-process admission boundary for rollback without performing rollback. It
+accepts only the exact authenticated three- or four-generation chain, validates
+the intermediate `backup_verified` and `rollback_armed` records, derives both
+expected blob receipts from durable authority, and freshly reverifies both
+encrypted backups under one protected-root hold. A three-generation retry first
+selects the exact armed tip, then appends and selects generation 4
+`rollback_started`; a four-generation retry performs no append and only
+verifies or repairs the exact started pointer. No decryption, restore, cleanup,
+`.env` replacement, certificate write, repair, or runtime mutation is added.
+
 ## Launcher Front-Door Design Boundary
 
 Task-087 Gate A establishes the accepted exact-target, native execution,

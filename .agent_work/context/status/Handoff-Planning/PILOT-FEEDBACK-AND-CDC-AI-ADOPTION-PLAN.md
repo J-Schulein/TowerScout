@@ -145,14 +145,14 @@ backlog, and migration-ready handoff without changing cdcai.
   repair on Docker and Podman; the August 21 approval authorizes Gate A work
   under the exact-target/durable-recovery design before exact-head re-review.
   Independently reviewed and exact-head validated implementation checkpoint
-  `7b96a6b` is the current source baseline. It follows `deee6ab` durable
-  `rollback_armed` persistence by reloading exactly the authenticated three-
-  generation chain, reconstructing both expected receipts only from durable
+  `b12280d` is the current source baseline. It follows `7b96a6b` armed-tip
+  activation by accepting only the exact authenticated three- or four-
+  generation chain, deriving both expected backup receipts only from durable
   records, freshly reverifying both exact DPAPI ciphertext blobs under one held
-  protected-root interval, and repairing the metadata pointer to the exact
-  armed tip. Ambiguous artifacts remain preserved. No recovery action, cleanup,
-  `.env` replacement, certificate write, repair, or runtime mutation is
-  enabled.
+  protected-root interval, and durably admitting rollback through generation 4
+  `rollback_started` at most once. Retry repairs only the exact started pointer.
+  Ambiguous artifacts remain preserved. No restore, cleanup, `.env`
+  replacement, certificate write, repair, or runtime mutation is enabled.
   After Gate A acceptance and the PR #67 merge decision, Tasks 096 and 102
   precede Task-087 Gate B normal-package integration.
 - Task-088: completed Pilot Package distribution and custody.

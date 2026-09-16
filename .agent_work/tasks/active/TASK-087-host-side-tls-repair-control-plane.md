@@ -82,13 +82,22 @@ exact generation-3 `rollback_armed` tip. Already-current activation is
 idempotent and a failed pointer write is safely retryable. It adds no recovery
 action, cleanup, `.env` replacement, certificate write, repair, or runtime
 authority.
+Independently reviewed and exact-head validated checkpoint `b12280d` adds the
+fresh-process rollback admission boundary. It accepts only the authenticated
+three- or four-generation chain, validates the intermediate `backup_verified`
+and `rollback_armed` authority, reconstructs both expected receipts only from
+durable records, and freshly reverifies both exact blobs under one held-root
+interval. It selects generation 3 before appending and selecting generation 4
+`rollback_started` at most once; retry from generation 4 only verifies and
+repairs its pointer. It adds no restore, cleanup, `.env` replacement,
+certificate write, repair, or runtime authority.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: One substantive implementation/proof checkpoint and
-approximately 1-3 additional PR #67 commits from `7b96a6b` to Gate A source
+approximately 1-3 additional PR #67 commits from `b12280d` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -1453,6 +1462,51 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Fresh-Process Rollback Admission Checkpointed
+
+**Objective**: Persist and select `rollback_started` from authenticated durable
+authority without decrypting or restoring either backup.
+
+**Context**: Checkpoint `7b96a6b` makes the exact generation-3
+`rollback_armed` tip current after freshly reverifying both encrypted backup
+blobs. Recovery still needed a fresh-process boundary that could enter the
+started state once, survive pointer failures, and reject ambient or caller-
+supplied receipt authority.
+
+**Decision**: Accept only an authenticated three- or four-generation chain,
+validate its `backup_verified` and `rollback_armed` records, reconstruct both
+expected backup receipts from those durable records, and freshly reverify both
+exact blobs under one protected-root hold. Ensure generation 3 is current
+before the first generation-4 append. On retry, append nothing and only verify
+or repair the exact generation-4 pointer. Do not decrypt, restore, clean,
+replace `.env`, write certificates, authorize repair, or mutate runtime state.
+
+**Execution**: Implementation checkpoint
+`b12280d769eb01ac735ec0e6550fc09c963b9f2c` adds the immutable redacted
+`RollbackStartedRecord`, strict four-generation chain validation, and the
+fresh-process `begin_persisted_rollback()` admission orchestrator. Tests cover
+fresh adapter reconstruction from persisted bytes, success, idempotency,
+pre-append armed-pointer repair, post-append started-pointer repair without a
+duplicate generation, blob failure before journal advance, record round-trip,
+receipt drift, and invalid continuity.
+
+**Output**: The journal can now durably prove that a fresh process admitted
+rollback from the exact authenticated armed state and can safely retry pointer
+selection. This checkpoint performs no restore or other destructive action.
+
+**Validation**: Focused recovery tests pass `58/58`; the adjacent recovery ring
+passes `227/227`; and the complete launcher suite passes `1792/1792`. Black,
+strict mypy, blocking Flake8, medium/high Bandit, compilation, editor
+diagnostics, secret review, and indexed diff checks pass. Two independent
+reviews returned `PASS` with no actionable finding. Exact-head CI/CD run
+`35148213698`, Task-087 run `35148213864`, and Trivy passed; the main-only build
+was neutral as designed.
+
+**Next**: Add the remaining authenticated recovery states and verified restore
+while preserving cleanup-pending artifacts and keeping repair/runtime mutation
+disabled, then complete cross-protocol recovery scanning and the remaining
+Gate A proof.
 
 ### 2026-09-16 - Rollback-Armed Pointer Activation Checkpointed
 

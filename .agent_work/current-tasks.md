@@ -67,6 +67,16 @@ the metadata pointer to the exact generation-3 `rollback_armed` tip. Activation
 is idempotent when current, and failed pointer writes are safely retryable;
 restore, cleanup, `.env` replacement, certificate writes, repair, and every
 runtime mutation remain disabled.
+Independently reviewed and exact-head validated checkpoint `b12280d` adds
+fresh-process rollback admission from that armed state. It accepts only the
+authenticated three- or four-generation chain, validates the intermediate
+`backup_verified` and `rollback_armed` authority, derives both expected backup
+receipts only from durable records, and freshly reverifies both exact blobs
+under one held-root interval. It makes generation 3 current before appending
+and selecting generation 4 `rollback_started`; a retry from generation 4
+verifies and repairs its pointer without a duplicate append. Restore, cleanup,
+`.env` replacement, certificate writes, repair, and every runtime mutation
+remain disabled.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -87,15 +97,16 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `7b96a6b` is pushed, independently
+- Task-087 implementation checkpoint `b12280d` is pushed, independently
   reviewed, and exact-head validated. It reloads the exact authenticated
-  three-generation chain, reconstructs both expected receipts only from its
-  durable records, freshly reverifies both files under the same held protected
-  root, then selects the exact generation-3 `rollback_armed` tip through the
-  metadata pointer. It does not restore data, clean artifacts, replace `.env`,
-  write certificates, or mutate repair/runtime state. PR #67 remains Draft.
-  Gate A remains open and mutation remains disabled. Detailed status and
-  evidence are maintained in the
+  three- or four-generation chain, derives both expected backup receipts only
+  from its durable records, freshly reverifies both files under the same held
+  protected root, and durably admits rollback through generation 4
+  `rollback_started` at most once. Retry verifies and repairs the exact started
+  pointer without duplicate append. It does not restore data, clean artifacts,
+  replace `.env`, write certificates, or mutate repair/runtime state. PR #67
+  remains Draft. Gate A remains open and mutation remains disabled. Detailed
+  status and evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
   in this release-state summary.
 - `cdcai/TowerScout` remains unchanged until final owner qualification and
@@ -266,12 +277,17 @@ generation 3 `rollback_armed` append plus authenticated reread. Independently
 reviewed and exact-head validated checkpoint `7b96a6b` freshly reverifies both
 exact blobs under the same root hold and repairs a missing or stale pointer to
 the exact armed tip, with idempotent already-current behavior and safe retry
-after pointer-write failure. Every recovery action and mutation remains open.
+after pointer-write failure. Independently reviewed and exact-head validated
+checkpoint `b12280d` adds fresh-process admission from that exact armed state:
+it reauthenticates the chain, reverifies both blobs, makes generation 3 current
+before append, and persists and selects generation 4 `rollback_started` at
+most once. Retry repairs only the started pointer. Restore, cleanup, `.env`
+replacement, certificate writes, repair, and runtime mutation remain disabled.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: From `7b96a6b`, one substantive implementation/proof checkpoint,
+**Remaining Estimate**: From `b12280d`, one substantive implementation/proof checkpoint,
 likely 1-3 additional PR #67 commits including review corrections and evidence
 reconciliation, before Gate A source acceptance can unlock Task-096. Windows
 revocation or Docker/Podman recovery findings may add work.

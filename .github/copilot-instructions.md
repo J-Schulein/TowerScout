@@ -91,8 +91,13 @@ The project still carries public-health workflow expectations:
   reverifies both exact blobs under one held-root interval, and repairs the
   metadata pointer to the exact generation-3 `rollback_armed` tip. A pointer
   that is already current is verified without replacement, and a failed write
-  is safely retryable. Full recovery states, `.env` replacement, certificate
-  writes, repair, and runtime mutation remain disabled. The
+  is safely retryable. Independently reviewed and exact-head validated
+  checkpoint `b12280d` accepts only the exact authenticated three- or four-
+  generation chain, derives both expected backup receipts only from durable
+  records, freshly reverifies both exact blobs under one held-root interval,
+  and appends and selects generation 4 `rollback_started` at most once. Retry
+  repairs only the exact started pointer. Restore, cleanup, `.env` replacement,
+  certificate writes, repair, and runtime mutation remain disabled. The
   current estimate is one substantive Gate A checkpoint and approximately 1-3
   actual PR #67 commits.
   Preview-integrity Gate B remains
@@ -955,9 +960,11 @@ An agent should leave with the following understanding:
   receipt authority is accepted, partial or ambiguous artifacts remain
   preserved. Independently reviewed and exact-head validated checkpoint
   `7b96a6b` freshly reverifies both exact blobs under one root hold before
-  selecting that exact armed tip through the metadata pointer; no recovery
-  action, `.env` replacement, certificate write, repair, or runtime mutation is
-  enabled
+  selecting that exact armed tip through the metadata pointer. Independently
+  reviewed and exact-head validated checkpoint `b12280d` then adds fresh-
+  process, idempotent generation 4 `rollback_started` admission; it does not
+  restore or clean data, replace `.env`, write certificates, authorize repair,
+  or mutate runtime state
 - after Gate A acceptance and the PR #67 merge decision, the controlling order
   is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
   package integration, and Task-097 four-profile qualification

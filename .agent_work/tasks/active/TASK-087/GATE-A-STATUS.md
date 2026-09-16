@@ -2,8 +2,8 @@
 
 **As Of**: September 16, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `7b96a6b8b5a0f77667ef2476a7767795ba8242e3`
-**Validated Exact Head**: `7b96a6b8b5a0f77667ef2476a7767795ba8242e3`
+**Implementation Head**: `b12280d769eb01ac735ec0e6550fc09c963b9f2c`
+**Validated Exact Head**: `b12280d769eb01ac735ec0e6550fc09c963b9f2c`
 **Local Candidate**: Evidence reconciliation only; no uncommitted source
 candidate
 **Current Checkpoint**: Slices 2-3 exact-target confirmation wiring complete.
@@ -166,6 +166,18 @@ idempotent and a failed pointer write is safely retryable. Focused tests pass
 `35144293843`, Task-087 run `35144293704`, and Trivy passed; the main-only build
 is neutral as designed. No recovery action, cleanup, `.env` replacement,
 certificate write, repair, or runtime mutation is enabled.
+Independently reviewed and exact-head validated checkpoint `b12280d` accepts
+only the exact authenticated three- or four-generation chain, validates the
+intermediate `backup_verified` and `rollback_armed` authority, derives both
+expected backup receipts only from durable records, and freshly reverifies both
+exact encrypted blobs under one held protected-root interval. It makes
+generation 3 current before appending and selecting generation 4
+`rollback_started` at most once. A generation-4 retry appends nothing and only
+verifies or repairs the exact started pointer. Focused tests pass `58/58`, the
+adjacent recovery ring passes `227/227`, and the complete launcher suite passes
+`1792/1792`. CI/CD run `35148213698`, Task-087 run `35148213864`, and Trivy
+passed; the main-only build is neutral as designed. No restore, cleanup, `.env`
+replacement, certificate write, repair, or runtime mutation is enabled.
 **Draft PR**: [#67](https://github.com/J-Schulein/TowerScout/pull/67)
 **Overall State**: IN_PROGRESS / Gate A source implementation
 **Gate A Exit**: NOT MET
@@ -207,7 +219,7 @@ Status in this file answers four separate questions:
 | 3 | Target resolver | **COMPLETE** | The reviewed normalized target, observation, ownership, and factory chain through `db7aee8` remains unchanged. The September 14 checkpoint displays only `PublicRepairSummary`, revalidates immediately before accepting confirmation, and requires `BEFORE_MUTATION`, `BEFORE_RESTART`, and `TERMINAL` exactly once in order. A skipped, repeated, or backward stage closes the owner and invalidates authorization. Current execution reaches `BEFORE_MUTATION` and then fails closed because mutation is disabled; slice 7 must implement the authorized stop/recreation semantics behind later hooks. Independent review findings are reconciled. | Preserve these hooks while slice 7 implements the authorized stop/recreation semantics. |
 | 4 | Windows trust proof | **PARTIAL** | The reviewed Windows-root eligibility and exact-root selection contracts remain. The September 14 review remediation creates a bounded exact Windows-`CA` plus server-intermediate snapshot, supplies it as an additional build store, rejects every candidate whose intermediate fingerprint is outside that snapshot, retains one exclusive filtered root store, restores cache-only chain revocation, disables AIA/root auto-update, and applies SSL hostname policy. A fresh sanitized retry returned `chain_unverified` for both Azure and Google, consistent with the earlier detailed offline/unknown cached-revocation failure. Earlier disposable network-disabled Docker and rootless-Podman checks showed exactly one selected PEM crossed the boundary, but that selection predates restored revocation and therefore proves transport containment only, not current end-to-end trust success. No certificate bytes or identity were stored as evidence. | Obtain a successful fixed-host proof with current revocation enforcement in a supported Windows context, then repeat the one-selected-root Docker and rootless-Podman containment proof from those same reviewed bytes. |
 | 5 | Windows security proof | **PARTIAL** | Independently reviewed checkpoint `2edcb8e` resolves Local AppData through the Windows Known Folder API; creates only `TowerScout\Recovery\v1`; requires each state directory to have a protected, exact current-user/SYSTEM full-control DACL; retains and revalidates its handle-bound hierarchy; and adds UI-forbidden, current-user-only, purpose-separated DPAPI. Earlier checkpoints `2d37e66`, `f7d21a9`, and `16604c8` provide the handle/file-ID, owner, DACL, reparse, hard-link, supported cloud/OneDrive, secured cross-session mutex, and ordered `.env`/target-lock foundations. Checkpoint `14b77e4` retains package-root trust, binds canonical absence evidence to that root identity, and rechecks the exact `.env` child through a no-follow native open. Checkpoint `0efeff7` adds the pure planner with bounded strict UTF-8/BOM/NUL policy, exact two-setting changes that preserve unrelated bytes/newline form, immutable original/candidate hashes, and exact original/candidate/absent/third-state classification; focused/full launcher validation, independent review, and exact-head workflows pass. Independently reviewed and exact-head validated checkpoint `1c45445` adds a private journal-gated staging boundary: unpredictable same-directory `CREATE_NEW`, exact protected current-user/SYSTEM DACL, zero-byte created-state receipt before write, complete bounded writes, `FlushFileBuffers`, same-handle readback, close, and no-follow reopen identity/DACL/hash verification before the verified receipt. Its Windows-native smoke uses an isolated pytest temp only. | Add the durable journal implementation, native destination promotion/replacement, indeterminate-result classification, and exact orphan cleanup; then exercise all slice 5 primitives together. |
-| 6 | Recovery manager | **PARTIAL** | Checkpoints through `31f63f2` provide authenticated environment-journal storage, metadata-pointer handling, same-call move reconciliation, and the pure pointer-transition/restart-classification model. Checkpoint `5252c7a` adds create-only protected transition-generation persistence and fresh-process authenticated reload. Checkpoint `7341997` plus `dd0d42d` add exact planned pointer-temp creation, full native verification, and durable stable-identity binding. Independently reviewed and exact-head validated checkpoint `299ae96` promotes only that authenticated temp after exact source/prior-destination proof and requires exact `MOVE_COMPLETED` evidence under the held protected root. Independently reviewed and exact-head validated checkpoint `53b618b` removes only the exact authenticated planned-state zero-byte orphan by its verified held handle and proves absence before creation retry. Checkpoint `d6ce415` adds pure purpose-separated encrypted exact-state environment and fixed-certificate backup envelopes bound to the journal stream. Independently reviewed and exact-head validated checkpoint `1ecfd5e` adds authenticated singleton `backup_preparing` intent with exact future blob names and prior-state summaries. Independently reviewed and exact-head validated checkpoint `21aba57` reloads that durable authority under the same root hold and creates and fully verifies only the two exact planned encrypted blobs while preserving ambiguous artifacts. Independently reviewed and exact-head validated checkpoint `92acf29` reauthenticates the sealed sources, freshly reverifies both exact blobs under that held root, and persists and reauthenticates `backup_verified`. Independently reviewed and exact-head validated checkpoint `deee6ab` reconstructs both expected receipts from that authenticated chain, freshly reverifies both exact blobs under one held-root interval, and appends and reauthenticates generation 3 `rollback_armed`. Independently reviewed and exact-head validated checkpoint `7b96a6b` freshly reverifies both exact blobs under the same root hold and repairs the metadata pointer to the exact armed tip with idempotent current-pointer behavior and safe retry after write failure. | Add full recovery states, fresh-process idempotent recovery, verified rollback, cleanup-pending retention, and cross-protocol scanning. |
+| 6 | Recovery manager | **PARTIAL** | Checkpoints through `31f63f2` provide authenticated environment-journal storage, metadata-pointer handling, same-call move reconciliation, and the pure pointer-transition/restart-classification model. Checkpoint `5252c7a` adds create-only protected transition-generation persistence and fresh-process authenticated reload. Checkpoint `7341997` plus `dd0d42d` add exact planned pointer-temp creation, full native verification, and durable stable-identity binding. Independently reviewed and exact-head validated checkpoint `299ae96` promotes only that authenticated temp after exact source/prior-destination proof and requires exact `MOVE_COMPLETED` evidence under the held protected root. Independently reviewed and exact-head validated checkpoint `53b618b` removes only the exact authenticated planned-state zero-byte orphan by its verified held handle and proves absence before creation retry. Checkpoint `d6ce415` adds pure purpose-separated encrypted exact-state environment and fixed-certificate backup envelopes bound to the journal stream. Independently reviewed and exact-head validated checkpoint `1ecfd5e` adds authenticated singleton `backup_preparing` intent with exact future blob names and prior-state summaries. Independently reviewed and exact-head validated checkpoint `21aba57` reloads that durable authority under the same root hold and creates and fully verifies only the two exact planned encrypted blobs while preserving ambiguous artifacts. Independently reviewed and exact-head validated checkpoint `92acf29` reauthenticates the sealed sources, freshly reverifies both exact blobs under that held root, and persists and reauthenticates `backup_verified`. Independently reviewed and exact-head validated checkpoint `deee6ab` reconstructs both expected receipts from that authenticated chain, freshly reverifies both exact blobs under one held-root interval, and appends and reauthenticates generation 3 `rollback_armed`. Independently reviewed and exact-head validated checkpoint `7b96a6b` freshly reverifies both exact blobs under the same root hold and repairs the metadata pointer to the exact armed tip with idempotent current-pointer behavior and safe retry after write failure. Independently reviewed and exact-head validated checkpoint `b12280d` accepts only the authenticated three- or four-generation chain, reverifies both exact blobs under one held root, and persists and selects generation 4 `rollback_started` at most once; retry repairs only the exact started pointer. | Add the remaining recovery states and verified rollback, cleanup-pending retention, and cross-protocol scanning. |
 | 7 | Transaction refactor | **NOT STARTED** | The older prototype transaction and historical live evidence remain available as behavior references only. | Refactor `repair.py` to consume the immutable resolved target and recovery manager, remove process-memory-only backup and unchecked rollback, and enforce pre-write/pre-restart/terminal revalidation. |
 | 8 | Provider installer hardening | **PARTIAL** | Historical checkpoint `3990bc0` closed provider dependency/wheel reproducibility and version verification. Independently reviewed checkpoint `7a0c35a` makes the installed `site-packages` inventory deterministic and provider-only by replacing pip-added metadata with the exact retained wheel inventory, prevents wrapper/bootstrap drift, and suppresses bytecode across the current PowerShell provider path. Its ambient Python compatibility probe is not authentication. | Reuse the protected atomic `.env` contract, change only `PODMAN_COMPOSE_PROVIDER`, remove persistent whole-file plaintext backup/output, and add crash/orphan reconciliation. |
 | 9 | Gate A source validation and review | **VALIDATION CONTINUES** | Every completed increment has focused tests and independent review. Secure-absence checkpoint `14b77e4` passed its exact-head gates. Pure-planner checkpoint `0efeff7` passes `47/47` focused and `1536/1536` launcher tests plus static checks and independent source review. Staging checkpoint `1c45445` passes `24/24` focused tests, including real Windows ctypes and retained-native-handle smokes, and `169/169` adjacent tests plus focused static/security checks and independent review. Checkpoint `8bb6b33` passes `26/26` focused journal, `152/152` adjacent, and `155/155` isolated late-launcher tests plus focused static/security checks and CLEAN/PASS corrected-diff independent review. Its exact-head CI/CD run `35010304611`, Task-087 run `35010304675`, and Trivy passed. Documentation checkpoint `e86c41c` passed exact-head CI/CD run `35011029262`, Task-087 run `35011029309`, and Trivy; both main-only builds skipped as designed. Independently reviewed checkpoint `53bed46` passes `20/20` focused, `164/164` adjacent, and `167/167` isolated late-launcher tests plus focused static/security checks and CLEAN/PASS review with no actionable Low-or-higher findings. Its exact-head CI/CD run `35013069183`, Task-087 run `35013069124`, and Trivy passed; the main-only build was neutral as designed. Documentation checkpoint `2e0f90e` passed exact-head CI/CD run `35014300773`, Task-087 run `35014300816`, and Trivy. Independently reviewed checkpoint `4a96dd2` passes `18/18` focused, `182/182` adjacent, and `185/185` isolated late-launcher tests plus focused static/security checks, a real Windows round trip, and two CLEAN/PASS reviews with no actionable Low-or-higher findings. Its exact-head CI/CD run `35016174147`, Task-087 run `35016174145`, and Trivy passed; the main-only build was neutral as designed. Independently reviewed checkpoint `221612c` passes `19/19` focused, `192/192` adjacent, and `195/195` isolated late-launcher tests plus focused static/security checks and final CLEAN/PASS review. Its exact-head CI/CD run `35019327044`, Task-087 run `35019327058`, and Trivy passed; the main-only build was neutral as designed. Independently reviewed checkpoint `95ca37d` passes `32/32` focused, `206/206` adjacent, and `209/209` isolated late-launcher tests plus a real Windows replacement round trip, focused static/security checks, and final CLEAN/PASS review. Its exact-head CI/CD run `35021545053`, Task-087 run `35021545062`, and Trivy passed; the main-only build was neutral as designed. | After slices 2-8 are integrated, run the final broad/adversarial set, fresh-process recovery, isolated Docker CPU then approved rootless-Podman CPU mutation/recovery, OneDrive and two-session Windows proofs, all-volume verification, exact-head workflows, and final independent review. |
@@ -328,6 +340,21 @@ one held protected-root interval before repairing the metadata pointer to the
 exact generation-3 `rollback_armed` tip. It does not restore or clean data,
 replace `.env`, write certificates, authorize repair, or mutate runtime state.
 
+**Slice 9 validation ledger continuation**: Independently reviewed and exact-
+head validated checkpoint `b12280d` passes `58/58` focused recovery tests,
+`227/227` adjacent recovery tests, and `1792/1792` complete launcher tests.
+Black, strict mypy, focused blocking Flake8, medium/high Bandit, compilation,
+editor diagnostics, secret review, and indexed diff checks pass. Two
+independent reviews returned `PASS` with no actionable finding. Exact-head
+CI/CD run `35148213698`, Task-087 run `35148213864`, and Trivy passed; the main-
+only build was neutral as designed. This checkpoint accepts only the exact
+authenticated three- or four-generation chain, derives both expected backup
+receipts only from durable records, freshly reverifies both exact encrypted
+blobs under one held protected-root interval, and appends and selects generation
+4 `rollback_started` at most once. Retry repairs only its exact pointer. It does
+not restore or clean data, replace `.env`, write certificates, authorize repair,
+or mutate runtime state.
+
 ## Progress Interpretation
 
 Gate A is materially advanced but remains open. Group 1's exact-runtime and
@@ -378,7 +405,10 @@ blobs and durable generation 3 `rollback_armed`. Independently reviewed and
 exact-head validated checkpoint `7b96a6b` freshly reverifies both exact blobs
 under the same root hold and selects the exact armed tip through the metadata
 pointer, with idempotent already-current behavior and safe retry after pointer-
-write failure. Full recovery action, cleanup-pending retention, and cross-
+write failure. Independently reviewed and exact-head validated checkpoint
+`b12280d` adds fresh-process admission by appending and selecting generation 4
+`rollback_started` at most once, with exact started-pointer repair on retry.
+Remaining recovery states and action, cleanup-pending retention, and cross-
 protocol scanning remain.
 The
 branch has accumulated substantial
@@ -412,9 +442,9 @@ state definitions above.
 
 ## Next-Session Resume Point
 
-Use the checkpointed authenticated and pointer-selected `rollback_armed` state
-to add full recovery states, fresh-process idempotent recovery, verified
-rollback, cleanup-pending retention, and cross-protocol scanning. Retry
+Use the checkpointed authenticated `rollback_started` state to add the remaining
+recovery states, verified rollback, cleanup-pending retention, and cross-
+protocol scanning. Retry
 slice 4's successful revocation-aware fixed-host and
 Docker/rootless-Podman containment proof only in a context able to satisfy the
 cache-only revocation policy. Do not enable repair or mutation. Then complete
@@ -448,7 +478,7 @@ Gate B resumes only after those launcher surfaces stabilize, so the normal
 release-package path integrates the intended front door once. Task-097 then
 qualifies that integrated package across Docker CPU/GPU and Podman CPU/GPU.
 
-Planning estimate from `7b96a6b`: one substantive Gate A implementation/proof
+Planning estimate from `b12280d`: one substantive Gate A implementation/proof
 checkpoint and approximately 1-3 additional PR #67 commits, including likely
 review corrections and evidence reconciliation. Windows revocation or runtime
 recovery findings can increase that count. Gate B, Task-096, Task-102, and

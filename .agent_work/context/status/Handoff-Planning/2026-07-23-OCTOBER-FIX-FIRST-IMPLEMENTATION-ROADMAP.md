@@ -18,14 +18,15 @@ describes Task-096 as Stop-only.
 
 1. Finish Task-087 Gate A source implementation, exact-head validation and
   independent re-review, then make the PR #67 merge decision. The current
-  validated implementation head is `7b96a6b`; it reloads exactly the
-  authenticated three-generation chain, reconstructs both expected receipts
-  only from durable records, freshly reverifies both exact DPAPI ciphertext
-  blobs under one held protected-root interval, and repairs the metadata
-  pointer to the exact generation-3 `rollback_armed` tip. It grants no restore,
-  cleanup, `.env` replacement, certificate-write, repair, or runtime-mutation
-  authority. The remaining planning estimate is one substantive checkpoint and
-  approximately 1-3 actual PR #67 commits.
+  validated implementation head is `b12280d`; it accepts only the exact
+  authenticated three- or four-generation chain, derives both expected backup
+  receipts only from durable records, freshly reverifies both exact DPAPI
+  ciphertext blobs under one held protected-root interval, and durably admits
+  rollback through generation 4 `rollback_started` at most once. Retry repairs
+  only the exact started pointer. It grants no restore, cleanup, `.env`
+  replacement, certificate-write, repair, or runtime-mutation authority. The
+  remaining planning estimate is one substantive checkpoint and approximately
+  1-3 actual PR #67 commits.
 2. Complete Task-096 native state-driven Start/Open/Stop/Restart using the
   accepted exact-target, execution, coordination, recovery, and sanitization
   contracts. Do not add this work to PR #67.
