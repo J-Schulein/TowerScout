@@ -8,17 +8,21 @@ or runtime mutation.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
-from typing import Callable, NoReturn, TypeVar, cast
+from typing import Callable, NoReturn, Protocol, TypeVar, cast
 
 from .windows_protected_state import (
     CurrentUserProtectedBlob,
     ProtectedDataPurpose,
 )
 from .windows_recovery_journal import (
+    EnvironmentJournalPointer,
     JournalStreamIdentity,
+    RecoveryJournalError,
     SealedEnvironmentJournalGeneration,
+    encode_environment_journal_pointer,
 )
 from .windows_recovery_journal_storage import (
     JournalGenerationStoragePort,
@@ -26,13 +30,19 @@ from .windows_recovery_journal_storage import (
     RecoveryJournalStorageError,
     RecoveryJournalStorageErrorCode,
     StoredJournalGenerationFile,
+    StoredJournalPointerFile,
 )
 from .windows_recovery_pointer_transition import (
     JournalPointerTransitionChainSelection as _TransitionSelection,
+    JournalPointerTransitionCreatedRecord as _TransitionCreated,
     JournalPointerTransitionError,
+    JournalPointerTransitionGeneration as _TransitionGeneration,
+    JournalPointerTransitionPlanRecord as _TransitionPlan,
+    JournalPointerTransitionState as _TransitionState,
     JournalPointerTransitionStreamIdentity as _TransitionStream,
     PointerTransitionProtectionPort as _TransitionProtection,
     SealedJournalPointerTransitionGeneration as _SealedTransition,
+    protect_journal_pointer_transition_generation,
     select_journal_pointer_transition_chain,
 )
 from .windows_security import StableFileIdentity
@@ -83,6 +93,15 @@ class PersistedJournalPointerTransitionChain:
             "PersistedJournalPointerTransitionChain("
             f"generations={len(self.sealed_generations)}, <redacted>)"
         )
+
+
+class JournalPointerTempStoragePort(Protocol):
+    def create_pointer_temp(
+        self,
+        root_path: str,
+        name: str,
+        contents: bytes,
+    ) -> StoredJournalPointerFile: ...
 
 
 def _generation_name(transition_id: str, sequence: int) -> str:
@@ -361,8 +380,170 @@ def append_persisted_journal_pointer_transition_generation(
     )
 
 
+def _pointer_contents(
+    plan: _TransitionPlan,
+    stream: _TransitionStream,
+) -> bytes:
+    try:
+        pointer = EnvironmentJournalPointer(
+            plan.schema_version,
+            stream.environment_journal_id,
+            plan.target_tip_sequence,
+            plan.target_generation_sha256,
+        )
+        contents = encode_environment_journal_pointer(pointer)
+    except (RecoveryJournalError, ValueError):
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    if (
+        hashlib.sha256(contents).hexdigest() != plan.intended_pointer_sha256
+        or len(contents) != plan.intended_pointer_size
+    ):
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    return contents
+
+
+def _created_record(
+    plan: _TransitionPlan,
+    *,
+    planned_generation_sha256: str,
+    pointer_temp_identity: StableFileIdentity,
+) -> _TransitionCreated:
+    try:
+        return _TransitionCreated(
+            plan.schema_version,
+            planned_generation_sha256,
+            plan.package_root_identity,
+            pointer_temp_identity,
+            plan.pointer_name,
+            plan.pointer_temp_name,
+            plan.intended_pointer_sha256,
+            plan.intended_pointer_size,
+            plan.target_tip_sequence,
+            plan.target_generation_sha256,
+            plan.prior_pointer_present,
+            plan.prior_pointer_identity,
+            plan.prior_pointer_sequence,
+            plan.prior_pointer_generation_sha256,
+            plan.prior_pointer_sha256,
+            plan.prior_pointer_size,
+        )
+    except ValueError:
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+
+
+def _create_pointer_temp_while_root_held(
+    root_path: str,
+    stream: _TransitionStream,
+    generation_storage: JournalGenerationStoragePort,
+    pointer_temp_storage: JournalPointerTempStoragePort,
+    protection: _TransitionProtection,
+    environment_generations: tuple[SealedEnvironmentJournalGeneration, ...],
+    expected_environment_stream: JournalStreamIdentity,
+) -> PersistedJournalPointerTransitionChain:
+    current = _load_while_root_held(
+        root_path,
+        stream,
+        generation_storage,
+        protection,
+        environment_generations,
+        expected_environment_stream,
+    )
+    if (
+        current is None
+        or current.selection.tip.state is not _TransitionState.POINTER_TEMP_PLANNED
+        or type(current.selection.tip.record) is not _TransitionPlan
+    ):
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    plan = current.selection.tip.record
+    contents = _pointer_contents(plan, stream)
+    stored = _storage_call(
+        pointer_temp_storage,
+        "create_pointer_temp",
+        root_path,
+        plan.pointer_temp_name,
+        contents,
+        code=RecoveryJournalStorageErrorCode.WRITE_FAILED,
+    )
+    if type(stored) is not StoredJournalPointerFile or stored.contents != contents:
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    created = _created_record(
+        plan,
+        planned_generation_sha256=current.selection.tip_generation_sha256,
+        pointer_temp_identity=stored.identity,
+    )
+    try:
+        sealed = protect_journal_pointer_transition_generation(
+            _TransitionGeneration(
+                plan.schema_version,
+                stream,
+                2,
+                current.selection.tip_generation_sha256,
+                _TransitionState.POINTER_TEMP_CREATED,
+                created,
+            ),
+            protection=protection,
+        )
+    except ValueError:
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    persisted = _append_while_root_held(
+        root_path,
+        sealed,
+        stream,
+        generation_storage,
+        protection,
+        environment_generations,
+        expected_environment_stream,
+    )
+    tip = persisted.selection.tip
+    if (
+        tip.state is not _TransitionState.POINTER_TEMP_CREATED
+        or type(tip.record) is not _TransitionCreated
+        or tip.record.pointer_temp_identity != stored.identity
+    ):
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    return persisted
+
+
+def create_persisted_journal_pointer_transition_temp(
+    stream: _TransitionStream,
+    *,
+    root: JournalStorageRootPort,
+    generation_storage: JournalGenerationStoragePort,
+    pointer_temp_storage: JournalPointerTempStoragePort,
+    protection: _TransitionProtection,
+    environment_generations: tuple[SealedEnvironmentJournalGeneration, ...],
+    expected_environment_stream: JournalStreamIdentity,
+) -> PersistedJournalPointerTransitionChain:
+    """Create the exact planned pointer temp and persist its verified identity."""
+
+    if (
+        type(stream) is not _TransitionStream
+        or type(environment_generations) is not tuple
+        or any(
+            type(item) is not SealedEnvironmentJournalGeneration
+            for item in environment_generations
+        )
+        or type(expected_environment_stream) is not JournalStreamIdentity
+    ):
+        _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+    return _run_under_root(
+        root,
+        lambda root_path: _create_pointer_temp_while_root_held(
+            root_path,
+            stream,
+            generation_storage,
+            pointer_temp_storage,
+            protection,
+            environment_generations,
+            expected_environment_stream,
+        ),
+    )
+
+
 __all__ = [
+    "JournalPointerTempStoragePort",
     "PersistedJournalPointerTransitionChain",
     "append_persisted_journal_pointer_transition_generation",
+    "create_persisted_journal_pointer_transition_temp",
     "load_persisted_journal_pointer_transition_chain",
 ]

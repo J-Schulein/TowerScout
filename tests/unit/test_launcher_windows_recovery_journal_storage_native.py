@@ -572,6 +572,39 @@ def test_pointer_replace_closes_temp_before_move_and_verifies_destination() -> N
     assert f"reopen:{_POINTER_PATH}" in api.events[move_index + 2 :]
 
 
+def test_pointer_temp_storage_creates_exact_verified_temp_without_move() -> None:
+    api = _PointerApi()
+    storage = native.NativeWindowsJournalPointerTempStorage(api=api)
+
+    stored = storage.create_pointer_temp(
+        _ROOT,
+        _POINTER_TEMP_NAME,
+        _POINTER_CONTENTS,
+    )
+
+    assert stored.identity == api.temp_identity
+    assert stored.contents == _POINTER_CONTENTS
+    assert api.files[_POINTER_TEMP_PATH] == (api.temp_identity, _POINTER_CONTENTS)
+    assert api.files[_POINTER_PATH] == (_identity("33"), b"old-pointer")
+    assert "move" not in api.events
+    assert api.events.count(f"close:{_POINTER_TEMP_PATH}") == 2
+
+
+def test_pointer_temp_storage_rejects_untrusted_name_and_oversized_bytes() -> None:
+    api = _PointerApi()
+    storage = native.NativeWindowsJournalPointerTempStorage(api=api)
+
+    with pytest.raises(RecoveryJournalStorageError) as invalid_name:
+        storage.create_pointer_temp(_ROOT, r"..\outside.tmp", _POINTER_CONTENTS)
+    assert invalid_name.value.code is RecoveryJournalStorageErrorCode.WRITE_FAILED
+    assert api.events == []
+
+    with pytest.raises(RecoveryJournalStorageError) as oversized:
+        storage.create_pointer_temp(_ROOT, _POINTER_TEMP_NAME, b"x" * 1025)
+    assert oversized.value.code is RecoveryJournalStorageErrorCode.INPUT_INVALID
+    assert api.events == []
+
+
 def test_pointer_read_rejects_security_drift_after_read() -> None:
     api = _PointerApi()
     api.files[_POINTER_PATH] = (_identity("33"), _POINTER_CONTENTS)
@@ -816,6 +849,22 @@ def test_native_pointer_adapter_replaces_and_rereads_in_isolated_directory(
     assert replaced.identity != created.identity
     assert adapter.read_pointer(root_path, pointer_name, 1024) == replaced
     assert not tuple(tmp_path.glob(".journal-pointer-*.tmp"))
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires native Windows file APIs")
+def test_native_pointer_temp_remains_verified_and_unpromoted(tmp_path: Path) -> None:
+    adapter = native.NativeWindowsJournalPointerTempStorage()
+    root_path = str(tmp_path)
+
+    stored = adapter.create_pointer_temp(
+        root_path,
+        _POINTER_TEMP_NAME,
+        _POINTER_CONTENTS,
+    )
+
+    assert stored.contents == _POINTER_CONTENTS
+    assert (tmp_path / _POINTER_TEMP_NAME).read_bytes() == _POINTER_CONTENTS
+    assert not (tmp_path / _POINTER_NAME).exists()
 
 
 @pytest.mark.skipif(os.name != "nt", reason="requires native Windows file APIs")

@@ -417,7 +417,7 @@ def _read_exact(
 
 
 def _read_verified_pointer(
-    api: _WindowsJournalPointerApi,
+    api: _WindowsJournalFileApi,
     handle: object,
     *,
     path: str,
@@ -454,6 +454,99 @@ def _read_verified_pointer(
         code,
     )
     return StoredJournalPointerFile(identity, contents)
+
+
+def _create_verified_pointer_temp(
+    api: _WindowsJournalFileApi,
+    *,
+    temp_path: str,
+    current_user_sid: str,
+    contents: bytes,
+) -> StoredJournalPointerFile:
+    handle = _call(
+        lambda: api.create_new_restricted_file(
+            temp_path,
+            owner_sid=current_user_sid,
+        ),
+        RecoveryJournalStorageErrorCode.WRITE_FAILED,
+    )
+    if handle is None:
+        _fail(RecoveryJournalStorageErrorCode.WRITE_FAILED)
+    created_handle: object | None = handle
+    temp_identity: StableFileIdentity
+    try:
+        temp_identity, _size = _validate_file(
+            _call(
+                lambda: api.query_file(handle),
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            ),
+            expected_path=temp_path,
+            maximum_size=_MAX_POINTER_BYTES,
+            expected_size=0,
+            expected_identity=None,
+            code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        _validate_security(
+            _call(
+                lambda: api.query_security(handle),
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            ),
+            current_user_sid,
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        _write_all(api, handle, contents)
+        _call(
+            lambda: api.flush_file(handle),
+            RecoveryJournalStorageErrorCode.WRITE_FAILED,
+        )
+        same_handle = _read_verified_pointer(
+            api,
+            handle,
+            path=temp_path,
+            current_user_sid=current_user_sid,
+            expected_size=len(contents),
+            expected_identity=temp_identity,
+            code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        if same_handle.contents != contents:
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        _call(
+            lambda: api.close_handle(handle),
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        created_handle = None
+    finally:
+        if created_handle is not None:
+            _safe_close(api, created_handle)
+
+    reopened = _call(
+        lambda: api.reopen_file_for_verification(temp_path),
+        RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+    )
+    if reopened is None:
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    reopened_handle: object | None = reopened
+    try:
+        stored = _read_verified_pointer(
+            api,
+            reopened,
+            path=temp_path,
+            current_user_sid=current_user_sid,
+            expected_size=len(contents),
+            expected_identity=temp_identity,
+            code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        if stored.contents != contents:
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        _call(
+            lambda: api.close_handle(reopened),
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        reopened_handle = None
+    finally:
+        if reopened_handle is not None:
+            _safe_close(api, reopened_handle)
+    return stored
 
 
 def _reconcile_completed_pointer_move(
@@ -845,89 +938,13 @@ class NativeWindowsJournalPointerStorage:
             self._api,
             RecoveryJournalStorageErrorCode.WRITE_FAILED,
         )
-        handle = _call(
-            lambda: self._api.create_new_restricted_file(
-                temp_path,
-                owner_sid=current_user_sid,
-            ),
-            RecoveryJournalStorageErrorCode.WRITE_FAILED,
+        temp = _create_verified_pointer_temp(
+            self._api,
+            temp_path=temp_path,
+            current_user_sid=current_user_sid,
+            contents=contents,
         )
-        if handle is None:
-            _fail(RecoveryJournalStorageErrorCode.WRITE_FAILED)
-        created_handle: object | None = handle
-        temp_identity: StableFileIdentity
-        try:
-            temp_identity, _size = _validate_file(
-                _call(
-                    lambda: self._api.query_file(handle),
-                    RecoveryJournalStorageErrorCode.VERIFY_FAILED,
-                ),
-                expected_path=temp_path,
-                maximum_size=_MAX_POINTER_BYTES,
-                expected_size=0,
-                expected_identity=None,
-                code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
-            )
-            _validate_security(
-                _call(
-                    lambda: self._api.query_security(handle),
-                    RecoveryJournalStorageErrorCode.VERIFY_FAILED,
-                ),
-                current_user_sid,
-                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
-            )
-            _write_all(self._api, handle, contents)
-            _call(
-                lambda: self._api.flush_file(handle),
-                RecoveryJournalStorageErrorCode.WRITE_FAILED,
-            )
-            same_handle = _read_verified_pointer(
-                self._api,
-                handle,
-                path=temp_path,
-                current_user_sid=current_user_sid,
-                expected_size=len(contents),
-                expected_identity=temp_identity,
-                code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
-            )
-            if same_handle.contents != contents:
-                _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
-            _call(
-                lambda: self._api.close_handle(handle),
-                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
-            )
-            created_handle = None
-        finally:
-            if created_handle is not None:
-                _safe_close(self._api, created_handle)
-
-        reopened = _call(
-            lambda: self._api.reopen_file_for_verification(temp_path),
-            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
-        )
-        if reopened is None:
-            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
-        reopened_handle: object | None = reopened
-        try:
-            reopened_pointer = _read_verified_pointer(
-                self._api,
-                reopened,
-                path=temp_path,
-                current_user_sid=current_user_sid,
-                expected_size=len(contents),
-                expected_identity=temp_identity,
-                code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
-            )
-            if reopened_pointer.contents != contents:
-                _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
-            _call(
-                lambda: self._api.close_handle(reopened),
-                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
-            )
-            reopened_handle = None
-        finally:
-            if reopened_handle is not None:
-                _safe_close(self._api, reopened_handle)
+        temp_identity = temp.identity
 
         move_failed = False
         try:
@@ -986,6 +1003,44 @@ class NativeWindowsJournalPointerStorage:
         return stored
 
 
+class NativeWindowsJournalPointerTempStorage:
+    """Create and verify exact pointer temps without promotion authority."""
+
+    __slots__ = ("_api",)
+
+    def __init__(self, *, api: _WindowsJournalFileApi | None = None) -> None:
+        self._api = NativeWindowsJournalGenerationApi() if api is None else api
+
+    def __repr__(self) -> str:
+        return "NativeWindowsJournalPointerTempStorage(<redacted>)"
+
+    def create_pointer_temp(
+        self,
+        root_path: str,
+        name: str,
+        contents: bytes,
+    ) -> StoredJournalPointerFile:
+        supported = _call(
+            lambda: self._api.supported,
+            RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE)
+        if type(contents) is not bytes or not 1 <= len(contents) <= _MAX_POINTER_BYTES:
+            _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+        temp_path = _pointer_temp_path(root_path, name)
+        current_user_sid = _current_user_sid(
+            self._api,
+            RecoveryJournalStorageErrorCode.WRITE_FAILED,
+        )
+        return _create_verified_pointer_temp(
+            self._api,
+            temp_path=temp_path,
+            current_user_sid=current_user_sid,
+            contents=contents,
+        )
+
+
 __all__ = [
     "JournalPointerTempNameSource",
     "NativeJournalPointerTempNameSource",
@@ -993,4 +1048,5 @@ __all__ = [
     "NativeWindowsJournalGenerationStorage",
     "NativeWindowsJournalPointerApi",
     "NativeWindowsJournalPointerStorage",
+    "NativeWindowsJournalPointerTempStorage",
 ]

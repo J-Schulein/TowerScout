@@ -29,11 +29,13 @@ ProtectedDataPurpose = protected_state.ProtectedDataPurpose
 RecoveryJournalStorageError = journal_storage.RecoveryJournalStorageError
 StorageErrorCode = journal_storage.RecoveryJournalStorageErrorCode
 StoredJournalGenerationFile = journal_storage.StoredJournalGenerationFile
+StoredJournalPointerFile = journal_storage.StoredJournalPointerFile
 StableFileIdentity = security.StableFileIdentity
 TransitionPlan = transition.JournalPointerTransitionPlanRecord
 TransitionStream = transition.JournalPointerTransitionStreamIdentity
 SealedTransition = transition.SealedJournalPointerTransitionGeneration
 append_item = store.append_persisted_journal_pointer_transition_generation
+create_temp = store.create_persisted_journal_pointer_transition_temp
 load_transition = store.load_persisted_journal_pointer_transition_chain
 
 _Result = TypeVar("_Result")
@@ -125,6 +127,36 @@ class _Storage:
         stored = StoredJournalGenerationFile(
             _identity(self.next_identity),
             b"wrong" if self.return_wrong_write else contents,
+        )
+        self.files[name] = stored
+        return stored
+
+
+class _PointerTempStorage:
+    def __init__(self, root: _Root) -> None:
+        self.root = root
+        self.identity = _identity(22)
+        self.files: dict[str, StoredJournalPointerFile] = {}
+        self.return_wrong_contents = False
+        self.error: BaseException | None = None
+        self.calls = 0
+
+    def create_pointer_temp(
+        self,
+        root_path: str,
+        name: str,
+        contents: bytes,
+    ) -> StoredJournalPointerFile:
+        assert self.root.active
+        assert root_path.endswith(r"TowerScout\Recovery\v1")
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        if name in self.files:
+            raise FileExistsError("sensitive existing temp")
+        stored = StoredJournalPointerFile(
+            self.identity,
+            b"wrong" if self.return_wrong_contents else contents,
         )
         self.files[name] = stored
         return stored
@@ -315,6 +347,220 @@ def test_append_and_restart_load_authenticates_transition() -> None:
     )
     assert persisted.selection == loaded.selection
     assert not restarted.active
+
+
+def test_create_temp_persists_exact_identity_and_restart_chain() -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    pointer_temps = _PointerTempStorage(root)
+    planned = append_item(
+        generations[0],
+        stream=stream,
+        root=root,
+        storage=backend,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+
+    persisted = create_temp(
+        stream,
+        root=root,
+        generation_storage=backend,
+        pointer_temp_storage=pointer_temps,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+
+    plan = cast(TransitionPlan, planned.selection.tip.record)
+    stored = pointer_temps.files[plan.pointer_temp_name]
+    created = cast(
+        transition.JournalPointerTransitionCreatedRecord,
+        persisted.selection.tip.record,
+    )
+    assert hashlib.sha256(stored.contents).hexdigest() == plan.intended_pointer_sha256
+    assert len(stored.contents) == plan.intended_pointer_size
+    assert created.pointer_temp_identity == pointer_temps.identity
+    assert persisted.selection.tip.state is (
+        transition.JournalPointerTransitionState.POINTER_TEMP_CREATED
+    )
+    assert len(backend.files) == 2
+    restarted = _Root()
+    backend.root = restarted
+    loaded = load_transition(
+        stream,
+        root=restarted,
+        storage=backend,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+    assert loaded is not None
+    assert loaded.selection == persisted.selection
+    assert not restarted.active
+
+
+@pytest.mark.parametrize("existing_state", ("absent", "created"))
+def test_create_temp_requires_exactly_one_persisted_plan(existing_state: str) -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    pointer_temps = _PointerTempStorage(root)
+    if existing_state == "created":
+        for generation in generations:
+            append_item(
+                generation,
+                stream=stream,
+                root=root,
+                storage=backend,
+                protection=protection,
+                environment_generations=environment_generations,
+                expected_environment_stream=environment_stream,
+            )
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        create_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            pointer_temp_storage=pointer_temps,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+
+    assert failure.value.code is StorageErrorCode.STORAGE_INVALID
+    assert pointer_temps.calls == 0
+    assert not root.active
+
+
+def test_create_temp_rejects_returned_byte_drift_without_generation_append() -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    pointer_temps = _PointerTempStorage(root)
+    pointer_temps.return_wrong_contents = True
+    append_item(
+        generations[0],
+        stream=stream,
+        root=root,
+        storage=backend,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        create_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            pointer_temp_storage=pointer_temps,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+
+    assert failure.value.code is StorageErrorCode.VERIFY_FAILED
+    assert len(backend.files) == 1
+    assert pointer_temps.calls == 1
+    assert not root.active
+
+
+def test_create_temp_rejects_cross_volume_identity_without_generation_append() -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    pointer_temps = _PointerTempStorage(root)
+    pointer_temps.identity = StableFileIdentity(8, b"x" * 16)
+    append_item(
+        generations[0],
+        stream=stream,
+        root=root,
+        storage=backend,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        create_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            pointer_temp_storage=pointer_temps,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+
+    assert failure.value.code is StorageErrorCode.VERIFY_FAILED
+    assert len(backend.files) == 1
+    assert pointer_temps.calls == 1
+    assert not root.active
+
+
+def test_create_temp_sanitizes_dependency_failure_and_propagates_control() -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    pointer_temps = _PointerTempStorage(root)
+    append_item(
+        generations[0],
+        stream=stream,
+        root=root,
+        storage=backend,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+
+    pointer_temps.error = OSError("sensitive pointer-temp path")
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        create_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            pointer_temp_storage=pointer_temps,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+    assert failure.value.code is StorageErrorCode.WRITE_FAILED
+    assert "sensitive" not in str(failure.value)
+
+    interruption = KeyboardInterrupt()
+    pointer_temps.error = interruption
+    with pytest.raises(KeyboardInterrupt) as raised:
+        create_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            pointer_temp_storage=pointer_temps,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+    assert raised.value is interruption
+    assert len(backend.files) == 1
+    assert not root.active
 
 
 def test_empty_transition_stream_loads_without_writing() -> None:
