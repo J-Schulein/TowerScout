@@ -2,8 +2,9 @@
 
 This Gate-A layer reauthenticates persisted backup authority before narrow
 storage ports may create or reverify the two planned ciphertext blobs. It may
-advance only through ``rollback_armed`` and exposes no listing, deletion,
-restore, pointer update, or repair/runtime mutation authority.
+advance only through ``rollback_armed`` and may activate that exact authenticated
+generation through the metadata pointer. It exposes no listing, deletion,
+restore, or repair/runtime mutation authority.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from .windows_recovery_journal import (
     BackupVerifiedRecord,
     EnvironmentJournalGeneration,
     EnvironmentJournalState,
+    JournalPointerDisposition,
     JournalProtectionPort,
     JournalStreamIdentity,
     RecoveryJournalError,
@@ -36,11 +38,13 @@ from .windows_recovery_journal import (
 )
 from .windows_recovery_journal_storage import (
     JournalGenerationStoragePort,
+    JournalPointerStoragePort,
     JournalStorageRootPort,
     PersistedEnvironmentJournalChain,
     RecoveryJournalStorageError,
     RecoveryJournalStorageErrorCode,
     append_persisted_environment_journal_generation_from_held_root,
+    ensure_persisted_environment_journal_pointer_from_held_root,
     load_persisted_environment_journal_chain_from_held_root,
 )
 from .windows_security import StableFileIdentity
@@ -619,6 +623,96 @@ def persist_rollback_armed_generation(
     return _run_under_root(root, verify_and_arm)
 
 
+def activate_persisted_rollback_armed_generation(
+    *,
+    stream: JournalStreamIdentity,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    verification: RecoveryBackupBlobVerificationPort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Reverify both exact backups and make rollback_armed the current tip."""
+
+    if type(stream) is not JournalStreamIdentity:
+        _fail(RecoveryBackupStorageErrorCode.INPUT_INVALID)
+
+    def verify_and_activate(root_path: str) -> PersistedEnvironmentJournalChain:
+        try:
+            armed_chain = load_persisted_environment_journal_chain_from_held_root(
+                root_path,
+                stream,
+                storage=journal_storage,
+                protection=journal_protection,
+            )
+        except RecoveryJournalStorageError as exc:
+            if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                _fail(RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE)
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        except RecoveryJournalError:
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        if (
+            type(armed_chain) is not PersistedEnvironmentJournalChain
+            or len(armed_chain.selection.generations) != 3
+            or armed_chain.selection.tip.state
+            is not EnvironmentJournalState.ROLLBACK_ARMED
+            or type(armed_chain.selection.generations[0].record)
+            is not BackupPreparingRecord
+            or type(armed_chain.selection.tip.record) is not RollbackArmedRecord
+        ):
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        preparing = armed_chain.selection.generations[0].record
+        armed = armed_chain.selection.tip.record
+        try:
+            environment_expected = StoredRecoveryBackupBlob(
+                preparing.environment_backup_name,
+                ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+                armed.environment_backup_identity,
+                armed.environment_ciphertext_sha256,
+                armed.environment_ciphertext_size,
+            )
+            certificate_expected = StoredRecoveryBackupBlob(
+                preparing.certificate_backup_name,
+                ProtectedDataPurpose.CERTIFICATE_BACKUP,
+                armed.certificate_backup_identity,
+                armed.certificate_ciphertext_sha256,
+                armed.certificate_ciphertext_size,
+            )
+        except ValueError:
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        _verification_call(verification, root_path, environment_expected)
+        _verification_call(verification, root_path, certificate_expected)
+        try:
+            activated = ensure_persisted_environment_journal_pointer_from_held_root(
+                root_path,
+                stream,
+                generation_storage=journal_storage,
+                pointer_storage=pointer_storage,
+                protection=journal_protection,
+            )
+        except RecoveryJournalStorageError as exc:
+            if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                _fail(RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE)
+            if exc.code is RecoveryJournalStorageErrorCode.WRITE_FAILED:
+                _fail(RecoveryBackupStorageErrorCode.WRITE_FAILED)
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        except RecoveryJournalError:
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        if (
+            type(activated) is not PersistedEnvironmentJournalChain
+            or activated.selection.pointer_disposition
+            is not JournalPointerDisposition.CURRENT
+            or activated.selection.tip_generation_sha256
+            != armed_chain.selection.tip_generation_sha256
+            or activated.selection.tip.state
+            is not EnvironmentJournalState.ROLLBACK_ARMED
+        ):
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        return activated
+
+    return _run_under_root(root, verify_and_activate)
+
+
 __all__ = [
     "PersistedRecoveryBackupBlobs",
     "RecoveryBackupBlobStoragePort",
@@ -626,6 +720,7 @@ __all__ = [
     "RecoveryBackupStorageError",
     "RecoveryBackupStorageErrorCode",
     "StoredRecoveryBackupBlob",
+    "activate_persisted_rollback_armed_generation",
     "persist_backup_verified_generation",
     "persist_prepared_recovery_backup_blobs",
     "persist_rollback_armed_generation",
