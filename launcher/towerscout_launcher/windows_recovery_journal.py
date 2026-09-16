@@ -13,7 +13,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, NoReturn, Protocol
+from typing import Any, NoReturn, Protocol, cast
 
 from .windows_environment_replacement_native import (
     EnvironmentTempCreatedRecord,
@@ -37,6 +37,7 @@ _MAX_CHAIN_CANDIDATES = 64
 _MAX_SEQUENCE = 2**63 - 1
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _JOURNAL_ID = re.compile(r"^[0-9a-f]{32}$")
+_BACKUP_NAME = re.compile(r"^recovery-backup-[0-9a-f]{32}\.blob$")
 
 GENESIS_GENERATION_SHA256 = hashlib.sha256(
     b"TowerScout.AbsentRecoveryJournalGeneration.v1"
@@ -116,18 +117,107 @@ class JournalStreamIdentity:
 
 
 class EnvironmentJournalState(str, Enum):
+    BACKUP_PREPARING = "backup_preparing"
     ENVIRONMENT_TEMP_PLANNED = "environment_temp_planned"
     ENVIRONMENT_TEMP_CREATED = "environment_temp_created"
     ENVIRONMENT_TEMP_VERIFIED = "environment_temp_verified"
 
 
-EnvironmentJournalRecord = (
+@dataclass(frozen=True, slots=True, repr=False)
+class BackupPreparingRecord:
+    schema_version: int
+    package_root_identity: StableFileIdentity = field(repr=False)
+    environment_backup_name: str = field(repr=False)
+    certificate_backup_name: str = field(repr=False)
+    environment_present: bool
+    environment_sha256: str | None = field(default=None, repr=False)
+    environment_file_attributes: int | None = None
+    environment_security_descriptor_sha256: str | None = field(
+        default=None,
+        repr=False,
+    )
+    local_ca_present: bool = False
+    local_ca_sha256: str | None = field(default=None, repr=False)
+    local_ca_mode: int | None = None
+    ca_bundle_present: bool = False
+    ca_bundle_sha256: str | None = field(default=None, repr=False)
+    ca_bundle_mode: int | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or type(self.package_root_identity) is not StableFileIdentity
+            or type(self.environment_backup_name) is not str
+            or _BACKUP_NAME.fullmatch(self.environment_backup_name) is None
+            or type(self.certificate_backup_name) is not str
+            or _BACKUP_NAME.fullmatch(self.certificate_backup_name) is None
+            or self.environment_backup_name == self.certificate_backup_name
+            or type(self.environment_present) is not bool
+            or type(self.local_ca_present) is not bool
+            or type(self.ca_bundle_present) is not bool
+        ):
+            raise ValueError("Backup preparation record is invalid.")
+        environment_values = (
+            self.environment_sha256,
+            self.environment_file_attributes,
+            self.environment_security_descriptor_sha256,
+        )
+        if self.environment_present:
+            if (
+                not _valid_hash(self.environment_sha256)
+                or type(self.environment_file_attributes) is not int
+                or not 0 <= self.environment_file_attributes <= 0xFFFFFFFF
+                or not _valid_hash(self.environment_security_descriptor_sha256)
+            ):
+                raise ValueError("Backup environment state is invalid.")
+        elif any(value is not None for value in environment_values):
+            raise ValueError("Backup environment state is invalid.")
+        self._validate_certificate_state(
+            self.local_ca_present,
+            self.local_ca_sha256,
+            self.local_ca_mode,
+        )
+        self._validate_certificate_state(
+            self.ca_bundle_present,
+            self.ca_bundle_sha256,
+            self.ca_bundle_mode,
+        )
+
+    @staticmethod
+    def _validate_certificate_state(
+        present: bool,
+        sha256: str | None,
+        mode: int | None,
+    ) -> None:
+        if present:
+            if (
+                not _valid_hash(sha256)
+                or type(mode) is not int
+                or not 0 <= mode <= 0o7777
+            ):
+                raise ValueError("Backup certificate state is invalid.")
+        elif sha256 is not None or mode is not None:
+            raise ValueError("Backup certificate state is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "BackupPreparingRecord("
+            f"environment_present={self.environment_present!r}, "
+            f"local_ca_present={self.local_ca_present!r}, "
+            f"ca_bundle_present={self.ca_bundle_present!r}, <redacted>)"
+        )
+
+
+EnvironmentTempJournalRecord = (
     EnvironmentTempPlanRecord
     | EnvironmentTempCreatedRecord
     | EnvironmentTempVerifiedRecord
 )
+EnvironmentJournalRecord = BackupPreparingRecord | EnvironmentTempJournalRecord
 
 _RECORD_TYPE_BY_STATE: dict[EnvironmentJournalState, type[object]] = {
+    EnvironmentJournalState.BACKUP_PREPARING: BackupPreparingRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED: EnvironmentTempPlanRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED: EnvironmentTempCreatedRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED: EnvironmentTempVerifiedRecord,
@@ -407,12 +497,34 @@ def _stream_from_json(value: object) -> JournalStreamIdentity:
 
 
 def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
+    if type(record) is BackupPreparingRecord:
+        return {
+            "ca_bundle_mode": record.ca_bundle_mode,
+            "ca_bundle_present": record.ca_bundle_present,
+            "ca_bundle_sha256": record.ca_bundle_sha256,
+            "certificate_backup_name": record.certificate_backup_name,
+            "environment_backup_name": record.environment_backup_name,
+            "environment_file_attributes": record.environment_file_attributes,
+            "environment_present": record.environment_present,
+            "environment_security_descriptor_sha256": (
+                record.environment_security_descriptor_sha256
+            ),
+            "environment_sha256": record.environment_sha256,
+            "local_ca_mode": record.local_ca_mode,
+            "local_ca_present": record.local_ca_present,
+            "local_ca_sha256": record.local_ca_sha256,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "schema_version": record.schema_version,
+        }
+    environment_record = cast(EnvironmentTempJournalRecord, record)
     common: dict[str, Any] = {
-        "candidate_sha256": record.candidate_sha256,
-        "candidate_size": record.candidate_size,
-        "package_root_identity": _identity_to_json(record.package_root_identity),
-        "schema_version": record.schema_version,
-        "temp_name": record.temp_name,
+        "candidate_sha256": environment_record.candidate_sha256,
+        "candidate_size": environment_record.candidate_size,
+        "package_root_identity": _identity_to_json(
+            environment_record.package_root_identity
+        ),
+        "schema_version": environment_record.schema_version,
+        "temp_name": environment_record.temp_name,
     }
     if type(record) is EnvironmentTempPlanRecord:
         common["original_sha256"] = record.original_sha256
@@ -432,6 +544,44 @@ def _record_from_json(
     value: object,
     state: EnvironmentJournalState,
 ) -> EnvironmentJournalRecord:
+    if state is EnvironmentJournalState.BACKUP_PREPARING:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "ca_bundle_mode",
+                    "ca_bundle_present",
+                    "ca_bundle_sha256",
+                    "certificate_backup_name",
+                    "environment_backup_name",
+                    "environment_file_attributes",
+                    "environment_present",
+                    "environment_security_descriptor_sha256",
+                    "environment_sha256",
+                    "local_ca_mode",
+                    "local_ca_present",
+                    "local_ca_sha256",
+                    "package_root_identity",
+                    "schema_version",
+                }
+            ),
+        )
+        return BackupPreparingRecord(
+            item["schema_version"],
+            _identity_from_json(item["package_root_identity"]),
+            item["environment_backup_name"],
+            item["certificate_backup_name"],
+            item["environment_present"],
+            item["environment_sha256"],
+            item["environment_file_attributes"],
+            item["environment_security_descriptor_sha256"],
+            item["local_ca_present"],
+            item["local_ca_sha256"],
+            item["local_ca_mode"],
+            item["ca_bundle_present"],
+            item["ca_bundle_sha256"],
+            item["ca_bundle_mode"],
+        )
     common = frozenset(
         {
             "candidate_sha256",
@@ -636,13 +786,21 @@ def _validate_record_continuity(
     generations: tuple[_AuthenticatedEnvironmentJournalGeneration, ...],
 ) -> None:
     plan = generations[0].generation.record
+    if type(plan) is BackupPreparingRecord:
+        if (
+            len(generations) != 1
+            or plan.package_root_identity
+            != generations[0].generation.stream.package_root_identity
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        return
     if type(plan) is not EnvironmentTempPlanRecord:
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
     previous: _AuthenticatedEnvironmentJournalGeneration | None = None
     created: EnvironmentTempCreatedRecord | None = None
     for item in generations:
         generation = item.generation
-        record = generation.record
+        record = cast(EnvironmentTempJournalRecord, generation.record)
         if record.package_root_identity != generation.stream.package_root_identity:
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         if (
@@ -699,16 +857,19 @@ def select_environment_journal_chain(
     if len(set(digests)) != len(digests):
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
     ordered = tuple(sorted(generations, key=lambda item: item.generation.sequence))
-    expected_states = (
+    environment_temp_states = (
         EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
         EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED,
         EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED,
     )
+    observed_states = tuple(item.generation.state for item in ordered)
+    valid_states = observed_states == (EnvironmentJournalState.BACKUP_PREPARING,) or (
+        observed_states == environment_temp_states[: len(ordered)]
+    )
     if (
         tuple(item.generation.sequence for item in ordered)
         != tuple(range(1, len(ordered) + 1))
-        or tuple(item.generation.state for item in ordered)
-        != expected_states[: len(ordered)]
+        or not valid_states
         or ordered[0].generation.previous_generation_sha256 != GENESIS_GENERATION_SHA256
     ):
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
@@ -749,6 +910,7 @@ def select_environment_journal_chain(
 
 
 __all__ = [
+    "BackupPreparingRecord",
     "EnvironmentJournalChainSelection",
     "EnvironmentJournalGeneration",
     "EnvironmentJournalPointer",

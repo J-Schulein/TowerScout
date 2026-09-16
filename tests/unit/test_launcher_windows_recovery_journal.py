@@ -122,6 +122,28 @@ def _plan_record(
     )
 
 
+def _backup_preparing_record(
+    *,
+    environment_present: bool = True,
+) -> journal.BackupPreparingRecord:
+    return journal.BackupPreparingRecord(
+        schema_version=1,
+        package_root_identity=_identity(7),
+        environment_backup_name="recovery-backup-" + "1" * 32 + ".blob",
+        certificate_backup_name="recovery-backup-" + "2" * 32 + ".blob",
+        environment_present=environment_present,
+        environment_sha256="c" * 64 if environment_present else None,
+        environment_file_attributes=0x20 if environment_present else None,
+        environment_security_descriptor_sha256=(
+            "d" * 64 if environment_present else None
+        ),
+        local_ca_present=True,
+        local_ca_sha256="e" * 64,
+        local_ca_mode=0o644,
+        ca_bundle_present=False,
+    )
+
+
 def _seal(
     generation: journal.EnvironmentJournalGeneration,
     protection: _Protection,
@@ -239,6 +261,102 @@ def test_generation_round_trip_is_canonical_and_redacted() -> None:
     assert record.temp_name not in rendered
     assert record.candidate_sha256 not in rendered
     assert stream.target_token_sha256 not in rendered
+
+
+def test_backup_preparing_round_trip_is_singleton_bound_and_redacted() -> None:
+    protection = _Protection()
+    stream = _stream()
+    record = _backup_preparing_record()
+    generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        1,
+        journal.GENESIS_GENERATION_SHA256,
+        journal.EnvironmentJournalState.BACKUP_PREPARING,
+        record,
+    )
+
+    sealed = _seal(generation, protection)
+    selection = journal.select_environment_journal_chain(
+        (sealed,),
+        _pointer(stream, sealed, 1),
+        expected_stream=stream,
+        protection=protection,
+    )
+
+    assert selection.tip == generation
+    assert selection.pointer_disposition is journal.JournalPointerDisposition.CURRENT
+    rendered = repr(record) + repr(generation) + repr(selection)
+    assert record.environment_backup_name not in rendered
+    assert record.certificate_backup_name not in rendered
+    assert record.environment_sha256 not in rendered
+
+
+def test_backup_preparing_rejects_inconsistent_state_and_names() -> None:
+    with pytest.raises(ValueError):
+        journal.BackupPreparingRecord(
+            1,
+            _identity(7),
+            "recovery-backup-" + "1" * 32 + ".blob",
+            "recovery-backup-" + "1" * 32 + ".blob",
+            False,
+        )
+
+    with pytest.raises(ValueError):
+        journal.BackupPreparingRecord(
+            1,
+            _identity(7),
+            "../recovery-backup-" + "1" * 32 + ".blob",
+            "recovery-backup-" + "2" * 32 + ".blob",
+            False,
+        )
+
+    with pytest.raises(ValueError):
+        journal.BackupPreparingRecord(
+            1,
+            _identity(7),
+            "recovery-backup-" + "1" * 32 + ".blob",
+            "recovery-backup-" + "2" * 32 + ".blob",
+            False,
+            environment_sha256="c" * 64,
+        )
+
+
+def test_backup_preparing_rejects_mixed_or_repeated_chain() -> None:
+    protection = _Protection()
+    stream = _stream()
+    prepared = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            1,
+            journal.GENESIS_GENERATION_SHA256,
+            journal.EnvironmentJournalState.BACKUP_PREPARING,
+            _backup_preparing_record(),
+        ),
+        protection,
+    )
+    environment = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            2,
+            prepared.generation_sha256,
+            journal.EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
+            _plan_record(),
+        ),
+        protection,
+    )
+
+    for candidates in ((prepared, environment), (prepared, prepared)):
+        with pytest.raises(journal.RecoveryJournalError) as failure:
+            journal.select_environment_journal_chain(
+                candidates,
+                None,
+                expected_stream=stream,
+                protection=protection,
+            )
+        assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
 
 
 def test_equivalent_plaintext_uses_actual_ciphertext_identity() -> None:
