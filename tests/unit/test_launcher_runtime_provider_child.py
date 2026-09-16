@@ -2236,9 +2236,18 @@ def test_locked_transaction_capture_composes_provider_outer_inventory_and_locks(
         assert kwargs == {"path_api": path_api, "file_api": file_api}
         return owner
 
-    def acquire(binding, revalidate, *, api=None, timeout_ms=0):  # noqa: ANN001, ANN202
+    def acquire(  # noqa: ANN001, ANN202
+        binding,
+        revalidate,
+        *,
+        before_target_acquisition=None,
+        api=None,
+        timeout_ms=0,
+    ):
         assert binding.target_token_sha256 == plan.target.target_token.digest_sha256
         assert revalidate() == binding
+        assert before_target_acquisition is not None
+        before_target_acquisition()
         assert api is mutex_api
         assert timeout_ms == 3100
         return fake_locks
@@ -2417,10 +2426,19 @@ def test_runtime_transaction_owner_acquires_and_retains_ordered_locks(
     )
     revalidation_count = 0
 
-    def acquire(binding, revalidate, *, api=None, timeout_ms=0):  # noqa: ANN001, ANN202
+    def acquire(  # noqa: ANN001, ANN202
+        binding,
+        revalidate,
+        *,
+        before_target_acquisition=None,
+        api=None,
+        timeout_ms=0,
+    ):
         nonlocal revalidation_count
         assert api is None
         assert timeout_ms == 2750
+        assert before_target_acquisition is not None
+        before_target_acquisition()
         for _ in range(2):
             assert revalidate() == binding
             revalidation_count += 1
@@ -2452,6 +2470,110 @@ def test_runtime_transaction_owner_acquires_and_retains_ordered_locks(
     assert not owner.locks_acquired
 
 
+def test_runtime_transaction_owner_inspects_protected_state_under_held_inventory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    fake_locks = _FakeTransactionLocks()
+    inspections: list[PathHierarchyTrust] = []
+
+    def acquire(  # noqa: ANN001, ANN202
+        binding,
+        revalidate,
+        *,
+        before_target_acquisition=None,
+        api=None,
+        timeout_ms=0,
+    ):
+        del api, timeout_ms
+        assert revalidate() == binding
+        assert before_target_acquisition is not None
+        before_target_acquisition()
+        assert revalidate() == binding
+        return fake_locks
+
+    def inspect(package_root: PathHierarchyTrust) -> None:
+        package_root.assert_unchanged_while_held()
+        for path in paths:
+            path.assert_unchanged_while_held()
+        for bound_file in files:
+            bound_file.assert_unchanged_while_held()
+        inspections.append(package_root)
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        acquire,
+    )
+
+    owner.acquire_transaction_locks(inspect_protected_state=inspect)
+
+    assert inspections == [paths[0]]
+    assert owner.locks_acquired
+    owner.close()
+
+
+def test_runtime_transaction_owner_inspection_failure_blocks_target_acquisition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    target_acquired = False
+
+    def acquire(  # noqa: ANN001, ANN202
+        binding,
+        revalidate,
+        *,
+        before_target_acquisition=None,
+        api=None,
+        timeout_ms=0,
+    ):
+        nonlocal target_acquired
+        del api, timeout_ms
+        assert revalidate() == binding
+        assert before_target_acquisition is not None
+        try:
+            before_target_acquisition()
+        except Exception:
+            raise RuntimeTransactionLockError(
+                RuntimeTransactionLockErrorCode.BINDING_CHANGED
+            ) from None
+        target_acquired = True
+        raise AssertionError("failed inspection must block target acquisition")
+
+    def fail_inspection(package_root: PathHierarchyTrust) -> None:
+        package_root.assert_unchanged_while_held()
+        raise RuntimeError(r"C:\Users\private\secret")
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        acquire,
+    )
+
+    with pytest.raises(RuntimeTransactionLockError) as failure:
+        owner.acquire_transaction_locks(inspect_protected_state=fail_inspection)
+
+    assert failure.value.code is RuntimeTransactionLockErrorCode.BINDING_CHANGED
+    assert "private" not in str(failure.value).lower()
+    assert target_acquired is False
+    assert not owner.locks_acquired
+    owner.close()
+
+
 def test_runtime_transaction_lock_acquisition_detects_environment_drift(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -2465,8 +2587,16 @@ def test_runtime_transaction_lock_acquisition_detects_environment_drift(
         directory_paths=paths,
     )
 
-    def acquire(binding, revalidate, *, api=None, timeout_ms=0):  # noqa: ANN001, ANN202
+    def acquire(  # noqa: ANN001, ANN202
+        binding,
+        revalidate,
+        *,
+        before_target_acquisition=None,
+        api=None,
+        timeout_ms=0,
+    ):
         del api, timeout_ms
+        assert before_target_acquisition is not None
         assert revalidate() == binding
         apis[1].content += b"changed"
         revalidate()
@@ -2499,8 +2629,16 @@ def test_locked_runtime_transaction_owner_rejects_cross_thread_close(
     )
     fake_locks = _FakeTransactionLocks()
 
-    def acquire(binding, revalidate, *, api=None, timeout_ms=0):  # noqa: ANN001, ANN202
+    def acquire(  # noqa: ANN001, ANN202
+        binding,
+        revalidate,
+        *,
+        before_target_acquisition=None,
+        api=None,
+        timeout_ms=0,
+    ):
         del api, timeout_ms
+        assert before_target_acquisition is not None
         assert revalidate() == binding
         return fake_locks
 

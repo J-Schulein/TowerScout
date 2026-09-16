@@ -426,6 +426,57 @@ def test_ordered_transaction_locks_acquire_environment_then_target() -> None:
     assert _event_names(api, "close") == [_TARGET_NAME, _NAME]
 
 
+def test_pre_target_check_runs_after_environment_revalidation() -> None:
+    api = _OrderedMutexApi()
+    expected = _binding()
+
+    def revalidate() -> RuntimeTransactionLockBinding:
+        api.events.append(("revalidate", ""))
+        return expected
+
+    def before_target_acquisition() -> None:
+        api.events.append(("pre_target", ""))
+
+    held = acquire_ordered_runtime_transaction_locks(
+        expected,
+        revalidate,
+        before_target_acquisition=before_target_acquisition,
+        api=api,
+        timeout_ms=2750,
+    )
+
+    assert [
+        kind
+        for kind, _name in api.events
+        if kind in {"create", "revalidate", "pre_target"}
+    ] == ["create", "revalidate", "pre_target", "create", "revalidate"]
+    held.close()
+
+
+def test_pre_target_check_failure_prevents_target_acquisition() -> None:
+    api = _OrderedMutexApi()
+    expected = _binding()
+
+    def fail_pre_target_check() -> None:
+        raise RuntimeError(r"C:\Users\private\secret")
+
+    with pytest.raises(RuntimeTransactionLockError) as failure:
+        acquire_ordered_runtime_transaction_locks(
+            expected,
+            lambda: expected,
+            before_target_acquisition=fail_pre_target_check,
+            api=api,
+            timeout_ms=2750,
+        )
+
+    assert failure.value.code is RuntimeTransactionLockErrorCode.BINDING_CHANGED
+    assert "private" not in str(failure.value).lower()
+    assert failure.value.__suppress_context__ is True
+    assert _event_names(api, "create") == [_NAME]
+    assert _event_names(api, "release") == [_NAME]
+    assert _event_names(api, "close") == [_NAME]
+
+
 def test_binding_drift_under_environment_lock_prevents_target_acquisition() -> None:
     api = _OrderedMutexApi()
     expected = _binding()

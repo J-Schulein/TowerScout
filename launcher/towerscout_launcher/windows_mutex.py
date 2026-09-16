@@ -643,17 +643,27 @@ def acquire_ordered_runtime_transaction_locks(
     binding: RuntimeTransactionLockBinding,
     revalidate: Callable[[], RuntimeTransactionLockBinding],
     *,
+    before_target_acquisition: Callable[[], None] | None = None,
     api: WindowsMutexApi | None = None,
     timeout_ms: int = 0,
 ) -> HeldRuntimeTransactionLocks:
-    """Acquire environment then target mutex and revalidate under both.
+    """Acquire environment then target mutex with checks at each boundary.
 
     The callback must reconstruct the binding from currently held, freshly
     validated target and environment state. It runs once under the environment
-    mutex before target acquisition and again while both mutexes are owned.
+    mutex before target acquisition and again while both mutexes are owned. The
+    optional pre-target check runs once after the first successful revalidation
+    and before the target mutex is opened.
     """
 
-    if type(binding) is not RuntimeTransactionLockBinding or not callable(revalidate):
+    if (
+        type(binding) is not RuntimeTransactionLockBinding
+        or not callable(revalidate)
+        or (
+            before_target_acquisition is not None
+            and not callable(before_target_acquisition)
+        )
+    ):
         _fail_runtime_locks(RuntimeTransactionLockErrorCode.INVALID_BINDING)
     environment_mutex: HeldCrossSessionMutex | None = None
     target_mutex: HeldCrossSessionMutex | None = None
@@ -669,6 +679,8 @@ def acquire_ordered_runtime_transaction_locks(
             or after_environment != binding
         ):
             _fail_runtime_locks(RuntimeTransactionLockErrorCode.BINDING_CHANGED)
+        if before_target_acquisition is not None:
+            before_target_acquisition()
         target_mutex = acquire_secured_cross_session_mutex(
             after_environment.target_mutex_name,
             api=api,

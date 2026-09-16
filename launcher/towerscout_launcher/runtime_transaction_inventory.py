@@ -805,6 +805,7 @@ class HeldRuntimeTransactionInventory:
     def acquire_transaction_locks(
         self,
         *,
+        inspect_protected_state: Callable[[PathHierarchyTrust], None] | None = None,
         api: WindowsMutexApi | None = None,
         timeout_ms: int = 0,
     ) -> RuntimeTransactionLockEvidence:
@@ -815,6 +816,10 @@ class HeldRuntimeTransactionInventory:
         handle-safe atomic replacement slice supplies an absence proof.
         """
 
+        if inspect_protected_state is not None and not callable(
+            inspect_protected_state
+        ):
+            _fail(RuntimeTransactionInventoryErrorCode.INVALID_BINDING)
         provider_inventory, input_files, directory_paths = self._begin_use()
         try:
             if (
@@ -838,10 +843,40 @@ class HeldRuntimeTransactionInventory:
                     ),
                 )
 
+            def inspect_before_target_acquisition() -> None:
+                if inspect_protected_state is None:
+                    return
+
+                def inspect_while_held() -> None:
+                    if not self._active_inventory_matches(
+                        provider_inventory,
+                        input_files,
+                        directory_paths,
+                    ):
+                        _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+                    inspect_protected_state(directory_paths[0])
+                    if not self._active_inventory_matches(
+                        provider_inventory,
+                        input_files,
+                        directory_paths,
+                    ):
+                        _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+
+                self._run_under_path_leases(
+                    directory_paths,
+                    0,
+                    lambda: self._run_under_file_leases(
+                        input_files,
+                        0,
+                        inspect_while_held,
+                    ),
+                )
+
             binding = revalidate()
             transaction_locks = acquire_ordered_runtime_transaction_locks(
                 binding,
                 revalidate,
+                before_target_acquisition=inspect_before_target_acquisition,
                 api=api,
                 timeout_ms=timeout_ms,
             )
