@@ -16,9 +16,12 @@ independent unpredictable future blob names and exact prior-state summaries.
 Exact-head validated checkpoint `21aba57` reloads that durable authority under
 the held protected root and creates and fully verifies only the two planned
 DPAPI ciphertext blobs while preserving every ambiguous artifact.
-`backup_verified`/`rollback_armed`, full recovery states, `.env` replacement,
-and runtime mutation remain disabled. The expected remaining PR #67 path is one
-substantive checkpoint and approximately 1-4
+Exact-head validated checkpoint `92acf29` reauthenticates and freshly reverifies
+both exact blobs under the same held-root interval before persisting and
+reauthenticating `backup_verified` with stable identities, ciphertext hashes,
+and sizes. `rollback_armed`, full recovery states, `.env` replacement, and
+runtime mutation remain disabled. The expected remaining PR #67 path is one
+substantive checkpoint and approximately 1-3
 actual commits,
 with environment-dependent Windows
 revocation and Docker/

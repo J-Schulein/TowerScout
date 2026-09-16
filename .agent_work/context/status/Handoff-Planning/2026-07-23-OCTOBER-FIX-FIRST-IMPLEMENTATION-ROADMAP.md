@@ -18,12 +18,13 @@ describes Task-096 as Stop-only.
 
 1. Finish Task-087 Gate A source implementation, exact-head validation and
   independent re-review, then make the PR #67 merge decision. The current
-  validated implementation head is `21aba57`; it consumes authenticated
-  singleton `backup_preparing` intent to create and fully verify only the two
-  exact planned DPAPI ciphertext blobs while preserving every ambiguous
-  artifact. It does not advance the journal or grant recovery authority. The
-  remaining planning estimate is one substantive checkpoint and approximately 1-4
-  actual PR #67 commits.
+  validated implementation head is `92acf29`; it reauthenticates the original
+  sealed backups and durable singleton `backup_preparing` intent, freshly
+  reverifies both exact DPAPI ciphertext blobs under the held protected root,
+  and persists authenticated `backup_verified` evidence with their stable
+  identities, hashes, and sizes. It does not establish `rollback_armed` or grant
+  recovery authority. The remaining planning estimate is one substantive
+  checkpoint and approximately 1-3 actual PR #67 commits.
 2. Complete Task-096 native state-driven Start/Open/Stop/Restart using the
   accepted exact-target, execution, coordination, recovery, and sanitization
   contracts. Do not add this work to PR #67.

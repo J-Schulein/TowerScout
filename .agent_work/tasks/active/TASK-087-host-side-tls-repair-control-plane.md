@@ -62,13 +62,19 @@ reloads that exact durable singleton while the protected root remains held,
 then creates and fully verifies only its two planned DPAPI ciphertext blobs.
 It preserves partial/ambiguous artifacts and adds no list, delete, move,
 replace, restore, journal-advance, repair, or runtime authority.
+Independently reviewed and exact-head validated checkpoint `92acf29` then
+reauthenticates both sealed exact-state backups, freshly reloads the preparation
+and rereads both exact blob files under one held protected-root interval, and
+persists and reauthenticates `backup_verified` with stable identities,
+ciphertext hashes, and sizes. It adds no pointer update, `rollback_armed`,
+restore, cleanup, repair, or runtime authority.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: One substantive implementation/proof checkpoint and
-approximately 1-4 additional PR #67 commits from `21aba57` to Gate A source
+approximately 1-3 additional PR #67 commits from `92acf29` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -1433,6 +1439,46 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Authenticated Backup Verification Checkpointed
+
+**Objective**: Persist `backup_verified` only after both exact encrypted backup
+blobs are freshly reread and proven unchanged under the held protected root.
+
+**Context**: Checkpoint `21aba57` creates and fully verifies the two blobs but
+intentionally leaves the journal at singleton `backup_preparing`. Arming
+rollback requires a distinct durable proof that both exact files still match
+the authenticated source envelopes and preparation authority.
+
+**Decision**: Add a strict `BackupVerifiedRecord` linked to the authenticated
+preparation generation and containing both stable file identities, ciphertext
+hashes, and sizes. Reauthenticate both original sealed backups, reload the
+singleton preparation, reverify both exact no-follow file opens, append
+generation 2, and authenticate the complete reread within one protected-root
+hold. Retain exact-byte comparison during creation; use the envelope-bound hash
+for later rereads. Do not update the pointer or establish `rollback_armed`.
+
+**Execution**: Implementation checkpoint
+`92acf29d5137999d336a537de8520c0f67493e84` adds the canonical record/codec and
+chain transition, a narrow held-root append entry point, exact receipt
+reverification in the native adapter, and the verification/persistence
+orchestrator with hostile-path tests.
+
+**Output**: The durable journal can now prove that both planned encrypted
+backups existed with exact stable identities, ciphertext hashes, and sizes at
+the time `backup_verified` became durable. No plaintext backup, destructive
+file authority, pointer update, recovery action, or mutation path is added.
+
+**Validation**: Focused tests pass `83/83`; all adjacent recovery tests pass
+`212/212`; and the complete launcher suite passes `1776/1776`. Black, strict
+mypy, blocking Flake8, medium/high Bandit, compilation, editor diagnostics,
+secret review, and indexed diff checks pass. Two independent reviews returned
+`CLEAN/PASS` with no actionable Low-or-higher finding. Exact-head CI/CD run
+`35136560668`, Task-087 run `35136560565`, and Trivy passed; the main-only build
+was neutral as designed.
+
+**Next**: Establish `rollback_armed` only after a fresh durable reread and exact
+blob revalidation. Keep restore, cleanup, repair, and runtime mutation disabled.
 
 ### 2026-09-16 - Create-Only Encrypted Backup Blobs Checkpointed
 

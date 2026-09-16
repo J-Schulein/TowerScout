@@ -79,9 +79,13 @@ The project still carries public-health workflow expectations:
   exact-head validated checkpoint `21aba57` reloads that durable authority under
   the same held protected root and creates and fully verifies only the two exact
   planned DPAPI ciphertext blobs while preserving ambiguous artifacts.
-  `backup_verified`/`rollback_armed`, full recovery states, `.env` replacement,
-  and runtime mutation remain open. The current estimate is one substantive
-  Gate A checkpoint and approximately 1-4 actual PR #67 commits.
+  Independently reviewed and exact-head validated checkpoint `92acf29`
+  reauthenticates both sealed sources, freshly reverifies those exact blobs
+  under the held root, and persists and reauthenticates `backup_verified` with
+  their stable identities, ciphertext hashes, and sizes. `rollback_armed`, full
+  recovery states, `.env` replacement, and runtime mutation remain open. The
+  current estimate is one substantive Gate A checkpoint and approximately 1-3
+  actual PR #67 commits.
   Preview-integrity Gate B remains
   later. PR
   #64 and every browser/helper activation gate remain on hold.
@@ -936,12 +940,12 @@ An agent should leave with the following understanding:
   Draft and exact-target/durable-recovery remediation, re-review, staged-byte/
   build integrity, product, and package gates still control merge/publication
 - independently reviewed and exact-head validated implementation checkpoint
-  `21aba57` follows `1ecfd5e` authenticated singleton `backup_preparing` intent
-  with held-root reauthentication and create-only persistence of the two exact
-  planned DPAPI ciphertext blobs; every file receives protected-DACL, flush,
-  identity, byte, and no-follow reopen proof, while partial or ambiguous
-  artifacts are preserved; `backup_verified`/`rollback_armed`, recovery action,
-  `.env` replacement, and runtime mutation remain disabled
+  `92acf29` follows `21aba57` create-only encrypted backup persistence with
+  reauthentication of both sealed sources, exact held-root no-follow blob
+  rereads, and immutable authenticated `backup_verified` persistence; stable
+  identities, ciphertext hashes, and sizes are bound in generation 2 while
+  partial or ambiguous artifacts remain preserved; `rollback_armed`, recovery
+  action, `.env` replacement, and runtime mutation remain disabled
 - after Gate A acceptance and the PR #67 merge decision, the controlling order
   is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
   package integration, and Task-097 four-profile qualification

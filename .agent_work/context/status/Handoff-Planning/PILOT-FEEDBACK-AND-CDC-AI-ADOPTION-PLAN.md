@@ -145,13 +145,12 @@ backlog, and migration-ready handoff without changing cdcai.
   repair on Docker and Podman; the August 21 approval authorizes Gate A work
   under the exact-target/durable-recovery design before exact-head re-review.
   Independently reviewed and exact-head validated implementation checkpoint
-  `21aba57` is the current source baseline. It follows `1ecfd5e` authenticated
-  singleton `backup_preparing` intent with held-root reauthentication and
-  create-only persistence of the two exact planned DPAPI ciphertext blobs.
-  Both files receive protected DACL, flush, identity, exact-byte, and no-follow
-  reopen verification; ambiguous artifacts are preserved. `backup_verified`/
-  `rollback_armed`, restore, `.env` replacement, repair, and runtime mutation
-  remain disabled.
+  `92acf29` is the current source baseline. It follows `21aba57` create-only
+  encrypted backup persistence with held-root reauthentication and exact
+  no-follow rereads of both planned DPAPI ciphertext blobs, then persists and
+  reauthenticates `backup_verified` with their stable identities, hashes, and
+  sizes. Ambiguous artifacts remain preserved. `rollback_armed`, restore,
+  `.env` replacement, repair, and runtime mutation remain disabled.
   After Gate A acceptance and the PR #67 merge decision, Tasks 096 and 102
   precede Task-087 Gate B normal-package integration.
 - Task-088: completed Pilot Package distribution and custody.

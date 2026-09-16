@@ -453,6 +453,17 @@ ambiguous artifacts are preserved for later classification. No list, delete,
 move, replace, restore, journal advance, or mutation authority is exposed;
 `backup_verified`, `rollback_armed`, recovery, and mutation remain open.
 
+Independently reviewed and exact-head validated checkpoint `92acf29` adds the
+next authenticated write-ahead state. It reauthenticates the original sealed
+environment and certificate backups, reloads the singleton preparation while
+the protected root is held, and rereads both exact planned blob leaves without
+following reparse points. Stable identity, path, local regular single-link
+facts, protected current-user/SYSTEM DACL, ciphertext size, and ciphertext hash
+must match before immutable generation 2 records `backup_verified`; the whole
+chain is then reread and authenticated under the same root hold. The preparation
+generation remains hash-linked authority for the blob names. No pointer update,
+`rollback_armed`, restore, cleanup, repair, or runtime mutation is added.
+
 ## Launcher Front-Door Design Boundary
 
 Task-087 Gate A establishes the accepted exact-target, native execution,
