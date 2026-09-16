@@ -18,6 +18,9 @@ import towerscout_launcher.runtime_dynamic_load as dynamic_module  # noqa: E402
 import towerscout_launcher.runtime_dependency_capture as dependency_module  # noqa: E402
 import towerscout_launcher.runtime_command_version as command_version_module  # noqa: E402
 import towerscout_launcher.runtime_transaction_inventory as transaction_inventory_module  # noqa: E402
+from towerscout_launcher.windows_environment_replacement_native import (  # noqa: E402
+    EnvironmentTempPlanRecord,
+)
 from towerscout_launcher.runtime_command_version import (  # noqa: E402
     BoundCommandRuntimeEvidence,
 )
@@ -121,6 +124,25 @@ from towerscout_launcher.windows_path_trust import (  # noqa: E402
     PathHierarchyTrust,
     PathTrustPurpose,
 )
+from towerscout_launcher.windows_protected_state import (  # noqa: E402
+    CurrentUserProtectedBlob,
+    ProtectedDataPurpose,
+)
+from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
+    BackupPreparingRecord,
+    EnvironmentJournalGeneration,
+    EnvironmentJournalState,
+    GENESIS_GENERATION_SHA256,
+    JournalStreamIdentity,
+    protect_environment_journal_generation,
+    select_environment_journal_chain,
+)
+from towerscout_launcher.windows_recovery_journal_storage import (  # noqa: E402
+    PersistedEnvironmentJournalChain,
+)
+from towerscout_launcher.windows_recovery_scan import (  # noqa: E402
+    PackageRecoveryJournalScan,
+)
 
 _SYSTEM32 = PureWindowsPath(r"C:\Windows\System32")
 _PROVIDER = PureWindowsPath(r"C:\TowerScout\tools\provider\.venv\Scripts\python.exe")
@@ -131,6 +153,94 @@ _PODMAN_DLL = PureWindowsPath(r"C:\Program Files\RedHat\Podman\helper.dll")
 _KERNEL32 = _SYSTEM32 / "kernel32.dll"
 _NTDLL = _SYSTEM32 / "ntdll.dll"
 _ATTACKER = PureWindowsPath(r"C:\Users\Public\attacker.exe")
+
+
+def _clear_recovery_scan(
+    package_root: PathHierarchyTrust,
+) -> PackageRecoveryJournalScan:
+    package_root.assert_unchanged_while_held()
+    return PackageRecoveryJournalScan(1, package_root.root_snapshot.identity)
+
+
+class _RecoveryProtection:
+    def protect(
+        self,
+        plaintext: bytes,
+        purpose: ProtectedDataPurpose,
+    ) -> CurrentUserProtectedBlob:
+        return CurrentUserProtectedBlob(purpose, b"sealed:" + plaintext)
+
+    def unprotect(
+        self,
+        blob: CurrentUserProtectedBlob,
+        purpose: ProtectedDataPurpose,
+    ) -> bytes:
+        assert blob.purpose is purpose
+        assert blob.ciphertext.startswith(b"sealed:")
+        return blob.ciphertext[7:]
+
+
+def _pending_recovery_scan(
+    package_root: PathHierarchyTrust,
+    *,
+    provider_environment: bool,
+) -> PackageRecoveryJournalScan:
+    package_root.assert_unchanged_while_held()
+    package_root_identity = package_root.root_snapshot.identity
+    stream = JournalStreamIdentity(
+        1,
+        ("b" if provider_environment else "a") * 32,
+        "c" * 64,
+        package_root_identity,
+    )
+    if provider_environment:
+        state = EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED
+        record = EnvironmentTempPlanRecord(
+            1,
+            package_root_identity,
+            "d" * 64,
+            "e" * 64,
+            12,
+            ".towerscout-env-" + "f" * 32 + ".tmp",
+        )
+    else:
+        state = EnvironmentJournalState.BACKUP_PREPARING
+        record = BackupPreparingRecord(
+            1,
+            package_root_identity,
+            "recovery-backup-" + "d" * 32 + ".blob",
+            "recovery-backup-" + "e" * 32 + ".blob",
+            False,
+        )
+    protection = _RecoveryProtection()
+    sealed = protect_environment_journal_generation(
+        EnvironmentJournalGeneration(
+            1,
+            stream,
+            1,
+            GENESIS_GENERATION_SHA256,
+            state,
+            record,
+        ),
+        protection=protection,
+    )
+    selection = select_environment_journal_chain(
+        (sealed,),
+        None,
+        expected_stream=stream,
+        protection=protection,
+    )
+    chain = PersistedEnvironmentJournalChain(
+        (sealed,),
+        (StableFileIdentity(72, (90).to_bytes(16, "big")),),
+        selection,
+    )
+    return PackageRecoveryJournalScan(
+        1,
+        package_root_identity,
+        None if provider_environment else chain,
+        chain if provider_environment else None,
+    )
 
 
 def _snapshot(path: str, marker: int) -> FileSnapshot:
@@ -1761,6 +1871,23 @@ class _FakeTransactionLocks:
         self.closed = True
 
 
+def _fake_lock_acquisition(fake_locks: _FakeTransactionLocks):  # noqa: ANN202
+    def acquire(  # noqa: ANN001, ANN202
+        _binding,
+        _revalidate,
+        *,
+        before_target_acquisition=None,
+        api=None,
+        timeout_ms=0,
+    ):
+        del api, timeout_ms
+        assert before_target_acquisition is not None
+        before_target_acquisition()
+        return fake_locks
+
+    return acquire
+
+
 class _TransferCandidateState:
     def __init__(self, bound_file: HandleBoundFile, *, interrupt: bool = False) -> None:
         self.bound_file = bound_file
@@ -1882,9 +2009,9 @@ def test_verified_locked_capture_resolves_and_transfers_exact_runtime_handles(
 
     monkeypatch.setattr(
         "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
-        lambda *_args, **_kwargs: fake_locks,
+        _fake_lock_acquisition(fake_locks),
     )
-    transaction.acquire_transaction_locks()
+    transaction.acquire_transaction_locks(scan_recovery_state=_clear_recovery_scan)
     monkeypatch.setattr(
         "towerscout_launcher.runtime_transaction_inventory.load_package_bound_runtime_policy",
         load_package_bound_runtime_policy,
@@ -1920,6 +2047,7 @@ def test_verified_locked_capture_resolves_and_transfers_exact_runtime_handles(
         assert child_arg is child_executable
         result_owner = kwargs.pop("_result_owner")
         assert kwargs == {
+            "scan_recovery_state": _clear_recovery_scan,
             "path_api": path_api,
             "file_api": file_api,
             "runtime_inventory_api": runtime_inventory_api,
@@ -1947,6 +2075,7 @@ def test_verified_locked_capture_resolves_and_transfers_exact_runtime_handles(
 
     result = capture_verified_locked_podman_transaction_inventory(
         plan,
+        scan_recovery_state=_clear_recovery_scan,
         installation_backend=installation_backend,  # type: ignore[arg-type]
         file_api=file_api,  # type: ignore[arg-type]
         pe_backend=pe_backend,  # type: ignore[arg-type]
@@ -1997,9 +2126,9 @@ def test_verified_locked_capture_interruption_after_transaction_acceptance_close
 
     monkeypatch.setattr(
         "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
-        lambda *_args, **_kwargs: fake_locks,
+        _fake_lock_acquisition(fake_locks),
     )
-    transaction.acquire_transaction_locks()
+    transaction.acquire_transaction_locks(scan_recovery_state=_clear_recovery_scan)
     monkeypatch.setattr(
         "towerscout_launcher.runtime_transaction_inventory.load_package_bound_runtime_policy",
         load_package_bound_runtime_policy,
@@ -2024,7 +2153,10 @@ def test_verified_locked_capture_interruption_after_transaction_acceptance_close
     )
 
     with pytest.raises(KeyboardInterrupt):
-        capture_verified_locked_podman_transaction_inventory(plan)
+        capture_verified_locked_podman_transaction_inventory(
+            plan,
+            scan_recovery_state=_clear_recovery_scan,
+        )
 
     assert transaction.closed
     assert fake_locks.closed
@@ -2071,7 +2203,10 @@ def test_verified_locked_capture_rejects_evidence_mismatch_before_transfer(
     )
 
     with pytest.raises(RuntimeTransactionInventoryError) as failure:
-        capture_verified_locked_podman_transaction_inventory(plan)
+        capture_verified_locked_podman_transaction_inventory(
+            plan,
+            scan_recovery_state=_clear_recovery_scan,
+        )
 
     assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
     assert captures == 0
@@ -2105,7 +2240,10 @@ def test_verified_locked_capture_rejects_plan_policy_before_runtime_open(
     )
 
     with pytest.raises(RuntimeTransactionInventoryError) as failure:
-        capture_verified_locked_podman_transaction_inventory(plan)
+        capture_verified_locked_podman_transaction_inventory(
+            plan,
+            scan_recovery_state=_clear_recovery_scan,
+        )
 
     assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
     assert opens == 0
@@ -2135,7 +2273,10 @@ def test_verified_locked_capture_interruption_closes_transferred_and_owned_handl
     )
 
     with pytest.raises(KeyboardInterrupt):
-        capture_verified_locked_podman_transaction_inventory(plan)
+        capture_verified_locked_podman_transaction_inventory(
+            plan,
+            scan_recovery_state=_clear_recovery_scan,
+        )
 
     assert provider_runtime.closed
     assert child_runtime.closed
@@ -2178,7 +2319,10 @@ def test_verified_locked_capture_closes_transferred_handles_on_transaction_failu
     )
 
     with pytest.raises(RuntimeTransactionInventoryError):
-        capture_verified_locked_podman_transaction_inventory(plan)
+        capture_verified_locked_podman_transaction_inventory(
+            plan,
+            scan_recovery_state=_clear_recovery_scan,
+        )
 
     assert provider_runtime.closed
     assert child_runtime.closed
@@ -2269,6 +2413,7 @@ def test_locked_transaction_capture_composes_provider_outer_inventory_and_locks(
         plan,
         provider_base,
         child_executable,
+        scan_recovery_state=_clear_recovery_scan,
         path_api=path_api,  # type: ignore[arg-type]
         file_api=file_api,  # type: ignore[arg-type]
         runtime_inventory_api=runtime_inventory_api,  # type: ignore[arg-type]
@@ -2317,6 +2462,7 @@ def test_locked_transaction_capture_leaves_resolver_handles_on_provider_failure(
             plan,
             provider_base,
             child_executable,
+            scan_recovery_state=_clear_recovery_scan,
         )
 
     assert not provider_base_api.closed
@@ -2354,6 +2500,7 @@ def test_locked_transaction_capture_closes_provider_when_outer_capture_fails(
             plan,
             provider_base,
             child_executable,
+            scan_recovery_state=_clear_recovery_scan,
         )
 
     assert provider.closed
@@ -2400,6 +2547,7 @@ def test_locked_transaction_capture_closes_outer_owner_when_locking_fails(
             plan,
             provider_base,
             child_executable,
+            scan_recovery_state=_clear_recovery_scan,
         )
 
     assert owner.closed
@@ -2449,7 +2597,10 @@ def test_runtime_transaction_owner_acquires_and_retains_ordered_locks(
         acquire,
     )
 
-    evidence = owner.acquire_transaction_locks(timeout_ms=2750)
+    evidence = owner.acquire_transaction_locks(
+        scan_recovery_state=_clear_recovery_scan,
+        timeout_ms=2750,
+    )
 
     assert type(evidence) is RuntimeTransactionLockEvidence
     assert evidence.target_token == plan.target_token
@@ -2460,7 +2611,10 @@ def test_runtime_transaction_owner_acquires_and_retains_ordered_locks(
     assert owner.locks_acquired
 
     with pytest.raises(RuntimeTransactionInventoryError) as duplicate:
-        owner.acquire_transaction_locks(timeout_ms=2750)
+        owner.acquire_transaction_locks(
+            scan_recovery_state=_clear_recovery_scan,
+            timeout_ms=2750,
+        )
     assert (
         duplicate.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
     )
@@ -2500,23 +2654,232 @@ def test_runtime_transaction_owner_inspects_protected_state_under_held_inventory
         assert revalidate() == binding
         return fake_locks
 
-    def inspect(package_root: PathHierarchyTrust) -> None:
+    def inspect(package_root: PathHierarchyTrust) -> PackageRecoveryJournalScan:
         package_root.assert_unchanged_while_held()
         for path in paths:
             path.assert_unchanged_while_held()
         for bound_file in files:
             bound_file.assert_unchanged_while_held()
         inspections.append(package_root)
+        return _clear_recovery_scan(package_root)
 
     monkeypatch.setattr(
         "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
         acquire,
     )
 
-    owner.acquire_transaction_locks(inspect_protected_state=inspect)
+    owner.acquire_transaction_locks(scan_recovery_state=inspect)
 
     assert inspections == [paths[0]]
     assert owner.locks_acquired
+    owner.close()
+
+
+def test_runtime_transaction_owner_requires_callable_recovery_scanner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    native_lock_calls = 0
+
+    def acquire(*_args, **_kwargs):  # noqa: ANN002, ANN003, ANN202
+        nonlocal native_lock_calls
+        native_lock_calls += 1
+        raise AssertionError("invalid scanner must fail before lock acquisition")
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        acquire,
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        owner.acquire_transaction_locks(scan_recovery_state=None)  # type: ignore[arg-type]
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVALID_BINDING
+    assert native_lock_calls == 0
+    assert not owner.locks_acquired
+    owner.close()
+
+
+def test_runtime_transaction_owner_releases_locks_returned_without_scan_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    fake_locks = _FakeTransactionLocks()
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        lambda *_args, **_kwargs: fake_locks,
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        owner.acquire_transaction_locks(scan_recovery_state=_clear_recovery_scan)
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
+    assert fake_locks.closed
+    assert owner.recovery_scan is None
+    assert not owner.locks_acquired
+    owner.close()
+
+
+def test_runtime_transaction_owner_blocks_provider_recovery_before_target_lock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    target_acquired = False
+
+    def acquire(  # noqa: ANN001, ANN202
+        binding,
+        revalidate,
+        *,
+        before_target_acquisition=None,
+        api=None,
+        timeout_ms=0,
+    ):
+        nonlocal target_acquired
+        del api, timeout_ms
+        assert revalidate() == binding
+        assert before_target_acquisition is not None
+        before_target_acquisition()
+        target_acquired = True
+        raise AssertionError("provider recovery must block target acquisition")
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        acquire,
+    )
+
+    with pytest.raises(RuntimeTransactionLockError) as failure:
+        owner.acquire_transaction_locks(
+            scan_recovery_state=lambda root: _pending_recovery_scan(
+                root,
+                provider_environment=True,
+            )
+        )
+
+    assert (
+        failure.value.code is RuntimeTransactionLockErrorCode.PROVIDER_RECOVERY_PENDING
+    )
+    assert target_acquired is False
+    assert owner.recovery_scan is None
+    assert not owner.locks_acquired
+    owner.close()
+
+
+def test_runtime_transaction_owner_retains_repair_scan_until_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    fake_locks = _FakeTransactionLocks()
+    scan_result: PackageRecoveryJournalScan | None = None
+
+    def scan(package_root: PathHierarchyTrust) -> PackageRecoveryJournalScan:
+        nonlocal scan_result
+        scan_result = _pending_recovery_scan(
+            package_root,
+            provider_environment=False,
+        )
+        return scan_result
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        _fake_lock_acquisition(fake_locks),
+    )
+
+    owner.acquire_transaction_locks(scan_recovery_state=scan)
+
+    assert scan_result is not None
+    assert scan_result.repair_pending
+    assert owner.recovery_scan is scan_result
+    owner.close()
+    assert owner.recovery_scan is None
+    assert fake_locks.closed
+
+
+@pytest.mark.parametrize("result_kind", ("none", "wrong_package"))
+def test_runtime_transaction_owner_rejects_invalid_recovery_scan_result(
+    monkeypatch: pytest.MonkeyPatch,
+    result_kind: str,
+) -> None:
+    provider, _backend, plan, files, _apis, paths, _path_apis = _transaction_components(
+        monkeypatch
+    )
+    owner = HeldRuntimeTransactionInventory(
+        plan=plan,
+        provider_inventory=provider,
+        input_files=files,
+        directory_paths=paths,
+    )
+    target_acquired = False
+
+    def acquire(  # noqa: ANN001, ANN202
+        binding,
+        revalidate,
+        *,
+        before_target_acquisition=None,
+        api=None,
+        timeout_ms=0,
+    ):
+        nonlocal target_acquired
+        del api, timeout_ms
+        assert revalidate() == binding
+        assert before_target_acquisition is not None
+        before_target_acquisition()
+        target_acquired = True
+        raise AssertionError("invalid scan evidence must block target acquisition")
+
+    def scan(package_root: PathHierarchyTrust) -> PackageRecoveryJournalScan:
+        package_root.assert_unchanged_while_held()
+        if result_kind == "none":
+            return None  # type: ignore[return-value]
+        return PackageRecoveryJournalScan(
+            1,
+            StableFileIdentity(999, (999).to_bytes(16, "big")),
+        )
+
+    monkeypatch.setattr(
+        "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
+        acquire,
+    )
+
+    with pytest.raises(RuntimeTransactionInventoryError) as failure:
+        owner.acquire_transaction_locks(scan_recovery_state=scan)
+
+    assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
+    assert target_acquired is False
+    assert owner.recovery_scan is None
+    assert not owner.locks_acquired
     owner.close()
 
 
@@ -2565,7 +2928,7 @@ def test_runtime_transaction_owner_inspection_failure_blocks_target_acquisition(
     )
 
     with pytest.raises(RuntimeTransactionLockError) as failure:
-        owner.acquire_transaction_locks(inspect_protected_state=fail_inspection)
+        owner.acquire_transaction_locks(scan_recovery_state=fail_inspection)
 
     assert failure.value.code is RuntimeTransactionLockErrorCode.BINDING_CHANGED
     assert "private" not in str(failure.value).lower()
@@ -2608,7 +2971,7 @@ def test_runtime_transaction_lock_acquisition_detects_environment_drift(
     )
 
     with pytest.raises(RuntimeTransactionInventoryError) as failure:
-        owner.acquire_transaction_locks()
+        owner.acquire_transaction_locks(scan_recovery_state=_clear_recovery_scan)
 
     assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
     assert not owner.locks_acquired
@@ -2640,13 +3003,14 @@ def test_locked_runtime_transaction_owner_rejects_cross_thread_close(
         del api, timeout_ms
         assert before_target_acquisition is not None
         assert revalidate() == binding
+        before_target_acquisition()
         return fake_locks
 
     monkeypatch.setattr(
         "towerscout_launcher.runtime_transaction_inventory.acquire_ordered_runtime_transaction_locks",
         acquire,
     )
-    owner.acquire_transaction_locks()
+    owner.acquire_transaction_locks(scan_recovery_state=_clear_recovery_scan)
     failures: list[BaseException] = []
 
     def close_from_other_thread() -> None:
@@ -2695,7 +3059,7 @@ def test_runtime_transaction_lock_acquisition_detects_provider_drift(
     )
 
     with pytest.raises(RuntimeTransactionInventoryError) as failure:
-        owner.acquire_transaction_locks()
+        owner.acquire_transaction_locks(scan_recovery_state=_clear_recovery_scan)
 
     assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED
     assert not owner.locks_acquired
@@ -2729,7 +3093,7 @@ def test_runtime_transaction_lock_acquisition_rejects_unproven_absent_env(
     )
 
     with pytest.raises(RuntimeTransactionInventoryError) as failure:
-        owner.acquire_transaction_locks()
+        owner.acquire_transaction_locks(scan_recovery_state=_clear_recovery_scan)
 
     assert failure.value.code is RuntimeTransactionInventoryErrorCode.INVENTORY_MISMATCH
     assert not owner.locks_acquired

@@ -64,6 +64,7 @@ from .windows_path_trust import (
     WindowsPathTrustApi,
     capture_path_hierarchy,
 )
+from .windows_recovery_scan import PackageRecoveryJournalScan
 from .windows_mutex import (
     HeldRuntimeTransactionLocks,
     RuntimeTransactionLockBinding,
@@ -540,6 +541,7 @@ class HeldRuntimeTransactionInventory:
         "_plan",
         "_provider_inventory",
         "_request_binding_sha256",
+        "_recovery_scan",
         "_transaction_locks",
         "_transaction_lock_evidence",
         "_transaction_lock_owner_thread",
@@ -604,6 +606,7 @@ class HeldRuntimeTransactionInventory:
         self._input_files: tuple[HandleBoundFile, ...] | None = input_files
         self._directory_paths: tuple[PathHierarchyTrust, ...] | None = directory_paths
         self._request_binding_sha256 = request.binding_sha256
+        self._recovery_scan: PackageRecoveryJournalScan | None = None
         self._transaction_locks: HeldRuntimeTransactionLocks | None = None
         self._transaction_lock_evidence: RuntimeTransactionLockEvidence | None = None
         self._transaction_lock_owner_thread: int | None = None
@@ -639,6 +642,13 @@ class HeldRuntimeTransactionInventory:
             ):
                 return None
             return self._transaction_lock_evidence
+
+    @property
+    def recovery_scan(self) -> PackageRecoveryJournalScan | None:
+        with self._lock:
+            if self._transaction_locks is None or self._transaction_locks.closed:
+                return None
+            return self._recovery_scan
 
     def _begin_use(
         self,
@@ -805,7 +815,7 @@ class HeldRuntimeTransactionInventory:
     def acquire_transaction_locks(
         self,
         *,
-        inspect_protected_state: Callable[[PathHierarchyTrust], None] | None = None,
+        scan_recovery_state: Callable[[PathHierarchyTrust], PackageRecoveryJournalScan],
         api: WindowsMutexApi | None = None,
         timeout_ms: int = 0,
     ) -> RuntimeTransactionLockEvidence:
@@ -816,11 +826,10 @@ class HeldRuntimeTransactionInventory:
         handle-safe atomic replacement slice supplies an absence proof.
         """
 
-        if inspect_protected_state is not None and not callable(
-            inspect_protected_state
-        ):
+        if not callable(scan_recovery_state):
             _fail(RuntimeTransactionInventoryErrorCode.INVALID_BINDING)
         provider_inventory, input_files, directory_paths = self._begin_use()
+        recovery_scan: PackageRecoveryJournalScan | None = None
         try:
             if (
                 self._transaction_locks is not None
@@ -844,23 +853,32 @@ class HeldRuntimeTransactionInventory:
                 )
 
             def inspect_before_target_acquisition() -> None:
-                if inspect_protected_state is None:
-                    return
-
                 def inspect_while_held() -> None:
+                    nonlocal recovery_scan
                     if not self._active_inventory_matches(
                         provider_inventory,
                         input_files,
                         directory_paths,
                     ):
                         _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
-                    inspect_protected_state(directory_paths[0])
+                    result = scan_recovery_state(directory_paths[0])
+                    if (
+                        type(result) is not PackageRecoveryJournalScan
+                        or result.package_root_identity
+                        != directory_paths[0].root_snapshot.identity
+                    ):
+                        _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+                    if result.provider_environment_pending:
+                        raise RuntimeTransactionLockError(
+                            RuntimeTransactionLockErrorCode.PROVIDER_RECOVERY_PENDING
+                        ) from None
                     if not self._active_inventory_matches(
                         provider_inventory,
                         input_files,
                         directory_paths,
                     ):
                         _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
+                    recovery_scan = result
 
                 self._run_under_path_leases(
                     directory_paths,
@@ -880,7 +898,11 @@ class HeldRuntimeTransactionInventory:
                 api=api,
                 timeout_ms=timeout_ms,
             )
+            if recovery_scan is None:
+                _close_factory_owner(transaction_locks)
+                _fail(RuntimeTransactionInventoryErrorCode.INVENTORY_CHANGED)
             self._transaction_locks = transaction_locks
+            self._recovery_scan = recovery_scan
             self._transaction_lock_owner_thread = threading.get_ident()
             evidence = RuntimeTransactionLockEvidence(
                 target_token=self._plan.target_token,
@@ -954,6 +976,7 @@ class HeldRuntimeTransactionInventory:
             self._transaction_locks = None
             self._transaction_lock_evidence = None
             self._transaction_lock_owner_thread = None
+            self._recovery_scan = None
             if (
                 provider_inventory is None
                 or input_files is None
@@ -1175,6 +1198,7 @@ def _close_verified_runtime_capture(
 def capture_verified_locked_podman_transaction_inventory(
     plan: ProcessCommandPlan,
     *,
+    scan_recovery_state: Callable[[PathHierarchyTrust], PackageRecoveryJournalScan],
     installation_backend: InstallationRecordBackend | None = None,
     file_api: WindowsFileApi | None = None,
     pe_backend: PeProductBackend | None = None,
@@ -1252,6 +1276,7 @@ def capture_verified_locked_podman_transaction_inventory(
             plan,
             provider_base_executable,
             child_executable,
+            scan_recovery_state=scan_recovery_state,
             path_api=path_api,
             file_api=file_api,
             runtime_inventory_api=runtime_inventory_api,
@@ -1316,6 +1341,7 @@ def capture_locked_runtime_transaction_inventory(
     provider_base_executable: HandleBoundFile,
     child_executable: HandleBoundFile,
     *,
+    scan_recovery_state: Callable[[PathHierarchyTrust], PackageRecoveryJournalScan],
     path_api: WindowsPathTrustApi | None = None,
     file_api: WindowsFileApi | None = None,
     runtime_inventory_api: RuntimeLoadInventoryApi | None = None,
@@ -1361,6 +1387,7 @@ def capture_locked_runtime_transaction_inventory(
         )
         provider_inventory = None
         evidence = transaction_inventory.acquire_transaction_locks(
+            scan_recovery_state=scan_recovery_state,
             api=mutex_api,
             timeout_ms=lock_timeout_ms,
         )

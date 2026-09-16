@@ -70,6 +70,7 @@ class RuntimeTransactionLockErrorCode(str, Enum):
     LOCK_UNAVAILABLE = "repair_lock_unavailable"
     BUSY = "repair_busy"
     BINDING_CHANGED = "target_changed"
+    PROVIDER_RECOVERY_PENDING = "provider_recovery_pending"
     WRONG_THREAD = "repair_lock_wrong_thread"
     RELEASE_FAILED = "repair_lock_release_failed"
 
@@ -89,6 +90,9 @@ class RuntimeTransactionLockError(RuntimeError):
         ),
         RuntimeTransactionLockErrorCode.BINDING_CHANGED: (
             "The runtime repair target changed while its locks were acquired."
+        ),
+        RuntimeTransactionLockErrorCode.PROVIDER_RECOVERY_PENDING: (
+            "Provider environment recovery must finish before runtime repair."
         ),
         RuntimeTransactionLockErrorCode.WRONG_THREAD: (
             "The runtime repair locks must be released by their owning operation."
