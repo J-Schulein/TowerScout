@@ -519,8 +519,20 @@ protocols by package identity, and scans after the package/`.env` mutex but
 before target-lock acquisition. Checkpoint `a37cf8a` makes that typed scan
 evidence mandatory for every retained transaction lock, blocks provider-
 environment pending state, and retains repair pending state only as immutable
-owner evidence. Generation-6 orchestration remains unwired; no restore content,
-cleanup, replacement, certificate write, repair, or runtime mutation is added.
+owner evidence. At that checkpoint, generation-6 orchestration remained
+unwired; no restore content, cleanup, replacement, certificate write, repair,
+or runtime mutation was added.
+
+Independently reviewed and exact-head validated checkpoint `57e280e` wires the
+generation-6 orchestration boundary without activating recovery. While the
+caller retains matching package-root trust, it accepts only the authenticated
+five- or six-generation chain. For an originally present `.env`, it creates
+only the exact planned zero-byte temp through the narrow native storage port
+and records its stable identity; secure absence performs no storage call. A
+retry from generation 6 reverifies that exact identity before repairing only
+the exact pointer, with no duplicate append or create. Restore content, `.env`
+replacement/removal, completed-transaction cleanup, certificate writes, repair
+activation, and runtime mutation remain outside this boundary.
 
 ## Launcher Front-Door Design Boundary
 

@@ -107,18 +107,28 @@ generation-6 created-state schema, native zero-byte restore-temp creation and
 verification, authenticated journal-stream discovery, package-bound cross-
 protocol classification, and mandatory scan evidence before target-lock
 acquisition. Provider-environment pending state blocks; repair pending state is
-retained only as read-only owner evidence. Generation-6 orchestration remains
-unwired. No restore, cleanup, `.env` replacement, certificate write, repair, or
-runtime mutation is enabled.
+retained only as read-only owner evidence. At that checkpoint, generation-6
+orchestration remained unwired. No restore, cleanup, `.env` replacement,
+certificate write, repair, or runtime mutation was enabled.
+Independently reviewed and exact-head validated checkpoint `57e280e` wires only
+generation 6 `environment_restore_temp_created`. It requires matching caller-
+held package-root trust, creates and records only the exact planned zero-byte
+temp for an originally present `.env`, records secure absence without a storage
+call, appends at most once, and reverifies the recorded identity before exact
+pointer repair on retry. CI/CD run `35159400390`, Task-087 run `35159400276`,
+and Trivy passed; the main-only build is neutral as designed. It writes no
+restore content, replaces or removes no `.env`, performs no completed-
+transaction cleanup, writes no certificate, activates no repair, and mutates
+no runtime.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `a37cf8a` against the fixed acceptance
-criteria rather than commit count. Generation-6 orchestration, remaining
-recovery/transaction integration, provider `.env` hardening, successful Windows
-trust proof, final exact-head review, and the PR #67 decision remain
+**Estimated Effort**: Rebaseline after `57e280e` against the fixed acceptance
+criteria rather than commit count. Remaining recovery states/action,
+recovery/transaction integration, provider `.env` hardening, successful
+Windows trust proof, final exact-head review, and the PR #67 decision remain
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
 and the canonical October roadmap
 **Created**: 2026-06-29
@@ -1481,6 +1491,47 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Generation-6 Environment Restore Temp Creation Checkpointed
+
+**Objective**: Consume the authenticated generation-5 plan through the narrow
+zero-byte environment-restore storage port and durably record generation 6
+without enabling restore or runtime mutation.
+
+**Context**: Checkpoint `a37cf8a` made package-bound recovery scanning mandatory
+at the retained transaction-lock boundary. The strict generation-6 schema and
+native zero-byte storage primitive already existed but were not orchestrated.
+
+**Decision**: Require matching caller-held package-root trust and accept only
+the exact authenticated five- or six-generation chain. For present original
+state, create only the planned zero-byte temp and persist its returned stable
+identity. For secure absence, persist generation 6 without a storage call. On
+retry, reverify the recorded identity before repairing only the exact pointer.
+
+**Execution**: Checkpoint `57e280ea49a0cfeccf26d614d481efd2e9c323c3`
+adds `create_persisted_environment_restore_temp_from_held_package_root`, maps
+storage failures to sanitized recovery errors, appends generation 6 at most
+once, and covers present, absent, create-failure, identity-mismatch, and pointer-
+retry behavior. It adds no runtime call site.
+
+**Output**: The authenticated rollback chain can now advance durably through
+`environment_restore_temp_created`. Only the exact planned zero-byte temp may
+be created or reverified; restore content, `.env` replacement/removal,
+completed-transaction cleanup, certificate writes, repair activation, and
+runtime mutation remain disabled.
+
+**Validation**: Focused generation-6 tests pass `3/3`; the complete recovery
+backup-storage module passes `32/32`; and the complete launcher suite passes
+`1841/1841`. Black, source configured Flake8, strict mypy, Bandit, compilation,
+editor diagnostics, and diff checks pass. A full touched-test-file Flake8 run
+also reported one pre-existing unused local outside this change. Two independent
+reviews found no actionable security or correctness defect. Exact-head CI/CD
+run `35159400390`, Task-087 run `35159400276`, and Trivy passed; the main-only
+build is neutral as designed.
+
+**Next**: Add the remaining verified restore states and actions, beginning with
+generation 7 content write/reverification, without replacing or removing
+`.env`, writing certificates, activating repair, or mutating runtime state.
 
 ### 2026-09-16 - Mandatory Package Recovery Scan Checkpointed
 

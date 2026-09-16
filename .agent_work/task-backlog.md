@@ -46,9 +46,12 @@ generation-6 schema/native zero-byte temp storage and mandatory authenticated
 cross-protocol recovery scanning before target-lock acquisition. Provider
 pending blocks; repair pending is retained only as read-only evidence. The
 remaining PR #67 path must be rebaselined against the fixed acceptance criteria,
-with generation-6 orchestration, recovery/transaction integration, provider
-`.env` hardening, and environment-dependent Windows revocation and Docker/
-Podman proof as the principal uncertainties. After Gate A source
+with remaining recovery states/action, recovery/transaction integration,
+provider `.env` hardening, and environment-dependent Windows revocation and
+Docker/Podman proof as the principal uncertainties. Independently reviewed and
+exact-head validated checkpoint `57e280e` now persists generation 6 at most
+once after exact planned zero-byte creation or secure absence, and reverifies
+the recorded identity before pointer repair on retry. After Gate A source
 acceptance and the PR #67 merge decision, complete Task-096 lifecycle controls
 and Task-102 native first-run setup before resuming Task-087 Gate B normal-
 package integration. Then qualify the completed front door under Task-097,

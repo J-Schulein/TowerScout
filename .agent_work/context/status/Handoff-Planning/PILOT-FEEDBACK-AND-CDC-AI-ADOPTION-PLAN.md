@@ -145,14 +145,16 @@ backlog, and migration-ready handoff without changing cdcai.
   repair on Docker and Podman; the August 21 approval authorizes Gate A work
   under the exact-target/durable-recovery design before exact-head re-review.
   Independently reviewed and exact-head validated implementation checkpoint
-  `a37cf8a` is the current source baseline. CI/CD run `35157843681`, Task-087
-  run `35157843639`, and Trivy passed; the main-only build is neutral as
+  `57e280e` is the current source baseline. CI/CD run `35159400390`, Task-087
+  run `35159400276`, and Trivy passed; the main-only build is neutral as
   designed. The intervening checkpoints add generation-6 zero-byte
   restore-temp storage and mandatory authenticated package recovery scanning
   before target-lock acquisition. Provider-environment pending state blocks;
-  repair pending state is retained only as read-only evidence. Generation-6
-  orchestration and all restore, cleanup, `.env` replacement, certificate
-  write, repair, and runtime mutation remain disabled.
+  repair pending state is retained only as read-only evidence. Generation 6
+  now persists at most once after exact planned zero-byte creation or secure
+  absence, with exact identity reverification before pointer repair. Restore
+  content, `.env` replacement/removal, completed-transaction cleanup,
+  certificate writes, repair, and runtime mutation remain disabled.
   After Gate A acceptance and the PR #67 merge decision, Tasks 096 and 102
   precede Task-087 Gate B normal-package integration.
 - Task-088: completed Pilot Package distribution and custody.

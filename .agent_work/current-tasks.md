@@ -97,6 +97,16 @@ focused static/security checks, CI/CD run `35157843681`, Task-087 run
 `35157843639`, and Trivy; the main-only build is neutral as designed. No
 restore, cleanup, `.env` replacement, certificate write, repair, or runtime
 mutation is enabled.
+Independently reviewed and exact-head validated checkpoint `57e280e` wires only
+generation 6 `environment_restore_temp_created`. Under caller-held package-root
+trust, it accepts only the authenticated generation-5 or generation-6 chain,
+creates and records the exact planned zero-byte temp for an originally present
+`.env`, records secure absence without a storage call, and on retry reverifies
+the recorded identity before repairing only the exact generation-6 pointer.
+CI/CD run `35159400390`, Task-087 run `35159400276`, and Trivy passed; the
+main-only build is neutral as designed. Restore content, `.env` replacement or
+removal, completed-transaction cleanup, certificate writes, repair activation,
+and runtime mutation remain disabled.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -117,15 +127,14 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `a37cf8a` is pushed, independently
+- Task-087 implementation checkpoint `57e280e` is pushed, independently
   reviewed, and exact-head validated. It makes package-bound recovery
   scanning mandatory before target-lock acquisition, blocks pending provider
-  environment recovery, and retains pending repair recovery only as read-only
-  owner evidence. Generation-6 zero-byte restore-temp creation/verification is
-  implemented but remains unwired to recovery action. It creates or restores
-  no content, cleans no
-  artifact, replaces no `.env`, writes no certificate, and mutates no repair/
-  runtime state. PR #67 remains Draft.
+  environment recovery, retains pending repair recovery only as read-only
+  owner evidence, and persists generation 6 after exact zero-byte temp creation
+  or secure absence. It writes no restore content, replaces or removes no
+  `.env`, performs no completed-transaction cleanup, writes no certificate,
+  and mutates no repair/runtime state. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed
   status and evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -317,14 +326,20 @@ makes authenticated package recovery scanning mandatory under the retained
 package/`.env` lock before target-lock acquisition. Provider pending blocks;
 repair pending is retained only as evidence. Recovery action and all package or
 runtime mutation remain disabled.
+Independently reviewed and exact-head validated checkpoint `57e280e` consumes
+only the authenticated generation-5 plan through that narrow storage port and
+persists generation 6 at most once. Present-state retry verifies the exact
+recorded temp identity before pointer repair; secure absence creates no temp.
+No restore content, `.env` replacement/removal, completed-transaction cleanup,
+certificate write, repair activation, or runtime mutation is enabled.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `a37cf8a` against the fixed acceptance
-criteria rather than commit count. Generation-6 orchestration, remaining
-recovery/transaction and provider `.env` work, successful Windows trust proof,
-final exact-head review, and the PR #67 decision still precede Task-096.
+**Remaining Estimate**: Rebaseline after `57e280e` against the fixed acceptance
+criteria rather than commit count. Remaining recovery states/action,
+recovery/transaction and provider `.env` integration, successful Windows trust
+proof, final exact-head review, and the PR #67 decision still precede Task-096.
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 **Canonical Gate A Burn-Down**:

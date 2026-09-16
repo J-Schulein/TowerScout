@@ -113,9 +113,14 @@ The project still carries public-health workflow expectations:
   authenticated package recovery scan evidence after the package/`.env` lock
   and before target-lock acquisition. Provider-environment pending state
   blocks; repair pending state is retained only as read-only evidence. CI/CD
-  run `35157843681`, Task-087 run `35157843639`, and Trivy passed. Generation-6 orchestration and all
-  restore, cleanup, replacement, certificate-write, repair, and runtime mutation
-  remain disabled.
+  run `35157843681`, Task-087 run `35157843639`, and Trivy passed.
+  Independently reviewed and exact-head validated checkpoint `57e280e` then
+  persists generation 6 at most once after exact planned zero-byte creation or
+  secure absence and reverifies the recorded identity before exact pointer
+  repair on retry. CI/CD run `35159400390`, Task-087 run `35159400276`, and
+  Trivy passed. Restore content, `.env` replacement/removal, completed-
+  transaction cleanup, certificate writes, repair activation, and runtime
+  mutation remain disabled.
   Preview-integrity Gate B remains
   later. PR
   #64 and every browser/helper activation gate remain on hold.
@@ -990,9 +995,14 @@ An agent should leave with the following understanding:
 - independently reviewed and exact-head validated checkpoint `a37cf8a` adds strict
   generation-6 schema/native zero-byte temp storage and mandatory authenticated
   cross-protocol recovery scanning before target-lock acquisition; provider
-  pending blocks, repair pending is read-only evidence, exact-head CI/CD and
-  Task-087 runs passed, and generation-6 orchestration plus all mutation remain
-  disabled
+  pending blocks, repair pending is read-only evidence, and exact-head CI/CD and
+  Task-087 runs passed
+- independently reviewed and exact-head validated checkpoint `57e280e`
+  persists generation 6 at most once after exact planned zero-byte creation or
+  secure absence and reverifies the recorded identity before exact pointer
+  repair on retry; restore content, `.env` replacement/removal, completed-
+  transaction cleanup, certificate writes, repair activation, and runtime
+  mutation remain disabled
 - after Gate A acceptance and the PR #67 merge decision, the controlling order
   is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
   package integration, and Task-097 four-profile qualification
