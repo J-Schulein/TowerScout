@@ -68,13 +68,19 @@ and rereads both exact blob files under one held protected-root interval, and
 persists and reauthenticates `backup_verified` with stable identities,
 ciphertext hashes, and sizes. It adds no pointer update, `rollback_armed`,
 restore, cleanup, repair, or runtime authority.
+Independently reviewed and exact-head validated checkpoint `deee6ab` consumes
+that authenticated chain, reconstructs both expected receipts only from its
+durable records, freshly reverifies both exact blob files under one held
+protected-root interval, and appends and reauthenticates generation 3
+`rollback_armed`. It adds no pointer update, restore, cleanup, `.env`
+replacement, certificate write, repair, or runtime authority.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: One substantive implementation/proof checkpoint and
-approximately 1-3 additional PR #67 commits from `92acf29` to Gate A source
+approximately 1-3 additional PR #67 commits from `deee6ab` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -1439,6 +1445,51 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Durable Rollback-Armed State Checkpointed
+
+**Objective**: Persist `rollback_armed` only after both exact encrypted backup
+blobs are freshly reread and proven unchanged under the held protected root.
+
+**Context**: Checkpoint `92acf29` durably records `backup_verified` with both
+blob identities, ciphertext hashes, and sizes. A later mutation boundary still
+requires a distinct immutable arm-time proof reconstructed from authenticated
+records rather than caller-supplied receipts.
+
+**Decision**: Load exactly the authenticated `backup_preparing` and
+`backup_verified` generations while retaining the protected root, reconstruct
+both expected receipts only from those records, freshly reverify both exact
+blobs, append generation 3 `rollback_armed`, and authenticate the complete
+reread. Hash-link the new record to generation 2 and require exact receipt
+continuity. Do not update the pointer or add restore, cleanup, `.env`
+replacement, certificate write, repair, or runtime mutation authority.
+
+**Execution**: Implementation checkpoint
+`deee6abbfac70e68b984329a239aa5b22818bca4` adds the immutable redacted record,
+canonical codec, strict three-generation chain validation, and held-root
+verification/persistence orchestrator with success, partial-verification, and
+retry rejection tests.
+
+**Output**: The durable journal can now prove that both authenticated encrypted
+backups remained exact when generation 3 `rollback_armed` became durable. No
+pointer selects that generation for mutation, and no recovery action or
+destructive file authority is exposed.
+
+**Validation**: Focused tests pass `47/47`; adjacent recovery tests pass
+`105/105`; and the complete launcher suite passes `1781/1781`. Black, strict
+mypy, blocking Flake8, medium/high Bandit, compilation, editor diagnostics,
+secret review, and indexed diff checks pass. Final independent re-review
+returned `CLEAN/PASS` with no actionable Low-or-higher finding. Exact-head
+CI/CD run `35141054176` passed. Task-087 run `35141054097` passed on its failed-
+job rerun after the first attempt's unchanged legacy Windows helper cleanup
+test reported an authenticated live helper and then exited nonzero; Trivy
+passed, and the main-only build was neutral as designed.
+
+**Next**: Make the authenticated `rollback_armed` generation the selected
+active durable state only as part of the later recovery integration, then add
+fresh-process idempotent recovery, verified rollback, cleanup-pending
+retention, and cross-protocol scanning. Keep repair and runtime mutation
+disabled.
 
 ### 2026-09-16 - Authenticated Backup Verification Checkpointed
 

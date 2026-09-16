@@ -464,6 +464,16 @@ chain is then reread and authenticated under the same root hold. The preparation
 generation remains hash-linked authority for the blob names. No pointer update,
 `rollback_armed`, restore, cleanup, repair, or runtime mutation is added.
 
+Independently reviewed and exact-head validated checkpoint `deee6ab` adds the
+next authenticated write-ahead state. It reloads exactly the authenticated
+`backup_preparing` and `backup_verified` generations under one held protected-
+root interval, reconstructs both expected blob receipts only from those durable
+records, freshly reverifies both exact files, and appends and reauthenticates
+generation 3 `rollback_armed`. The record is hash-linked to generation 2 and
+duplicates its stable identities, ciphertext hashes, and sizes as arm-time
+proof. No caller-supplied receipt authority, pointer update, restore, cleanup,
+`.env` replacement, certificate write, repair, or runtime mutation is added.
+
 ## Launcher Front-Door Design Boundary
 
 Task-087 Gate A establishes the accepted exact-target, native execution,

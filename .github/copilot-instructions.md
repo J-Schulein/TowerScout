@@ -82,8 +82,13 @@ The project still carries public-health workflow expectations:
   Independently reviewed and exact-head validated checkpoint `92acf29`
   reauthenticates both sealed sources, freshly reverifies those exact blobs
   under the held root, and persists and reauthenticates `backup_verified` with
-  their stable identities, ciphertext hashes, and sizes. `rollback_armed`, full
-  recovery states, `.env` replacement, and runtime mutation remain open. The
+  their stable identities, ciphertext hashes, and sizes. Independently reviewed
+  and exact-head validated checkpoint `deee6ab` freshly reverifies both exact
+  authenticated blobs under one held-root interval and appends and
+  reauthenticates generation 3 `rollback_armed`. It accepts no caller-supplied
+  receipt authority. No pointer update selects that generation, and full
+  recovery states, `.env` replacement, certificate writes, repair, and runtime
+  mutation remain disabled. The
   current estimate is one substantive Gate A checkpoint and approximately 1-3
   actual PR #67 commits.
   Preview-integrity Gate B remains
@@ -940,12 +945,12 @@ An agent should leave with the following understanding:
   Draft and exact-target/durable-recovery remediation, re-review, staged-byte/
   build integrity, product, and package gates still control merge/publication
 - independently reviewed and exact-head validated implementation checkpoint
-  `92acf29` follows `21aba57` create-only encrypted backup persistence with
-  reauthentication of both sealed sources, exact held-root no-follow blob
-  rereads, and immutable authenticated `backup_verified` persistence; stable
-  identities, ciphertext hashes, and sizes are bound in generation 2 while
-  partial or ambiguous artifacts remain preserved; `rollback_armed`, recovery
-  action, `.env` replacement, and runtime mutation remain disabled
+  `deee6ab` follows `92acf29` authenticated `backup_verified` persistence with
+  fresh held-root reverification of both exact encrypted blobs and immutable
+  authenticated generation 3 `rollback_armed` persistence; no caller-supplied
+  receipt authority is accepted, partial or ambiguous artifacts remain
+  preserved, and no pointer update, recovery action, `.env` replacement,
+  certificate write, repair, or runtime mutation is enabled
 - after Gate A acceptance and the PR #67 merge decision, the controlling order
   is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
   package integration, and Task-097 four-profile qualification

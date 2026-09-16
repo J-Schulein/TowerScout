@@ -18,12 +18,13 @@ describes Task-096 as Stop-only.
 
 1. Finish Task-087 Gate A source implementation, exact-head validation and
   independent re-review, then make the PR #67 merge decision. The current
-  validated implementation head is `92acf29`; it reauthenticates the original
-  sealed backups and durable singleton `backup_preparing` intent, freshly
-  reverifies both exact DPAPI ciphertext blobs under the held protected root,
-  and persists authenticated `backup_verified` evidence with their stable
-  identities, hashes, and sizes. It does not establish `rollback_armed` or grant
-  recovery authority. The remaining planning estimate is one substantive
+  validated implementation head is `deee6ab`; it consumes the authenticated
+  `backup_preparing` and `backup_verified` chain, reconstructs both expected
+  receipts only from durable records, freshly reverifies both exact DPAPI
+  ciphertext blobs under one held protected-root interval, and appends and
+  reauthenticates generation 3 `rollback_armed`. It does not update the pointer
+  or grant restore, cleanup, `.env` replacement, certificate-write, repair, or
+  runtime-mutation authority. The remaining planning estimate is one substantive
   checkpoint and approximately 1-3 actual PR #67 commits.
 2. Complete Task-096 native state-driven Start/Open/Stop/Restart using the
   accepted exact-target, execution, coordination, recovery, and sanitization
