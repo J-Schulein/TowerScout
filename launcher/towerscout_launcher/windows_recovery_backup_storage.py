@@ -1,10 +1,9 @@
 """Persistence and durable verification for prepared recovery backup blobs.
 
-This Gate-A layer reauthenticates one persisted ``backup_preparing`` generation
-and both exact-state envelopes before narrow storage ports may create and
-reverify the two planned ciphertext blobs. It may advance only to
-``backup_verified`` and exposes no listing, deletion, restore, pointer update,
-rollback arming, or repair/runtime mutation authority.
+This Gate-A layer reauthenticates persisted backup authority before narrow
+storage ports may create or reverify the two planned ciphertext blobs. It may
+advance only through ``rollback_armed`` and exposes no listing, deletion,
+restore, pointer update, or repair/runtime mutation authority.
 """
 
 from __future__ import annotations
@@ -32,6 +31,7 @@ from .windows_recovery_journal import (
     JournalProtectionPort,
     JournalStreamIdentity,
     RecoveryJournalError,
+    RollbackArmedRecord,
     protect_environment_journal_generation,
 )
 from .windows_recovery_journal_storage import (
@@ -500,6 +500,125 @@ def persist_backup_verified_generation(
     return _run_under_root(root, verify_and_record)
 
 
+def persist_rollback_armed_generation(
+    *,
+    stream: JournalStreamIdentity,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    verification: RecoveryBackupBlobVerificationPort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Arm rollback after a fresh held-root reread of both exact backup blobs."""
+
+    if type(stream) is not JournalStreamIdentity:
+        _fail(RecoveryBackupStorageErrorCode.INPUT_INVALID)
+
+    def verify_and_arm(root_path: str) -> PersistedEnvironmentJournalChain:
+        try:
+            verified_chain = load_persisted_environment_journal_chain_from_held_root(
+                root_path,
+                stream,
+                storage=journal_storage,
+                protection=journal_protection,
+            )
+        except RecoveryJournalStorageError as exc:
+            if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                _fail(RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE)
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        except RecoveryJournalError:
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        if (
+            type(verified_chain) is not PersistedEnvironmentJournalChain
+            or len(verified_chain.selection.generations) != 2
+            or verified_chain.selection.tip.state
+            is not EnvironmentJournalState.BACKUP_VERIFIED
+            or type(verified_chain.selection.generations[0].record)
+            is not BackupPreparingRecord
+            or type(verified_chain.selection.tip.record) is not BackupVerifiedRecord
+        ):
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        preparing = verified_chain.selection.generations[0].record
+        verified = verified_chain.selection.tip.record
+        try:
+            environment_expected = StoredRecoveryBackupBlob(
+                preparing.environment_backup_name,
+                ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+                verified.environment_backup_identity,
+                verified.environment_ciphertext_sha256,
+                verified.environment_ciphertext_size,
+            )
+            certificate_expected = StoredRecoveryBackupBlob(
+                preparing.certificate_backup_name,
+                ProtectedDataPurpose.CERTIFICATE_BACKUP,
+                verified.certificate_backup_identity,
+                verified.certificate_ciphertext_sha256,
+                verified.certificate_ciphertext_size,
+            )
+        except ValueError:
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        environment_reverified = _verification_call(
+            verification,
+            root_path,
+            environment_expected,
+        )
+        certificate_reverified = _verification_call(
+            verification,
+            root_path,
+            certificate_expected,
+        )
+        try:
+            record = RollbackArmedRecord(
+                1,
+                verified_chain.selection.tip_generation_sha256,
+                stream.package_root_identity,
+                environment_reverified.identity,
+                environment_reverified.ciphertext_sha256,
+                environment_reverified.ciphertext_size,
+                certificate_reverified.identity,
+                certificate_reverified.ciphertext_sha256,
+                certificate_reverified.ciphertext_size,
+            )
+            generation = EnvironmentJournalGeneration(
+                1,
+                stream,
+                3,
+                verified_chain.selection.tip_generation_sha256,
+                EnvironmentJournalState.ROLLBACK_ARMED,
+                record,
+            )
+            sealed_generation = protect_environment_journal_generation(
+                generation,
+                protection=journal_protection,
+            )
+        except (RecoveryJournalError, ValueError):
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        try:
+            persisted = append_persisted_environment_journal_generation_from_held_root(
+                root_path,
+                sealed_generation,
+                stream=stream,
+                storage=journal_storage,
+                protection=journal_protection,
+            )
+        except RecoveryJournalStorageError as exc:
+            if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                _fail(RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE)
+            if exc.code is RecoveryJournalStorageErrorCode.WRITE_FAILED:
+                _fail(RecoveryBackupStorageErrorCode.WRITE_FAILED)
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        except RecoveryJournalError:
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        if (
+            persisted.selection.tip != generation
+            or persisted.selection.tip_generation_sha256
+            != sealed_generation.generation_sha256
+        ):
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        return persisted
+
+    return _run_under_root(root, verify_and_arm)
+
+
 __all__ = [
     "PersistedRecoveryBackupBlobs",
     "RecoveryBackupBlobStoragePort",
@@ -509,4 +628,5 @@ __all__ = [
     "StoredRecoveryBackupBlob",
     "persist_backup_verified_generation",
     "persist_prepared_recovery_backup_blobs",
+    "persist_rollback_armed_generation",
 ]

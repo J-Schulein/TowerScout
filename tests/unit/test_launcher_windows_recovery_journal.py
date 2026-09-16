@@ -160,6 +160,23 @@ def _backup_verified_record(
     )
 
 
+def _rollback_armed_record(
+    backup_verified_generation_sha256: str,
+    verified: journal.BackupVerifiedRecord,
+) -> journal.RollbackArmedRecord:
+    return journal.RollbackArmedRecord(
+        schema_version=1,
+        backup_verified_generation_sha256=backup_verified_generation_sha256,
+        package_root_identity=verified.package_root_identity,
+        environment_backup_identity=verified.environment_backup_identity,
+        environment_ciphertext_sha256=verified.environment_ciphertext_sha256,
+        environment_ciphertext_size=verified.environment_ciphertext_size,
+        certificate_backup_identity=verified.certificate_backup_identity,
+        certificate_ciphertext_sha256=verified.certificate_ciphertext_sha256,
+        certificate_ciphertext_size=verified.certificate_ciphertext_size,
+    )
+
+
 def _seal(
     generation: journal.EnvironmentJournalGeneration,
     protection: _Protection,
@@ -406,6 +423,128 @@ def test_backup_verified_rejects_invalid_receipts_and_continuity() -> None:
         with pytest.raises(journal.RecoveryJournalError) as failure:
             journal.select_environment_journal_chain(
                 (prepared, verified),
+                None,
+                expected_stream=stream,
+                protection=protection,
+            )
+        assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+
+
+def test_rollback_armed_round_trip_is_bound_and_redacted() -> None:
+    protection = _Protection()
+    stream = _stream()
+    prepared = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            1,
+            journal.GENESIS_GENERATION_SHA256,
+            journal.EnvironmentJournalState.BACKUP_PREPARING,
+            _backup_preparing_record(),
+        ),
+        protection,
+    )
+    verified_record = _backup_verified_record(prepared.generation_sha256)
+    verified = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            2,
+            prepared.generation_sha256,
+            journal.EnvironmentJournalState.BACKUP_VERIFIED,
+            verified_record,
+        ),
+        protection,
+    )
+    record = _rollback_armed_record(verified.generation_sha256, verified_record)
+    armed_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        3,
+        verified.generation_sha256,
+        journal.EnvironmentJournalState.ROLLBACK_ARMED,
+        record,
+    )
+    armed = _seal(armed_generation, protection)
+
+    selection = journal.select_environment_journal_chain(
+        (prepared, verified, armed),
+        _pointer(stream, armed, 3),
+        expected_stream=stream,
+        protection=protection,
+    )
+
+    assert selection.tip == armed_generation
+    assert selection.pointer_disposition is journal.JournalPointerDisposition.CURRENT
+    rendered = repr(record) + repr(armed_generation) + repr(selection)
+    assert record.backup_verified_generation_sha256 not in rendered
+    assert record.environment_ciphertext_sha256 not in rendered
+    assert record.certificate_ciphertext_sha256 not in rendered
+    assert repr(record.environment_backup_identity) not in rendered
+
+
+def test_rollback_armed_rejects_receipt_drift_and_invalid_continuity() -> None:
+    protection = _Protection()
+    stream = _stream()
+    prepared = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            1,
+            journal.GENESIS_GENERATION_SHA256,
+            journal.EnvironmentJournalState.BACKUP_PREPARING,
+            _backup_preparing_record(),
+        ),
+        protection,
+    )
+    verified_record = _backup_verified_record(prepared.generation_sha256)
+    verified = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            2,
+            prepared.generation_sha256,
+            journal.EnvironmentJournalState.BACKUP_VERIFIED,
+            verified_record,
+        ),
+        protection,
+    )
+    drifted = journal.RollbackArmedRecord(
+        1,
+        verified.generation_sha256,
+        verified_record.package_root_identity,
+        verified_record.environment_backup_identity,
+        "8" * 64,
+        verified_record.environment_ciphertext_size,
+        verified_record.certificate_backup_identity,
+        verified_record.certificate_ciphertext_sha256,
+        verified_record.certificate_ciphertext_size,
+    )
+    for previous_sha256, record in (
+        (verified.generation_sha256, drifted),
+        (
+            "7" * 64,
+            _rollback_armed_record(verified.generation_sha256, verified_record),
+        ),
+        (
+            verified.generation_sha256,
+            _rollback_armed_record("7" * 64, verified_record),
+        ),
+    ):
+        armed = _seal(
+            journal.EnvironmentJournalGeneration(
+                1,
+                stream,
+                3,
+                previous_sha256,
+                journal.EnvironmentJournalState.ROLLBACK_ARMED,
+                record,
+            ),
+            protection,
+        )
+        with pytest.raises(journal.RecoveryJournalError) as failure:
+            journal.select_environment_journal_chain(
+                (prepared, verified, armed),
                 None,
                 expected_stream=stream,
                 protection=protection,

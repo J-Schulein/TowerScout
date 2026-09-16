@@ -500,6 +500,195 @@ def test_backup_verified_retry_fails_closed_before_blob_reverification() -> None
     assert len(generations.files) == 2
 
 
+def test_persist_rollback_armed_reverifies_exact_blobs_under_root() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    _prepared(
+        protection,
+        root,
+        generations,
+        environment,
+        certificates,
+        stream,
+    )
+    blobs = _BlobStorage(root)
+    persisted_blobs = blob_storage.persist_prepared_recovery_backup_blobs(
+        environment,
+        certificates,
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+    verified_chain = blob_storage.persist_backup_verified_generation(
+        environment,
+        certificates,
+        persisted_blobs,
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        verification=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+    blobs.verified.clear()
+
+    persisted = blob_storage.persist_rollback_armed_generation(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+
+    assert len(blobs.verified) == 2
+    assert blobs.verified == [persisted_blobs.environment, persisted_blobs.certificate]
+    assert len(persisted.selection.generations) == 3
+    assert (
+        persisted.selection.tip.state is journal.EnvironmentJournalState.ROLLBACK_ARMED
+    )
+    record = persisted.selection.tip.record
+    verified = verified_chain.selection.tip.record
+    assert type(record) is journal.RollbackArmedRecord
+    assert type(verified) is journal.BackupVerifiedRecord
+    assert (
+        record.backup_verified_generation_sha256
+        == verified_chain.selection.tip_generation_sha256
+    )
+    assert record.environment_backup_identity == verified.environment_backup_identity
+    assert (
+        record.environment_ciphertext_sha256 == verified.environment_ciphertext_sha256
+    )
+    assert record.environment_ciphertext_size == verified.environment_ciphertext_size
+    assert record.certificate_backup_identity == verified.certificate_backup_identity
+    assert (
+        record.certificate_ciphertext_sha256 == verified.certificate_ciphertext_sha256
+    )
+    assert record.certificate_ciphertext_size == verified.certificate_ciphertext_size
+    assert len(generations.files) == 3
+    assert not root.active
+
+
+def test_rollback_armed_preserves_verified_on_second_blob_failure() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    _prepared(
+        protection,
+        root,
+        generations,
+        environment,
+        certificates,
+        stream,
+    )
+    blobs = _BlobStorage(root)
+    persisted_blobs = blob_storage.persist_prepared_recovery_backup_blobs(
+        environment,
+        certificates,
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+    blob_storage.persist_backup_verified_generation(
+        environment,
+        certificates,
+        persisted_blobs,
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        verification=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+    blobs.verified.clear()
+    blobs.fail_verify_at = 2
+
+    with pytest.raises(blob_storage.RecoveryBackupStorageError) as failure:
+        blob_storage.persist_rollback_armed_generation(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            verification=blobs,
+            journal_protection=protection,
+        )
+
+    assert (
+        failure.value.code is blob_storage.RecoveryBackupStorageErrorCode.VERIFY_FAILED
+    )
+    assert len(blobs.verified) == 2
+    assert len(generations.files) == 2
+    assert "private" not in str(failure.value)
+
+
+def test_rollback_armed_retry_fails_before_blob_reverification() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    _prepared(
+        protection,
+        root,
+        generations,
+        environment,
+        certificates,
+        stream,
+    )
+    blobs = _BlobStorage(root)
+    persisted_blobs = blob_storage.persist_prepared_recovery_backup_blobs(
+        environment,
+        certificates,
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+    blob_storage.persist_backup_verified_generation(
+        environment,
+        certificates,
+        persisted_blobs,
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        verification=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+    blob_storage.persist_rollback_armed_generation(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+    blobs.verified.clear()
+
+    with pytest.raises(blob_storage.RecoveryBackupStorageError) as failure:
+        blob_storage.persist_rollback_armed_generation(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            verification=blobs,
+            journal_protection=protection,
+        )
+
+    assert (
+        failure.value.code
+        is blob_storage.RecoveryBackupStorageErrorCode.AUTHORITY_INVALID
+    )
+    assert not blobs.verified
+    assert len(generations.files) == 3
+
+
 def test_summary_drift_fails_before_root_or_blob_write() -> None:
     protection = _Protection()
     stream, environment, certificates = _sealed_backups(protection)
