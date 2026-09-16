@@ -18,8 +18,10 @@ describes Task-096 as Stop-only.
 
 1. Finish Task-087 Gate A source implementation, exact-head validation and
   independent re-review, then make the PR #67 merge decision. The current
-  validated implementation head is `53b618b`; the remaining planning estimate is two
-  substantive checkpoints and approximately 3-6 actual PR #67 commits.
+  validated implementation head is `d6ce415`; it adds encrypted exact-state
+  backup envelopes without persistence or recovery authority. The remaining
+  planning estimate is two substantive checkpoints and approximately 3-6
+  actual PR #67 commits.
 2. Complete Task-096 native state-driven Start/Open/Stop/Restart using the
   accepted exact-target, execution, coordination, recovery, and sanitization
   contracts. Do not add this work to PR #67.

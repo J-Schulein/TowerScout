@@ -421,6 +421,15 @@ retried. A written or drifted object is preserved; `POINTER_TEMP_CREATED` is
 never routed through cleanup. Backup/recovery action, `.env` replacement,
 repair authorization, and runtime mutation remain outside this boundary.
 
+Independently reviewed and exact-head validated checkpoint `d6ce415` adds pure,
+purpose-separated encrypted backup envelopes. Environment backup state records
+exact prior bytes or absence plus Windows file attributes and a security-
+descriptor snapshot. Certificate backup state records exact prior bytes or
+absence plus mode for the fixed local-CA and CA-bundle destinations. Both are
+bound to the complete journal stream and use distinct current-user DPAPI
+purposes. The checkpoint adds no backup-file persistence, journal state,
+restore authority, `.env` write, repair action, or runtime mutation.
+
 ## Launcher Front-Door Design Boundary
 
 Task-087 Gate A establishes the accepted exact-target, native execution,

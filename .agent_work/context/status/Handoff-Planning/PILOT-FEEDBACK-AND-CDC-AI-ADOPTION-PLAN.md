@@ -145,10 +145,11 @@ backlog, and migration-ready handoff without changing cdcai.
   repair on Docker and Podman; the August 21 approval authorizes Gate A work
   under the exact-target/durable-recovery design before exact-head re-review.
   Independently reviewed and exact-head validated implementation checkpoint
-  `53b618b` is the current source baseline. It follows checkpoint `299ae96`
-  journal-bound promotion with cleanup of only the exact authenticated
-  `POINTER_TEMP_PLANNED` zero-byte orphan by its verified held handle, without
-  backup/recovery action, `.env` replacement, repair, or runtime mutation.
+  `d6ce415` is the current source baseline. It follows `53b618b` exact planned-
+  state orphan cleanup with purpose-separated encrypted exact-state environment
+  and fixed-certificate backup envelopes. Backup persistence, journal state
+  advance, restore, `.env` replacement, repair, and runtime mutation remain
+  disabled.
   After Gate A acceptance and the PR #67 merge decision, Tasks 096 and 102
   precede Task-087 Gate B normal-package integration.
 - Task-088: completed Pilot Package distribution and custody.

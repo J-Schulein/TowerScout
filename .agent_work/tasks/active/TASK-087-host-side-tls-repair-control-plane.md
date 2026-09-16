@@ -49,13 +49,17 @@ remain open. Independently reviewed and exact-head validated checkpoint
 `53b618b` removes only the exact zero-byte orphan authorized by the
 authenticated `POINTER_TEMP_PLANNED` record through a verified held handle; it
 does not clean `POINTER_TEMP_CREATED` or expand recovery authority.
+Independently reviewed and exact-head validated checkpoint `d6ce415` adds
+purpose-separated encrypted exact-state environment and fixed-certificate
+backup envelopes bound to the journal stream, without backup persistence,
+recovery action, or mutation authority.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Two substantive implementation/proof checkpoints and
-approximately 3-6 additional PR #67 commits from `53b618b` to Gate A source
+approximately 3-6 additional PR #67 commits from `d6ce415` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -1420,6 +1424,44 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Encrypted Exact-State Backup Envelopes Checkpointed
+
+**Objective**: Define the purpose-separated encrypted exact-state backup
+contract without creating backup files or enabling recovery action.
+
+**Context**: Pointer creation, promotion, and bounded plan-only orphan cleanup
+are checkpointed, but the approved durable recovery design requires exact prior
+environment and certificate state before `rollback_armed` can precede mutation.
+
+**Decision**: Bind environment and fixed-certificate backup envelopes to the
+complete journal stream. Preserve exact bytes or an explicit absence marker;
+preserve Windows file attributes and a security descriptor for an existing
+environment file; preserve mode for each existing fixed certificate file; and
+use distinct current-user DPAPI purposes.
+
+**Execution**: Implementation checkpoint
+`d6ce41578cd752aa6477d642c71c4db142cada16` adds strict canonical codecs,
+purpose-bound sealed models, expected-stream replay rejection, bounded content
+and metadata validation, redacted representations, and adversarial tests. It
+does not persist backup files, add journal states, restore data, replace
+`.env`, invoke repair, or mutate runtime state.
+
+**Output**: Exact prior environment and certificate states can be sealed and
+authenticated in memory for the future write-ahead recovery flow without
+expanding current mutation authority.
+
+**Validation**: Focused backup tests pass `10/10`; adjacent backup/journal/
+protected-state tests pass `47/47`; and the complete launcher suite passes
+`1731/1731`. Black, strict mypy, blocking Flake8, medium/high Bandit,
+compilation, editor diagnostics, secret scanning, and `git diff --check` pass.
+Two independent reviews returned `CLEAN/PASS` with no actionable Low-or-higher
+findings. Exact-head CI/CD run `35126475641`, Task-087 run `35126475645`, and
+Trivy passed; the main-only build was neutral as designed.
+
+**Next**: Persist unpredictable opaque backup names in authenticated
+`backup_preparing` state before any create-only backup-file adapter can consume
+those exact names. Keep restore and mutation disabled.
 
 ### 2026-09-16 - Exact Planned Pointer Orphan Cleanup Checkpointed
 

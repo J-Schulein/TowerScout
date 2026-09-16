@@ -41,7 +41,10 @@ move evidence. Independently reviewed and exact-head validated checkpoint
 `53b618b` removes only the exact empty orphan authorized by an authenticated
 `POINTER_TEMP_PLANNED` record through verified held-handle deletion. Backups,
 full recovery states, `.env` replacement, transaction refactoring, provider-
-installer completion, and final proof remain.
+installer completion, and final proof remain. Independently reviewed and exact-
+head validated checkpoint `d6ce415` adds purpose-separated encrypted exact-
+state environment and fixed-certificate backup envelopes bound to the journal
+stream. Backup persistence and every recovery action remain disabled.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -62,13 +65,12 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `53b618b` is pushed, independently
-  reviewed, and exact-head validated. It follows checkpoint `299ae96` pointer
-  promotion by removing only the exact empty orphan authorized by an
-  authenticated `POINTER_TEMP_PLANNED` record, using a verified no-follow held
-  handle and proving absence after close. It does not clean a
-  `POINTER_TEMP_CREATED` source, create backups, perform recovery, replace
-  `.env`, or mutate repair/runtime state. PR #67 remains Draft.
+- Task-087 implementation checkpoint `d6ce415` is pushed, independently
+  reviewed, and exact-head validated. It follows `53b618b` planned-state orphan
+  cleanup with purpose-separated encrypted exact-state environment and fixed-
+  certificate backup envelopes bound to one journal stream. It does not
+  persist backup files, advance recovery state, restore data, replace `.env`,
+  or mutate repair/runtime state. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated

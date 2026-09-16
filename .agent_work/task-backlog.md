@@ -8,7 +8,10 @@ validated implementation checkpoint `299ae96` promotes only the exact
 authenticated pointer temp after source and prior-destination verification and
 requires exact completed-move evidence. Exact-head validated checkpoint
 `53b618b` removes only the authenticated planned-state zero-byte orphan by its
-verified held handle. Backups, full recovery states, `.env` replacement, and
+verified held handle. Exact-head validated checkpoint `d6ce415` adds encrypted,
+purpose-separated exact-state environment and fixed-certificate backup
+envelopes bound to the journal stream, without persistence or restore
+authority. Backup persistence, full recovery states, `.env` replacement, and
 runtime mutation remain disabled. The expected remaining PR
 #67 path is two substantive checkpoints and approximately 3-6 actual commits,
 with environment-dependent Windows
