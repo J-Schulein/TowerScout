@@ -287,6 +287,30 @@ def test_append_and_restart_load_authenticate_complete_chain() -> None:
     assert not restarted.active
 
 
+def test_held_root_append_does_not_reacquire_root() -> None:
+    protection = _Protection()
+    stream, generations = _sealed_chain(protection)
+    root = _Root()
+    backend = _Storage(root)
+
+    persisted = root.run_journal_storage(
+        lambda root_path: (
+            storage.append_persisted_environment_journal_generation_from_held_root(
+                root_path,
+                generations[0],
+                stream=stream,
+                storage=backend,
+                protection=protection,
+            )
+        )
+    )
+
+    assert root.calls == 1
+    assert persisted.selection.tip.sequence == 1
+    assert persisted.selection.tip_generation_sha256 == generations[0].generation_sha256
+    assert not root.active
+
+
 def test_empty_stream_loads_without_creating_storage() -> None:
     root = _Root()
     backend = _Storage(root)

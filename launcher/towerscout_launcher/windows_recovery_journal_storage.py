@@ -552,42 +552,84 @@ def append_persisted_environment_journal_generation(
     ):
         _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
 
-    def append(root_path: str) -> PersistedEnvironmentJournalChain:
-        previous = _load_while_root_held(root_path, stream, storage, protection)
-        existing = () if previous is None else previous.sealed_generations
-        expected = select_environment_journal_chain(
-            existing + (sealed,),
-            None,
-            expected_stream=stream,
-            protection=protection,
-        )
-        if expected.tip_generation_sha256 != sealed.generation_sha256:
-            _fail(RecoveryJournalStorageErrorCode.WRITE_FAILED)
-        name = _generation_name(stream.journal_id, expected.tip.sequence)
-        written = _storage_call(
-            storage,
-            "create_generation",
+    return _run_under_root(
+        root,
+        lambda root_path: _append_while_root_held(
             root_path,
-            name,
-            sealed.protected_blob.ciphertext,
-            code=RecoveryJournalStorageErrorCode.WRITE_FAILED,
-        )
-        if (
-            type(written) is not StoredJournalGenerationFile
-            or written.contents != sealed.protected_blob.ciphertext
-            or (previous is not None and written.identity in previous.file_identities)
-        ):
-            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
-        verified = _load_while_root_held(root_path, stream, storage, protection)
-        if (
-            verified is None
-            or verified.selection.generation_sha256s != expected.generation_sha256s
-            or verified.file_identities[-1] != written.identity
-        ):
-            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
-        return verified
+            sealed,
+            stream,
+            storage,
+            protection,
+        ),
+    )
 
-    return _run_under_root(root, append)
+
+def _append_while_root_held(
+    root_path: str,
+    sealed: SealedEnvironmentJournalGeneration,
+    stream: JournalStreamIdentity,
+    storage: JournalGenerationStoragePort,
+    protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    previous = _load_while_root_held(root_path, stream, storage, protection)
+    existing = () if previous is None else previous.sealed_generations
+    expected = select_environment_journal_chain(
+        existing + (sealed,),
+        None,
+        expected_stream=stream,
+        protection=protection,
+    )
+    if expected.tip_generation_sha256 != sealed.generation_sha256:
+        _fail(RecoveryJournalStorageErrorCode.WRITE_FAILED)
+    name = _generation_name(stream.journal_id, expected.tip.sequence)
+    written = _storage_call(
+        storage,
+        "create_generation",
+        root_path,
+        name,
+        sealed.protected_blob.ciphertext,
+        code=RecoveryJournalStorageErrorCode.WRITE_FAILED,
+    )
+    if (
+        type(written) is not StoredJournalGenerationFile
+        or written.contents != sealed.protected_blob.ciphertext
+        or (previous is not None and written.identity in previous.file_identities)
+    ):
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    verified = _load_while_root_held(root_path, stream, storage, protection)
+    if (
+        verified is None
+        or verified.selection.generation_sha256s != expected.generation_sha256s
+        or verified.file_identities[-1] != written.identity
+    ):
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    return verified
+
+
+def append_persisted_environment_journal_generation_from_held_root(
+    root_path: str,
+    sealed: SealedEnvironmentJournalGeneration,
+    *,
+    stream: JournalStreamIdentity,
+    storage: JournalGenerationStoragePort,
+    protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Append one generation through a root path already held by the caller."""
+
+    if (
+        type(root_path) is not str
+        or not root_path
+        or type(sealed) is not SealedEnvironmentJournalGeneration
+        or type(stream) is not JournalStreamIdentity
+    ):
+        _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+    return _append_while_root_held(
+        root_path,
+        sealed,
+        stream,
+        storage,
+        protection,
+    )
 
 
 __all__ = [
@@ -600,6 +642,7 @@ __all__ = [
     "StoredJournalGenerationFile",
     "StoredJournalPointerFile",
     "append_persisted_environment_journal_generation",
+    "append_persisted_environment_journal_generation_from_held_root",
     "ensure_persisted_environment_journal_pointer",
     "load_persisted_environment_journal_chain",
     "load_persisted_environment_journal_chain_from_held_root",

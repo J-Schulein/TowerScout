@@ -35,6 +35,7 @@ _MAX_JSON_NODES = 256
 _MAX_JSON_STRING_CHARACTERS = 1_024
 _MAX_CHAIN_CANDIDATES = 64
 _MAX_SEQUENCE = 2**63 - 1
+_MAX_PROTECTED_BACKUP_BYTES = 4 * 1024 * 1024
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _JOURNAL_ID = re.compile(r"^[0-9a-f]{32}$")
 _BACKUP_NAME = re.compile(r"^recovery-backup-[0-9a-f]{32}\.blob$")
@@ -118,6 +119,7 @@ class JournalStreamIdentity:
 
 class EnvironmentJournalState(str, Enum):
     BACKUP_PREPARING = "backup_preparing"
+    BACKUP_VERIFIED = "backup_verified"
     ENVIRONMENT_TEMP_PLANNED = "environment_temp_planned"
     ENVIRONMENT_TEMP_CREATED = "environment_temp_created"
     ENVIRONMENT_TEMP_VERIFIED = "environment_temp_verified"
@@ -209,15 +211,60 @@ class BackupPreparingRecord:
         )
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class BackupVerifiedRecord:
+    schema_version: int
+    preparing_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    environment_backup_identity: StableFileIdentity = field(repr=False)
+    environment_ciphertext_sha256: str = field(repr=False)
+    environment_ciphertext_size: int
+    certificate_backup_identity: StableFileIdentity = field(repr=False)
+    certificate_ciphertext_sha256: str = field(repr=False)
+    certificate_ciphertext_size: int
+
+    def __post_init__(self) -> None:
+        identities = (
+            self.package_root_identity,
+            self.environment_backup_identity,
+            self.certificate_backup_identity,
+        )
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.preparing_generation_sha256)
+            or any(type(identity) is not StableFileIdentity for identity in identities)
+            or len(set(identities)) != len(identities)
+            or not _valid_hash(self.environment_ciphertext_sha256)
+            or type(self.environment_ciphertext_size) is not int
+            or not 1 <= self.environment_ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
+            or not _valid_hash(self.certificate_ciphertext_sha256)
+            or type(self.certificate_ciphertext_size) is not int
+            or not 1 <= self.certificate_ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
+        ):
+            raise ValueError("Verified backup record is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "BackupVerifiedRecord("
+            f"environment_ciphertext_size={self.environment_ciphertext_size}, "
+            f"certificate_ciphertext_size={self.certificate_ciphertext_size}, "
+            "<redacted>)"
+        )
+
+
 EnvironmentTempJournalRecord = (
     EnvironmentTempPlanRecord
     | EnvironmentTempCreatedRecord
     | EnvironmentTempVerifiedRecord
 )
-EnvironmentJournalRecord = BackupPreparingRecord | EnvironmentTempJournalRecord
+EnvironmentJournalRecord = (
+    BackupPreparingRecord | BackupVerifiedRecord | EnvironmentTempJournalRecord
+)
 
 _RECORD_TYPE_BY_STATE: dict[EnvironmentJournalState, type[object]] = {
     EnvironmentJournalState.BACKUP_PREPARING: BackupPreparingRecord,
+    EnvironmentJournalState.BACKUP_VERIFIED: BackupVerifiedRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED: EnvironmentTempPlanRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED: EnvironmentTempCreatedRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED: EnvironmentTempVerifiedRecord,
@@ -516,6 +563,22 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             "package_root_identity": _identity_to_json(record.package_root_identity),
             "schema_version": record.schema_version,
         }
+    if type(record) is BackupVerifiedRecord:
+        return {
+            "certificate_backup_identity": _identity_to_json(
+                record.certificate_backup_identity
+            ),
+            "certificate_ciphertext_sha256": record.certificate_ciphertext_sha256,
+            "certificate_ciphertext_size": record.certificate_ciphertext_size,
+            "environment_backup_identity": _identity_to_json(
+                record.environment_backup_identity
+            ),
+            "environment_ciphertext_sha256": record.environment_ciphertext_sha256,
+            "environment_ciphertext_size": record.environment_ciphertext_size,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "preparing_generation_sha256": record.preparing_generation_sha256,
+            "schema_version": record.schema_version,
+        }
     environment_record = cast(EnvironmentTempJournalRecord, record)
     common: dict[str, Any] = {
         "candidate_sha256": environment_record.candidate_sha256,
@@ -581,6 +644,34 @@ def _record_from_json(
             item["ca_bundle_present"],
             item["ca_bundle_sha256"],
             item["ca_bundle_mode"],
+        )
+    if state is EnvironmentJournalState.BACKUP_VERIFIED:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "certificate_backup_identity",
+                    "certificate_ciphertext_sha256",
+                    "certificate_ciphertext_size",
+                    "environment_backup_identity",
+                    "environment_ciphertext_sha256",
+                    "environment_ciphertext_size",
+                    "package_root_identity",
+                    "preparing_generation_sha256",
+                    "schema_version",
+                }
+            ),
+        )
+        return BackupVerifiedRecord(
+            item["schema_version"],
+            item["preparing_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            _identity_from_json(item["environment_backup_identity"]),
+            item["environment_ciphertext_sha256"],
+            item["environment_ciphertext_size"],
+            _identity_from_json(item["certificate_backup_identity"]),
+            item["certificate_ciphertext_sha256"],
+            item["certificate_ciphertext_size"],
         )
     common = frozenset(
         {
@@ -788,9 +879,22 @@ def _validate_record_continuity(
     plan = generations[0].generation.record
     if type(plan) is BackupPreparingRecord:
         if (
-            len(generations) != 1
-            or plan.package_root_identity
+            plan.package_root_identity
             != generations[0].generation.stream.package_root_identity
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 1:
+            return
+        if len(generations) != 2:
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        verified_generation = generations[1]
+        verified = verified_generation.generation.record
+        if (
+            type(verified) is not BackupVerifiedRecord
+            or verified_generation.generation.previous_generation_sha256
+            != generations[0].generation_sha256
+            or verified.preparing_generation_sha256 != generations[0].generation_sha256
+            or verified.package_root_identity != plan.package_root_identity
         ):
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         return
@@ -857,13 +961,17 @@ def select_environment_journal_chain(
     if len(set(digests)) != len(digests):
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
     ordered = tuple(sorted(generations, key=lambda item: item.generation.sequence))
+    backup_states = (
+        EnvironmentJournalState.BACKUP_PREPARING,
+        EnvironmentJournalState.BACKUP_VERIFIED,
+    )
     environment_temp_states = (
         EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
         EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED,
         EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED,
     )
     observed_states = tuple(item.generation.state for item in ordered)
-    valid_states = observed_states == (EnvironmentJournalState.BACKUP_PREPARING,) or (
+    valid_states = observed_states == backup_states[: len(ordered)] or (
         observed_states == environment_temp_states[: len(ordered)]
     )
     if (
@@ -911,6 +1019,7 @@ def select_environment_journal_chain(
 
 __all__ = [
     "BackupPreparingRecord",
+    "BackupVerifiedRecord",
     "EnvironmentJournalChainSelection",
     "EnvironmentJournalGeneration",
     "EnvironmentJournalPointer",

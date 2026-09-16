@@ -1,13 +1,15 @@
-"""Native create-only storage for encrypted Windows recovery backup blobs.
+"""Native exact-file storage for encrypted Windows recovery backup blobs.
 
 The adapter writes one already-protected blob under its exact planned leaf,
 then verifies identity, bytes, locality, file type, and the protected current-
-user/SYSTEM DACL on the creation handle and a no-follow reopen. It has no list,
-delete, move, replace, restore, or mutation-adjacent operation.
+user/SYSTEM DACL on the creation handle and a no-follow reopen. It can later
+reverify only an exact receipt and has no list, delete, move, replace, restore,
+or mutation-adjacent operation.
 """
 
 from __future__ import annotations
 
+import hashlib
 import ntpath
 import re
 from typing import Callable, NoReturn, Protocol, TypeVar
@@ -264,7 +266,9 @@ def _read_verified(
     path: str,
     current_user_sid: str,
     expected_identity: StableFileIdentity,
-    contents: bytes,
+    expected_size: int,
+    expected_sha256: str,
+    expected_contents: bytes | None = None,
 ) -> None:
     _validate_file(
         _call(
@@ -272,7 +276,7 @@ def _read_verified(
             RecoveryBackupStorageErrorCode.VERIFY_FAILED,
         ),
         expected_path=path,
-        expected_size=len(contents),
+        expected_size=expected_size,
         expected_identity=expected_identity,
     )
     _validate_security(
@@ -282,7 +286,12 @@ def _read_verified(
         ),
         current_user_sid,
     )
-    if _read_exact(api, handle, len(contents)) != contents:
+    contents = _read_exact(api, handle, expected_size)
+    if (
+        expected_contents is not None
+        and contents != expected_contents
+        or hashlib.sha256(contents).hexdigest() != expected_sha256
+    ):
         _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
     _validate_file(
         _call(
@@ -290,7 +299,7 @@ def _read_verified(
             RecoveryBackupStorageErrorCode.VERIFY_FAILED,
         ),
         expected_path=path,
-        expected_size=len(contents),
+        expected_size=expected_size,
         expected_identity=expected_identity,
     )
     _validate_security(
@@ -303,7 +312,7 @@ def _read_verified(
 
 
 class NativeWindowsRecoveryBackupBlobStorage:
-    """Create and fully verify one exact encrypted backup blob."""
+    """Create or reverify one exact encrypted backup blob."""
 
     __slots__ = ("_api",)
 
@@ -375,7 +384,9 @@ class NativeWindowsRecoveryBackupBlobStorage:
                 path=path,
                 current_user_sid=current_user_sid,
                 expected_identity=identity,
-                contents=blob.ciphertext,
+                expected_size=len(blob.ciphertext),
+                expected_sha256=blob.ciphertext_sha256,
+                expected_contents=blob.ciphertext,
             )
             _call(
                 lambda: self._api.close_handle(handle),
@@ -400,7 +411,9 @@ class NativeWindowsRecoveryBackupBlobStorage:
                 path=path,
                 current_user_sid=current_user_sid,
                 expected_identity=identity,
-                contents=blob.ciphertext,
+                expected_size=len(blob.ciphertext),
+                expected_sha256=blob.ciphertext_sha256,
+                expected_contents=blob.ciphertext,
             )
             _call(
                 lambda: self._api.close_handle(reopened),
@@ -417,6 +430,57 @@ class NativeWindowsRecoveryBackupBlobStorage:
                 identity,
                 blob.ciphertext_sha256,
                 len(blob.ciphertext),
+            )
+        except ValueError:
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+
+    def verify_backup_blob(
+        self,
+        root_path: str,
+        expected: StoredRecoveryBackupBlob,
+    ) -> StoredRecoveryBackupBlob:
+        supported = _call(
+            lambda: self._api.supported,
+            RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE)
+        if type(expected) is not StoredRecoveryBackupBlob:
+            _fail(RecoveryBackupStorageErrorCode.INPUT_INVALID)
+        path = _backup_path(root_path, expected.name)
+        current_user_sid = _current_user_sid(self._api)
+        reopened = _call(
+            lambda: self._api.reopen_file_for_verification(path),
+            RecoveryBackupStorageErrorCode.VERIFY_FAILED,
+        )
+        if reopened is None:
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        reopened_handle: object | None = reopened
+        try:
+            _read_verified(
+                self._api,
+                reopened,
+                path=path,
+                current_user_sid=current_user_sid,
+                expected_identity=expected.identity,
+                expected_size=expected.ciphertext_size,
+                expected_sha256=expected.ciphertext_sha256,
+            )
+            _call(
+                lambda: self._api.close_handle(reopened),
+                RecoveryBackupStorageErrorCode.VERIFY_FAILED,
+            )
+            reopened_handle = None
+        finally:
+            if reopened_handle is not None:
+                _safe_close(self._api, reopened_handle)
+        try:
+            return StoredRecoveryBackupBlob(
+                expected.name,
+                expected.purpose,
+                expected.identity,
+                expected.ciphertext_sha256,
+                expected.ciphertext_size,
             )
         except ValueError:
             _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)

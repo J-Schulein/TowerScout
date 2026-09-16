@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 from dataclasses import dataclass
@@ -63,6 +64,7 @@ class _Api:
         self._supported = True
         self.supported_error: BaseException | None = None
         self.create_error: BaseException | None = None
+        self.reopen_error: BaseException | None = None
         self.identity = _identity("11")
         self.reopened_identity = self.identity
         self.contents = b""
@@ -106,6 +108,8 @@ class _Api:
     def reopen_file_for_verification(self, path: str) -> object:
         assert path == _PATH
         self.events.append("reopen")
+        if self.reopen_error is not None:
+            raise self.reopen_error
         return _Handle(self.reopened_identity, True)
 
     def query_file(self, handle: object) -> NativeFileFacts:
@@ -199,6 +203,97 @@ def test_native_blob_create_flushes_and_verifies_both_handles() -> None:
     assert api.events.count("write") > 1
     assert api.events.count("query") == 5
     assert api.events.count("security") == 5
+
+
+def test_native_blob_reverifies_exact_receipt_without_create() -> None:
+    api = _Api()
+    api.contents = _CIPHERTEXT
+    adapter = native.NativeWindowsRecoveryBackupBlobStorage(api=api)
+    expected = storage.StoredRecoveryBackupBlob(
+        _NAME,
+        ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+        api.identity,
+        hashlib.sha256(_CIPHERTEXT).hexdigest(),
+        len(_CIPHERTEXT),
+    )
+
+    verified = adapter.verify_backup_blob(_ROOT, expected)
+
+    assert verified == expected
+    assert "create" not in api.events
+    assert api.events.count("reopen") == 1
+    assert api.events.count("query") == 2
+    assert api.events.count("security") == 2
+
+
+@pytest.mark.parametrize(
+    ("change", "value"),
+    (
+        ("reopened_identity", _identity("22")),
+        ("reopened_path", rf"{_ROOT}\other.blob"),
+        ("contents", b"x" * len(_CIPHERTEXT)),
+        (
+            "reopened_security",
+            NativeSecurityFacts(
+                owner_sid=_USER_SID,
+                dacl_present=True,
+                allowed_aces=(AccessAllowedAce(_USER_SID, 0x001F01FF, 0),),
+                dacl_protected=True,
+            ),
+        ),
+    ),
+)
+def test_native_blob_reverification_rejects_exact_receipt_drift(
+    change: str,
+    value: object,
+) -> None:
+    api = _Api()
+    api.contents = _CIPHERTEXT
+    setattr(api, change, value)
+    adapter = native.NativeWindowsRecoveryBackupBlobStorage(api=api)
+    expected = storage.StoredRecoveryBackupBlob(
+        _NAME,
+        ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+        api.identity,
+        hashlib.sha256(_CIPHERTEXT).hexdigest(),
+        len(_CIPHERTEXT),
+    )
+
+    with pytest.raises(storage.RecoveryBackupStorageError) as failure:
+        adapter.verify_backup_blob(_ROOT, expected)
+
+    assert failure.value.code is storage.RecoveryBackupStorageErrorCode.VERIFY_FAILED
+    assert "create" not in api.events
+
+
+def test_native_blob_reverification_failure_is_sanitized_and_control_propagates() -> (
+    None
+):
+    expected = storage.StoredRecoveryBackupBlob(
+        _NAME,
+        ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+        _identity("11"),
+        hashlib.sha256(_CIPHERTEXT).hexdigest(),
+        len(_CIPHERTEXT),
+    )
+    api = _Api()
+    api.contents = _CIPHERTEXT
+    api.reopen_error = OSError("private verification path")
+    adapter = native.NativeWindowsRecoveryBackupBlobStorage(api=api)
+
+    with pytest.raises(storage.RecoveryBackupStorageError) as failure:
+        adapter.verify_backup_blob(_ROOT, expected)
+    assert failure.value.code is storage.RecoveryBackupStorageErrorCode.VERIFY_FAILED
+    assert "private" not in str(failure.value)
+
+    interruption = KeyboardInterrupt()
+    api = _Api()
+    api.contents = _CIPHERTEXT
+    api.reopen_error = interruption
+    adapter = native.NativeWindowsRecoveryBackupBlobStorage(api=api)
+    with pytest.raises(KeyboardInterrupt) as raised:
+        adapter.verify_backup_blob(_ROOT, expected)
+    assert raised.value is interruption
 
 
 def test_native_blob_rejects_untrusted_inputs_before_create() -> None:
