@@ -1,9 +1,10 @@
 """Fresh-process planning for authenticated Windows rollback.
 
-This Gate-A layer may reverify the exact encrypted backups and advance an
-authenticated journal from ``rollback_armed`` through
-``environment_restore_temp_planned``. It cannot restore backups, create or
-clean artifacts, replace package files, or mutate a runtime.
+This Gate-A layer may reverify the exact encrypted backups, advance an
+authenticated journal through ``environment_restore_temp_created``, and create
+only that plan's zero-byte environment restore temp. It cannot write restore
+content, replace or remove package files, clean completed transaction artifacts,
+or mutate a runtime.
 """
 
 from __future__ import annotations
@@ -29,11 +30,17 @@ from .windows_recovery_backup_storage import (
     RecoveryBackupStorageErrorCode,
     StoredRecoveryBackupBlob,
 )
+from .windows_recovery_environment_storage import (
+    EnvironmentRestoreTempStoragePort,
+    RecoveryEnvironmentStorageError,
+    RecoveryEnvironmentStorageErrorCode,
+)
 from .windows_recovery_journal import (
     BackupPreparingRecord,
     BackupVerifiedRecord,
     EnvironmentJournalGeneration,
     EnvironmentJournalState,
+    EnvironmentRestoreTempCreatedRecord,
     EnvironmentRestoreTempPlanRecord,
     JournalPointerDisposition,
     JournalProtectionPort,
@@ -54,6 +61,8 @@ from .windows_recovery_journal_storage import (
     ensure_persisted_environment_journal_pointer_from_held_root,
     load_persisted_environment_journal_chain_from_held_root,
 )
+from .windows_path_trust import PathHierarchyTrust, PathTrustPurpose
+from .windows_security import StableFileIdentity, WindowsSecurityError
 
 _Result = TypeVar("_Result")
 
@@ -301,6 +310,69 @@ def _backup_summaries_match(
         )
         and preparing.ca_bundle_mode == certificates.ca_bundle.mode
     )
+
+
+def _assert_held_package_root(
+    package_root: PathHierarchyTrust,
+    stream: JournalStreamIdentity,
+) -> None:
+    if (
+        type(package_root) is not PathHierarchyTrust
+        or package_root.evidence.purpose is not PathTrustPurpose.PACKAGE_ROOT
+        or package_root.evidence.root_identity != stream.package_root_identity
+    ):
+        _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+    try:
+        package_root.assert_unchanged_while_held()
+    except WindowsSecurityError:
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+
+
+def _create_environment_restore_temp(
+    storage: EnvironmentRestoreTempStoragePort,
+    package_root: PathHierarchyTrust,
+    plan: EnvironmentRestoreTempPlanRecord,
+) -> StableFileIdentity:
+    try:
+        identity = storage.create_environment_restore_temp_from_held_package_root(
+            package_root,
+            plan,
+        )
+    except RecoveryEnvironmentStorageError as exc:
+        if exc.code is RecoveryEnvironmentStorageErrorCode.STORAGE_UNAVAILABLE:
+            _fail(WindowsRecoveryErrorCode.STORAGE_UNAVAILABLE)
+        if exc.code is RecoveryEnvironmentStorageErrorCode.CREATE_FAILED:
+            _fail(WindowsRecoveryErrorCode.WRITE_FAILED)
+        if exc.code is RecoveryEnvironmentStorageErrorCode.INPUT_INVALID:
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+    except Exception:
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+    if type(identity) is not StableFileIdentity:
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+    return identity
+
+
+def _verify_environment_restore_temp(
+    storage: EnvironmentRestoreTempStoragePort,
+    package_root: PathHierarchyTrust,
+    created: EnvironmentRestoreTempCreatedRecord,
+) -> None:
+    try:
+        identity = storage.verify_environment_restore_temp_from_held_package_root(
+            package_root,
+            created,
+        )
+    except RecoveryEnvironmentStorageError as exc:
+        if exc.code is RecoveryEnvironmentStorageErrorCode.STORAGE_UNAVAILABLE:
+            _fail(WindowsRecoveryErrorCode.STORAGE_UNAVAILABLE)
+        if exc.code is RecoveryEnvironmentStorageErrorCode.INPUT_INVALID:
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+    except Exception:
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+    if type(identity) is not StableFileIdentity or identity != created.temp_identity:
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
 
 
 class EnvironmentRestoreTempNameSource(Protocol):
@@ -616,9 +688,176 @@ def plan_persisted_environment_restore(
     return _run_under_root(root, authenticate_and_plan)
 
 
+def create_persisted_environment_restore_temp_from_held_package_root(
+    *,
+    stream: JournalStreamIdentity,
+    package_root: PathHierarchyTrust,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    environment_storage: EnvironmentRestoreTempStoragePort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Persist generation 6 while the caller holds the matching package root.
+
+    This creates or reverifies only the planned zero-byte temp. It does not write
+    restore content, replace ``.env``, or activate any repair/runtime operation.
+    """
+
+    if (
+        type(stream) is not JournalStreamIdentity
+        or not callable(
+            getattr(
+                environment_storage,
+                "create_environment_restore_temp_from_held_package_root",
+                None,
+            )
+        )
+        or not callable(
+            getattr(
+                environment_storage,
+                "verify_environment_restore_temp_from_held_package_root",
+                None,
+            )
+        )
+    ):
+        _fail(WindowsRecoveryErrorCode.INPUT_INVALID)
+    _assert_held_package_root(package_root, stream)
+
+    def create_and_record(root_path: str) -> PersistedEnvironmentJournalChain:
+        _assert_held_package_root(package_root, stream)
+        chain = _load_chain(root_path, stream, journal_storage, journal_protection)
+        generations = chain.selection.generations
+        if (
+            len(generations) not in {5, 6}
+            or generations[4].state
+            is not EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_PLANNED
+            or type(generations[4].record) is not EnvironmentRestoreTempPlanRecord
+            or (
+                len(generations) == 6
+                and (
+                    chain.selection.tip.state
+                    is not EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_CREATED
+                    or type(chain.selection.tip.record)
+                    is not EnvironmentRestoreTempCreatedRecord
+                )
+            )
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        plan = generations[4].record
+
+        if len(generations) == 5:
+            planned_current = _ensure_pointer(
+                root_path,
+                stream,
+                generation_storage=journal_storage,
+                pointer_storage=pointer_storage,
+                protection=journal_protection,
+            )
+            if (
+                planned_current.selection.tip != generations[4]
+                or planned_current.selection.tip_generation_sha256
+                != chain.selection.tip_generation_sha256
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            temp_identity = (
+                _create_environment_restore_temp(
+                    environment_storage,
+                    package_root,
+                    plan,
+                )
+                if plan.environment_present
+                else None
+            )
+            _assert_held_package_root(package_root, stream)
+            try:
+                record = EnvironmentRestoreTempCreatedRecord(
+                    1,
+                    planned_current.selection.tip_generation_sha256,
+                    plan.package_root_identity,
+                    plan.environment_backup_identity,
+                    plan.environment_ciphertext_sha256,
+                    plan.environment_ciphertext_size,
+                    plan.environment_present,
+                    plan.environment_sha256,
+                    plan.environment_size,
+                    plan.environment_file_attributes,
+                    plan.environment_security_descriptor_sha256,
+                    plan.temp_name,
+                    temp_identity,
+                )
+                generation = EnvironmentJournalGeneration(
+                    1,
+                    stream,
+                    6,
+                    planned_current.selection.tip_generation_sha256,
+                    EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_CREATED,
+                    record,
+                )
+                sealed = protect_environment_journal_generation(
+                    generation,
+                    protection=journal_protection,
+                )
+            except (RecoveryJournalError, ValueError):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            try:
+                chain = append_persisted_environment_journal_generation_from_held_root(
+                    root_path,
+                    sealed,
+                    stream=stream,
+                    storage=journal_storage,
+                    protection=journal_protection,
+                )
+            except RecoveryJournalStorageError as exc:
+                if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                    _fail(WindowsRecoveryErrorCode.STORAGE_UNAVAILABLE)
+                if exc.code is RecoveryJournalStorageErrorCode.WRITE_FAILED:
+                    _fail(WindowsRecoveryErrorCode.WRITE_FAILED)
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            except RecoveryJournalError:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            if (
+                chain.selection.tip != generation
+                or chain.selection.tip_generation_sha256 != sealed.generation_sha256
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        else:
+            created = chain.selection.tip.record
+            if type(created) is not EnvironmentRestoreTempCreatedRecord:
+                _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+            if created.environment_present:
+                _verify_environment_restore_temp(
+                    environment_storage,
+                    package_root,
+                    created,
+                )
+            _assert_held_package_root(package_root, stream)
+
+        created_current = _ensure_pointer(
+            root_path,
+            stream,
+            generation_storage=journal_storage,
+            pointer_storage=pointer_storage,
+            protection=journal_protection,
+        )
+        if (
+            len(created_current.selection.generations) != 6
+            or created_current.selection.tip.state
+            is not EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_CREATED
+            or created_current.selection.tip_generation_sha256
+            != chain.selection.tip_generation_sha256
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        _assert_held_package_root(package_root, stream)
+        return created_current
+
+    return _run_under_root(root, create_and_record)
+
+
 __all__ = [
     "WindowsRecoveryError",
     "WindowsRecoveryErrorCode",
     "begin_persisted_rollback",
+    "create_persisted_environment_restore_temp_from_held_package_root",
     "plan_persisted_environment_restore",
 ]

@@ -22,6 +22,17 @@ from towerscout_launcher.windows_protected_state import (  # noqa: E402
     CurrentUserProtectedBlob,
     ProtectedDataPurpose,
 )
+from towerscout_launcher.windows_path_trust import (  # noqa: E402
+    NativeDirectoryFacts,
+    NativeSecurityFacts,
+    PathHierarchyTrust,
+    PathTrustPurpose,
+    capture_path_hierarchy,
+)
+from towerscout_launcher.windows_recovery_environment_storage import (  # noqa: E402
+    RecoveryEnvironmentStorageError,
+    RecoveryEnvironmentStorageErrorCode,
+)
 from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
 
 _Result = TypeVar("_Result")
@@ -87,6 +98,71 @@ class _EnvironmentTempNameSource:
     def new_environment_temp_name(self) -> str:
         self.calls += 1
         return f".towerscout-env-{self.calls:032x}.tmp"
+
+
+class _PackagePathApi:
+    supported = True
+
+    def current_user_sid(self) -> str:
+        return "S-1-5-21-1000"
+
+    def open_directory(self, path: str, *, follow_reparse: bool) -> object:
+        del follow_reparse
+        return path
+
+    def query_directory(self, handle: object) -> NativeDirectoryFacts:
+        assert isinstance(handle, str)
+        file_id = (
+            _identity(7).file_id
+            if handle.casefold() == r"C:\Users\reviewed-user\TowerScout".casefold()
+            else hashlib.sha256(handle.casefold().encode("utf-16-le")).digest()[:16]
+        )
+        return NativeDirectoryFacts(handle, 7, file_id, 0x10, 3, 1, 0)
+
+    def query_security(self, handle: object) -> NativeSecurityFacts:
+        assert isinstance(handle, str)
+        return NativeSecurityFacts(self.current_user_sid(), True, ())
+
+    def close_handle(self, handle: object) -> None:
+        assert isinstance(handle, str)
+
+
+class _EnvironmentStorage:
+    def __init__(self) -> None:
+        self.identity = _identity(50)
+        self.created: list[journal.EnvironmentRestoreTempPlanRecord] = []
+        self.verified: list[journal.EnvironmentRestoreTempCreatedRecord] = []
+        self.create_error: RecoveryEnvironmentStorageError | None = None
+        self.verification_identity: StableFileIdentity | None = None
+
+    def create_environment_restore_temp_from_held_package_root(
+        self,
+        package_root: PathHierarchyTrust,
+        plan: journal.EnvironmentRestoreTempPlanRecord,
+    ) -> StableFileIdentity:
+        package_root.assert_unchanged_while_held()
+        self.created.append(plan)
+        if self.create_error is not None:
+            raise self.create_error
+        return self.identity
+
+    def verify_environment_restore_temp_from_held_package_root(
+        self,
+        package_root: PathHierarchyTrust,
+        created: journal.EnvironmentRestoreTempCreatedRecord,
+    ) -> StableFileIdentity:
+        package_root.assert_unchanged_while_held()
+        self.verified.append(created)
+        assert created.temp_identity is not None
+        return self.verification_identity or created.temp_identity
+
+
+def _package_root() -> PathHierarchyTrust:
+    return capture_path_hierarchy(
+        r"C:\Users\reviewed-user\TowerScout",
+        purpose=PathTrustPurpose.PACKAGE_ROOT,
+        api=_PackagePathApi(),
+    )
 
 
 class _Root:
@@ -1478,6 +1554,238 @@ def test_plan_environment_restore_repairs_pointer_without_duplicate_plan() -> No
     record = planned.selection.tip.record
     assert type(record) is journal.EnvironmentRestoreTempPlanRecord
     assert record.temp_name == ".towerscout-env-" + "0" * 31 + "1.tmp"
+
+
+def test_create_environment_restore_temp_records_exact_identity_and_repairs_pointer() -> (
+    None
+):
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    _persist_and_activate_rollback(
+        protection,
+        stream,
+        environment,
+        certificates,
+        root,
+        generations,
+        blobs,
+    )
+    recovery.begin_persisted_rollback(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+    recovery.plan_persisted_environment_restore(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+        name_source=_EnvironmentTempNameSource(),
+    )
+    package_root = _package_root()
+    environment_storage = _EnvironmentStorage()
+    generations.fail_pointer_replace = OSError("private created pointer path")
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            package_root.run_while_held(
+                lambda: recovery.create_persisted_environment_restore_temp_from_held_package_root(
+                    stream=stream,
+                    package_root=package_root,
+                    root=root,
+                    journal_storage=generations,
+                    pointer_storage=generations,
+                    environment_storage=environment_storage,
+                    journal_protection=protection,
+                )
+            )
+
+        assert failure.value.code is recovery.WindowsRecoveryErrorCode.WRITE_FAILED
+        assert "private" not in str(failure.value)
+        assert len(generations.files) == 6
+        assert len(environment_storage.created) == 1
+        generations.fail_pointer_replace = None
+        environment_storage.verification_identity = _identity(51)
+
+        with pytest.raises(recovery.WindowsRecoveryError) as verification_failure:
+            package_root.run_while_held(
+                lambda: recovery.create_persisted_environment_restore_temp_from_held_package_root(
+                    stream=stream,
+                    package_root=package_root,
+                    root=root,
+                    journal_storage=generations,
+                    pointer_storage=generations,
+                    environment_storage=environment_storage,
+                    journal_protection=protection,
+                )
+            )
+
+        assert verification_failure.value.code is (
+            recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
+        )
+        assert len(generations.files) == 6
+        assert len(environment_storage.created) == 1
+        environment_storage.verification_identity = None
+
+        created = package_root.run_while_held(
+            lambda: recovery.create_persisted_environment_restore_temp_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                environment_storage=environment_storage,
+                journal_protection=protection,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert len(generations.files) == 6
+    assert len(environment_storage.created) == 1
+    assert len(environment_storage.verified) == 2
+    assert created.selection.pointer_disposition is (
+        journal.JournalPointerDisposition.CURRENT
+    )
+    record = created.selection.tip.record
+    assert type(record) is journal.EnvironmentRestoreTempCreatedRecord
+    assert record.planned_generation_sha256 == created.selection.generation_sha256s[4]
+    assert record.temp_identity == environment_storage.identity
+
+
+def test_create_environment_restore_temp_records_absence_without_storage_call() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(
+        protection,
+        environment_contents=None,
+    )
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    _persist_and_activate_rollback(
+        protection,
+        stream,
+        environment,
+        certificates,
+        root,
+        generations,
+        blobs,
+    )
+    recovery.begin_persisted_rollback(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+    recovery.plan_persisted_environment_restore(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+        name_source=_EnvironmentTempNameSource(),
+    )
+    package_root = _package_root()
+    environment_storage = _EnvironmentStorage()
+    try:
+        created = package_root.run_while_held(
+            lambda: recovery.create_persisted_environment_restore_temp_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                environment_storage=environment_storage,
+                journal_protection=protection,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert environment_storage.created == []
+    assert environment_storage.verified == []
+    record = created.selection.tip.record
+    assert type(record) is journal.EnvironmentRestoreTempCreatedRecord
+    assert not record.environment_present
+    assert record.temp_name is None
+    assert record.temp_identity is None
+
+
+def test_create_environment_restore_temp_preserves_plan_on_create_failure() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    _persist_and_activate_rollback(
+        protection,
+        stream,
+        environment,
+        certificates,
+        root,
+        generations,
+        blobs,
+    )
+    recovery.begin_persisted_rollback(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+    recovery.plan_persisted_environment_restore(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+        name_source=_EnvironmentTempNameSource(),
+    )
+    package_root = _package_root()
+    environment_storage = _EnvironmentStorage()
+    environment_storage.create_error = RecoveryEnvironmentStorageError(
+        RecoveryEnvironmentStorageErrorCode.CREATE_FAILED
+    )
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            package_root.run_while_held(
+                lambda: recovery.create_persisted_environment_restore_temp_from_held_package_root(
+                    stream=stream,
+                    package_root=package_root,
+                    root=root,
+                    journal_storage=generations,
+                    pointer_storage=generations,
+                    environment_storage=environment_storage,
+                    journal_protection=protection,
+                )
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.WRITE_FAILED
+    assert len(generations.files) == 5
+    assert generations.pointer is not None
+    assert (
+        journal.decode_environment_journal_pointer(
+            generations.pointer.contents
+        ).sequence
+        == 5
+    )
 
 
 def test_rollback_armed_preserves_verified_on_second_blob_failure() -> None:
