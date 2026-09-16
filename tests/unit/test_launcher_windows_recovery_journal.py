@@ -217,6 +217,29 @@ def _environment_restore_temp_plan_record(
     )
 
 
+def _environment_restore_temp_created_record(
+    planned_generation_sha256: str,
+    planned: journal.EnvironmentRestoreTempPlanRecord,
+) -> journal.EnvironmentRestoreTempCreatedRecord:
+    return journal.EnvironmentRestoreTempCreatedRecord(
+        schema_version=1,
+        planned_generation_sha256=planned_generation_sha256,
+        package_root_identity=planned.package_root_identity,
+        environment_backup_identity=planned.environment_backup_identity,
+        environment_ciphertext_sha256=planned.environment_ciphertext_sha256,
+        environment_ciphertext_size=planned.environment_ciphertext_size,
+        environment_present=planned.environment_present,
+        environment_sha256=planned.environment_sha256,
+        environment_size=planned.environment_size,
+        environment_file_attributes=planned.environment_file_attributes,
+        environment_security_descriptor_sha256=(
+            planned.environment_security_descriptor_sha256
+        ),
+        temp_name=planned.temp_name,
+        temp_identity=_identity(31),
+    )
+
+
 def _seal(
     generation: journal.EnvironmentJournalGeneration,
     protection: _Protection,
@@ -964,6 +987,281 @@ def test_environment_restore_temp_planned_rejects_drift_and_invalid_shape() -> N
         assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
 
 
+def test_environment_restore_temp_created_round_trip_is_bound_and_redacted() -> None:
+    protection = _Protection()
+    stream = _stream()
+    preparing_record = _backup_preparing_record()
+    prepared = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            1,
+            journal.GENESIS_GENERATION_SHA256,
+            journal.EnvironmentJournalState.BACKUP_PREPARING,
+            preparing_record,
+        ),
+        protection,
+    )
+    verified_record = _backup_verified_record(prepared.generation_sha256)
+    verified = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            2,
+            prepared.generation_sha256,
+            journal.EnvironmentJournalState.BACKUP_VERIFIED,
+            verified_record,
+        ),
+        protection,
+    )
+    armed_record = _rollback_armed_record(verified.generation_sha256, verified_record)
+    armed = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            3,
+            verified.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_ARMED,
+            armed_record,
+        ),
+        protection,
+    )
+    started_record = _rollback_started_record(armed.generation_sha256, armed_record)
+    started = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            4,
+            armed.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_STARTED,
+            started_record,
+        ),
+        protection,
+    )
+    planned_record = _environment_restore_temp_plan_record(
+        started.generation_sha256,
+        started_record,
+        preparing_record,
+    )
+    planned = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            5,
+            started.generation_sha256,
+            journal.EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_PLANNED,
+            planned_record,
+        ),
+        protection,
+    )
+    record = _environment_restore_temp_created_record(
+        planned.generation_sha256,
+        planned_record,
+    )
+    created_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        6,
+        planned.generation_sha256,
+        journal.EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_CREATED,
+        record,
+    )
+    created = _seal(created_generation, protection)
+
+    selection = journal.select_environment_journal_chain(
+        (prepared, verified, armed, started, planned, created),
+        _pointer(stream, created, 6),
+        expected_stream=stream,
+        protection=protection,
+    )
+
+    assert selection.tip == created_generation
+    assert selection.pointer_disposition is journal.JournalPointerDisposition.CURRENT
+    rendered = repr(record) + repr(created_generation) + repr(selection)
+    assert record.planned_generation_sha256 not in rendered
+    assert record.environment_ciphertext_sha256 not in rendered
+    assert record.environment_sha256 not in rendered
+    assert record.temp_name not in rendered
+    assert repr(record.temp_identity) not in rendered
+
+
+def test_environment_restore_temp_created_supports_absent_original() -> None:
+    record = journal.EnvironmentRestoreTempCreatedRecord(
+        1,
+        "1" * 64,
+        _identity(7),
+        _identity(21),
+        "2" * 64,
+        101,
+        False,
+    )
+
+    assert record.environment_sha256 is None
+    assert record.environment_size is None
+    assert record.temp_name is None
+    assert record.temp_identity is None
+
+
+def test_environment_restore_temp_created_requires_identity_when_present() -> None:
+    with pytest.raises(ValueError):
+        journal.EnvironmentRestoreTempCreatedRecord(
+            1,
+            "1" * 64,
+            _identity(7),
+            _identity(21),
+            "2" * 64,
+            101,
+            True,
+            "3" * 64,
+            17,
+            0x20,
+            "4" * 64,
+            ".towerscout-env-" + "a" * 32 + ".tmp",
+            None,
+        )
+
+
+def test_environment_restore_temp_created_rejects_drift_and_invalid_shape() -> None:
+    with pytest.raises(ValueError):
+        journal.EnvironmentRestoreTempCreatedRecord(
+            1,
+            "1" * 64,
+            _identity(7),
+            _identity(21),
+            "2" * 64,
+            101,
+            True,
+            "3" * 64,
+            17,
+            0x20,
+            "4" * 64,
+            ".towerscout-env-" + "a" * 32 + ".tmp",
+            _identity(21),
+        )
+
+    protection = _Protection()
+    stream = _stream()
+    preparing_record = _backup_preparing_record()
+    prepared = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            1,
+            journal.GENESIS_GENERATION_SHA256,
+            journal.EnvironmentJournalState.BACKUP_PREPARING,
+            preparing_record,
+        ),
+        protection,
+    )
+    verified_record = _backup_verified_record(prepared.generation_sha256)
+    verified = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            2,
+            prepared.generation_sha256,
+            journal.EnvironmentJournalState.BACKUP_VERIFIED,
+            verified_record,
+        ),
+        protection,
+    )
+    armed_record = _rollback_armed_record(verified.generation_sha256, verified_record)
+    armed = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            3,
+            verified.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_ARMED,
+            armed_record,
+        ),
+        protection,
+    )
+    started_record = _rollback_started_record(armed.generation_sha256, armed_record)
+    started = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            4,
+            armed.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_STARTED,
+            started_record,
+        ),
+        protection,
+    )
+    planned_record = _environment_restore_temp_plan_record(
+        started.generation_sha256,
+        started_record,
+        preparing_record,
+    )
+    planned = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            5,
+            started.generation_sha256,
+            journal.EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_PLANNED,
+            planned_record,
+        ),
+        protection,
+    )
+    valid = _environment_restore_temp_created_record(
+        planned.generation_sha256,
+        planned_record,
+    )
+    drifted = journal.EnvironmentRestoreTempCreatedRecord(
+        1,
+        planned.generation_sha256,
+        valid.package_root_identity,
+        valid.environment_backup_identity,
+        valid.environment_ciphertext_sha256,
+        valid.environment_ciphertext_size,
+        valid.environment_present,
+        "8" * 64,
+        valid.environment_size,
+        valid.environment_file_attributes,
+        valid.environment_security_descriptor_sha256,
+        valid.temp_name,
+        valid.temp_identity,
+    )
+    for previous_sha256, record in (
+        (planned.generation_sha256, drifted),
+        (
+            "7" * 64,
+            _environment_restore_temp_created_record(
+                planned.generation_sha256,
+                planned_record,
+            ),
+        ),
+        (
+            planned.generation_sha256,
+            _environment_restore_temp_created_record(
+                "7" * 64,
+                planned_record,
+            ),
+        ),
+    ):
+        created = _seal(
+            journal.EnvironmentJournalGeneration(
+                1,
+                stream,
+                6,
+                previous_sha256,
+                journal.EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_CREATED,
+                record,
+            ),
+            protection,
+        )
+        with pytest.raises(journal.RecoveryJournalError) as failure:
+            journal.select_environment_journal_chain(
+                (prepared, verified, armed, started, planned, created),
+                None,
+                expected_stream=stream,
+                protection=protection,
+            )
+        assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+
+
 def test_backup_preparing_rejects_inconsistent_state_and_names() -> None:
     with pytest.raises(ValueError):
         journal.BackupPreparingRecord(
@@ -1150,6 +1448,37 @@ def test_schema_versions_require_exact_integers() -> None:
                 "d" * 64,
                 37,
                 ".towerscout-env-" + "e" * 32 + ".tmp",
+            )
+        with pytest.raises(ValueError):
+            journal.EnvironmentRestoreTempPlanRecord(
+                invalid,
+                "3" * 64,
+                _identity(7),
+                _identity(21),
+                "4" * 64,
+                101,
+                True,
+                "5" * 64,
+                17,
+                0x20,
+                "6" * 64,
+                ".towerscout-env-" + "a" * 32 + ".tmp",
+            )
+        with pytest.raises(ValueError):
+            journal.EnvironmentRestoreTempCreatedRecord(
+                invalid,
+                "7" * 64,
+                _identity(7),
+                _identity(21),
+                "4" * 64,
+                101,
+                True,
+                "5" * 64,
+                17,
+                0x20,
+                "6" * 64,
+                ".towerscout-env-" + "a" * 32 + ".tmp",
+                _identity(31),
             )
         with pytest.raises(ValueError):
             journal.EnvironmentJournalGeneration(
