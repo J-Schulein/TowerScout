@@ -91,15 +91,34 @@ interval. It selects generation 3 before appending and selecting generation 4
 `rollback_started` at most once; retry from generation 4 only verifies and
 repairs its pointer. It adds no restore, cleanup, `.env` replacement,
 certificate write, repair, or runtime authority.
+Independently reviewed and exact-head validated checkpoint `56ba458` adds
+fresh-process environment-restore planning. It reads both exact encrypted
+backups through held-handle verification under one protected-root interval,
+authenticates both against the durable stream, matches their complete summaries
+to generation 1, and appends and selects generation 5
+`environment_restore_temp_planned` at most once. An originally present `.env`
+is bound to one unpredictable same-directory temp name; secure absence records
+no temp name. Retry performs no append or name generation and only repairs the
+exact planned pointer. It adds no file creation, restore, cleanup, `.env`
+replacement, certificate write, repair, or runtime authority.
+Independently reviewed and exact-head validated checkpoint `a37cf8a`, built through
+`ec2e2d5`, `5b337a7`, `30e7529`, `cc5183a`, and `51f0673`, adds the strict
+generation-6 created-state schema, native zero-byte restore-temp creation and
+verification, authenticated journal-stream discovery, package-bound cross-
+protocol classification, and mandatory scan evidence before target-lock
+acquisition. Provider-environment pending state blocks; repair pending state is
+retained only as read-only owner evidence. Generation-6 orchestration remains
+unwired. No restore, cleanup, `.env` replacement, certificate write, repair, or
+runtime mutation is enabled.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: One substantive implementation/proof checkpoint and
-approximately 1-3 additional PR #67 commits from `b12280d` to Gate A source
-acceptance, including likely review corrections and evidence reconciliation;
-Windows revocation or runtime recovery findings may increase the count
+**Estimated Effort**: Rebaseline after `a37cf8a` against the fixed acceptance
+criteria rather than commit count. Generation-6 orchestration, remaining
+recovery/transaction integration, provider `.env` hardening, successful Windows
+trust proof, final exact-head review, and the PR #67 decision remain
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
 and the canonical October roadmap
 **Created**: 2026-06-29
@@ -1462,6 +1481,93 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Mandatory Package Recovery Scan Checkpointed
+
+**Objective**: Require authenticated package recovery evidence before retaining
+the target lock while keeping every recovery action and mutation disabled.
+
+**Context**: Checkpoint `56ba458` durably planned generation 5. The next source
+sequence needed the generation-6 zero-byte storage primitive and one package-
+bound view of all pending repair and provider-environment journal streams under
+the existing package/`.env`-before-target lock order.
+
+**Decision**: Keep filenames as routing hints only and authenticate every
+discovered journal. Bind classification to the held package-root identity. Run
+the scan after package/`.env` lock acquisition and before target-lock
+acquisition. Block provider-environment pending state; retain repair pending
+state only as immutable owner evidence for later recovery orchestration.
+
+**Execution**: Checkpoints `ec2e2d5` and `5b337a7` add the strict generation-6
+`environment_restore_temp_created` schema and native zero-byte temp creation/
+reconciliation under held package-root trust. Checkpoint `30e7529` adds the
+pre-target scan hook. Checkpoint `cc5183a` authenticates discovery of every
+repair journal stream. Checkpoint `51f0673` classifies repair and provider-
+environment chains by package identity. Checkpoint
+`a37cf8ab903a06492f418f61e7d58122bb1e0ab6` makes typed scan evidence mandatory
+at every retained-lock factory, validates package identity, blocks provider
+pending state, retains repair evidence, clears it on close, and releases any
+unexpected lock pair returned without scan evidence.
+
+**Output**: A retained transaction-lock owner cannot exist without one
+authenticated package-bound recovery scan. The implementation remains read-
+only beyond zero-byte temp creation; generation-6 orchestration is not wired.
+
+**Validation**: The focused mutex/transaction-owner suite passes `100/100`; the
+complete launcher suite passes `1838/1838`. Black, configured Flake8, strict
+mypy, Bandit, compilation, editor diagnostics, and diff checks pass.
+Independent review found no defect in the new integration. Exact-head CI/CD run
+`35157843681`, Task-087 run `35157843639`, and Trivy passed; the main-only build
+is neutral as designed.
+
+**Next**: Implement generation-6 orchestration from the authenticated
+generation-5 plan through the native zero-byte storage port. Do not write
+restore content, replace or remove `.env`, clean artifacts, write certificates,
+activate repair, or mutate runtime state.
+
+### 2026-09-16 - Environment Restore Planning Checkpointed
+
+**Objective**: Persist the first rollback-action write-ahead state from exact
+authenticated backup authority without creating or restoring a package file.
+
+**Context**: Checkpoint `b12280d` durably admits rollback through generation 4
+`rollback_started`. Recovery next needed to prove that both encrypted backups
+remain exact and decrypt to the generation-1 summaries before choosing any
+same-directory `.env` restore-temp name.
+
+**Decision**: Read both exact backup blobs through held-handle path, identity,
+hash, and DACL verification under one protected-root interval. Authenticate
+both against the journal stream and require complete environment/certificate
+summary equality. Persist generation 5 with one unpredictable temp name only
+for an originally present `.env`; represent secure absence with no temp name.
+On retry, append nothing and only verify or repair the exact generation-5
+pointer.
+
+**Execution**: Implementation checkpoint
+`56ba4580f5ddaae70702354adb12f7869d14ecca` adds the redacted
+`EnvironmentRestoreTempPlanRecord`, strict five-generation continuity, a
+narrow exact-ciphertext read port over the existing native no-follow verifier,
+and `plan_persisted_environment_restore()`. Tests cover canonical round-trip,
+receipt/summary/continuity drift, present and absent originals, fresh adapter
+reconstruction, both read-failure positions, authentication failure, and
+pointer retry without duplicate generation or name.
+
+**Output**: A fresh process can now durably select the exact environment
+restore plan while retaining both encrypted backups and performing no package
+or runtime mutation.
+
+**Validation**: Focused recovery tests pass `89/89`; the adjacent recovery ring
+passes `238/238`; and the complete launcher suite passes `1802/1802`. Black,
+strict mypy, blocking Flake8, medium/high Bandit, compilation, editor
+diagnostics, secret review, and indexed diff checks pass. Final independent
+review returned `CLEAN/PASS` with no blocking or material finding. Exact-head
+CI/CD run `35151950273`, Task-087 run `35151950269`, and Trivy passed; the
+main-only build was neutral as designed.
+
+**Next**: Add generation 6 `environment_restore_temp_created` behind the
+approved package/`.env` and target ownership order, preserving exact planned-
+orphan classification and keeping `.env` write/replacement, cleanup, repair,
+and runtime mutation disabled.
 
 ### 2026-09-16 - Fresh-Process Rollback Admission Checkpointed
 

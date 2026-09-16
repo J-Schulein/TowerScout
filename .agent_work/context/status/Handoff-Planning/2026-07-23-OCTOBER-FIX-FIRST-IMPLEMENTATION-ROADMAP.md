@@ -18,15 +18,17 @@ describes Task-096 as Stop-only.
 
 1. Finish Task-087 Gate A source implementation, exact-head validation and
   independent re-review, then make the PR #67 merge decision. The current
-  validated implementation head is `b12280d`; it accepts only the exact
-  authenticated three- or four-generation chain, derives both expected backup
-  receipts only from durable records, freshly reverifies both exact DPAPI
-  ciphertext blobs under one held protected-root interval, and durably admits
-  rollback through generation 4 `rollback_started` at most once. Retry repairs
-  only the exact started pointer. It grants no restore, cleanup, `.env`
-  replacement, certificate-write, repair, or runtime-mutation authority. The
-  remaining planning estimate is one substantive checkpoint and approximately
-  1-3 actual PR #67 commits.
+  independently reviewed and exact-head validated implementation head is
+  `a37cf8a`. CI/CD run `35157843681`, Task-087 run `35157843639`, and Trivy
+  passed; the main-only build is neutral as designed. The intervening
+  checkpoints add strict
+  generation-6 schema/native zero-byte restore-temp storage and mandatory
+  authenticated package recovery scanning after the package/`.env` lock and
+  before target-lock acquisition. Provider pending blocks; repair pending is
+  retained only as read-only evidence. Generation-6 orchestration and every
+  restore, cleanup, `.env` replacement, certificate-write, repair, and runtime-
+  mutation authority remain disabled. Rebaseline remaining effort against the
+  fixed Gate A acceptance criteria rather than the prior commit-count estimate.
 2. Complete Task-096 native state-driven Start/Open/Stop/Restart using the
   accepted exact-target, execution, coordination, recovery, and sanitization
   contracts. Do not add this work to PR #67.

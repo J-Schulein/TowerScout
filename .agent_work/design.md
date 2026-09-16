@@ -496,6 +496,32 @@ selects the exact armed tip, then appends and selects generation 4
 verifies or repairs the exact started pointer. No decryption, restore, cleanup,
 `.env` replacement, certificate write, repair, or runtime mutation is added.
 
+Independently reviewed and exact-head validated checkpoint `56ba458` adds the
+first rollback-action write-ahead state without applying it. A fresh process
+reads both exact encrypted blobs through held-handle path/identity/hash/DACL
+verification, authenticates both backups against the durable stream, and
+matches their complete summaries to generation 1 before appending and selecting
+generation 5 `environment_restore_temp_planned`. An originally present `.env`
+is bound to one unpredictable same-directory temp name and its exact original
+hash/size/security summary; secure absence records no temp name. Retry repairs
+only the exact generation-5 pointer without a duplicate generation or name. No
+temp file is created and no restore, cleanup, package-file, certificate, repair,
+or runtime mutation is added.
+
+Independently reviewed and exact-head validated checkpoint `a37cf8a` advances the
+read-only recovery boundary without applying that plan. The chain through
+`ec2e2d5` and `5b337a7` defines generation 6
+`environment_restore_temp_created` and a native storage primitive that creates
+or reconciles only the planned zero-byte restore temp under held package-root
+trust. The chain through `30e7529`, `cc5183a`, and `51f0673` discovers and
+authenticates all journal streams, classifies repair and provider-environment
+protocols by package identity, and scans after the package/`.env` mutex but
+before target-lock acquisition. Checkpoint `a37cf8a` makes that typed scan
+evidence mandatory for every retained transaction lock, blocks provider-
+environment pending state, and retains repair pending state only as immutable
+owner evidence. Generation-6 orchestration remains unwired; no restore content,
+cleanup, replacement, certificate write, repair, or runtime mutation is added.
+
 ## Launcher Front-Door Design Boundary
 
 Task-087 Gate A establishes the accepted exact-target, native execution,

@@ -2,10 +2,12 @@
 
 **As Of**: September 16, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `b12280d769eb01ac735ec0e6550fc09c963b9f2c`
-**Validated Exact Head**: `b12280d769eb01ac735ec0e6550fc09c963b9f2c`
+**Implementation Head**: `a37cf8ab903a06492f418f61e7d58122bb1e0ab6`
+**Validated Exact Head**: `a37cf8ab903a06492f418f61e7d58122bb1e0ab6`
+**Remote Exact-Head Status**: CI/CD run `35157843681`, Task-087 run
+`35157843639`, and Trivy passed; the main-only build is neutral as designed.
 **Local Candidate**: Evidence reconciliation only; no uncommitted source
-candidate
+candidate.
 **Current Checkpoint**: Slices 2-3 exact-target confirmation wiring complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
 hosts, so slice 4 remains partial. Slice 5 has independently reviewed
@@ -178,6 +180,15 @@ adjacent recovery ring passes `227/227`, and the complete launcher suite passes
 `1792/1792`. CI/CD run `35148213698`, Task-087 run `35148213864`, and Trivy
 passed; the main-only build is neutral as designed. No restore, cleanup, `.env`
 replacement, certificate write, repair, or runtime mutation is enabled.
+Pushed checkpoint `a37cf8a`, built through `ec2e2d5`, `5b337a7`, `30e7529`,
+`cc5183a`, and `51f0673`, adds the strict generation-6 created-state schema,
+native zero-byte restore-temp creation/verification, authenticated discovery
+and package-bound cross-protocol classification, and mandatory scan evidence
+after package/`.env` lock acquisition but before target-lock acquisition.
+Provider-environment recovery blocks target acquisition; repair recovery is
+retained only as read-only owner evidence. Generation-6 orchestration remains
+unwired, and no restore, cleanup, `.env` replacement, certificate write,
+repair, or runtime mutation is enabled.
 **Draft PR**: [#67](https://github.com/J-Schulein/TowerScout/pull/67)
 **Overall State**: IN_PROGRESS / Gate A source implementation
 **Gate A Exit**: NOT MET
@@ -223,6 +234,13 @@ Status in this file answers four separate questions:
 | 7 | Transaction refactor | **NOT STARTED** | The older prototype transaction and historical live evidence remain available as behavior references only. | Refactor `repair.py` to consume the immutable resolved target and recovery manager, remove process-memory-only backup and unchecked rollback, and enforce pre-write/pre-restart/terminal revalidation. |
 | 8 | Provider installer hardening | **PARTIAL** | Historical checkpoint `3990bc0` closed provider dependency/wheel reproducibility and version verification. Independently reviewed checkpoint `7a0c35a` makes the installed `site-packages` inventory deterministic and provider-only by replacing pip-added metadata with the exact retained wheel inventory, prevents wrapper/bootstrap drift, and suppresses bytecode across the current PowerShell provider path. Its ambient Python compatibility probe is not authentication. | Reuse the protected atomic `.env` contract, change only `PODMAN_COMPOSE_PROVIDER`, remove persistent whole-file plaintext backup/output, and add crash/orphan reconciliation. |
 | 9 | Gate A source validation and review | **VALIDATION CONTINUES** | Every completed increment has focused tests and independent review. Secure-absence checkpoint `14b77e4` passed its exact-head gates. Pure-planner checkpoint `0efeff7` passes `47/47` focused and `1536/1536` launcher tests plus static checks and independent source review. Staging checkpoint `1c45445` passes `24/24` focused tests, including real Windows ctypes and retained-native-handle smokes, and `169/169` adjacent tests plus focused static/security checks and independent review. Checkpoint `8bb6b33` passes `26/26` focused journal, `152/152` adjacent, and `155/155` isolated late-launcher tests plus focused static/security checks and CLEAN/PASS corrected-diff independent review. Its exact-head CI/CD run `35010304611`, Task-087 run `35010304675`, and Trivy passed. Documentation checkpoint `e86c41c` passed exact-head CI/CD run `35011029262`, Task-087 run `35011029309`, and Trivy; both main-only builds skipped as designed. Independently reviewed checkpoint `53bed46` passes `20/20` focused, `164/164` adjacent, and `167/167` isolated late-launcher tests plus focused static/security checks and CLEAN/PASS review with no actionable Low-or-higher findings. Its exact-head CI/CD run `35013069183`, Task-087 run `35013069124`, and Trivy passed; the main-only build was neutral as designed. Documentation checkpoint `2e0f90e` passed exact-head CI/CD run `35014300773`, Task-087 run `35014300816`, and Trivy. Independently reviewed checkpoint `4a96dd2` passes `18/18` focused, `182/182` adjacent, and `185/185` isolated late-launcher tests plus focused static/security checks, a real Windows round trip, and two CLEAN/PASS reviews with no actionable Low-or-higher findings. Its exact-head CI/CD run `35016174147`, Task-087 run `35016174145`, and Trivy passed; the main-only build was neutral as designed. Independently reviewed checkpoint `221612c` passes `19/19` focused, `192/192` adjacent, and `195/195` isolated late-launcher tests plus focused static/security checks and final CLEAN/PASS review. Its exact-head CI/CD run `35019327044`, Task-087 run `35019327058`, and Trivy passed; the main-only build was neutral as designed. Independently reviewed checkpoint `95ca37d` passes `32/32` focused, `206/206` adjacent, and `209/209` isolated late-launcher tests plus a real Windows replacement round trip, focused static/security checks, and final CLEAN/PASS review. Its exact-head CI/CD run `35021545053`, Task-087 run `35021545062`, and Trivy passed; the main-only build was neutral as designed. | After slices 2-8 are integrated, run the final broad/adversarial set, fresh-process recovery, isolated Docker CPU then approved rootless-Podman CPU mutation/recovery, OneDrive and two-session Windows proofs, all-volume verification, exact-head workflows, and final independent review. |
+
+**Current-head correction for slices 5-6**: The generation-6 zero-byte restore-
+temp storage primitive and package-bound cross-protocol scan are now
+checkpointed through `a37cf8a`. Any earlier row text that lists those primitives
+as wholly open is superseded by this correction. Generation-6 orchestration,
+content write/verification, actual restore, cleanup, native destination
+replacement, and end-to-end recovery/transaction integration remain open.
 
 **Slice 9 validation ledger continuation**: Independently reviewed checkpoint
 `ebb9d69` passes `39/39` focused, `105/105` adjacent, and `1647/1647` complete
@@ -355,6 +373,34 @@ blobs under one held protected-root interval, and appends and selects generation
 not restore or clean data, replace `.env`, write certificates, authorize repair,
 or mutate runtime state.
 
+**Slice 9 validation ledger continuation**: Independently reviewed and exact-
+head validated checkpoint `56ba458` passes `89/89` focused recovery tests,
+`238/238` adjacent recovery tests, and `1802/1802` complete launcher tests.
+Black, strict mypy, blocking Flake8, medium/high Bandit, compilation, editor
+diagnostics, secret review, and indexed diff checks pass. Final independent
+review returned `CLEAN/PASS` with no blocking or material finding. Exact-head
+CI/CD run `35151950273`, Task-087 run `35151950269`, and Trivy passed; the
+main-only build was neutral as designed. This checkpoint reads both exact
+encrypted backups through held-handle verification under one protected-root
+interval, authenticates them against the journal stream, matches their complete
+summaries to generation 1, and appends and selects generation 5
+`environment_restore_temp_planned` at most once. It records one unpredictable
+temp name only when the original `.env` existed; secure absence records no temp
+name. Retry repairs only the exact planned pointer without another append or
+name. It creates or restores no file and performs no cleanup, `.env`
+replacement, certificate write, repair, or runtime mutation.
+
+**Slice 9 validation ledger continuation**: Pushed and independently reviewed
+checkpoint `a37cf8a` passes `100/100` focused mutex/transaction-owner tests and
+`1838/1838` complete launcher tests. Black, configured Flake8, strict mypy,
+Bandit, compilation, editor diagnostics, and `git diff --check` pass. The
+review found no defect in the new scan integration; one observation concerned
+an unchanged mutex cleanup helper whose concrete close contract already
+normalizes failures. GitHub reports the Task-087, frontend, security, and Trivy
+checks pass. Exact-head CI/CD run `35157843681`, Task-087 run `35157843639`,
+and Trivy passed; the main-only build is neutral as designed. It enables no
+recovery action or mutation.
+
 ## Progress Interpretation
 
 Gate A is materially advanced but remains open. Group 1's exact-runtime and
@@ -373,7 +419,8 @@ and recovery remain. Slice 6 is now partial: independently reviewed and exact-
 head validated checkpoint `8bb6b33` adds only the pure authenticated generation/
 pointer format and fail-closed environment-temp chain selector, with all sealed
 candidates authenticated inside selection. Native persistence/enumeration,
-pointer repair, backup, recovery, cleanup, and cross-protocol scanning remain.
+pointer repair, backup, recovery, cleanup, and cross-protocol scanning remained
+open at that checkpoint.
 Checkpoint `53bed46` adds only root-owned persistence/enumeration orchestration
 over an injected file port. Independently reviewed and exact-head validated
 checkpoint `4a96dd2` adds the bounded native generation adapter with protected
@@ -408,8 +455,20 @@ pointer, with idempotent already-current behavior and safe retry after pointer-
 write failure. Independently reviewed and exact-head validated checkpoint
 `b12280d` adds fresh-process admission by appending and selecting generation 4
 `rollback_started` at most once, with exact started-pointer repair on retry.
-Remaining recovery states and action, cleanup-pending retention, and cross-
-protocol scanning remain.
+Independently reviewed and exact-head validated checkpoint `56ba458` then adds
+fresh-process generation-5 `environment_restore_temp_planned`: both exact
+backups are read and authenticated under one held root, complete summaries must
+match generation 1, and retry appends neither another generation nor another
+temp name. Environment restore-temp creation/verification, remaining recovery
+states and action, cleanup-pending retention, and cross-protocol scanning
+remain.
+Independently reviewed and exact-head validated checkpoint `a37cf8a` adds strict
+generation-6 schema/native zero-byte temp storage plus authenticated package-
+bound cross-protocol discovery and mandatory scan evidence at the retained
+transaction-lock boundary. Cross-protocol scanning is no longer open as a
+standalone primitive. Generation-6 orchestration, content write/verification,
+actual restore, cleanup-pending action, transaction integration, and provider
+`.env` hardening remain.
 The
 branch has accumulated substantial
 implementation, test, review, and documentation activity since reviewed
@@ -442,9 +501,11 @@ state definitions above.
 
 ## Next-Session Resume Point
 
-Use the checkpointed authenticated `rollback_started` state to add the remaining
-recovery states, verified rollback, cleanup-pending retention, and cross-
-protocol scanning. Retry
+Use the checkpointed generation-5 plan, generation-6 schema/native zero-byte
+storage, and mandatory package-bound scan evidence to implement generation-6
+orchestration without writing restore content or replacing `.env`. Then add the
+remaining verified rollback and cleanup-pending states and integrate the
+transaction boundary while mutation stays disabled. Retry
 slice 4's successful revocation-aware fixed-host and
 Docker/rootless-Podman containment proof only in a context able to satisfy the
 cache-only revocation policy. Do not enable repair or mutation. Then complete
@@ -478,11 +539,12 @@ Gate B resumes only after those launcher surfaces stabilize, so the normal
 release-package path integrates the intended front door once. Task-097 then
 qualifies that integrated package across Docker CPU/GPU and Podman CPU/GPU.
 
-Planning estimate from `b12280d`: one substantive Gate A implementation/proof
-checkpoint and approximately 1-3 additional PR #67 commits, including likely
-review corrections and evidence reconciliation. Windows revocation or runtime
-recovery findings can increase that count. Gate B, Task-096, Task-102, and
-Task-097 are not included in that estimate.
+Planning after `a37cf8a` must be rebaselined against the fixed acceptance
+criteria rather than the prior commit-count estimate. Generation-6
+orchestration, remaining recovery/transaction integration, provider `.env`
+hardening, successful Windows trust proof, final exact-head workflows and
+independent re-review, and the PR #67 decision remain. Gate B, Task-096,
+Task-102, and Task-097 are outside that Gate A estimate.
 
 ## Update Rules
 

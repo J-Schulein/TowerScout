@@ -100,6 +100,22 @@ The project still carries public-health workflow expectations:
   certificate writes, repair, and runtime mutation remain disabled. The
   current estimate is one substantive Gate A checkpoint and approximately 1-3
   actual PR #67 commits.
+  Independently reviewed and exact-head validated checkpoint `56ba458` reads
+  and authenticates both exact backups under one held protected-root interval,
+  matches them to generation-1 summaries, and persists and selects generation
+  5 `environment_restore_temp_planned` at most once. It records an unpredictable
+  restore-temp name only for an originally present `.env`; secure absence has
+  no temp name. Retry repairs only the exact planned pointer. File creation,
+  restore, cleanup, `.env` replacement, certificate writes, repair, and runtime
+  mutation remain disabled.
+  Independently reviewed and exact-head validated checkpoint `a37cf8a` adds the strict
+  generation-6 schema and native zero-byte restore-temp primitive, then requires
+  authenticated package recovery scan evidence after the package/`.env` lock
+  and before target-lock acquisition. Provider-environment pending state
+  blocks; repair pending state is retained only as read-only evidence. CI/CD
+  run `35157843681`, Task-087 run `35157843639`, and Trivy passed. Generation-6 orchestration and all
+  restore, cleanup, replacement, certificate-write, repair, and runtime mutation
+  remain disabled.
   Preview-integrity Gate B remains
   later. PR
   #64 and every browser/helper activation gate remain on hold.
@@ -965,6 +981,18 @@ An agent should leave with the following understanding:
   process, idempotent generation 4 `rollback_started` admission; it does not
   restore or clean data, replace `.env`, write certificates, authorize repair,
   or mutate runtime state
+- independently reviewed and exact-head validated implementation checkpoint
+  `56ba458` then reads and authenticates both exact encrypted backups under one
+  held protected-root interval, matches them to generation-1 summaries, and
+  durably records generation 5 `environment_restore_temp_planned`; retry
+  repairs only the exact planned pointer without another generation or temp
+  name, and file creation plus all restore/mutation remain disabled
+- independently reviewed and exact-head validated checkpoint `a37cf8a` adds strict
+  generation-6 schema/native zero-byte temp storage and mandatory authenticated
+  cross-protocol recovery scanning before target-lock acquisition; provider
+  pending blocks, repair pending is read-only evidence, exact-head CI/CD and
+  Task-087 runs passed, and generation-6 orchestration plus all mutation remain
+  disabled
 - after Gate A acceptance and the PR #67 merge decision, the controlling order
   is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
   package integration, and Task-097 four-profile qualification

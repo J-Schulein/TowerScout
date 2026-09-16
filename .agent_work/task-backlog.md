@@ -35,12 +35,20 @@ records, reverifies both blobs under one held root, selects generation 3 before
 append, and persists and selects generation 4 `rollback_started` at most once.
 Retry repairs only the started pointer; no restore, cleanup, `.env`
 replacement, certificate write, repair, or runtime mutation is enabled.
-The expected remaining PR #67 path from `b12280d` is one
-substantive checkpoint and approximately 1-3
-actual commits,
-with environment-dependent Windows
-revocation and Docker/
-Podman recovery findings as the principal uncertainty. After Gate A source
+Exact-head validated checkpoint `56ba458` reads and authenticates both exact
+encrypted backups under one held protected-root interval and durably records
+generation 5 `environment_restore_temp_planned`. It binds the exact original
+state and either one unpredictable restore-temp name or secure absence; retry
+repairs only the exact planned pointer without another append or name. It
+creates or restores no file and enables no cleanup, repair, or runtime mutation.
+Independently reviewed and exact-head validated checkpoint `a37cf8a` adds strict
+generation-6 schema/native zero-byte temp storage and mandatory authenticated
+cross-protocol recovery scanning before target-lock acquisition. Provider
+pending blocks; repair pending is retained only as read-only evidence. The
+remaining PR #67 path must be rebaselined against the fixed acceptance criteria,
+with generation-6 orchestration, recovery/transaction integration, provider
+`.env` hardening, and environment-dependent Windows revocation and Docker/
+Podman proof as the principal uncertainties. After Gate A source
 acceptance and the PR #67 merge decision, complete Task-096 lifecycle controls
 and Task-102 native first-run setup before resuming Task-087 Gate B normal-
 package integration. Then qualify the completed front door under Task-097,
@@ -216,7 +224,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at independently reviewed and exact-head validated checkpoint `b12280d`. Slices 1-3 are complete; slice 4 still needs successful revocation-aware fixed-host and repeated container proof. Slices 5-6 include reviewed protected state, DPAPI, exact generation/pointer storage, move reconciliation, authenticated pointer-transition/restart classification, protected transition persistence, exact pointer-temp identity binding, journal-bound promotion and orphan cleanup, encrypted exact-state backup persistence, authenticated `backup_verified`, durable generation 3 `rollback_armed`, exact armed-tip pointer activation, and fresh-process idempotent generation 4 `rollback_started` admission; remaining recovery states/actions, `.env` replacement, transaction refactor, provider `.env` hardening, and final validation remain. Mutation is disabled and PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before returning to Task-087 Gate B normal-package integration. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at independently reviewed and exact-head validated checkpoint `56ba458`. Generation 5 durably plans environment restoration from both exact authenticated backups without creating a file or enabling mutation. Slice 4 still needs successful revocation-aware fixed-host and repeated container proof; remaining recovery states/actions, cross-protocol scanning, transaction refactor, provider `.env` hardening, and final validation remain. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
 | `TASK-096` Launcher Lifecycle Controls | Backlog / NOT_STARTED. Begins only after Task-087 Gate A acceptance and the PR #67 merge decision; owns native state-driven Start/Open/Stop/Restart. |
 | `TASK-102` Native Launcher First-Run Setup | Backlog / NOT_STARTED. Begins after Task-096; owns package/asset/runtime/readiness setup and opens the browser Setup Wizard for provider keys before Task-087 Gate B. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |

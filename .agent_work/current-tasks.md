@@ -77,6 +77,26 @@ and selecting generation 4 `rollback_started`; a retry from generation 4
 verifies and repairs its pointer without a duplicate append. Restore, cleanup,
 `.env` replacement, certificate writes, repair, and every runtime mutation
 remain disabled.
+Independently reviewed and exact-head validated checkpoint `56ba458` reads and
+authenticates both exact encrypted backups under one held protected-root
+interval, matches their complete summaries to generation 1, and appends and
+selects generation 5 `environment_restore_temp_planned` at most once. An
+originally present `.env` is bound to one unpredictable same-directory temp
+name; secure absence records no temp name. Retry repairs only the exact planned
+pointer without another generation or name. It creates or restores no file and
+enables no cleanup, `.env` replacement, certificate write, repair, or runtime
+mutation.
+Exact-head validated checkpoint `a37cf8a`, built through `ec2e2d5`, `5b337a7`, `30e7529`,
+`cc5183a`, and `51f0673`, adds the strict generation-6 created-state schema,
+native zero-byte restore-temp creation/verification, authenticated discovery
+and package-bound cross-protocol classification, and mandatory scan evidence
+between package/`.env` and target lock acquisition. Provider-environment
+recovery blocks target acquisition; repair recovery is retained only as
+read-only owner evidence. The exact head passes `1838/1838` launcher tests,
+focused static/security checks, CI/CD run `35157843681`, Task-087 run
+`35157843639`, and Trivy; the main-only build is neutral as designed. No
+restore, cleanup, `.env` replacement, certificate write, repair, or runtime
+mutation is enabled.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -97,15 +117,16 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `b12280d` is pushed, independently
-  reviewed, and exact-head validated. It reloads the exact authenticated
-  three- or four-generation chain, derives both expected backup receipts only
-  from its durable records, freshly reverifies both files under the same held
-  protected root, and durably admits rollback through generation 4
-  `rollback_started` at most once. Retry verifies and repairs the exact started
-  pointer without duplicate append. It does not restore data, clean artifacts,
-  replace `.env`, write certificates, or mutate repair/runtime state. PR #67
-  remains Draft. Gate A remains open and mutation remains disabled. Detailed
+- Task-087 implementation checkpoint `a37cf8a` is pushed, independently
+  reviewed, and exact-head validated. It makes package-bound recovery
+  scanning mandatory before target-lock acquisition, blocks pending provider
+  environment recovery, and retains pending repair recovery only as read-only
+  owner evidence. Generation-6 zero-byte restore-temp creation/verification is
+  implemented but remains unwired to recovery action. It creates or restores
+  no content, cleans no
+  artifact, replaces no `.env`, writes no certificate, and mutates no repair/
+  runtime state. PR #67 remains Draft.
+  Gate A remains open and mutation remains disabled. Detailed
   status and evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
   in this release-state summary.
@@ -283,14 +304,27 @@ it reauthenticates the chain, reverifies both blobs, makes generation 3 current
 before append, and persists and selects generation 4 `rollback_started` at
 most once. Retry repairs only the started pointer. Restore, cleanup, `.env`
 replacement, certificate writes, repair, and runtime mutation remain disabled.
+Independently reviewed and exact-head validated checkpoint `56ba458` then adds
+generation 5 `environment_restore_temp_planned`. It authenticates both exact
+backups under one held root and records either one unpredictable restore-temp
+name for an originally present `.env` or a no-temp secure-absence plan. Retry
+repairs only the exact planned pointer without another generation or name. No
+file creation, restore, cleanup, `.env` replacement, certificate write, repair,
+or runtime mutation is enabled.
+Independently reviewed and exact-head validated checkpoint `a37cf8a` adds the strict
+generation-6 schema and native zero-byte restore-temp storage primitive, then
+makes authenticated package recovery scanning mandatory under the retained
+package/`.env` lock before target-lock acquisition. Provider pending blocks;
+repair pending is retained only as evidence. Recovery action and all package or
+runtime mutation remain disabled.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: From `b12280d`, one substantive implementation/proof checkpoint,
-likely 1-3 additional PR #67 commits including review corrections and evidence
-reconciliation, before Gate A source acceptance can unlock Task-096. Windows
-revocation or Docker/Podman recovery findings may add work.
+**Remaining Estimate**: Rebaseline after `a37cf8a` against the fixed acceptance
+criteria rather than commit count. Generation-6 orchestration, remaining
+recovery/transaction and provider `.env` work, successful Windows trust proof,
+final exact-head review, and the PR #67 decision still precede Task-096.
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 **Canonical Gate A Burn-Down**:
