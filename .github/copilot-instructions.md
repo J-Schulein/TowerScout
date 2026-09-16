@@ -86,9 +86,13 @@ The project still carries public-health workflow expectations:
   and exact-head validated checkpoint `deee6ab` freshly reverifies both exact
   authenticated blobs under one held-root interval and appends and
   reauthenticates generation 3 `rollback_armed`. It accepts no caller-supplied
-  receipt authority. No pointer update selects that generation, and full
-  recovery states, `.env` replacement, certificate writes, repair, and runtime
-  mutation remain disabled. The
+  receipt authority. Independently reviewed and exact-head validated checkpoint
+  `7b96a6b` reloads exactly that authenticated three-generation chain, freshly
+  reverifies both exact blobs under one held-root interval, and repairs the
+  metadata pointer to the exact generation-3 `rollback_armed` tip. A pointer
+  that is already current is verified without replacement, and a failed write
+  is safely retryable. Full recovery states, `.env` replacement, certificate
+  writes, repair, and runtime mutation remain disabled. The
   current estimate is one substantive Gate A checkpoint and approximately 1-3
   actual PR #67 commits.
   Preview-integrity Gate B remains
@@ -949,8 +953,11 @@ An agent should leave with the following understanding:
   fresh held-root reverification of both exact encrypted blobs and immutable
   authenticated generation 3 `rollback_armed` persistence; no caller-supplied
   receipt authority is accepted, partial or ambiguous artifacts remain
-  preserved, and no pointer update, recovery action, `.env` replacement,
-  certificate write, repair, or runtime mutation is enabled
+  preserved. Independently reviewed and exact-head validated checkpoint
+  `7b96a6b` freshly reverifies both exact blobs under one root hold before
+  selecting that exact armed tip through the metadata pointer; no recovery
+  action, `.env` replacement, certificate write, repair, or runtime mutation is
+  enabled
 - after Gate A acceptance and the PR #67 merge decision, the controlling order
   is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
   package integration, and Task-097 four-profile qualification

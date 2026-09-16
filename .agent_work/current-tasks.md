@@ -60,7 +60,11 @@ blobs under one held-root interval, and persists an authenticated
 sizes. Independently reviewed and exact-head validated checkpoint `deee6ab`
 freshly reverifies both exact authenticated blobs under one held-root interval
 and appends and reauthenticates generation 3 `rollback_armed` without accepting
-caller-supplied receipt authority. No pointer update selects that generation;
+caller-supplied receipt authority. Independently reviewed and exact-head
+validated checkpoint `7b96a6b` reloads exactly that authenticated chain,
+freshly reverifies both exact blobs under one held-root interval, and repairs
+the metadata pointer to the exact generation-3 `rollback_armed` tip. Activation
+is idempotent when current, and failed pointer writes are safely retryable;
 restore, cleanup, `.env` replacement, certificate writes, repair, and every
 runtime mutation remain disabled.
 No repair or mutation is enabled. Gate B preview integration and Task-100
@@ -83,13 +87,13 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `deee6ab` is pushed, independently
-  reviewed, and exact-head validated. It consumes the authenticated
-  `backup_verified` chain, reconstructs both exact expected receipts only from
+- Task-087 implementation checkpoint `7b96a6b` is pushed, independently
+  reviewed, and exact-head validated. It reloads the exact authenticated
+  three-generation chain, reconstructs both expected receipts only from its
   durable records, freshly reverifies both files under the same held protected
-  root, then appends and reauthenticates generation 3 `rollback_armed`. It does
-  not update the pointer, restore data, clean artifacts, replace `.env`, write
-  certificates, or mutate repair/runtime state. PR #67 remains Draft.
+  root, then selects the exact generation-3 `rollback_armed` tip through the
+  metadata pointer. It does not restore data, clean artifacts, replace `.env`,
+  write certificates, or mutate repair/runtime state. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -258,13 +262,16 @@ checkpoint `92acf29` adds strict `backup_verified` journal state, exact held-
 root blob rereads, and immutable generation append plus authenticated reread.
 Independently reviewed and exact-head validated checkpoint `deee6ab` adds fresh
 held-root reverification of both exact authenticated blobs and immutable
-generation 3 `rollback_armed` append plus authenticated reread. Active pointer
-selection and every recovery or mutation action remain open.
+generation 3 `rollback_armed` append plus authenticated reread. Independently
+reviewed and exact-head validated checkpoint `7b96a6b` freshly reverifies both
+exact blobs under the same root hold and repairs a missing or stale pointer to
+the exact armed tip, with idempotent already-current behavior and safe retry
+after pointer-write failure. Every recovery action and mutation remains open.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: From `deee6ab`, one substantive implementation/proof checkpoint,
+**Remaining Estimate**: From `7b96a6b`, one substantive implementation/proof checkpoint,
 likely 1-3 additional PR #67 commits including review corrections and evidence
 reconciliation, before Gate A source acceptance can unlock Task-096. Windows
 revocation or Docker/Podman recovery findings may add work.

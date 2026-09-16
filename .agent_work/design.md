@@ -474,6 +474,17 @@ duplicates its stable identities, ciphertext hashes, and sizes as arm-time
 proof. No caller-supplied receipt authority, pointer update, restore, cleanup,
 `.env` replacement, certificate write, repair, or runtime mutation is added.
 
+Independently reviewed and exact-head validated checkpoint `7b96a6b` activates
+only that authenticated armed generation. It reloads exactly the three-
+generation chain and reconstructs both expected receipts only from its durable
+records while retaining one protected-root hold, freshly reverifies both exact
+encrypted blobs, and then ensures that the metadata pointer names the exact
+generation-3 `rollback_armed` hash. Missing and generation-2 pointers use the
+existing verified write-through replacement contract; an already-current
+pointer is verified without replacement, and a failed replacement is safely
+retryable. No recovery action, cleanup, `.env` replacement, certificate write,
+repair, or runtime mutation is added.
+
 ## Launcher Front-Door Design Boundary
 
 Task-087 Gate A establishes the accepted exact-target, native execution,

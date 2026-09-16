@@ -74,13 +74,21 @@ durable records, freshly reverifies both exact blob files under one held
 protected-root interval, and appends and reauthenticates generation 3
 `rollback_armed`. It adds no pointer update, restore, cleanup, `.env`
 replacement, certificate write, repair, or runtime authority.
+Independently reviewed and exact-head validated checkpoint `7b96a6b` reloads
+exactly that authenticated three-generation chain, reconstructs both expected
+receipts only from its durable records, freshly reverifies both exact blobs
+under one held protected-root interval, and repairs the metadata pointer to the
+exact generation-3 `rollback_armed` tip. Already-current activation is
+idempotent and a failed pointer write is safely retryable. It adds no recovery
+action, cleanup, `.env` replacement, certificate write, repair, or runtime
+authority.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: One substantive implementation/proof checkpoint and
-approximately 1-3 additional PR #67 commits from `deee6ab` to Gate A source
+approximately 1-3 additional PR #67 commits from `7b96a6b` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -1445,6 +1453,49 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Rollback-Armed Pointer Activation Checkpointed
+
+**Objective**: Make only the exact authenticated generation-3
+`rollback_armed` journal tip current after freshly proving that both encrypted
+backup blobs remain unchanged.
+
+**Context**: Checkpoint `deee6ab` durably appended and reauthenticated the armed
+generation but intentionally left the active metadata pointer unchanged. A
+future recovery manager must be able to distinguish that durable state without
+accepting ambient or caller-supplied receipt authority.
+
+**Decision**: Reload exactly the authenticated three-generation chain under one
+protected-root hold, reconstruct both expected blob receipts only from the
+durable preparation and armed records, freshly reverify both exact blobs, and
+then use the existing verified pointer protocol to select the exact armed hash.
+Verify an already-current pointer without replacement and preserve safe retry
+after a failed pointer write. Do not add recovery action, cleanup, `.env`
+replacement, certificate write, repair, or runtime mutation authority.
+
+**Execution**: Implementation checkpoint
+`7b96a6b8b5a0f77667ef2476a7767795ba8242e3` adds a held-root pointer-ensure
+entry point and the activation orchestrator. Tests cover stale generation-2
+pointer repair, already-current idempotency, blob-verification failure before
+pointer mutation, and retry after a sanitized pointer-write failure.
+
+**Output**: The exact authenticated `rollback_armed` generation can now become
+the current metadata state only after both exact encrypted blobs pass a fresh
+held-root verification. This is metadata activation only and exposes no restore
+or broader mutation operation.
+
+**Validation**: Focused backup-storage tests pass `18/18`; the adjacent recovery
+ring, including `74/74` native pointer-adapter tests, passes `183/183`; and the
+complete launcher suite passes `1785/1785`. Black, strict mypy, blocking
+Flake8, medium/high Bandit, compilation, editor diagnostics, secret review, and
+indexed diff checks pass. Final independent review returned `CLEAN/PASS` with
+no blocking or material finding. Exact-head CI/CD run `35144293843`, Task-087
+run `35144293704`, and Trivy passed; the main-only build was neutral as
+designed.
+
+**Next**: Add full authenticated recovery states, fresh-process idempotent
+recovery, verified rollback, cleanup-pending retention, and cross-protocol
+scanning. Keep repair and runtime mutation disabled.
 
 ### 2026-09-16 - Durable Rollback-Armed State Checkpointed
 
