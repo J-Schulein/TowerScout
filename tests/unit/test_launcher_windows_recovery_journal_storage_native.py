@@ -29,6 +29,10 @@ from towerscout_launcher.windows_security import (  # noqa: E402
 _ROOT = r"C:\Users\reviewed-user\AppData\Local\TowerScout\Recovery\v1"
 _NAME = "journal-0123456789abcdef0123456789abcdef-00000000000000000001.generation"
 _PATH = rf"{_ROOT}\{_NAME}"
+_TRANSITION_NAME = (
+    "pointer-transition-0123456789abcdef0123456789abcdef-"
+    "00000000000000000001.generation"
+)
 _POINTER_NAME = "journal-0123456789abcdef0123456789abcdef.pointer"
 _POINTER_PATH = rf"{_ROOT}\{_POINTER_NAME}"
 _POINTER_TEMP_NAME = ".journal-pointer-fedcba9876543210fedcba9876543210.tmp"
@@ -77,6 +81,7 @@ class _Api:
         self.reopened_security: NativeSecurityFacts | None = None
         self.post_read_security: NativeSecurityFacts | None = None
         self.security_queries = 0
+        self.expected_path = _PATH
         self.final_path = _PATH
         self.reopened_path: str | None = None
         self.drive_type = 3
@@ -108,7 +113,7 @@ class _Api:
         return self.listed_names
 
     def create_new_restricted_file(self, path: str, *, owner_sid: str) -> object:
-        assert path == _PATH
+        assert path == self.expected_path
         assert owner_sid == _USER_SID
         self.events.append("create")
         if self.create_error is not None:
@@ -118,7 +123,7 @@ class _Api:
         return _Handle(self.identity, False)
 
     def reopen_file_for_verification(self, path: str) -> object:
-        assert path == _PATH
+        assert path == self.expected_path
         self.events.append("reopen")
         return _Handle(self.reopen_identity, True)
 
@@ -440,6 +445,26 @@ def test_create_generation_flushes_closes_reopens_and_rereads() -> None:
     assert api.events.index("flush") < api.events.index("reopen")
     assert api.events.count("close") == 2
     assert api.events.count("write") > 1
+
+
+def test_generation_adapter_accepts_only_supported_generation_names() -> None:
+    api = _Api()
+    api.expected_path = rf"{_ROOT}\{_TRANSITION_NAME}"
+    api.final_path = api.expected_path
+    storage = native.NativeWindowsJournalGenerationStorage(api=api)
+
+    stored = storage.create_generation(_ROOT, _TRANSITION_NAME, _CONTENTS)
+
+    assert stored.contents == _CONTENTS
+    invalid_code = RecoveryJournalStorageErrorCode.INPUT_INVALID
+    for name in (
+        "transition-" + "a" * 32 + "-00000000000000000001.generation",
+        "pointer-transition-" + "a" * 32 + "-1.generation",
+        "pointer-transition-" + "a" * 32 + "-00000000000000000001.tmp",
+    ):
+        with pytest.raises(RecoveryJournalStorageError) as invalid:
+            storage.create_generation(_ROOT, name, _CONTENTS)
+        assert invalid.value.code is invalid_code
 
 
 @pytest.mark.parametrize("failure", ("identity", "contents", "security"))

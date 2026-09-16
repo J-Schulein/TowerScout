@@ -36,7 +36,9 @@ _FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
 _FILE_ALL_ACCESS = 0x001F01FF
 _SYSTEM_SID = "S-1-5-18"
 _SID = re.compile(r"^S-(?:[0-9]+-){1,14}[0-9]+$", re.IGNORECASE)
-_GENERATION_NAME = re.compile(r"^journal-[0-9a-f]{32}-[0-9]{20}\.generation$")
+_GENERATION_NAME = re.compile(
+    r"^(?:journal|pointer-transition)-[0-9a-f]{32}-[0-9]{20}\.generation$"
+)
 _POINTER_NAME = re.compile(r"^journal-[0-9a-f]{32}\.pointer$")
 _POINTER_TEMP_NAME = re.compile(r"^\.journal-pointer-[0-9a-f]{32}\.tmp$")
 _MOVEFILE_REPLACE_EXISTING = 0x00000001
