@@ -407,6 +407,29 @@ def load_persisted_environment_journal_chain(
     )
 
 
+def load_persisted_environment_journal_chain_from_held_root(
+    root_path: str,
+    stream: JournalStreamIdentity,
+    *,
+    storage: JournalGenerationStoragePort,
+    protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain | None:
+    """Load one stream through a root path already held by the caller."""
+
+    if (
+        type(root_path) is not str
+        or not root_path
+        or type(stream) is not JournalStreamIdentity
+    ):
+        _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+    return _load_while_root_held(
+        root_path,
+        stream,
+        storage,
+        protection,
+    )
+
+
 def load_persisted_environment_journal_chain_with_pointer(
     stream: JournalStreamIdentity,
     *,
@@ -579,5 +602,6 @@ __all__ = [
     "append_persisted_environment_journal_generation",
     "ensure_persisted_environment_journal_pointer",
     "load_persisted_environment_journal_chain",
+    "load_persisted_environment_journal_chain_from_held_root",
     "load_persisted_environment_journal_chain_with_pointer",
 ]
