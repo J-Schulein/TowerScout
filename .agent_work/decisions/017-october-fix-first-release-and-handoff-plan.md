@@ -11,6 +11,14 @@ boundaries. It replaces the single candidate line with unsigned
 `v0.1.3-preview.N` prereleases followed by Task-100 production signing and
 signed `v0.1.3-rc.N` candidates in October.
 
+**Execution-Order Note (September 16, 2026)**: The canonical October roadmap
+now controls the current task sequence: finish Task-087 Gate A and make the PR
+#67 merge decision; complete Task-096 native Start/Open/Stop/Restart; complete
+Task-102 native first-run setup; resume Task-087 Gate B normal-package
+integration; then complete Task-097 Docker/Podman CPU/GPU qualification. This
+note preserves the original July decision while superseding its Stop-only
+Task-096 shorthand and any implication that Gate B immediately follows Gate A.
+
 ## Decision
 
 Keep `v0.1.2` unchanged as the active Pilot Package while developing and

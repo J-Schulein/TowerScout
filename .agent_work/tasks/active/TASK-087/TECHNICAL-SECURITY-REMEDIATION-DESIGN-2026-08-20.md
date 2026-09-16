@@ -714,6 +714,16 @@ keeps mutation disabled until its prerequisite is complete.
     preview acceptance, complete the separate normal-user package/download
     evidence and independent artifact re-review.
 
+September 16 execution-order clarification: items 1-9 remain the fixed PR #67
+Gate A source scope. After Gate A source acceptance and the PR #67 merge
+decision, complete Task-096 native Start/Open/Stop/Restart and Task-102 native
+first-run setup before returning to items 10-11. This does not change a Gate A
+requirement; it prevents Gate B from packaging an intermediate repair-only
+launcher before its intended normal-user surfaces are stable. Task-096 and
+Task-102 must reuse the accepted native execution/security contracts and must
+not invoke PowerShell, CMD/BAT wrappers, shell text, the dormant helper, or
+browser-issued host commands.
+
 Expected source map:
 
 - add `launcher/towerscout_launcher/runtime_identity.py`;

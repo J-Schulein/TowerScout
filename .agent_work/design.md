@@ -1,6 +1,6 @@
 # TowerScout Current Technical Design
 
-**Last Updated**: September 15, 2026
+**Last Updated**: September 16, 2026
 **Scope**: Unsigned fix-first preview iteration, four-profile runtime
 qualification, October production signing, and cdcai handoff
 **Archived Pre-Rebaseline Design**:
@@ -390,26 +390,45 @@ classification, durable authenticated temp-identity binding, cleanup,
 backup/recovery action, staging/promotion integration, `.env` replacement, and
 runtime mutation remain unimplemented.
 
-## Exit/Stop Design Boundary
+## Launcher Front-Door Design Boundary
 
-If the Task-087 launcher proof passes, Task-096 will reuse the launcher's
-fixed-target confirmation, runtime validation, sanitized state, and recovery
-pattern without exposing Docker or Podman sockets to the application container.
-If the proof fails, Task-096 must be re-planned around the current user-run stop
-path or another separately approved mechanism.
+Task-087 Gate A establishes the accepted exact-target, native execution,
+locking, recovery, and sanitization foundation. After Gate A source acceptance
+and the PR #67 merge decision, Task-096 consumes that foundation before Task-087
+Gate B package integration. Task-096 does not wait for a preview package and
+does not expand PR #67.
 
-Expected sequence:
+Task-096 owns state-driven lifecycle controls:
 
-1. User selects Exit/Stop TowerScout in the visible launcher.
-2. The launcher explains that TowerScout will stop while saved data remains.
-3. User confirms.
-4. The launcher validates the exact package and captured runtime profile.
-5. The package-local stop path runs for Docker or Podman.
-6. The container is removed without deleting named volumes.
-7. The launcher shows a final status or manual fallback when it cannot
-   complete.
+1. `Start` is available for an initialized stopped package and starts the exact
+   captured Docker/rootless-Podman CPU/GPU profile.
+2. `Open` is available only after bounded readiness and opens the verified
+   loopback application URL.
+3. `Stop` requires confirmation and applies `compose down --remove-orphans`
+   semantics without volume deletion.
+4. `Restart` requires confirmation, stops and starts the same captured profile,
+   and verifies readiness.
+5. Every operation uses immutable fixed-argument plans, exact executable and
+   endpoint identities, the native contained child-process runner, sanitized
+   output, and the accepted coordination/recovery contracts.
 
-Exact endpoint and lifecycle details remain Task-096 design work.
+Task-102 then owns first-run setup:
+
+1. Validate package identity, manifests/checksums, required assets, selected
+   engine/profile, pinned image, and persistent-volume prerequisites.
+2. Import assets through the existing verified asset contract.
+3. Start the captured profile and wait for readiness.
+4. Open the browser Setup Wizard for provider-key entry and validation.
+
+Neither task invokes PowerShell, CMD/BAT wrappers, shell text, the dormant
+helper, or browser-supplied host commands. Provider keys remain outside the
+native launcher. Existing scripts remain support/emergency fallbacks until the
+integrated package passes Task-097 qualification.
+
+After Tasks 096 and 102 stabilize these surfaces, Task-087 Gate B integrates
+the launcher into the normal release-package path with staged-byte/archive and
+hash-locked provenance controls. Task-097 qualifies that integrated package
+across Docker CPU/GPU and Podman CPU/GPU.
 
 ## Podman Qualification Boundary
 
@@ -505,13 +524,19 @@ TASK-099 August advisory follow-up [COMPLETE]
 TASK-101 extract-zip advisory gate [COMPLETE]
         |
         v
-TASK-087 universal provider TLS repair [IN PROGRESS / REVIEW REMEDIATION-GATED]
+TASK-087 Gate A secure native repair foundation [IN PROGRESS]
         |
         v
-TASK-096 user Exit/Stop
+TASK-096 launcher Start/Open/Stop/Restart
         |
         v
-TASK-097 Podman CPU/GPU qualification
+TASK-102 native launcher first-run setup
+   |
+   v
+TASK-087 Gate B normal-package integration
+   |
+   v
+TASK-097 Docker/Podman CPU/GPU package qualification
         |
         +--> TASK-058 only if schedule and risk gates pass
         |          |
@@ -540,10 +565,12 @@ principle for post-closeout disclosures and cleared its scoped dependency-
 security gate on August 11. Task-101 closed alert `#76` through the accepted
 default-branch graph and passed the downstream PR #67 exact-head gate at
 `946deaf`. Task-101 is complete, and Task-087 is resumed under ADR-019, with
-the lifecycle update's own checks green at `6e0f744`. Task-087 now owns the
-independently confirmed PR #67 technical/security remediation and exact-head
-re-review gates before merge or preview integration. Task-100 remains backlog
-work until October and the ADR-019 satisfactory-package entry decision.
+the lifecycle update's own checks green at `6e0f744`. Task-087 Gate A owns the
+PR #67 technical/security remediation and exact-head re-review gates before the
+merge decision. Tasks 096 and 102 then complete the launcher front door before
+Task-087 Gate B normal-package integration and Task-097 four-profile package
+qualification. Task-100 remains backlog work until October and the ADR-019
+satisfactory-package entry decision.
 
 ## Validation Strategy
 

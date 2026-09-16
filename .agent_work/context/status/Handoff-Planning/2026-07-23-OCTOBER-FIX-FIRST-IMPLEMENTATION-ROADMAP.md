@@ -2,13 +2,45 @@
 
 **Status**: CURRENT - canonical forward execution roadmap
 **Approved**: July 23, 2026
-**Last Reconciled**: August 21, 2026
+**Last Reconciled**: September 16, 2026
 **Decision Owners**: Project lead and cdcai owner
 **Pilot Baseline**: Immutable fork-side `v0.1.2`
 **Unsigned Preview Convention**: `v0.1.3-preview.N`
 **Signed Candidate Convention**: `v0.1.3-rc.N`
 **Operational Closeout**: October 30, 2026
 **Hard Project End**: October 31, 2026
+
+## September 16 Launcher Front-Door Sequence Override
+
+This section controls the forward task order wherever an older section below
+puts Task-087 Gate B package work ahead of launcher lifecycle/setup work or
+describes Task-096 as Stop-only.
+
+1. Finish Task-087 Gate A source implementation, exact-head validation and
+  independent re-review, then make the PR #67 merge decision. The validated
+  exact head entering this rebaseline is `31f63f2`; the planning estimate is
+  five substantive checkpoints and approximately 8-12 actual PR #67 commits.
+2. Complete Task-096 native state-driven Start/Open/Stop/Restart using the
+  accepted exact-target, execution, coordination, recovery, and sanitization
+  contracts. Do not add this work to PR #67.
+3. Complete Task-102 native first-run package/asset/runtime/readiness setup,
+  ending in the browser Setup Wizard for provider-key entry. Do not add this
+  work to PR #67.
+4. Resume Task-087 Gate B for staged-byte/archive integrity, the approved
+  exact-patch/hash-locked Python 3.12 provenance-v2 build, and integration of
+  the completed launcher into the normal release-package path.
+5. Complete Task-097 qualification of that integrated front-door package on
+  Docker CPU/GPU and Podman CPU/GPU before publishing/refining unsigned
+  previews.
+
+The launcher must not invoke PowerShell, CMD/BAT wrappers, shell text, the
+dormant host helper, or browser-issued commands. Existing scripts remain
+support/emergency fallbacks. The September 18 code-complete and September 25
+satisfactory-package dates are superseded planning targets, not current gates;
+record replacement forecast dates only after Gate A acceptance and the PR #67
+merge decision. October signing and closeout dates remain owner-controlled but
+must be re-assessed if the state-driven prerequisites do not leave sufficient
+qualification time.
 
 ## August 19 Preview-To-Signing Sequence Override
 
@@ -34,11 +66,13 @@ after the Task-087 functional package gates passed.
 - Keep `cdcai/TowerScout` unchanged until the signed candidate is qualified and
   the owner explicitly approves adoption.
 
-Target the satisfactory unsigned package by September 25, Task-100 activation
-no earlier than October 1, signed-candidate freeze by October 9, and Task-100
-acceptance by October 16. Existing historical evidence and decisions remain
-valid for the exact artifacts they describe, but do not reinstate the former
-parallel-signing or signing-before-merge sequence.
+The August 19 plan targeted the satisfactory unsigned package by September 25,
+Task-100 activation no earlier than October 1, signed-candidate freeze by
+October 9, and Task-100 acceptance by October 16. The September 16 override
+supersedes the September targets and requires a forecast rebaseline after Gate
+A acceptance. Existing historical evidence and decisions remain valid for the
+exact artifacts they describe, but do not reinstate the former parallel-
+signing or signing-before-merge sequence.
 
 ## Historical August 11 Task-087 Override
 
@@ -250,19 +284,22 @@ July 27 exit evidence:
    preserving the exact-source Docker/Podman evidence and Task-086 fallback.
 10. [x] Preserve the August 19 Proceed-to-unsigned-preview disposition under
     ADR-019 during reconciliation and the lifecycle transition.
-11. [ ] Pass exact-head workflows and independent source re-review, then
-    complete staged-byte/archive and explicitly approved exact-patch/hash-locked
-    Python 3.12 build integrity.
-12. [ ] Integrate the accepted launcher into the normal release-package path;
-    do not publish or relabel any Task-087 validation-only ZIP.
-13. [ ] Publish and refine immutable unsigned `v0.1.3-preview.N` GitHub
-    prereleases through approved clean unmanaged-machine testing until the
-    package is declared satisfactory.
-14. [ ] Reuse Task-087's fixed-target confirmation, runtime validation,
-    sanitized state, and recovery pattern for Task-096 Exit/Stop on Docker and
-    Podman.
-15. [ ] Preserve Task-086 as the supported fallback for every scope not yet
-    accepted in a preview or signed candidate.
+11. [ ] Finish Task-087 Gate A source implementation, pass exact-head workflows
+  and independent source re-review, and make the PR #67 merge decision.
+12. [ ] Complete Task-096 native state-driven Start/Open/Stop/Restart on Docker
+  and rootless Podman using the accepted Task-087 security contracts.
+13. [ ] Complete Task-102 native first-run package/asset/runtime/readiness setup
+  and open the browser Setup Wizard for provider-key entry.
+14. [ ] Resume Task-087 Gate B: complete staged-byte/archive and explicitly
+  approved exact-patch/hash-locked Python 3.12 build integrity, then integrate
+  the completed launcher into the normal release-package path. Do not publish
+  or relabel any Task-087 validation-only ZIP.
+15. [ ] Complete Task-097 four-profile qualification of the integrated package,
+  then publish and refine immutable unsigned `v0.1.3-preview.N` GitHub
+  prereleases through approved clean unmanaged-machine testing until the
+  package is declared satisfactory.
+16. [ ] Preserve Task-086 and command scripts as supported fallbacks for every
+  scope not yet accepted in a preview or signed candidate.
 
 Exit:
 
@@ -273,10 +310,12 @@ Exit:
 - Independent review requested source changes at `6e0f744`. PR #67 merge and
   preview publication still require Task-087's exact-target/recovery source
   remediation, re-review, product, and package-integrity gates.
-- Guided TLS repair passes technical/security, product, package, and clean
-  unmanaged-machine preview gates for its stated scope.
-- Exit/Stop safely removes the selected application container while retaining
-  named volumes.
+- Native guided TLS repair, state-driven Start/Open/Stop/Restart, and first-run
+  setup pass their technical/security and product gates.
+- The integrated launcher package passes Gate B integrity, all four Task-097
+  runtime profiles, and clean unmanaged-machine preview gates.
+- Stop removes the selected application container while retaining all named
+  volumes; provider-key entry remains in the browser Setup Wizard.
 
 ### Phase 3 - Podman And Four-Profile Qualification
 
@@ -285,7 +324,7 @@ Exit:
 3. Validate approved Compose-provider selection, package-local installer, and
    manual fallback.
 4. Validate Podman CPU and GPU/CDI.
-5. Validate Task-087 and Task-096 behavior on Podman.
+5. Validate Task-087, Task-096, and Task-102 behavior on Podman.
 6. Investigate Podman-machine image-pull and source-build TLS separately.
 
 Exit:
@@ -304,10 +343,12 @@ Task-058 may begin immediately when all of the following are true:
 - Task-101 is complete.
 - Task-087's governance-transition head is green, and Task-087 passes its
   functional/security and unsigned-preview package gates.
-- Task-096 passes Docker and Podman acceptance.
+- Tasks 096 and 102 pass Docker and Podman acceptance.
+- Task-087 Gate B integrates their accepted launcher into the normal package.
 - Task-097 passes required final-path qualification.
 - No pilot blocker requires priority.
-- September 18 code complete remains credible.
+- The rebaselined required path leaves responsible qualification and closeout
+  margin.
 
 August 28 is the latest responsible capacity checkpoint, not a wait date.
 
@@ -336,10 +377,12 @@ Documentation includes:
 
 Exit:
 
-- September 18: code complete.
-- September 25: feature/documentation complete and the satisfactory unsigned
-  package decision targeted.
-- October 1: Task-100 may start only if that decision is recorded.
+- The September 18 code-complete and September 25 satisfactory-package targets
+  are retained as superseded historical targets, not current completion gates.
+- A replacement forecast is recorded after Task-087 Gate A acceptance and the
+  PR #67 merge decision.
+- Task-100 may start only after the satisfactory unsigned-package decision and
+  explicit confirmation that signing/qualification time remains sufficient.
 
 ### Phase 6 - Owner Acceptance And Transfer
 
@@ -375,8 +418,9 @@ Exit:
 | `TASK-093` | Persistent-data lifecycle and recovery rehearsal | Required minimum |
 | `TASK-094` | Sanitized support snapshot | Evidence-gated |
 | `TASK-095` | Governance and tool-neutral maintenance/handoff foundation | Required; Phase A complete, Phase B through closeout |
-| `TASK-096` | User-confirmed Exit/Stop TowerScout | Required |
-| `TASK-097` | Podman CPU/GPU final-path hardening and qualification | Required |
+| `TASK-096` | Native launcher state-driven Start/Open/Stop/Restart | Required after Task-087 Gate A acceptance |
+| `TASK-102` | Native launcher first-run package/asset/runtime/readiness setup; provider keys remain in the browser Setup Wizard | Required after Task-096 and before Task-087 Gate B |
+| `TASK-097` | Docker/Podman CPU/GPU integrated front-door package qualification | Required after Task-087 Gate B |
 | `TASK-098` | Dependency-security remediation, compatibility validation, and release disposition | Complete July 27 |
 | `TASK-099` | August dependency-advisory remediation and release-gate reconciliation | Complete August 11 |
 | `TASK-100` | October production signing, post-sign package verification, and representative managed-endpoint qualification | Required after satisfactory unsigned package |
@@ -441,8 +485,10 @@ Stop or defer optional work when:
 - a pilot, security, data-integrity, runtime, or qualification blocker appears
 - a critical/high dependency finding remains release-blocking or lacks an
   approved residual-risk disposition
-- required work threatens September 18 code complete
-- documentation/package work threatens September 25
+- required work exhausts responsible qualification time under the September 16
+  state-driven sequence
+- a replacement satisfactory-package forecast cannot preserve Task-100 and
+  owner-handoff time
 - the satisfactory unsigned package slips past September 30 and leaves
   insufficient time for Task-100 before October 16
 - a non-blocker change would enter after October 9 freeze

@@ -1,7 +1,7 @@
 # TowerScout Pilot Feedback And cdcai Adoption Plan
 
 **Decision Date**: July 10, 2026; rebaselined July 23, 2026
-**Last Reconciled**: August 21, 2026
+**Last Reconciled**: September 16, 2026
 **Status**: CURRENT for the Pilot Package and cdcai hold
 **Forward Development Plan**:
 [`2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md`](./2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md)
@@ -144,14 +144,21 @@ backlog, and migration-ready handoff without changing cdcai.
 - Task-087: active / IMPLEMENT guided Google/Azure application-provider TLS
   repair on Docker and Podman; the August 21 approval authorizes Gate A work
   under the exact-target/durable-recovery design before exact-head re-review.
+  Exact-head validated checkpoint `31f63f2` is the current source baseline.
+  After Gate A acceptance and the PR #67 merge decision, Tasks 096 and 102
+  precede Task-087 Gate B normal-package integration.
 - Task-088: completed Pilot Package distribution and custody.
 - Task-089: owner-gated cdcai adoption and ownership transfer.
 - Task-090: completed bounded runtime/custom-image/dependency security
   investigation, including the 62-alert Trivy baseline.
 - Tasks 091-095: qualification, docs, recovery, evidence-gated support, and
   governance/handoff.
-- Task-096: user-confirmed Exit/Stop.
-- Task-097: Podman CPU/GPU final-path qualification.
+- Task-096: native state-driven launcher Start/Open/Stop/Restart after Task-087
+  Gate A acceptance; not part of PR #67.
+- Task-102: native first-run package/asset/runtime/readiness setup after
+  Task-096; provider-key entry remains in the browser Setup Wizard.
+- Task-097: Docker/Podman CPU/GPU qualification of the integrated launcher
+  package after Task-087 Gate B.
 - Task-098: completed July 27 dependency remediation, compatibility
   validation, and release-risk disposition through PR #51 / `e499b50`.
 - Task-099: completed August 11 for alerts `#72-#75` plus npm finding

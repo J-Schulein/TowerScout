@@ -1,6 +1,6 @@
 # TowerScout Requirements
 
-**Last Updated**: August 20, 2026
+**Last Updated**: September 16, 2026
 **Current Planning Horizon**: October 31, 2026 hard project end
 **Operational Closeout**: October 30, 2026
 **Canonical Roadmap**:
@@ -351,19 +351,67 @@ Acceptance:
 - Task-086 remains a separate manual/support fallback and is never invoked
   automatically by recovery code.
 
-### UX-EXIT-001: User-Initiated Stop
+### UX-LAUNCHER-001: Primary Launcher Front Door
 
-WHEN a user selects Exit/Stop TowerScout and confirms the action, THE SYSTEM
-SHALL stop and remove the TowerScout application container without deleting
-named volumes.
+WHEN a normal Windows user opens the TowerScout package, THE SYSTEM SHALL use
+`TowerScoutLauncher.exe` as the primary host-side setup and lifecycle entry
+point while retaining command scripts as support fallbacks.
 
 Acceptance:
 
-- Docker and Podman are supported.
-- The UI does not receive unrestricted runtime control.
-- Clear success, failure, and manual fallback guidance is provided.
-- Persistent configuration, assets, logs, sessions, and user data follow the
-  documented lifecycle contract.
+- The launcher presents state-driven Set Up, Start, Open, Stop, Restart, and
+  provider TLS repair actions only when their prerequisites and current state
+  permit them.
+- The launcher does not invoke PowerShell, CMD/BAT wrappers, shell text, the
+  dormant host helper, or browser-supplied commands.
+- Host operations use exact authenticated Docker/Podman/Compose executable
+  identities, immutable fixed-argument plans, contained child processes, and
+  sanitized output.
+- The application container receives no Docker or Podman control socket.
+- Existing scripts remain documented support/emergency fallbacks until final
+  package qualification accepts the launcher path.
+
+### UX-LIFECYCLE-001: Native Launcher Lifecycle Controls
+
+WHEN a user selects an available Start, Open, Stop, or Restart action, THE
+SYSTEM SHALL operate the exact captured TowerScout runtime profile and report a
+sanitized terminal state.
+
+Acceptance:
+
+- Docker and rootless Podman are supported.
+- Start uses the selected CPU/GPU profile and waits for bounded readiness.
+- Open launches only the verified loopback TowerScout URL after readiness.
+- Stop and Restart require clear confirmation.
+- Stop uses `compose down --remove-orphans` semantics and never requests `-v`,
+  `--volumes`, or named-volume deletion.
+- Restart returns to the same captured engine/profile and verifies readiness.
+- Persistent configuration, assets, logs, sessions, uploads, cache, models,
+  and work data follow the documented named-volume lifecycle contract.
+- Clear success, failure, recovery-pending, and support-fallback guidance is
+  provided without exposing unrestricted runtime control.
+
+### UX-SETUP-001: Native Launcher First-Run Setup
+
+WHEN a user opens an uninitialized normal release package, THE SYSTEM SHALL
+offer a native first-run setup action that validates and prepares the package,
+assets, runtime profile, and application readiness before opening the browser
+Setup Wizard.
+
+Acceptance:
+
+- The launcher validates package identity, manifests, hashes, required assets,
+  selected engine/profile, image identity, and persistent-volume prerequisites.
+- Asset import preserves the existing checksummed package contract.
+- CPU remains the safe default; GPU launch requires explicit selection and
+  passing prerequisites.
+- Provider-key entry and validation remain in the existing browser Setup
+  Wizard; the native launcher does not collect or persist provider keys.
+- Setup uses bounded native Python/Win32 operations and exact runtime commands;
+  it does not hide `setup-towerscout.cmd`, `start.bat`, PowerShell, or another
+  shell behind the launcher UI.
+- Successful setup starts the captured profile, waits for readiness, and opens
+  the verified loopback Setup Wizard.
 
 ### RUNTIME-001: Final Runtime Matrix
 
@@ -517,16 +565,20 @@ outgoing developer after October 31.
 
 - August 28 is the latest responsible Task-058 capacity checkpoint, not an
   earliest start date.
-- September 18 is the internal code-complete target.
-- September 25 is the feature/documentation-complete and satisfactory unsigned
-  package target.
-- October 1 is the earliest Task-100 activation date, and only after the
-  satisfactory-package decision is recorded.
+- September 18 code complete and September 25 satisfactory package are
+  superseded historical targets after the September 16 launcher front-door
+  rebaseline; neither is a current acceptance gate.
+- Record replacement forecast dates after Task-087 Gate A acceptance and the
+  PR #67 merge decision.
+- October 1 remains the earliest Task-100 activation date, but activation also
+  requires the satisfactory-package decision and explicit confirmation that
+  signing, managed-endpoint qualification, and handoff retain sufficient time.
 - October 9 is the signed `v0.1.3-rc.N` content/candidate freeze target.
 - October 16 is the Task-100 managed-endpoint and acceptance target.
 - October 23 is the owner-operated handoff rehearsal target.
 - October 30 is operational closeout.
 
-Task-058 may start early only after Tasks 090, 098, 099, 101, 087, 096, and 097
-have passed their gates. Task-059 remains optional and may start only after
-Task-058 acceptance without threatening required milestones.
+Task-058 may start only after Tasks 090, 098, 099, 101, 087 Gate B, 096, 102,
+and 097 have passed their gates and required release work retains responsible
+margin. Task-059 remains optional and may start only after Task-058 acceptance
+without threatening required milestones.

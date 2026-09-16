@@ -3,7 +3,7 @@
 This is the primary high-context guidance file for AI coding agents working in
 the TowerScout repository. It preserves project context, guardrails, and
 workflow guidance while reflecting the current repository state as of
-2026-08-21.
+2026-09-16.
 
 ## Mission and Product Context
 
@@ -64,7 +64,12 @@ The project still carries public-health workflow expectations:
   technical/security review then requested source changes. Draft PR #67 remains
   Draft while exact-target, durable-recovery, Windows trust/filesystem, and
   provider `.env` Gate A corrections are implemented under the project lead's
-  August 21 approval. Preview-integrity Gate B remains later. PR
+  August 21 approval. Exact-head validated checkpoint `31f63f2` adds a pure
+  authenticated recovery-pointer transition/restart-classification model;
+  native persistence, cleanup, recovery, `.env` replacement, and runtime
+  mutation remain open. The current estimate is five substantive Gate A
+  checkpoints and approximately 8-12 actual PR #67 commits. Preview-integrity
+  Gate B remains later. PR
   #64 and every browser/helper activation gate remain on hold.
 - Exact-source `7ef879c` full-runnable CPU packages passed Docker and approved-
   provider Podman Google/Azure repair plus controlled recovery. Follow-up head
@@ -104,7 +109,13 @@ The project still carries public-health workflow expectations:
   record the August 21 Gate A IMPLEMENT approval, and keep merge plus preview/
   candidate publication behind their separate exact-head review, package, and
   Task-100 gates.
-- `TASK-096` adds user-confirmed Exit/Stop. `TASK-097` qualifies Podman CPU/GPU.
+- After Task-087 Gate A acceptance and the PR #67 merge decision, `TASK-096`
+  adds native state-driven Start/Open/Stop/Restart and `TASK-102` adds native
+  first-run package/asset/runtime/readiness setup. Provider-key entry remains
+  in the browser Setup Wizard. Neither task belongs in PR #67.
+- Task-087 Gate B follows Tasks 096/102 and integrates the completed launcher
+  into the normal release-package path; `TASK-097` then qualifies that package
+  on Docker CPU/GPU and Podman CPU/GPU.
 - Docker CPU, Docker GPU, Podman CPU, and Podman GPU are required final-package
   profiles, subject to their documented prerequisites.
 - `TASK-089` remains owner-gated. Do not change `cdcai/TowerScout` until the
@@ -189,20 +200,23 @@ adoption:
     source remediation, then require exact-head workflows and independent
     technical/security re-review. Preserve Task-086 and every existing
     validation-only artifact boundary.
-12. Complete copied-staged-byte/archive verification and the explicitly
-    approved exact-patch/hash-locked Python 3.12 provenance-v2 build before
-    integrating a new normal-user release-package path.
-13. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
-14. Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU before freeze.
-15. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
+12. Make the Task-087 Gate A acceptance and PR #67 merge decision.
+13. Complete Task-096 native Start/Open/Stop/Restart, then Task-102 native
+  first-run setup. Keep provider-key entry in the browser Setup Wizard and
+  do not add either task to PR #67.
+14. Resume Task-087 Gate B: complete copied-staged-byte/archive verification,
+  the approved exact-patch/hash-locked Python 3.12 provenance-v2 build, and
+  normal release-package integration.
+15. Complete Task-097 qualification on Docker CPU/GPU and Podman CPU/GPU.
+16. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases through
     approved unmanaged clean-machine feedback; never mark them `Latest`.
-16. After the package is satisfactory, complete Task-100 production signing and
+17. After the package is satisfactory, complete Task-100 production signing and
     representative managed-endpoint qualification in October. Only signed
     output uses `v0.1.3-rc.N`; do not publish `v0.1.3` final automatically.
-17. Keep Task-089 preparation reversible and cdcai unchanged.
-18. Select the official cdcai tag/title before the official build and execute
+18. Keep Task-089 preparation reversible and cdcai unchanged.
+19. Select the official cdcai tag/title before the official build and execute
     adoption only after owner qualification and approval.
-19. Treat Task-058/059 as conditional stretch work behind all required gates.
+20. Treat Task-058/059 as conditional stretch work behind all required gates.
 
 `TASK-026` CPU optimization and `TASK-029` multi-provider fallback remain follow-on backlog work unless release evidence makes them release-critical.
 
@@ -856,21 +870,23 @@ The original guidance benefited from explicitly naming recent completed work. Th
    resumed from its preserved checkpoint.
 8. Preserve green lifecycle head `6e0f744`, CI/CD run `32385304086`, and
    Task-087 run `32385304052`.
-9. Validate/approve and implement the Task-087 source remediation, require
-   exact-head workflows and independent re-review, then complete staged-byte/
-   provenance-v2 integrity before a new normal-user unsigned preview package.
-   Existing validation ZIPs remain nonpublishable.
-10. Complete Task-096 Exit/Stop and Task-097 Podman CPU/GPU qualification.
-11. Qualify Docker CPU/GPU and Podman CPU/GPU.
-12. Start Task-058 early only when all required gates, including Task-101,
+9. Finish Task-087 Gate A source remediation, require exact-head workflows and
+   independent re-review, and make the PR #67 merge decision. Existing
+   validation ZIPs remain nonpublishable.
+10. Complete Task-096 native Start/Open/Stop/Restart, then Task-102 native
+  first-run setup; do not add either task to PR #67.
+11. Resume Task-087 Gate B for staged-byte/provenance-v2 integrity and normal
+  release-package integration.
+12. Complete Task-097 qualification on Docker CPU/GPU and Podman CPU/GPU.
+13. Start Task-058 early only when all required gates, including Task-101,
     pass; keep Task-059 behind Task-058 acceptance and schedule margin.
-13. Refine unsigned `v0.1.3-preview.N` GitHub prereleases on approved unmanaged
+14. Refine unsigned `v0.1.3-preview.N` GitHub prereleases on approved unmanaged
     clean machines until the package is satisfactory.
-14. Complete Task-100 production signing and representative managed-endpoint
+15. Complete Task-100 production signing and representative managed-endpoint
     qualification in October, then freeze the signed `v0.1.3-rc.N` candidate.
-15. Complete owner-runnable qualification, documentation, recovery,
+16. Complete owner-runnable qualification, documentation, recovery,
     governance, and handoff work.
-16. Select the official cdcai identity, build it consistently, and execute
+17. Select the official cdcai identity, build it consistently, and execute
     Task-089 only after owner approval.
 
 ### Practical Agent Takeaway
@@ -905,6 +921,12 @@ An agent should leave with the following understanding:
 - independent review requested source changes at `6e0f744`; PR #67 remains
   Draft and exact-target/durable-recovery remediation, re-review, staged-byte/
   build integrity, product, and package gates still control merge/publication
+- exact-head validated checkpoint `31f63f2` adds only the pure authenticated
+  recovery-pointer transition/restart classifier; native persistence and
+  recovery wiring remain, and mutation is still disabled
+- after Gate A acceptance and the PR #67 merge decision, the controlling order
+  is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
+  package integration, and Task-097 four-profile qualification
 - filesystem sessions and disk-backed config writes are real architectural constraints
 - Google and Azure workflows are both important
 - outbreak-investigation workflows are the highest-value legacy surface to preserve

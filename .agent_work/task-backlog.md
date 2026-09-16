@@ -1,49 +1,22 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: September 15, 2026
+**Last Updated**: September 16, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
-use. Refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases until the
-normal-user package is satisfactory, then complete Task-100 production signing
-and managed-endpoint qualification in October. Task-099's scoped August gate
-and Task-101's full dependency/reconciliation gate passed. Task-101 is complete.
-Task-087 is active under its fixed nine-slice
-[`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md). The September 14
-checkpoint closes slices 2-3 exact-target confirmation ownership and ordered
-revalidation hooks. Slice 4 remains partial: restored cache-only revocation
-fails closed with
-offline/unknown status on this workstation, so earlier Docker/rootless-Podman
-single-root checks prove transport containment only. Durable Windows
-mutation/recovery and final validation remain. Independently reviewed
-checkpoint `2edcb8e` supplies slice 5's protected Local AppData/current-user
-DPAPI foundation. Secure `.env` absence ownership is locally implemented and
-validated, independently reviewed, and checkpointed at `14b77e4`;
-the pure `.env` byte-transform and exact state-classification prerequisite is
-also committed, independently reviewed, and exact-head validated at `0efeff7`.
-Independently reviewed implementation checkpoint `1c45445` is an exact-head
-validated prior checkpoint; CI/CD run `35005869321`, Task-087 run
-`35005869200`, and Trivy passed, while the main-only build skipped as designed.
-It adds the private journal-gated native candidate-temp prerequisite; durable
-journal storage and native ACL-preserving promotion/replacement remain open.
-Documentation checkpoint `42180b1` also passed its exact-head CI/CD, Task-087,
-and Trivy gates. Independently reviewed implementation checkpoints `8bb6b33`
-and `53bed46` are exact-head validated. Implementation checkpoints `4a96dd2`,
-`221612c`, and `95ca37d` are independently reviewed and exact-head validated.
-The latest passed CI/CD run `35021545053`, Task-087 run `35021545062`, and
-Trivy; the main-only build was neutral as designed. It adds native pointer reads
-and same-directory protected temp creation, complete write/flush/dual
-verification, close-before-rename
-`MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`, source-name absence proof, and
-exact destination verification above the pure pointer policy. It does not
-implement cleanup, backup/recovery action, staging integration, promotion,
-`.env` replacement, or runtime mutation. Independently reviewed and exact-head
-validated checkpoint `ebb9d69` now accepts a move API error as success only
-after same-call source-absence and exact destination identity/DACL/path/size/
-byte proof. It passed CI/CD run `35025200641`, Task-087 run `35025200635`, and
-Trivy; the main-only build was neutral as designed. It does not implement
-restart classification, durable temp-identity binding, or cleanup. Focused,
-adjacent, and full launcher tests pass `39/39`, `105/105`, and `1647/1647`;
-initial and final independent reviews returned `CLEAN/PASS`. PR #67 stays Draft
-and Gate A source remediation/re-review precedes preview integration.
+use. Task-087 is active under its fixed nine-slice
+[`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md). Exact-head
+validated checkpoint `31f63f2` adds a pure authenticated recovery-pointer
+transition and restart-classification model but does not wire persistence,
+fresh-process recovery, cleanup, `.env` replacement, or mutation. The expected
+remaining PR #67 path is five substantive checkpoints and approximately 8-12
+actual commits, with environment-dependent Windows revocation and Docker/
+Podman recovery findings as the principal uncertainty. After Gate A source
+acceptance and the PR #67 merge decision, complete Task-096 lifecycle controls
+and Task-102 native first-run setup before resuming Task-087 Gate B normal-
+package integration. Then qualify the completed front door under Task-097,
+refine immutable unsigned `v0.1.3-preview.N` GitHub prereleases until the
+normal-user package is satisfactory, and complete Task-100 production signing
+and managed-endpoint qualification. PR #67 stays Draft, mutation remains
+disabled, and existing `Task-087-validation-*` packages remain nonpublishable.
 Required release and handoff work takes priority over Task-058/059 stretch work.
 **Hard End**: October 31, 2026; operational closeout October 30
 
@@ -53,25 +26,49 @@ Required release and handoff work takes priority over Task-058/059 stretch work.
 
 | Order | Task | Status | Estimate | Dependencies | Required outcome |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | `TASK-096` User-Initiated Exit And Container Stop | NOT_STARTED | 2-4 days | Task-087 helper/security pattern; current stop scripts | Confirmed Exit/Stop works on Docker and Podman without deleting named volumes |
-| 2 | `TASK-097` Podman CPU/GPU Final Path Qualification | NOT_STARTED | 3-5 days plus environment validation | Tasks 090, 098, 099, 101, 087, and 096 | Podman CPU and GPU/CDI pass final-package qualification without Docker Desktop |
-| 3 | `TASK-091` Owner-Runnable Release Qualification | NOT_STARTED | 3-6 days | Stable unsigned package/preview shape; fixture/harness custody | Preview-based harness and custody rehearsal are ready for Task-100; signed acceptance completes under Task-100 |
-| 4 | `TASK-092` Documentation Currentness And Information Architecture | NOT_STARTED | Stage A 1-2 days; Stage B as approved | Stable unsigned package behavior and shape | Repo docs, user docs, release notes, external Setup Guide, and demo video agree |
-| 5 | `TASK-093` Persistent Data Lifecycle And Recovery Rehearsal | NOT_STARTED | 1-2 days minimum | Runtime profiles and package lifecycle stable | Safe owner-run upgrade, rollback, cleanup, and recovery procedure |
-| 6 | `TASK-100` Production Signing And Managed-Endpoint Qualification | NOT_STARTED | 3-5 days plus signer/endpoint scheduling | October; Task-101 security gate clear; satisfactory unsigned preview recorded; stable source/package shape from Tasks 087/096/097; Tasks 091-093 release, docs, and lifecycle prerequisites ready; approved signer and endpoint window | Signed `v0.1.3-rc.N` verifies after packaging and passes representative managed-endpoint acceptance |
-| 7 | `TASK-094` Evidence-Gated Support Snapshot | EVIDENCE_GATED | 1-3 days if selected | Pilot/support evidence | Implement only if real feedback shows a support-diagnostics gap |
+| 1 | `TASK-096` Launcher Lifecycle Controls | NOT_STARTED | 2-4 days | Task-087 Gate A source acceptance and PR #67 merge; current lifecycle-script behavior as reference only | State-driven Start/Open/Stop/Restart works natively on Docker and Podman without deleting named volumes |
+| 2 | `TASK-102` Native Launcher First-Run Setup | NOT_STARTED | 3-5 days | Task-096 lifecycle foundation; accepted Task-087 native execution/security contracts | Double-click launcher performs package/asset/runtime setup and opens the browser Setup Wizard without invoking command wrappers |
+| 3 | `TASK-097` Integrated Front-Door Package Qualification | NOT_STARTED | 3-5 days plus environment validation | Tasks 090, 098, 099, 101, Task-087 Gate B package integration, 096, and 102 | Completed front-door package passes Docker/Podman CPU/GPU qualification; Podman works without Docker Desktop |
+| 4 | `TASK-091` Owner-Runnable Release Qualification | NOT_STARTED | 3-6 days | Stable unsigned package/preview shape; fixture/harness custody | Preview-based harness and custody rehearsal are ready for Task-100; signed acceptance completes under Task-100 |
+| 5 | `TASK-092` Documentation Currentness And Information Architecture | NOT_STARTED | Stage A 1-2 days; Stage B as approved | Stable unsigned package behavior and shape | Repo docs, user docs, release notes, external Setup Guide, and demo video agree |
+| 6 | `TASK-093` Persistent Data Lifecycle And Recovery Rehearsal | NOT_STARTED | 1-2 days minimum | Runtime profiles and package lifecycle stable | Safe owner-run upgrade, rollback, cleanup, and recovery procedure |
+| 7 | `TASK-100` Production Signing And Managed-Endpoint Qualification | NOT_STARTED | 3-5 days plus signer/endpoint scheduling | October; Task-101 security gate clear; satisfactory unsigned preview recorded; stable source/package shape from Tasks 087/096/102/097; Tasks 091-093 release, docs, and lifecycle prerequisites ready; approved signer and endpoint window | Signed `v0.1.3-rc.N` verifies after packaging and passes representative managed-endpoint acceptance |
+| 8 | `TASK-094` Evidence-Gated Support Snapshot | EVIDENCE_GATED | 1-3 days if selected | Pilot/support evidence | Implement only if real feedback shows a support-diagnostics gap |
 
 ### Task-096 Boundary
 
-- If the Task-087 launcher proof passes, reuse its fixed-target confirmation,
-  runtime validation, sanitized state, and recovery pattern for Stop; otherwise
-  retain the current user-run stop path and re-plan the UX.
-- Use a secured, equally constrained host mechanism without browser-supplied
-  command text or runtime sockets.
-- Support Docker and Podman.
-- Require confirmation.
-- Preserve named volumes.
-- Do not expose runtime sockets or arbitrary commands to the browser.
+- Begin only after Task-087 Gate A source acceptance and the PR #67 merge
+  decision; do not wait for Gate B package integration.
+- Reuse the accepted fixed-target validation, native contained execution,
+  sanitized state, locking, and recovery contracts for state-driven
+  Start/Open/Stop/Restart controls.
+- Invoke exact Docker/Podman/Compose executable identities through fixed
+  argument plans. Do not invoke PowerShell, CMD/BAT wrappers, shell text, the
+  dormant helper, or browser-supplied commands.
+- Require clear confirmation for Stop and Restart. Stop uses
+  `compose down --remove-orphans` semantics and never requests `-v`,
+  `--volumes`, or named-volume deletion.
+- Open only the verified loopback TowerScout URL after readiness. Keep current
+  scripts as support/emergency fallbacks rather than the primary user path.
+- Support Docker and rootless Podman and preserve every named volume.
+
+### Task-102 Boundary
+
+- Make `TowerScoutLauncher.exe` the normal user's double-click first-run entry
+  point after Task-096 establishes lifecycle controls.
+- Validate the package, selected engine/profile, required assets, manifest and
+  hashes; import assets; start the exact captured profile; wait for readiness;
+  and open the existing browser Setup Wizard.
+- Keep provider-key entry and validation in the browser Setup Wizard. Do not
+  collect or persist provider keys in the native launcher.
+- Port required setup behavior into bounded native Python/Win32 operations.
+  Do not hide `setup-towerscout.cmd`, `start.bat`, PowerShell, or another shell
+  behind a launcher button.
+- Preserve CPU-safe default launch, explicit GPU selection/prerequisites,
+  Docker/rootless-Podman boundaries, existing asset verification, and all
+  persistent-volume contracts.
+- Keep scripts as documented support/emergency fallbacks until final
+  qualification proves the launcher path.
 
 ### Task-097 Boundary
 
@@ -147,7 +144,7 @@ Required release and handoff work takes priority over Task-058/059 stretch work.
 
 | Order | Task | Status | Estimate | Start gate |
 | ---: | --- | --- | --- | --- |
-| 8 | `TASK-058` Background Detection Jobs And Durable Run State | CONDITIONAL | 3-5 days | Tasks 090, 098, 099, 101, 087, 096, and 097 pass; no pilot blocker; September 18 remains credible |
+| 8 | `TASK-058` Background Detection Jobs And Durable Run State | CONDITIONAL | 3-5 days | Tasks 090, 098, 099, 101, 087 Gate B, 096, 102, and 097 pass; no pilot blocker; required release qualification retains responsible margin |
 | 9 | `TASK-059` Backend Layer Decomposition And Logging Consolidation | CONDITIONAL | 3-5 days | Task-058 accepted and remaining schedule margin is still safe |
 
 August 28 is the latest responsible Task-058 capacity checkpoint, not an
@@ -160,7 +157,7 @@ earliest start date. Task-058 may begin earlier when all gates pass.
 | Priority | Task | Status | Recommended disposition |
 | ---: | --- | --- | --- |
 | 1 | `TASK-076` Provider API Key Exposure And Restriction Policy | NOT_STARTED | Reassess before final documentation/freeze; include provider-side restriction and ownership guidance |
-| 2 | `TASK-068` Windows Test Portability And Script Validation | NOT_STARTED | Pull forward if Tasks 087, 096, or 097 expose repeatable script gaps |
+| 2 | `TASK-068` Windows Test Portability And Script Validation | NOT_STARTED | Pull forward if Tasks 087, 096, 102, or 097 expose repeatable script gaps |
 | 3 | `TASK-077` Public Release Manifest And Asset Import Hardening | PARTIAL_FOLLOW_UP | Select only for a demonstrated manifest/import release gap |
 | 4 | `TASK-070` Restricted-Network Package Enhancements | NOT_STARTED | Select only if final-package requirements expand beyond managed connected networks |
 | 5 | `TASK-027` Enhanced Error Handling | NOT_STARTED | Use for confirmed user-facing error gaps that do not belong to required tasks |
@@ -188,7 +185,9 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT. Slices 1-3 are complete after the independently reviewed September 14 exact-target confirmation checkpoint. Slice 4 remains partial: the bounded Windows trust implementation is reviewed, but its revocation-aware fixed-host and repeated container proof remain open. Earlier Docker/rootless-Podman checks prove one-root transport containment only. Slice 5 has independently reviewed protected-state, DPAPI, secure-absence, pure-planner, and native temp-staging foundations. Slice 6 is partial: independently reviewed and exact-head validated checkpoint `8bb6b33` adds strict authenticated environment-generation/pointer codecs and selector-owned unique-chain authentication/selection. Independently reviewed and exact-head validated checkpoint `53bed46` adds protected-root-owned pure persistence/enumeration orchestration over an injected storage port. Independently reviewed and exact-head validated checkpoint `4a96dd2` adds native protected-DACL generation enumeration/create/read with flush/reopen verification; pointer repair, backups, and recovery remain open. Slice 8 is partial; slice 7 is not started; final validation continues. Mutation is disabled and PR #67 remains Draft; preview and Task-100 gates remain separate. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at exact-head validated checkpoint `31f63f2`. Slices 1-3 are complete; slice 4 still needs successful revocation-aware fixed-host and repeated container proof. Slices 5-6 include reviewed protected state, DPAPI, exact generation/pointer storage, move reconciliation, and a pure authenticated pointer-transition/restart-classification model; native transition persistence/wiring, backups, recovery, cleanup, transaction refactor, provider `.env` hardening, and final validation remain. Mutation is disabled and PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before returning to Task-087 Gate B normal-package integration. |
+| `TASK-096` Launcher Lifecycle Controls | Backlog / NOT_STARTED. Begins only after Task-087 Gate A acceptance and the PR #67 merge decision; owns native state-driven Start/Open/Stop/Restart. |
+| `TASK-102` Native Launcher First-Run Setup | Backlog / NOT_STARTED. Begins after Task-096; owns package/asset/runtime/readiness setup and opens the browser Setup Wizard for provider keys before Task-087 Gate B. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
 
 ---
@@ -203,8 +202,9 @@ Parking lot:
 | August 19 | Task-087 Proceed-to-unsigned-preview decision recorded; production signing assigned to Task-100 |
 | August 19 | Task-101 selected as the active high-severity alert `#76` gate; Task-087 implementation/package work paused while PR #67 remained reviewable |
 | August 28 | Required scope and Task-058 capacity checkpoint |
-| September 18 | Code complete |
-| September 25 | Feature/documentation complete and satisfactory unsigned-package target |
+| September 16 | Launcher front-door sequence rebaselined: Task-087 Gate A and PR #67 decision, Task-096, Task-102, Task-087 Gate B, then Task-097 |
+| September 18 | Superseded historical code-complete target; not a current gate |
+| September 25 | Superseded historical satisfactory-package target; replacement forecast follows Gate A acceptance |
 | October 1 | Earliest Task-100 activation, only after the satisfactory-package decision |
 | October 9 | Signed `v0.1.3-rc.N` content/candidate freeze |
 | October 16 | Task-100 managed-endpoint qualification and acceptance complete |

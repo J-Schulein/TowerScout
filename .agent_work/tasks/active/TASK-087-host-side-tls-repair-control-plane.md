@@ -33,7 +33,9 @@ run `35022713082`, Task-087 run `35022713013`, and Trivy; the main-only build wa
 neutral as designed. Independently reviewed and exact-head validated checkpoint
 `ebb9d69eb42` adds same-call completed-move reconciliation after an ordinary API
 error; CI/CD run `35025200641`, Task-087 run `35025200635`, and Trivy passed,
-while the main-only build was neutral as designed. Restart classification,
+while the main-only build was neutral as designed. Exact-head validated
+checkpoint `31f63f209ebe` adds the pure authenticated recovery-pointer
+transition and restart-classification model. Native transition persistence,
 durable temp-identity binding, backup/recovery action, cleanup, staging
 integration, promotion/replacement, and runtime mutation remain open.
 PR #67 remains Draft, mutation remains disabled, and no
@@ -41,9 +43,10 @@ live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Complete slice 4's revocation-aware proof, then track the
-remaining three implementation/proof outcome groups in the Gate A burn-down rather than
-using the superseded August 21 day estimate as a completion measure
+**Estimated Effort**: Five substantive implementation/proof checkpoints and
+approximately 8-12 actual PR #67 commits from `31f63f2` to Gate A source
+acceptance, including likely review corrections and evidence reconciliation;
+Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
 and the canonical October roadmap
 **Created**: 2026-06-29
@@ -87,6 +90,27 @@ remain the accepted exact-head Google/Azure repair evidence. The older
 reused as the final artifact. No validation artifact is a release candidate,
 preview release, merge signal, or substitute for Task-100's signed
 representative managed-endpoint gate.
+
+## September 16, 2026 Front-Door Sequence Rebaseline
+
+This planning rebaseline changes execution order without changing the nine
+approved Gate A source slices or any historical artifact evidence:
+
+- Finish Gate A source implementation, exact-head validation, independent
+  technical/security re-review, and the PR #67 merge decision first.
+- Select Task-096 immediately after accepted Gate A. Task-096 owns native
+  state-driven Start/Open/Stop/Restart controls and must not invoke PowerShell,
+  CMD/BAT wrappers, shell text, the dormant helper, or browser-issued commands.
+- Select new backlog Task-102 after Task-096 for native first-run package,
+  asset, runtime, and readiness setup. Provider keys remain in the browser
+  Setup Wizard; support scripts remain fallback paths.
+- Resume Task-087 Gate B staged-byte/build/package integration only after Tasks
+  096 and 102 stabilize the launcher front door. Task-097 then qualifies the
+  integrated package across Docker CPU/GPU and Podman CPU/GPU before package
+  satisfaction and Task-100.
+- Do not expand PR #67 to implement Task-096 or Task-102. The planning estimate
+  from `31f63f2` is five substantive Gate A checkpoints and approximately 8-12
+  actual PR #67 commits, excluding environment-driven findings.
 
 ## August 20, 2026 PR #67 Technical/Security Review Override
 
@@ -1383,6 +1407,64 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Gate A To Front-Door Sequence Rebaselined
+
+**Objective**: Define the shortest non-duplicative path from PR #67 Gate A to a
+working launcher-first normal-user package.
+
+**Context**: Gate B previously followed Gate A directly, while Task-096 remained
+a Stop-only backlog task and first-run launcher setup had no task owner. That
+ordering would package the repair-oriented launcher before adding its normal
+lifecycle and setup surfaces.
+
+**Decision**: Finish and accept Gate A first, then branch Task-096 for native
+Start/Open/Stop/Restart and Task-102 for native first-run setup. Resume Task-087
+Gate B package integration only after both launcher surfaces stabilize, then
+run Task-097 four-profile qualification. Keep scripts as support fallbacks and
+keep provider-key entry in the browser Setup Wizard.
+
+**Execution**: Reconciled current sprint state, backlog ownership, Gate A
+status, requirements/design, the canonical roadmap, and agent guidance around
+one dependency sequence. Historical decisions and validation-only artifact
+boundaries remain unchanged.
+
+**Output**: Task-096 and Task-102 have explicit non-overlapping ownership. The
+normal release builder will integrate the intended front door once instead of
+packaging an intermediate launcher UI.
+
+**Validation**: Run both `.agent_work` validators, targeted contradiction
+searches, and `git diff --check` after the documentation update.
+
+**Next**: Continue the five remaining substantive Gate A checkpoints. Do not
+start Task-096 until Gate A source acceptance and the PR #67 merge decision.
+
+### 2026-09-15 - Authenticated Pointer Transition Model Checkpointed
+
+**Objective**: Classify authenticated pointer transitions and restart outcomes
+without wiring native persistence, cleanup, or recovery mutation.
+
+**Context**: Checkpoint `ebb9d69` can reconcile a completed pointer move only
+inside the same adapter call. Fresh-process recovery still needed a sealed-
+chain-derived transition model that does not trust caller-constructed state.
+
+**Decision**: Keep transition selection pure and selector-owned. Authenticate
+the complete sealed generation chain before classifying restart state, and do
+not grant cleanup or mutation authority from a public selection object.
+
+**Execution**: Added the pure recovery-pointer transition model and adversarial
+classification tests at checkpoint `31f63f209ebe787f7afb2ad7bb11567c3f7d01f2`.
+
+**Output**: Restart classification exists as an authenticated pure model. It is
+not persisted or connected to native pointer moves, backups, cleanup, `.env`
+replacement, repair, or runtime mutation.
+
+**Validation**: Focused tests pass `29/29`, adjacent tests pass `134/134`, and
+the complete launcher suite passes `1665/1665`. Exact-head CI/CD, Task-087, and
+Trivy checks are green; the main-only build is neutral as designed.
+
+**Next**: Persist the authenticated transition and exact temp identity, then
+wire fresh-process recovery before permitting cleanup or production mutation.
 
 ### 2026-09-15 - Same-Call Pointer Move Reconciliation Checkpointed
 

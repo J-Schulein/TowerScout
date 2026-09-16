@@ -2,7 +2,7 @@
 
 **Sprint Period**: August 8-August 21, 2026; active-task continuation retained
 through the current Task-087 Gate A work
-**Last Updated**: September 15, 2026
+**Last Updated**: September 16, 2026
 **Focus**: Task-101 is complete. Task-087 is the active implementation task.
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
@@ -31,9 +31,11 @@ DPAPI-backed generation authentication, and fail-closed unique-chain/pointer
 classification for the environment-temp prelude. Checkpoint `53bed46` adds
 protected-root-owned persistence/enumeration orchestration, and checkpoint
 `4a96dd2` adds native protected-DACL generation enumeration/create/read with
-flush/reopen verification. Pointer repair, backup/recovery actions,
-promotion/replacement, transaction refactoring, provider-installer completion,
-and final proof remain.
+flush/reopen verification. Pointer repair now also has a pure authenticated
+transition/restart-classification model at exact-head validated checkpoint
+`31f63f2`; native persistence and recovery wiring remain. Backup/recovery
+actions, promotion/replacement, transaction refactoring, provider-installer
+completion, and final proof remain.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -54,16 +56,12 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `ebb9d69eb42` is independently reviewed,
-  pushed, and exact-head validated: CI/CD run `35025200641`, Task-087 run
-  `35025200635`, and Trivy passed; the main-only build was neutral as designed.
-  Above checkpoint `95ca37d`'s protected pointer replacement, it accepts an
-  ordinary move API error as success only when the same call proves the source
-  absent and the destination has the exact pre-move identity, protected DACL,
-  path, size, and bytes. It performs no cleanup and has no restart
-  classification, durable temp-identity binding, backup/recovery action,
-  staging integration, promotion, `.env` replacement, or repair mutation. PR
-  #67 remains Draft.
+- Task-087 implementation checkpoint `31f63f209ebe` is pushed and exact-head
+  validated. It adds a pure authenticated recovery-pointer transition model
+  and restart classification above checkpoint `ebb9d69`'s same-call completed-
+  move reconciliation. It remains unwired: no native transition persistence,
+  cleanup, backup/recovery action, staging integration, promotion, `.env`
+  replacement, or repair mutation exists. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -210,15 +208,17 @@ missing/stale pointer repair orchestration through an injected port and is
 exact-head validated. Checkpoint `95ca37d` adds native pointer replacement and
 exact success-path verification and is independently reviewed and exact-head
 validated. Independently reviewed and exact-head validated checkpoint `ebb9d69`
-adds exact same-call completed-move reconciliation after an ordinary API error. Restart
-classification, durable temp-identity binding, and cleanup remain open. Slice 7
-is not started; slice 9 continues incrementally. Mutation is disabled and PR #67
-remains Draft.
+adds exact same-call completed-move reconciliation after an ordinary API error.
+Exact-head validated checkpoint `31f63f2` adds the pure authenticated pointer-
+transition and restart-classification model, but native persistence, cleanup,
+and fresh-process recovery wiring remain open. Slice 7 is not started; slice 9
+continues incrementally. Mutation is disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Complete slice 4's revocation-aware fixed-host and
-container proof, then track the three remaining implementation/proof outcome
-groups in the canonical burn-down
+**Remaining Estimate**: Five substantive implementation/proof checkpoints,
+likely 8-12 actual PR #67 commits including review corrections and evidence
+reconciliation, before Gate A source acceptance can unlock Task-096. Windows
+revocation or Docker/Podman recovery findings may add work.
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 **Canonical Gate A Burn-Down**:
@@ -241,6 +241,11 @@ groups in the canonical burn-down
 - Keep Gate A source acceptance, Gate B artifact/preview integrity, and
   Gate C/Task-100 signing and managed-endpoint qualification separate. PR #67
   remains Draft.
+- After Gate A source acceptance and the PR #67 merge decision, select
+  Task-096 before Gate B. Task-096 owns native launcher Start/Open/Stop/Restart;
+  backlog Task-102 then owns native first-run setup. Resume Task-087 Gate B
+  only after those launcher surfaces are stable so the normal package is built
+  around the intended front door once.
 - Source checkpoint `f0a9d81` implements the independently reviewed native
   Windows-store trust provider under slice 4 while keeping it unwired. Source
   checkpoint `7f354bc` binds that native result into target-plan ownership and
@@ -329,18 +334,25 @@ groups in the canonical burn-down
    helper, bypass, admin, runtime-default, or volume-deletion paths.
 11. [ ] Require exact-head CI/Task-087 checks and independent technical/security
     re-review before any PR #67 merge decision.
-12. [ ] Complete staged-byte/archive verification and the explicit hash-locked
-    Python 3.12 provenance-v2 build gate, then integrate a new normal-user
-    unsigned preview-package path with accurate manifests, checksums, notices,
-    and user guidance.
-13. [ ] Test each published `v0.1.3-preview.N` through the actual GitHub download
-    path on an approved unmanaged clean Windows machine without security
-    exclusions or bypass instructions.
-14. [ ] Keep production signing and representative managed-endpoint validation
-    scheduled as Task-100 after the ADR-019 satisfactory-package decision.
-15. [ ] Select Task-096 next, followed by Task-097. Keep Tasks 091-093 behind
-    the stable unsigned package/runtime-shape boundary; Task-091 prepares the
-    owner-runnable harness before Task-100.
+12. [ ] After Gate A source acceptance and the PR #67 merge decision, select
+  Task-096 and add native state-driven Start/Open/Stop/Restart controls without
+  PowerShell, CMD/BAT wrappers, shell text, the dormant helper, or runtime
+  socket exposure.
+13. [ ] Select backlog Task-102 after Task-096 and add native first-run package,
+  asset, runtime, and readiness setup. Keep provider-key entry in the existing
+  browser Setup Wizard and retain scripts only as support fallbacks.
+14. [ ] Resume Task-087 Gate B after Tasks 096/102 stabilize the launcher:
+  complete staged-byte/archive verification, the explicit hash-locked Python
+  3.12 provenance-v2 build, and normal release-package integration.
+15. [ ] Complete Task-097 qualification against the integrated front-door
+  package for Docker CPU/GPU and Podman CPU/GPU.
+16. [ ] Test each published `v0.1.3-preview.N` through the actual GitHub download
+  path on an approved unmanaged clean Windows machine without security
+  exclusions or bypass instructions, refining until package satisfaction.
+17. [ ] Keep Tasks 091-093 behind the stable unsigned package/runtime-shape
+  boundary; Task-091 prepares the owner-runnable harness before Task-100.
+18. [ ] Keep production signing and representative managed-endpoint validation
+  scheduled as Task-100 after the ADR-019 satisfactory-package decision.
 
 Task-058 and Task-059 remain conditional stretch work. Task-094 remains
 evidence-gated. Task-101 is completed, and Task-087 is active in PR #67 Gate A
