@@ -1274,6 +1274,19 @@ def _authenticate_environment_journal_generation(
         _fail(RecoveryJournalErrorCode.GENERATION_INVALID)
 
 
+def authenticate_environment_journal_generation(
+    sealed: SealedEnvironmentJournalGeneration,
+    *,
+    protection: JournalProtectionPort,
+) -> EnvironmentJournalGeneration:
+    """Authenticate one generation without accepting caller-supplied identity."""
+
+    return _authenticate_environment_journal_generation(
+        sealed,
+        protection=protection,
+    ).generation
+
+
 def encode_environment_journal_pointer(pointer: EnvironmentJournalPointer) -> bytes:
     if type(pointer) is not EnvironmentJournalPointer:
         _fail(RecoveryJournalErrorCode.POINTER_INVALID)
@@ -1578,6 +1591,7 @@ __all__ = [
     "RollbackArmedRecord",
     "RollbackStartedRecord",
     "SealedEnvironmentJournalGeneration",
+    "authenticate_environment_journal_generation",
     "decode_environment_journal_pointer",
     "encode_environment_journal_pointer",
     "protect_environment_journal_generation",

@@ -22,6 +22,7 @@ from .windows_recovery_journal import (
     JournalStreamIdentity,
     RecoveryJournalError,
     SealedEnvironmentJournalGeneration,
+    authenticate_environment_journal_generation,
     decode_environment_journal_pointer,
     encode_environment_journal_pointer,
     select_environment_journal_chain,
@@ -33,6 +34,7 @@ _MAX_POINTER_BYTES = 1_024
 _MAX_ROOT_ENTRIES = 256
 _MAX_SEQUENCE = 2**63 - 1
 _GENERATION_NAME = re.compile(r"^journal-([0-9a-f]{32})-([0-9]{20})\.generation$")
+_POINTER_NAME = re.compile(r"^journal-([0-9a-f]{32})\.pointer$")
 _Result = TypeVar("_Result")
 
 
@@ -228,19 +230,7 @@ def _names_for_stream(
     stream: JournalStreamIdentity,
     storage: JournalGenerationStoragePort,
 ) -> tuple[tuple[int, str], ...]:
-    names = _storage_call(
-        storage,
-        "list_names",
-        root_path,
-        code=RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE,
-    )
-    if (
-        type(names) is not tuple
-        or len(names) > _MAX_ROOT_ENTRIES
-        or any(type(name) is not str for name in names)
-        or len(set(names)) != len(names)
-    ):
-        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    names = _listed_names(root_path, storage)
     prefix = f"journal-{stream.journal_id}-"
     selected: list[tuple[int, str]] = []
     for name in names:
@@ -257,6 +247,26 @@ def _names_for_stream(
     if len({sequence for sequence, _name in selected}) != len(selected):
         _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
     return tuple(selected)
+
+
+def _listed_names(
+    root_path: str,
+    storage: JournalGenerationStoragePort,
+) -> tuple[str, ...]:
+    names = _storage_call(
+        storage,
+        "list_names",
+        root_path,
+        code=RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE,
+    )
+    if (
+        type(names) is not tuple
+        or len(names) > _MAX_ROOT_ENTRIES
+        or any(type(name) is not str for name in names)
+        or len(set(names)) != len(names)
+    ):
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    return names
 
 
 def _load_while_root_held(
@@ -367,6 +377,82 @@ def _load_with_pointer_while_root_held(
     return persisted, None if persisted_pointer is None else persisted_pointer[1]
 
 
+def _discover_while_root_held(
+    root_path: str,
+    generation_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    protection: JournalProtectionPort,
+) -> tuple[PersistedEnvironmentJournalChain, ...]:
+    sequences_by_journal: dict[str, list[tuple[int, str]]] = {}
+    pointer_journal_ids: set[str] = set()
+    for name in _listed_names(root_path, generation_storage):
+        if not name.startswith("journal-"):
+            continue
+        generation_match = _GENERATION_NAME.fullmatch(name)
+        if generation_match is not None:
+            journal_id = generation_match.group(1)
+            sequence = int(generation_match.group(2))
+            if not 1 <= sequence <= _MAX_SEQUENCE:
+                _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+            sequences_by_journal.setdefault(journal_id, []).append((sequence, name))
+            continue
+        pointer_match = _POINTER_NAME.fullmatch(name)
+        if pointer_match is not None:
+            pointer_journal_ids.add(pointer_match.group(1))
+            continue
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+
+    if not pointer_journal_ids.issubset(sequences_by_journal):
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+
+    discovered: list[PersistedEnvironmentJournalChain] = []
+    for journal_id in sorted(sequences_by_journal):
+        candidates = sorted(sequences_by_journal[journal_id])
+        if (
+            not candidates
+            or candidates[0][0] != 1
+            or len({sequence for sequence, _name in candidates}) != len(candidates)
+        ):
+            _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+        stored = _storage_call(
+            generation_storage,
+            "read_generation",
+            root_path,
+            candidates[0][1],
+            _MAX_PROTECTED_GENERATION_BYTES,
+            code=RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        if type(stored) is not StoredJournalGenerationFile:
+            _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+        try:
+            protected = CurrentUserProtectedBlob(
+                ProtectedDataPurpose.JOURNAL_GENERATION,
+                stored.contents,
+            )
+            first = authenticate_environment_journal_generation(
+                SealedEnvironmentJournalGeneration(
+                    protected,
+                    protected.ciphertext_sha256,
+                ),
+                protection=protection,
+            )
+        except ValueError:
+            _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+        if first.sequence != 1 or first.stream.journal_id != journal_id:
+            _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+        persisted, _stored_pointer = _load_with_pointer_while_root_held(
+            root_path,
+            first.stream,
+            generation_storage,
+            pointer_storage,
+            protection,
+        )
+        if persisted is None:
+            _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+        discovered.append(persisted)
+    return tuple(discovered)
+
+
 def _run_under_root(
     root: JournalStorageRootPort,
     operation: Callable[[str], _Result],
@@ -404,6 +490,45 @@ def load_persisted_environment_journal_chain(
             storage,
             protection,
         ),
+    )
+
+
+def discover_persisted_environment_journal_chains(
+    *,
+    root: JournalStorageRootPort,
+    generation_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    protection: JournalProtectionPort,
+) -> tuple[PersistedEnvironmentJournalChain, ...]:
+    """Discover and authenticate every repair journal under one held root."""
+
+    return _run_under_root(
+        root,
+        lambda root_path: _discover_while_root_held(
+            root_path,
+            generation_storage,
+            pointer_storage,
+            protection,
+        ),
+    )
+
+
+def discover_persisted_environment_journal_chains_from_held_root(
+    root_path: str,
+    *,
+    generation_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    protection: JournalProtectionPort,
+) -> tuple[PersistedEnvironmentJournalChain, ...]:
+    """Discover repair journals through a root path already held by the caller."""
+
+    if type(root_path) is not str or not root_path:
+        _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+    return _discover_while_root_held(
+        root_path,
+        generation_storage,
+        pointer_storage,
+        protection,
     )
 
 
@@ -685,6 +810,8 @@ __all__ = [
     "StoredJournalPointerFile",
     "append_persisted_environment_journal_generation",
     "append_persisted_environment_journal_generation_from_held_root",
+    "discover_persisted_environment_journal_chains",
+    "discover_persisted_environment_journal_chains_from_held_root",
     "ensure_persisted_environment_journal_pointer",
     "ensure_persisted_environment_journal_pointer_from_held_root",
     "load_persisted_environment_journal_chain",

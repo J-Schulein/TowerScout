@@ -95,6 +95,7 @@ class _Storage:
         self.replace_pointer_identity: StableFileIdentity | None = None
         self.return_wrong_pointer = False
         self.persist_wrong_pointer = False
+        self.extra_names: tuple[str, ...] = ()
 
     def _assert_held(self) -> None:
         if not self.root.active:
@@ -103,7 +104,10 @@ class _Storage:
     def list_names(self, root_path: str) -> tuple[str, ...]:
         self._assert_held()
         assert root_path.endswith(r"TowerScout\Recovery\v1")
-        return tuple(reversed(tuple(self.files)))
+        pointer_names = (
+            (f"journal-{'a' * 32}.pointer",) if self.pointer is not None else ()
+        )
+        return tuple(reversed((*self.files, *pointer_names, *self.extra_names)))
 
     def read_generation(
         self,
@@ -324,6 +328,118 @@ def test_empty_stream_loads_without_creating_storage() -> None:
 
     assert loaded is None
     assert not backend.created
+
+
+def test_discovery_authenticates_complete_chain_and_current_pointer() -> None:
+    protection = _Protection()
+    stream, generations = _sealed_chain(protection)
+    root = _Root()
+    backend = _Storage(root)
+    backend.extra_names = (
+        "recovery-backup-" + "c" * 32 + ".blob",
+        "pointer-transition-" + "d" * 32 + "-00000000000000000001.generation",
+        ".journal-pointer-" + "e" * 32 + ".tmp",
+    )
+    for generation in generations:
+        storage.append_persisted_environment_journal_generation(
+            generation,
+            stream=stream,
+            root=root,
+            storage=backend,
+            protection=protection,
+        )
+    storage.ensure_persisted_environment_journal_pointer(
+        stream,
+        root=root,
+        generation_storage=backend,
+        pointer_storage=backend,
+        protection=protection,
+    )
+
+    discovered = storage.discover_persisted_environment_journal_chains(
+        root=root,
+        generation_storage=backend,
+        pointer_storage=backend,
+        protection=protection,
+    )
+
+    assert len(discovered) == 1
+    assert discovered[0].selection.tip.sequence == 3
+    assert (
+        discovered[0].selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+
+
+@pytest.mark.parametrize(
+    "extra_name",
+    (
+        "journal-invalid",
+        f"journal-{'f' * 32}.pointer",
+    ),
+)
+def test_discovery_rejects_malformed_or_orphan_journal_names(
+    extra_name: str,
+) -> None:
+    root = _Root()
+    backend = _Storage(root)
+    backend.extra_names = (extra_name,)
+
+    with pytest.raises(storage.RecoveryJournalStorageError) as failure:
+        storage.discover_persisted_environment_journal_chains(
+            root=root,
+            generation_storage=backend,
+            pointer_storage=backend,
+            protection=_Protection(),
+        )
+
+    assert failure.value.code is storage.RecoveryJournalStorageErrorCode.STORAGE_INVALID
+
+
+def test_discovery_rejects_sequence_gap_before_authentication() -> None:
+    protection = _Protection()
+    _stream_value, generations = _sealed_chain(protection)
+    root = _Root()
+    backend = _Storage(root)
+    backend.files[f"journal-{'a' * 32}-{'2':0>20}.generation"] = (
+        storage.StoredJournalGenerationFile(
+            _identity(31),
+            generations[0].protected_blob.ciphertext,
+        )
+    )
+
+    with pytest.raises(storage.RecoveryJournalStorageError) as failure:
+        storage.discover_persisted_environment_journal_chains(
+            root=root,
+            generation_storage=backend,
+            pointer_storage=backend,
+            protection=protection,
+        )
+
+    assert failure.value.code is storage.RecoveryJournalStorageErrorCode.STORAGE_INVALID
+
+
+def test_discovery_rejects_authenticated_stream_filename_mismatch() -> None:
+    protection = _Protection()
+    _stream_value, generations = _sealed_chain(protection)
+    root = _Root()
+    backend = _Storage(root)
+    backend.files[f"journal-{'f' * 32}-{'1':0>20}.generation"] = (
+        storage.StoredJournalGenerationFile(
+            _identity(31),
+            generations[0].protected_blob.ciphertext,
+        )
+    )
+
+    with pytest.raises(storage.RecoveryJournalStorageError) as failure:
+        storage.discover_persisted_environment_journal_chains(
+            root=root,
+            generation_storage=backend,
+            pointer_storage=backend,
+            protection=protection,
+        )
+
+    assert failure.value.code is storage.RecoveryJournalStorageErrorCode.STORAGE_INVALID
 
 
 def test_missing_pointer_is_created_and_reread_as_current() -> None:
