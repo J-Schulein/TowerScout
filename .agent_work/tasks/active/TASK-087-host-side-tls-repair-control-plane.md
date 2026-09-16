@@ -44,15 +44,18 @@ exact head `dd0d42d9130f` accurately records that boundary and is exact-head
 validated. Independently reviewed and exact-head validated checkpoint
 `299ae96` promotes only that authenticated temp after exact source and
 prior-destination proof and verifies exact completed-move evidence. Backup/
-recovery action, cleanup, staging integration, `.env` replacement, and runtime
-mutation remain open.
+recovery action, staging integration, `.env` replacement, and runtime mutation
+remain open. Independently reviewed and exact-head validated checkpoint
+`53b618b` removes only the exact zero-byte orphan authorized by the
+authenticated `POINTER_TEMP_PLANNED` record through a verified held handle; it
+does not clean `POINTER_TEMP_CREATED` or expand recovery authority.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Two substantive implementation/proof checkpoints and
-approximately 3-6 additional PR #67 commits from `299ae96` to Gate A source
+approximately 3-6 additional PR #67 commits from `53b618b` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -1417,6 +1420,48 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Exact Planned Pointer Orphan Cleanup Checkpointed
+
+**Objective**: Recover the plan-only crash window by removing only the exact
+authenticated zero-byte pointer temp before retrying its `CREATE_NEW`, without
+deleting a created source or adding broader recovery authority.
+
+**Context**: Checkpoint `299ae96` promoted an authenticated
+`POINTER_TEMP_CREATED` source safely, but a process death after physical
+creation and before persisting that created generation could leave the exact
+planned name occupied by a zero-byte orphan.
+
+**Decision**: Keep the two-state transition model. Only an authenticated
+`POINTER_TEMP_PLANNED` tip may invoke a separate cleanup-only port. Open the
+exact recorded leaf without following a reparse point and with delete access;
+twice verify zero size, stable identity, exact path, local regular single-link
+facts, and the protected current-user/SYSTEM DACL; then mark that held handle
+for deletion, close it, and prove name absence before creation is retried.
+
+**Execution**: Implementation checkpoint
+`53b618be848ec710b3d1fa257d53f47f2f5134d0` adds the native held-handle
+`FileDispositionInfo` primitive, a cleanup-only native adapter with no create or
+move methods, and authenticated planned-state orchestration. Written, drifted,
+or otherwise ambiguous objects are preserved. `POINTER_TEMP_CREATED` remains
+promotion-only.
+
+**Output**: The plan-only zero-byte orphan can now be reconciled without a
+verify-close-path-delete race. No backup/recovery action, `.env` replacement,
+repair transaction, or runtime mutation is enabled.
+
+**Validation**: Focused cleanup tests pass `13/13`; transition-storage tests
+pass `20/20`; the adjacent recovery ring passes `220/220`; and the complete
+launcher suite passes `1721/1721`. Black, strict mypy, blocking Flake8,
+medium/high Bandit, compilation, editor diagnostics, and `git diff --check`
+pass. Two independent reviews returned `CLEAN/PASS` with no actionable Low-or-
+higher findings. Exact-head CI/CD run `35123786391`, Task-087 run `35123786272`,
+and Trivy passed; the main-only build was neutral as designed.
+
+**Next**: Add encrypted exact-state backups, full recovery states,
+fresh-process idempotent recovery, verified rollback, cleanup-pending retention,
+and cross-protocol scanning before any `.env` replacement, repair transaction,
+or runtime mutation.
 
 ### 2026-09-16 - Journal-Bound Pointer Promotion Checkpointed
 

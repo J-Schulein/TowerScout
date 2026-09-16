@@ -37,8 +37,11 @@ generation persistence, fresh-process authenticated reload, and exact planned
 pointer-temp creation with durable identity binding. Independently reviewed and
 exact-head validated checkpoint `299ae96` promotes only that authenticated temp
 after exact source and prior-destination verification and requires exact post-
-move evidence. Backup/recovery actions, pointer cleanup, `.env` replacement,
-transaction refactoring, provider-installer completion, and final proof remain.
+move evidence. Independently reviewed and exact-head validated checkpoint
+`53b618b` removes only the exact empty orphan authorized by an authenticated
+`POINTER_TEMP_PLANNED` record through verified held-handle deletion. Backups,
+full recovery states, `.env` replacement, transaction refactoring, provider-
+installer completion, and final proof remain.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -59,13 +62,13 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `299ae96` is pushed, independently
-  reviewed, and exact-head validated. It consumes the authenticated
-  `POINTER_TEMP_CREATED` chain, verifies the exact source and prior destination,
-  promotes only the recorded temp with write-through replacement, and accepts
-  success only from exact source-absence/destination-identity-and-byte proof.
-  It does not clean files, create backups, perform recovery, replace `.env`, or
-  mutate repair/runtime state. PR #67 remains Draft.
+- Task-087 implementation checkpoint `53b618b` is pushed, independently
+  reviewed, and exact-head validated. It follows checkpoint `299ae96` pointer
+  promotion by removing only the exact empty orphan authorized by an
+  authenticated `POINTER_TEMP_PLANNED` record, using a verified no-follow held
+  handle and proving absence after close. It does not clean a
+  `POINTER_TEMP_CREATED` source, create backups, perform recovery, replace
+  `.env`, or mutate repair/runtime state. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -222,8 +225,10 @@ exact planned pointer temp and durably binds its stable identity; docstring-only
 exact head `dd0d42d` accurately states that boundary and is exact-head
 validated. Independently reviewed and exact-head validated checkpoint `299ae96`
 promotes only that authenticated temp after exact source/prior-destination proof
-and requires exact completed-move evidence. Cleanup, backups, and fresh-process
-recovery action remain open.
+and requires exact completed-move evidence. Independently reviewed and exact-
+head validated checkpoint `53b618b` adds only authenticated planned-state,
+zero-byte pointer-temp orphan cleanup by verified held handle. Backups, full
+recovery states, and fresh-process recovery action remain open.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)

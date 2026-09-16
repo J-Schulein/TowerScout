@@ -410,6 +410,17 @@ DACL, size, and bytes at the destination; the existing two-state chain then
 classifies `MOVE_COMPLETED`. It does not delete files, create backups, perform
 recovery, replace `.env`, authorize repair, or mutate runtime state.
 
+Independently reviewed and exact-head validated checkpoint `53b618b` adds a
+separate cleanup-only port for the plan-only crash window. Only an authenticated
+`POINTER_TEMP_PLANNED` chain can request removal of its exact recorded name. The
+native adapter opens that leaf without following reparse points and with delete
+access, twice verifies zero size, exact path, local regular single-link facts,
+stable identity, and the protected current-user/SYSTEM DACL, marks that held
+handle for deletion, closes it, and proves name absence before exact creation is
+retried. A written or drifted object is preserved; `POINTER_TEMP_CREATED` is
+never routed through cleanup. Backup/recovery action, `.env` replacement,
+repair authorization, and runtime mutation remain outside this boundary.
+
 ## Launcher Front-Door Design Boundary
 
 Task-087 Gate A establishes the accepted exact-target, native execution,

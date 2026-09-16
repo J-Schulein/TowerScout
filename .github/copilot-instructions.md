@@ -67,8 +67,11 @@ The project still carries public-health workflow expectations:
   August 21 approval. Independently reviewed and exact-head validated
   implementation checkpoint `299ae96` adds journal-bound promotion of only the
   exact authenticated pointer temp after source/prior-destination proof and
-  requires exact completed-move evidence. Cleanup, backups, recovery, `.env`
-  replacement, and runtime mutation remain open. The current estimate is two
+  requires exact completed-move evidence. Independently reviewed and exact-head
+  validated checkpoint `53b618b` removes only the exact zero-byte orphan
+  authorized by an authenticated `POINTER_TEMP_PLANNED` record through verified
+  held-handle deletion. Backups, full recovery states, `.env` replacement, and
+  runtime mutation remain open. The current estimate is two
   substantive Gate A checkpoints and approximately 3-6 actual PR #67 commits.
   Preview-integrity Gate B remains
   later. PR
@@ -924,9 +927,10 @@ An agent should leave with the following understanding:
   Draft and exact-target/durable-recovery remediation, re-review, staged-byte/
   build integrity, product, and package gates still control merge/publication
 - independently reviewed and exact-head validated implementation checkpoint
-  `299ae96` adds journal-bound promotion of only the exact authenticated pointer
-  temp with exact prior/final state proof; cleanup, backup/recovery action,
-  `.env` replacement, and runtime mutation remain disabled
+  `53b618b` follows `299ae96` journal-bound pointer promotion with cleanup of
+  only the exact authenticated planned-state zero-byte orphan by its verified
+  held handle; backup/recovery action, full recovery states, `.env` replacement,
+  and runtime mutation remain disabled
 - after Gate A acceptance and the PR #67 merge decision, the controlling order
   is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
   package integration, and Task-097 four-profile qualification
