@@ -48,8 +48,12 @@ stream. Independently reviewed and exact-head validated checkpoint `1ecfd5e`
 adds strict singleton `backup_preparing` intent: it authenticates both envelopes
 against the exact stream, records two independent unpredictable blob names and
 nonsecret prior-state summaries, persists one immutable journal generation,
-and returns only after complete authenticated reread. Backup blob persistence
-and every recovery action remain disabled.
+and returns only after complete authenticated reread. Independently reviewed
+and exact-head validated checkpoint `21aba57` reloads that durable singleton
+under the same held protected root, creates only its two exact planned DPAPI
+ciphertext blobs with protected DACL and full flush/identity/byte/no-follow
+reopen verification, and preserves every partial or ambiguous artifact.
+`backup_verified`, `rollback_armed`, restore, and every mutation remain disabled.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -70,12 +74,13 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `1ecfd5e` is pushed, independently
-  reviewed, and exact-head validated. It follows `d6ce415` encrypted exact-
-  state envelopes with authenticated singleton `backup_preparing` intent and
-  exact unpredictable future blob names. It does not create backup blobs,
-  advance to `backup_verified`/`rollback_armed`, restore data, replace `.env`,
-  or mutate repair/runtime state. PR #67 remains Draft.
+- Task-087 implementation checkpoint `21aba57` is pushed, independently
+  reviewed, and exact-head validated. It consumes `1ecfd5e` authenticated
+  singleton `backup_preparing` intent only after fresh held-root journal reload,
+  then creates and fully verifies the exact environment and certificate DPAPI
+  ciphertext blobs. It does not advance to `backup_verified`/`rollback_armed`,
+  restore data, replace `.env`, or mutate repair/runtime state. PR #67 remains
+  Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -235,13 +240,18 @@ promotes only that authenticated temp after exact source/prior-destination proof
 and requires exact completed-move evidence. Independently reviewed and exact-
 head validated checkpoint `53b618b` adds only authenticated planned-state,
 zero-byte pointer-temp orphan cleanup by verified held handle. Backups, full
-recovery states, and fresh-process recovery action remain open.
+recovery states, and fresh-process recovery action remain open. Independently
+reviewed and exact-head validated checkpoint `21aba57` adds create-only
+protected persistence for the two exact `backup_preparing` ciphertext names,
+with durable authority reloaded under the same root hold and every partial or
+ambiguous artifact preserved. `backup_verified`, `rollback_armed`, and recovery
+action remain open.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Two substantive implementation/proof checkpoints,
-likely 3-6 additional PR #67 commits including review corrections and evidence
+**Remaining Estimate**: One substantive implementation/proof checkpoint,
+likely 1-4 additional PR #67 commits including review corrections and evidence
 reconciliation, before Gate A source acceptance can unlock Task-096. Windows
 revocation or Docker/Podman recovery findings may add work.
 **Task File**:

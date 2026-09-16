@@ -13,9 +13,12 @@ purpose-separated exact-state environment and fixed-certificate backup
 envelopes bound to the journal stream. Exact-head validated checkpoint
 `1ecfd5e` adds authenticated singleton `backup_preparing` intent with two
 independent unpredictable future blob names and exact prior-state summaries.
-Backup blob persistence, `backup_verified`/`rollback_armed`, full recovery
-states, `.env` replacement, and runtime mutation remain disabled. The expected
-remaining PR #67 path is two substantive checkpoints and approximately 2-5
+Exact-head validated checkpoint `21aba57` reloads that durable authority under
+the held protected root and creates and fully verifies only the two planned
+DPAPI ciphertext blobs while preserving every ambiguous artifact.
+`backup_verified`/`rollback_armed`, full recovery states, `.env` replacement,
+and runtime mutation remain disabled. The expected remaining PR #67 path is one
+substantive checkpoint and approximately 1-4
 actual commits,
 with environment-dependent Windows
 revocation and Docker/

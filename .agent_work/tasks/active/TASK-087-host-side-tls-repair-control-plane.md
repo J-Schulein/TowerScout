@@ -57,14 +57,18 @@ validated checkpoint `1ecfd5e` authenticates both envelopes before persisting
 strict singleton `backup_preparing` intent with two independent unpredictable
 future blob names and exact prior-state summaries. It adds no backup-blob,
 pointer, cleanup, restore, `.env`, certificate, repair, or runtime mutation
-authority.
+authority. Independently reviewed and exact-head validated checkpoint `21aba57`
+reloads that exact durable singleton while the protected root remains held,
+then creates and fully verifies only its two planned DPAPI ciphertext blobs.
+It preserves partial/ambiguous artifacts and adds no list, delete, move,
+replace, restore, journal-advance, repair, or runtime authority.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Two substantive implementation/proof checkpoints and
-approximately 2-5 additional PR #67 commits from `1ecfd5e` to Gate A source
+**Estimated Effort**: One substantive implementation/proof checkpoint and
+approximately 1-4 additional PR #67 commits from `21aba57` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -1429,6 +1433,49 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Create-Only Encrypted Backup Blobs Checkpointed
+
+**Objective**: Persist and fully verify only the two DPAPI ciphertext blobs
+authorized by the durable singleton `backup_preparing` generation.
+
+**Context**: Checkpoint `1ecfd5e` records exact future blob names and prior-state
+summaries but intentionally creates no backup file. Blob creation must consume
+fresh durable authority under the same protected-root hold and must preserve
+every partial or ambiguous artifact for later recovery classification.
+
+**Decision**: Reload and authenticate the current journal from disk after
+acquiring the protected root, require exactly one `backup_preparing` generation,
+and reauthenticate both exact-state envelopes and summaries before any create.
+Use a separate native create-only adapter with no enumeration or destructive
+method. Write only DPAPI ciphertext with `CREATE_NEW`, the exact protected
+current-user/SYSTEM DACL, complete writes plus flush, and same-handle and no-
+follow reopen verification of identity, path, local regular single-link facts,
+security, size, and exact bytes. Preserve any artifact on failure.
+
+**Execution**: Implementation checkpoint
+`21aba578aa07fa1291c00b752f19cd9469df857f` adds the pure pair orchestrator,
+the native create-only adapter, a narrow held-root journal loader, and focused
+hostile/native tests. It creates environment then certificate blobs only from
+the two authenticated planned names and returns redacted immutable receipts.
+
+**Output**: The exact encrypted prior state can now be durably persisted without
+plaintext recovery files or broad file authority. A missing or changed durable
+preparation generation blocks both writes; failure after a create preserves the
+artifact for the future recovery classifier.
+
+**Validation**: Focused storage tests pass `22/22`; adjacent backup/journal/
+native-storage tests pass `161/161`; and the complete launcher suite passes
+`1763/1763`. Black, strict mypy, blocking Flake8, medium/high Bandit,
+compilation, editor diagnostics, secret review, and indexed diff checks pass.
+Final correctness review and independent arbitration returned `CLEAN/PASS`
+with no actionable Low-or-higher finding. Exact-head CI/CD run `35133270798`,
+Task-087 run `35133270809`, and Trivy passed; the main-only build was neutral as
+designed.
+
+**Next**: Persist and reauthenticate `backup_verified` with both exact blob
+identities, ciphertext hashes, and sizes, then establish `rollback_armed` only
+after a fresh durable reread. Keep restore and mutation disabled.
 
 ### 2026-09-16 - Authenticated Backup Preparation Intent Checkpointed
 

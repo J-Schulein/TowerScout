@@ -441,6 +441,18 @@ scaffolding; mixed or repeated backup-preparing chains fail closed. Actual blob
 persistence, `backup_verified`, `rollback_armed`, restore, and mutation remain
 outside this checkpoint.
 
+Independently reviewed and exact-head validated checkpoint `21aba57` consumes
+that write-ahead intent through a create-only backup-blob boundary. The current
+durable singleton is freshly enumerated, read, and authenticated while the
+protected root remains held across both creates. Only the two recorded names
+may receive the purpose-separated DPAPI ciphertexts; each file uses
+`CREATE_NEW`, the protected current-user/SYSTEM DACL, complete write plus flush,
+and same-handle and no-follow reopen verification of identity, path, local
+regular single-link facts, security, size, and exact bytes. Partial or
+ambiguous artifacts are preserved for later classification. No list, delete,
+move, replace, restore, journal advance, or mutation authority is exposed;
+`backup_verified`, `rollback_armed`, recovery, and mutation remain open.
+
 ## Launcher Front-Door Design Boundary
 
 Task-087 Gate A establishes the accepted exact-target, native execution,
