@@ -15,6 +15,7 @@ if str(LAUNCHER_ROOT) not in sys.path:
 import towerscout_launcher.windows_recovery_backup as backup  # noqa: E402
 import towerscout_launcher.windows_recovery_backup_preparation as preparation  # noqa: E402
 import towerscout_launcher.windows_recovery_backup_storage as blob_storage  # noqa: E402
+import towerscout_launcher.windows_recovery as recovery  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
 from towerscout_launcher.windows_protected_state import (  # noqa: E402
@@ -266,6 +267,55 @@ def _prepared(
         backup_protection=protection,
         journal_protection=protection,
     )
+
+
+def _persist_and_activate_rollback(
+    protection: _Protection,
+    stream: journal.JournalStreamIdentity,
+    environment: backup.SealedEnvironmentExactStateBackup,
+    certificates: backup.SealedCertificateExactStateBackup,
+    root: _Root,
+    generations: _GenerationStorage,
+    blobs: _BlobStorage,
+) -> blob_storage.PersistedRecoveryBackupBlobs:
+    _prepared(protection, root, generations, environment, certificates, stream)
+    persisted_blobs = blob_storage.persist_prepared_recovery_backup_blobs(
+        environment,
+        certificates,
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+    blob_storage.persist_backup_verified_generation(
+        environment,
+        certificates,
+        persisted_blobs,
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        verification=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+    blob_storage.persist_rollback_armed_generation(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+    blob_storage.activate_persisted_rollback_armed_generation(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+    return persisted_blobs
 
 
 def test_persist_prepared_blobs_writes_only_planned_ciphertexts_under_root() -> None:
@@ -862,6 +912,260 @@ def test_activate_rollback_armed_repairs_pointer_after_write_failure() -> None:
     assert (
         activated.selection.pointer_disposition
         is journal.JournalPointerDisposition.CURRENT
+    )
+
+
+def test_begin_rollback_reloads_authority_and_selects_started_tip() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    initial_root = _Root()
+    generations = _GenerationStorage(initial_root)
+    blobs = _BlobStorage(initial_root)
+    persisted_blobs = _persist_and_activate_rollback(
+        protection,
+        stream,
+        environment,
+        certificates,
+        initial_root,
+        generations,
+        blobs,
+    )
+    fresh_root = _Root()
+    fresh_protection = _Protection()
+    fresh_generations = _GenerationStorage(fresh_root)
+    fresh_generations.files = dict(generations.files)
+    fresh_generations.pointer = generations.pointer
+    fresh_blobs = _BlobStorage(fresh_root)
+
+    started = recovery.begin_persisted_rollback(
+        stream=stream,
+        root=fresh_root,
+        journal_storage=fresh_generations,
+        pointer_storage=fresh_generations,
+        verification=fresh_blobs,
+        journal_protection=fresh_protection,
+    )
+
+    assert fresh_root.calls == 1
+    assert fresh_blobs.verified == [
+        persisted_blobs.environment,
+        persisted_blobs.certificate,
+    ]
+    assert len(started.selection.generations) == 4
+    assert (
+        started.selection.tip.state is journal.EnvironmentJournalState.ROLLBACK_STARTED
+    )
+    assert (
+        started.selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+    record = started.selection.tip.record
+    assert type(record) is journal.RollbackStartedRecord
+    assert record.rollback_armed_generation_sha256 == (
+        started.selection.generation_sha256s[2]
+    )
+    assert fresh_generations.pointer is not None
+    assert journal.decode_environment_journal_pointer(
+        fresh_generations.pointer.contents
+    ) == journal.EnvironmentJournalPointer(
+        1,
+        stream.journal_id,
+        4,
+        started.selection.tip_generation_sha256,
+    )
+    assert not fresh_root.active
+
+
+def test_begin_rollback_is_idempotent_after_started_pointer_is_current() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    persisted_blobs = _persist_and_activate_rollback(
+        protection,
+        stream,
+        environment,
+        certificates,
+        root,
+        generations,
+        blobs,
+    )
+    first = recovery.begin_persisted_rollback(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+    replacements = generations.pointer_replacements
+    blobs.verified.clear()
+
+    second = recovery.begin_persisted_rollback(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+
+    assert second.selection == first.selection
+    assert len(generations.files) == 4
+    assert generations.pointer_replacements == replacements
+    assert blobs.verified == [persisted_blobs.environment, persisted_blobs.certificate]
+
+
+def test_begin_rollback_preserves_armed_state_on_blob_failure() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    _persist_and_activate_rollback(
+        protection,
+        stream,
+        environment,
+        certificates,
+        root,
+        generations,
+        blobs,
+    )
+    blobs.verified.clear()
+    blobs.fail_verify_at = 2
+
+    with pytest.raises(recovery.WindowsRecoveryError) as failure:
+        recovery.begin_persisted_rollback(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            verification=blobs,
+            journal_protection=protection,
+        )
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
+    assert len(generations.files) == 3
+    assert generations.pointer is not None
+    assert (
+        journal.decode_environment_journal_pointer(
+            generations.pointer.contents
+        ).sequence
+        == 3
+    )
+    assert "private" not in str(failure.value)
+
+
+def test_begin_rollback_repairs_armed_pointer_before_append() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    _persist_and_activate_rollback(
+        protection,
+        stream,
+        environment,
+        certificates,
+        root,
+        generations,
+        blobs,
+    )
+    generations.pointer = None
+    generations.fail_pointer_replace = OSError("private armed pointer path")
+
+    with pytest.raises(recovery.WindowsRecoveryError) as failure:
+        recovery.begin_persisted_rollback(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            verification=blobs,
+            journal_protection=protection,
+        )
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.WRITE_FAILED
+    assert len(generations.files) == 3
+    assert generations.pointer is None
+    assert "private" not in str(failure.value)
+
+    generations.fail_pointer_replace = None
+    started = recovery.begin_persisted_rollback(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+
+    assert len(generations.files) == 4
+    assert (
+        started.selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+    assert (
+        started.selection.tip.state is journal.EnvironmentJournalState.ROLLBACK_STARTED
+    )
+
+
+def test_begin_rollback_repairs_started_pointer_without_duplicate_append() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    _persist_and_activate_rollback(
+        protection,
+        stream,
+        environment,
+        certificates,
+        root,
+        generations,
+        blobs,
+    )
+    generations.fail_pointer_replace = OSError("private pointer path")
+
+    with pytest.raises(recovery.WindowsRecoveryError) as failure:
+        recovery.begin_persisted_rollback(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            verification=blobs,
+            journal_protection=protection,
+        )
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.WRITE_FAILED
+    assert len(generations.files) == 4
+    assert generations.pointer is not None
+    assert (
+        journal.decode_environment_journal_pointer(
+            generations.pointer.contents
+        ).sequence
+        == 3
+    )
+    assert "private" not in str(failure.value)
+
+    generations.fail_pointer_replace = None
+    blobs.verified.clear()
+    started = recovery.begin_persisted_rollback(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+
+    assert len(generations.files) == 4
+    assert (
+        started.selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+    assert (
+        started.selection.tip.state is journal.EnvironmentJournalState.ROLLBACK_STARTED
     )
 
 

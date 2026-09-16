@@ -177,6 +177,23 @@ def _rollback_armed_record(
     )
 
 
+def _rollback_started_record(
+    rollback_armed_generation_sha256: str,
+    armed: journal.RollbackArmedRecord,
+) -> journal.RollbackStartedRecord:
+    return journal.RollbackStartedRecord(
+        schema_version=1,
+        rollback_armed_generation_sha256=rollback_armed_generation_sha256,
+        package_root_identity=armed.package_root_identity,
+        environment_backup_identity=armed.environment_backup_identity,
+        environment_ciphertext_sha256=armed.environment_ciphertext_sha256,
+        environment_ciphertext_size=armed.environment_ciphertext_size,
+        certificate_backup_identity=armed.certificate_backup_identity,
+        certificate_ciphertext_sha256=armed.certificate_ciphertext_sha256,
+        certificate_ciphertext_size=armed.certificate_ciphertext_size,
+    )
+
+
 def _seal(
     generation: journal.EnvironmentJournalGeneration,
     protection: _Protection,
@@ -545,6 +562,158 @@ def test_rollback_armed_rejects_receipt_drift_and_invalid_continuity() -> None:
         with pytest.raises(journal.RecoveryJournalError) as failure:
             journal.select_environment_journal_chain(
                 (prepared, verified, armed),
+                None,
+                expected_stream=stream,
+                protection=protection,
+            )
+        assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+
+
+def test_rollback_started_round_trip_is_bound_and_redacted() -> None:
+    protection = _Protection()
+    stream = _stream()
+    prepared = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            1,
+            journal.GENESIS_GENERATION_SHA256,
+            journal.EnvironmentJournalState.BACKUP_PREPARING,
+            _backup_preparing_record(),
+        ),
+        protection,
+    )
+    verified_record = _backup_verified_record(prepared.generation_sha256)
+    verified = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            2,
+            prepared.generation_sha256,
+            journal.EnvironmentJournalState.BACKUP_VERIFIED,
+            verified_record,
+        ),
+        protection,
+    )
+    armed_record = _rollback_armed_record(
+        verified.generation_sha256,
+        verified_record,
+    )
+    armed = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            3,
+            verified.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_ARMED,
+            armed_record,
+        ),
+        protection,
+    )
+    record = _rollback_started_record(armed.generation_sha256, armed_record)
+    started_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        4,
+        armed.generation_sha256,
+        journal.EnvironmentJournalState.ROLLBACK_STARTED,
+        record,
+    )
+    started = _seal(started_generation, protection)
+
+    selection = journal.select_environment_journal_chain(
+        (prepared, verified, armed, started),
+        _pointer(stream, started, 4),
+        expected_stream=stream,
+        protection=protection,
+    )
+
+    assert selection.tip == started_generation
+    assert selection.pointer_disposition is journal.JournalPointerDisposition.CURRENT
+    rendered = repr(record) + repr(started_generation) + repr(selection)
+    assert record.rollback_armed_generation_sha256 not in rendered
+    assert record.environment_ciphertext_sha256 not in rendered
+    assert record.certificate_ciphertext_sha256 not in rendered
+    assert repr(record.environment_backup_identity) not in rendered
+
+
+def test_rollback_started_rejects_receipt_drift_and_invalid_continuity() -> None:
+    protection = _Protection()
+    stream = _stream()
+    prepared = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            1,
+            journal.GENESIS_GENERATION_SHA256,
+            journal.EnvironmentJournalState.BACKUP_PREPARING,
+            _backup_preparing_record(),
+        ),
+        protection,
+    )
+    verified_record = _backup_verified_record(prepared.generation_sha256)
+    verified = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            2,
+            prepared.generation_sha256,
+            journal.EnvironmentJournalState.BACKUP_VERIFIED,
+            verified_record,
+        ),
+        protection,
+    )
+    armed_record = _rollback_armed_record(
+        verified.generation_sha256,
+        verified_record,
+    )
+    armed = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            3,
+            verified.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_ARMED,
+            armed_record,
+        ),
+        protection,
+    )
+    drifted = journal.RollbackStartedRecord(
+        1,
+        armed.generation_sha256,
+        armed_record.package_root_identity,
+        armed_record.environment_backup_identity,
+        "8" * 64,
+        armed_record.environment_ciphertext_size,
+        armed_record.certificate_backup_identity,
+        armed_record.certificate_ciphertext_sha256,
+        armed_record.certificate_ciphertext_size,
+    )
+    for previous_sha256, record in (
+        (armed.generation_sha256, drifted),
+        (
+            "7" * 64,
+            _rollback_started_record(armed.generation_sha256, armed_record),
+        ),
+        (
+            armed.generation_sha256,
+            _rollback_started_record("7" * 64, armed_record),
+        ),
+    ):
+        started = _seal(
+            journal.EnvironmentJournalGeneration(
+                1,
+                stream,
+                4,
+                previous_sha256,
+                journal.EnvironmentJournalState.ROLLBACK_STARTED,
+                record,
+            ),
+            protection,
+        )
+        with pytest.raises(journal.RecoveryJournalError) as failure:
+            journal.select_environment_journal_chain(
+                (prepared, verified, armed, started),
                 None,
                 expected_stream=stream,
                 protection=protection,

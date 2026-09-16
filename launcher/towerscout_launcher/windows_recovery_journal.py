@@ -121,6 +121,7 @@ class EnvironmentJournalState(str, Enum):
     BACKUP_PREPARING = "backup_preparing"
     BACKUP_VERIFIED = "backup_verified"
     ROLLBACK_ARMED = "rollback_armed"
+    ROLLBACK_STARTED = "rollback_started"
     ENVIRONMENT_TEMP_PLANNED = "environment_temp_planned"
     ENVIRONMENT_TEMP_CREATED = "environment_temp_created"
     ENVIRONMENT_TEMP_VERIFIED = "environment_temp_verified"
@@ -296,6 +297,48 @@ class RollbackArmedRecord:
         )
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class RollbackStartedRecord:
+    schema_version: int
+    rollback_armed_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    environment_backup_identity: StableFileIdentity = field(repr=False)
+    environment_ciphertext_sha256: str = field(repr=False)
+    environment_ciphertext_size: int
+    certificate_backup_identity: StableFileIdentity = field(repr=False)
+    certificate_ciphertext_sha256: str = field(repr=False)
+    certificate_ciphertext_size: int
+
+    def __post_init__(self) -> None:
+        identities = (
+            self.package_root_identity,
+            self.environment_backup_identity,
+            self.certificate_backup_identity,
+        )
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.rollback_armed_generation_sha256)
+            or any(type(identity) is not StableFileIdentity for identity in identities)
+            or len(set(identities)) != len(identities)
+            or not _valid_hash(self.environment_ciphertext_sha256)
+            or type(self.environment_ciphertext_size) is not int
+            or not 1 <= self.environment_ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
+            or not _valid_hash(self.certificate_ciphertext_sha256)
+            or type(self.certificate_ciphertext_size) is not int
+            or not 1 <= self.certificate_ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
+        ):
+            raise ValueError("Rollback started record is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "RollbackStartedRecord("
+            f"environment_ciphertext_size={self.environment_ciphertext_size}, "
+            f"certificate_ciphertext_size={self.certificate_ciphertext_size}, "
+            "<redacted>)"
+        )
+
+
 EnvironmentTempJournalRecord = (
     EnvironmentTempPlanRecord
     | EnvironmentTempCreatedRecord
@@ -305,6 +348,7 @@ EnvironmentJournalRecord = (
     BackupPreparingRecord
     | BackupVerifiedRecord
     | RollbackArmedRecord
+    | RollbackStartedRecord
     | EnvironmentTempJournalRecord
 )
 
@@ -312,6 +356,7 @@ _RECORD_TYPE_BY_STATE: dict[EnvironmentJournalState, type[object]] = {
     EnvironmentJournalState.BACKUP_PREPARING: BackupPreparingRecord,
     EnvironmentJournalState.BACKUP_VERIFIED: BackupVerifiedRecord,
     EnvironmentJournalState.ROLLBACK_ARMED: RollbackArmedRecord,
+    EnvironmentJournalState.ROLLBACK_STARTED: RollbackStartedRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED: EnvironmentTempPlanRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED: EnvironmentTempCreatedRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED: EnvironmentTempVerifiedRecord,
@@ -644,6 +689,24 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
                 record.backup_verified_generation_sha256
             ),
         }
+    if type(record) is RollbackStartedRecord:
+        return {
+            "certificate_backup_identity": _identity_to_json(
+                record.certificate_backup_identity
+            ),
+            "certificate_ciphertext_sha256": record.certificate_ciphertext_sha256,
+            "certificate_ciphertext_size": record.certificate_ciphertext_size,
+            "environment_backup_identity": _identity_to_json(
+                record.environment_backup_identity
+            ),
+            "environment_ciphertext_sha256": record.environment_ciphertext_sha256,
+            "environment_ciphertext_size": record.environment_ciphertext_size,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "rollback_armed_generation_sha256": (
+                record.rollback_armed_generation_sha256
+            ),
+            "schema_version": record.schema_version,
+        }
     environment_record = cast(EnvironmentTempJournalRecord, record)
     common: dict[str, Any] = {
         "candidate_sha256": environment_record.candidate_sha256,
@@ -758,6 +821,34 @@ def _record_from_json(
         return RollbackArmedRecord(
             item["schema_version"],
             item["backup_verified_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            _identity_from_json(item["environment_backup_identity"]),
+            item["environment_ciphertext_sha256"],
+            item["environment_ciphertext_size"],
+            _identity_from_json(item["certificate_backup_identity"]),
+            item["certificate_ciphertext_sha256"],
+            item["certificate_ciphertext_size"],
+        )
+    if state is EnvironmentJournalState.ROLLBACK_STARTED:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "certificate_backup_identity",
+                    "certificate_ciphertext_sha256",
+                    "certificate_ciphertext_size",
+                    "environment_backup_identity",
+                    "environment_ciphertext_sha256",
+                    "environment_ciphertext_size",
+                    "package_root_identity",
+                    "rollback_armed_generation_sha256",
+                    "schema_version",
+                }
+            ),
+        )
+        return RollbackStartedRecord(
+            item["schema_version"],
+            item["rollback_armed_generation_sha256"],
             _identity_from_json(item["package_root_identity"]),
             _identity_from_json(item["environment_backup_identity"]),
             item["environment_ciphertext_sha256"],
@@ -978,7 +1069,7 @@ def _validate_record_continuity(
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         if len(generations) == 1:
             return
-        if len(generations) not in {2, 3}:
+        if len(generations) not in {2, 3, 4}:
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         verified_generation = generations[1]
         verified = verified_generation.generation.record
@@ -1009,6 +1100,27 @@ def _validate_record_continuity(
             or armed.certificate_ciphertext_sha256
             != verified.certificate_ciphertext_sha256
             or armed.certificate_ciphertext_size != verified.certificate_ciphertext_size
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 3:
+            return
+        started_generation = generations[3]
+        started = started_generation.generation.record
+        if (
+            type(started) is not RollbackStartedRecord
+            or started_generation.generation.previous_generation_sha256
+            != armed_generation.generation_sha256
+            or started.rollback_armed_generation_sha256
+            != armed_generation.generation_sha256
+            or started.package_root_identity != armed.package_root_identity
+            or started.environment_backup_identity != armed.environment_backup_identity
+            or started.environment_ciphertext_sha256
+            != armed.environment_ciphertext_sha256
+            or started.environment_ciphertext_size != armed.environment_ciphertext_size
+            or started.certificate_backup_identity != armed.certificate_backup_identity
+            or started.certificate_ciphertext_sha256
+            != armed.certificate_ciphertext_sha256
+            or started.certificate_ciphertext_size != armed.certificate_ciphertext_size
         ):
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         return
@@ -1069,7 +1181,7 @@ def select_environment_journal_chain(
     )
     if any(item.generation.stream != expected_stream for item in generations):
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
-    if len(generations) > 3:
+    if len(generations) > 4:
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
     digests = tuple(item.generation_sha256 for item in generations)
     if len(set(digests)) != len(digests):
@@ -1079,6 +1191,7 @@ def select_environment_journal_chain(
         EnvironmentJournalState.BACKUP_PREPARING,
         EnvironmentJournalState.BACKUP_VERIFIED,
         EnvironmentJournalState.ROLLBACK_ARMED,
+        EnvironmentJournalState.ROLLBACK_STARTED,
     )
     environment_temp_states = (
         EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
@@ -1146,6 +1259,7 @@ __all__ = [
     "RecoveryJournalError",
     "RecoveryJournalErrorCode",
     "RollbackArmedRecord",
+    "RollbackStartedRecord",
     "SealedEnvironmentJournalGeneration",
     "decode_environment_journal_pointer",
     "encode_environment_journal_pointer",
