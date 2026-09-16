@@ -20,6 +20,7 @@ from towerscout_launcher.windows_path_trust import (  # noqa: E402
 from towerscout_launcher.windows_recovery_journal_storage import (  # noqa: E402
     RecoveryJournalStorageError,
     RecoveryJournalStorageErrorCode,
+    StoredJournalPointerFile,
 )
 from towerscout_launcher.windows_security import (  # noqa: E402
     NativeFileFacts,
@@ -218,6 +219,8 @@ class _PointerApi:
         self.destination_path: str | None = None
         self.destination_security: NativeSecurityFacts | None = None
         self.post_read_security: NativeSecurityFacts | None = None
+        self.path_overrides: dict[str, str] = {}
+        self.security_overrides: dict[str, NativeSecurityFacts] = {}
         self.security_queries: dict[str, int] = {}
         self.leave_temp_after_move = False
         self.close_error: BaseException | None = None
@@ -256,10 +259,14 @@ class _PointerApi:
         self.events.append(f"query:{handle.path}")
         identity, contents = self.files[handle.path]
         return NativeFileFacts(
-            final_path=(
-                self.destination_path
-                if handle.path == _POINTER_PATH and self.destination_path is not None
-                else handle.path
+            final_path=self.path_overrides.get(
+                handle.path,
+                (
+                    self.destination_path
+                    if handle.path == _POINTER_PATH
+                    and self.destination_path is not None
+                    else handle.path
+                ),
             ),
             volume_serial=identity.volume_serial,
             file_id=identity.file_id,
@@ -280,6 +287,8 @@ class _PointerApi:
         self.security_queries[handle.path] = queries
         if queries > 1 and self.post_read_security is not None:
             return self.post_read_security
+        if handle.path in self.security_overrides:
+            return self.security_overrides[handle.path]
         if handle.path == _POINTER_PATH and self.destination_security is not None:
             return self.destination_security
         return _protected_security()
@@ -605,6 +614,192 @@ def test_pointer_temp_storage_rejects_untrusted_name_and_oversized_bytes() -> No
     assert api.events == []
 
 
+def test_pointer_promotion_verifies_exact_source_and_prior_destination() -> None:
+    api = _PointerApi()
+    api.files[_POINTER_TEMP_PATH] = (api.temp_identity, _POINTER_CONTENTS)
+    storage = native.NativeWindowsJournalPointerPromotionStorage(api=api)
+
+    stored = storage.promote_pointer_temp(
+        _ROOT,
+        _POINTER_TEMP_NAME,
+        _POINTER_NAME,
+        api.temp_identity,
+        _POINTER_CONTENTS,
+        StoredJournalPointerFile(_identity("33"), b"old-pointer"),
+    )
+
+    assert stored == StoredJournalPointerFile(api.temp_identity, _POINTER_CONTENTS)
+    assert api.files == {_POINTER_PATH: (api.temp_identity, _POINTER_CONTENTS)}
+    move_index = api.events.index("move")
+    assert f"close:{_POINTER_TEMP_PATH}" in api.events[:move_index]
+    assert f"close:{_POINTER_PATH}" in api.events[:move_index]
+    assert api.events[move_index + 1] == f"optional:{_POINTER_TEMP_PATH}"
+
+
+def test_pointer_promotion_accepts_exact_prior_absence() -> None:
+    api = _PointerApi()
+    api.files = {_POINTER_TEMP_PATH: (api.temp_identity, _POINTER_CONTENTS)}
+    storage = native.NativeWindowsJournalPointerPromotionStorage(api=api)
+
+    stored = storage.promote_pointer_temp(
+        _ROOT,
+        _POINTER_TEMP_NAME,
+        _POINTER_NAME,
+        api.temp_identity,
+        _POINTER_CONTENTS,
+        None,
+    )
+
+    assert stored == StoredJournalPointerFile(api.temp_identity, _POINTER_CONTENTS)
+    assert api.files == {_POINTER_PATH: (api.temp_identity, _POINTER_CONTENTS)}
+
+
+@pytest.mark.parametrize(
+    "failure_mode",
+    ("missing", "identity", "contents", "path", "security", "volume"),
+)
+def test_pointer_promotion_rejects_source_drift_before_move(
+    failure_mode: str,
+) -> None:
+    api = _PointerApi()
+    api.files[_POINTER_TEMP_PATH] = (api.temp_identity, _POINTER_CONTENTS)
+    if failure_mode == "missing":
+        api.files.pop(_POINTER_TEMP_PATH)
+    elif failure_mode == "identity":
+        api.files[_POINTER_TEMP_PATH] = (_identity("55"), _POINTER_CONTENTS)
+    elif failure_mode == "contents":
+        api.files[_POINTER_TEMP_PATH] = (api.temp_identity, b"wrong-pointer")
+    elif failure_mode == "path":
+        api.path_overrides[_POINTER_TEMP_PATH] = rf"{_ROOT}\other.tmp"
+    elif failure_mode == "security":
+        api.security_overrides[_POINTER_TEMP_PATH] = NativeSecurityFacts(
+            owner_sid=_USER_SID,
+            dacl_present=True,
+            allowed_aces=(AccessAllowedAce(_USER_SID, 0x001F01FF, 0),),
+            dacl_protected=True,
+        )
+    else:
+        api.files[_POINTER_TEMP_PATH] = (
+            StableFileIdentity(8, api.temp_identity.file_id),
+            _POINTER_CONTENTS,
+        )
+    storage = native.NativeWindowsJournalPointerPromotionStorage(api=api)
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        storage.promote_pointer_temp(
+            _ROOT,
+            _POINTER_TEMP_NAME,
+            _POINTER_NAME,
+            api.temp_identity,
+            _POINTER_CONTENTS,
+            StoredJournalPointerFile(_identity("33"), b"old-pointer"),
+        )
+
+    assert failure.value.code is RecoveryJournalStorageErrorCode.VERIFY_FAILED
+    assert "move" not in api.events
+
+
+@pytest.mark.parametrize(
+    "failure_mode",
+    ("missing", "unexpected", "identity", "contents", "path", "security", "volume"),
+)
+def test_pointer_promotion_rejects_prior_destination_drift_before_move(
+    failure_mode: str,
+) -> None:
+    api = _PointerApi()
+    api.files[_POINTER_TEMP_PATH] = (api.temp_identity, _POINTER_CONTENTS)
+    expected: StoredJournalPointerFile | None = StoredJournalPointerFile(
+        _identity("33"), b"old-pointer"
+    )
+    if failure_mode == "missing":
+        api.files.pop(_POINTER_PATH)
+    elif failure_mode == "unexpected":
+        expected = None
+    elif failure_mode == "identity":
+        api.files[_POINTER_PATH] = (_identity("55"), b"old-pointer")
+    elif failure_mode == "contents":
+        api.files[_POINTER_PATH] = (_identity("33"), b"wrong-pointer")
+    elif failure_mode == "path":
+        api.path_overrides[_POINTER_PATH] = rf"{_ROOT}\other.pointer"
+    elif failure_mode == "security":
+        api.security_overrides[_POINTER_PATH] = NativeSecurityFacts(
+            owner_sid=_USER_SID,
+            dacl_present=True,
+            allowed_aces=(AccessAllowedAce(_USER_SID, 0x001F01FF, 0),),
+            dacl_protected=True,
+        )
+    else:
+        api.files[_POINTER_PATH] = (
+            StableFileIdentity(8, _identity("33").file_id),
+            b"old-pointer",
+        )
+    storage = native.NativeWindowsJournalPointerPromotionStorage(api=api)
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        storage.promote_pointer_temp(
+            _ROOT,
+            _POINTER_TEMP_NAME,
+            _POINTER_NAME,
+            api.temp_identity,
+            _POINTER_CONTENTS,
+            expected,
+        )
+
+    assert failure.value.code is RecoveryJournalStorageErrorCode.VERIFY_FAILED
+    assert "move" not in api.events
+
+
+def test_pointer_promotion_reconciles_only_exact_completed_move() -> None:
+    api = _PointerApi()
+    api.files[_POINTER_TEMP_PATH] = (api.temp_identity, _POINTER_CONTENTS)
+    api.move_error_after_move = OSError("sensitive pointer path")
+    storage = native.NativeWindowsJournalPointerPromotionStorage(api=api)
+
+    stored = storage.promote_pointer_temp(
+        _ROOT,
+        _POINTER_TEMP_NAME,
+        _POINTER_NAME,
+        api.temp_identity,
+        _POINTER_CONTENTS,
+        StoredJournalPointerFile(_identity("33"), b"old-pointer"),
+    )
+
+    assert stored == StoredJournalPointerFile(api.temp_identity, _POINTER_CONTENTS)
+    assert _POINTER_TEMP_PATH not in api.files
+
+
+def test_pointer_promotion_sanitizes_move_failure_and_propagates_control() -> None:
+    api = _PointerApi()
+    api.files[_POINTER_TEMP_PATH] = (api.temp_identity, _POINTER_CONTENTS)
+    api.move_error = OSError("sensitive pointer path")
+    storage = native.NativeWindowsJournalPointerPromotionStorage(api=api)
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        storage.promote_pointer_temp(
+            _ROOT,
+            _POINTER_TEMP_NAME,
+            _POINTER_NAME,
+            api.temp_identity,
+            _POINTER_CONTENTS,
+            StoredJournalPointerFile(_identity("33"), b"old-pointer"),
+        )
+    assert failure.value.code is RecoveryJournalStorageErrorCode.WRITE_FAILED
+    assert "sensitive" not in str(failure.value)
+
+    interruption = KeyboardInterrupt()
+    api.move_error = interruption
+    with pytest.raises(KeyboardInterrupt) as raised:
+        storage.promote_pointer_temp(
+            _ROOT,
+            _POINTER_TEMP_NAME,
+            _POINTER_NAME,
+            api.temp_identity,
+            _POINTER_CONTENTS,
+            StoredJournalPointerFile(_identity("33"), b"old-pointer"),
+        )
+    assert raised.value is interruption
+
+
 def test_pointer_read_rejects_security_drift_after_read() -> None:
     api = _PointerApi()
     api.files[_POINTER_PATH] = (_identity("33"), _POINTER_CONTENTS)
@@ -865,6 +1060,31 @@ def test_native_pointer_temp_remains_verified_and_unpromoted(tmp_path: Path) -> 
     assert stored.contents == _POINTER_CONTENTS
     assert (tmp_path / _POINTER_TEMP_NAME).read_bytes() == _POINTER_CONTENTS
     assert not (tmp_path / _POINTER_NAME).exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires native Windows file APIs")
+def test_native_pointer_promotion_moves_exact_existing_temp(tmp_path: Path) -> None:
+    temp_storage = native.NativeWindowsJournalPointerTempStorage()
+    promotion_storage = native.NativeWindowsJournalPointerPromotionStorage()
+    root_path = str(tmp_path)
+    temp = temp_storage.create_pointer_temp(
+        root_path,
+        _POINTER_TEMP_NAME,
+        _POINTER_CONTENTS,
+    )
+
+    promoted = promotion_storage.promote_pointer_temp(
+        root_path,
+        _POINTER_TEMP_NAME,
+        _POINTER_NAME,
+        temp.identity,
+        temp.contents,
+        None,
+    )
+
+    assert promoted == temp
+    assert not (tmp_path / _POINTER_TEMP_NAME).exists()
+    assert (tmp_path / _POINTER_NAME).read_bytes() == _POINTER_CONTENTS
 
 
 @pytest.mark.skipif(os.name != "nt", reason="requires native Windows file APIs")

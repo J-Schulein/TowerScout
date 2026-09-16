@@ -1,8 +1,9 @@
 """Native Windows persistence for recovery-journal generations and pointers.
 
 This adapter implements bounded protected generation-file persistence and
-same-volume metadata-pointer replacement. Cleanup, recovery, package-file
-promotion, and runtime mutation remain outside this module.
+same-volume metadata-pointer replacement or journal-bound pointer-temp
+promotion. Cleanup, recovery, package-file promotion, and runtime mutation
+remain outside this module.
 """
 
 from __future__ import annotations
@@ -599,6 +600,50 @@ def _reconcile_completed_pointer_move(
     return stored
 
 
+def _verify_pointer_before_move(
+    api: _WindowsJournalPointerApi,
+    *,
+    path: str,
+    current_user_sid: str,
+    expected: StoredJournalPointerFile | None,
+) -> None:
+    handle = _call(
+        lambda: api.reopen_file_if_exists(path),
+        RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+    )
+    if expected is None:
+        if handle is None:
+            return
+        _call(
+            lambda: api.close_handle(handle),
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    if handle is None:
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    held: object | None = handle
+    try:
+        stored = _read_verified_pointer(
+            api,
+            handle,
+            path=path,
+            current_user_sid=current_user_sid,
+            expected_size=len(expected.contents),
+            expected_identity=expected.identity,
+            code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        if stored.contents != expected.contents:
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        _call(
+            lambda: api.close_handle(handle),
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        held = None
+    finally:
+        if held is not None:
+            _safe_close(api, held)
+
+
 class NativeWindowsJournalGenerationStorage:
     """Native protected-file implementation of the generation storage port."""
 
@@ -1041,12 +1086,125 @@ class NativeWindowsJournalPointerTempStorage:
         )
 
 
+class NativeWindowsJournalPointerPromotionStorage:
+    """Promote one exact existing pointer temp without create/delete authority."""
+
+    __slots__ = ("_api",)
+
+    def __init__(self, *, api: _WindowsJournalPointerApi | None = None) -> None:
+        self._api = NativeWindowsJournalPointerApi() if api is None else api
+
+    def __repr__(self) -> str:
+        return "NativeWindowsJournalPointerPromotionStorage(<redacted>)"
+
+    def promote_pointer_temp(
+        self,
+        root_path: str,
+        source_name: str,
+        destination_name: str,
+        source_identity: StableFileIdentity,
+        contents: bytes,
+        expected_destination: StoredJournalPointerFile | None,
+    ) -> StoredJournalPointerFile:
+        supported = _call(
+            lambda: self._api.supported,
+            RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE)
+        if (
+            type(source_identity) is not StableFileIdentity
+            or type(contents) is not bytes
+            or not 1 <= len(contents) <= _MAX_POINTER_BYTES
+            or (
+                expected_destination is not None
+                and type(expected_destination) is not StoredJournalPointerFile
+            )
+        ):
+            _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+        source_path = _pointer_temp_path(root_path, source_name)
+        destination_path = _pointer_path(root_path, destination_name)
+        current_user_sid = _current_user_sid(
+            self._api,
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        _verify_pointer_before_move(
+            self._api,
+            path=source_path,
+            current_user_sid=current_user_sid,
+            expected=StoredJournalPointerFile(source_identity, contents),
+        )
+        _verify_pointer_before_move(
+            self._api,
+            path=destination_path,
+            current_user_sid=current_user_sid,
+            expected=expected_destination,
+        )
+
+        move_failed = False
+        try:
+            self._api.move_file_replace_write_through(
+                source_path,
+                destination_path,
+            )
+        except RecoveryJournalStorageError:
+            raise
+        except Exception:
+            move_failed = True
+        if move_failed:
+            return _reconcile_completed_pointer_move(
+                self._api,
+                temp_path=source_path,
+                destination_path=destination_path,
+                current_user_sid=current_user_sid,
+                temp_identity=source_identity,
+                contents=contents,
+            )
+
+        unexpected_source = _call(
+            lambda: self._api.reopen_file_if_exists(source_path),
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        if unexpected_source is not None:
+            _safe_close(self._api, unexpected_source)
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        destination = _call(
+            lambda: self._api.reopen_file_for_verification(destination_path),
+            RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+        )
+        if destination is None:
+            _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+        held: object | None = destination
+        try:
+            stored = _read_verified_pointer(
+                self._api,
+                destination,
+                path=destination_path,
+                current_user_sid=current_user_sid,
+                expected_size=len(contents),
+                expected_identity=source_identity,
+                code=RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            )
+            if stored.contents != contents:
+                _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+            _call(
+                lambda: self._api.close_handle(destination),
+                RecoveryJournalStorageErrorCode.VERIFY_FAILED,
+            )
+            held = None
+        finally:
+            if held is not None:
+                _safe_close(self._api, held)
+        return stored
+
+
 __all__ = [
     "JournalPointerTempNameSource",
     "NativeJournalPointerTempNameSource",
     "NativeWindowsJournalGenerationApi",
     "NativeWindowsJournalGenerationStorage",
     "NativeWindowsJournalPointerApi",
+    "NativeWindowsJournalPointerPromotionStorage",
     "NativeWindowsJournalPointerStorage",
     "NativeWindowsJournalPointerTempStorage",
 ]

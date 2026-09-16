@@ -2,9 +2,8 @@
 
 This Gate-A layer stores create-only transition generations below the held
 protected recovery root, creates and verifies the exact planned pointer temp,
-and authenticates the complete chain after restart. It does not promote,
-replace, or delete pointer files and does not authorize repair or runtime
-mutation.
+and promotes only that authenticated temp to the recorded pointer path. It does
+not delete files or authorize repair or runtime mutation.
 """
 
 from __future__ import annotations
@@ -34,6 +33,8 @@ from .windows_recovery_journal_storage import (
     StoredJournalPointerFile,
 )
 from .windows_recovery_pointer_transition import (
+    JournalPointerPathObservation as _PointerObservation,
+    JournalPointerRestartDisposition as _RestartDisposition,
     JournalPointerTransitionChainSelection as _TransitionSelection,
     JournalPointerTransitionCreatedRecord as _TransitionCreated,
     JournalPointerTransitionError,
@@ -43,6 +44,7 @@ from .windows_recovery_pointer_transition import (
     JournalPointerTransitionStreamIdentity as _TransitionStream,
     PointerTransitionProtectionPort as _TransitionProtection,
     SealedJournalPointerTransitionGeneration as _SealedTransition,
+    classify_journal_pointer_transition_restart,
     protect_journal_pointer_transition_generation,
     select_journal_pointer_transition_chain,
 )
@@ -102,6 +104,18 @@ class JournalPointerTempStoragePort(Protocol):
         root_path: str,
         name: str,
         contents: bytes,
+    ) -> StoredJournalPointerFile: ...
+
+
+class JournalPointerPromotionStoragePort(Protocol):
+    def promote_pointer_temp(
+        self,
+        root_path: str,
+        source_name: str,
+        destination_name: str,
+        source_identity: StableFileIdentity,
+        contents: bytes,
+        expected_destination: StoredJournalPointerFile | None,
     ) -> StoredJournalPointerFile: ...
 
 
@@ -382,7 +396,7 @@ def append_persisted_journal_pointer_transition_generation(
 
 
 def _pointer_contents(
-    plan: _TransitionPlan,
+    plan: _TransitionPlan | _TransitionCreated,
     stream: _TransitionStream,
 ) -> bytes:
     try:
@@ -541,10 +555,157 @@ def create_persisted_journal_pointer_transition_temp(
     )
 
 
+def _expected_prior_pointer(
+    created: _TransitionCreated,
+    stream: _TransitionStream,
+) -> StoredJournalPointerFile | None:
+    if not created.prior_pointer_present:
+        return None
+    identity = created.prior_pointer_identity
+    sequence = created.prior_pointer_sequence
+    generation_sha256 = created.prior_pointer_generation_sha256
+    expected_sha256 = created.prior_pointer_sha256
+    expected_size = created.prior_pointer_size
+    if (
+        type(identity) is not StableFileIdentity
+        or type(sequence) is not int
+        or type(generation_sha256) is not str
+        or type(expected_sha256) is not str
+        or type(expected_size) is not int
+    ):
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    try:
+        contents = encode_environment_journal_pointer(
+            EnvironmentJournalPointer(
+                created.schema_version,
+                stream.environment_journal_id,
+                sequence,
+                generation_sha256,
+            )
+        )
+    except (RecoveryJournalError, ValueError):
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    if (
+        hashlib.sha256(contents).hexdigest() != expected_sha256
+        or len(contents) != expected_size
+    ):
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    return StoredJournalPointerFile(identity, contents)
+
+
+def _promote_pointer_temp_while_root_held(
+    root_path: str,
+    stream: _TransitionStream,
+    generation_storage: JournalGenerationStoragePort,
+    promotion_storage: JournalPointerPromotionStoragePort,
+    protection: _TransitionProtection,
+    environment_generations: tuple[SealedEnvironmentJournalGeneration, ...],
+    expected_environment_stream: JournalStreamIdentity,
+) -> StoredJournalPointerFile:
+    current = _load_while_root_held(
+        root_path,
+        stream,
+        generation_storage,
+        protection,
+        environment_generations,
+        expected_environment_stream,
+    )
+    if (
+        current is None
+        or current.selection.tip.state is not _TransitionState.POINTER_TEMP_CREATED
+        or type(current.selection.tip.record) is not _TransitionCreated
+    ):
+        _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
+    created = current.selection.tip.record
+    contents = _pointer_contents(created, stream)
+    promoted = _storage_call(
+        promotion_storage,
+        "promote_pointer_temp",
+        root_path,
+        created.pointer_temp_name,
+        created.pointer_name,
+        created.pointer_temp_identity,
+        contents,
+        _expected_prior_pointer(created, stream),
+        code=RecoveryJournalStorageErrorCode.WRITE_FAILED,
+    )
+    if (
+        type(promoted) is not StoredJournalPointerFile
+        or promoted.identity != created.pointer_temp_identity
+        or promoted.contents != contents
+    ):
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    reloaded = _load_while_root_held(
+        root_path,
+        stream,
+        generation_storage,
+        protection,
+        environment_generations,
+        expected_environment_stream,
+    )
+    if reloaded != current:
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    disposition = classify_journal_pointer_transition_restart(
+        reloaded.sealed_generations,
+        expected_stream=stream,
+        environment_generations=environment_generations,
+        expected_environment_stream=expected_environment_stream,
+        protection=protection,
+        source_temp_observation=_PointerObservation(False),
+        destination_pointer_observation=_PointerObservation(
+            True,
+            promoted.identity,
+            hashlib.sha256(promoted.contents).hexdigest(),
+            len(promoted.contents),
+        ),
+    )
+    if disposition is not _RestartDisposition.MOVE_COMPLETED:
+        _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
+    return promoted
+
+
+def promote_persisted_journal_pointer_transition_temp(
+    stream: _TransitionStream,
+    *,
+    root: JournalStorageRootPort,
+    generation_storage: JournalGenerationStoragePort,
+    promotion_storage: JournalPointerPromotionStoragePort,
+    protection: _TransitionProtection,
+    environment_generations: tuple[SealedEnvironmentJournalGeneration, ...],
+    expected_environment_stream: JournalStreamIdentity,
+) -> StoredJournalPointerFile:
+    """Promote only the exact authenticated pointer temp and verify the move."""
+
+    if (
+        type(stream) is not _TransitionStream
+        or type(environment_generations) is not tuple
+        or any(
+            type(item) is not SealedEnvironmentJournalGeneration
+            for item in environment_generations
+        )
+        or type(expected_environment_stream) is not JournalStreamIdentity
+    ):
+        _fail(RecoveryJournalStorageErrorCode.INPUT_INVALID)
+    return _run_under_root(
+        root,
+        lambda root_path: _promote_pointer_temp_while_root_held(
+            root_path,
+            stream,
+            generation_storage,
+            promotion_storage,
+            protection,
+            environment_generations,
+            expected_environment_stream,
+        ),
+    )
+
+
 __all__ = [
+    "JournalPointerPromotionStoragePort",
     "JournalPointerTempStoragePort",
     "PersistedJournalPointerTransitionChain",
     "append_persisted_journal_pointer_transition_generation",
     "create_persisted_journal_pointer_transition_temp",
     "load_persisted_journal_pointer_transition_chain",
+    "promote_persisted_journal_pointer_transition_temp",
 ]

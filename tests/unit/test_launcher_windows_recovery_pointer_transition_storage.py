@@ -37,6 +37,7 @@ SealedTransition = transition.SealedJournalPointerTransitionGeneration
 append_item = store.append_persisted_journal_pointer_transition_generation
 create_temp = store.create_persisted_journal_pointer_transition_temp
 load_transition = store.load_persisted_journal_pointer_transition_chain
+promote_temp = store.promote_persisted_journal_pointer_transition_temp
 
 _Result = TypeVar("_Result")
 
@@ -160,6 +161,42 @@ class _PointerTempStorage:
         )
         self.files[name] = stored
         return stored
+
+
+class _PointerPromotionStorage:
+    def __init__(self, root: _Root) -> None:
+        self.root = root
+        self.return_identity = _identity(22)
+        self.return_contents: bytes | None = None
+        self.error: BaseException | None = None
+        self.calls: list[tuple[object, ...]] = []
+
+    def promote_pointer_temp(
+        self,
+        root_path: str,
+        source_name: str,
+        destination_name: str,
+        source_identity: StableFileIdentity,
+        contents: bytes,
+        expected_destination: StoredJournalPointerFile | None,
+    ) -> StoredJournalPointerFile:
+        assert self.root.active
+        assert root_path.endswith(r"TowerScout\Recovery\v1")
+        self.calls.append(
+            (
+                source_name,
+                destination_name,
+                source_identity,
+                contents,
+                expected_destination,
+            )
+        )
+        if self.error is not None:
+            raise self.error
+        return StoredJournalPointerFile(
+            self.return_identity,
+            contents if self.return_contents is None else self.return_contents,
+        )
 
 
 def _environment_chain(
@@ -403,6 +440,224 @@ def test_create_temp_persists_exact_identity_and_restart_chain() -> None:
     assert loaded is not None
     assert loaded.selection == persisted.selection
     assert not restarted.active
+
+
+def test_promote_temp_uses_exact_created_identity_and_prior_pointer() -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    pointer_temps = _PointerTempStorage(root)
+    promotions = _PointerPromotionStorage(root)
+    append_item(
+        generations[0],
+        stream=stream,
+        root=root,
+        storage=backend,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+    created_chain = create_temp(
+        stream,
+        root=root,
+        generation_storage=backend,
+        pointer_temp_storage=pointer_temps,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+
+    promoted = promote_temp(
+        stream,
+        root=root,
+        generation_storage=backend,
+        promotion_storage=promotions,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+
+    created = cast(
+        transition.JournalPointerTransitionCreatedRecord,
+        created_chain.selection.tip.record,
+    )
+    target_pointer = journal.EnvironmentJournalPointer(
+        1,
+        stream.environment_journal_id,
+        created.target_tip_sequence,
+        created.target_generation_sha256,
+    )
+    prior_pointer = journal.EnvironmentJournalPointer(
+        1,
+        stream.environment_journal_id,
+        cast(int, created.prior_pointer_sequence),
+        cast(str, created.prior_pointer_generation_sha256),
+    )
+    assert promoted == StoredJournalPointerFile(
+        created.pointer_temp_identity,
+        journal.encode_environment_journal_pointer(target_pointer),
+    )
+    assert promotions.calls == [
+        (
+            created.pointer_temp_name,
+            created.pointer_name,
+            created.pointer_temp_identity,
+            promoted.contents,
+            StoredJournalPointerFile(
+                cast(StableFileIdentity, created.prior_pointer_identity),
+                journal.encode_environment_journal_pointer(prior_pointer),
+            ),
+        )
+    ]
+    assert len(backend.files) == 2
+    assert not root.active
+
+
+@pytest.mark.parametrize("existing_state", ("absent", "planned"))
+def test_promote_temp_requires_persisted_created_state(existing_state: str) -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    promotions = _PointerPromotionStorage(root)
+    if existing_state == "planned":
+        append_item(
+            generations[0],
+            stream=stream,
+            root=root,
+            storage=backend,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        promote_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            promotion_storage=promotions,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+
+    assert failure.value.code is StorageErrorCode.STORAGE_INVALID
+    assert promotions.calls == []
+    assert not root.active
+
+
+@pytest.mark.parametrize("drift", ("identity", "contents"))
+def test_promote_temp_rejects_returned_destination_drift(drift: str) -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    pointer_temps = _PointerTempStorage(root)
+    promotions = _PointerPromotionStorage(root)
+    append_item(
+        generations[0],
+        stream=stream,
+        root=root,
+        storage=backend,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+    create_temp(
+        stream,
+        root=root,
+        generation_storage=backend,
+        pointer_temp_storage=pointer_temps,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+    if drift == "identity":
+        promotions.return_identity = _identity(99)
+    else:
+        promotions.return_contents = b"wrong"
+
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        promote_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            promotion_storage=promotions,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+
+    assert failure.value.code is StorageErrorCode.VERIFY_FAILED
+    assert len(backend.files) == 2
+    assert not root.active
+
+
+def test_promote_temp_sanitizes_dependency_failure_and_propagates_control() -> None:
+    protection = _Protection()
+    stream, environment_stream, environment_generations, generations = (
+        _transition_chain(protection)
+    )
+    root = _Root()
+    backend = _Storage(root)
+    pointer_temps = _PointerTempStorage(root)
+    promotions = _PointerPromotionStorage(root)
+    append_item(
+        generations[0],
+        stream=stream,
+        root=root,
+        storage=backend,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+    create_temp(
+        stream,
+        root=root,
+        generation_storage=backend,
+        pointer_temp_storage=pointer_temps,
+        protection=protection,
+        environment_generations=environment_generations,
+        expected_environment_stream=environment_stream,
+    )
+
+    promotions.error = OSError("sensitive promotion path")
+    with pytest.raises(RecoveryJournalStorageError) as failure:
+        promote_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            promotion_storage=promotions,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+    assert failure.value.code is StorageErrorCode.WRITE_FAILED
+    assert "sensitive" not in str(failure.value)
+
+    interruption = KeyboardInterrupt()
+    promotions.error = interruption
+    with pytest.raises(KeyboardInterrupt) as raised:
+        promote_temp(
+            stream,
+            root=root,
+            generation_storage=backend,
+            promotion_storage=promotions,
+            protection=protection,
+            environment_generations=environment_generations,
+            expected_environment_stream=environment_stream,
+        )
+    assert raised.value is interruption
+    assert len(backend.files) == 2
+    assert not root.active
 
 
 @pytest.mark.parametrize("existing_state", ("absent", "created"))
