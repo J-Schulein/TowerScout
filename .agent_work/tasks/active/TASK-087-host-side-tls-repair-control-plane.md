@@ -52,14 +52,19 @@ does not clean `POINTER_TEMP_CREATED` or expand recovery authority.
 Independently reviewed and exact-head validated checkpoint `d6ce415` adds
 purpose-separated encrypted exact-state environment and fixed-certificate
 backup envelopes bound to the journal stream, without backup persistence,
-recovery action, or mutation authority.
+recovery action, or mutation authority. Independently reviewed and exact-head
+validated checkpoint `1ecfd5e` authenticates both envelopes before persisting
+strict singleton `backup_preparing` intent with two independent unpredictable
+future blob names and exact prior-state summaries. It adds no backup-blob,
+pointer, cleanup, restore, `.env`, certificate, repair, or runtime mutation
+authority.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
 **Estimated Effort**: Two substantive implementation/proof checkpoints and
-approximately 3-6 additional PR #67 commits from `d6ce415` to Gate A source
+approximately 2-5 additional PR #67 commits from `1ecfd5e` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -1424,6 +1429,47 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Authenticated Backup Preparation Intent Checkpointed
+
+**Objective**: Durably authorize two exact unpredictable future backup-blob
+names and bind their prior-state summaries before any blob adapter may create a
+file.
+
+**Context**: Checkpoint `d6ce415` can seal and authenticate exact environment
+and fixed-certificate state in memory, but it intentionally provides no durable
+write-ahead intent or backup-file authority.
+
+**Decision**: Add `backup_preparing` as a strict singleton initial journal
+protocol. Authenticate both envelopes against the complete journal stream
+before generating names, derive only presence/hash/attribute/mode summaries
+from those authenticated envelopes, persist one immutable generation through
+the existing root-held append path, and return only after complete
+authenticated reread. Keep legacy environment-temp chains separate and reject
+every mixed or repeated preparation chain.
+
+**Execution**: Implementation checkpoint
+`1ecfd5ee3aeee094a0fe033f153b729324e45787` adds the strict record/codec/
+selector contract, an injected 128-bit name source, preparation orchestration,
+and focused hostile-path tests. It creates no backup blob and exposes no list,
+delete, pointer, restore, `.env`, certificate, repair, or runtime operation.
+
+**Output**: The durable journal can now prove exact pre-mutation backup intent
+and the only two names a later create-only blob adapter may consume. A retry
+against an existing preparation generation fails closed before a second write.
+
+**Validation**: Focused preparation/journal tests pass `36/36`; the complete
+launcher suite passes `1741/1741`. Black, strict mypy, blocking Flake8,
+medium/high Bandit, compilation, editor diagnostics, secret review, and
+`git diff --check` pass. Three independent read-only reviews returned
+`CLEAN/PASS` with no actionable Low-or-higher findings. Exact-head CI/CD run
+`35129510795`, Task-087 run `35129510839`, and Trivy passed; the main-only build
+was neutral as designed.
+
+**Next**: Add a separate create-only native backup-blob adapter that consumes
+only the two authenticated planned names, preserves every ambiguous artifact,
+and returns verified stable identities for a later `backup_verified` state.
+Keep restore and mutation disabled.
 
 ### 2026-09-16 - Encrypted Exact-State Backup Envelopes Checkpointed
 

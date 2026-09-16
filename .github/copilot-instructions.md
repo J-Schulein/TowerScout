@@ -72,10 +72,13 @@ The project still carries public-health workflow expectations:
   authorized by an authenticated `POINTER_TEMP_PLANNED` record through verified
   held-handle deletion. Independently reviewed and exact-head validated
   checkpoint `d6ce415` adds purpose-separated encrypted exact-state environment
-  and fixed-certificate backup envelopes bound to the journal stream. Backup
-  persistence, full recovery states, `.env` replacement, and runtime mutation
-  remain open. The current estimate is two
-  substantive Gate A checkpoints and approximately 3-6 actual PR #67 commits.
+  and fixed-certificate backup envelopes bound to the journal stream.
+  Independently reviewed and exact-head validated checkpoint `1ecfd5e` adds
+  strict singleton `backup_preparing` intent with two independent unpredictable
+  future blob names and exact prior-state summaries. Backup blob persistence,
+  `backup_verified`/`rollback_armed`, full recovery states, `.env` replacement,
+  and runtime mutation remain open. The current estimate is two substantive
+  Gate A checkpoints and approximately 2-5 actual PR #67 commits.
   Preview-integrity Gate B remains
   later. PR
   #64 and every browser/helper activation gate remain on hold.
@@ -930,11 +933,11 @@ An agent should leave with the following understanding:
   Draft and exact-target/durable-recovery remediation, re-review, staged-byte/
   build integrity, product, and package gates still control merge/publication
 - independently reviewed and exact-head validated implementation checkpoint
-  `d6ce415` follows `53b618b` exact planned-state pointer orphan cleanup with
-  purpose-separated encrypted exact-state environment and fixed-certificate
-  backup envelopes bound to the journal stream; backup persistence, recovery
-  action, full recovery states, `.env` replacement, and runtime mutation remain
-  disabled
+  `1ecfd5e` follows `d6ce415` purpose-separated encrypted exact-state backups
+  with authenticated singleton `backup_preparing` intent, two independent
+  unpredictable future blob names, and exact prior-state summaries; backup
+  blob persistence, `backup_verified`/`rollback_armed`, recovery action, `.env`
+  replacement, and runtime mutation remain disabled
 - after Gate A acceptance and the PR #67 merge decision, the controlling order
   is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
   package integration, and Task-097 four-profile qualification

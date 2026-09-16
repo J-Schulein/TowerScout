@@ -430,6 +430,17 @@ bound to the complete journal stream and use distinct current-user DPAPI
 purposes. The checkpoint adds no backup-file persistence, journal state,
 restore authority, `.env` write, repair action, or runtime mutation.
 
+Independently reviewed and exact-head validated checkpoint `1ecfd5e` adds the
+first write-ahead recovery state without creating a backup blob. A strict
+singleton `backup_preparing` generation authenticates both sealed backup
+envelopes against the complete journal stream, derives only nonsecret exact-
+state summaries, records two distinct unpredictable fixed-format future blob
+names, persists immutably, and returns only after full authenticated reread.
+Legacy environment-temp-only chains remain accepted as separate incremental
+scaffolding; mixed or repeated backup-preparing chains fail closed. Actual blob
+persistence, `backup_verified`, `rollback_armed`, restore, and mutation remain
+outside this checkpoint.
+
 ## Launcher Front-Door Design Boundary
 
 Task-087 Gate A establishes the accepted exact-target, native execution,

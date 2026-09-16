@@ -44,7 +44,12 @@ full recovery states, `.env` replacement, transaction refactoring, provider-
 installer completion, and final proof remain. Independently reviewed and exact-
 head validated checkpoint `d6ce415` adds purpose-separated encrypted exact-
 state environment and fixed-certificate backup envelopes bound to the journal
-stream. Backup persistence and every recovery action remain disabled.
+stream. Independently reviewed and exact-head validated checkpoint `1ecfd5e`
+adds strict singleton `backup_preparing` intent: it authenticates both envelopes
+against the exact stream, records two independent unpredictable blob names and
+nonsecret prior-state summaries, persists one immutable journal generation,
+and returns only after complete authenticated reread. Backup blob persistence
+and every recovery action remain disabled.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -65,11 +70,11 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `d6ce415` is pushed, independently
-  reviewed, and exact-head validated. It follows `53b618b` planned-state orphan
-  cleanup with purpose-separated encrypted exact-state environment and fixed-
-  certificate backup envelopes bound to one journal stream. It does not
-  persist backup files, advance recovery state, restore data, replace `.env`,
+- Task-087 implementation checkpoint `1ecfd5e` is pushed, independently
+  reviewed, and exact-head validated. It follows `d6ce415` encrypted exact-
+  state envelopes with authenticated singleton `backup_preparing` intent and
+  exact unpredictable future blob names. It does not create backup blobs,
+  advance to `backup_verified`/`rollback_armed`, restore data, replace `.env`,
   or mutate repair/runtime state. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
