@@ -41,15 +41,18 @@ generation persistence and fresh-process authenticated reload. Independently
 reviewed implementation checkpoint `7341997c663b` creates and fully verifies
 the exact planned pointer temp and persists its stable identity; docstring-only
 exact head `dd0d42d9130f` accurately records that boundary and is exact-head
-validated. Backup/recovery action, cleanup, staging integration, promotion/
-replacement, and runtime mutation remain open.
+validated. Independently reviewed and exact-head validated checkpoint
+`299ae96` promotes only that authenticated temp after exact source and
+prior-destination proof and verifies exact completed-move evidence. Backup/
+recovery action, cleanup, staging integration, `.env` replacement, and runtime
+mutation remain open.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Three substantive implementation/proof checkpoints and
-approximately 4-8 additional PR #67 commits from `dd0d42d` to Gate A source
+**Estimated Effort**: Two substantive implementation/proof checkpoints and
+approximately 3-6 additional PR #67 commits from `299ae96` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -116,7 +119,7 @@ approved Gate A source slices or any historical artifact evidence:
 - Do not expand PR #67 to implement Task-096 or Task-102. The original
   rebaseline estimate from `31f63f2` was five substantive Gate A checkpoints
   and approximately 8-12 actual PR #67 commits. After exact-head validation at
-  `dd0d42d`, three substantive checkpoints and approximately 4-8 commits remain,
+  `299ae96`, two substantive checkpoints and approximately 3-6 commits remain,
   excluding environment-driven findings.
 
 ## August 20, 2026 PR #67 Technical/Security Review Override
@@ -1414,6 +1417,43 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Journal-Bound Pointer Promotion Checkpointed
+
+**Objective**: Promote only the exact authenticated recovery-pointer temp and
+prove the completed move without adding cleanup or repair authority.
+
+**Context**: Checkpoint `7341997` persisted `POINTER_TEMP_CREATED` with the
+verified source identity, but the source remained unpromoted and no native port
+consumed that durable record.
+
+**Decision**: Reuse the authenticated two-generation transition chain as the
+write-ahead record. Under the held protected root, reconstruct canonical bytes,
+verify the exact recorded source plus exact prior destination or absence, close
+verification handles, move only that source with write-through replacement,
+and accept success only from exact source-absence/destination identity and byte
+proof. Keep the existing two states; add no promoted generation.
+
+**Execution**: Implementation checkpoint
+`299ae96448ab25d37da028c5c2c42e3ff98ae675` adds a promotion-only orchestration
+port and native adapter with no create/delete API. Ordinary move API errors are
+reconciled only from the same exact post-call evidence.
+
+**Output**: The authenticated created record can now drive and verify journal-
+pointer promotion. No pointer cleanup, backup/recovery action, `.env`
+replacement, repair transaction, or runtime mutation is enabled.
+
+**Validation**: Focused tests pass `79/79`; the adjacent recovery ring passes
+`142/142`; and the complete launcher suite passes `1705/1705`. Black, strict
+mypy, blocking Flake8, medium/high Bandit, compilation, editor diagnostics, and
+`git diff --check` pass. Independent review returned `CLEAN/PASS` with no
+actionable Low-or-higher findings. Exact-head CI/CD run `35120250430`, Task-087
+run `35120250774`, and Trivy passed; the main-only build was neutral as designed.
+
+**Next**: Add exact journal-authorized pointer-temp cleanup, encrypted exact-
+state backups, full recovery states, fresh-process idempotent recovery, verified
+rollback, cleanup-pending retention, and cross-protocol scanning before any
+`.env` replacement, repair transaction, or runtime mutation.
 
 ### 2026-09-16 - Exact Planned Pointer Temp Identity Checkpointed
 

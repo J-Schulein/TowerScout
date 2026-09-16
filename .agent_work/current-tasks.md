@@ -34,11 +34,11 @@ protected-root-owned persistence/enumeration orchestration, and checkpoint
 flush/reopen verification. Pointer repair now has a pure authenticated
 transition/restart-classification model plus create-only protected transition-
 generation persistence, fresh-process authenticated reload, and exact planned
-pointer-temp creation with durable identity binding. Implementation checkpoint
-`7341997` and the docstring-only exact head `dd0d42d` are independently reviewed
-and exact-head validated. Backup/recovery actions, promotion/replacement,
-cleanup, transaction refactoring, provider-installer completion, and final
-proof remain.
+pointer-temp creation with durable identity binding. Independently reviewed and
+exact-head validated checkpoint `299ae96` promotes only that authenticated temp
+after exact source and prior-destination verification and requires exact post-
+move evidence. Backup/recovery actions, pointer cleanup, `.env` replacement,
+transaction refactoring, provider-installer completion, and final proof remain.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -59,13 +59,13 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `7341997c663b` and docstring-only exact
-  head `dd0d42d9130f` are pushed and exact-head validated. The implementation
-  consumes the authenticated transition plan, creates and fully verifies the
-  exact named pointer temp, and persists `POINTER_TEMP_CREATED` with its stable
-  identity. It remains non-promoting and non-cleaning: no destination-pointer
-  replacement, cleanup, backup/recovery action, staging integration, `.env`
-  replacement, or repair mutation exists. PR #67 remains Draft.
+- Task-087 implementation checkpoint `299ae96` is pushed, independently
+  reviewed, and exact-head validated. It consumes the authenticated
+  `POINTER_TEMP_CREATED` chain, verifies the exact source and prior destination,
+  promotes only the recorded temp with write-through replacement, and accepts
+  success only from exact source-absence/destination-identity-and-byte proof.
+  It does not clean files, create backups, perform recovery, replace `.env`, or
+  mutate repair/runtime state. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -220,13 +220,16 @@ generation persistence and fresh-process authenticated reload. Independently
 reviewed implementation checkpoint `7341997` creates and fully verifies the
 exact planned pointer temp and durably binds its stable identity; docstring-only
 exact head `dd0d42d` accurately states that boundary and is exact-head
-validated. Promotion, cleanup, and fresh-process recovery action remain open.
+validated. Independently reviewed and exact-head validated checkpoint `299ae96`
+promotes only that authenticated temp after exact source/prior-destination proof
+and requires exact completed-move evidence. Cleanup, backups, and fresh-process
+recovery action remain open.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Three substantive implementation/proof checkpoints,
-likely 4-8 additional PR #67 commits including review corrections and evidence
+**Remaining Estimate**: Two substantive implementation/proof checkpoints,
+likely 3-6 additional PR #67 commits including review corrections and evidence
 reconciliation, before Gate A source acceptance can unlock Task-096. Windows
 revocation or Docker/Podman recovery findings may add work.
 **Task File**:

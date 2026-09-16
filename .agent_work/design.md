@@ -398,9 +398,17 @@ the held protected root. Independently reviewed implementation checkpoint
 `7341997` then consumes the authenticated plan to create, flush, close, reopen,
 and fully verify the exact named pointer temp before persisting
 `POINTER_TEMP_CREATED` with its stable identity. Docstring-only exact head
-`dd0d42d` accurately records this boundary and is exact-head validated. These
-increments do not promote or delete the pointer temp, authorize recovery,
-replace `.env`, or mutate runtime state.
+`dd0d42d` accurately records that creation boundary. Independently reviewed and
+exact-head validated checkpoint `299ae96` adds a separate promotion-only port.
+Under the still-held protected root it authenticates the complete created chain,
+reconstructs canonical pointer bytes, verifies the exact recorded source and
+prior destination or prior absence, closes both verification handles, and moves
+only that source with `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`. Reported
+success and ordinary API-error reconciliation both require source absence plus
+the moved source identity, path, local regular single-link facts, protected
+DACL, size, and bytes at the destination; the existing two-state chain then
+classifies `MOVE_COMPLETED`. It does not delete files, create backups, perform
+recovery, replace `.env`, authorize repair, or mutate runtime state.
 
 ## Launcher Front-Door Design Boundary
 
