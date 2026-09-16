@@ -1,9 +1,10 @@
 """Durable orchestration for authenticated journal-pointer transitions.
 
 This Gate-A layer stores create-only transition generations below the held
-protected recovery root and authenticates the complete chain after restart. It
-does not create, replace, or delete pointer files and does not authorize repair
-or runtime mutation.
+protected recovery root, creates and verifies the exact planned pointer temp,
+and authenticates the complete chain after restart. It does not promote,
+replace, or delete pointer files and does not authorize repair or runtime
+mutation.
 """
 
 from __future__ import annotations
