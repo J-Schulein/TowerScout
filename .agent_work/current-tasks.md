@@ -31,11 +31,13 @@ DPAPI-backed generation authentication, and fail-closed unique-chain/pointer
 classification for the environment-temp prelude. Checkpoint `53bed46` adds
 protected-root-owned persistence/enumeration orchestration, and checkpoint
 `4a96dd2` adds native protected-DACL generation enumeration/create/read with
-flush/reopen verification. Pointer repair now also has a pure authenticated
-transition/restart-classification model at exact-head validated checkpoint
-`31f63f2`; native persistence and recovery wiring remain. Backup/recovery
-actions, promotion/replacement, transaction refactoring, provider-installer
-completion, and final proof remain.
+flush/reopen verification. Pointer repair now has a pure authenticated
+transition/restart-classification model plus create-only protected transition-
+generation persistence and fresh-process authenticated reload at exact-head
+validated checkpoint `5252c7a`. Exact pointer-temp creation and identity
+binding plus recovery wiring remain. Backup/recovery actions, promotion/
+replacement, transaction refactoring, provider-installer completion, and final
+proof remain.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -56,12 +58,13 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `31f63f209ebe` is pushed and exact-head
-  validated. It adds a pure authenticated recovery-pointer transition model
-  and restart classification above checkpoint `ebb9d69`'s same-call completed-
-  move reconciliation. It remains unwired: no native transition persistence,
-  cleanup, backup/recovery action, staging integration, promotion, `.env`
-  replacement, or repair mutation exists. PR #67 remains Draft.
+- Task-087 implementation checkpoint `5252c7ab79b3` is pushed and exact-head
+  validated. It adds create-only protected persistence and fresh-process
+  authenticated reload for the pure recovery-pointer transition model above
+  checkpoint `ebb9d69`'s same-call completed-move reconciliation. It remains
+  non-mutating: no pointer-temp creation or identity binding, cleanup,
+  backup/recovery action, staging integration, promotion, `.env` replacement,
+  or repair mutation exists. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed status and
   evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -210,13 +213,16 @@ exact success-path verification and is independently reviewed and exact-head
 validated. Independently reviewed and exact-head validated checkpoint `ebb9d69`
 adds exact same-call completed-move reconciliation after an ordinary API error.
 Exact-head validated checkpoint `31f63f2` adds the pure authenticated pointer-
-transition and restart-classification model, but native persistence, cleanup,
-and fresh-process recovery wiring remain open. Slice 7 is not started; slice 9
-continues incrementally. Mutation is disabled and PR #67 remains Draft.
+transition and restart-classification model. Independently reviewed and exact-
+head validated checkpoint `5252c7a` adds create-only protected transition-
+generation persistence and fresh-process authenticated reload; exact pointer-
+temp creation and identity binding, promotion, cleanup, and fresh-process
+recovery action remain open. Slice 7 is not started; slice 9 continues
+incrementally. Mutation is disabled and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Five substantive implementation/proof checkpoints,
-likely 8-12 actual PR #67 commits including review corrections and evidence
+**Remaining Estimate**: Four substantive implementation/proof checkpoints,
+likely 6-10 additional PR #67 commits including review corrections and evidence
 reconciliation, before Gate A source acceptance can unlock Task-096. Windows
 revocation or Docker/Podman recovery findings may add work.
 **Task File**:

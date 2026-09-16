@@ -35,16 +35,18 @@ neutral as designed. Independently reviewed and exact-head validated checkpoint
 error; CI/CD run `35025200641`, Task-087 run `35025200635`, and Trivy passed,
 while the main-only build was neutral as designed. Exact-head validated
 checkpoint `31f63f209ebe` adds the pure authenticated recovery-pointer
-transition and restart-classification model. Native transition persistence,
-durable temp-identity binding, backup/recovery action, cleanup, staging
-integration, promotion/replacement, and runtime mutation remain open.
+transition and restart-classification model. Independently reviewed and exact-
+head validated checkpoint `5252c7ab79b3` adds create-only protected transition-
+generation persistence and fresh-process authenticated reload. Exact pointer-
+temp creation and durable identity binding, backup/recovery action, cleanup,
+staging integration, promotion/replacement, and runtime mutation remain open.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Five substantive implementation/proof checkpoints and
-approximately 8-12 actual PR #67 commits from `31f63f2` to Gate A source
+**Estimated Effort**: Four substantive implementation/proof checkpoints and
+approximately 6-10 additional PR #67 commits from `5252c7a` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -1407,6 +1409,45 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Authenticated Pointer-Transition Persistence Checkpointed
+
+**Objective**: Persist and reload authenticated pointer-transition generations
+without creating or mutating pointer files or enabling repair.
+
+**Context**: Checkpoint `31f63f2` defined pure authenticated transition-chain
+selection and conservative restart classification, but a fresh process could
+not reload those generations from protected storage.
+
+**Decision**: Reuse the held protected recovery root, create-only generation
+storage, and purpose-separated DPAPI boundary. Authenticate the complete
+transition chain against its environment-journal chain both before append and
+after reload. Extend the native generation allowlist only for the exact
+transition-generation namespace.
+
+**Execution**: Added protected pointer-transition generation storage and
+fresh-process reload in checkpoint
+`5252c7ab79b3c0bbe374ef473d3bab95092cda38`. Added adversarial persistence,
+byte-drift, duplicate-identity, collection-contract, redaction, and native
+filename-allowlist tests. No pointer create/replace/delete operation was added.
+
+**Output**: A fresh process can authenticate and select the persisted planned/
+created transition chain under the held root. Exact pointer-temp creation and
+identity binding, destination promotion, cleanup, backup/recovery action,
+`.env` replacement, and runtime mutation remain absent.
+
+**Validation**: Focused transition-storage tests pass `6/6`; integrated
+transition/journal/native-storage tests pass `83/83`; the complete launcher
+suite passes `1672/1672`. Black, strict mypy, focused blocking Flake8,
+medium/high Bandit, editor diagnostics, and `git diff --check` pass. Independent
+review returned `CLEAN/PASS` with no actionable Low-or-higher findings. Exact-
+head CI/CD run `35113158404`, Task-087 run `35113158461`, and Trivy passed; the
+main-only build was neutral as designed.
+
+**Next**: Under the held protected root, consume the persisted planned record
+to create, flush, close, reopen, and verify the exact named pointer temp, then
+persist `POINTER_TEMP_CREATED` with its stable identity. Do not promote or clean
+up the temp in that checkpoint.
 
 ### 2026-09-16 - Gate A To Front-Door Sequence Rebaselined
 
