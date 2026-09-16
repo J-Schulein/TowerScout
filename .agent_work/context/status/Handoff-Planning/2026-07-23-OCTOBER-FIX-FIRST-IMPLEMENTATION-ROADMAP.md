@@ -17,9 +17,9 @@ puts Task-087 Gate B package work ahead of launcher lifecycle/setup work or
 describes Task-096 as Stop-only.
 
 1. Finish Task-087 Gate A source implementation, exact-head validation and
-  independent re-review, then make the PR #67 merge decision. The validated
-  exact head entering this rebaseline is `31f63f2`; the planning estimate is
-  five substantive checkpoints and approximately 8-12 actual PR #67 commits.
+  independent re-review, then make the PR #67 merge decision. The current
+  validated exact head is `dd0d42d`; the remaining planning estimate is three
+  substantive checkpoints and approximately 4-8 actual PR #67 commits.
 2. Complete Task-096 native state-driven Start/Open/Stop/Restart using the
   accepted exact-target, execution, coordination, recovery, and sanitization
   contracts. Do not add this work to PR #67.

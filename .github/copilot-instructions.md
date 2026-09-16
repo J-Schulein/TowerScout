@@ -64,12 +64,13 @@ The project still carries public-health workflow expectations:
   technical/security review then requested source changes. Draft PR #67 remains
   Draft while exact-target, durable-recovery, Windows trust/filesystem, and
   provider `.env` Gate A corrections are implemented under the project lead's
-  August 21 approval. Exact-head validated checkpoint `31f63f2` adds a pure
-  authenticated recovery-pointer transition/restart-classification model;
-  native persistence, cleanup, recovery, `.env` replacement, and runtime
-  mutation remain open. The current estimate is five substantive Gate A
-  checkpoints and approximately 8-12 actual PR #67 commits. Preview-integrity
-  Gate B remains later. PR
+  August 21 approval. Independently reviewed implementation checkpoint
+  `7341997` and docstring-only exact head `dd0d42d` add exact planned pointer-
+  temp creation, native verification, and durable stable-identity binding;
+  promotion, cleanup, recovery, `.env` replacement, and runtime mutation remain
+  open. The current estimate is three substantive Gate A checkpoints and
+  approximately 4-8 actual PR #67 commits. Preview-integrity Gate B remains
+  later. PR
   #64 and every browser/helper activation gate remain on hold.
 - Exact-source `7ef879c` full-runnable CPU packages passed Docker and approved-
   provider Podman Google/Azure repair plus controlled recovery. Follow-up head
@@ -921,9 +922,10 @@ An agent should leave with the following understanding:
 - independent review requested source changes at `6e0f744`; PR #67 remains
   Draft and exact-target/durable-recovery remediation, re-review, staged-byte/
   build integrity, product, and package gates still control merge/publication
-- exact-head validated checkpoint `31f63f2` adds only the pure authenticated
-  recovery-pointer transition/restart classifier; native persistence and
-  recovery wiring remain, and mutation is still disabled
+- independently reviewed implementation checkpoint `7341997` and docstring-
+  only exact head `dd0d42d` add exact planned pointer-temp creation, native
+  verification, and durable identity binding; promotion, cleanup, recovery
+  wiring, and runtime mutation remain disabled
 - after Gate A acceptance and the PR #67 merge decision, the controlling order
   is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
   package integration, and Task-097 four-profile qualification

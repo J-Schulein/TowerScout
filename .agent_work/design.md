@@ -300,8 +300,9 @@ strict bounded UTF-8/BOM/NUL validation, exact two-setting byte transformation,
 newline/trailing-form preservation, immutable original/candidate hashes, and
 exact original/candidate/absent/third-state classification. Documentation head
 `2996df1` passed its exact-head checks. Independently reviewed and pushed
-implementation checkpoint `1c45445` is now the latest validated exact branch
-head: CI/CD run `35005869321`, Task-087 run `35005869200`, and Trivy passed;
+implementation checkpoint `1c45445` was the validated exact branch head for
+this staging increment: CI/CD run `35005869321`, Task-087 run `35005869200`,
+and Trivy passed;
 the main-only build skipped as designed. It adds an unwired journal port and
 private native temp-staging boundary. It holds package-root trust while a
 durable planned receipt precedes restrictive same-directory `CREATE_NEW`;
@@ -386,9 +387,20 @@ exact pre-move temp identity, protected DACL, path, local regular single-link
 facts, size, and bytes. Source presence, destination absence or drift, and
 reconciliation I/O failure remain sanitized `WRITE_FAILED`; process-control
 exceptions propagate. The adapter does not delete either path. Restart
-classification, durable authenticated temp-identity binding, cleanup,
-backup/recovery action, staging/promotion integration, `.env` replacement, and
-runtime mutation remain unimplemented.
+classification, durable authenticated temp-identity binding, cleanup, backup/
+recovery action, staging/promotion integration, `.env` replacement, and runtime
+mutation remained unimplemented at that checkpoint.
+
+Exact-head validated checkpoint `31f63f2` adds the pure authenticated recovery-
+pointer transition and restart-classification model. Checkpoint `5252c7a`
+persists and fresh-process reloads its create-only transition generations under
+the held protected root. Independently reviewed implementation checkpoint
+`7341997` then consumes the authenticated plan to create, flush, close, reopen,
+and fully verify the exact named pointer temp before persisting
+`POINTER_TEMP_CREATED` with its stable identity. Docstring-only exact head
+`dd0d42d` accurately records this boundary and is exact-head validated. These
+increments do not promote or delete the pointer temp, authorize recovery,
+replace `.env`, or mutate runtime state.
 
 ## Launcher Front-Door Design Boundary
 

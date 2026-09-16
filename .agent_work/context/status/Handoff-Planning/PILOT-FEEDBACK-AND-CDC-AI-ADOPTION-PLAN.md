@@ -144,7 +144,10 @@ backlog, and migration-ready handoff without changing cdcai.
 - Task-087: active / IMPLEMENT guided Google/Azure application-provider TLS
   repair on Docker and Podman; the August 21 approval authorizes Gate A work
   under the exact-target/durable-recovery design before exact-head re-review.
-  Exact-head validated checkpoint `31f63f2` is the current source baseline.
+  Independently reviewed implementation checkpoint `7341997` and docstring-
+  only exact head `dd0d42d` are the current validated source baseline. They add
+  exact planned pointer-temp creation and durable identity binding without
+  promotion, cleanup, repair, or runtime mutation.
   After Gate A acceptance and the PR #67 merge decision, Tasks 096 and 102
   precede Task-087 Gate B normal-package integration.
 - Task-088: completed Pilot Package distribution and custody.

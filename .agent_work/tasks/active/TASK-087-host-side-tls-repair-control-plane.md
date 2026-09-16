@@ -37,16 +37,19 @@ while the main-only build was neutral as designed. Exact-head validated
 checkpoint `31f63f209ebe` adds the pure authenticated recovery-pointer
 transition and restart-classification model. Independently reviewed and exact-
 head validated checkpoint `5252c7ab79b3` adds create-only protected transition-
-generation persistence and fresh-process authenticated reload. Exact pointer-
-temp creation and durable identity binding, backup/recovery action, cleanup,
-staging integration, promotion/replacement, and runtime mutation remain open.
+generation persistence and fresh-process authenticated reload. Independently
+reviewed implementation checkpoint `7341997c663b` creates and fully verifies
+the exact planned pointer temp and persists its stable identity; docstring-only
+exact head `dd0d42d9130f` accurately records that boundary and is exact-head
+validated. Backup/recovery action, cleanup, staging integration, promotion/
+replacement, and runtime mutation remain open.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Four substantive implementation/proof checkpoints and
-approximately 6-10 additional PR #67 commits from `5252c7a` to Gate A source
+**Estimated Effort**: Three substantive implementation/proof checkpoints and
+approximately 4-8 additional PR #67 commits from `dd0d42d` to Gate A source
 acceptance, including likely review corrections and evidence reconciliation;
 Windows revocation or runtime recovery findings may increase the count
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
@@ -110,9 +113,11 @@ approved Gate A source slices or any historical artifact evidence:
   096 and 102 stabilize the launcher front door. Task-097 then qualifies the
   integrated package across Docker CPU/GPU and Podman CPU/GPU before package
   satisfaction and Task-100.
-- Do not expand PR #67 to implement Task-096 or Task-102. The planning estimate
-  from `31f63f2` is five substantive Gate A checkpoints and approximately 8-12
-  actual PR #67 commits, excluding environment-driven findings.
+- Do not expand PR #67 to implement Task-096 or Task-102. The original
+  rebaseline estimate from `31f63f2` was five substantive Gate A checkpoints
+  and approximately 8-12 actual PR #67 commits. After exact-head validation at
+  `dd0d42d`, three substantive checkpoints and approximately 4-8 commits remain,
+  excluding environment-driven findings.
 
 ## August 20, 2026 PR #67 Technical/Security Review Override
 
@@ -1409,6 +1414,45 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-16 - Exact Planned Pointer Temp Identity Checkpointed
+
+**Objective**: Create and durably bind the exact planned recovery-pointer temp
+without promoting, deleting, or using it to authorize repair.
+
+**Context**: Checkpoint `5252c7a` persisted and reloaded the authenticated
+`POINTER_TEMP_PLANNED` transition, but no native file creation or stable temp
+identity was bound into the transition chain.
+
+**Decision**: Consume only the authenticated plan while the protected recovery
+root remains held. Require same-directory `CREATE_NEW`, zero-byte created-state
+verification, the exact current-user/SYSTEM protected DACL, complete canonical-
+byte write and flush, same-handle readback, close, no-follow reopen, and exact
+identity/path/local regular single-link/DACL/size/byte verification before
+persisting `POINTER_TEMP_CREATED`.
+
+**Execution**: Implementation checkpoint
+`7341997c663bf2dd896e59a1a70ce535fd121f6a` adds the dedicated create-only
+pointer-temp port and root-held orchestration. Docstring-only exact head
+`dd0d42d9130f19d04a9c389eca7b0bbf707677a9` clarifies that the layer creates
+the planned temp but does not promote, replace, or delete pointer files.
+
+**Output**: A fresh process can authenticate the planned/created chain and bind
+the exact verified temp identity for conservative restart classification. No
+destination promotion, cleanup, backup/recovery action, staging integration,
+`.env` replacement, repair, or runtime mutation is enabled.
+
+**Validation**: Focused tests pass `55/55`; the adjacent recovery ring passes
+`118/118`; the complete launcher suite passes `1681/1681` on exact head
+`dd0d42d`. Black, strict mypy, focused blocking Flake8, medium/high Bandit,
+compilation, editor diagnostics, and `git diff --check` pass. Corrected
+independent review returned `CLEAN/PASS` with no actionable Low-or-higher
+findings. CI/CD run `35117176978`, Task-087 run `35117176506`, and Trivy passed;
+the main-only build was neutral as designed.
+
+**Next**: Add journal-bound native pointer promotion and exact post-call/restart
+classification under the held protected root. Keep cleanup, backup/recovery
+action, `.env` replacement, repair, and runtime mutation out of that checkpoint.
 
 ### 2026-09-16 - Authenticated Pointer-Transition Persistence Checkpointed
 
