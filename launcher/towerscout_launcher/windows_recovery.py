@@ -42,6 +42,10 @@ from .windows_recovery_certificate_storage import (
     RecoveryCertificateStorageError,
     RecoveryCertificateStorageErrorCode,
 )
+from .windows_recovery_certificate_restore import (
+    CertificateRestorationAuthority,
+    derive_certificate_restoration_authority,
+)
 from .windows_recovery_environment_storage import (
     EnvironmentRestoreTempStoragePort,
     RecoveryEnvironmentStorageError,
@@ -771,8 +775,7 @@ class CertificateRestorationPort(Protocol):
         package_root: PathHierarchyTrust,
         protected_root_path: str,
         stream: JournalStreamIdentity,
-        plan: CertificateRestoreTempPlanRecord,
-        verified: CertificateRestoreTempVerifiedRecord,
+        authority: CertificateRestorationAuthority,
     ) -> CertificateRestorationEvidence: ...
 
 
@@ -2703,6 +2706,7 @@ def persist_certificates_restored_generation_from_held_package_root(
         generations = chain.selection.generations
         if (
             len(generations) not in {12, 13}
+            or type(generations[0].record) is not BackupPreparingRecord
             or type(generations[8].record) is not RollbackRuntimeAvailableRecord
             or type(generations[9].record) is not CertificateRestoreTempPlanRecord
             or type(generations[11].record) is not CertificateRestoreTempVerifiedRecord
@@ -2712,6 +2716,7 @@ def persist_certificates_restored_generation_from_held_package_root(
             )
         ):
             _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        preparing = generations[0].record
         runtime = generations[8].record
         plan = generations[9].record
         verified = generations[11].record
@@ -2726,12 +2731,21 @@ def persist_certificates_restored_generation_from_held_package_root(
             if current.selection.tip != generations[11]:
                 _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
         try:
+            authority = derive_certificate_restoration_authority(
+                stream,
+                preparing,
+                runtime,
+                plan,
+                verified,
+            )
+        except ValueError:
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        try:
             evidence = restoration.restore_certificates_while_package_root_held(
                 package_root,
                 root_path,
                 stream,
-                plan,
-                verified,
+                authority,
             )
         except WindowsRecoveryError:
             raise

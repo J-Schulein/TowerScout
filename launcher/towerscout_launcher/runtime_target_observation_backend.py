@@ -1,4 +1,4 @@
-"""Owned target-snapshot adapter with one scoped recreation operation.
+"""Owned target-snapshot adapter with finite scoped recovery operations.
 
 The adapter is intentionally not wired into the launcher.  It consumes only
 the immutable process plans from :mod:`runtime_target_observation`, executes a
@@ -6,9 +6,9 @@ complete capture inside one caller-supplied authenticated ownership window,
 and converts Docker JSON or Podman Compose YAML plus engine inspect JSON into
 the deliberately small schemas accepted by :mod:`runtime_target_resolution`.
 
-The sole mutation is exact prior-profile recreation after a same-window absent-
-state check. No raw child output is logged, persisted, or exposed through
-public errors.
+Mutations are limited to exact prior-profile recreation after a same-window
+absence check and fixed certificate staging/restoration/removal commands. No
+raw child output is logged, persisted, or exposed through public errors.
 """
 
 from __future__ import annotations
@@ -19,9 +19,11 @@ import re
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import PureWindowsPath
 from typing import Any, Callable, NoReturn, Protocol, TypeVar
 
 from .runtime_target_observation import (
+    CertificateTargetDestination,
     ObservationOperation,
     TargetObservationExecutionBinding,
     TargetObservationProcessPlan,
@@ -1710,6 +1712,182 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
             if snapshots is None:
                 _fail(TargetObservationAdapterErrorCode.AUTHORITY_CHANGED)
             return snapshots
+
+    def _scoped_process_plan(
+        self,
+        operation: str,
+        arguments: tuple[object, ...],
+    ) -> TargetObservationProcessPlan:
+        try:
+            if operation == "certificate_observe" and len(arguments) == 3:
+                container_id, destination, restore_temp_name = arguments
+                if (
+                    type(container_id) is not str
+                    or type(destination) is not CertificateTargetDestination
+                    or (
+                        restore_temp_name is not None
+                        and type(restore_temp_name) is not str
+                    )
+                ):
+                    raise ValueError
+                return self._binding.certificate_observe(
+                    container_id=container_id,
+                    destination=destination,
+                    restore_temp_name=restore_temp_name,
+                )
+            if operation == "certificate_stage_original" and len(arguments) == 4:
+                container_id, destination, restore_temp_name, source_path = arguments
+                if (
+                    type(container_id) is not str
+                    or type(destination) is not CertificateTargetDestination
+                    or type(restore_temp_name) is not str
+                    or type(source_path) is not PureWindowsPath
+                ):
+                    raise ValueError
+                return self._binding.certificate_stage_original(
+                    container_id=container_id,
+                    destination=destination,
+                    restore_temp_name=restore_temp_name,
+                    source_path=source_path,
+                )
+            if operation == "certificate_apply_original" and len(arguments) == 9:
+                (
+                    container_id,
+                    destination,
+                    restore_temp_name,
+                    original_sha256,
+                    original_size,
+                    original_mode,
+                    candidate_sha256,
+                    candidate_size,
+                    candidate_mode,
+                ) = arguments
+                if (
+                    type(container_id) is not str
+                    or type(destination) is not CertificateTargetDestination
+                    or type(restore_temp_name) is not str
+                    or type(original_sha256) is not str
+                    or type(original_size) is not int
+                    or type(original_mode) is not int
+                    or type(candidate_sha256) is not str
+                    or type(candidate_size) is not int
+                    or type(candidate_mode) is not int
+                ):
+                    raise ValueError
+                return self._binding.certificate_apply_original(
+                    container_id=container_id,
+                    destination=destination,
+                    restore_temp_name=restore_temp_name,
+                    original_sha256=original_sha256,
+                    original_size=original_size,
+                    original_mode=original_mode,
+                    candidate_sha256=candidate_sha256,
+                    candidate_size=candidate_size,
+                    candidate_mode=candidate_mode,
+                )
+            if operation == "certificate_remove_candidate" and len(arguments) == 5:
+                (
+                    container_id,
+                    destination,
+                    candidate_sha256,
+                    candidate_size,
+                    candidate_mode,
+                ) = arguments
+                if (
+                    type(container_id) is not str
+                    or type(destination) is not CertificateTargetDestination
+                    or type(candidate_sha256) is not str
+                    or type(candidate_size) is not int
+                    or type(candidate_mode) is not int
+                ):
+                    raise ValueError
+                return self._binding.certificate_remove_candidate(
+                    container_id=container_id,
+                    destination=destination,
+                    candidate_sha256=candidate_sha256,
+                    candidate_size=candidate_size,
+                    candidate_mode=candidate_mode,
+                )
+            if (
+                operation == "certificate_remove_staged_original"
+                and len(arguments) == 6
+            ):
+                (
+                    container_id,
+                    destination,
+                    restore_temp_name,
+                    original_sha256,
+                    original_size,
+                    original_mode,
+                ) = arguments
+                if (
+                    type(container_id) is not str
+                    or type(destination) is not CertificateTargetDestination
+                    or type(restore_temp_name) is not str
+                    or type(original_sha256) is not str
+                    or type(original_size) is not int
+                    or type(original_mode) is not int
+                ):
+                    raise ValueError
+                return self._binding.certificate_remove_staged_original(
+                    container_id=container_id,
+                    destination=destination,
+                    restore_temp_name=restore_temp_name,
+                    original_sha256=original_sha256,
+                    original_size=original_size,
+                    original_mode=original_mode,
+                )
+        except Exception:
+            _fail(TargetObservationAdapterErrorCode.PROCESS_REJECTED)
+        _fail(TargetObservationAdapterErrorCode.PROCESS_REJECTED)
+
+    def execute_scoped_process(
+        self,
+        plan: TargetResolutionPlan,
+        operation: str,
+        arguments: tuple[object, ...],
+    ) -> TargetObservationProcessResult:
+        """Execute one finite certificate operation under retained authority."""
+
+        with self._lock:
+            if (
+                self._active
+                or self._closed
+                or plan is not self._plan
+                or type(operation) is not str
+                or type(arguments) is not tuple
+                or self.supported is not True
+                or self._authority is None
+            ):
+                _fail(TargetObservationAdapterErrorCode.AUTHORITY_CHANGED)
+            self._active = True
+            result: TargetObservationProcessResult | None = None
+            failure: TargetObservationAdapterErrorCode | None = None
+            interruption: BaseException | None = None
+            try:
+                process = self._scoped_process_plan(operation, arguments)
+                result = self._authority.run_while_held(
+                    lambda: self._execute_result(process)
+                )
+            except BaseException as error:
+                self._poison()
+                if isinstance(error, Exception):
+                    failure = (
+                        error.code
+                        if isinstance(error, TargetObservationAdapterError)
+                        else TargetObservationAdapterErrorCode.AUTHORITY_CHANGED
+                    )
+                else:
+                    interruption = error
+            finally:
+                self._active = False
+            if interruption is not None:
+                raise interruption
+            if failure is not None:
+                raise TargetObservationAdapterError(failure)
+            if result is None:
+                _fail(TargetObservationAdapterErrorCode.AUTHORITY_CHANGED)
+            return result
 
     def close(self) -> None:
         with self._lock:

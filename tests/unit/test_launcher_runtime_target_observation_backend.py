@@ -5,7 +5,7 @@ import json
 import sys
 from copy import deepcopy
 from dataclasses import replace
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Callable
 from unittest.mock import patch
 
@@ -27,6 +27,7 @@ from towerscout_launcher import (  # noqa: E402
     runtime_target_observation_native as native_module,
 )
 from towerscout_launcher.runtime_target_observation import (  # noqa: E402
+    CertificateTargetDestination,
     ObservationOperation,
     TargetObservationExecutionBinding,
     TargetObservationProcessPlan,
@@ -451,6 +452,15 @@ class _Executor:
             return _encode_compose(self._plan, _compose(self._plan, planned=True))
         if process.operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE:
             return b""
+        if process.operation is ObservationOperation.CERTIFICATE_OBSERVE:
+            return b'{"present":false}'
+        if process.operation in {
+            ObservationOperation.CERTIFICATE_STAGE_ORIGINAL,
+            ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
+            ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
+            ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+        }:
+            return b""
         if process.operation is ObservationOperation.CONTAINER_LIST:
             return (_CONTAINER_ID + "\r\n").encode("ascii")
         if process.operation is ObservationOperation.CONTAINER_INSPECT:
@@ -574,6 +584,81 @@ def test_owned_backend_normalizes_provider_output_into_resolved_target(
     owner.close()
     assert authority.close_calls == 1
     assert executor.close_calls == 1
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_bound_target_executes_only_fixed_certificate_processes_between_captures(
+    product: RuntimeProduct,
+) -> None:
+    plan, authority, executor, backend = _backend(product)
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+    name = f"recovery-certificate-{1:032x}.tmp"
+    source = PureWindowsPath(
+        rf"C:\Users\PRIVATE-PATH\AppData\Local\TowerScout\Recovery\v1\{name}"
+    )
+
+    observed = owner.execute_scoped_process(
+        "certificate_observe",
+        (_CONTAINER_ID, CertificateTargetDestination.LOCAL_CA, None),
+    )
+    staged = owner.execute_scoped_process(
+        "certificate_stage_original",
+        (
+            _CONTAINER_ID,
+            CertificateTargetDestination.LOCAL_CA,
+            name,
+            source,
+        ),
+    )
+    applied = owner.execute_scoped_process(
+        "certificate_apply_original",
+        (
+            _CONTAINER_ID,
+            CertificateTargetDestination.LOCAL_CA,
+            name,
+            "1" * 64,
+            11,
+            0o600,
+            "2" * 64,
+            12,
+            0o644,
+        ),
+    )
+    removed = owner.execute_scoped_process(
+        "certificate_remove_candidate",
+        (
+            _CONTAINER_ID,
+            CertificateTargetDestination.CA_BUNDLE,
+            "3" * 64,
+            13,
+            0o644,
+        ),
+    )
+    staged_removed = owner.execute_scoped_process(
+        "certificate_remove_staged_original",
+        (
+            _CONTAINER_ID,
+            CertificateTargetDestination.LOCAL_CA,
+            name,
+            "1" * 64,
+            11,
+            0o600,
+        ),
+    )
+
+    assert isinstance(observed, TargetObservationProcessResult)
+    assert observed.stdout == b'{"present":false}'
+    assert staged.operation is ObservationOperation.CERTIFICATE_STAGE_ORIGINAL
+    assert applied.operation is ObservationOperation.CERTIFICATE_APPLY_ORIGINAL
+    assert removed.operation is ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE
+    assert (
+        staged_removed.operation
+        is ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL
+    )
+    assert authority.closed is False
+    assert executor.closed is False
+    assert owner.closed is False
+    owner.close()
 
 
 @pytest.mark.parametrize("product", [RuntimeProduct.DOCKER, RuntimeProduct.PODMAN])

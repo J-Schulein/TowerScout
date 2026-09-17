@@ -227,7 +227,7 @@ def _container_evidence(target: ResolvedRepairTarget) -> str:
     )
 
 
-def _observation_from_target(
+def observe_rollback_runtime_target(
     target: ResolvedRepairTarget,
 ) -> ExistingRollbackRuntimeObservation:
     if type(target) is not ResolvedRepairTarget:
@@ -267,7 +267,7 @@ def capture_native_existing_rollback_runtime(
         if owner.closed:
             _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
         owner.assert_unchanged()
-        result = _observation_from_target(owner.target)
+        result = observe_rollback_runtime_target(owner.target)
         owner.assert_unchanged()
     except BaseException as error:
         primary = error
@@ -730,7 +730,7 @@ def _consume_resolved_target(
         if owner.closed:
             _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
         owner.assert_unchanged()
-        observed = _observation_from_target(owner.target)
+        observed = observe_rollback_runtime_target(owner.target)
         if (
             observed.target_token_sha256 != stream.target_token_sha256
             or observed.package_root_identity != stream.package_root_identity
@@ -878,4 +878,5 @@ __all__ = [
     "ResolvedTargetCapture",
     "capture_native_existing_rollback_runtime",
     "capture_native_absent_rollback_runtime_target",
+    "observe_rollback_runtime_target",
 ]

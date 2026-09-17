@@ -17,6 +17,7 @@ if str(LAUNCHER_ROOT) not in sys.path:
 import towerscout_launcher.windows_recovery_backup as backup  # noqa: E402
 import towerscout_launcher.windows_recovery_backup_preparation as preparation  # noqa: E402
 import towerscout_launcher.windows_recovery_backup_storage as blob_storage  # noqa: E402
+import towerscout_launcher.windows_recovery_certificate_restore as cert_restore  # noqa: E402
 import towerscout_launcher.windows_recovery as recovery  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
@@ -433,14 +434,15 @@ class _CertificateRestoration:
         package_root: PathHierarchyTrust,
         protected_root_path: str,
         stream: journal.JournalStreamIdentity,
-        plan: journal.CertificateRestoreTempPlanRecord,
-        verified: journal.CertificateRestoreTempVerifiedRecord,
+        authority: cert_restore.CertificateRestorationAuthority,
     ) -> recovery.CertificateRestorationEvidence:
         package_root.assert_unchanged_while_held()
         assert protected_root_path.endswith(r"TowerScout\Recovery\v1")
-        assert stream.target_token_sha256 == self.evidence.target_token_sha256
-        assert plan.local_ca_present
-        assert verified.local_ca_temp_identity is not None
+        assert stream.target_token_sha256 == authority.target_token_sha256
+        assert authority.target_token_sha256 == self.evidence.target_token_sha256
+        assert authority.local_ca.original_present
+        assert authority.local_ca.restore_temp_identity is not None
+        self.authority = authority
         self.calls += 1
         if self.error is not None:
             raise self.error

@@ -5,6 +5,9 @@ from __future__ import annotations
 import hashlib
 import ntpath
 import re
+import threading
+from dataclasses import dataclass, field
+from pathlib import PureWindowsPath
 from typing import Callable, NoReturn, Protocol, TypeVar
 
 from .windows_environment_replacement_native import (
@@ -19,6 +22,10 @@ from .windows_recovery_certificate_storage import (
     CertificateRestoreTempIdentities,
     RecoveryCertificateStorageError,
     RecoveryCertificateStorageErrorCode,
+)
+from .windows_recovery_certificate_restore import (
+    CertificateDestinationRestoreAuthority,
+    CertificateRestorationAuthority,
 )
 from .windows_recovery_journal import (
     CertificateRestoreTempCreatedRecord,
@@ -762,7 +769,253 @@ class NativeWindowsCertificateRestoreTempStorage:
         return CertificateRestoreTempIdentities(local_identity, bundle_identity)
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class HeldCertificateRestoreTempPaths:
+    local_ca: PureWindowsPath | None = field(default=None, repr=False)
+    ca_bundle: PureWindowsPath | None = field(default=None, repr=False)
+
+    def __repr__(self) -> str:
+        return (
+            "HeldCertificateRestoreTempPaths("
+            f"local_ca_present={self.local_ca is not None!r}, "
+            f"ca_bundle_present={self.ca_bundle is not None!r}, <redacted>)"
+        )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class _HeldCertificateTemp:
+    path: str = field(repr=False)
+    identity: StableFileIdentity = field(repr=False)
+    size: int
+    sha256: str = field(repr=False)
+    handle: object = field(repr=False)
+
+
+class HeldCertificateRestoreTemps:
+    """Retain exact journal-staged originals against replacement while copied."""
+
+    __slots__ = ("_active", "_api", "_entries", "_lock", "_paths", "_user_sid")
+
+    def __init__(
+        self,
+        *,
+        api: _WindowsRecoveryCertificateTempApi,
+        user_sid: str,
+        entries: tuple[_HeldCertificateTemp, ...],
+        paths: HeldCertificateRestoreTempPaths,
+    ) -> None:
+        if (
+            not callable(getattr(api, "close_handle", None))
+            or type(user_sid) is not str
+            or _SID.fullmatch(user_sid) is None
+            or type(entries) is not tuple
+            or type(paths) is not HeldCertificateRestoreTempPaths
+            or len(entries)
+            != int(paths.local_ca is not None) + int(paths.ca_bundle is not None)
+            or len({id(entry.handle) for entry in entries}) != len(entries)
+        ):
+            _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+        self._lock = threading.RLock()
+        self._active = False
+        self._api = api
+        self._user_sid = user_sid
+        self._entries: tuple[_HeldCertificateTemp, ...] | None = entries
+        self._paths = paths
+        self._assert_unchanged()
+
+    @property
+    def closed(self) -> bool:
+        with self._lock:
+            return self._entries is None
+
+    def _assert_unchanged(self) -> None:
+        entries = self._entries
+        if entries is None:
+            _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+        for entry in entries:
+            _inspect(
+                self._api,
+                entry.handle,
+                path=entry.path,
+                current_user_sid=self._user_sid,
+                expected_identity=entry.identity,
+                expected_size=entry.size,
+            )
+            if (
+                hashlib.sha256(
+                    _read_exact(self._api, entry.handle, entry.size)
+                ).hexdigest()
+                != entry.sha256
+            ):
+                _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+            _inspect(
+                self._api,
+                entry.handle,
+                path=entry.path,
+                current_user_sid=self._user_sid,
+                expected_identity=entry.identity,
+                expected_size=entry.size,
+            )
+
+    def run_while_held(
+        self,
+        operation: Callable[[HeldCertificateRestoreTempPaths], _Result],
+    ) -> _Result:
+        if not callable(operation):
+            _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+        self._lock.acquire()
+        if self._active or self._entries is None:
+            self._lock.release()
+            _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+        self._active = True
+        try:
+            self._assert_unchanged()
+            try:
+                result = operation(self._paths)
+            except BaseException:
+                self._assert_unchanged()
+                raise
+            self._assert_unchanged()
+            return result
+        finally:
+            self._active = False
+            self._lock.release()
+
+    def close(self) -> None:
+        with self._lock:
+            if self._active:
+                _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+            entries = self._entries
+            self._entries = None
+            if entries is None:
+                return
+            failed = False
+            interruption: BaseException | None = None
+            for entry in reversed(entries):
+                try:
+                    self._api.close_handle(entry.handle)
+                except BaseException as error:
+                    if isinstance(error, Exception):
+                        failed = True
+                    elif interruption is None:
+                        interruption = error
+            if interruption is not None:
+                raise interruption
+            if failed:
+                _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+
+    def __repr__(self) -> str:
+        return f"HeldCertificateRestoreTemps(state={'closed' if self.closed else 'open'!r})"
+
+
+def _capture_held_certificate_temp(
+    api: _WindowsRecoveryCertificateTempApi,
+    *,
+    root_path: str,
+    user_sid: str,
+    authority: CertificateDestinationRestoreAuthority,
+) -> _HeldCertificateTemp | None:
+    if not authority.original_present:
+        return None
+    if (
+        authority.restore_temp_name is None
+        or authority.restore_temp_identity is None
+        or authority.original_size is None
+        or authority.original_sha256 is None
+    ):
+        _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+    path = _temp_path(root_path, authority.restore_temp_name)
+    handle = _call(
+        lambda: api.reopen_file_for_verification(path),
+        RecoveryCertificateStorageErrorCode.VERIFY_FAILED,
+    )
+    if handle is None:
+        _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+    held: object | None = handle
+    try:
+        entry = _HeldCertificateTemp(
+            path,
+            authority.restore_temp_identity,
+            authority.original_size,
+            authority.original_sha256,
+            handle,
+        )
+        _inspect(
+            api,
+            handle,
+            path=path,
+            current_user_sid=user_sid,
+            expected_identity=entry.identity,
+            expected_size=entry.size,
+        )
+        if hashlib.sha256(_read_exact(api, handle, entry.size)).hexdigest() != (
+            entry.sha256
+        ):
+            _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+        held = None
+        return entry
+    finally:
+        if held is not None:
+            _safe_close(api, held)
+
+
+def capture_held_certificate_restore_temps(
+    root_path: str,
+    authority: CertificateRestorationAuthority,
+    *,
+    api: _WindowsRecoveryCertificateTempApi | None = None,
+) -> HeldCertificateRestoreTemps:
+    """Open and retain every original certificate temp named by authority."""
+
+    if type(authority) is not CertificateRestorationAuthority:
+        _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+    selected_api = NativeWindowsRecoveryCertificateTempApi() if api is None else api
+    supported = _call(
+        lambda: selected_api.supported,
+        RecoveryCertificateStorageErrorCode.STORAGE_UNAVAILABLE,
+    )
+    if supported is not True:
+        _fail(RecoveryCertificateStorageErrorCode.STORAGE_UNAVAILABLE)
+    user_sid = _current_user_sid(selected_api)
+    entries: list[_HeldCertificateTemp] = []
+    try:
+        for destination in (authority.local_ca, authority.ca_bundle):
+            entry = _capture_held_certificate_temp(
+                selected_api,
+                root_path=root_path,
+                user_sid=user_sid,
+                authority=destination,
+            )
+            if entry is not None:
+                entries.append(entry)
+        paths = HeldCertificateRestoreTempPaths(
+            (
+                PureWindowsPath(entries[0].path)
+                if authority.local_ca.original_present
+                else None
+            ),
+            (
+                PureWindowsPath(entries[-1].path)
+                if authority.ca_bundle.original_present
+                else None
+            ),
+        )
+        return HeldCertificateRestoreTemps(
+            api=selected_api,
+            user_sid=user_sid,
+            entries=tuple(entries),
+            paths=paths,
+        )
+    except BaseException:
+        for entry in reversed(entries):
+            _safe_close(selected_api, entry.handle)
+        raise
+
+
 __all__ = [
+    "HeldCertificateRestoreTempPaths",
+    "HeldCertificateRestoreTemps",
     "NativeWindowsCertificateRestoreTempStorage",
     "NativeWindowsRecoveryCertificateTempApi",
+    "capture_held_certificate_restore_temps",
 ]

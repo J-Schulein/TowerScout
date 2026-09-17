@@ -1629,6 +1629,36 @@ class BoundResolvedRepairTarget:
         finally:
             self._end_use()
 
+    def execute_scoped_process(
+        self,
+        operation: str,
+        arguments: tuple[object, ...],
+    ) -> object:
+        """Execute one backend-defined finite operation between exact captures."""
+
+        if type(operation) is not str or type(arguments) is not tuple:
+            _fail(TargetResolutionErrorCode.TARGET_CHANGED)
+        self._begin_use()
+        try:
+            self._revalidate()
+            backend = self._backend
+            execute = getattr(backend, "execute_scoped_process", None)
+            if backend is None or not callable(execute):
+                _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
+            operation_error: BaseException | None = None
+            try:
+                result = execute(self._plan, operation, arguments)
+            except BaseException as error:
+                operation_error = error
+                result = None
+            if operation_error is not None:
+                self._revalidate()
+                raise operation_error
+            self._revalidate()
+            return result
+        finally:
+            self._end_use()
+
     def close(self) -> None:
         backend: TargetResolutionBackend | None = None
         with self._lifetime_lock:

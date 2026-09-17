@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import sys
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
 
@@ -21,7 +21,13 @@ from towerscout_launcher.windows_recovery_certificate_storage import (  # noqa: 
     RecoveryCertificateStorageErrorCode,
 )
 from towerscout_launcher.windows_recovery_certificate_storage_native import (  # noqa: E402
+    HeldCertificateRestoreTempPaths,
     NativeWindowsCertificateRestoreTempStorage,
+    capture_held_certificate_restore_temps,
+)
+from towerscout_launcher.windows_recovery_certificate_restore import (  # noqa: E402
+    CertificateDestinationRestoreAuthority,
+    CertificateRestorationAuthority,
 )
 from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
     CertificateRestoreTempCreatedRecord,
@@ -202,6 +208,41 @@ def _created(
     return CertificateRestoreTempCreatedRecord(1, "c" * 64, local, bundle)
 
 
+def _restore_authority(
+    local: StableFileIdentity | None,
+    bundle: StableFileIdentity | None,
+) -> CertificateRestorationAuthority:
+    return CertificateRestorationAuthority(
+        "a" * 64,
+        _identity(1),
+        "b" * 64,
+        "c" * 64,
+        tuple(f"{value:064x}" for value in range(1, 9)),
+        CertificateDestinationRestoreAuthority(
+            local is not None,
+            hashlib.sha256(_LOCAL).hexdigest() if local is not None else None,
+            len(_LOCAL) if local is not None else None,
+            0o644 if local is not None else None,
+            "d" * 64,
+            len(_LOCAL) + 1,
+            0o644,
+            _LOCAL_NAME if local is not None else None,
+            local,
+        ),
+        CertificateDestinationRestoreAuthority(
+            bundle is not None,
+            hashlib.sha256(_BUNDLE).hexdigest() if bundle is not None else None,
+            len(_BUNDLE) if bundle is not None else None,
+            0o600 if bundle is not None else None,
+            "e" * 64,
+            len(_BUNDLE) + 1,
+            0o644,
+            _BUNDLE_NAME if bundle is not None else None,
+            bundle,
+        ),
+    )
+
+
 def test_native_certificate_temps_create_write_and_reverify_both_files() -> None:
     api = _Api()
     adapter = NativeWindowsCertificateRestoreTempStorage(api=api)
@@ -231,6 +272,47 @@ def test_native_certificate_temps_create_write_and_reverify_both_files() -> None
     )
     assert api.files[_LOCAL_PATH].contents == _LOCAL
     assert api.files[_BUNDLE_PATH].contents == _BUNDLE
+
+
+def test_held_certificate_restore_temps_revalidate_both_exact_sources() -> None:
+    api = _Api()
+    local = _identity(40)
+    bundle = _identity(41)
+    api.files[_LOCAL_PATH] = _File(local, _LOCAL, _security(), _LOCAL_PATH)
+    api.files[_BUNDLE_PATH] = _File(bundle, _BUNDLE, _security(), _BUNDLE_PATH)
+
+    owner = capture_held_certificate_restore_temps(
+        _ROOT,
+        _restore_authority(local, bundle),
+        api=api,
+    )
+    paths = owner.run_while_held(lambda value: value)
+
+    assert paths == HeldCertificateRestoreTempPaths(
+        local_ca=PureWindowsPath(_LOCAL_PATH),
+        ca_bundle=PureWindowsPath(_BUNDLE_PATH),
+    )
+    owner.close()
+    assert owner.closed
+
+
+def test_held_certificate_restore_temps_detect_source_drift_after_operation() -> None:
+    api = _Api()
+    local = _identity(40)
+    api.files[_LOCAL_PATH] = _File(local, _LOCAL, _security(), _LOCAL_PATH)
+    owner = capture_held_certificate_restore_temps(
+        _ROOT,
+        _restore_authority(local, None),
+        api=api,
+    )
+
+    with pytest.raises(RecoveryCertificateStorageError) as failure:
+        owner.run_while_held(
+            lambda _paths: setattr(api.files[_LOCAL_PATH], "contents", b"drift")
+        )
+
+    assert failure.value.code is RecoveryCertificateStorageErrorCode.VERIFY_FAILED
+    owner.close()
 
 
 def test_native_certificate_temp_reconciles_only_zero_byte_protected_orphan() -> None:

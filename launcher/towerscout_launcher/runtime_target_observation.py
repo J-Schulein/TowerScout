@@ -11,9 +11,11 @@ TowerScout's eight derived named-volume names. Docker uses
 
 The native executor and provider-specific output normalizers remain separate
 review boundaries. Constructing these plans performs no Docker, Podman,
-Compose, filesystem, or launcher mutation. The sole mutating operation is the
-fixed prior-profile recreation plan; only the owned recovery backend may issue
-it after an exact absent-target revalidation.
+Compose, filesystem, or launcher mutation. Mutating plans are limited to exact
+prior-profile recreation plus fixed certificate staging, atomic restoration,
+and removal commands. Only the owned recovery backend may issue them while the
+target's native authority is retained; the recovery adapter separately retains
+certificate source authority across every staging command.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from typing import NoReturn, Sequence
 from .runtime_target_resolution import TargetResolutionPlan
 from .target_contracts import (
     CONTAINER_BUNDLE_DESTINATION,
+    CONTAINER_CERT_DESTINATION,
     EXPECTED_VOLUME_DESTINATIONS,
     ComposeInvocationKind,
     EndpointBindingKind,
@@ -42,10 +45,15 @@ OBSERVATION_LIST_STDOUT_LIMIT_BYTES = 8 * 1024
 OBSERVATION_STDERR_LIMIT_BYTES = 16 * 1024
 RECREATION_TIMEOUT_MS = 120_000
 RECREATION_STDERR_LIMIT_BYTES = 64 * 1024
+CERTIFICATE_OPERATION_TIMEOUT_MS = 30_000
+CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES = 8 * 1024
+CERTIFICATE_OPERATION_STDERR_LIMIT_BYTES = 16 * 1024
 
 _CONTAINER_ID = re.compile(r"^[0-9a-f]{64}$")
 _DOCKER_IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
 _PODMAN_IMAGE_ID = re.compile(r"^[0-9a-f]{64}$")
+_CERTIFICATE_TEMP_NAME = re.compile(r"^recovery-certificate-[0-9a-f]{32}\.tmp$")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _MAX_ARGUMENTS = 128
 _MAX_ARGUMENT_CHARACTERS = 32_767
 _MAX_COMMAND_LINE_CHARACTERS = 32_767
@@ -61,6 +69,112 @@ class ObservationOperation(str, Enum):
     IMAGE_INSPECT = "image_inspect"
     VOLUME_INSPECT = "volume_inspect"
     COMPOSE_RECREATE_PRIOR_PROFILE = "compose_recreate_prior_profile"
+    CERTIFICATE_OBSERVE = "certificate_observe"
+    CERTIFICATE_STAGE_ORIGINAL = "certificate_stage_original"
+    CERTIFICATE_APPLY_ORIGINAL = "certificate_apply_original"
+    CERTIFICATE_REMOVE_CANDIDATE = "certificate_remove_candidate"
+    CERTIFICATE_REMOVE_STAGED_ORIGINAL = "certificate_remove_staged_original"
+
+
+class CertificateTargetDestination(str, Enum):
+    LOCAL_CA = "local_ca"
+    CA_BUNDLE = "ca_bundle"
+
+
+def _certificate_destination_path(destination: CertificateTargetDestination) -> str:
+    return (
+        CONTAINER_CERT_DESTINATION
+        if destination is CertificateTargetDestination.LOCAL_CA
+        else CONTAINER_BUNDLE_DESTINATION
+    )
+
+
+def _certificate_stage_path(name: str) -> str:
+    return f"/app/webapp/config/certs/.{name}"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class CertificateRuntimeSelector:
+    """Finite engine selector for one exact certificate recovery operation."""
+
+    container_id: str = field(repr=False)
+    destination: CertificateTargetDestination
+    restore_temp_name: str | None = field(default=None, repr=False)
+    source_path: PureWindowsPath | None = field(default=None, repr=False)
+    original_sha256: str | None = field(default=None, repr=False)
+    original_size: int | None = None
+    original_mode: int | None = None
+    candidate_sha256: str | None = field(default=None, repr=False)
+    candidate_size: int | None = None
+    candidate_mode: int | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.container_id) is not str
+            or _CONTAINER_ID.fullmatch(self.container_id) is None
+            or type(self.destination) is not CertificateTargetDestination
+            or (
+                self.restore_temp_name is not None
+                and (
+                    type(self.restore_temp_name) is not str
+                    or _CERTIFICATE_TEMP_NAME.fullmatch(self.restore_temp_name) is None
+                )
+            )
+            or (
+                self.source_path is not None
+                and type(self.source_path) is not PureWindowsPath
+            )
+        ):
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        if self.source_path is not None:
+            path = self.source_path
+            if (
+                not path.is_absolute()
+                or self.restore_temp_name is None
+                or path.name != self.restore_temp_name
+                or path.parent.name.casefold() != "v1"
+                or path.parent.parent.name.casefold() != "recovery"
+                or path.parent.parent.parent.name.casefold() != "towerscout"
+            ):
+                _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        hashes = (self.original_sha256, self.candidate_sha256)
+        sizes = (self.original_size, self.candidate_size)
+        modes = (self.original_mode, self.candidate_mode)
+        if (
+            any(
+                value is not None
+                and (type(value) is not str or _SHA256.fullmatch(value) is None)
+                for value in hashes
+            )
+            or any(
+                value is not None and (type(value) is not int or value < 0)
+                for value in sizes
+            )
+            or any(
+                value is not None
+                and (type(value) is not int or not 0 <= value <= 0o7777)
+                for value in modes
+            )
+        ):
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+
+    @property
+    def destination_path(self) -> str:
+        return _certificate_destination_path(self.destination)
+
+    @property
+    def stage_path(self) -> str | None:
+        return (
+            None
+            if self.restore_temp_name is None
+            else _certificate_stage_path(self.restore_temp_name)
+        )
+
+    def __repr__(self) -> str:
+        return (
+            "CertificateRuntimeSelector("
+            f"destination={self.destination.value!r}, <redacted>)"
+        )
 
 
 class TargetObservationBindingErrorCode(str, Enum):
@@ -235,6 +349,130 @@ def _endpoint_prefix(target: TargetResolutionPlan) -> tuple[str, ...]:
     )
 
 
+_CERTIFICATE_OBSERVE_SCRIPT = (
+    "import hashlib,json,os,stat,sys\n"
+    "p=sys.argv[1]\n"
+    "present=os.path.lexists(p)\n"
+    "f=os.open(p,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)) if present else None\n"
+    "s=os.fstat(f) if f is not None else None\n"
+    "if s is not None and not stat.S_ISREG(s.st_mode): raise SystemExit(42)\n"
+    "h=hashlib.sha256()\n"
+    "if f is not None:\n"
+    " while True:\n"
+    "  chunk=os.read(f,1048576)\n"
+    "  if not chunk: break\n"
+    "  h.update(chunk)\n"
+    "s2=os.fstat(f) if f is not None else None\n"
+    "same=s is None or (s.st_dev,s.st_ino,s.st_size,s.st_mode)=="
+    "(s2.st_dev,s2.st_ino,s2.st_size,s2.st_mode)\n"
+    "if f is not None: os.close(f)\n"
+    "if not same: raise SystemExit(42)\n"
+    "value={'present':present}\n"
+    "if present: value.update(sha256=h.hexdigest(),size=s.st_size,"
+    "mode=stat.S_IMODE(s.st_mode))\n"
+    "print(json.dumps(value,sort_keys=True,separators=(',',':')))\n"
+)
+
+_CERTIFICATE_APPLY_SCRIPT = (
+    "import hashlib,os,stat,sys\n"
+    "d,t,oh,oz,om,ch,cz,cm=sys.argv[1:]\n"
+    "oz=int(oz); om=int(om,8); cz=int(cz); cm=int(cm,8)\n"
+    "def snap(p,h,z,m):\n"
+    " f=os.open(p,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0))\n"
+    " s=os.fstat(f); x=hashlib.sha256()\n"
+    " while True:\n"
+    "  b=os.read(f,1048576)\n"
+    "  if not b: break\n"
+    "  x.update(b)\n"
+    " s2=os.fstat(f)\n"
+    " ok=(stat.S_ISREG(s.st_mode) and s.st_size==z and "
+    "stat.S_IMODE(s.st_mode)==m and x.hexdigest()==h and "
+    "(s.st_dev,s.st_ino,s.st_size,s.st_mode)=="
+    "(s2.st_dev,s2.st_ino,s2.st_size,s2.st_mode))\n"
+    " return f,s,ok\n"
+    "df,ds,dok=snap(d,ch,cz,cm)\n"
+    "tf,ts,tok=snap(t,oh,oz,stat.S_IMODE(os.lstat(t).st_mode))\n"
+    "os.fchmod(tf,om); ts2=os.fstat(tf)\n"
+    "tok=tok and stat.S_IMODE(ts2.st_mode)==om\n"
+    "dok=dok and os.path.samestat(ds,os.lstat(d))\n"
+    "tok=tok and os.path.samestat(ts2,os.lstat(t))\n"
+    "if not dok or not tok: raise SystemExit(43)\n"
+    "os.replace(t,d); os.close(df); os.close(tf)\n"
+)
+
+_CERTIFICATE_REMOVE_SCRIPT = (
+    "import hashlib,os,stat,sys\n"
+    "p,h,z,m=sys.argv[1:]; z=int(z); m=int(m,8)\n"
+    "f=os.open(p,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)); s=os.fstat(f)\n"
+    "x=hashlib.sha256()\n"
+    "while True:\n"
+    " b=os.read(f,1048576)\n"
+    " if not b: break\n"
+    " x.update(b)\n"
+    "s2=os.fstat(f)\n"
+    "ok=(stat.S_ISREG(s.st_mode) and s.st_size==z and "
+    "stat.S_IMODE(s.st_mode)==m and x.hexdigest()==h and "
+    "(s.st_dev,s.st_ino,s.st_size,s.st_mode)=="
+    "(s2.st_dev,s2.st_ino,s2.st_size,s2.st_mode) and "
+    "os.path.samestat(s2,os.lstat(p)))\n"
+    "if not ok: raise SystemExit(44)\n"
+    "os.unlink(p); os.close(f)\n"
+)
+
+# Command arguments cannot contain control characters.  The reviewed program
+# is therefore passed as one literal to a fixed outer ``exec`` expression.
+_CERTIFICATE_OBSERVE_SCRIPT = f"exec({_CERTIFICATE_OBSERVE_SCRIPT!r})"
+_CERTIFICATE_APPLY_SCRIPT = f"exec({_CERTIFICATE_APPLY_SCRIPT!r})"
+_CERTIFICATE_REMOVE_SCRIPT = f"exec({_CERTIFICATE_REMOVE_SCRIPT!r})"
+
+
+def _certificate_selector_valid(
+    operation: ObservationOperation,
+    selector: CertificateRuntimeSelector,
+) -> bool:
+    optional = (
+        selector.restore_temp_name,
+        selector.source_path,
+        selector.original_sha256,
+        selector.original_size,
+        selector.original_mode,
+        selector.candidate_sha256,
+        selector.candidate_size,
+        selector.candidate_mode,
+    )
+    if operation is ObservationOperation.CERTIFICATE_OBSERVE:
+        return selector.source_path is None and all(
+            value is None for value in optional[2:]
+        )
+    if operation is ObservationOperation.CERTIFICATE_STAGE_ORIGINAL:
+        return (
+            selector.restore_temp_name is not None
+            and selector.source_path is not None
+            and all(value is None for value in optional[2:])
+        )
+    if operation is ObservationOperation.CERTIFICATE_APPLY_ORIGINAL:
+        return (
+            selector.restore_temp_name is not None
+            and selector.source_path is None
+            and all(value is not None for value in optional[2:])
+        )
+    if operation is ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE:
+        return (
+            selector.restore_temp_name is None
+            and selector.source_path is None
+            and all(value is None for value in optional[2:5])
+            and all(value is not None for value in optional[5:])
+        )
+    if operation is ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL:
+        return (
+            selector.restore_temp_name is not None
+            and selector.source_path is None
+            and all(value is not None for value in optional[2:5])
+            and all(value is None for value in optional[5:])
+        )
+    return False
+
+
 @dataclass(frozen=True, slots=True, repr=False)
 class _ExpectedProcess:
     executable: FileIdentity
@@ -359,7 +597,7 @@ def _compose_expected(
 def _valid_selector(
     operation: ObservationOperation,
     target: TargetResolutionPlan,
-    selector: str | None,
+    selector: str | CertificateRuntimeSelector | None,
 ) -> bool:
     if operation in {
         ObservationOperation.COMPOSE_MODEL_CURRENT,
@@ -386,13 +624,23 @@ def _valid_selector(
             for logical_name, _destination in EXPECTED_VOLUME_DESTINATIONS
         }
         return type(selector) is str and selector in expected
+    if operation in {
+        ObservationOperation.CERTIFICATE_OBSERVE,
+        ObservationOperation.CERTIFICATE_STAGE_ORIGINAL,
+        ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
+        ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
+        ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+    }:
+        return type(selector) is CertificateRuntimeSelector and (
+            _certificate_selector_valid(operation, selector)
+        )
     return False
 
 
 def _engine_expected(
     target: TargetResolutionPlan,
     operation: ObservationOperation,
-    selector: str | None,
+    selector: str | CertificateRuntimeSelector | None,
 ) -> _ExpectedProcess:
     _require_executable(
         target.runtime.executable,
@@ -428,14 +676,100 @@ def _engine_expected(
         )
         stdout_limit = OBSERVATION_LIST_STDOUT_LIMIT_BYTES
     elif operation is ObservationOperation.CONTAINER_INSPECT:
-        suffix = ("container", "inspect", selector or "")
+        suffix = ("container", "inspect", selector if type(selector) is str else "")
         stdout_limit = OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES
     elif operation is ObservationOperation.IMAGE_INSPECT:
-        suffix = ("image", "inspect", selector or "")
+        suffix = ("image", "inspect", selector if type(selector) is str else "")
         stdout_limit = OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES
     elif operation is ObservationOperation.VOLUME_INSPECT:
-        suffix = ("volume", "inspect", selector or "")
+        suffix = ("volume", "inspect", selector if type(selector) is str else "")
         stdout_limit = OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES
+    elif operation is ObservationOperation.CERTIFICATE_OBSERVE:
+        if type(selector) is not CertificateRuntimeSelector:
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        path = selector.stage_path or selector.destination_path
+        suffix = (
+            "container",
+            "exec",
+            selector.container_id,
+            "python",
+            "-c",
+            _CERTIFICATE_OBSERVE_SCRIPT,
+            path,
+        )
+        stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
+    elif operation is ObservationOperation.CERTIFICATE_STAGE_ORIGINAL:
+        if (
+            type(selector) is not CertificateRuntimeSelector
+            or selector.source_path is None
+            or selector.stage_path is None
+        ):
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        suffix = (
+            "container",
+            "cp",
+            str(selector.source_path),
+            f"{selector.container_id}:{selector.stage_path}",
+        )
+        stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
+    elif operation is ObservationOperation.CERTIFICATE_APPLY_ORIGINAL:
+        if (
+            type(selector) is not CertificateRuntimeSelector
+            or selector.stage_path is None
+        ):
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        suffix = (
+            "container",
+            "exec",
+            selector.container_id,
+            "python",
+            "-c",
+            _CERTIFICATE_APPLY_SCRIPT,
+            selector.destination_path,
+            selector.stage_path,
+            selector.original_sha256 or "",
+            str(selector.original_size),
+            format(selector.original_mode or 0, "o"),
+            selector.candidate_sha256 or "",
+            str(selector.candidate_size),
+            format(selector.candidate_mode or 0, "o"),
+        )
+        stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
+    elif operation is ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE:
+        if type(selector) is not CertificateRuntimeSelector:
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        suffix = (
+            "container",
+            "exec",
+            selector.container_id,
+            "python",
+            "-c",
+            _CERTIFICATE_REMOVE_SCRIPT,
+            selector.destination_path,
+            selector.candidate_sha256 or "",
+            str(selector.candidate_size),
+            format(selector.candidate_mode or 0, "o"),
+        )
+        stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
+    elif operation is ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL:
+        if (
+            type(selector) is not CertificateRuntimeSelector
+            or selector.stage_path is None
+        ):
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        suffix = (
+            "container",
+            "exec",
+            selector.container_id,
+            "python",
+            "-c",
+            _CERTIFICATE_REMOVE_SCRIPT,
+            selector.stage_path,
+            selector.original_sha256 or "",
+            str(selector.original_size),
+            format(selector.original_mode or 0, "o"),
+        )
+        stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
     else:
         _reject(TargetObservationBindingErrorCode.OPERATION_REJECTED)
     return _ExpectedProcess(
@@ -443,16 +777,38 @@ def _engine_expected(
         arguments=(*prefix, *suffix),
         environment_items=_windows_environment(target),
         authenticated_files=_all_authenticated_identities(target),
-        timeout_ms=OBSERVATION_TIMEOUT_MS,
+        timeout_ms=(
+            CERTIFICATE_OPERATION_TIMEOUT_MS
+            if operation
+            in {
+                ObservationOperation.CERTIFICATE_OBSERVE,
+                ObservationOperation.CERTIFICATE_STAGE_ORIGINAL,
+                ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
+                ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
+                ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+            }
+            else OBSERVATION_TIMEOUT_MS
+        ),
         stdout_limit_bytes=stdout_limit,
-        stderr_limit_bytes=OBSERVATION_STDERR_LIMIT_BYTES,
+        stderr_limit_bytes=(
+            CERTIFICATE_OPERATION_STDERR_LIMIT_BYTES
+            if operation
+            in {
+                ObservationOperation.CERTIFICATE_OBSERVE,
+                ObservationOperation.CERTIFICATE_STAGE_ORIGINAL,
+                ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
+                ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
+                ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+            }
+            else OBSERVATION_STDERR_LIMIT_BYTES
+        ),
     )
 
 
 def _expected_process(
     target: TargetResolutionPlan,
     operation: ObservationOperation,
-    selector: str | None,
+    selector: str | CertificateRuntimeSelector | None,
 ) -> _ExpectedProcess:
     if not _valid_selector(operation, target, selector):
         _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
@@ -475,7 +831,7 @@ class TargetObservationProcessPlan:
     arguments: tuple[str, ...] = field(repr=False)
     environment_items: tuple[tuple[str, str], ...] = field(repr=False)
     authenticated_files: tuple[FileIdentity, ...] = field(repr=False)
-    selector: str | None = field(default=None, repr=False)
+    selector: str | CertificateRuntimeSelector | None = field(default=None, repr=False)
     timeout_ms: int = OBSERVATION_TIMEOUT_MS
     stdout_limit_bytes: int = OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES
     stderr_limit_bytes: int = OBSERVATION_STDERR_LIMIT_BYTES
@@ -509,7 +865,11 @@ class TargetObservationProcessPlan:
             <= _MAX_ENVIRONMENT_BLOCK_CHARACTERS
             and type(self.authenticated_files) is tuple
             and all(type(item) is FileIdentity for item in self.authenticated_files)
-            and (self.selector is None or type(self.selector) is str)
+            and (
+                self.selector is None
+                or type(self.selector) is str
+                or type(self.selector) is CertificateRuntimeSelector
+            )
             and type(self.timeout_ms) is int
             and type(self.stdout_limit_bytes) is int
             and type(self.stderr_limit_bytes) is int
@@ -650,7 +1010,7 @@ class TargetObservationExecutionBinding:
     def _build(
         self,
         operation: ObservationOperation,
-        selector: str | None = None,
+        selector: str | CertificateRuntimeSelector | None = None,
     ) -> TargetObservationProcessPlan:
         if not _valid_selector(operation, self.target, selector):
             _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
@@ -716,6 +1076,110 @@ class TargetObservationExecutionBinding:
             for logical_name, _destination in EXPECTED_VOLUME_DESTINATIONS
         )
 
+    def certificate_observe(
+        self,
+        *,
+        container_id: str,
+        destination: CertificateTargetDestination,
+        restore_temp_name: str | None = None,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.CERTIFICATE_OBSERVE,
+            CertificateRuntimeSelector(
+                container_id,
+                destination,
+                restore_temp_name=restore_temp_name,
+            ),
+        )
+
+    def certificate_stage_original(
+        self,
+        *,
+        container_id: str,
+        destination: CertificateTargetDestination,
+        restore_temp_name: str,
+        source_path: PureWindowsPath,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.CERTIFICATE_STAGE_ORIGINAL,
+            CertificateRuntimeSelector(
+                container_id,
+                destination,
+                restore_temp_name=restore_temp_name,
+                source_path=source_path,
+            ),
+        )
+
+    def certificate_apply_original(
+        self,
+        *,
+        container_id: str,
+        destination: CertificateTargetDestination,
+        restore_temp_name: str,
+        original_sha256: str,
+        original_size: int,
+        original_mode: int,
+        candidate_sha256: str,
+        candidate_size: int,
+        candidate_mode: int,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
+            CertificateRuntimeSelector(
+                container_id,
+                destination,
+                restore_temp_name=restore_temp_name,
+                original_sha256=original_sha256,
+                original_size=original_size,
+                original_mode=original_mode,
+                candidate_sha256=candidate_sha256,
+                candidate_size=candidate_size,
+                candidate_mode=candidate_mode,
+            ),
+        )
+
+    def certificate_remove_candidate(
+        self,
+        *,
+        container_id: str,
+        destination: CertificateTargetDestination,
+        candidate_sha256: str,
+        candidate_size: int,
+        candidate_mode: int,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
+            CertificateRuntimeSelector(
+                container_id,
+                destination,
+                candidate_sha256=candidate_sha256,
+                candidate_size=candidate_size,
+                candidate_mode=candidate_mode,
+            ),
+        )
+
+    def certificate_remove_staged_original(
+        self,
+        *,
+        container_id: str,
+        destination: CertificateTargetDestination,
+        restore_temp_name: str,
+        original_sha256: str,
+        original_size: int,
+        original_mode: int,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+            CertificateRuntimeSelector(
+                container_id,
+                destination,
+                restore_temp_name=restore_temp_name,
+                original_sha256=original_sha256,
+                original_size=original_size,
+                original_mode=original_mode,
+            ),
+        )
+
     def __repr__(self) -> str:
         return (
             "TargetObservationExecutionBinding("
@@ -724,6 +1188,11 @@ class TargetObservationExecutionBinding:
 
 
 __all__ = [
+    "CERTIFICATE_OPERATION_STDERR_LIMIT_BYTES",
+    "CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES",
+    "CERTIFICATE_OPERATION_TIMEOUT_MS",
+    "CertificateRuntimeSelector",
+    "CertificateTargetDestination",
     "OBSERVATION_CA_DESTINATION",
     "OBSERVATION_COMPOSE_STDOUT_LIMIT_BYTES",
     "OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES",

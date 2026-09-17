@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import hashlib
 import sys
 from dataclasses import replace
@@ -13,11 +14,13 @@ if str(LAUNCHER_ROOT) not in sys.path:
     sys.path.insert(0, str(LAUNCHER_ROOT))
 
 from towerscout_launcher.runtime_target_observation import (  # noqa: E402
+    CERTIFICATE_OPERATION_TIMEOUT_MS,
     OBSERVATION_CA_DESTINATION,
     OBSERVATION_COMPOSE_STDOUT_LIMIT_BYTES,
     OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES,
     OBSERVATION_LIST_STDOUT_LIMIT_BYTES,
     RECREATION_TIMEOUT_MS,
+    CertificateTargetDestination,
     ObservationOperation,
     TargetObservationBindingError,
     TargetObservationBindingErrorCode,
@@ -29,6 +32,7 @@ from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
     CONTAINER_BUNDLE_DESTINATION,
+    CONTAINER_CERT_DESTINATION,
     EXPECTED_VOLUME_DESTINATIONS,
     AccelerationPlan,
     CertificateIdentity,
@@ -382,6 +386,106 @@ def test_prior_profile_recreation_is_exact_scoped_and_preserves_volumes(
     assert recreation.target is plan
 
 
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_certificate_recovery_processes_are_fixed_contained_engine_commands(
+    product: RuntimeProduct,
+) -> None:
+    plan = _plan(product)
+    binding = TargetObservationExecutionBinding(plan)
+    container_id = "d" * 64
+    name = f"recovery-certificate-{1:032x}.tmp"
+    source = PureWindowsPath(
+        rf"C:\Users\PRIVATE-PATH\AppData\Local\TowerScout\Recovery\v1\{name}"
+    )
+
+    observe = binding.certificate_observe(
+        container_id=container_id,
+        destination=CertificateTargetDestination.LOCAL_CA,
+    )
+    stage_observe = binding.certificate_observe(
+        container_id=container_id,
+        destination=CertificateTargetDestination.LOCAL_CA,
+        restore_temp_name=name,
+    )
+    stage = binding.certificate_stage_original(
+        container_id=container_id,
+        destination=CertificateTargetDestination.LOCAL_CA,
+        restore_temp_name=name,
+        source_path=source,
+    )
+    apply = binding.certificate_apply_original(
+        container_id=container_id,
+        destination=CertificateTargetDestination.LOCAL_CA,
+        restore_temp_name=name,
+        original_sha256="1" * 64,
+        original_size=11,
+        original_mode=0o600,
+        candidate_sha256="2" * 64,
+        candidate_size=12,
+        candidate_mode=0o644,
+    )
+    remove = binding.certificate_remove_candidate(
+        container_id=container_id,
+        destination=CertificateTargetDestination.CA_BUNDLE,
+        candidate_sha256="3" * 64,
+        candidate_size=13,
+        candidate_mode=0o644,
+    )
+    remove_stage = binding.certificate_remove_staged_original(
+        container_id=container_id,
+        destination=CertificateTargetDestination.LOCAL_CA,
+        restore_temp_name=name,
+        original_sha256="1" * 64,
+        original_size=11,
+        original_mode=0o600,
+    )
+
+    for request in (observe, stage_observe, stage, apply, remove, remove_stage):
+        assert request.command[0] == str(plan.runtime.executable.final_path)
+        assert request.command[1:3] == (
+            ("--host", plan.endpoint.canonical_endpoint)
+            if product is RuntimeProduct.DOCKER
+            else ("--url", plan.endpoint.canonical_endpoint)
+        )
+        assert request.timeout_ms == CERTIFICATE_OPERATION_TIMEOUT_MS
+        assert request.stdin_closed is True
+        assert request.shell is False
+        assert request.target is plan
+    assert observe.arguments[-1] == CONTAINER_CERT_DESTINATION
+    assert stage_observe.arguments[-1].endswith(f"/.{name}")
+    assert stage.arguments[-4:] == (
+        "container",
+        "cp",
+        str(source),
+        f"{container_id}:/app/webapp/config/certs/.{name}",
+    )
+    assert apply.arguments[-8] == CONTAINER_CERT_DESTINATION
+    assert remove.arguments[-4] == CONTAINER_BUNDLE_DESTINATION
+    for request in (observe, stage_observe, apply, remove, remove_stage):
+        script_index = request.arguments.index("-c") + 1
+        ast.parse(request.arguments[script_index], feature_version=(3, 11))
+    assert not {"sh", "bash", "cmd", "powershell"} & {
+        item.casefold()
+        for request in (observe, stage_observe, stage, apply, remove, remove_stage)
+        for item in request.arguments
+    }
+
+
+def test_certificate_stage_rejects_source_outside_exact_recovery_root() -> None:
+    binding = TargetObservationExecutionBinding(_plan())
+    name = f"recovery-certificate-{1:032x}.tmp"
+
+    with pytest.raises(TargetObservationBindingError) as failure:
+        binding.certificate_stage_original(
+            container_id="d" * 64,
+            destination=CertificateTargetDestination.LOCAL_CA,
+            restore_temp_name=name,
+            source_path=PureWindowsPath(rf"C:\attacker\{name}"),
+        )
+
+    assert failure.value.code is TargetObservationBindingErrorCode.SELECTOR_REJECTED
+
+
 def test_compose_plan_copies_are_immutable_and_planned_arguments_do_not_change() -> (
     None
 ):
@@ -550,3 +654,4 @@ def test_binding_rejects_non_plan_and_does_not_import_live_launcher_modules() ->
     assert "from .repair" not in source
     assert "from .discovery" not in source
     assert "from .app" not in source
+    CertificateTargetDestination,
