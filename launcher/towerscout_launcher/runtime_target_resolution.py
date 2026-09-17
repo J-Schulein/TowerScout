@@ -1285,6 +1285,17 @@ def _parse_observation(
     )
 
 
+def resolve_present_runtime_target(
+    plan: TargetResolutionPlan,
+    snapshot: TargetResolutionSnapshot,
+) -> ResolvedRepairTarget:
+    """Validate one normalized post-recreation snapshot as an exact target."""
+
+    if type(plan) is not TargetResolutionPlan:
+        _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
+    return _parse_observation(plan, snapshot).target
+
+
 @dataclass(frozen=True, slots=True, repr=False)
 class AbsentResolvedRuntimeTarget:
     """Exact stage-stable target state captured while its container is absent."""
@@ -1724,5 +1735,6 @@ __all__ = [
     "TargetResolutionSnapshot",
     "capture_bound_resolved_repair_target",
     "resolve_absent_runtime_target",
+    "resolve_present_runtime_target",
     "target_model_semantic_sha256",
 ]

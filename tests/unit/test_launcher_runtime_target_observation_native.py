@@ -536,10 +536,19 @@ def test_provider_request_is_bound_to_each_exact_podman_compose_plan() -> None:
     planned = TargetObservationProviderChildProcessRequest.from_plan(
         binding.compose_model(planned=True)
     )
+    recreation = TargetObservationProviderChildProcessRequest.from_plan(
+        binding.recreate_prior_profile()
+    )
 
     assert current.binding_sha256 != planned.binding_sha256
+    assert recreation.binding_sha256 not in {
+        current.binding_sha256,
+        planned.binding_sha256,
+    }
     assert current.authority_sha256 == planned.authority_sha256
+    assert recreation.authority_sha256 == current.authority_sha256
     assert "REQUESTS_CA_BUNDLE" not in dict(current.environment)
+    assert "REQUESTS_CA_BUNDLE" not in dict(recreation.environment)
     assert dict(planned.environment)["REQUESTS_CA_BUNDLE"] == OBSERVATION_CA_DESTINATION
     assert "PRIVATE-PATH" not in repr(current)
 
@@ -606,16 +615,18 @@ def test_executor_routes_podman_compose_only_through_provider_child_evidence() -
     )
     binding = TargetObservationExecutionBinding(plan)
 
-    compose_result, engine_result = authority.run_while_held(
+    compose_result, recreation_result, engine_result = authority.run_while_held(
         lambda: (
             executor.execute(binding.compose_model(planned=True)),
+            executor.execute(binding.recreate_prior_profile()),
             executor.execute(binding.container_list()),
         )
     )
 
     assert compose_result.provider_child_claimed is True
+    assert recreation_result.provider_child_claimed is True
     assert engine_result.provider_child_claimed is False
-    assert len(provider.calls) == 1
+    assert len(provider.calls) == 2
     assert len(command.calls) == 1
     executor.close()
     authority.close()
@@ -700,6 +711,20 @@ def test_native_command_backend_preserves_observation_output_budget() -> None:
 
     assert result.stdout == stdout
     assert result.provider_child_claimed is False
+    assert api.request.plan is process
+    assert api.closed == 1
+
+
+def test_native_command_backend_executes_exact_docker_recreation_plan() -> None:
+    plan = _plan(RuntimeProduct.DOCKER)
+    process = TargetObservationExecutionBinding(plan).recreate_prior_profile()
+    api = _ProcessApi(b"recreated")
+    backend = NativeWindowsTargetObservationCommandBackend(api=api, clock=_Clock())
+
+    result = backend.execute(TargetObservationProcessRequest.from_plan(process))
+
+    assert result.operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE
+    assert result.stdout == b"recreated"
     assert api.request.plan is process
     assert api.closed == 1
 

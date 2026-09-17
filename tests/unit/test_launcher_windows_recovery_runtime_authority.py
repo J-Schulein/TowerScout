@@ -23,11 +23,13 @@ from test_launcher_runtime_target_resolution import (  # noqa: E402
 from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
     capture_bound_resolved_repair_target,
     resolve_absent_runtime_target,
+    resolve_present_runtime_target,
 )
 from towerscout_launcher.target_contracts import RuntimeProduct  # noqa: E402
 from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E402
     RollbackRuntimeRecoveryAuthority,
     derive_absent_rollback_runtime_recovery_authority,
+    derive_recreated_rollback_runtime_recovery_authority,
     derive_rollback_runtime_recovery_authority,
 )
 
@@ -148,3 +150,52 @@ def test_absent_authority_rejects_token_or_stage_stable_image_drift():
         ),
     )
     assert changed != original
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_recreated_target_rederives_original_authority_with_new_container(product):
+    plan = _plan(product)
+    original_owner = capture_bound_resolved_repair_target(
+        plan,
+        backend=_Backend(_snapshot(plan), _snapshot(plan)),
+    )
+    original = derive_rollback_runtime_recovery_authority(original_owner.target)
+    recreated = resolve_present_runtime_target(plan, _snapshot(plan))
+
+    recovered = derive_recreated_rollback_runtime_recovery_authority(
+        original.target_token_sha256,
+        recreated,
+    )
+
+    assert recovered == original
+    original_owner.close()
+
+
+def test_recreated_authority_accepts_exact_restored_environment_with_new_file_id():
+    original_plan = _plan()
+    original_owner = capture_bound_resolved_repair_target(
+        original_plan,
+        backend=_Backend(_snapshot(original_plan), _snapshot(original_plan)),
+    )
+    original = derive_rollback_runtime_recovery_authority(original_owner.target)
+    restored_environment = replace(
+        original_plan.environment_source,
+        file_id=b"\xfe" * 16,
+    )
+    restored_plan = replace(
+        original_plan,
+        environment_source=restored_environment,
+        environment_file=restored_environment,
+    )
+    recreated = resolve_present_runtime_target(
+        restored_plan,
+        _snapshot(restored_plan),
+    )
+
+    recovered = derive_recreated_rollback_runtime_recovery_authority(
+        original.target_token_sha256,
+        recreated,
+    )
+
+    assert recovered == original
+    original_owner.close()

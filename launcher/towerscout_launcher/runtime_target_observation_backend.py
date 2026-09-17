@@ -1,4 +1,4 @@
-"""Owned, read-only adapter from native observation output to target snapshots.
+"""Owned target-snapshot adapter with one scoped recreation operation.
 
 The adapter is intentionally not wired into the launcher.  It consumes only
 the immutable process plans from :mod:`runtime_target_observation`, executes a
@@ -6,7 +6,9 @@ complete capture inside one caller-supplied authenticated ownership window,
 and converts Docker JSON or Podman Compose YAML plus engine inspect JSON into
 the deliberately small schemas accepted by :mod:`runtime_target_resolution`.
 
-No raw child output is logged, persisted, or exposed through public errors.
+The sole mutation is exact prior-profile recreation after a same-window absent-
+state check. No raw child output is logged, persisted, or exposed through
+public errors.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from .runtime_target_observation import (
     TargetObservationProcessPlan,
 )
 from .runtime_target_resolution import (
+    AbsentResolvedRuntimeTarget,
     AbsentTargetResolutionSnapshot,
     EXPECTED_HEALTHCHECK_COMMAND_SHA256,
     TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER,
@@ -33,6 +36,7 @@ from .runtime_target_resolution import (
     TargetResolutionErrorCode,
     TargetResolutionPlan,
     TargetResolutionSnapshot,
+    resolve_absent_runtime_target,
     target_model_semantic_sha256,
 )
 from .target_contracts import (
@@ -1175,6 +1179,32 @@ class TargetObservationProcessResult:
         )
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class RecreatedTargetResolutionSnapshots:
+    """Two bounded post-command captures for same-call recreation proof."""
+
+    command_exit_code: int
+    first: TargetResolutionSnapshot = field(repr=False)
+    second: TargetResolutionSnapshot = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.command_exit_code) is not int
+            or isinstance(self.command_exit_code, bool)
+            or not -(2**31) <= self.command_exit_code < 2**32
+            or type(self.first) is not TargetResolutionSnapshot
+            or type(self.second) is not TargetResolutionSnapshot
+            or self.first.authority_sha256 != self.second.authority_sha256
+        ):
+            raise ValueError("Recreated target snapshots are invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "RecreatedTargetResolutionSnapshots("
+            f"command_exit_code={self.command_exit_code}, captures=2, <redacted>)"
+        )
+
+
 class TargetObservationExecutor(Protocol):
     @property
     def supported(self) -> bool: ...
@@ -1303,7 +1333,10 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
         with self._lock:
             return self._closed
 
-    def _execute(self, plan: TargetObservationProcessPlan) -> bytes:
+    def _execute_result(
+        self,
+        plan: TargetObservationProcessPlan,
+    ) -> TargetObservationProcessResult:
         executor = self._executor
         if executor is None:
             _fail(TargetObservationAdapterErrorCode.UNAVAILABLE)
@@ -1329,6 +1362,7 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
             in {
                 ObservationOperation.COMPOSE_MODEL_CURRENT,
                 ObservationOperation.COMPOSE_MODEL_PLANNED,
+                ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
             }
         )
         if (
@@ -1341,6 +1375,10 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
             )
         ):
             _fail(TargetObservationAdapterErrorCode.PROVIDER_CONTAINMENT_REQUIRED)
+        return result
+
+    def _execute(self, plan: TargetObservationProcessPlan) -> bytes:
+        result = self._execute_result(plan)
         if result.exit_code != 0:
             _fail(TargetObservationAdapterErrorCode.PROCESS_FAILED)
         return result.stdout
@@ -1490,6 +1528,21 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
         assert resolution_failure is not None
         raise TargetResolutionError(resolution_failure)
 
+    def _recreate_absent_while_held(
+        self,
+        expected: AbsentResolvedRuntimeTarget,
+    ) -> RecreatedTargetResolutionSnapshots:
+        before = resolve_absent_runtime_target(
+            self._plan,
+            self._capture_absent_while_held(),
+        )
+        if before.observation_binding_sha256 != expected.observation_binding_sha256:
+            raise TargetResolutionError(TargetResolutionErrorCode.TARGET_CHANGED)
+        result = self._execute_result(self._binding.recreate_prior_profile())
+        first = self._capture_while_held()
+        second = self._capture_while_held()
+        return RecreatedTargetResolutionSnapshots(result.exit_code, first, second)
+
     def _poison(self) -> None:
         authority = self._authority
         executor = self._executor
@@ -1602,6 +1655,62 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
             assert snapshot is not None
             return snapshot
 
+    def recreate_absent(
+        self,
+        plan: TargetResolutionPlan,
+        expected: AbsentResolvedRuntimeTarget,
+    ) -> RecreatedTargetResolutionSnapshots:
+        """Recreate only an exactly revalidated absent prior profile."""
+
+        with self._lock:
+            if (
+                self._active
+                or self._closed
+                or plan is not self._plan
+                or type(expected) is not AbsentResolvedRuntimeTarget
+                or expected.plan is not plan
+                or self.supported is not True
+                or self._authority is None
+            ):
+                _fail(TargetObservationAdapterErrorCode.AUTHORITY_CHANGED)
+            self._active = True
+            snapshots: RecreatedTargetResolutionSnapshots | None = None
+            adapter_failure: TargetObservationAdapterErrorCode | None = None
+            resolution_failure: TargetResolutionErrorCode | None = None
+            try:
+                snapshots = self._authority.run_while_held(
+                    lambda: self._recreate_absent_while_held(expected)
+                )
+                if type(snapshots) is not RecreatedTargetResolutionSnapshots:
+                    adapter_failure = (
+                        TargetObservationAdapterErrorCode.AUTHORITY_CHANGED
+                    )
+            except BaseException as error:
+                self._poison()
+                if not isinstance(error, Exception):
+                    raise
+                if isinstance(error, TargetObservationAdapterError):
+                    adapter_failure = error.code
+                elif isinstance(error, TargetResolutionError):
+                    resolution_failure = error.code
+                else:
+                    adapter_failure = (
+                        TargetObservationAdapterErrorCode.AUTHORITY_CHANGED
+                    )
+            finally:
+                self._active = False
+            if (adapter_failure is not None or resolution_failure is not None) and (
+                not self._closed
+            ):
+                self._poison()
+            if adapter_failure is not None:
+                raise TargetObservationAdapterError(adapter_failure)
+            if resolution_failure is not None:
+                raise TargetResolutionError(resolution_failure)
+            if snapshots is None:
+                _fail(TargetObservationAdapterErrorCode.AUTHORITY_CHANGED)
+            return snapshots
+
     def close(self) -> None:
         with self._lock:
             if self._active:
@@ -1629,6 +1738,7 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
 
 __all__ = [
     "OwnedTargetObservationBackend",
+    "RecreatedTargetResolutionSnapshots",
     "TargetObservationAdapterError",
     "TargetObservationAdapterErrorCode",
     "TargetObservationAuthority",

@@ -1,11 +1,13 @@
-"""Owned native Windows execution boundary for exact target observations.
+"""Owned native Windows execution boundary for exact target operations.
 
 This module remains disconnected from launcher discovery and repair.  Its
 authority factory recaptures every immutable plan input, retains executable
 load-surface owners for the whole observation, and transfers that authority
 together with one contained executor into the normalization backend.  Its
 production bridge then transfers that backend directly into the bound exact
-target resolver without exposing a replaceable execution seam.
+target resolver without exposing a replaceable execution seam. Recovery may
+use the same retained authority for the one fixed prior-profile recreation
+operation after exact absent-state revalidation.
 """
 
 from __future__ import annotations
@@ -619,6 +621,7 @@ class NativeWindowsTargetObservationExecutor:
                 in {
                     ObservationOperation.COMPOSE_MODEL_CURRENT,
                     ObservationOperation.COMPOSE_MODEL_PLANNED,
+                    ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
                 }
             )
             if provider_required:

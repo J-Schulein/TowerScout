@@ -33,6 +33,7 @@ from towerscout_launcher.runtime_target_observation import (  # noqa: E402
 )
 from towerscout_launcher.runtime_target_observation_backend import (  # noqa: E402
     OwnedTargetObservationBackend,
+    RecreatedTargetResolutionSnapshots,
     TargetObservationAdapterError,
     TargetObservationAdapterErrorCode,
     TargetObservationProcessResult,
@@ -434,6 +435,7 @@ class _Executor:
         self.calls: list[tuple[ObservationOperation, str | None]] = []
         self.overrides: dict[tuple[ObservationOperation, str | None], bytes] = {}
         self.exit_code = 0
+        self.exit_codes: dict[ObservationOperation, int] = {}
         self.force_provider_child: bool | None = None
         self.result_authority: str | None = None
         self.failure: Exception | None = None
@@ -447,6 +449,8 @@ class _Executor:
             return _encode_compose(self._plan, _compose(self._plan, planned=False))
         if process.operation is ObservationOperation.COMPOSE_MODEL_PLANNED:
             return _encode_compose(self._plan, _compose(self._plan, planned=True))
+        if process.operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE:
+            return b""
         if process.operation is ObservationOperation.CONTAINER_LIST:
             return (_CONTAINER_ID + "\r\n").encode("ascii")
         if process.operation is ObservationOperation.CONTAINER_INSPECT:
@@ -475,13 +479,14 @@ class _Executor:
             in {
                 ObservationOperation.COMPOSE_MODEL_CURRENT,
                 ObservationOperation.COMPOSE_MODEL_PLANNED,
+                ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
             }
         )
         result = TargetObservationProcessResult.from_plan(
             process,
             stdout=self._raw(process),
             stderr=b"PRIVATE STDERR THAT MUST NOT ESCAPE",
-            exit_code=self.exit_code,
+            exit_code=self.exit_codes.get(process.operation, self.exit_code),
             provider_child_claimed=(
                 provider_required
                 if self.force_provider_child is None
@@ -499,6 +504,8 @@ class _Executor:
         )
         if self.result_authority is not None:
             result = replace(result, authority_sha256=self.result_authority)
+        if process.operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE:
+            self.overrides.pop((ObservationOperation.CONTAINER_LIST, None), None)
         return result
 
     def close(self) -> None:
@@ -600,6 +607,50 @@ def test_owned_backend_captures_exact_absence_image_and_all_volumes(
     assert "PRIVATE" not in repr(snapshot)
     assert "PRIVATE" not in repr(resolved)
     backend.close()
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_owned_backend_recreates_only_after_exact_absence_and_recaptures_twice(
+    product: RuntimeProduct,
+) -> None:
+    plan, authority, executor, backend = _backend(product)
+    executor.overrides[(ObservationOperation.CONTAINER_LIST, None)] = b""
+    expected = resolve_absent_runtime_target(plan, backend.capture_absent(plan))
+    executor.exit_codes[ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE] = 17
+
+    recreated = backend.recreate_absent(plan, expected)
+
+    assert type(recreated) is RecreatedTargetResolutionSnapshots
+    assert recreated.command_exit_code == 17
+    assert (
+        executor.calls.count(
+            (ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE, None)
+        )
+        == 1
+    )
+    assert authority.calls == 2
+    assert backend.closed is False
+    assert executor.closed is False
+    backend.close()
+
+
+def test_owned_backend_rejects_absent_binding_drift_before_recreation() -> None:
+    plan, _authority, executor, backend = _backend()
+    executor.overrides[(ObservationOperation.CONTAINER_LIST, None)] = b""
+    expected = resolve_absent_runtime_target(plan, backend.capture_absent(plan))
+
+    with pytest.raises(TargetResolutionError) as caught:
+        backend.recreate_absent(
+            plan,
+            replace(expected, observation_binding_sha256="f" * 64),
+        )
+
+    assert caught.value.code is TargetResolutionErrorCode.TARGET_CHANGED
+    assert (
+        ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
+        None,
+    ) not in executor.calls
+    assert backend.closed
 
 
 def test_absent_capture_rejects_a_present_container_and_poison_closes() -> None:

@@ -1434,7 +1434,7 @@ class NativeWindowsDockerEndpointCommandBackend:
 
 
 class NativeWindowsTargetObservationCommandBackend:
-    """Execute non-provider target observations in native Job containment."""
+    """Execute direct target operations in native Job containment."""
 
     __slots__ = ("_contained",)
 
@@ -1462,6 +1462,7 @@ class NativeWindowsTargetObservationCommandBackend:
                 in {
                     ObservationOperation.COMPOSE_MODEL_CURRENT,
                     ObservationOperation.COMPOSE_MODEL_PLANNED,
+                    ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
                 }
             )
         ):

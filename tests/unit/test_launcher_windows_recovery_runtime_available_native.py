@@ -20,13 +20,20 @@ from test_launcher_runtime_target_resolution import (  # noqa: E402
     _absent_snapshot,
     _plan,
     _plan_inputs,
+    _snapshot,
+)
+from towerscout_launcher.runtime_target_observation_backend import (  # noqa: E402
+    RecreatedTargetResolutionSnapshots,
 )
 from towerscout_launcher.runtime_target_plan import (  # noqa: E402
     TargetResolutionPlanInputs,
 )
 from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
+    AbsentResolvedRuntimeTarget,
     AbsentTargetResolutionSnapshot,
+    BoundResolvedRepairTarget,
     TargetResolutionPlan,
+    TargetResolutionSnapshot,
     resolve_absent_runtime_target,
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
@@ -54,6 +61,7 @@ from towerscout_launcher.windows_recovery_runtime_available_native import (  # n
 from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E402
     RollbackRuntimeRecoveryAuthority,
     derive_absent_rollback_runtime_recovery_authority,
+    derive_recreated_rollback_runtime_recovery_authority,
 )
 from towerscout_launcher.windows_security import (  # noqa: E402
     StableFileIdentity,
@@ -172,11 +180,19 @@ class _AbsentInputOwner:
 
 
 class _AbsentBackend:
-    def __init__(self, *snapshots: AbsentTargetResolutionSnapshot) -> None:
+    def __init__(
+        self,
+        *snapshots: AbsentTargetResolutionSnapshot,
+        recreated: RecreatedTargetResolutionSnapshots | None = None,
+        present: tuple[TargetResolutionSnapshot, ...] = (),
+    ) -> None:
         self.supported = True
         self.closed = False
         self.snapshots = list(snapshots)
         self.capture_calls = 0
+        self.recreated = recreated
+        self.recreation_calls = 0
+        self.present = list(present)
 
     def capture_absent(
         self,
@@ -186,6 +202,26 @@ class _AbsentBackend:
         self.capture_calls += 1
         snapshot = self.snapshots.pop(0)
         return replace(snapshot, authority_sha256=plan.authority_sha256)
+
+    def capture(self, plan: TargetResolutionPlan) -> TargetResolutionSnapshot:
+        assert not self.closed
+        snapshot = self.present.pop(0)
+        return replace(snapshot, authority_sha256=plan.authority_sha256)
+
+    def recreate_absent(
+        self,
+        plan: TargetResolutionPlan,
+        expected: AbsentResolvedRuntimeTarget,
+    ) -> RecreatedTargetResolutionSnapshots:
+        assert not self.closed
+        assert expected.plan is plan
+        assert self.recreated is not None
+        self.recreation_calls += 1
+        return RecreatedTargetResolutionSnapshots(
+            self.recreated.command_exit_code,
+            replace(self.recreated.first, authority_sha256=plan.authority_sha256),
+            replace(self.recreated.second, authority_sha256=plan.authority_sha256),
+        )
 
     def close(self) -> None:
         self.closed = True
@@ -312,6 +348,104 @@ def test_bound_absent_capture_detects_stage_stable_image_drift_and_closes():
     assert (
         caught.value.code is NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH
     )
+    assert owner.closed
+    assert backend.closed
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_bound_absent_owner_recreates_and_transfers_present_target(product):
+    plan = _plan(product)
+    absent_snapshot = _absent_snapshot(plan)
+    present_snapshot = _snapshot(plan)
+    absent = resolve_absent_runtime_target(plan, absent_snapshot)
+    authority = derive_absent_rollback_runtime_recovery_authority(
+        "d" * 64,
+        absent,
+    )
+    backend = _AbsentBackend(
+        absent_snapshot,
+        absent_snapshot,
+        recreated=RecreatedTargetResolutionSnapshots(
+            17,
+            present_snapshot,
+            present_snapshot,
+        ),
+        present=(present_snapshot, present_snapshot),
+    )
+    owner = capture_native_absent_rollback_runtime_target(
+        plan.certificate,
+        authority,
+        input_capture=lambda provider: _AbsentInputOwner(
+            _plan_inputs(plan),
+            _plan_inputs(plan),
+        ),
+        backend_capture=lambda candidate: backend,
+    )
+
+    present = owner.recreate_prior_profile()
+
+    assert type(present) is BoundResolvedRepairTarget
+    assert owner.closed
+    assert backend.recreation_calls == 1
+    assert backend.closed is False
+    assert (
+        derive_recreated_rollback_runtime_recovery_authority(
+            authority.target_token_sha256,
+            present.target,
+        )
+        == authority
+    )
+    present.close()
+    assert backend.closed
+
+
+def test_bound_absent_owner_rejects_post_recreation_volume_drift_and_closes():
+    plan = _plan()
+    absent_snapshot = _absent_snapshot(plan)
+    present_snapshot = _snapshot(plan)
+    logical_name, volume = present_snapshot.volume_inspects[0]
+    drifted_volume = json.loads(volume)
+    drifted_volume["engine_metadata_sha256"] = "f" * 64
+    drifted_snapshot = replace(
+        present_snapshot,
+        volume_inspects=(
+            (
+                logical_name,
+                json.dumps(drifted_volume, separators=(",", ":")).encode("utf-8"),
+            ),
+            *present_snapshot.volume_inspects[1:],
+        ),
+    )
+    authority = derive_absent_rollback_runtime_recovery_authority(
+        "d" * 64,
+        resolve_absent_runtime_target(plan, absent_snapshot),
+    )
+    backend = _AbsentBackend(
+        absent_snapshot,
+        absent_snapshot,
+        recreated=RecreatedTargetResolutionSnapshots(
+            0,
+            present_snapshot,
+            drifted_snapshot,
+        ),
+    )
+    owner = capture_native_absent_rollback_runtime_target(
+        plan.certificate,
+        authority,
+        input_capture=lambda provider: _AbsentInputOwner(
+            _plan_inputs(plan),
+            _plan_inputs(plan),
+        ),
+        backend_capture=lambda candidate: backend,
+    )
+
+    with pytest.raises(NativeRollbackRuntimeAvailabilityError) as caught:
+        owner.recreate_prior_profile()
+
+    assert caught.value.code in {
+        NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE,
+        NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH,
+    }
     assert owner.closed
     assert backend.closed
 

@@ -17,6 +17,7 @@ from towerscout_launcher.runtime_target_observation import (  # noqa: E402
     OBSERVATION_COMPOSE_STDOUT_LIMIT_BYTES,
     OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES,
     OBSERVATION_LIST_STDOUT_LIMIT_BYTES,
+    RECREATION_TIMEOUT_MS,
     ObservationOperation,
     TargetObservationBindingError,
     TargetObservationBindingErrorCode,
@@ -357,6 +358,28 @@ def test_exact_container_image_and_all_volume_inspection_plans(
         item.stdout_limit_bytes == OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES
         for item in volumes
     )
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_prior_profile_recreation_is_exact_scoped_and_preserves_volumes(
+    product: RuntimeProduct,
+) -> None:
+    plan = _plan(product)
+
+    recreation = TargetObservationExecutionBinding(plan).recreate_prior_profile()
+
+    assert recreation.operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE
+    assert recreation.arguments[-4:] == (
+        "up",
+        "-d",
+        "--no-deps",
+        "towerscout",
+    )
+    assert recreation.timeout_ms == RECREATION_TIMEOUT_MS
+    assert "--force-recreate" not in recreation.arguments
+    assert "--volumes" not in recreation.arguments
+    assert "-v" not in recreation.arguments
+    assert recreation.target is plan
 
 
 def test_compose_plan_copies_are_immutable_and_planned_arguments_do_not_change() -> (

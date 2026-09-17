@@ -1,4 +1,4 @@
-"""Fail-closed process plans for read-only Gate-A target observation.
+"""Fail-closed process plans for Gate-A target observation and recreation.
 
 This module does not execute a child process.  It binds every future Compose
 or engine observation to an immutable :class:`TargetResolutionPlan`, an
@@ -10,8 +10,10 @@ TowerScout's eight derived named-volume names. Docker uses
 ``sha256:<64-hex>`` while Podman emits and accepts a bare 64-hex image ID.
 
 The native executor and provider-specific output normalizers remain separate
-review boundaries.  In particular, constructing these plans performs no
-Docker, Podman, Compose, filesystem, or launcher mutation.
+review boundaries. Constructing these plans performs no Docker, Podman,
+Compose, filesystem, or launcher mutation. The sole mutating operation is the
+fixed prior-profile recreation plan; only the owned recovery backend may issue
+it after an exact absent-target revalidation.
 """
 
 from __future__ import annotations
@@ -38,6 +40,8 @@ OBSERVATION_COMPOSE_STDOUT_LIMIT_BYTES = 1024 * 1024
 OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES = 1024 * 1024
 OBSERVATION_LIST_STDOUT_LIMIT_BYTES = 8 * 1024
 OBSERVATION_STDERR_LIMIT_BYTES = 16 * 1024
+RECREATION_TIMEOUT_MS = 120_000
+RECREATION_STDERR_LIMIT_BYTES = 64 * 1024
 
 _CONTAINER_ID = re.compile(r"^[0-9a-f]{64}$")
 _DOCKER_IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -56,6 +60,7 @@ class ObservationOperation(str, Enum):
     CONTAINER_INSPECT = "container_inspect"
     IMAGE_INSPECT = "image_inspect"
     VOLUME_INSPECT = "volume_inspect"
+    COMPOSE_RECREATE_PRIOR_PROFILE = "compose_recreate_prior_profile"
 
 
 class TargetObservationBindingErrorCode(str, Enum):
@@ -244,8 +249,16 @@ class _ExpectedProcess:
 def _compose_expected(
     target: TargetResolutionPlan,
     *,
-    planned: bool,
+    operation: ObservationOperation,
 ) -> _ExpectedProcess:
+    if operation not in {
+        ObservationOperation.COMPOSE_MODEL_CURRENT,
+        ObservationOperation.COMPOSE_MODEL_PLANNED,
+        ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
+    }:
+        _reject(TargetObservationBindingErrorCode.OPERATION_REJECTED)
+    planned = operation is ObservationOperation.COMPOSE_MODEL_PLANNED
+    recreate = operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE
     environment = _windows_environment(target)
     if target.runtime.product is RuntimeProduct.DOCKER:
         provider = target.compose_provider
@@ -258,7 +271,7 @@ def _compose_expected(
             _reject(TargetObservationBindingErrorCode.PLAN_REJECTED)
         executable = provider.artifacts[0]
         _require_executable(executable, "docker-compose.exe")
-        arguments = (
+        prefix = (
             "--host",
             target.endpoint.canonical_endpoint,
             "--project-name",
@@ -272,9 +285,14 @@ def _compose_expected(
             ),
             "--env-file",
             str(target.environment_source.final_path),
-            "config",
-            "--format",
-            "json",
+        )
+        arguments = (
+            *prefix,
+            *(
+                ("up", "-d", "--no-deps", "towerscout")
+                if recreate
+                else ("config", "--format", "json")
+            ),
         )
     else:
         provider = target.compose_provider
@@ -290,7 +308,7 @@ def _compose_expected(
         executable = provider.artifacts[0]
         _require_executable(executable, "python.exe")
         _require_executable(target.runtime.executable, "podman.exe")
-        arguments = (
+        prefix = (
             "-I",
             "-B",
             "-m",
@@ -306,7 +324,10 @@ def _compose_expected(
             ),
             "--env-file",
             str(target.environment_source.final_path),
-            "config",
+        )
+        arguments = (
+            *prefix,
+            *(("up", "-d", "--no-deps", "towerscout") if recreate else ("config",)),
         )
         environment = (
             *environment,
@@ -325,9 +346,13 @@ def _compose_expected(
         arguments=arguments,
         environment_items=environment,
         authenticated_files=_all_authenticated_identities(target),
-        timeout_ms=OBSERVATION_TIMEOUT_MS,
+        timeout_ms=(RECREATION_TIMEOUT_MS if recreate else OBSERVATION_TIMEOUT_MS),
         stdout_limit_bytes=OBSERVATION_COMPOSE_STDOUT_LIMIT_BYTES,
-        stderr_limit_bytes=OBSERVATION_STDERR_LIMIT_BYTES,
+        stderr_limit_bytes=(
+            RECREATION_STDERR_LIMIT_BYTES
+            if recreate
+            else OBSERVATION_STDERR_LIMIT_BYTES
+        ),
     )
 
 
@@ -339,6 +364,7 @@ def _valid_selector(
     if operation in {
         ObservationOperation.COMPOSE_MODEL_CURRENT,
         ObservationOperation.COMPOSE_MODEL_PLANNED,
+        ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
         ObservationOperation.CONTAINER_LIST,
     }:
         return selector is None
@@ -431,9 +457,11 @@ def _expected_process(
     if not _valid_selector(operation, target, selector):
         _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
     if operation is ObservationOperation.COMPOSE_MODEL_CURRENT:
-        return _compose_expected(target, planned=False)
+        return _compose_expected(target, operation=operation)
     if operation is ObservationOperation.COMPOSE_MODEL_PLANNED:
-        return _compose_expected(target, planned=True)
+        return _compose_expected(target, operation=operation)
+    if operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE:
+        return _compose_expected(target, operation=operation)
     return _engine_expected(target, operation, selector)
 
 
@@ -607,7 +635,10 @@ class TargetObservationExecutionBinding:
         if type(self.target) is not TargetResolutionPlan:
             _reject(TargetObservationBindingErrorCode.TARGET_MISMATCH)
         try:
-            _compose_expected(self.target, planned=False)
+            _compose_expected(
+                self.target,
+                operation=ObservationOperation.COMPOSE_MODEL_CURRENT,
+            )
             _engine_expected(
                 self.target,
                 ObservationOperation.CONTAINER_LIST,
@@ -647,6 +678,11 @@ class TargetObservationExecutionBinding:
                 else ObservationOperation.COMPOSE_MODEL_CURRENT
             )
         )
+
+    def recreate_prior_profile(self) -> TargetObservationProcessPlan:
+        """Build the one scoped recovery mutation without a volume-delete flag."""
+
+        return self._build(ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE)
 
     def container_list(self) -> TargetObservationProcessPlan:
         return self._build(ObservationOperation.CONTAINER_LIST)

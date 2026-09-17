@@ -24,6 +24,7 @@ from .runtime_target_inputs import (
 from .runtime_target_observation_native import (
     capture_native_windows_target_observation_backend,
 )
+from .runtime_target_observation_backend import RecreatedTargetResolutionSnapshots
 from .runtime_target_plan import (
     TargetResolutionPlanInputs,
     assemble_target_resolution_plan,
@@ -33,7 +34,10 @@ from .runtime_target_resolution import (
     AbsentTargetResolutionSnapshot,
     BoundResolvedRepairTarget,
     TargetResolutionPlan,
+    TargetResolutionSnapshot,
+    capture_bound_resolved_repair_target,
     resolve_absent_runtime_target,
+    resolve_present_runtime_target,
 )
 from .target_contracts import (
     CertificateIdentity,
@@ -49,6 +53,7 @@ from .windows_recovery_journal import JournalStreamIdentity
 from .windows_recovery_runtime_authority import (
     RollbackRuntimeRecoveryAuthority,
     derive_absent_rollback_runtime_recovery_authority,
+    derive_recreated_rollback_runtime_recovery_authority,
     derive_rollback_runtime_recovery_authority,
 )
 from .windows_security import StableFileIdentity
@@ -160,6 +165,14 @@ class _AbsentObservationBackend(Protocol):
         self,
         plan: TargetResolutionPlan,
     ) -> AbsentTargetResolutionSnapshot: ...
+
+    def capture(self, plan: TargetResolutionPlan) -> TargetResolutionSnapshot: ...
+
+    def recreate_absent(
+        self,
+        plan: TargetResolutionPlan,
+        expected: AbsentResolvedRuntimeTarget,
+    ) -> RecreatedTargetResolutionSnapshots: ...
 
     def close(self) -> None: ...
 
@@ -372,6 +385,89 @@ class BoundAbsentRollbackRuntimeTarget:
                 _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
             self._observation = observed
             return observed
+
+    def recreate_prior_profile(self) -> BoundResolvedRepairTarget:
+        """Recreate once, prove the exact profile, and transfer present authority."""
+
+        with self._lock:
+            backend = self._backend
+            if self._closed or backend is None:
+                _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+            mismatch = False
+            transferred = False
+            cleanup_failed = False
+            present: BoundResolvedRepairTarget | None = None
+            try:
+                recreated = backend.recreate_absent(
+                    self._plan,
+                    self._observation,
+                )
+                first = resolve_present_runtime_target(
+                    self._plan,
+                    recreated.first,
+                )
+                second = resolve_present_runtime_target(
+                    self._plan,
+                    recreated.second,
+                )
+                mismatch = (
+                    first != second
+                    or first.target_token != second.target_token
+                    or derive_recreated_rollback_runtime_recovery_authority(
+                        self._authority.target_token_sha256,
+                        first,
+                    )
+                    != self._authority
+                    or derive_recreated_rollback_runtime_recovery_authority(
+                        self._authority.target_token_sha256,
+                        second,
+                    )
+                    != self._authority
+                )
+                if mismatch:
+                    raise ValueError("Recreated target authority changed.")
+                self._backend = None
+                self._closed = True
+                present = capture_bound_resolved_repair_target(
+                    self._plan,
+                    backend=backend,
+                )
+                transferred = True
+                if (
+                    derive_recreated_rollback_runtime_recovery_authority(
+                        self._authority.target_token_sha256,
+                        present.target,
+                    )
+                    != self._authority
+                ):
+                    mismatch = True
+                    present.close()
+                    present = None
+                    _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
+            except BaseException as error:
+                if present is not None:
+                    try:
+                        present.close()
+                    except BaseException as cleanup_error:
+                        if not isinstance(cleanup_error, Exception):
+                            raise
+                        cleanup_failed = True
+                    present = None
+                elif not transferred:
+                    self._poison()
+                if not isinstance(error, Exception):
+                    raise
+                if cleanup_failed:
+                    _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+                if mismatch or isinstance(
+                    error,
+                    NativeRollbackRuntimeAvailabilityError,
+                ):
+                    _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
+                _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+            if present is None:
+                _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+            return present
 
     def _poison(self) -> None:
         backend = self._backend

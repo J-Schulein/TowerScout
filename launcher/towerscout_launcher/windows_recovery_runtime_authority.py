@@ -72,6 +72,19 @@ def _files_values(identities: tuple[FileIdentity, ...]) -> tuple[str, ...]:
     return tuple(values)
 
 
+def _restorable_environment_values(identity: FileIdentity | None) -> tuple[str, ...]:
+    if identity is None:
+        return ("<absent>",)
+    if identity.is_directory or identity.sha256 is None or identity.size_bytes is None:
+        _invalid()
+    return (
+        identity.logical_name,
+        identity.canonical_path_sha256,
+        identity.sha256,
+        str(identity.size_bytes),
+    )
+
+
 def _runtime_values(
     target_token_sha256: str,
     target: ResolvedRepairTarget | AbsentResolvedRuntimeTarget,
@@ -112,8 +125,8 @@ def _runtime_values(
         *_files_values(compose.ordered_files),
         compose.environment_sha256,
         compose.pre_model_sha256,
-        *_file_values(compose.environment_source),
-        *_file_values(compose.environment_file),
+        *_restorable_environment_values(compose.environment_source),
+        *_restorable_environment_values(compose.environment_file),
         plan.compose_project,
         "towerscout",
         plan.acceleration.requested.value,
@@ -248,8 +261,40 @@ def derive_absent_rollback_runtime_recovery_authority(
         _invalid()
 
 
+def derive_recreated_rollback_runtime_recovery_authority(
+    original_target_token_sha256: str,
+    target: ResolvedRepairTarget,
+) -> RollbackRuntimeRecoveryAuthority:
+    """Bind a recreated container to the original stage-stable authority."""
+
+    if (
+        type(original_target_token_sha256) is not str
+        or _SHA256.fullmatch(original_target_token_sha256) is None
+        or type(target) is not ResolvedRepairTarget
+    ):
+        _invalid()
+    try:
+        return RollbackRuntimeRecoveryAuthority(
+            1,
+            original_target_token_sha256,
+            StableFileIdentity(
+                target.package_root.volume_serial,
+                target.package_root.file_id,
+            ),
+            _digest(
+                _RUNTIME_DOMAIN,
+                _runtime_values(original_target_token_sha256, target),
+            ),
+            _volume_evidence(original_target_token_sha256, target),
+            True,
+        )
+    except (AttributeError, OverflowError, TypeError, UnicodeError, ValueError):
+        _invalid()
+
+
 __all__ = [
     "RollbackRuntimeRecoveryAuthority",
     "derive_absent_rollback_runtime_recovery_authority",
+    "derive_recreated_rollback_runtime_recovery_authority",
     "derive_rollback_runtime_recovery_authority",
 ]
