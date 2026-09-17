@@ -68,8 +68,10 @@ image and all eight volumes twice, and re-derives the persisted rollback-runtime
 authority without issuing a runtime command. Checkpoint `351c9a9` revalidates
 that exact absence before one fixed volume-preserving prior-profile recreation,
 keeps Docker and Podman in their required containment paths, and requires four
-exact present captures to recover the original authority. The other three
-native recovery ports are still open.
+exact present captures to recover the original authority. Checkpoint `fd1ef6b`
+connects the retained and recreated paths to the manager-facing runtime-
+availability port with exact evidence and owner cleanup. The other three native
+recovery ports are still open.
 After Gate A source
 acceptance and the PR #67 merge decision, complete Task-096 lifecycle controls
 and Task-102 native first-run setup before resuming Task-087 Gate B normal-
@@ -246,7 +248,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at implementation head `351c9a9`; `e4ca5ce` is the validated exact head. Fresh-process absent-target observation retains native authority and exact prior-profile recreation now revalidates absence, preserves named volumes, and recovers the original authority from four present captures; the other three native recovery ports, transaction integration, live trust/runtime proof, and final validation remain. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at implementation head `fd1ef6b`; `7620684` is the validated exact head. Fresh-process exact prior-profile recreation is connected to the manager-facing runtime-availability port with retained/recreated evidence and owner cleanup; the other three native recovery ports, transaction integration, live trust/runtime proof, and final validation remain. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
 | `TASK-096` Launcher Lifecycle Controls | Backlog / NOT_STARTED. Begins only after Task-087 Gate A acceptance and the PR #67 merge decision; owns native state-driven Start/Open/Stop/Restart. |
 | `TASK-102` Native Launcher First-Run Setup | Backlog / NOT_STARTED. Begins after Task-096; owns package/asset/runtime/readiness setup and opens the browser Setup Wizard for provider keys before Task-087 Gate B. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |

@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `351c9a9`; `e4ca5ce` is the validated exact head.
+implementation head is `fd1ef6b`; `7620684` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -41,10 +41,18 @@ pass `386/386`, and the broad selected recovery/runtime ring passes `840/840`.
 The initial `231/233` test-placement failures were fixed before `234/234`
 passed, the two newly introduced test-only Bandit findings were removed, and a
 non-executing PowerShell grammar-command quoting error was superseded by a clean
-eight-file Python 3.11 parse. Remaining Gate A implementation is native
+eight-file Python 3.11 parse.
+Checkpoint `fd1ef6b` connects the existing-target and exact recreated-target
+paths to the manager-facing runtime-availability port, returns the correct
+retained/recreated evidence, and closes every owner. Its focused/adjacent tests
+pass `146/146`; the broad selected recovery/runtime ring passes `845/845`.
+Strict typing initially found one branch-local redeclaration and the first Black
+command used an unsupported option; both were corrected and replaced by clean
+runs. Remaining Gate A implementation is native
 certificate application/restore, runtime-restart, and rollback-verification
-adapters plus the `repair.py` transaction refactor/integration. The successful Windows trust and isolated
-Docker/rootless-Podman evidence remains pending a supported context and the
+adapters plus the `repair.py` transaction refactor/integration. The successful
+Windows trust and isolated Docker/rootless-Podman evidence remains pending a
+supported context and the
 required runtime-readiness confirmation. Repair/runtime integration remains
 disabled.
 

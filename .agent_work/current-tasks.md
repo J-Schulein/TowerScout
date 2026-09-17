@@ -182,14 +182,13 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `351c9a9` adds exact prior-profile recreation
-  after the retained absent-container owner revalidates the original plan and
-  authority. The fixed volume-preserving Compose command remains in native
-  Docker or provider-child Podman containment, and four exact post-command
-  captures must recover the original authority. `e4ca5ce` is the validated
-  exact head: CI/CD run `35282762446`, Task-087 run `35282762023`, and Trivy
-  passed. The other three native recovery ports, transaction integration, and
-  live trust/runtime proof remain; PR #67 remains Draft.
+- Task-087 implementation head `fd1ef6b` connects exact prior-profile
+  recreation to the manager-facing runtime-availability port for both Docker
+  and Podman, with exact retained/recreated evidence and full owner cleanup.
+  `7620684` is the validated exact head: CI/CD run `35284358729`, Task-087 run
+  `35284358658`, and Trivy passed. The other three native recovery ports,
+  transaction integration, and live trust/runtime proof remain; PR #67 remains
+  Draft.
   Gate A remains open and mutation remains disabled. Detailed
   status and evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -306,7 +305,7 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. The current implementation head is `351c9a9`; `e4ca5ce` is the validated
+open. The current implementation head is `fd1ef6b`; `7620684` is the validated
 exact head. Provider `.env` mutation/reconciliation, fresh-process rollback
 resumption, all durable rollback states, native terminal cleanup, and retained-
 container native runtime availability are implemented. Exact certificate
@@ -316,12 +315,15 @@ authority is also bound before mutation and enforced at runtime availability.
 The absent-target owner now reconstructs and twice revalidates the same
 Compose/image/all-volume authority without another trust-selection call, then
 revalidates absence before one fixed volume-preserving recreation and requires
-four exact present captures to recover the original authority. Local evidence
-passes `386/386` focused/adjacent and `840/840` broad selected tests. The initial
+four exact present captures to recover the original authority. The manager-
+facing port now selects the retained or exact recreated path and closes all
+owners. Local evidence passes `146/146` focused/adjacent and `845/845` broad
+selected tests for that connection. The initial
 `231/233` test-placement failures, two newly introduced Bandit findings, and a
 non-executing grammar-command quoting error were all corrected and superseded
-by clean runs. Remaining implementation is native certificate
-application/restoration, runtime restart,
+by clean runs; its later mypy redeclaration and unsupported Black option were
+also corrected before checkpointing. Remaining implementation is native
+certificate application/restoration, runtime restart,
 rollback verification, and the `repair.py` transaction refactor. Live
 Windows trust and Docker/rootless-Podman proof remains pending a supported
 context and runtime-readiness confirmation. The chronological ledger follows.
