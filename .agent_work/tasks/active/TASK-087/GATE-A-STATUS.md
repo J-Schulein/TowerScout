@@ -2,12 +2,13 @@
 
 **As Of**: September 17, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `d9f656387f3220588a38f984397acfdad8a24387`
+**Implementation Head**: `1b85a93003c38554113f283c646361b57c7c95ca`
 **Validated Exact Head**: `d9f656387f3220588a38f984397acfdad8a24387`
 **Remote Exact-Head Status**: CI/CD run `35238335037`, Task-087 run
 `35238334999`, and Trivy passed; the main-only build is neutral as designed.
-**Local Candidate**: Generation-7 evidence reconciliation only; no uncommitted
-source candidate and no `.env` destination mutation authorized.
+**Local Candidate**: Pushed generation-8 state-contract checkpoint `1b85a93`;
+exact-head workflows and independent review remain pending. No `.env`
+destination mutation is implemented or authorized by this checkpoint.
 **Current Checkpoint**: Slices 2-3 exact-target confirmation wiring complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
 hosts, so slice 4 remains partial. Slice 5 has independently reviewed
@@ -261,6 +262,17 @@ pointer. Exact-head CI/CD run `35238335037`, Task-087 run `35238334999`, and
 Trivy pass; the main-only build is neutral as designed. Actual `.env`
 replacement/removal, certificate restore, cleanup, recovery/transaction
 integration, and runtime mutation remain open and disabled.
+
+Pushed implementation checkpoint `1b85a93` defines the strict authenticated
+generation-8 `environment_restored` record and extends unique-chain validation
+through that state. It binds the generation-7 predecessor, package-root
+identity, exact restored presence/absence, content hash/size, original file
+attributes/security-descriptor hash, and present-state destination identity.
+Canonical/redacted round-trip and drift rejection pass `44/44` focused tests;
+the adjacent journal/storage set passes `143/143`, and the broader Windows
+recovery selection passes `280/280`. This checkpoint performs no destination
+operation and grants no `.env`, certificate, repair, cleanup, or runtime
+mutation authority. Exact-head workflows and independent review remain open.
 
 **Slice 9 validation ledger continuation**: Independently reviewed checkpoint
 `ebb9d69` passes `39/39` focused, `105/105` adjacent, and `1647/1647` complete
@@ -548,10 +560,12 @@ state definitions above.
 
 ## Next-Session Resume Point
 
-Continue from checkpointed generation 6 by adding the remaining verified
-rollback and cleanup-pending states, beginning with exact restore-content write
-and reverification without replacing or removing `.env`, then integrate the
-transaction boundary while mutation stays disabled. Retry
+Continue from the checkpointed generation-8 state contract by implementing the
+narrow native destination classification/apply boundary, including exact
+original/candidate/absent/third-state handling, metadata restoration, and
+post-call reconciliation before generation 8 can be appended. Then add the
+remaining certificate, runtime, rollback-verification, cleaned, and cleanup-
+pending states and integrate the transaction boundary. Retry
 slice 4's successful revocation-aware fixed-host and
 Docker/rootless-Podman containment proof only in a context able to satisfy the
 cache-only revocation policy. Do not enable repair or mutation. Then complete

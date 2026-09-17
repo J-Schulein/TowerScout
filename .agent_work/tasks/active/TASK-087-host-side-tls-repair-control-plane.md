@@ -120,12 +120,20 @@ and Trivy passed; the main-only build is neutral as designed. It writes no
 restore content, replaces or removes no `.env`, performs no completed-
 transaction cleanup, writes no certificate, activates no repair, and mutates
 no runtime.
+Independently reviewed and exact-head validated checkpoints `1eb3363` and
+`d9f6563` stage and reverify the exact authenticated original environment bytes
+in the generation-6 temp before persisting generation 7. Pushed checkpoint
+`1b85a93` then defines only the strict authenticated generation-8
+`environment_restored` record and eight-generation continuity. Its focused,
+adjacent, and broader recovery tests pass `44/44`, `143/143`, and `280/280`;
+exact-head workflows and independent review remain pending. It performs no
+destination operation or other mutation.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `57e280e` against the fixed acceptance
+**Estimated Effort**: Rebaseline after `1b85a93` against the fixed acceptance
 criteria rather than commit count. Remaining recovery states/action,
 recovery/transaction integration, provider `.env` hardening, successful
 Windows trust proof, final exact-head review, and the PR #67 decision remain
@@ -1491,6 +1499,40 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-17 - Generation-8 Restored-State Contract Checkpointed
+
+**Objective**: Define the durable authority required to attest an exactly
+restored package `.env` before implementing any destination operation.
+
+**Context**: The user explicitly authorized continuing through the remaining
+Gate A work. Checkpoint `d9f6563` already persisted and reverified exact
+original bytes only in the private generation-6 temp; the destination remained
+untouched.
+
+**Decision**: Add generation 8 `environment_restored` as a strict authenticated
+record bound to the generation-7 predecessor, package-root identity, exact
+presence/absence, content hash and size, original attributes/security-
+descriptor hash, and a destination identity when present. Preserve secure
+absence with no nullable metadata or identity. Extend canonical encoding and
+unique-chain validation without wiring an apply call.
+
+**Execution**: Pushed checkpoint
+`1b85a93003c38554113f283c646361b57c7c95ca` adds the redacted record,
+canonical codec, strict shape validation, and eight-generation continuity.
+
+**Output**: Recovery now has a durable generation-8 result contract, but no
+native operation can yet replace, remove, classify, or otherwise mutate
+`.env`. Certificate, runtime, cleanup, repair, and transaction mutation remain
+disabled.
+
+**Validation**: Focused journal tests pass `44/44`; the adjacent journal/
+storage set passes `143/143`; and the broader Windows recovery selection passes
+`280/280`. Black, compilation, and diff checks pass. Exact-head workflows and
+independent review remain pending.
+
+**Next**: Implement the narrow native destination classifier/apply port and
+fresh-process generation-8 orchestration with exact post-call reconciliation.
 
 ### 2026-09-17 - Generation-7 Environment Restore Temp Verification Checkpointed
 
