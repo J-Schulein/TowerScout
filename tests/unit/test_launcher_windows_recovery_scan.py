@@ -140,6 +140,8 @@ def _chain(
             package_root_identity,
             "recovery-backup-" + "c" * 32 + ".blob",
             "recovery-backup-" + "d" * 32 + ".blob",
+            "e" * 64,
+            12,
             False,
         )
     sealed = protect_environment_journal_generation(

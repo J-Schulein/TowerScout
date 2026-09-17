@@ -11,6 +11,7 @@ from enum import Enum
 import secrets
 from typing import NoReturn, Protocol
 
+from .windows_environment_replacement import EnvironmentReplacementPlan
 from .windows_recovery_backup import (
     BackupProtectionPort,
     SealedCertificateExactStateBackup,
@@ -100,6 +101,7 @@ def persist_backup_preparing_generation(
     environment_sealed: SealedEnvironmentExactStateBackup,
     certificate_sealed: SealedCertificateExactStateBackup,
     *,
+    environment_plan: EnvironmentReplacementPlan,
     stream: JournalStreamIdentity,
     name_source: RecoveryBackupNameSource,
     root: JournalStorageRootPort,
@@ -112,6 +114,7 @@ def persist_backup_preparing_generation(
     if (
         type(environment_sealed) is not SealedEnvironmentExactStateBackup
         or type(certificate_sealed) is not SealedCertificateExactStateBackup
+        or type(environment_plan) is not EnvironmentReplacementPlan
         or type(stream) is not JournalStreamIdentity
     ):
         _fail(RecoveryBackupPreparationErrorCode.INPUT_INVALID)
@@ -126,7 +129,9 @@ def persist_backup_preparing_generation(
         protection=backup_protection,
     )
     environment_security = environment.security
-    if environment.existed and environment_security is None:
+    if (
+        environment.existed and environment_security is None
+    ) or environment_plan.original_contents != environment.contents:
         _fail(RecoveryBackupPreparationErrorCode.PLAN_INVALID)
     try:
         record = BackupPreparingRecord(
@@ -134,6 +139,8 @@ def persist_backup_preparing_generation(
             package_root_identity=stream.package_root_identity,
             environment_backup_name=_new_backup_name(name_source),
             certificate_backup_name=_new_backup_name(name_source),
+            environment_candidate_sha256=environment_plan.candidate_sha256,
+            environment_candidate_size=len(environment_plan.candidate_contents),
             environment_present=environment.existed,
             environment_sha256=(
                 environment.contents_sha256 if environment.existed else None

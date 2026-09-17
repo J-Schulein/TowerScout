@@ -17,6 +17,10 @@ import towerscout_launcher.windows_recovery_backup as backup  # noqa: E402
 import towerscout_launcher.windows_recovery_backup_preparation as preparation  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
+from towerscout_launcher.windows_environment_replacement import (  # noqa: E402
+    EnvironmentReplacementPlan,
+    plan_ca_environment_replacement,
+)
 from towerscout_launcher.windows_protected_state import (  # noqa: E402
     CurrentUserProtectedBlob,
     ProtectedDataPurpose,
@@ -24,6 +28,8 @@ from towerscout_launcher.windows_protected_state import (  # noqa: E402
 from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
 
 _Result = TypeVar("_Result")
+_ENVIRONMENT = b"GOOGLE_API_KEY=private-value\r\n"
+_ENVIRONMENT_TEMPLATE = b"TOWERSCOUT_GPU_MODE=auto\r\n"
 
 
 def _identity(value: int) -> StableFileIdentity:
@@ -32,6 +38,15 @@ def _identity(value: int) -> StableFileIdentity:
 
 def _stream(*, journal_id: str = "a" * 32) -> journal.JournalStreamIdentity:
     return journal.JournalStreamIdentity(1, journal_id, "b" * 64, _identity(7))
+
+
+def _environment_plan(
+    contents: bytes | None = _ENVIRONMENT,
+) -> EnvironmentReplacementPlan:
+    return plan_ca_environment_replacement(
+        contents if contents is not None else _ENVIRONMENT_TEMPLATE,
+        original_present=contents is not None,
+    )
 
 
 class _Protection:
@@ -125,7 +140,7 @@ def _sealed_backups(
     protection: _Protection,
     *,
     stream: journal.JournalStreamIdentity | None = None,
-    environment_contents: bytes | None = b"GOOGLE_API_KEY=private-value\r\n",
+    environment_contents: bytes | None = _ENVIRONMENT,
 ) -> tuple[
     journal.JournalStreamIdentity,
     backup.SealedEnvironmentExactStateBackup,
@@ -181,6 +196,7 @@ def test_persist_backup_preparing_authenticates_summarizes_and_rereads() -> None
     persisted = preparation.persist_backup_preparing_generation(
         environment,
         certificates,
+        environment_plan=_environment_plan(),
         stream=stream,
         name_source=names,
         root=root,
@@ -196,6 +212,9 @@ def test_persist_backup_preparing_authenticates_summarizes_and_rereads() -> None
         is journal.EnvironmentJournalState.BACKUP_PREPARING
     )
     assert record.environment_present
+    plan = _environment_plan()
+    assert record.environment_candidate_sha256 == plan.candidate_sha256
+    assert record.environment_candidate_size == len(plan.candidate_contents)
     assert (
         record.environment_sha256
         == hashlib.sha256(b"GOOGLE_API_KEY=private-value\r\n").hexdigest()
@@ -223,6 +242,7 @@ def test_persist_backup_preparing_preserves_absent_environment() -> None:
     persisted = preparation.persist_backup_preparing_generation(
         environment,
         certificates,
+        environment_plan=_environment_plan(None),
         stream=stream,
         name_source=_NameSource(),
         root=(root := _Root()),
@@ -237,6 +257,40 @@ def test_persist_backup_preparing_preserves_absent_environment() -> None:
     assert record.environment_sha256 is None
     assert record.environment_file_attributes is None
     assert record.environment_security_descriptor_sha256 is None
+    plan = _environment_plan(None)
+    assert record.environment_candidate_sha256 == plan.candidate_sha256
+    assert record.environment_candidate_size == len(plan.candidate_contents)
+
+
+def test_persist_backup_preparing_rejects_plan_original_drift_before_write() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    names = _NameSource()
+    root = _Root()
+    backend = _Storage(root)
+
+    with pytest.raises(preparation.RecoveryBackupPreparationError) as failure:
+        preparation.persist_backup_preparing_generation(
+            environment,
+            certificates,
+            environment_plan=plan_ca_environment_replacement(
+                b"OTHER=changed\r\n",
+                original_present=True,
+            ),
+            stream=stream,
+            name_source=names,
+            root=root,
+            storage=backend,
+            backup_protection=protection,
+            journal_protection=protection,
+        )
+
+    assert (
+        failure.value.code
+        is preparation.RecoveryBackupPreparationErrorCode.PLAN_INVALID
+    )
+    assert names.calls == 0
+    assert not backend.created
 
 
 def test_persist_backup_preparing_rejects_cross_stream_before_name_or_write() -> None:
@@ -250,6 +304,7 @@ def test_persist_backup_preparing_rejects_cross_stream_before_name_or_write() ->
         preparation.persist_backup_preparing_generation(
             environment,
             certificates,
+            environment_plan=_environment_plan(),
             stream=_stream(journal_id="f" * 32),
             name_source=names,
             root=root,
@@ -271,6 +326,7 @@ def test_persist_backup_preparing_retry_fails_closed_without_second_write() -> N
     backend = _Storage(root)
     arguments = {
         "stream": stream,
+        "environment_plan": _environment_plan(),
         "name_source": names,
         "root": root,
         "storage": backend,
@@ -312,6 +368,7 @@ def test_persist_backup_preparing_rejects_invalid_or_reused_names() -> None:
             preparation.persist_backup_preparing_generation(
                 environment,
                 certificates,
+                environment_plan=_environment_plan(),
                 stream=stream,
                 name_source=name_source,
                 root=root,
@@ -344,6 +401,7 @@ def test_name_source_failure_is_sanitized_and_process_control_propagates() -> No
         preparation.persist_backup_preparing_generation(
             environment,
             certificates,
+            environment_plan=_environment_plan(),
             stream=stream,
             name_source=_FailingNames(),
             root=root,
@@ -362,6 +420,7 @@ def test_name_source_failure_is_sanitized_and_process_control_propagates() -> No
         preparation.persist_backup_preparing_generation(
             environment,
             certificates,
+            environment_plan=_environment_plan(),
             stream=stream,
             name_source=_InterruptingNames(),
             root=root,

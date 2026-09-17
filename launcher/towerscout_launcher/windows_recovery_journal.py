@@ -139,6 +139,8 @@ class BackupPreparingRecord:
     package_root_identity: StableFileIdentity = field(repr=False)
     environment_backup_name: str = field(repr=False)
     certificate_backup_name: str = field(repr=False)
+    environment_candidate_sha256: str = field(repr=False)
+    environment_candidate_size: int
     environment_present: bool
     environment_sha256: str | None = field(default=None, repr=False)
     environment_file_attributes: int | None = None
@@ -163,6 +165,9 @@ class BackupPreparingRecord:
             or type(self.certificate_backup_name) is not str
             or _BACKUP_NAME.fullmatch(self.certificate_backup_name) is None
             or self.environment_backup_name == self.certificate_backup_name
+            or not _valid_hash(self.environment_candidate_sha256)
+            or type(self.environment_candidate_size) is not int
+            or not 1 <= self.environment_candidate_size <= _MAX_ENVIRONMENT_BYTES
             or type(self.environment_present) is not bool
             or type(self.local_ca_present) is not bool
             or type(self.ca_bundle_present) is not bool
@@ -213,6 +218,7 @@ class BackupPreparingRecord:
     def __repr__(self) -> str:
         return (
             "BackupPreparingRecord("
+            f"environment_candidate_size={self.environment_candidate_size!r}, "
             f"environment_present={self.environment_present!r}, "
             f"local_ca_present={self.local_ca_present!r}, "
             f"ca_bundle_present={self.ca_bundle_present!r}, <redacted>)"
@@ -924,6 +930,8 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             "ca_bundle_sha256": record.ca_bundle_sha256,
             "certificate_backup_name": record.certificate_backup_name,
             "environment_backup_name": record.environment_backup_name,
+            "environment_candidate_sha256": record.environment_candidate_sha256,
+            "environment_candidate_size": record.environment_candidate_size,
             "environment_file_attributes": record.environment_file_attributes,
             "environment_present": record.environment_present,
             "environment_security_descriptor_sha256": (
@@ -1113,6 +1121,8 @@ def _record_from_json(
                     "ca_bundle_sha256",
                     "certificate_backup_name",
                     "environment_backup_name",
+                    "environment_candidate_sha256",
+                    "environment_candidate_size",
                     "environment_file_attributes",
                     "environment_present",
                     "environment_security_descriptor_sha256",
@@ -1130,6 +1140,8 @@ def _record_from_json(
             _identity_from_json(item["package_root_identity"]),
             item["environment_backup_name"],
             item["certificate_backup_name"],
+            item["environment_candidate_sha256"],
+            item["environment_candidate_size"],
             item["environment_present"],
             item["environment_sha256"],
             item["environment_file_attributes"],

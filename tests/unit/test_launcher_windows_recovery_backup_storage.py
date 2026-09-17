@@ -18,6 +18,9 @@ import towerscout_launcher.windows_recovery_backup_storage as blob_storage  # no
 import towerscout_launcher.windows_recovery as recovery  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
+from towerscout_launcher.windows_environment_replacement import (  # noqa: E402
+    plan_ca_environment_replacement,
+)
 from towerscout_launcher.windows_protected_state import (  # noqa: E402
     CurrentUserProtectedBlob,
     ProtectedDataPurpose,
@@ -401,9 +404,23 @@ def _prepared(
     certificates: backup.SealedCertificateExactStateBackup,
     stream: journal.JournalStreamIdentity,
 ) -> storage.PersistedEnvironmentJournalChain:
+    exact_environment = backup.authenticate_environment_exact_state_backup(
+        environment,
+        expected_stream=stream,
+        protection=protection,
+    )
+    environment_plan = plan_ca_environment_replacement(
+        (
+            exact_environment.contents
+            if exact_environment.contents is not None
+            else b"TOWERSCOUT_GPU_MODE=auto\r\n"
+        ),
+        original_present=exact_environment.existed,
+    )
     return preparation.persist_backup_preparing_generation(
         environment,
         certificates,
+        environment_plan=environment_plan,
         stream=stream,
         name_source=_NameSource(),
         root=root,

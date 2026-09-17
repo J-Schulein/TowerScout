@@ -210,6 +210,8 @@ def _pending_recovery_scan(
             package_root_identity,
             "recovery-backup-" + "d" * 32 + ".blob",
             "recovery-backup-" + "e" * 32 + ".blob",
+            "f" * 64,
+            12,
             False,
         )
     protection = _RecoveryProtection()

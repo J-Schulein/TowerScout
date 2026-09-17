@@ -131,6 +131,8 @@ def _backup_preparing_record(
         package_root_identity=_identity(7),
         environment_backup_name="recovery-backup-" + "1" * 32 + ".blob",
         certificate_backup_name="recovery-backup-" + "2" * 32 + ".blob",
+        environment_candidate_sha256="a" * 64,
+        environment_candidate_size=37,
         environment_present=environment_present,
         environment_sha256="c" * 64 if environment_present else None,
         environment_file_attributes=0x20 if environment_present else None,
@@ -408,6 +410,7 @@ def test_backup_preparing_round_trip_is_singleton_bound_and_redacted() -> None:
     rendered = repr(record) + repr(generation) + repr(selection)
     assert record.environment_backup_name not in rendered
     assert record.certificate_backup_name not in rendered
+    assert record.environment_candidate_sha256 not in rendered
     assert record.environment_sha256 not in rendered
 
 
@@ -1588,7 +1591,20 @@ def test_backup_preparing_rejects_inconsistent_state_and_names() -> None:
             1,
             _identity(7),
             "recovery-backup-" + "1" * 32 + ".blob",
+            "recovery-backup-" + "2" * 32 + ".blob",
+            "not-a-hash",
+            0,
+            False,
+        )
+
+    with pytest.raises(ValueError):
+        journal.BackupPreparingRecord(
+            1,
+            _identity(7),
             "recovery-backup-" + "1" * 32 + ".blob",
+            "recovery-backup-" + "1" * 32 + ".blob",
+            "a" * 64,
+            37,
             False,
         )
 
@@ -1598,6 +1614,8 @@ def test_backup_preparing_rejects_inconsistent_state_and_names() -> None:
             _identity(7),
             "../recovery-backup-" + "1" * 32 + ".blob",
             "recovery-backup-" + "2" * 32 + ".blob",
+            "a" * 64,
+            37,
             False,
         )
 
@@ -1607,6 +1625,8 @@ def test_backup_preparing_rejects_inconsistent_state_and_names() -> None:
             _identity(7),
             "recovery-backup-" + "1" * 32 + ".blob",
             "recovery-backup-" + "2" * 32 + ".blob",
+            "a" * 64,
+            37,
             False,
             environment_sha256="c" * 64,
         )
