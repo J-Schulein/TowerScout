@@ -431,6 +431,36 @@ class NativeWindowsEnvironmentPromotionStorage:
     ) -> EnvironmentDestinationObservation:
         return _promote_environment_with_api(package_root, authority, api=self._api)
 
+    def promote_environment_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        authority: EnvironmentPromotionAuthority,
+    ) -> EnvironmentDestinationObservation:
+        """Promote through a package-root lease already owned by this thread."""
+
+        if (
+            type(authority) is not EnvironmentPromotionAuthority
+            or type(package_root) is not PathHierarchyTrust
+            or package_root.closed
+            or package_root.evidence.purpose is not PathTrustPurpose.PACKAGE_ROOT
+            or self._api is None
+        ):
+            _fail(EnvironmentPromotionStorageErrorCode.INPUT_INVALID)
+        supported = _call(
+            lambda: self._api.supported,
+            EnvironmentPromotionStorageErrorCode.PLATFORM_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(EnvironmentPromotionStorageErrorCode.PLATFORM_UNAVAILABLE)
+        try:
+            return _promote_while_root_held(package_root, authority, self._api)
+        except EnvironmentPromotionStorageError:
+            raise
+        except WindowsSecurityError:
+            _fail(EnvironmentPromotionStorageErrorCode.VERIFY_FAILED)
+        except Exception:
+            _fail(EnvironmentPromotionStorageErrorCode.VERIFY_FAILED)
+
 
 __all__ = [
     "EnvironmentPromotionStorageError",

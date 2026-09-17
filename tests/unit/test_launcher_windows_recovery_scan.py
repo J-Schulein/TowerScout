@@ -132,6 +132,11 @@ def _chain(
             "d" * 64,
             12,
             ".towerscout-env-" + "e" * 32 + ".tmp",
+            True,
+            _identity(8),
+            13,
+            0x20,
+            "f" * 64,
         )
     else:
         state = EnvironmentJournalState.BACKUP_PREPARING

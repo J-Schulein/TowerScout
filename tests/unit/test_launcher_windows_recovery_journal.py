@@ -27,6 +27,7 @@ from towerscout_launcher.windows_protected_state import (  # noqa: E402
     ProtectedStateError,
 )
 from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
+from towerscout_launcher.target_contracts import ABSENT_FILE_SHA256  # noqa: E402
 
 
 class _Protection:
@@ -113,14 +114,20 @@ def _plan_record(
     *,
     candidate_sha256: str = "d" * 64,
     temp_name: str = ".towerscout-env-" + "e" * 32 + ".tmp",
+    original_present: bool = True,
 ) -> EnvironmentTempPlanRecord:
     return EnvironmentTempPlanRecord(
         schema_version=1,
         package_root_identity=_identity(7),
-        original_sha256="c" * 64,
+        original_sha256="c" * 64 if original_present else ABSENT_FILE_SHA256,
         candidate_sha256=candidate_sha256,
         candidate_size=37,
         temp_name=temp_name,
+        original_present=original_present,
+        original_identity=_identity(8) if original_present else None,
+        original_size=13 if original_present else None,
+        original_file_attributes=0x20 if original_present else None,
+        original_security_descriptor_sha256="f" * 64 if original_present else None,
     )
 
 
@@ -282,12 +289,13 @@ def _build_chain(
     protection: _Protection,
     *,
     stream: journal.JournalStreamIdentity | None = None,
+    original_present: bool = True,
 ) -> tuple[
     journal.JournalStreamIdentity,
     tuple[journal.SealedEnvironmentJournalGeneration, ...],
 ]:
     selected_stream = stream or _stream()
-    planned_record = _plan_record()
+    planned_record = _plan_record(original_present=original_present)
     planned = _seal(
         journal.EnvironmentJournalGeneration(
             schema_version=1,
@@ -373,7 +381,9 @@ def _applied_generation(
         protection=protection,
     )
     verified = selection.tip.record
+    plan = selection.generations[0].record
     assert type(verified) is EnvironmentTempVerifiedRecord
+    assert type(plan) is EnvironmentTempPlanRecord
     record = EnvironmentAppliedRecord(
         1,
         selection.tip_generation_sha256,
@@ -381,8 +391,16 @@ def _applied_generation(
         verified.temp_identity,
         verified.candidate_sha256,
         verified.candidate_size,
-        0x20,
-        "9" * 64,
+        (
+            plan.original_file_attributes
+            if plan.original_present
+            else verified.candidate_file_attributes
+        ),
+        (
+            plan.original_security_descriptor_sha256
+            if plan.original_present
+            else verified.candidate_security_descriptor_sha256
+        ),
         verified.temp_name,
     )
     return _seal(
@@ -452,6 +470,29 @@ def test_environment_applied_round_trip_binds_verified_identity_and_observation(
     assert selection.tip.record.candidate_sha256 not in repr(selection)
 
 
+def test_environment_applied_absent_original_requires_staged_metadata() -> None:
+    protection = _Protection()
+    stream, generations = _build_chain(protection, original_present=False)
+    applied = _applied_generation(protection, stream, generations)
+
+    selection = journal.select_environment_journal_chain(
+        generations + (applied,),
+        None,
+        expected_stream=stream,
+        protection=protection,
+    )
+
+    record = selection.tip.record
+    verified = selection.generations[2].record
+    assert type(record) is EnvironmentAppliedRecord
+    assert type(verified) is EnvironmentTempVerifiedRecord
+    assert record.candidate_file_attributes == verified.candidate_file_attributes
+    assert (
+        record.candidate_security_descriptor_sha256
+        == verified.candidate_security_descriptor_sha256
+    )
+
+
 def test_environment_applied_rejects_wrong_verified_predecessor_or_identity() -> None:
     protection = _Protection()
     stream, generations = _build_chain(protection)
@@ -466,6 +507,8 @@ def test_environment_applied_rejects_wrong_verified_predecessor_or_identity() ->
     for drifted in (
         replace(record, verified_generation_sha256="8" * 64),
         replace(record, candidate_identity=_identity(99)),
+        replace(record, candidate_file_attributes=0x21),
+        replace(record, candidate_security_descriptor_sha256="9" * 64),
     ):
         sealed = _seal(replace(authenticated, record=drifted), protection)
         with pytest.raises(journal.RecoveryJournalError) as failure:
@@ -1864,6 +1907,11 @@ def test_schema_versions_require_exact_integers() -> None:
                 "d" * 64,
                 37,
                 ".towerscout-env-" + "e" * 32 + ".tmp",
+                True,
+                _identity(8),
+                13,
+                0x20,
+                "f" * 64,
             )
         with pytest.raises(ValueError):
             EnvironmentTempCreatedRecord(

@@ -34,6 +34,8 @@ from .windows_security import (
     StableFileIdentity,
     WindowsSecurityError,
 )
+from .target_contracts import ABSENT_FILE_SHA256
+from .windows_recovery_environment_restore import EnvironmentDestinationObservation
 
 _SCHEMA_VERSION = 1
 _MAX_PATH_CHARACTERS = 32_768
@@ -115,6 +117,14 @@ class EnvironmentTempPlanRecord:
     candidate_sha256: str = field(repr=False)
     candidate_size: int
     temp_name: str = field(repr=False)
+    original_present: bool
+    original_identity: StableFileIdentity | None = field(default=None, repr=False)
+    original_size: int | None = None
+    original_file_attributes: int | None = None
+    original_security_descriptor_sha256: str | None = field(
+        default=None,
+        repr=False,
+    )
 
     def __post_init__(self) -> None:
         if (
@@ -126,6 +136,28 @@ class EnvironmentTempPlanRecord:
             or type(self.candidate_size) is not int
             or not 1 <= self.candidate_size <= MAX_ENVIRONMENT_BYTES
             or not _valid_temp_name(self.temp_name)
+            or type(self.original_present) is not bool
+        ):
+            raise ValueError("Environment temporary-file plan record is invalid.")
+        original_values = (
+            self.original_identity,
+            self.original_size,
+            self.original_file_attributes,
+            self.original_security_descriptor_sha256,
+        )
+        if self.original_present:
+            if (
+                type(self.original_identity) is not StableFileIdentity
+                or self.original_identity == self.package_root_identity
+                or type(self.original_size) is not int
+                or not 0 <= self.original_size <= MAX_ENVIRONMENT_BYTES
+                or type(self.original_file_attributes) is not int
+                or not 0 <= self.original_file_attributes <= 0xFFFFFFFF
+                or not _valid_hash(self.original_security_descriptor_sha256)
+            ):
+                raise ValueError("Environment temporary-file plan record is invalid.")
+        elif self.original_sha256 != ABSENT_FILE_SHA256 or any(
+            value is not None for value in original_values
         ):
             raise ValueError("Environment temporary-file plan record is invalid.")
 
@@ -156,6 +188,7 @@ class EnvironmentTempCreatedRecord:
             or not _valid_hash(self.planned_generation_sha256)
             or type(self.package_root_identity) is not StableFileIdentity
             or type(self.temp_identity) is not StableFileIdentity
+            or self.temp_identity == self.package_root_identity
             or not _valid_hash(self.candidate_sha256)
             or type(self.candidate_size) is not int
             or not 1 <= self.candidate_size <= MAX_ENVIRONMENT_BYTES
@@ -193,6 +226,7 @@ class EnvironmentTempVerifiedRecord:
             or not _valid_hash(self.created_generation_sha256)
             or type(self.package_root_identity) is not StableFileIdentity
             or type(self.temp_identity) is not StableFileIdentity
+            or self.temp_identity == self.package_root_identity
             or not _valid_hash(self.candidate_sha256)
             or type(self.candidate_size) is not int
             or not 1 <= self.candidate_size <= MAX_ENVIRONMENT_BYTES
@@ -498,8 +532,31 @@ def _read_exact(
     return b"".join(chunks)
 
 
+def _validate_original_observation(
+    plan: EnvironmentReplacementPlan,
+    original: EnvironmentDestinationObservation,
+    package_root_identity: StableFileIdentity,
+) -> None:
+    if type(original) is not EnvironmentDestinationObservation:
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    expected_present = plan.original_contents is not None
+    if original.present is not expected_present:
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    if not original.present:
+        if plan.original_sha256 != ABSENT_FILE_SHA256:
+            _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+        return
+    if (
+        original.identity == package_root_identity
+        or original.sha256 != plan.original_sha256
+        or original.size != len(plan.original_contents or b"")
+    ):
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+
+
 def _stage_while_root_held(
     plan: EnvironmentReplacementPlan,
+    original: EnvironmentDestinationObservation,
     package_root: PathHierarchyTrust,
     journal: EnvironmentReplacementJournalPort,
     api: _WindowsEnvironmentReplacementApi,
@@ -512,6 +569,7 @@ def _stage_while_root_held(
     if not _valid_temp_name(temp_name):
         _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
     package_root_identity = package_root.evidence.root_identity
+    _validate_original_observation(plan, original, package_root_identity)
     package_path = package_root.root_snapshot.final_path
     temp_path = ntpath.join(package_path, temp_name)
     if len(temp_path) > _MAX_PATH_CHARACTERS or _path_key(
@@ -526,6 +584,11 @@ def _stage_while_root_held(
         plan.candidate_sha256,
         len(plan.candidate_contents),
         temp_name,
+        original.present,
+        original.identity,
+        original.size,
+        original.file_attributes,
+        original.security_descriptor_sha256,
     )
     planned_receipt = _journal_transition(
         lambda: journal.record_environment_temp_planned(planned_record),
@@ -707,6 +770,7 @@ def _stage_while_root_held(
 
 def _stage_environment_candidate_with_api(
     plan: EnvironmentReplacementPlan,
+    original: EnvironmentDestinationObservation,
     package_root: PathHierarchyTrust,
     journal: EnvironmentReplacementJournalPort,
     *,
@@ -717,6 +781,7 @@ def _stage_environment_candidate_with_api(
 
     if (
         type(plan) is not EnvironmentReplacementPlan
+        or type(original) is not EnvironmentDestinationObservation
         or type(package_root) is not PathHierarchyTrust
         or package_root.closed
         or package_root.evidence.purpose is not PathTrustPurpose.PACKAGE_ROOT
@@ -738,6 +803,7 @@ def _stage_environment_candidate_with_api(
         result = package_root.run_while_held(
             lambda: _stage_while_root_held(
                 plan,
+                original,
                 package_root,
                 journal,
                 api,

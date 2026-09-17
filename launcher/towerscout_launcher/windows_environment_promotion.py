@@ -71,11 +71,16 @@ class EnvironmentPromotionAuthority:
             or type(self.verified) is not EnvironmentTempVerifiedRecord
             or self.verified.package_root_identity != self.package_root_identity
             or self.verified.temp_identity == self.package_root_identity
+            or self.verified.temp_identity.volume_serial
+            != self.package_root_identity.volume_serial
             or (
                 self.original.present
                 and (
                     self.original.identity == self.package_root_identity
                     or self.original.identity == self.verified.temp_identity
+                    or self.original.identity is None
+                    or self.original.identity.volume_serial
+                    != self.package_root_identity.volume_serial
                 )
             )
         ):

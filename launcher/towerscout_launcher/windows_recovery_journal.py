@@ -1111,6 +1111,17 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
     }
     if type(record) is EnvironmentTempPlanRecord:
         common["original_sha256"] = record.original_sha256
+        common["original_present"] = record.original_present
+        common["original_identity"] = (
+            _identity_to_json(record.original_identity)
+            if record.original_identity is not None
+            else None
+        )
+        common["original_size"] = record.original_size
+        common["original_file_attributes"] = record.original_file_attributes
+        common["original_security_descriptor_sha256"] = (
+            record.original_security_descriptor_sha256
+        )
         return common
     if type(record) is EnvironmentTempCreatedRecord:
         common["planned_generation_sha256"] = record.planned_generation_sha256
@@ -1427,9 +1438,21 @@ def _record_from_json(
         }
     )
     if state is EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED:
-        item = _exact_keys(value, common | {"original_sha256"})
+        item = _exact_keys(
+            value,
+            common
+            | {
+                "original_file_attributes",
+                "original_identity",
+                "original_present",
+                "original_security_descriptor_sha256",
+                "original_sha256",
+                "original_size",
+            },
+        )
         if type(item["schema_version"]) is not int:
             raise ValueError("Environment record schema is invalid.")
+        original_identity = item["original_identity"]
         return EnvironmentTempPlanRecord(
             item["schema_version"],
             _identity_from_json(item["package_root_identity"]),
@@ -1437,6 +1460,15 @@ def _record_from_json(
             item["candidate_sha256"],
             item["candidate_size"],
             item["temp_name"],
+            item["original_present"],
+            (
+                _identity_from_json(original_identity)
+                if original_identity is not None
+                else None
+            ),
+            item["original_size"],
+            item["original_file_attributes"],
+            item["original_security_descriptor_sha256"],
         )
     if state is EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED:
         item = _exact_keys(
@@ -1877,10 +1909,30 @@ def _validate_record_continuity(
                     _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
                 environment_verified = record
             elif type(record) is EnvironmentAppliedRecord:
+                expected_attributes = (
+                    plan.original_file_attributes
+                    if plan.original_present
+                    else (
+                        environment_verified.candidate_file_attributes
+                        if environment_verified is not None
+                        else None
+                    )
+                )
+                expected_security = (
+                    plan.original_security_descriptor_sha256
+                    if plan.original_present
+                    else (
+                        environment_verified.candidate_security_descriptor_sha256
+                        if environment_verified is not None
+                        else None
+                    )
+                )
                 if (
                     environment_verified is None
                     or record.verified_generation_sha256 != previous.generation_sha256
                     or record.candidate_identity != environment_verified.temp_identity
+                    or record.candidate_file_attributes != expected_attributes
+                    or record.candidate_security_descriptor_sha256 != expected_security
                 ):
                     _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         previous = item

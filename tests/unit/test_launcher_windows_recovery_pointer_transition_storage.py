@@ -236,6 +236,11 @@ def _environment_chain(
         "d" * 64,
         37,
         ".towerscout-env-" + "e" * 32 + ".tmp",
+        True,
+        _identity(8),
+        13,
+        0x20,
+        "f" * 64,
     )
     planned = journal.protect_environment_journal_generation(
         journal.EnvironmentJournalGeneration(

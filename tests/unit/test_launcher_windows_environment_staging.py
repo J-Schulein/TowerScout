@@ -25,6 +25,9 @@ from towerscout_launcher.windows_path_trust import (  # noqa: E402
     PathTrustPurpose,
     capture_path_hierarchy,
 )
+from towerscout_launcher.windows_recovery_environment_restore import (  # noqa: E402
+    EnvironmentDestinationObservation,
+)
 from towerscout_launcher.windows_security import (  # noqa: E402
     NativeFileFacts,
     StableFileIdentity,
@@ -131,6 +134,17 @@ def _protected_file_security() -> NativeSecurityFacts:
     )
 
 
+def _original_observation() -> EnvironmentDestinationObservation:
+    return EnvironmentDestinationObservation(
+        True,
+        StableFileIdentity(7, bytes.fromhex("33" * 16)),
+        hashlib.sha256(_CANDIDATE_SOURCE).hexdigest(),
+        len(_CANDIDATE_SOURCE),
+        0x20,
+        "b" * 64,
+    )
+
+
 class _StagingApi:
     supported = True
 
@@ -228,11 +242,13 @@ class _Journal:
     def __init__(self, events: list[str], *, fail_at: str | None = None) -> None:
         self.events = events
         self.fail_at = fail_at
+        self.records: list[object] = []
 
     def record_environment_temp_planned(
         self, record: staging.EnvironmentTempPlanRecord
     ) -> staging.EnvironmentTempPlannedReceipt:
         self.events.append("journal:planned")
+        self.records.append(record)
         if self.fail_at == "planned":
             raise OSError(_TEMP_PATH)
         return staging.EnvironmentTempPlannedReceipt(record, "1" * 64)
@@ -241,6 +257,7 @@ class _Journal:
         self, record: staging.EnvironmentTempCreatedRecord
     ) -> staging.EnvironmentTempCreatedReceipt:
         self.events.append("journal:created")
+        self.records.append(record)
         if self.fail_at == "created":
             raise OSError(_TEMP_PATH)
         return staging.EnvironmentTempCreatedReceipt(record, "2" * 64)
@@ -249,6 +266,7 @@ class _Journal:
         self, record: staging.EnvironmentTempVerifiedRecord
     ) -> staging.EnvironmentTempVerifiedReceipt:
         self.events.append("journal:verified")
+        self.records.append(record)
         if self.fail_at == "verified":
             raise OSError(_TEMP_PATH)
         return staging.EnvironmentTempVerifiedReceipt(record, "3" * 64)
@@ -263,6 +281,7 @@ def _stage(
     *,
     api: _StagingApi | None = None,
     journal: _Journal | None = None,
+    original: EnvironmentDestinationObservation | None = None,
 ) -> tuple[staging.StagedEnvironmentCandidate, _StagingApi, list[str]]:
     events: list[str] = []
     selected_api = api or _StagingApi(events)
@@ -279,6 +298,7 @@ def _stage(
     try:
         result = staging._stage_environment_candidate_with_api(
             plan,
+            original or _original_observation(),
             root,
             selected_journal,
             api=selected_api,
@@ -321,6 +341,50 @@ def test_stage_orders_durable_journal_transitions_around_native_io() -> None:
     )
     assert _TEMP_PATH not in repr(result)
     assert _TEMP_NAME not in repr(result)
+
+
+@pytest.mark.parametrize(
+    "original",
+    (
+        EnvironmentDestinationObservation(False),
+        replace(
+            _original_observation(),
+            identity=StableFileIdentity(7, _identity(_PACKAGE_ROOT)),
+        ),
+        replace(_original_observation(), sha256="0" * 64),
+        replace(_original_observation(), size=len(_CANDIDATE_SOURCE) + 1),
+    ),
+)
+def test_original_authority_mismatch_blocks_before_journal_or_creation(
+    original: EnvironmentDestinationObservation,
+) -> None:
+    events: list[str] = []
+    api = _StagingApi(events)
+
+    with pytest.raises(staging.EnvironmentTempStageError) as failure:
+        _stage(api=api, journal=_Journal(events), original=original)
+
+    assert failure.value.code is staging.EnvironmentTempStageErrorCode.INPUT_INVALID
+    assert events == []
+
+
+def test_planned_generation_binds_exact_original_observation() -> None:
+    events: list[str] = []
+    durable = _Journal(events)
+    original = _original_observation()
+
+    _stage(journal=durable, original=original)
+
+    plan = durable.records[0]
+    assert type(plan) is staging.EnvironmentTempPlanRecord
+    assert plan.original_present
+    assert plan.original_identity == original.identity
+    assert plan.original_sha256 == original.sha256
+    assert plan.original_size == original.size
+    assert plan.original_file_attributes == original.file_attributes
+    assert (
+        plan.original_security_descriptor_sha256 == original.security_descriptor_sha256
+    )
 
 
 def test_planned_journal_failure_prevents_temp_creation() -> None:
@@ -658,6 +722,7 @@ def test_invalid_temp_name_blocks_journal_and_native_calls() -> None:
         with pytest.raises(staging.EnvironmentTempStageError) as failure:
             staging._stage_environment_candidate_with_api(
                 plan,
+                _original_observation(),
                 root,
                 _Journal(events),
                 api=_StagingApi(events),
@@ -789,6 +854,7 @@ def test_native_stage_runs_under_retained_package_root_trust(tmp_path: Path) -> 
     try:
         result = staging._stage_environment_candidate_with_api(
             plan,
+            _original_observation(),
             root,
             journal,
             api=api,

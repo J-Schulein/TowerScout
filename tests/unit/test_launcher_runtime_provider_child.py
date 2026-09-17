@@ -202,6 +202,14 @@ def _pending_recovery_scan(
             "e" * 64,
             12,
             ".towerscout-env-" + "f" * 32 + ".tmp",
+            True,
+            StableFileIdentity(
+                package_root_identity.volume_serial,
+                (8).to_bytes(16, "big"),
+            ),
+            13,
+            0x20,
+            "a" * 64,
         )
     else:
         state = EnvironmentJournalState.BACKUP_PREPARING
