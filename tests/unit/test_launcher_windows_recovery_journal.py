@@ -1285,7 +1285,7 @@ def test_environment_restore_temp_created_rejects_drift_and_invalid_shape() -> N
         assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
 
 
-def test_environment_restore_temp_verified_round_trip_is_bound_and_redacted() -> None:
+def test_environment_restore_verified_and_restored_round_trip_is_bound() -> None:
     protection = _Protection()
     stream = _stream()
     preparing_record = _backup_preparing_record()
@@ -1459,6 +1459,93 @@ def test_environment_restore_temp_verified_round_trip_is_bound_and_redacted() ->
             )
         assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
 
+    restored_record = journal.EnvironmentRestoredRecord(
+        1,
+        verified.generation_sha256,
+        record.package_root_identity,
+        record.environment_present,
+        record.environment_sha256,
+        record.environment_size,
+        record.environment_file_attributes,
+        record.environment_security_descriptor_sha256,
+        _identity(41),
+    )
+    restored_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        8,
+        verified.generation_sha256,
+        journal.EnvironmentJournalState.ENVIRONMENT_RESTORED,
+        restored_record,
+    )
+    restored = _seal(restored_generation, protection)
+    restored_selection = journal.select_environment_journal_chain(
+        (
+            prepared,
+            backup_verified,
+            armed,
+            started,
+            planned,
+            created,
+            verified,
+            restored,
+        ),
+        _pointer(stream, restored, 8),
+        expected_stream=stream,
+        protection=protection,
+    )
+
+    assert restored_selection.tip == restored_generation
+    assert (
+        restored_selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+    rendered = repr(restored_record) + repr(restored_generation)
+    assert restored_record.verified_generation_sha256 not in rendered
+    assert restored_record.environment_sha256 is not None
+    assert restored_record.environment_sha256 not in rendered
+    assert repr(restored_record.environment_identity) not in rendered
+
+    drifted_restored = journal.EnvironmentRestoredRecord(
+        1,
+        verified.generation_sha256,
+        record.package_root_identity,
+        True,
+        "8" * 64,
+        record.environment_size,
+        record.environment_file_attributes,
+        record.environment_security_descriptor_sha256,
+        _identity(41),
+    )
+    invalid_restored = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            8,
+            verified.generation_sha256,
+            journal.EnvironmentJournalState.ENVIRONMENT_RESTORED,
+            drifted_restored,
+        ),
+        protection,
+    )
+    with pytest.raises(journal.RecoveryJournalError) as restored_failure:
+        journal.select_environment_journal_chain(
+            (
+                prepared,
+                backup_verified,
+                armed,
+                started,
+                planned,
+                created,
+                verified,
+                invalid_restored,
+            ),
+            None,
+            expected_stream=stream,
+            protection=protection,
+        )
+    assert restored_failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+
 
 def test_environment_restore_temp_verified_supports_absent_original() -> None:
     record = journal.EnvironmentRestoreTempVerifiedRecord(
@@ -1475,6 +1562,24 @@ def test_environment_restore_temp_verified_supports_absent_original() -> None:
     assert record.environment_size is None
     assert record.temp_name is None
     assert record.temp_identity is None
+
+    restored = journal.EnvironmentRestoredRecord(
+        1,
+        "3" * 64,
+        _identity(7),
+        False,
+    )
+    assert restored.environment_sha256 is None
+    assert restored.environment_identity is None
+
+    with pytest.raises(ValueError):
+        journal.EnvironmentRestoredRecord(
+            1,
+            "3" * 64,
+            _identity(7),
+            False,
+            environment_identity=_identity(41),
+        )
 
 
 def test_backup_preparing_rejects_inconsistent_state_and_names() -> None:
