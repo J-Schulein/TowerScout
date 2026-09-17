@@ -763,7 +763,7 @@ def test_podman_compose_provider_requires_single_approved_provider():
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher helpers are Windows-only")
-def test_podman_compose_provider_env_apply_preserves_existing_settings():
+def test_podman_compose_provider_env_apply_preserves_settings_without_backup():
     temp_root = REPO_ROOT / ".agent_work" / "pytest-temp" / f"task084-provider-apply-{uuid.uuid4().hex}"
     temp_root.mkdir(parents=True)
     provider = temp_root / "podman-compose.cmd"
@@ -794,8 +794,8 @@ def test_podman_compose_provider_env_apply_preserves_existing_settings():
         if (-not $applied.Applied) {{
             throw "Apply mode did not report an applied update."
         }}
-        if (-not (Test-Path -LiteralPath $applied.BackupPath -PathType Leaf)) {{
-            throw "Apply mode did not create a backup."
+        if (Get-ChildItem -LiteralPath "{temp_root}" -Filter ".env.backup.*") {{
+            throw "Apply mode retained a plaintext whole-file backup."
         }}
         $after = Get-Content -LiteralPath "{env_file}" -Raw
         if ($after -notmatch [regex]::Escape("PODMAN_COMPOSE_PROVIDER={provider}")) {{

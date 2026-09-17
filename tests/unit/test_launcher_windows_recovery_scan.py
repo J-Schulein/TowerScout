@@ -41,7 +41,10 @@ from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
 from towerscout_launcher.windows_recovery_journal_storage import (  # noqa: E402
     PersistedEnvironmentJournalChain,
 )
-from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
+from towerscout_launcher.windows_security import (  # noqa: E402
+    StableFileIdentity,
+    derive_environment_mutex_name,
+)
 
 
 def _identity(value: int) -> StableFileIdentity:
@@ -306,6 +309,59 @@ def test_classification_reports_both_pending_protocols() -> None:
     assert "a" * 32 not in repr(result)
 
 
+def test_external_provider_environment_state_blocks_matching_package() -> None:
+    package_root = _identity(1)
+
+    result = scan.classify_package_recovery_journals(
+        (),
+        package_root,
+        external_provider_environment_pending=True,
+    )
+
+    assert result.provider_environment is None
+    assert result.external_provider_environment_pending is True
+    assert result.provider_environment_pending is True
+    assert result.mutation_blocked is True
+
+
+def test_external_provider_name_scan_binds_exact_environment_mutex_digest() -> None:
+    package_root = _identity(1)
+    digest = derive_environment_mutex_name(package_root).removeprefix(
+        "Global\\TowerScoutEnv-v1-"
+    )
+    foreign_digest = derive_environment_mutex_name(_identity(2)).removeprefix(
+        "Global\\TowerScoutEnv-v1-"
+    )
+
+    assert scan._external_provider_environment_is_pending(  # noqa: SLF001
+        (
+            f"provider-env-{digest}-00000000000000000001.generation",
+            f"provider-env-{digest}.pointer",
+            f"provider-env-{foreign_digest}-00000000000000000001.generation",
+        ),
+        package_root,
+    )
+    assert not scan._external_provider_environment_is_pending(  # noqa: SLF001
+        (f"provider-env-{foreign_digest}.pointer",),
+        package_root,
+    )
+
+
+def test_external_provider_name_scan_rejects_malformed_matching_entry() -> None:
+    package_root = _identity(1)
+    digest = derive_environment_mutex_name(package_root).removeprefix(
+        "Global\\TowerScoutEnv-v1-"
+    )
+
+    with pytest.raises(scan.RecoveryJournalScanError) as failure:
+        scan._external_provider_environment_is_pending(  # noqa: SLF001
+            (f"provider-env-{digest}-unexpected.tmp",),
+            package_root,
+        )
+
+    assert failure.value.code is scan.RecoveryJournalScanErrorCode.STATE_AMBIGUOUS
+
+
 def test_applied_provider_journals_are_terminal_and_do_not_block_next_update() -> None:
     package_root = _identity(1)
     terminal = _chain(
@@ -463,11 +519,22 @@ def test_scan_wrapper_classifies_while_package_root_is_held(
         discover,
     )
 
+    class Root:
+        def run_journal_storage(self, operation):  # type: ignore[no-untyped-def]
+            package_root.assert_unchanged_while_held()
+            return operation("protected-root")
+
+    class Storage:
+        @staticmethod
+        def list_names(root_path: str) -> tuple[str, ...]:
+            assert root_path == "protected-root"
+            return ()
+
     result = package_root.run_while_held(
         lambda: scan.scan_package_recovery_journals_from_held_root(
             package_root,
-            protected_root=object(),  # type: ignore[arg-type]
-            generation_storage=object(),  # type: ignore[arg-type]
+            protected_root=Root(),  # type: ignore[arg-type]
+            generation_storage=Storage(),  # type: ignore[arg-type]
             pointer_storage=object(),  # type: ignore[arg-type]
             protection=object(),  # type: ignore[arg-type]
         )
