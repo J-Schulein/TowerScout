@@ -350,7 +350,10 @@ def _valid_selector(
             if target.runtime.product is RuntimeProduct.DOCKER
             else _PODMAN_IMAGE_ID
         )
-        return type(selector) is str and pattern.fullmatch(selector) is not None
+        return type(selector) is str and (
+            pattern.fullmatch(selector) is not None
+            or selector == target.configured_image_reference
+        )
     if operation is ObservationOperation.VOLUME_INSPECT:
         expected = {
             f"{target.compose_project}_{logical_name}"
@@ -653,6 +656,14 @@ class TargetObservationExecutionBinding:
 
     def image_inspect(self, image_id: str) -> TargetObservationProcessPlan:
         return self._build(ObservationOperation.IMAGE_INSPECT, image_id)
+
+    def configured_image_inspect(self) -> TargetObservationProcessPlan:
+        """Inspect only the digest-pinned image recorded by the exact plan."""
+
+        return self._build(
+            ObservationOperation.IMAGE_INSPECT,
+            self.target.configured_image_reference,
+        )
 
     def volume_inspect(self, logical_name: str) -> TargetObservationProcessPlan:
         expected_logical = {item for item, _destination in EXPECTED_VOLUME_DESTINATIONS}

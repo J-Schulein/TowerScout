@@ -1,11 +1,11 @@
 """Native retained-runtime attestation for fresh-process Windows rollback.
 
-This adapter is deliberately limited to the safest rollback-availability
-case: the exact pre-repair container still exists and the complete resolved
-target can be recaptured through the native read-only target facade. Missing-
-container
-recreation remains a separate mutation boundary.  No runtime command is issued
-here.
+The retained-container adapter recaptures the complete resolved target.  The
+absent-container owner reconstructs the original plan from authenticated
+certificate identity, retains every native authority, and proves exact
+Compose/image/all-volume state without rerunning Windows trust selection.
+Container recreation remains a separate mutation boundary. No runtime mutation
+command is issued here.
 """
 
 from __future__ import annotations
@@ -14,11 +14,29 @@ from dataclasses import dataclass, field
 from enum import Enum
 import hashlib
 import struct
+import threading
 from typing import Any, Callable, NoReturn, Protocol
 
 from .runtime_target_factory import capture_native_windows_resolved_target
-from .runtime_target_resolution import BoundResolvedRepairTarget
+from .runtime_target_inputs import (
+    capture_native_windows_target_resolution_plan_inputs,
+)
+from .runtime_target_observation_native import (
+    capture_native_windows_target_observation_backend,
+)
+from .runtime_target_plan import (
+    TargetResolutionPlanInputs,
+    assemble_target_resolution_plan,
+)
+from .runtime_target_resolution import (
+    AbsentResolvedRuntimeTarget,
+    AbsentTargetResolutionSnapshot,
+    BoundResolvedRepairTarget,
+    TargetResolutionPlan,
+    resolve_absent_runtime_target,
+)
 from .target_contracts import (
+    CertificateIdentity,
     MapProvider,
     ResolvedRepairTarget,
 )
@@ -30,6 +48,7 @@ from .windows_recovery import RollbackRuntimeAvailabilityEvidence
 from .windows_recovery_journal import JournalStreamIdentity
 from .windows_recovery_runtime_authority import (
     RollbackRuntimeRecoveryAuthority,
+    derive_absent_rollback_runtime_recovery_authority,
     derive_rollback_runtime_recovery_authority,
 )
 from .windows_security import StableFileIdentity
@@ -116,6 +135,41 @@ class _ResolvedTargetOwner(Protocol):
 
 class ExistingRollbackRuntimeCapture(Protocol):
     def __call__(self, provider: MapProvider) -> ExistingRollbackRuntimeObservation: ...
+
+
+class _PlanInputOwner(Protocol):
+    @property
+    def supported(self) -> bool: ...
+
+    @property
+    def closed(self) -> bool: ...
+
+    def capture(self) -> TargetResolutionPlanInputs: ...
+
+    def close(self) -> None: ...
+
+
+class _AbsentObservationBackend(Protocol):
+    @property
+    def supported(self) -> bool: ...
+
+    @property
+    def closed(self) -> bool: ...
+
+    def capture_absent(
+        self,
+        plan: TargetResolutionPlan,
+    ) -> AbsentTargetResolutionSnapshot: ...
+
+    def close(self) -> None: ...
+
+
+class AbsentPlanInputCapture(Protocol):
+    def __call__(self, provider: MapProvider) -> _PlanInputOwner: ...
+
+
+class AbsentObservationBackendCapture(Protocol):
+    def __call__(self, plan: TargetResolutionPlan) -> _AbsentObservationBackend: ...
 
 
 def _fail(code: NativeRollbackRuntimeAvailabilityErrorCode) -> NoReturn:
@@ -214,6 +268,244 @@ def capture_native_existing_rollback_runtime(
     return result
 
 
+def _close_absent_resource(
+    resource: _PlanInputOwner | _AbsentObservationBackend,
+) -> bool:
+    failed = False
+    try:
+        resource.close()
+    except BaseException as error:
+        if not isinstance(error, Exception):
+            raise
+        failed = True
+    try:
+        closed = resource.closed is True
+    except Exception:
+        closed = False
+    return failed or not closed
+
+
+class BoundAbsentRollbackRuntimeTarget:
+    """Retain native authorities for a repeatedly attestable absent target."""
+
+    __slots__ = (
+        "_authority",
+        "_backend",
+        "_closed",
+        "_lock",
+        "_observation",
+        "_plan",
+    )
+
+    def __init__(
+        self,
+        *,
+        plan: TargetResolutionPlan,
+        backend: _AbsentObservationBackend,
+        authority: RollbackRuntimeRecoveryAuthority,
+        observation: AbsentResolvedRuntimeTarget,
+    ) -> None:
+        valid = False
+        try:
+            valid = (
+                type(plan) is TargetResolutionPlan
+                and type(authority) is RollbackRuntimeRecoveryAuthority
+                and type(observation) is AbsentResolvedRuntimeTarget
+                and observation.plan is plan
+                and backend.supported is True
+                and backend.closed is False
+                and callable(backend.capture_absent)
+                and callable(backend.close)
+                and derive_absent_rollback_runtime_recovery_authority(
+                    authority.target_token_sha256,
+                    observation,
+                )
+                == authority
+            )
+        except Exception:
+            valid = False
+        if not valid:
+            _close_absent_resource(backend)
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
+        self._lock = threading.RLock()
+        self._closed = False
+        self._plan = plan
+        self._backend: _AbsentObservationBackend | None = backend
+        self._authority = authority
+        self._observation = observation
+
+    @property
+    def closed(self) -> bool:
+        with self._lock:
+            return self._closed
+
+    @property
+    def observation(self) -> AbsentResolvedRuntimeTarget:
+        with self._lock:
+            if self._closed:
+                _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+            return self._observation
+
+    def assert_unchanged(self) -> AbsentResolvedRuntimeTarget:
+        with self._lock:
+            backend = self._backend
+            if self._closed or backend is None:
+                _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+            try:
+                snapshot = backend.capture_absent(self._plan)
+                observed = resolve_absent_runtime_target(self._plan, snapshot)
+                authority = derive_absent_rollback_runtime_recovery_authority(
+                    self._authority.target_token_sha256,
+                    observed,
+                )
+            except BaseException as error:
+                self._poison()
+                if not isinstance(error, Exception):
+                    raise
+                _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+            if (
+                authority != self._authority
+                or observed.observation_binding_sha256
+                != self._observation.observation_binding_sha256
+            ):
+                self._poison()
+                _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
+            self._observation = observed
+            return observed
+
+    def _poison(self) -> None:
+        backend = self._backend
+        self._backend = None
+        self._closed = True
+        if backend is not None:
+            try:
+                backend.close()
+            except BaseException:
+                pass
+
+    def close(self) -> None:
+        with self._lock:
+            if self._closed:
+                return
+            backend = self._backend
+            self._backend = None
+            self._closed = True
+            if backend is not None and _close_absent_resource(backend):
+                _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+
+    def __repr__(self) -> str:
+        return (
+            "BoundAbsentRollbackRuntimeTarget("
+            f"state={'closed' if self.closed else 'open'!r}, <redacted>)"
+        )
+
+
+def capture_native_absent_rollback_runtime_target(
+    certificate: CertificateIdentity,
+    authority: RollbackRuntimeRecoveryAuthority,
+    *,
+    input_capture: AbsentPlanInputCapture = (
+        capture_native_windows_target_resolution_plan_inputs
+    ),
+    backend_capture: AbsentObservationBackendCapture = (
+        capture_native_windows_target_observation_backend
+    ),
+) -> BoundAbsentRollbackRuntimeTarget:
+    """Capture a trust-stable absent target without issuing runtime mutation."""
+
+    if (
+        type(certificate) is not CertificateIdentity
+        or type(authority) is not RollbackRuntimeRecoveryAuthority
+        or not callable(input_capture)
+        or not callable(backend_capture)
+    ):
+        _fail(NativeRollbackRuntimeAvailabilityErrorCode.INPUT_INVALID)
+    inputs: _PlanInputOwner | None = None
+    backend: _AbsentObservationBackend | None = None
+    result: BoundAbsentRollbackRuntimeTarget | None = None
+    primary: BaseException | None = None
+    transferred = False
+    try:
+        inputs = input_capture(certificate.provider)
+        if inputs.supported is not True or inputs.closed is not False:
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+        first_inputs = inputs.capture()
+        second_inputs = inputs.capture()
+        first_plan = assemble_target_resolution_plan(
+            first_inputs,
+            certificate=certificate,
+        )
+        second_plan = assemble_target_resolution_plan(
+            second_inputs,
+            certificate=certificate,
+        )
+        if (
+            first_plan.authority_sha256 != second_plan.authority_sha256
+            or first_plan.provider is not certificate.provider
+            or StableFileIdentity(
+                first_plan.package_root.volume_serial,
+                first_plan.package_root.file_id,
+            )
+            != authority.package_root_identity
+        ):
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
+        backend = backend_capture(second_plan)
+        if _close_absent_resource(inputs):
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+        inputs = None
+        first = resolve_absent_runtime_target(
+            second_plan,
+            backend.capture_absent(second_plan),
+        )
+        second = resolve_absent_runtime_target(
+            second_plan,
+            backend.capture_absent(second_plan),
+        )
+        first_authority = derive_absent_rollback_runtime_recovery_authority(
+            authority.target_token_sha256,
+            first,
+        )
+        second_authority = derive_absent_rollback_runtime_recovery_authority(
+            authority.target_token_sha256,
+            second,
+        )
+        if (
+            first_authority != authority
+            or second_authority != authority
+            or first.observation_binding_sha256 != second.observation_binding_sha256
+        ):
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
+        result = BoundAbsentRollbackRuntimeTarget(
+            plan=second_plan,
+            backend=backend,
+            authority=authority,
+            observation=second,
+        )
+        backend = None
+        transferred = True
+    except BaseException as error:
+        primary = error
+    cleanup_failed = False
+    if not transferred:
+        for resource in (backend, inputs):
+            if resource is not None:
+                try:
+                    cleanup_failed = _close_absent_resource(resource) or cleanup_failed
+                except BaseException as error:
+                    if not isinstance(error, Exception) and primary is None:
+                        primary = error
+                    cleanup_failed = True
+    if primary is not None and not isinstance(primary, Exception):
+        raise primary
+    if isinstance(primary, NativeRollbackRuntimeAvailabilityError):
+        raise primary from None
+    if cleanup_failed:
+        _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+    if primary is not None or result is None:
+        _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+    return result
+
+
 def _assert_package_root(
     package_root: PathHierarchyTrust,
     stream: JournalStreamIdentity,
@@ -303,9 +595,13 @@ class NativeWindowsExistingRollbackRuntimeAvailability:
 
 
 __all__ = [
+    "AbsentObservationBackendCapture",
+    "AbsentPlanInputCapture",
+    "BoundAbsentRollbackRuntimeTarget",
     "ExistingRollbackRuntimeObservation",
     "NativeRollbackRuntimeAvailabilityError",
     "NativeRollbackRuntimeAvailabilityErrorCode",
     "NativeWindowsExistingRollbackRuntimeAvailability",
     "capture_native_existing_rollback_runtime",
+    "capture_native_absent_rollback_runtime_target",
 ]

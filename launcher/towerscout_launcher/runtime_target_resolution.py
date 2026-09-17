@@ -60,6 +60,7 @@ _AUTHORITY_DOMAIN = b"TowerScout.TargetResolutionAuthority.v1"
 _COMPOSE_FILES_DOMAIN = b"TowerScout.TargetResolutionComposeFiles.v1"
 _SEMANTIC_MODEL_DOMAIN = b"TowerScout.TargetResolutionSemanticModel.v1"
 _OBSERVATION_DOMAIN = b"TowerScout.TargetResolutionObservation.v1"
+_ABSENT_OBSERVATION_DOMAIN = b"TowerScout.TargetResolutionAbsentObservation.v1"
 _EVIDENCE_DOMAIN = b"TowerScout.TargetResolutionEvidence.v1"
 _CA_DESTINATION = "/app/webapp/config/certs/towerscout-ca-bundle.pem"
 TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER = "0" * 64
@@ -496,6 +497,50 @@ class TargetResolutionSnapshot:
         return "TargetResolutionSnapshot(state='bounded', <redacted>)"
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class AbsentTargetResolutionSnapshot:
+    """Bounded normalized outputs proving the exact container is absent."""
+
+    authority_sha256: str = field(repr=False)
+    normalized_pre_model: bytes = field(repr=False)
+    normalized_post_model: bytes = field(repr=False)
+    container_list: bytes = field(repr=False)
+    image_inspect: bytes = field(repr=False)
+    volume_inspects: tuple[tuple[str, bytes], ...] = field(repr=False)
+
+    def __post_init__(self) -> None:
+        raw_values = (
+            self.normalized_pre_model,
+            self.normalized_post_model,
+            self.container_list,
+            self.image_inspect,
+        )
+        expected_names = tuple(name for name, _ in EXPECTED_VOLUME_DESTINATIONS)
+        valid = (
+            _is_sha256(self.authority_sha256)
+            and all(
+                type(value) is bytes and 1 <= len(value) <= _MAX_JSON_BYTES
+                for value in raw_values
+            )
+            and type(self.volume_inspects) is tuple
+            and len(self.volume_inspects) == len(EXPECTED_VOLUME_DESTINATIONS)
+            and all(
+                type(item) is tuple
+                and len(item) == 2
+                and type(item[0]) is str
+                and type(item[1]) is bytes
+                and 1 <= len(item[1]) <= _MAX_JSON_BYTES
+                for item in self.volume_inspects
+            )
+            and tuple(item[0] for item in self.volume_inspects) == expected_names
+        )
+        if not valid:
+            raise ValueError("Absent target resolution snapshot is invalid.")
+
+    def __repr__(self) -> str:
+        return "AbsentTargetResolutionSnapshot(state='bounded', <redacted>)"
+
+
 class TargetResolutionBackend(Protocol):
     """Transferred exact-runtime adapter seam; captures must be read-only."""
 
@@ -857,7 +902,7 @@ def _validate_model(
 
 def _compose_observation(
     plan: TargetResolutionPlan,
-    snapshot: TargetResolutionSnapshot,
+    snapshot: TargetResolutionSnapshot | AbsentTargetResolutionSnapshot,
 ) -> _ComposeObservation:
     pre_model, pre_environment, pre_volumes = _validate_model(
         plan, snapshot.normalized_pre_model, planned=False
@@ -1047,13 +1092,14 @@ def _container_observation(
     )
 
 
-def _image_observation(
+def _parsed_image_observation(
     plan: TargetResolutionPlan,
-    snapshot: TargetResolutionSnapshot,
-    container: ContainerIdentity,
+    raw: bytes,
+    *,
+    expected_daemon_image_id: str | None,
 ) -> tuple[ImageIdentity, str]:
     value = _object(
-        _load_json(snapshot.image_inspect, TargetResolutionErrorCode.TARGET_INVALID),
+        _load_json(raw, TargetResolutionErrorCode.TARGET_INVALID),
         TargetResolutionErrorCode.TARGET_INVALID,
     )
     _exact_keys(
@@ -1076,7 +1122,12 @@ def _image_observation(
     )
     if (
         not _schema_version_one(value["schema_version"])
-        or value["id"] != container.daemon_image_id
+        or type(value["id"]) is not str
+        or _OCI_DIGEST.fullmatch(value["id"]) is None
+        or (
+            expected_daemon_image_id is not None
+            and value["id"] != expected_daemon_image_id
+        )
         or not valid_repositories
         or plan.configured_image_reference not in repository_digests
     ):
@@ -1087,16 +1138,28 @@ def _image_observation(
             configured_reference=plan.configured_image_reference,
             pinned_digest=plan.pinned_image_digest,
             repository_digest=plan.configured_image_reference,
-            daemon_image_id=container.daemon_image_id,
+            daemon_image_id=value["id"],
             private_inspect_sha256=inspect_sha256,
         ),
         inspect_sha256,
     )
 
 
-def _volume_observations(
+def _image_observation(
     plan: TargetResolutionPlan,
     snapshot: TargetResolutionSnapshot,
+    container: ContainerIdentity,
+) -> tuple[ImageIdentity, str]:
+    return _parsed_image_observation(
+        plan,
+        snapshot.image_inspect,
+        expected_daemon_image_id=container.daemon_image_id,
+    )
+
+
+def _volume_observations(
+    plan: TargetResolutionPlan,
+    snapshot: TargetResolutionSnapshot | AbsentTargetResolutionSnapshot,
     compose: _ComposeObservation,
 ) -> tuple[tuple[VolumeIdentity, ...], tuple[str, ...]]:
     volumes: list[VolumeIdentity] = []
@@ -1220,6 +1283,112 @@ def _parse_observation(
         image_inspect_sha256=image_sha256,
         volume_inspect_sha256=volume_hashes,
     )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class AbsentResolvedRuntimeTarget:
+    """Exact stage-stable target state captured while its container is absent."""
+
+    plan: TargetResolutionPlan = field(repr=False)
+    compose: ComposePlan = field(repr=False)
+    image: ImageIdentity = field(repr=False)
+    volumes: tuple[VolumeIdentity, ...] = field(repr=False)
+    observation_binding_sha256: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        valid = (
+            type(self.plan) is TargetResolutionPlan
+            and type(self.compose) is ComposePlan
+            and type(self.image) is ImageIdentity
+            and type(self.volumes) is tuple
+            and len(self.volumes) == len(EXPECTED_VOLUME_DESTINATIONS)
+            and all(type(item) is VolumeIdentity for item in self.volumes)
+            and _is_sha256(self.observation_binding_sha256)
+            and self.compose.ordered_files == self.plan.ordered_compose_files
+            and self.compose.environment_sha256 == self.plan.environment_sha256
+            and self.compose.planned_environment_sha256
+            == self.plan.planned_environment_sha256
+            and self.compose.environment_source == self.plan.environment_source
+            and self.compose.environment_file == self.plan.environment_file
+            and self.image.configured_reference == self.plan.configured_image_reference
+            and self.image.pinned_digest == self.plan.pinned_image_digest
+            and all(
+                (volume.logical_name, volume.destination) == expected
+                for volume, expected in zip(
+                    self.volumes,
+                    EXPECTED_VOLUME_DESTINATIONS,
+                    strict=True,
+                )
+            )
+        )
+        if not valid:
+            raise ValueError("Absent resolved runtime target is invalid.")
+
+    def __repr__(self) -> str:
+        return "AbsentResolvedRuntimeTarget(container='absent', <redacted>)"
+
+
+def resolve_absent_runtime_target(
+    plan: TargetResolutionPlan,
+    snapshot: AbsentTargetResolutionSnapshot,
+) -> AbsentResolvedRuntimeTarget:
+    """Validate exact Compose/image/volume state and strict container absence."""
+
+    if (
+        type(plan) is not TargetResolutionPlan
+        or type(snapshot) is not AbsentTargetResolutionSnapshot
+    ):
+        _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
+    if snapshot.authority_sha256 != plan.authority_sha256:
+        _fail(TargetResolutionErrorCode.AUTHORITY_MISMATCH)
+    containers = _load_json(
+        snapshot.container_list,
+        TargetResolutionErrorCode.TARGET_INVALID,
+    )
+    if type(containers) is not list:
+        _fail(TargetResolutionErrorCode.TARGET_INVALID)
+    if containers:
+        _fail(TargetResolutionErrorCode.TARGET_CHANGED)
+    compose_observation = _compose_observation(plan, snapshot)
+    image, image_sha256 = _parsed_image_observation(
+        plan,
+        snapshot.image_inspect,
+        expected_daemon_image_id=None,
+    )
+    volumes, volume_hashes = _volume_observations(
+        plan,
+        snapshot,
+        compose_observation,
+    )
+    try:
+        compose = ComposePlan(
+            ordered_files=plan.ordered_compose_files,
+            environment_sha256=plan.environment_sha256,
+            planned_environment_sha256=plan.planned_environment_sha256,
+            pre_model_sha256=compose_observation.pre_model_sha256,
+            post_model_sha256=compose_observation.post_model_sha256,
+            environment_source=plan.environment_source,
+            environment_file=plan.environment_file,
+        )
+        binding_sha256 = _digest(
+            _ABSENT_OBSERVATION_DOMAIN,
+            (
+                plan.authority_sha256.encode("ascii"),
+                compose.pre_model_sha256.encode("ascii"),
+                compose.post_model_sha256.encode("ascii"),
+                image_sha256.encode("ascii"),
+                *(value.encode("ascii") for value in volume_hashes),
+            ),
+        )
+        return AbsentResolvedRuntimeTarget(
+            plan,
+            compose,
+            image,
+            volumes,
+            binding_sha256,
+        )
+    except (OverflowError, TypeError, UnicodeError, ValueError):
+        _fail(TargetResolutionErrorCode.TARGET_INVALID)
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -1542,6 +1711,8 @@ def capture_bound_resolved_repair_target(
 
 
 __all__ = [
+    "AbsentResolvedRuntimeTarget",
+    "AbsentTargetResolutionSnapshot",
     "EXPECTED_HEALTHCHECK_COMMAND_SHA256",
     "TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER",
     "BoundResolvedRepairTarget",
@@ -1552,5 +1723,6 @@ __all__ = [
     "TargetResolutionPlan",
     "TargetResolutionSnapshot",
     "capture_bound_resolved_repair_target",
+    "resolve_absent_runtime_target",
     "target_model_semantic_sha256",
 ]

@@ -38,11 +38,14 @@ from towerscout_launcher.runtime_target_observation_backend import (  # noqa: E4
     TargetObservationProcessResult,
 )
 from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
+    AbsentResolvedRuntimeTarget,
+    AbsentTargetResolutionSnapshot,
     BoundResolvedRepairTarget,
     TargetResolutionError,
     TargetResolutionErrorCode,
     TargetResolutionPlan,
     capture_bound_resolved_repair_target,
+    resolve_absent_runtime_target,
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
     CONTAINER_BUNDLE_DESTINATION,
@@ -564,6 +567,62 @@ def test_owned_backend_normalizes_provider_output_into_resolved_target(
     owner.close()
     assert authority.close_calls == 1
     assert executor.close_calls == 1
+
+
+@pytest.mark.parametrize("product", [RuntimeProduct.DOCKER, RuntimeProduct.PODMAN])
+def test_owned_backend_captures_exact_absence_image_and_all_volumes(
+    product: RuntimeProduct,
+) -> None:
+    plan, authority, executor, backend = _backend(product)
+    executor.overrides[(ObservationOperation.CONTAINER_LIST, None)] = b""
+
+    snapshot = backend.capture_absent(plan)
+    resolved = resolve_absent_runtime_target(plan, snapshot)
+
+    assert type(snapshot) is AbsentTargetResolutionSnapshot
+    assert type(resolved) is AbsentResolvedRuntimeTarget
+    assert resolved.image.daemon_image_id == _NORMALIZED_IMAGE_ID
+    assert len(resolved.volumes) == len(EXPECTED_VOLUME_DESTINATIONS)
+    assert authority.calls == 1
+    assert executor.calls[:4] == [
+        (ObservationOperation.COMPOSE_MODEL_CURRENT, None),
+        (ObservationOperation.COMPOSE_MODEL_PLANNED, None),
+        (ObservationOperation.CONTAINER_LIST, None),
+        (ObservationOperation.IMAGE_INSPECT, plan.configured_image_reference),
+    ]
+    assert executor.calls[4:] == [
+        (
+            ObservationOperation.VOLUME_INSPECT,
+            f"{plan.compose_project}_{logical_name}",
+        )
+        for logical_name, _destination in EXPECTED_VOLUME_DESTINATIONS
+    ]
+    assert "PRIVATE" not in repr(snapshot)
+    assert "PRIVATE" not in repr(resolved)
+    backend.close()
+
+
+def test_absent_capture_rejects_a_present_container_and_poison_closes() -> None:
+    plan, authority, executor, backend = _backend()
+
+    with pytest.raises(TargetResolutionError) as caught:
+        backend.capture_absent(plan)
+
+    assert caught.value.code is TargetResolutionErrorCode.TARGET_CHANGED
+    assert backend.closed
+    assert authority.closed
+    assert executor.closed
+
+
+def test_absent_capture_rejects_unrecognized_container_list_output() -> None:
+    plan, _authority, executor, backend = _backend()
+    executor.overrides[(ObservationOperation.CONTAINER_LIST, None)] = b"private-detail"
+
+    with pytest.raises(TargetObservationAdapterError) as caught:
+        backend.capture_absent(plan)
+
+    assert caught.value.code is TargetObservationAdapterErrorCode.OUTPUT_INVALID
+    assert "private-detail" not in str(caught.value)
 
 
 @pytest.mark.parametrize("product", [RuntimeProduct.DOCKER, RuntimeProduct.PODMAN])

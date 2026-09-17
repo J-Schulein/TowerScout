@@ -16,6 +16,7 @@ import re
 import struct
 from typing import Any, Iterable, NoReturn
 
+from .runtime_target_resolution import AbsentResolvedRuntimeTarget
 from .target_contracts import (
     EXPECTED_VOLUME_DESTINATIONS,
     FileIdentity,
@@ -71,23 +72,27 @@ def _files_values(identities: tuple[FileIdentity, ...]) -> tuple[str, ...]:
     return tuple(values)
 
 
-def _runtime_values(target: ResolvedRepairTarget) -> tuple[str, ...]:
-    process = target.process_environment
-    runtime = target.runtime
-    endpoint = target.endpoint
-    compose_provider = target.compose_provider
+def _runtime_values(
+    target_token_sha256: str,
+    target: ResolvedRepairTarget | AbsentResolvedRuntimeTarget,
+) -> tuple[str, ...]:
+    plan = target if isinstance(target, ResolvedRepairTarget) else target.plan
+    process = plan.process_environment
+    runtime = plan.runtime
+    endpoint = plan.endpoint
+    compose_provider = plan.compose_provider
     compose = target.compose
     image = target.image
     return (
-        target.target_token.digest_sha256,
-        *_file_values(target.package_root),
+        target_token_sha256,
+        *_file_values(plan.package_root),
         *_file_values(process.system_root),
         *_file_values(process.temp_directory),
         *_file_values(process.user_profile),
         *_file_values(process.local_app_data),
         *_file_values(process.roaming_app_data),
-        target.release_identity,
-        *_files_values(target.security_artifacts.ordered_files),
+        plan.release_identity,
+        *_files_values(plan.security_artifacts.ordered_files),
         runtime.product.value,
         *_file_values(runtime.executable),
         runtime.version,
@@ -109,13 +114,13 @@ def _runtime_values(target: ResolvedRepairTarget) -> tuple[str, ...]:
         compose.pre_model_sha256,
         *_file_values(compose.environment_source),
         *_file_values(compose.environment_file),
-        target.compose_project,
-        target.service,
-        target.acceleration.requested.value,
-        target.acceleration.effective.value,
-        target.acceleration.overlay_logical_name,
-        target.provider.value,
-        str(target.port),
+        plan.compose_project,
+        "towerscout",
+        plan.acceleration.requested.value,
+        plan.acceleration.effective.value,
+        plan.acceleration.overlay_logical_name,
+        plan.provider.value,
+        str(plan.port),
         image.configured_reference,
         image.pinned_digest,
         image.repository_digest,
@@ -124,7 +129,10 @@ def _runtime_values(target: ResolvedRepairTarget) -> tuple[str, ...]:
     )
 
 
-def _volume_evidence(target: ResolvedRepairTarget) -> tuple[str, ...]:
+def _volume_evidence(
+    target_token_sha256: str,
+    target: ResolvedRepairTarget | AbsentResolvedRuntimeTarget,
+) -> tuple[str, ...]:
     expected = EXPECTED_VOLUME_DESTINATIONS
     if len(target.volumes) != len(expected) or any(
         (volume.logical_name, volume.destination) != expected_item
@@ -135,7 +143,7 @@ def _volume_evidence(target: ResolvedRepairTarget) -> tuple[str, ...]:
         _digest(
             _VOLUME_DOMAIN,
             (
-                target.target_token.digest_sha256,
+                target_token_sha256,
                 volume.logical_name,
                 volume.runtime_name,
                 volume.destination,
@@ -201,8 +209,39 @@ def derive_rollback_runtime_recovery_authority(
             1,
             target.target_token.digest_sha256,
             package_root_identity,
-            _digest(_RUNTIME_DOMAIN, _runtime_values(target)),
-            _volume_evidence(target),
+            _digest(
+                _RUNTIME_DOMAIN,
+                _runtime_values(target.target_token.digest_sha256, target),
+            ),
+            _volume_evidence(target.target_token.digest_sha256, target),
+            True,
+        )
+    except (AttributeError, OverflowError, TypeError, UnicodeError, ValueError):
+        _invalid()
+
+
+def derive_absent_rollback_runtime_recovery_authority(
+    target_token_sha256: str,
+    target: AbsentResolvedRuntimeTarget,
+) -> RollbackRuntimeRecoveryAuthority:
+    """Re-derive pre-mutation authority from strict absent-container evidence."""
+
+    if (
+        type(target_token_sha256) is not str
+        or _SHA256.fullmatch(target_token_sha256) is None
+        or type(target) is not AbsentResolvedRuntimeTarget
+    ):
+        _invalid()
+    try:
+        return RollbackRuntimeRecoveryAuthority(
+            1,
+            target_token_sha256,
+            StableFileIdentity(
+                target.plan.package_root.volume_serial,
+                target.plan.package_root.file_id,
+            ),
+            _digest(_RUNTIME_DOMAIN, _runtime_values(target_token_sha256, target)),
+            _volume_evidence(target_token_sha256, target),
             True,
         )
     except (AttributeError, OverflowError, TypeError, UnicodeError, ValueError):
@@ -211,5 +250,6 @@ def derive_rollback_runtime_recovery_authority(
 
 __all__ = [
     "RollbackRuntimeRecoveryAuthority",
+    "derive_absent_rollback_runtime_recovery_authority",
     "derive_rollback_runtime_recovery_authority",
 ]

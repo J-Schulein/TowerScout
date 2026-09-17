@@ -270,6 +270,21 @@ def _assemble_target_resolution_plan(
     return plan
 
 
+def assemble_target_resolution_plan(
+    inputs: TargetResolutionPlanInputs,
+    *,
+    certificate: CertificateIdentity,
+) -> TargetResolutionPlan:
+    """Assemble a strict plan from already authenticated recovery inputs.
+
+    Unlike the normal resolution facade, this pure boundary does not select a
+    new Windows root. Recovery callers must supply the certificate identity
+    authenticated before mutation.
+    """
+
+    return _assemble_target_resolution_plan(inputs, certificate=certificate)
+
+
 def _capture_plan(
     owner: _WindowsTrustedPlanInputOwner,
 ) -> TargetResolutionPlan:
@@ -408,5 +423,6 @@ def capture_native_windows_resolved_target_from_inputs(
 __all__ = [
     "TargetResolutionPlanInputOwner",
     "TargetResolutionPlanInputs",
+    "assemble_target_resolution_plan",
     "capture_native_windows_resolved_target_from_inputs",
 ]

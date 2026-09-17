@@ -14,9 +14,20 @@ if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from test_launcher_runtime_execution import _target  # noqa: E402
+from test_launcher_runtime_target_resolution import (  # noqa: E402
+    _Backend,
+    _absent_snapshot,
+    _plan,
+    _snapshot,
+)
+from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
+    capture_bound_resolved_repair_target,
+    resolve_absent_runtime_target,
+)
 from towerscout_launcher.target_contracts import RuntimeProduct  # noqa: E402
 from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E402
     RollbackRuntimeRecoveryAuthority,
+    derive_absent_rollback_runtime_recovery_authority,
     derive_rollback_runtime_recovery_authority,
 )
 
@@ -99,3 +110,41 @@ def test_authority_rejects_invalid_shape_and_never_accepts_stopped_prior_state()
             tuple(f"{index:064x}" for index in range(8)),
             False,
         )
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_absent_observation_rederives_exact_original_runtime_authority(product):
+    plan = _plan(product)
+    snapshot = _snapshot(plan)
+    owner = capture_bound_resolved_repair_target(
+        plan,
+        backend=_Backend(snapshot, snapshot),
+    )
+    original = derive_rollback_runtime_recovery_authority(owner.target)
+    absent = resolve_absent_runtime_target(plan, _absent_snapshot(plan))
+
+    recovered = derive_absent_rollback_runtime_recovery_authority(
+        owner.target.target_token.digest_sha256,
+        absent,
+    )
+
+    assert recovered == original
+    owner.close()
+
+
+def test_absent_authority_rejects_token_or_stage_stable_image_drift():
+    plan = _plan()
+    absent = resolve_absent_runtime_target(plan, _absent_snapshot(plan))
+
+    with pytest.raises(ValueError):
+        derive_absent_rollback_runtime_recovery_authority("not-a-hash", absent)
+
+    original = derive_absent_rollback_runtime_recovery_authority("d" * 64, absent)
+    changed = derive_absent_rollback_runtime_recovery_authority(
+        "d" * 64,
+        replace(
+            absent,
+            image=replace(absent.image, private_inspect_sha256="f" * 64),
+        ),
+    )
+    assert changed != original

@@ -25,6 +25,7 @@ from .runtime_target_observation import (
     TargetObservationProcessPlan,
 )
 from .runtime_target_resolution import (
+    AbsentTargetResolutionSnapshot,
     EXPECTED_HEALTHCHECK_COMMAND_SHA256,
     TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER,
     TargetResolutionBackend,
@@ -611,6 +612,20 @@ def _normalize_container_list(raw: bytes) -> tuple[bytes, str]:
     return _canonical_json([container_id]), container_id
 
 
+def _normalize_container_absence(raw: bytes) -> bytes:
+    if type(raw) is not bytes or len(raw) > 8 * 1024:
+        raise ValueError("Container list is invalid.")
+    text = raw.decode("ascii", errors="strict")
+    if "\x00" in text or "\r" in text.replace("\r\n", ""):
+        raise ValueError("Container list is invalid.")
+    identifiers = [line for line in text.replace("\r\n", "\n").split("\n") if line]
+    if identifiers:
+        if all(_CONTAINER_ID.fullmatch(item) is not None for item in identifiers):
+            raise TargetResolutionError(TargetResolutionErrorCode.TARGET_CHANGED)
+        raise ValueError("Container list is invalid.")
+    return _canonical_json([])
+
+
 def _labels(container: dict[str, Any]) -> dict[str, str]:
     config = _object(container.get("Config"))
     labels = _object(config.get("Labels"))
@@ -680,8 +695,13 @@ def _normalize_image(
     image_id = image.get("Id", image.get("ID"))
     normalized_image_id = _normalized_image_id(plan, image_id)
     repositories = image.get("RepoDigests")
+    selector_matches = image_id == expected_image_selector or (
+        expected_image_selector == plan.configured_image_reference
+        and type(repositories) is list
+        and plan.configured_image_reference in repositories
+    )
     if (
-        image_id != expected_image_selector
+        not selector_matches
         or type(repositories) is not list
         or not 1 <= len(repositories) <= 32
         or any(
@@ -1410,6 +1430,66 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
         assert resolution_failure is not None
         raise TargetResolutionError(resolution_failure)
 
+    def _capture_absent_while_held(self) -> AbsentTargetResolutionSnapshot:
+        adapter_failure: TargetObservationAdapterErrorCode | None = None
+        resolution_failure: TargetResolutionErrorCode | None = None
+        try:
+            current = self._execute(self._binding.compose_model(planned=False))
+            planned = self._execute(self._binding.compose_model(planned=True))
+            container_list = _normalize_container_absence(
+                self._execute(self._binding.container_list())
+            )
+            normalized_image, _raw_image, _normalized_image_id = _normalize_image(
+                self._plan,
+                self._execute(self._binding.configured_image_inspect()),
+                self._plan.configured_image_reference,
+            )
+            normalized_pre_model, _pre_semantic_config_sha256 = _bind_provider_model(
+                _normalize_compose(
+                    self._plan,
+                    current,
+                    planned=False,
+                    semantic_config_sha256=(TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER),
+                )
+            )
+            normalized_post_model, _post_semantic_config_sha256 = _bind_provider_model(
+                _normalize_compose(
+                    self._plan,
+                    planned,
+                    planned=True,
+                    semantic_config_sha256=(TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER),
+                )
+            )
+            volume_inspects = tuple(
+                (
+                    logical_name,
+                    _normalize_volume(
+                        self._plan,
+                        self._execute(self._binding.volume_inspect(logical_name)),
+                        logical_name,
+                    ),
+                )
+                for logical_name, _destination in EXPECTED_VOLUME_DESTINATIONS
+            )
+            return AbsentTargetResolutionSnapshot(
+                authority_sha256=self._plan.authority_sha256,
+                normalized_pre_model=normalized_pre_model,
+                normalized_post_model=normalized_post_model,
+                container_list=container_list,
+                image_inspect=normalized_image,
+                volume_inspects=volume_inspects,
+            )
+        except TargetObservationAdapterError as error:
+            adapter_failure = error.code
+        except TargetResolutionError as error:
+            resolution_failure = error.code
+        except (TypeError, ValueError, UnicodeError, json.JSONDecodeError):
+            adapter_failure = TargetObservationAdapterErrorCode.OUTPUT_INVALID
+        if adapter_failure is not None:
+            raise TargetObservationAdapterError(adapter_failure)
+        assert resolution_failure is not None
+        raise TargetResolutionError(resolution_failure)
+
     def _poison(self) -> None:
         authority = self._authority
         executor = self._executor
@@ -1442,6 +1522,58 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
             try:
                 snapshot = self._authority.run_while_held(self._capture_while_held)
                 if type(snapshot) is not TargetResolutionSnapshot:
+                    adapter_failure = (
+                        TargetObservationAdapterErrorCode.AUTHORITY_CHANGED
+                    )
+            except BaseException as error:
+                self._poison()
+                if not isinstance(error, Exception):
+                    raise
+                if isinstance(error, TargetObservationAdapterError):
+                    adapter_failure = error.code
+                elif isinstance(error, TargetResolutionError):
+                    resolution_failure = error.code
+                else:
+                    adapter_failure = (
+                        TargetObservationAdapterErrorCode.AUTHORITY_CHANGED
+                    )
+            finally:
+                self._active = False
+            if (adapter_failure is not None or resolution_failure is not None) and (
+                not self._closed
+            ):
+                self._poison()
+            if adapter_failure is not None:
+                raise TargetObservationAdapterError(adapter_failure)
+            if resolution_failure is not None:
+                raise TargetResolutionError(resolution_failure)
+            assert snapshot is not None
+            return snapshot
+
+    def capture_absent(
+        self,
+        plan: TargetResolutionPlan,
+    ) -> AbsentTargetResolutionSnapshot:
+        """Capture exact stage-stable state only when no target container exists."""
+
+        with self._lock:
+            if (
+                self._active
+                or self._closed
+                or plan is not self._plan
+                or self.supported is not True
+                or self._authority is None
+            ):
+                _fail(TargetObservationAdapterErrorCode.AUTHORITY_CHANGED)
+            self._active = True
+            snapshot: AbsentTargetResolutionSnapshot | None = None
+            adapter_failure: TargetObservationAdapterErrorCode | None = None
+            resolution_failure: TargetResolutionErrorCode | None = None
+            try:
+                snapshot = self._authority.run_while_held(
+                    self._capture_absent_while_held
+                )
+                if type(snapshot) is not AbsentTargetResolutionSnapshot:
                     adapter_failure = (
                         TargetObservationAdapterErrorCode.AUTHORITY_CHANGED
                     )

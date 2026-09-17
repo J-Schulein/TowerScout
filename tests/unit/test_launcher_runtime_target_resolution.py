@@ -18,11 +18,14 @@ if str(LAUNCHER_ROOT) not in sys.path:
 from towerscout_launcher import runtime_target_plan  # noqa: E402
 from towerscout_launcher.runtime_target_plan import (  # noqa: E402
     TargetResolutionPlanInputs,
+    assemble_target_resolution_plan,
     capture_native_windows_resolved_target_from_inputs,
 )
 from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
     EXPECTED_HEALTHCHECK_COMMAND_SHA256,
     TARGET_MODEL_SEMANTIC_HASH_PLACEHOLDER,
+    AbsentResolvedRuntimeTarget,
+    AbsentTargetResolutionSnapshot,
     BoundResolvedRepairTarget,
     TargetResolutionBackend,
     TargetResolutionError,
@@ -31,6 +34,7 @@ from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
     TargetResolutionPlan,
     TargetResolutionSnapshot,
     capture_bound_resolved_repair_target,
+    resolve_absent_runtime_target,
     target_model_semantic_sha256,
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
@@ -542,6 +546,18 @@ def _snapshot(plan: TargetResolutionPlan) -> TargetResolutionSnapshot:
     )
 
 
+def _absent_snapshot(plan: TargetResolutionPlan) -> AbsentTargetResolutionSnapshot:
+    present = _snapshot(plan)
+    return AbsentTargetResolutionSnapshot(
+        authority_sha256=present.authority_sha256,
+        normalized_pre_model=present.normalized_pre_model,
+        normalized_post_model=present.normalized_post_model,
+        container_list=_json([]),
+        image_inspect=present.image_inspect,
+        volume_inspects=present.volume_inspects,
+    )
+
+
 class _Backend(TargetResolutionBackend):
     def __init__(
         self,
@@ -607,6 +623,55 @@ def test_capture_resolves_exact_cpu_target_for_both_runtimes(
     assert "PRIVATE" not in repr(snapshot)
     owner.close()
     assert owner.closed is True
+
+
+@pytest.mark.parametrize("product", [RuntimeProduct.DOCKER, RuntimeProduct.PODMAN])
+def test_absent_resolution_preserves_exact_image_compose_and_volumes(
+    product: RuntimeProduct,
+) -> None:
+    plan = _plan(product)
+
+    resolved = resolve_absent_runtime_target(plan, _absent_snapshot(plan))
+
+    assert type(resolved) is AbsentResolvedRuntimeTarget
+    assert resolved.plan is plan
+    assert resolved.compose.ordered_files == plan.ordered_compose_files
+    assert resolved.image.configured_reference == plan.configured_image_reference
+    assert len(resolved.volumes) == len(EXPECTED_VOLUME_DESTINATIONS)
+    assert "absent" in repr(resolved)
+    assert str(plan.package_root.final_path) not in repr(resolved)
+
+
+def test_absent_resolution_rejects_present_container_or_authority_drift() -> None:
+    plan = _plan()
+    snapshot = _absent_snapshot(plan)
+
+    with pytest.raises(TargetResolutionError) as present:
+        resolve_absent_runtime_target(
+            plan,
+            replace(snapshot, container_list=_json(["d" * 64])),
+        )
+    assert present.value.code is TargetResolutionErrorCode.TARGET_CHANGED
+
+    with pytest.raises(TargetResolutionError) as authority:
+        resolve_absent_runtime_target(
+            plan,
+            replace(snapshot, authority_sha256="f" * 64),
+        )
+    assert authority.value.code is TargetResolutionErrorCode.AUTHORITY_MISMATCH
+
+
+def test_public_plan_assembly_uses_authenticated_certificate_without_trust_call() -> (
+    None
+):
+    plan = _plan()
+
+    assembled = assemble_target_resolution_plan(
+        _plan_inputs(plan),
+        certificate=plan.certificate,
+    )
+
+    assert assembled == plan
 
 
 @pytest.mark.parametrize(

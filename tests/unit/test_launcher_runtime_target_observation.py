@@ -329,12 +329,20 @@ def test_exact_container_image_and_all_volume_inspection_plans(
 
     container = binding.container_inspect(container_id)
     image = binding.image_inspect(image_id)
+    configured_image = binding.configured_image_inspect()
     volumes = binding.volume_inspects()
 
     assert container.operation is ObservationOperation.CONTAINER_INSPECT
     assert container.command[-3:] == ("container", "inspect", container_id)
     assert image.operation is ObservationOperation.IMAGE_INSPECT
     assert image.command[-3:] == ("image", "inspect", image_id)
+    assert configured_image.operation is ObservationOperation.IMAGE_INSPECT
+    assert configured_image.selector == plan.configured_image_reference
+    assert configured_image.command[-3:] == (
+        "image",
+        "inspect",
+        plan.configured_image_reference,
+    )
     assert tuple(item.operation for item in volumes) == (
         ObservationOperation.VOLUME_INSPECT,
     ) * len(EXPECTED_VOLUME_DESTINATIONS)
