@@ -36,6 +36,12 @@ from .windows_recovery_backup_storage import (
     RecoveryBackupStorageErrorCode,
     StoredRecoveryBackupBlob,
 )
+from .windows_recovery_certificate_storage import (
+    CertificateRestoreTempIdentities,
+    CertificateRestoreTempStoragePort,
+    RecoveryCertificateStorageError,
+    RecoveryCertificateStorageErrorCode,
+)
 from .windows_recovery_environment_storage import (
     EnvironmentRestoreTempStoragePort,
     RecoveryEnvironmentStorageError,
@@ -55,7 +61,9 @@ from .windows_recovery_environment_restore_native import (
 from .windows_recovery_journal import (
     BackupPreparingRecord,
     BackupVerifiedRecord,
+    CertificateRestoreTempCreatedRecord,
     CertificateRestoreTempPlanRecord,
+    CertificateRestoreTempVerifiedRecord,
     EnvironmentJournalGeneration,
     EnvironmentJournalState,
     EnvironmentRestoreTempCreatedRecord,
@@ -183,7 +191,7 @@ def _recovery_records(
 ) -> tuple[BackupPreparingRecord, RollbackArmedRecord]:
     generations = chain.selection.generations
     if (
-        len(generations) not in {3, 4, 5, 6, 7, 8, 9, 10}
+        len(generations) not in {3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
         or type(generations[0].record) is not BackupPreparingRecord
         or generations[1].state is not EnvironmentJournalState.BACKUP_VERIFIED
         or type(generations[1].record) is not BackupVerifiedRecord
@@ -227,6 +235,16 @@ def _recovery_records(
             len(generations) == 10
             and chain.selection.tip.state
             is not EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_PLANNED
+        )
+        or (
+            len(generations) == 11
+            and chain.selection.tip.state
+            is not EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_CREATED
+        )
+        or (
+            len(generations) == 12
+            and chain.selection.tip.state
+            is not EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED
         )
     ):
         _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
@@ -1906,18 +1924,392 @@ def plan_persisted_certificate_restore(
     return _run_under_root(root, authenticate_and_plan)
 
 
+def _validate_certificate_temp_identities(
+    plan: CertificateRestoreTempPlanRecord,
+    identities: object,
+) -> CertificateRestoreTempIdentities:
+    if (
+        type(identities) is not CertificateRestoreTempIdentities
+        or (identities.local_ca is not None) is not plan.local_ca_present
+        or (identities.ca_bundle is not None) is not plan.ca_bundle_present
+    ):
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+    return identities
+
+
+def _certificate_storage_failure(
+    error: RecoveryCertificateStorageError,
+    *,
+    writing: bool,
+) -> NoReturn:
+    if error.code is RecoveryCertificateStorageErrorCode.STORAGE_UNAVAILABLE:
+        _fail(WindowsRecoveryErrorCode.STORAGE_UNAVAILABLE)
+    if error.code is RecoveryCertificateStorageErrorCode.INPUT_INVALID:
+        _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+    if error.code in {
+        RecoveryCertificateStorageErrorCode.CREATE_FAILED,
+        RecoveryCertificateStorageErrorCode.WRITE_FAILED,
+        RecoveryCertificateStorageErrorCode.CLEANUP_FAILED,
+    }:
+        _fail(
+            WindowsRecoveryErrorCode.WRITE_FAILED
+            if writing
+            else WindowsRecoveryErrorCode.VERIFY_FAILED
+        )
+    _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+
+
+def create_persisted_certificate_restore_temps(
+    *,
+    stream: JournalStreamIdentity,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    certificate_storage: CertificateRestoreTempStoragePort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Create/reverify exact zero-byte certificate temps and persist generation 11."""
+
+    if (
+        type(stream) is not JournalStreamIdentity
+        or not callable(
+            getattr(certificate_storage, "create_certificate_restore_temps", None)
+        )
+        or not callable(
+            getattr(certificate_storage, "verify_certificate_restore_temps", None)
+        )
+    ):
+        _fail(WindowsRecoveryErrorCode.INPUT_INVALID)
+
+    def create_and_record(root_path: str) -> PersistedEnvironmentJournalChain:
+        chain = _load_chain(root_path, stream, journal_storage, journal_protection)
+        generations = chain.selection.generations
+        if (
+            len(generations) not in {10, 11}
+            or type(generations[9].record) is not CertificateRestoreTempPlanRecord
+            or (
+                len(generations) == 11
+                and type(generations[10].record)
+                is not CertificateRestoreTempCreatedRecord
+            )
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        plan = generations[9].record
+        if len(generations) == 10:
+            planned_current = _ensure_pointer(
+                root_path,
+                stream,
+                generation_storage=journal_storage,
+                pointer_storage=pointer_storage,
+                protection=journal_protection,
+            )
+            if (
+                planned_current.selection.tip != generations[9]
+                or planned_current.selection.tip_generation_sha256
+                != chain.selection.tip_generation_sha256
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            try:
+                identities = _validate_certificate_temp_identities(
+                    plan,
+                    certificate_storage.create_certificate_restore_temps(
+                        root_path,
+                        plan,
+                    ),
+                )
+            except RecoveryCertificateStorageError as exc:
+                _certificate_storage_failure(exc, writing=True)
+            except WindowsRecoveryError:
+                raise
+            except Exception:
+                _fail(WindowsRecoveryErrorCode.WRITE_FAILED)
+            try:
+                record = CertificateRestoreTempCreatedRecord(
+                    1,
+                    planned_current.selection.tip_generation_sha256,
+                    identities.local_ca,
+                    identities.ca_bundle,
+                )
+                generation = EnvironmentJournalGeneration(
+                    1,
+                    stream,
+                    11,
+                    planned_current.selection.tip_generation_sha256,
+                    EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_CREATED,
+                    record,
+                )
+                sealed = protect_environment_journal_generation(
+                    generation,
+                    protection=journal_protection,
+                )
+            except (RecoveryJournalError, ValueError):
+                _fail(WindowsRecoveryErrorCode.WRITE_FAILED)
+            try:
+                chain = append_persisted_environment_journal_generation_from_held_root(
+                    root_path,
+                    sealed,
+                    stream=stream,
+                    storage=journal_storage,
+                    protection=journal_protection,
+                )
+            except RecoveryJournalStorageError as exc:
+                if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                    _fail(WindowsRecoveryErrorCode.STORAGE_UNAVAILABLE)
+                if exc.code is RecoveryJournalStorageErrorCode.WRITE_FAILED:
+                    _fail(WindowsRecoveryErrorCode.WRITE_FAILED)
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            except RecoveryJournalError:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            if chain.selection.tip != generation:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        else:
+            created = generations[10].record
+            if type(created) is not CertificateRestoreTempCreatedRecord:
+                _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+            try:
+                identities = _validate_certificate_temp_identities(
+                    plan,
+                    certificate_storage.verify_certificate_restore_temps(
+                        root_path,
+                        plan,
+                        created,
+                    ),
+                )
+            except RecoveryCertificateStorageError as exc:
+                _certificate_storage_failure(exc, writing=False)
+            except WindowsRecoveryError:
+                raise
+            except Exception:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            if (
+                identities.local_ca != created.local_ca_temp_identity
+                or identities.ca_bundle != created.ca_bundle_temp_identity
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+
+        current = _ensure_pointer(
+            root_path,
+            stream,
+            generation_storage=journal_storage,
+            pointer_storage=pointer_storage,
+            protection=journal_protection,
+        )
+        if (
+            len(current.selection.generations) != 11
+            or current.selection.tip.state
+            is not EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_CREATED
+            or current.selection.tip_generation_sha256
+            != chain.selection.tip_generation_sha256
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        return current
+
+    return _run_under_root(root, create_and_record)
+
+
+def write_persisted_certificate_restore_temps(
+    *,
+    stream: JournalStreamIdentity,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    backup_storage: RecoveryBackupBlobReadPort,
+    certificate_storage: CertificateRestoreTempStoragePort,
+    backup_protection: BackupProtectionPort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Write exact authenticated certificate bytes and persist generation 12."""
+
+    if (
+        type(stream) is not JournalStreamIdentity
+        or not callable(
+            getattr(
+                certificate_storage,
+                "write_and_verify_certificate_restore_temps",
+                None,
+            )
+        )
+        or not callable(
+            getattr(
+                certificate_storage,
+                "verify_written_certificate_restore_temps",
+                None,
+            )
+        )
+    ):
+        _fail(WindowsRecoveryErrorCode.INPUT_INVALID)
+
+    def authenticate_write_and_record(
+        root_path: str,
+    ) -> PersistedEnvironmentJournalChain:
+        chain = _load_chain(root_path, stream, journal_storage, journal_protection)
+        generations = chain.selection.generations
+        if (
+            len(generations) not in {11, 12}
+            or type(generations[9].record) is not CertificateRestoreTempPlanRecord
+            or type(generations[10].record) is not CertificateRestoreTempCreatedRecord
+            or (
+                len(generations) == 12
+                and type(generations[11].record)
+                is not CertificateRestoreTempVerifiedRecord
+            )
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        preparing, armed = _recovery_records(chain)
+        plan = generations[9].record
+        created = generations[10].record
+        _environment_expected, certificate_expected = _expected_backups(
+            preparing,
+            armed,
+        )
+        certificate_protected = _read_backup(
+            backup_storage,
+            root_path,
+            certificate_expected,
+        )
+        certificates = _authenticate_certificate_backup(
+            stream,
+            certificate_protected,
+            backup_protection,
+        )
+        if not _certificate_backup_matches_plan(plan, certificates):
+            _fail(WindowsRecoveryErrorCode.BACKUP_INVALID)
+
+        if len(generations) == 11:
+            created_current = _ensure_pointer(
+                root_path,
+                stream,
+                generation_storage=journal_storage,
+                pointer_storage=pointer_storage,
+                protection=journal_protection,
+            )
+            if (
+                created_current.selection.tip != generations[10]
+                or created_current.selection.tip_generation_sha256
+                != chain.selection.tip_generation_sha256
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            try:
+                identities = _validate_certificate_temp_identities(
+                    plan,
+                    certificate_storage.write_and_verify_certificate_restore_temps(
+                        root_path,
+                        plan,
+                        created,
+                        local_ca_contents=certificates.local_ca.contents,
+                        ca_bundle_contents=certificates.ca_bundle.contents,
+                    ),
+                )
+            except RecoveryCertificateStorageError as exc:
+                _certificate_storage_failure(exc, writing=True)
+            except WindowsRecoveryError:
+                raise
+            except Exception:
+                _fail(WindowsRecoveryErrorCode.WRITE_FAILED)
+            if (
+                identities.local_ca != created.local_ca_temp_identity
+                or identities.ca_bundle != created.ca_bundle_temp_identity
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            try:
+                record = CertificateRestoreTempVerifiedRecord(
+                    1,
+                    created_current.selection.tip_generation_sha256,
+                    created.local_ca_temp_identity,
+                    created.ca_bundle_temp_identity,
+                )
+                generation = EnvironmentJournalGeneration(
+                    1,
+                    stream,
+                    12,
+                    created_current.selection.tip_generation_sha256,
+                    EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED,
+                    record,
+                )
+                sealed = protect_environment_journal_generation(
+                    generation,
+                    protection=journal_protection,
+                )
+            except (RecoveryJournalError, ValueError):
+                _fail(WindowsRecoveryErrorCode.WRITE_FAILED)
+            try:
+                chain = append_persisted_environment_journal_generation_from_held_root(
+                    root_path,
+                    sealed,
+                    stream=stream,
+                    storage=journal_storage,
+                    protection=journal_protection,
+                )
+            except RecoveryJournalStorageError as exc:
+                if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                    _fail(WindowsRecoveryErrorCode.STORAGE_UNAVAILABLE)
+                if exc.code is RecoveryJournalStorageErrorCode.WRITE_FAILED:
+                    _fail(WindowsRecoveryErrorCode.WRITE_FAILED)
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            except RecoveryJournalError:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            if chain.selection.tip != generation:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        else:
+            verified = generations[11].record
+            if type(verified) is not CertificateRestoreTempVerifiedRecord:
+                _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+            try:
+                identities = _validate_certificate_temp_identities(
+                    plan,
+                    certificate_storage.verify_written_certificate_restore_temps(
+                        root_path,
+                        plan,
+                        verified,
+                    ),
+                )
+            except RecoveryCertificateStorageError as exc:
+                _certificate_storage_failure(exc, writing=False)
+            except WindowsRecoveryError:
+                raise
+            except Exception:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            if (
+                identities.local_ca != verified.local_ca_temp_identity
+                or identities.ca_bundle != verified.ca_bundle_temp_identity
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+
+        current = _ensure_pointer(
+            root_path,
+            stream,
+            generation_storage=journal_storage,
+            pointer_storage=pointer_storage,
+            protection=journal_protection,
+        )
+        if (
+            len(current.selection.generations) != 12
+            or current.selection.tip.state
+            is not EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED
+            or current.selection.tip_generation_sha256
+            != chain.selection.tip_generation_sha256
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        return current
+
+    return _run_under_root(root, authenticate_write_and_record)
+
+
 __all__ = [
     "CertificateRestoreTempNameSource",
+    "CertificateRestoreTempStoragePort",
     "EnvironmentRestoreStoragePort",
     "RollbackRuntimeAvailabilityEvidence",
     "RollbackRuntimeAvailabilityPort",
     "WindowsRecoveryError",
     "WindowsRecoveryErrorCode",
     "begin_persisted_rollback",
+    "create_persisted_certificate_restore_temps",
     "create_persisted_environment_restore_temp_from_held_package_root",
     "plan_persisted_environment_restore",
     "plan_persisted_certificate_restore",
     "persist_environment_restored_generation_from_held_package_root",
     "persist_rollback_runtime_available_generation_from_held_package_root",
     "write_persisted_environment_restore_temp_from_held_package_root",
+    "write_persisted_certificate_restore_temps",
 ]

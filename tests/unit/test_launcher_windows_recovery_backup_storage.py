@@ -19,6 +19,11 @@ import towerscout_launcher.windows_recovery_backup_storage as blob_storage  # no
 import towerscout_launcher.windows_recovery as recovery  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
+from towerscout_launcher.windows_recovery_certificate_storage import (  # noqa: E402
+    CertificateRestoreTempIdentities,
+    RecoveryCertificateStorageError,
+    RecoveryCertificateStorageErrorCode,
+)
 from towerscout_launcher.target_contracts import ABSENT_FILE_SHA256  # noqa: E402
 from towerscout_launcher.windows_environment_replacement import (  # noqa: E402
     plan_ca_environment_replacement,
@@ -269,6 +274,83 @@ class _RuntimeAvailability:
         if self.error is not None:
             raise self.error
         return self.evidence
+
+
+class _CertificateStorage:
+    def __init__(self, root: "_Root") -> None:
+        self.root = root
+        self.identities = CertificateRestoreTempIdentities(_identity(61), None)
+        self.created: list[journal.CertificateRestoreTempPlanRecord] = []
+        self.verified: list[
+            tuple[
+                journal.CertificateRestoreTempPlanRecord,
+                journal.CertificateRestoreTempCreatedRecord,
+            ]
+        ] = []
+        self.written: list[tuple[bytes | None, bytes | None]] = []
+        self.written_verified: list[
+            tuple[
+                journal.CertificateRestoreTempPlanRecord,
+                journal.CertificateRestoreTempVerifiedRecord,
+            ]
+        ] = []
+        self.create_error: RecoveryCertificateStorageError | None = None
+        self.write_error: RecoveryCertificateStorageError | None = None
+        self.verification_override: CertificateRestoreTempIdentities | None = None
+
+    def create_certificate_restore_temps(
+        self,
+        root_path: str,
+        plan: journal.CertificateRestoreTempPlanRecord,
+    ) -> CertificateRestoreTempIdentities:
+        assert self.root.active
+        assert root_path.endswith(r"TowerScout\Recovery\v1")
+        self.created.append(plan)
+        if self.create_error is not None:
+            raise self.create_error
+        return self.identities
+
+    def verify_certificate_restore_temps(
+        self,
+        root_path: str,
+        plan: journal.CertificateRestoreTempPlanRecord,
+        created: journal.CertificateRestoreTempCreatedRecord,
+    ) -> CertificateRestoreTempIdentities:
+        assert self.root.active
+        assert root_path.endswith(r"TowerScout\Recovery\v1")
+        self.verified.append((plan, created))
+        return self.verification_override or self.identities
+
+    def write_and_verify_certificate_restore_temps(
+        self,
+        root_path: str,
+        plan: journal.CertificateRestoreTempPlanRecord,
+        created: journal.CertificateRestoreTempCreatedRecord,
+        *,
+        local_ca_contents: bytes | None,
+        ca_bundle_contents: bytes | None,
+    ) -> CertificateRestoreTempIdentities:
+        assert self.root.active
+        assert root_path.endswith(r"TowerScout\Recovery\v1")
+        assert created.local_ca_temp_identity == self.identities.local_ca
+        assert created.ca_bundle_temp_identity == self.identities.ca_bundle
+        assert plan.local_ca_present is (local_ca_contents is not None)
+        assert plan.ca_bundle_present is (ca_bundle_contents is not None)
+        self.written.append((local_ca_contents, ca_bundle_contents))
+        if self.write_error is not None:
+            raise self.write_error
+        return self.identities
+
+    def verify_written_certificate_restore_temps(
+        self,
+        root_path: str,
+        plan: journal.CertificateRestoreTempPlanRecord,
+        verified: journal.CertificateRestoreTempVerifiedRecord,
+    ) -> CertificateRestoreTempIdentities:
+        assert self.root.active
+        assert root_path.endswith(r"TowerScout\Recovery\v1")
+        self.written_verified.append((plan, verified))
+        return self.verification_override or self.identities
 
 
 def _package_root() -> PathHierarchyTrust:
@@ -3308,3 +3390,187 @@ def test_certificate_restore_plan_preserves_runtime_tip_on_backup_auth_failure()
     assert failure.value.code is recovery.WindowsRecoveryErrorCode.BACKUP_INVALID
     assert names.calls == 0
     assert len(generations.files) == 13
+
+
+def _persist_certificate_restore_plan_state(
+    protection: _Protection,
+) -> tuple[
+    journal.JournalStreamIdentity,
+    _Root,
+    _GenerationStorage,
+    _BlobStorage,
+    PathHierarchyTrust,
+]:
+    stream, root, generations, blobs, package_root, _availability = (
+        _persist_runtime_available_state(protection)
+    )
+    _plan_certificate_restore(
+        stream,
+        root,
+        generations,
+        blobs,
+        protection,
+        _CertificateTempNameSource(),
+    )
+    return stream, root, generations, blobs, package_root
+
+
+def test_certificate_restore_temps_record_exact_identities_and_reverify() -> None:
+    protection = _Protection()
+    stream, root, generations, _blobs, package_root = (
+        _persist_certificate_restore_plan_state(protection)
+    )
+    certificate_storage = _CertificateStorage(root)
+    try:
+        first = recovery.create_persisted_certificate_restore_temps(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            certificate_storage=certificate_storage,
+            journal_protection=protection,
+        )
+        generation_count = len(generations.files)
+        generations.pointer = None
+        second = recovery.create_persisted_certificate_restore_temps(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            certificate_storage=certificate_storage,
+            journal_protection=protection,
+        )
+    finally:
+        package_root.close()
+
+    assert len(certificate_storage.created) == 1
+    assert len(certificate_storage.verified) == 1
+    assert len(generations.files) == generation_count
+    assert first.selection.tip == second.selection.tip
+    record = second.selection.tip.record
+    assert type(record) is journal.CertificateRestoreTempCreatedRecord
+    assert record.local_ca_temp_identity == certificate_storage.identities.local_ca
+    assert record.ca_bundle_temp_identity is None
+
+
+def test_certificate_restore_temp_restart_rejects_identity_drift() -> None:
+    protection = _Protection()
+    stream, root, generations, _blobs, package_root = (
+        _persist_certificate_restore_plan_state(protection)
+    )
+    certificate_storage = _CertificateStorage(root)
+    try:
+        recovery.create_persisted_certificate_restore_temps(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            certificate_storage=certificate_storage,
+            journal_protection=protection,
+        )
+        generation_count = len(generations.files)
+        certificate_storage.verification_override = CertificateRestoreTempIdentities(
+            _identity(62),
+            None,
+        )
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            recovery.create_persisted_certificate_restore_temps(
+                stream=stream,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                certificate_storage=certificate_storage,
+                journal_protection=protection,
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
+    assert len(generations.files) == generation_count
+
+
+def test_certificate_restore_temps_write_exact_backup_and_reverify() -> None:
+    protection = _Protection()
+    stream, root, generations, blobs, package_root = (
+        _persist_certificate_restore_plan_state(protection)
+    )
+    certificate_storage = _CertificateStorage(root)
+    try:
+        recovery.create_persisted_certificate_restore_temps(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            certificate_storage=certificate_storage,
+            journal_protection=protection,
+        )
+        first = recovery.write_persisted_certificate_restore_temps(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            backup_storage=blobs,
+            certificate_storage=certificate_storage,
+            backup_protection=protection,
+            journal_protection=protection,
+        )
+        generation_count = len(generations.files)
+        generations.pointer = None
+        second = recovery.write_persisted_certificate_restore_temps(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            backup_storage=blobs,
+            certificate_storage=certificate_storage,
+            backup_protection=protection,
+            journal_protection=protection,
+        )
+    finally:
+        package_root.close()
+
+    assert certificate_storage.written == [(b"private-local-ca", None)]
+    assert len(certificate_storage.written_verified) == 1
+    assert len(generations.files) == generation_count
+    assert first.selection.tip == second.selection.tip
+    assert (
+        second.selection.tip.state
+        is journal.EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED
+    )
+
+
+def test_certificate_restore_temp_write_failure_keeps_created_tip() -> None:
+    protection = _Protection()
+    stream, root, generations, blobs, package_root = (
+        _persist_certificate_restore_plan_state(protection)
+    )
+    certificate_storage = _CertificateStorage(root)
+    certificate_storage.write_error = RecoveryCertificateStorageError(
+        RecoveryCertificateStorageErrorCode.WRITE_FAILED
+    )
+    try:
+        recovery.create_persisted_certificate_restore_temps(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            certificate_storage=certificate_storage,
+            journal_protection=protection,
+        )
+        generation_count = len(generations.files)
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            recovery.write_persisted_certificate_restore_temps(
+                stream=stream,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                backup_storage=blobs,
+                certificate_storage=certificate_storage,
+                backup_protection=protection,
+                journal_protection=protection,
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.WRITE_FAILED
+    assert len(generations.files) == generation_count

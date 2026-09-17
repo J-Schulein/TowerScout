@@ -135,6 +135,8 @@ class EnvironmentJournalState(str, Enum):
     ENVIRONMENT_RESTORED = "environment_restored"
     ROLLBACK_RUNTIME_AVAILABLE = "rollback_runtime_available"
     CERTIFICATE_RESTORE_TEMP_PLANNED = "certificate_restore_temp_planned"
+    CERTIFICATE_RESTORE_TEMP_CREATED = "certificate_restore_temp_created"
+    CERTIFICATE_RESTORE_TEMP_VERIFIED = "certificate_restore_temp_verified"
     ENVIRONMENT_TEMP_PLANNED = "environment_temp_planned"
     ENVIRONMENT_TEMP_CREATED = "environment_temp_created"
     ENVIRONMENT_TEMP_VERIFIED = "environment_temp_verified"
@@ -746,6 +748,68 @@ class CertificateRestoreTempPlanRecord:
         )
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class CertificateRestoreTempCreatedRecord:
+    schema_version: int
+    planned_generation_sha256: str = field(repr=False)
+    local_ca_temp_identity: StableFileIdentity | None = field(default=None, repr=False)
+    ca_bundle_temp_identity: StableFileIdentity | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.planned_generation_sha256)
+            or (
+                self.local_ca_temp_identity is not None
+                and type(self.local_ca_temp_identity) is not StableFileIdentity
+            )
+            or (
+                self.ca_bundle_temp_identity is not None
+                and type(self.ca_bundle_temp_identity) is not StableFileIdentity
+            )
+            or (
+                self.local_ca_temp_identity is not None
+                and self.local_ca_temp_identity == self.ca_bundle_temp_identity
+            )
+        ):
+            raise ValueError("Created certificate restore temps are invalid.")
+
+    def __repr__(self) -> str:
+        return "CertificateRestoreTempCreatedRecord(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class CertificateRestoreTempVerifiedRecord:
+    schema_version: int
+    created_generation_sha256: str = field(repr=False)
+    local_ca_temp_identity: StableFileIdentity | None = field(default=None, repr=False)
+    ca_bundle_temp_identity: StableFileIdentity | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.created_generation_sha256)
+            or (
+                self.local_ca_temp_identity is not None
+                and type(self.local_ca_temp_identity) is not StableFileIdentity
+            )
+            or (
+                self.ca_bundle_temp_identity is not None
+                and type(self.ca_bundle_temp_identity) is not StableFileIdentity
+            )
+            or (
+                self.local_ca_temp_identity is not None
+                and self.local_ca_temp_identity == self.ca_bundle_temp_identity
+            )
+        ):
+            raise ValueError("Verified certificate restore temps are invalid.")
+
+    def __repr__(self) -> str:
+        return "CertificateRestoreTempVerifiedRecord(<redacted>)"
+
+
 EnvironmentTempJournalRecord = (
     EnvironmentTempPlanRecord
     | EnvironmentTempCreatedRecord
@@ -763,6 +827,8 @@ EnvironmentJournalRecord = (
     | EnvironmentRestoredRecord
     | RollbackRuntimeAvailableRecord
     | CertificateRestoreTempPlanRecord
+    | CertificateRestoreTempCreatedRecord
+    | CertificateRestoreTempVerifiedRecord
     | EnvironmentTempJournalRecord
 )
 
@@ -786,6 +852,12 @@ _RECORD_TYPE_BY_STATE: dict[EnvironmentJournalState, type[object]] = {
     ),
     EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_PLANNED: (
         CertificateRestoreTempPlanRecord
+    ),
+    EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_CREATED: (
+        CertificateRestoreTempCreatedRecord
+    ),
+    EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED: (
+        CertificateRestoreTempVerifiedRecord
     ),
     EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED: EnvironmentTempPlanRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED: EnvironmentTempCreatedRecord,
@@ -1267,6 +1339,36 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             ),
             "schema_version": record.schema_version,
         }
+    if type(record) is CertificateRestoreTempCreatedRecord:
+        return {
+            "ca_bundle_temp_identity": (
+                _identity_to_json(record.ca_bundle_temp_identity)
+                if record.ca_bundle_temp_identity is not None
+                else None
+            ),
+            "local_ca_temp_identity": (
+                _identity_to_json(record.local_ca_temp_identity)
+                if record.local_ca_temp_identity is not None
+                else None
+            ),
+            "planned_generation_sha256": record.planned_generation_sha256,
+            "schema_version": record.schema_version,
+        }
+    if type(record) is CertificateRestoreTempVerifiedRecord:
+        return {
+            "ca_bundle_temp_identity": (
+                _identity_to_json(record.ca_bundle_temp_identity)
+                if record.ca_bundle_temp_identity is not None
+                else None
+            ),
+            "created_generation_sha256": record.created_generation_sha256,
+            "local_ca_temp_identity": (
+                _identity_to_json(record.local_ca_temp_identity)
+                if record.local_ca_temp_identity is not None
+                else None
+            ),
+            "schema_version": record.schema_version,
+        }
     environment_record = cast(EnvironmentTempJournalRecord, record)
     common: dict[str, Any] = {
         "candidate_sha256": environment_record.candidate_sha256,
@@ -1665,6 +1767,62 @@ def _record_from_json(
             item["ca_bundle_mode"],
             item["ca_bundle_temp_name"],
         )
+    if state is EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_CREATED:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "ca_bundle_temp_identity",
+                    "local_ca_temp_identity",
+                    "planned_generation_sha256",
+                    "schema_version",
+                }
+            ),
+        )
+        local_identity = item["local_ca_temp_identity"]
+        bundle_identity = item["ca_bundle_temp_identity"]
+        return CertificateRestoreTempCreatedRecord(
+            item["schema_version"],
+            item["planned_generation_sha256"],
+            (
+                _identity_from_json(local_identity)
+                if local_identity is not None
+                else None
+            ),
+            (
+                _identity_from_json(bundle_identity)
+                if bundle_identity is not None
+                else None
+            ),
+        )
+    if state is EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "ca_bundle_temp_identity",
+                    "created_generation_sha256",
+                    "local_ca_temp_identity",
+                    "schema_version",
+                }
+            ),
+        )
+        local_identity = item["local_ca_temp_identity"]
+        bundle_identity = item["ca_bundle_temp_identity"]
+        return CertificateRestoreTempVerifiedRecord(
+            item["schema_version"],
+            item["created_generation_sha256"],
+            (
+                _identity_from_json(local_identity)
+                if local_identity is not None
+                else None
+            ),
+            (
+                _identity_from_json(bundle_identity)
+                if bundle_identity is not None
+                else None
+            ),
+        )
     common = frozenset(
         {
             "candidate_sha256",
@@ -1951,7 +2109,7 @@ def _validate_record_continuity(
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         if len(generations) == 1:
             return
-        if len(generations) not in {2, 3, 4, 5, 6, 7, 8, 9, 10}:
+        if len(generations) not in {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}:
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         verified_generation = generations[1]
         verified = verified_generation.generation.record
@@ -2155,6 +2313,38 @@ def _validate_record_continuity(
             or certificate_plan.ca_bundle_mode != plan.ca_bundle_mode
         ):
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 10:
+            return
+        certificate_created_generation = generations[10]
+        certificate_created = certificate_created_generation.generation.record
+        if (
+            type(certificate_created) is not CertificateRestoreTempCreatedRecord
+            or certificate_created_generation.generation.previous_generation_sha256
+            != certificate_plan_generation.generation_sha256
+            or certificate_created.planned_generation_sha256
+            != certificate_plan_generation.generation_sha256
+            or (certificate_created.local_ca_temp_identity is None)
+            is certificate_plan.local_ca_present
+            or (certificate_created.ca_bundle_temp_identity is None)
+            is certificate_plan.ca_bundle_present
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 11:
+            return
+        certificate_verified_generation = generations[11]
+        certificate_verified = certificate_verified_generation.generation.record
+        if (
+            type(certificate_verified) is not CertificateRestoreTempVerifiedRecord
+            or certificate_verified_generation.generation.previous_generation_sha256
+            != certificate_created_generation.generation_sha256
+            or certificate_verified.created_generation_sha256
+            != certificate_created_generation.generation_sha256
+            or certificate_verified.local_ca_temp_identity
+            != certificate_created.local_ca_temp_identity
+            or certificate_verified.ca_bundle_temp_identity
+            != certificate_created.ca_bundle_temp_identity
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         return
     if type(plan) is not EnvironmentTempPlanRecord:
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
@@ -2246,7 +2436,7 @@ def select_environment_journal_chain(
     )
     if any(item.generation.stream != expected_stream for item in generations):
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
-    if len(generations) > 10:
+    if len(generations) > 12:
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
     digests = tuple(item.generation_sha256 for item in generations)
     if len(set(digests)) != len(digests):
@@ -2263,6 +2453,8 @@ def select_environment_journal_chain(
         EnvironmentJournalState.ENVIRONMENT_RESTORED,
         EnvironmentJournalState.ROLLBACK_RUNTIME_AVAILABLE,
         EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_PLANNED,
+        EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_CREATED,
+        EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED,
     )
     environment_temp_states = (
         EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
@@ -2320,7 +2512,9 @@ def select_environment_journal_chain(
 __all__ = [
     "BackupPreparingRecord",
     "BackupVerifiedRecord",
+    "CertificateRestoreTempCreatedRecord",
     "CertificateRestoreTempPlanRecord",
+    "CertificateRestoreTempVerifiedRecord",
     "EnvironmentAppliedRecord",
     "EnvironmentJournalChainSelection",
     "EnvironmentJournalGeneration",

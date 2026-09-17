@@ -1737,6 +1737,117 @@ def test_environment_restore_verified_and_restored_round_trip_is_bound() -> None
     assert certificate_plan_record.local_ca_sha256 not in rendered
     assert certificate_plan_record.local_ca_temp_name not in rendered
 
+    certificate_created_record = journal.CertificateRestoreTempCreatedRecord(
+        1,
+        certificate_plan.generation_sha256,
+        _identity(23),
+        None,
+    )
+    certificate_created_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        11,
+        certificate_plan.generation_sha256,
+        journal.EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_CREATED,
+        certificate_created_record,
+    )
+    certificate_created = _seal(certificate_created_generation, protection)
+    created_selection = journal.select_environment_journal_chain(
+        (
+            prepared,
+            backup_verified,
+            armed,
+            started,
+            planned,
+            created,
+            verified,
+            restored,
+            runtime_available,
+            certificate_plan,
+            certificate_created,
+        ),
+        _pointer(stream, certificate_created, 11),
+        expected_stream=stream,
+        protection=protection,
+    )
+    assert created_selection.tip == certificate_created_generation
+    assert repr(certificate_created_record.local_ca_temp_identity) not in repr(
+        certificate_created_record
+    )
+
+    certificate_verified_record = journal.CertificateRestoreTempVerifiedRecord(
+        1,
+        certificate_created.generation_sha256,
+        certificate_created_record.local_ca_temp_identity,
+        certificate_created_record.ca_bundle_temp_identity,
+    )
+    certificate_verified_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        12,
+        certificate_created.generation_sha256,
+        journal.EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED,
+        certificate_verified_record,
+    )
+    certificate_verified = _seal(certificate_verified_generation, protection)
+    verified_selection = journal.select_environment_journal_chain(
+        (
+            prepared,
+            backup_verified,
+            armed,
+            started,
+            planned,
+            created,
+            verified,
+            restored,
+            runtime_available,
+            certificate_plan,
+            certificate_created,
+            certificate_verified,
+        ),
+        _pointer(stream, certificate_verified, 12),
+        expected_stream=stream,
+        protection=protection,
+    )
+    assert verified_selection.tip == certificate_verified_generation
+
+    invalid_created = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            11,
+            certificate_plan.generation_sha256,
+            journal.EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_CREATED,
+            journal.CertificateRestoreTempCreatedRecord(
+                1,
+                certificate_plan.generation_sha256,
+                None,
+                None,
+            ),
+        ),
+        protection,
+    )
+    with pytest.raises(journal.RecoveryJournalError) as created_failure:
+        journal.select_environment_journal_chain(
+            (
+                prepared,
+                backup_verified,
+                armed,
+                started,
+                planned,
+                created,
+                verified,
+                restored,
+                runtime_available,
+                certificate_plan,
+                invalid_created,
+            ),
+            None,
+            expected_stream=stream,
+            protection=protection,
+        )
+    assert created_failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+
     drifted_certificate_plan = journal.CertificateRestoreTempPlanRecord(
         1,
         runtime_available.generation_sha256,
