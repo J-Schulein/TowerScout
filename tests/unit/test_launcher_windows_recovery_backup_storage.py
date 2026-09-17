@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import ntpath
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -20,6 +21,9 @@ import towerscout_launcher.windows_recovery as recovery  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
 import towerscout_launcher.windows_recovery_manager as manager  # noqa: E402
+from towerscout_launcher import (  # noqa: E402
+    windows_recovery_cleanup_native as cleanup_native,
+)
 from towerscout_launcher.windows_recovery_certificate_storage import (  # noqa: E402
     CertificateRestoreTempIdentities,
     RecoveryCertificateStorageError,
@@ -40,6 +44,7 @@ from towerscout_launcher.windows_protected_state import (  # noqa: E402
     ProtectedDataPurpose,
 )
 from towerscout_launcher.windows_path_trust import (  # noqa: E402
+    AccessAllowedAce,
     NativeDirectoryFacts,
     NativeSecurityFacts,
     PathHierarchyTrust,
@@ -58,7 +63,10 @@ from towerscout_launcher.windows_recovery_environment_restore_native import (  #
     EnvironmentRestoreStorageError,
     EnvironmentRestoreStorageErrorCode,
 )
-from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
+from towerscout_launcher.windows_security import (  # noqa: E402
+    NativeFileFacts,
+    StableFileIdentity,
+)
 
 _Result = TypeVar("_Result")
 
@@ -4481,3 +4489,435 @@ def test_fresh_process_manager_retries_durable_cleanup_pending_state() -> None:
     )
     assert completed.selection.tip.state is journal.EnvironmentJournalState.CLEANED
     assert len(completed.selection.generations) == 19
+
+
+class _NativeCleanupHandle:
+    def __init__(self, path: str) -> None:
+        self.path = path
+        self.cursor = 0
+
+
+class _NativeCleanupApi:
+    supported = True
+
+    def __init__(
+        self,
+        files: dict[str, tuple[StableFileIdentity, bytes]],
+    ) -> None:
+        self.files = files
+        self.events: list[str] = []
+        self.delete_error_path: str | None = None
+        self.delete_error_after_mark_path: str | None = None
+        self.security_overrides: dict[str, NativeSecurityFacts] = {}
+        self.path_overrides: dict[str, str] = {}
+
+    def current_user_sid(self) -> str:
+        self.events.append("sid")
+        return "S-1-5-21-1000"
+
+    def open_file_for_delete_if_exists(
+        self,
+        path: str,
+    ) -> _NativeCleanupHandle | None:
+        self.events.append(f"delete-open:{path}")
+        return _NativeCleanupHandle(path) if path in self.files else None
+
+    def reopen_file_if_exists(self, path: str) -> _NativeCleanupHandle | None:
+        self.events.append(f"optional:{path}")
+        return _NativeCleanupHandle(path) if path in self.files else None
+
+    def query_file(self, handle: object) -> NativeFileFacts:
+        assert type(handle) is _NativeCleanupHandle
+        identity, contents = self.files[handle.path]
+        self.events.append(f"query:{handle.path}")
+        return NativeFileFacts(
+            self.path_overrides.get(handle.path, handle.path),
+            identity.volume_serial,
+            identity.file_id,
+            0x80,
+            1,
+            len(contents),
+            1,
+            1,
+            3,
+            1,
+            0,
+        )
+
+    def query_security(self, handle: object) -> NativeSecurityFacts:
+        assert type(handle) is _NativeCleanupHandle
+        self.events.append(f"security:{handle.path}")
+        return self.security_overrides.get(
+            handle.path,
+            NativeSecurityFacts(
+                "S-1-5-21-1000",
+                True,
+                (
+                    AccessAllowedAce("S-1-5-21-1000", 0x001F01FF, 0),
+                    AccessAllowedAce("S-1-5-18", 0x001F01FF, 0),
+                ),
+                dacl_protected=True,
+            ),
+        )
+
+    def seek_file(self, handle: object, offset: int) -> None:
+        assert type(handle) is _NativeCleanupHandle
+        handle.cursor = offset
+
+    def read_file(self, handle: object, maximum: int) -> bytes:
+        assert type(handle) is _NativeCleanupHandle
+        contents = self.files[handle.path][1]
+        result = contents[handle.cursor : handle.cursor + maximum]
+        handle.cursor += len(result)
+        return result
+
+    def mark_file_for_deletion(self, handle: object) -> None:
+        assert type(handle) is _NativeCleanupHandle
+        self.events.append(f"delete:{handle.path}")
+        if self.delete_error_path == handle.path:
+            raise OSError("private recovery artifact path")
+        del self.files[handle.path]
+        if self.delete_error_after_mark_path == handle.path:
+            raise OSError("private recovery artifact path")
+
+    def close_handle(self, handle: object) -> None:
+        assert type(handle) is _NativeCleanupHandle
+        self.events.append(f"close:{handle.path}")
+
+
+def _recovery_chain(
+    stream: journal.JournalStreamIdentity,
+    root: _Root,
+    generations: _GenerationStorage,
+    protection: _Protection,
+) -> storage.PersistedEnvironmentJournalChain:
+    chain = storage.load_persisted_environment_journal_chain_with_pointer(
+        stream,
+        root=root,
+        generation_storage=generations,
+        pointer_storage=generations,
+        protection=protection,
+    )
+    assert chain is not None
+    return chain
+
+
+def _native_cleanup_files(
+    chain: storage.PersistedEnvironmentJournalChain,
+    protection: _Protection,
+) -> tuple[
+    dict[str, tuple[StableFileIdentity, bytes]],
+    dict[str, str],
+]:
+    generations = chain.selection.generations
+    preparing = generations[0].record
+    verified_backups = generations[1].record
+    environment_plan = generations[4].record
+    environment_verified = generations[6].record
+    certificate_plan = generations[9].record
+    certificate_verified = generations[11].record
+    assert type(preparing) is journal.BackupPreparingRecord
+    assert type(verified_backups) is journal.BackupVerifiedRecord
+    assert type(environment_plan) is journal.EnvironmentRestoreTempPlanRecord
+    environment_verified_type = journal.EnvironmentRestoreTempVerifiedRecord
+    assert type(environment_verified) is environment_verified_type
+    assert type(certificate_plan) is journal.CertificateRestoreTempPlanRecord
+    certificate_verified_type = journal.CertificateRestoreTempVerifiedRecord
+    assert type(certificate_verified) is certificate_verified_type
+
+    _stream_value, environment, certificates = _sealed_backups(protection)
+    protected_root = r"C:\Users\private\AppData\Local\TowerScout\Recovery\v1"
+    package_root = r"C:\Users\reviewed-user\TowerScout"
+    paths = {
+        "environment_backup": ntpath.join(
+            protected_root,
+            preparing.environment_backup_name,
+        ),
+        "certificate_backup": ntpath.join(
+            protected_root,
+            preparing.certificate_backup_name,
+        ),
+    }
+    files = {
+        paths["environment_backup"]: (
+            verified_backups.environment_backup_identity,
+            environment.protected_blob.ciphertext,
+        ),
+        paths["certificate_backup"]: (
+            verified_backups.certificate_backup_identity,
+            certificates.protected_blob.ciphertext,
+        ),
+    }
+    if environment_plan.environment_present:
+        assert environment_plan.temp_name is not None
+        assert environment_verified.temp_identity is not None
+        paths["environment_temp"] = ntpath.join(
+            package_root,
+            environment_plan.temp_name,
+        )
+        files[paths["environment_temp"]] = (
+            environment_verified.temp_identity,
+            b"GOOGLE_API_KEY=private-value\r\n",
+        )
+    if certificate_plan.local_ca_present:
+        assert certificate_plan.local_ca_temp_name is not None
+        assert certificate_verified.local_ca_temp_identity is not None
+        paths["local_ca_temp"] = ntpath.join(
+            protected_root,
+            certificate_plan.local_ca_temp_name,
+        )
+        files[paths["local_ca_temp"]] = (
+            certificate_verified.local_ca_temp_identity,
+            b"private-local-ca",
+        )
+    return files, paths
+
+
+def _persist_native_cleanup(
+    stream: journal.JournalStreamIdentity,
+    root: _Root,
+    generations: _GenerationStorage,
+    package_root: PathHierarchyTrust,
+    protection: _Protection,
+    cleanup: cleanup_native.NativeWindowsRecoveryCleanup,
+) -> storage.PersistedEnvironmentJournalChain:
+    persist_cleaned = (
+        recovery.persist_recovery_cleaned_generation_from_held_package_root
+    )
+    return package_root.run_while_held(
+        lambda: persist_cleaned(
+            stream=stream,
+            package_root=package_root,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            cleanup=cleanup,
+            journal_protection=protection,
+        )
+    )
+
+
+def test_native_cleanup_deletes_exact_artifacts_and_reverifies() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_rollback_verified_state(
+        protection
+    )
+    chain = _recovery_chain(stream, root, generations, protection)
+    files, paths = _native_cleanup_files(chain, protection)
+    api = _NativeCleanupApi(files)
+    cleanup = cleanup_native.NativeWindowsRecoveryCleanup(api=api)
+    try:
+        first = _persist_native_cleanup(
+            stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            cleanup,
+        )
+        cleanup_error = cleanup_native.RecoveryCleanupStorageError
+        run = cleanup.cleanup_rollback_artifacts_while_package_root_held
+        with pytest.raises(cleanup_error) as denied:
+            package_root.run_while_held(
+                lambda: run(
+                    package_root,
+                    r"C:\Users\private\AppData\Local\TowerScout\Recovery\v1",
+                    stream,
+                    first,
+                )
+            )
+        second = _persist_native_cleanup(
+            stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            cleanup,
+        )
+    finally:
+        package_root.close()
+
+    assert api.files == {}
+    assert denied.value.code is (
+        cleanup_native.RecoveryCleanupStorageErrorCode.AUTHORITY_INVALID
+    )
+    assert first.selection.tip == second.selection.tip
+    cleaned_state = journal.EnvironmentJournalState.CLEANED
+    assert second.selection.tip.state is cleaned_state
+    assert len(second.selection.generations) == 18
+    assert {event for event in api.events if event.startswith("delete:")} == {
+        f"delete:{path}" for path in paths.values()
+    }
+    for path in paths.values():
+        assert api.events.count(f"query:{path}") == 2
+        assert api.events.count(f"security:{path}") == 2
+
+
+def test_native_cleanup_partial_failure_persists_then_resumes() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_rollback_verified_state(
+        protection
+    )
+    chain = _recovery_chain(stream, root, generations, protection)
+    files, paths = _native_cleanup_files(chain, protection)
+    api = _NativeCleanupApi(files)
+    api.delete_error_path = paths["local_ca_temp"]
+    cleanup = cleanup_native.NativeWindowsRecoveryCleanup(api=api)
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            _persist_native_cleanup(
+                stream,
+                root,
+                generations,
+                package_root,
+                protection,
+                cleanup,
+            )
+        pending = _recovery_chain(stream, root, generations, protection)
+        assert paths["environment_temp"] not in api.files
+        assert paths["local_ca_temp"] in api.files
+        api.delete_error_path = None
+        cleaned = _persist_native_cleanup(
+            stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            cleanup,
+        )
+    finally:
+        package_root.close()
+
+    expected_error = recovery.WindowsRecoveryErrorCode.CLEANUP_PENDING
+    assert failure.value.code is expected_error
+    assert "private" not in str(failure.value)
+    assert pending.selection.tip.state is (
+        journal.EnvironmentJournalState.RECOVERY_CLEANUP_PENDING
+    )
+    assert len(cleaned.selection.generations) == 19
+    cleaned_state = journal.EnvironmentJournalState.CLEANED
+    assert cleaned.selection.tip.state is cleaned_state
+    assert api.files == {}
+
+
+@pytest.mark.parametrize(
+    "failure_mode",
+    ("contents", "identity", "path", "security"),
+)
+def test_native_cleanup_preserves_ambiguous_artifact_and_never_claims_clean(
+    failure_mode: str,
+) -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_rollback_verified_state(
+        protection
+    )
+    chain = _recovery_chain(stream, root, generations, protection)
+    files, paths = _native_cleanup_files(chain, protection)
+    backup_path = paths["environment_backup"]
+    identity, contents = files[backup_path]
+    if failure_mode == "contents":
+        files[backup_path] = (identity, b"x" * len(contents))
+    elif failure_mode == "identity":
+        files[backup_path] = (_identity(99), contents)
+    api = _NativeCleanupApi(files)
+    if failure_mode == "path":
+        api.path_overrides[backup_path] = ntpath.join(
+            ntpath.dirname(backup_path),
+            "unrelated.blob",
+        )
+    elif failure_mode == "security":
+        api.security_overrides[backup_path] = NativeSecurityFacts(
+            "S-1-5-21-1000",
+            True,
+            (AccessAllowedAce("S-1-5-21-1000", 0x001F01FF, 0),),
+            dacl_protected=True,
+        )
+    cleanup = cleanup_native.NativeWindowsRecoveryCleanup(api=api)
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            _persist_native_cleanup(
+                stream,
+                root,
+                generations,
+                package_root,
+                protection,
+                cleanup,
+            )
+        pending = _recovery_chain(stream, root, generations, protection)
+    finally:
+        package_root.close()
+
+    expected_error = recovery.WindowsRecoveryErrorCode.CLEANUP_PENDING
+    assert failure.value.code is expected_error
+    assert pending.selection.tip.state is (
+        journal.EnvironmentJournalState.RECOVERY_CLEANUP_PENDING
+    )
+    assert backup_path in api.files
+    assert f"delete:{backup_path}" not in api.events
+
+
+def test_native_cleanup_reconciles_error_after_exact_absence() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_rollback_verified_state(
+        protection
+    )
+    chain = _recovery_chain(stream, root, generations, protection)
+    files, paths = _native_cleanup_files(chain, protection)
+    api = _NativeCleanupApi(files)
+    api.delete_error_after_mark_path = paths["certificate_backup"]
+    cleanup = cleanup_native.NativeWindowsRecoveryCleanup(api=api)
+    try:
+        cleaned = _persist_native_cleanup(
+            stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            cleanup,
+        )
+    finally:
+        package_root.close()
+
+    cleaned_state = journal.EnvironmentJournalState.CLEANED
+    assert cleaned.selection.tip.state is cleaned_state
+    assert api.files == {}
+
+
+def test_native_cleanup_reverify_preserves_recreated_name() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_rollback_verified_state(
+        protection
+    )
+    chain = _recovery_chain(stream, root, generations, protection)
+    files, paths = _native_cleanup_files(chain, protection)
+    original_files = dict(files)
+    api = _NativeCleanupApi(files)
+    cleanup = cleanup_native.NativeWindowsRecoveryCleanup(api=api)
+    try:
+        _persist_native_cleanup(
+            stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            cleanup,
+        )
+        recreated_path = paths["environment_backup"]
+        _identity_value, contents = original_files[recreated_path]
+        api.files[recreated_path] = (_identity(99), contents)
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            _persist_native_cleanup(
+                stream,
+                root,
+                generations,
+                package_root,
+                protection,
+                cleanup,
+            )
+    finally:
+        package_root.close()
+
+    expected_error = recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
+    assert failure.value.code is expected_error
+    assert recreated_path in api.files
+    assert api.events.count(f"delete:{recreated_path}") == 1
