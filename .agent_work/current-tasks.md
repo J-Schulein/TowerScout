@@ -182,11 +182,11 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `6d2ade4` adds authenticated hashes-only runtime,
-  image, Compose, and all-volume recreation authority to the exact certificate
-  candidates, retained-runtime, hardened provider `.env`, fresh-process
-  manager, and native terminal-cleanup chain. `42ac83e` is the validated exact
-  head: CI/CD run `35278278490`, Task-087 run `35278278483`, and Trivy passed.
+- Task-087 implementation head `da09dff` adds the provider and Windows-root
+  fingerprint needed for fresh-process target-plan reconstruction to the
+  authenticated hashes-only runtime, image, Compose, all-volume, and exact
+  certificate authority. `3d1f99d` is the validated exact head: CI/CD run
+  `35279748675`, Task-087 run `35279748728`, and Trivy passed.
   Missing-container observation/recreation, the native recovery ports,
   transaction integration, and live trust/runtime proof remain; PR #67 remains
   Draft.

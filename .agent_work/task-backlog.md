@@ -59,6 +59,11 @@ and repairs only the exact generation-7 pointer; secure absence performs no
 storage call. Exact-head CI/CD run `35238335037`, Task-087 run `35238334999`,
 and Trivy pass; the main-only build is neutral as designed. `.env`
 replacement/removal and later recovery/runtime mutation remain disabled.
+Checkpoint `da09dff` also persists the selected provider and Windows-root
+fingerprint in authenticated generation 1 so fresh-process recovery can rebuild
+the original target-plan certificate identity without certificate bytes or a
+new trust-selection call. Missing-container recreation and the remaining native
+recovery ports are still open.
 After Gate A source
 acceptance and the PR #67 merge decision, complete Task-096 lifecycle controls
 and Task-102 native first-run setup before resuming Task-087 Gate B normal-

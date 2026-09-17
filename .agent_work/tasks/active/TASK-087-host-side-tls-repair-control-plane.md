@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `6d2ade4`; `42ac83e` is the validated exact head.
+implementation head is `da09dff`; `3d1f99d` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -22,7 +22,12 @@ generation-1 candidate hashes, sizes, and fixed modes. Its `69/69` focused and
 filesystem sandbox after sandbox-only pytest teardown denials. Checkpoint
 `6d2ade4` adds authenticated hashes-only authority for the stage-stable runtime,
 endpoint, image, Compose profile/port, and all eight volumes. Its `233/233`
-affected tests and expanded `466/466` recovery ring pass. Missing-container
+affected tests and expanded `466/466` recovery ring pass. Checkpoint `da09dff`
+adds the provider and lowercase SHA-256 Windows-root fingerprint to the exact
+certificate plan and authenticated generation 1, enabling fresh-process plan
+reconstruction without persisting certificate bytes or rerunning trust
+selection. Its focused recovery/provider tests pass `233/233`, and focused
+static/security checks pass. Missing-container
 observation/recreation remains open. Remaining Gate A implementation is that recreation
 boundary, native certificate application/restore,
 runtime-restart, and rollback-verification adapters plus the `repair.py`
@@ -190,9 +195,20 @@ and one quoted-wildcard zero-collection command were corrected and superseded
 by those passing runs. Strict typing, blocking lint/complexity, Bandit,
 compilation, Python 3.11 grammar, and diff checks pass. No live runtime mutation
 was performed.
+Committed checkpoint `da09dff` persists the exact certificate identity needed
+to reconstruct the original target plan during fresh-process rollback. The
+strict plan and generation-1 codec accept only the original `MapProvider` and a
+lowercase SHA-256 Windows-root fingerprint; backup preparation copies both from
+the already selected certificate plan, and representations remain redacted.
+Focused certificate/recovery/provider tests pass `233/233`. Isolated per-file
+Black checks, strict mypy, blocking Flake8, Bandit, compilation, Python 3.11
+grammar, and diff checks pass. One multi-file Black check stalled without
+output, was interrupted, and was superseded by all nine isolated per-file
+checks passing. No certificate bytes, trust-store mutation, or runtime mutation
+was introduced.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `6d2ade4` against the fixed acceptance
+**Estimated Effort**: Rebaseline after `da09dff` against the fixed acceptance
 criteria rather than commit count. Remaining missing-container recreation and
 native recovery adapters,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
