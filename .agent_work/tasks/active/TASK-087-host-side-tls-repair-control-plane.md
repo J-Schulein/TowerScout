@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `9b12645`; `211db7f` is the validated exact head.
+implementation head is `351c9a9`; `e4ca5ce` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -32,10 +32,18 @@ observation under retained native authority. It reconstructs the original plan
 without a trust-selection call, twice proves exact absence plus the pinned image
 and all eight volumes, and re-derives the persisted rollback-runtime authority.
 Focused tests pass `224/224`; broader clean evidence passes `566/566` non-native
-plus `96/96` native tests. Exact prior-profile recreation remains open.
-Remaining Gate A implementation is that recreation boundary, native certificate
-application/restore, runtime-restart, and rollback-verification adapters plus the `repair.py`
-transaction refactor/integration. The successful Windows trust and isolated
+plus `96/96` native tests. Checkpoint `351c9a9` adds exact prior-profile
+recreation: the absent owner revalidates the same absence before a fixed
+volume-preserving command, Docker and Podman retain their required containment,
+and four exact post-command captures must re-derive the original runtime
+authority before a present owner is returned. Post-format focused/adjacent tests
+pass `386/386`, and the broad selected recovery/runtime ring passes `840/840`.
+The initial `231/233` test-placement failures were fixed before `234/234`
+passed, the two newly introduced test-only Bandit findings were removed, and a
+non-executing PowerShell grammar-command quoting error was superseded by a clean
+eight-file Python 3.11 parse. Remaining Gate A implementation is native
+certificate application/restore, runtime-restart, and rollback-verification
+adapters plus the `repair.py` transaction refactor/integration. The successful Windows trust and isolated
 Docker/rootless-Podman evidence remains pending a supported context and the
 required runtime-readiness confirmation. Repair/runtime integration remains
 disabled.
