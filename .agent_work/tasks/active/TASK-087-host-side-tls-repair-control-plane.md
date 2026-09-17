@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `6bc37b3`; `eb76746` is the validated exact head.
+implementation head is `6d2ade4`; `42ac83e` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -19,8 +19,11 @@ read-only retained-existing-container availability adapter; its `8/8` focused,
 `6bc37b3` adds exact certificate replacement planning plus authenticated
 generation-1 candidate hashes, sizes, and fixed modes. Its `69/69` focused and
 `458/458` recovery-ring tests pass; native ACL tests were rerun outside the
-filesystem sandbox after sandbox-only pytest teardown denials. Missing-container
-recreation remains open. Remaining Gate A implementation is that recreation
+filesystem sandbox after sandbox-only pytest teardown denials. Checkpoint
+`6d2ade4` adds authenticated hashes-only authority for the stage-stable runtime,
+endpoint, image, Compose profile/port, and all eight volumes. Its `233/233`
+affected tests and expanded `466/466` recovery ring pass. Missing-container
+observation/recreation remains open. Remaining Gate A implementation is that recreation
 boundary, native certificate application/restore,
 runtime-restart, and rollback-verification adapters plus the `repair.py`
 transaction refactor/integration. The successful Windows trust and isolated
@@ -176,9 +179,20 @@ the new exact-head workflows remain pending.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
+Committed checkpoint `6d2ade4` derives one redacted rollback-runtime authority
+from the exact pre-mutation target and stores only its runtime and ordered
+all-volume hashes plus the prior-running condition in authenticated generation
+1. The recovery manager supplies that authority to the availability port; the
+retained-container adapter and journal-chain continuity validator both reject
+runtime or volume drift. Affected tests pass `233/233`, and the expanded native
+recovery ring passes `466/466`. The intermediate seven fixture-wiring failures
+and one quoted-wildcard zero-collection command were corrected and superseded
+by those passing runs. Strict typing, blocking lint/complexity, Bandit,
+compilation, Python 3.11 grammar, and diff checks pass. No live runtime mutation
+was performed.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `6bc37b3` against the fixed acceptance
+**Estimated Effort**: Rebaseline after `6d2ade4` against the fixed acceptance
 criteria rather than commit count. Remaining missing-container recreation and
 native recovery adapters,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
