@@ -143,6 +143,11 @@ def _backup_preparing_record(
         environment_candidate_sha256="a" * 64,
         environment_candidate_size=37,
         environment_present=environment_present,
+        rollback_runtime_evidence_sha256="1" * 64,
+        rollback_volume_evidence_sha256s=tuple(
+            f"{value:x}" * 64 for value in range(3, 11)
+        ),
+        runtime_was_running=True,
         environment_original_identity=_identity(8) if environment_present else None,
         environment_sha256="c" * 64 if environment_present else None,
         environment_file_attributes=0x20 if environment_present else None,
@@ -2139,6 +2144,42 @@ def test_environment_restore_verified_and_restored_round_trip_is_bound() -> None
             protection=protection,
         )
     assert runtime_failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+
+    drifted_runtime_authority = replace(
+        runtime_record,
+        runtime_evidence_sha256="8" * 64,
+    )
+    invalid_runtime_authority = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            9,
+            restored.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_RUNTIME_AVAILABLE,
+            drifted_runtime_authority,
+        ),
+        protection,
+    )
+    with pytest.raises(journal.RecoveryJournalError) as authority_failure:
+        journal.select_environment_journal_chain(
+            (
+                prepared,
+                backup_verified,
+                armed,
+                started,
+                planned,
+                created,
+                verified,
+                restored,
+                invalid_runtime_authority,
+            ),
+            None,
+            expected_stream=stream,
+            protection=protection,
+        )
+    assert (
+        authority_failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+    )
 
     drifted_restored = journal.EnvironmentRestoredRecord(
         1,

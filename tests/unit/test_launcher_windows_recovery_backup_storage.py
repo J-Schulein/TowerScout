@@ -69,6 +69,9 @@ from towerscout_launcher.windows_recovery_environment_restore_native import (  #
     EnvironmentRestoreStorageError,
     EnvironmentRestoreStorageErrorCode,
 )
+from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E402
+    RollbackRuntimeRecoveryAuthority,
+)
 from towerscout_launcher.windows_security import (  # noqa: E402
     NativeFileFacts,
     StableFileIdentity,
@@ -91,6 +94,17 @@ def _certificate_plan() -> CertificateReplacementPlan:
         MapProvider.GOOGLE,
         local_ca,
         b"system-bundle\n" + local_ca,
+    )
+
+
+def _runtime_authority() -> RollbackRuntimeRecoveryAuthority:
+    return RollbackRuntimeRecoveryAuthority(
+        1,
+        "b" * 64,
+        _identity(7),
+        "1" * 64,
+        tuple(f"{value:x}" * 64 for value in range(3, 11)),
+        True,
     )
 
 
@@ -295,9 +309,11 @@ class _RuntimeAvailability:
         self,
         package_root: PathHierarchyTrust,
         stream: journal.JournalStreamIdentity,
+        authority: RollbackRuntimeRecoveryAuthority,
     ) -> recovery.RollbackRuntimeAvailabilityEvidence:
         package_root.assert_unchanged_while_held()
         assert stream.target_token_sha256 == self.evidence.target_token_sha256
+        assert authority == _runtime_authority()
         self.calls += 1
         if self.error is not None:
             raise self.error
@@ -795,6 +811,7 @@ def _prepared(
         certificates,
         environment_plan=environment_plan,
         certificate_plan=_certificate_plan(),
+        runtime_authority=_runtime_authority(),
         stream=stream,
         name_source=_NameSource(),
         root=root,

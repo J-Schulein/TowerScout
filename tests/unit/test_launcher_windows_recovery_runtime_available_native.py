@@ -35,6 +35,9 @@ from towerscout_launcher.windows_recovery_runtime_available_native import (  # n
     NativeWindowsExistingRollbackRuntimeAvailability,
     capture_native_existing_rollback_runtime,
 )
+from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E402
+    RollbackRuntimeRecoveryAuthority,
+)
 from towerscout_launcher.windows_security import (  # noqa: E402
     StableFileIdentity,
 )
@@ -96,6 +99,17 @@ def _observation(
 
 def _stream() -> JournalStreamIdentity:
     return JournalStreamIdentity(1, "a" * 32, "b" * 64, _identity(7))
+
+
+def _authority() -> RollbackRuntimeRecoveryAuthority:
+    return RollbackRuntimeRecoveryAuthority(
+        1,
+        "b" * 64,
+        _identity(7),
+        "c" * 64,
+        tuple(_digest(str(index)) for index in range(8)),
+        True,
+    )
 
 
 class _Owner:
@@ -185,6 +199,7 @@ def test_adapter_attests_retained_runtime_under_matching_package_root():
             lambda: adapter.establish_rollback_runtime_while_package_root_held(
                 package_root,
                 _stream(),
+                _authority(),
             )
         )
     finally:
@@ -215,6 +230,7 @@ def test_adapter_rejects_wrong_target_without_exposing_details(observed):
                 lambda: adapter.establish_rollback_runtime_while_package_root_held(
                     package_root,
                     _stream(),
+                    _authority(),
                 )
             )
     finally:
@@ -247,6 +263,7 @@ def test_adapter_rejects_wrong_package_root_before_capture():
                 lambda: adapter.establish_rollback_runtime_while_package_root_held(
                     package_root,
                     wrong_stream,
+                    _authority(),
                 )
             )
     finally:
@@ -274,6 +291,7 @@ def test_adapter_sanitizes_capture_failure():
                 lambda: adapter.establish_rollback_runtime_while_package_root_held(
                     package_root,
                     _stream(),
+                    _authority(),
                 )
             )
     finally:

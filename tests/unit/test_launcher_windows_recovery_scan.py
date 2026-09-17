@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -156,6 +157,12 @@ def _chain(
             "e" * 64,
             12,
             False,
+            "f" * 64,
+            tuple(
+                hashlib.sha256(str(index).encode("ascii")).hexdigest()
+                for index in range(8)
+            ),
+            True,
             local_ca_candidate_sha256="1" * 64,
             local_ca_candidate_size=100,
             local_ca_candidate_mode=0o644,

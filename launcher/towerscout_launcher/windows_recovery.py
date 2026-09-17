@@ -99,6 +99,7 @@ from .windows_recovery_journal_storage import (
     ensure_persisted_environment_journal_pointer_from_held_root,
     load_persisted_environment_journal_chain_from_held_root,
 )
+from .windows_recovery_runtime_authority import RollbackRuntimeRecoveryAuthority
 from .windows_path_trust import PathHierarchyTrust, PathTrustPurpose
 from .windows_security import StableFileIdentity, WindowsSecurityError
 
@@ -674,6 +675,7 @@ class RollbackRuntimeAvailabilityPort(Protocol):
         self,
         package_root: PathHierarchyTrust,
         stream: JournalStreamIdentity,
+        authority: RollbackRuntimeRecoveryAuthority,
     ) -> RollbackRuntimeAvailabilityEvidence: ...
 
 
@@ -1865,11 +1867,13 @@ def _establish_rollback_runtime(
     availability: RollbackRuntimeAvailabilityPort,
     package_root: PathHierarchyTrust,
     stream: JournalStreamIdentity,
+    authority: RollbackRuntimeRecoveryAuthority,
 ) -> RollbackRuntimeAvailabilityEvidence:
     try:
         evidence = availability.establish_rollback_runtime_while_package_root_held(
             package_root,
             stream,
+            authority,
         )
     except Exception:
         _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
@@ -1877,6 +1881,8 @@ def _establish_rollback_runtime(
         type(evidence) is not RollbackRuntimeAvailabilityEvidence
         or evidence.target_token_sha256 != stream.target_token_sha256
         or evidence.package_root_identity != stream.package_root_identity
+        or evidence.runtime_evidence_sha256 != authority.runtime_evidence_sha256
+        or evidence.volume_evidence_sha256s != authority.volume_evidence_sha256s
     ):
         _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
     return evidence
@@ -1920,7 +1926,7 @@ def persist_rollback_runtime_available_generation_from_held_package_root(
     def establish_and_record(root_path: str) -> PersistedEnvironmentJournalChain:
         _assert_held_package_root(package_root, stream)
         chain = _load_chain(root_path, stream, journal_storage, journal_protection)
-        _recovery_records(chain)
+        preparing, _armed = _recovery_records(chain)
         generations = chain.selection.generations
         if len(generations) not in {8, 9}:
             _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
@@ -1938,10 +1944,22 @@ def persist_rollback_runtime_available_generation_from_held_package_root(
                 is not EnvironmentJournalState.ENVIRONMENT_RESTORED
             ):
                 _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        try:
+            authority = RollbackRuntimeRecoveryAuthority(
+                1,
+                stream.target_token_sha256,
+                stream.package_root_identity,
+                preparing.rollback_runtime_evidence_sha256,
+                preparing.rollback_volume_evidence_sha256s,
+                preparing.runtime_was_running,
+            )
+        except ValueError:
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
         evidence = _establish_rollback_runtime(
             runtime_availability,
             package_root,
             stream,
+            authority,
         )
         _assert_held_package_root(package_root, stream)
 

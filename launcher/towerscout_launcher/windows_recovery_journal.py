@@ -159,6 +159,9 @@ class BackupPreparingRecord:
     environment_candidate_sha256: str = field(repr=False)
     environment_candidate_size: int
     environment_present: bool
+    rollback_runtime_evidence_sha256: str = field(repr=False)
+    rollback_volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
+    runtime_was_running: bool
     environment_original_identity: StableFileIdentity | None = field(
         default=None,
         repr=False,
@@ -196,6 +199,16 @@ class BackupPreparingRecord:
             or type(self.environment_candidate_size) is not int
             or not 1 <= self.environment_candidate_size <= _MAX_ENVIRONMENT_BYTES
             or type(self.environment_present) is not bool
+            or not _valid_hash(self.rollback_runtime_evidence_sha256)
+            or type(self.rollback_volume_evidence_sha256s) is not tuple
+            or len(self.rollback_volume_evidence_sha256s) != 8
+            or any(
+                not _valid_hash(value)
+                for value in self.rollback_volume_evidence_sha256s
+            )
+            or len(set(self.rollback_volume_evidence_sha256s)) != 8
+            or type(self.runtime_was_running) is not bool
+            or self.runtime_was_running is not True
             or type(self.local_ca_present) is not bool
             or type(self.ca_bundle_present) is not bool
             or not _valid_hash(self.local_ca_candidate_sha256)
@@ -262,6 +275,7 @@ class BackupPreparingRecord:
             "BackupPreparingRecord("
             f"environment_candidate_size={self.environment_candidate_size!r}, "
             f"environment_present={self.environment_present!r}, "
+            f"runtime_was_running={self.runtime_was_running!r}, "
             f"local_ca_present={self.local_ca_present!r}, "
             f"ca_bundle_present={self.ca_bundle_present!r}, "
             f"local_ca_candidate_size={self.local_ca_candidate_size!r}, "
@@ -1414,6 +1428,13 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             "local_ca_candidate_sha256": record.local_ca_candidate_sha256,
             "local_ca_candidate_size": record.local_ca_candidate_size,
             "package_root_identity": _identity_to_json(record.package_root_identity),
+            "rollback_runtime_evidence_sha256": (
+                record.rollback_runtime_evidence_sha256
+            ),
+            "rollback_volume_evidence_sha256s": list(
+                record.rollback_volume_evidence_sha256s
+            ),
+            "runtime_was_running": record.runtime_was_running,
             "schema_version": record.schema_version,
         }
     if type(record) is BackupVerifiedRecord:
@@ -1775,11 +1796,17 @@ def _record_from_json(
                     "local_ca_candidate_sha256",
                     "local_ca_candidate_size",
                     "package_root_identity",
+                    "rollback_runtime_evidence_sha256",
+                    "rollback_volume_evidence_sha256s",
+                    "runtime_was_running",
                     "schema_version",
                 }
             ),
         )
         environment_original_identity = item["environment_original_identity"]
+        rollback_volume_evidence = item["rollback_volume_evidence_sha256s"]
+        if type(rollback_volume_evidence) is not list:
+            raise ValueError("Rollback volume recovery authority is invalid.")
         return BackupPreparingRecord(
             item["schema_version"],
             _identity_from_json(item["package_root_identity"]),
@@ -1788,6 +1815,9 @@ def _record_from_json(
             item["environment_candidate_sha256"],
             item["environment_candidate_size"],
             item["environment_present"],
+            item["rollback_runtime_evidence_sha256"],
+            tuple(rollback_volume_evidence),
+            item["runtime_was_running"],
             (
                 _identity_from_json(environment_original_identity)
                 if environment_original_identity is not None
@@ -2803,6 +2833,8 @@ def _validate_record_continuity(
             or runtime.environment_restored_generation_sha256
             != restored_generation.generation_sha256
             or runtime.package_root_identity != restored.package_root_identity
+            or runtime.runtime_evidence_sha256 != plan.rollback_runtime_evidence_sha256
+            or runtime.volume_evidence_sha256s != plan.rollback_volume_evidence_sha256s
         ):
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         if len(generations) == 9:

@@ -19,7 +19,6 @@ from typing import Any, Callable, NoReturn, Protocol
 from .runtime_target_factory import capture_native_windows_resolved_target
 from .runtime_target_resolution import BoundResolvedRepairTarget
 from .target_contracts import (
-    EXPECTED_VOLUME_DESTINATIONS,
     MapProvider,
     ResolvedRepairTarget,
 )
@@ -29,11 +28,13 @@ from .windows_path_trust import (
 )
 from .windows_recovery import RollbackRuntimeAvailabilityEvidence
 from .windows_recovery_journal import JournalStreamIdentity
+from .windows_recovery_runtime_authority import (
+    RollbackRuntimeRecoveryAuthority,
+    derive_rollback_runtime_recovery_authority,
+)
 from .windows_security import StableFileIdentity
 
-_RUNTIME_EVIDENCE_DOMAIN = b"TowerScout.RollbackRuntimeAvailability.Runtime.v1"
 _CONTAINER_EVIDENCE_DOMAIN = b"TowerScout.RollbackRuntimeAvailability.Container.v1"
-_VOLUME_EVIDENCE_DOMAIN = b"TowerScout.RollbackRuntimeAvailability.Volume.v1"
 
 
 class NativeRollbackRuntimeAvailabilityErrorCode(str, Enum):
@@ -134,41 +135,6 @@ def _evidence_sha256(domain: bytes, values: tuple[str, ...]) -> str:
     return digest.hexdigest()
 
 
-def _stable_identity(target: ResolvedRepairTarget) -> StableFileIdentity:
-    try:
-        return StableFileIdentity(
-            target.package_root.volume_serial,
-            target.package_root.file_id,
-        )
-    except (TypeError, ValueError):
-        _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
-
-
-def _runtime_evidence(target: ResolvedRepairTarget) -> str:
-    runtime = target.runtime
-    endpoint = target.endpoint
-    provider = target.compose_provider
-    executable = runtime.executable
-    return _evidence_sha256(
-        _RUNTIME_EVIDENCE_DOMAIN,
-        (
-            target.target_token.digest_sha256,
-            runtime.product.value,
-            runtime.version,
-            str(executable.volume_serial),
-            executable.file_id.hex(),
-            executable.sha256,
-            runtime.publisher_policy_sha256,
-            endpoint.kind.value,
-            endpoint.private_metadata_sha256,
-            provider.invocation_kind.value,
-            provider.endpoint_binding.value,
-            provider.integrity_sha256,
-            target.compose.pre_model_sha256,
-        ),
-    )
-
-
 def _container_evidence(target: ResolvedRepairTarget) -> str:
     container = target.container
     return _evidence_sha256(
@@ -182,44 +148,20 @@ def _container_evidence(target: ResolvedRepairTarget) -> str:
     )
 
 
-def _volume_evidence(target: ResolvedRepairTarget) -> tuple[str, ...]:
-    expected = EXPECTED_VOLUME_DESTINATIONS
-    if len(target.volumes) != len(expected) or any(
-        (volume.logical_name, volume.destination) != expected_item
-        for volume, expected_item in zip(target.volumes, expected, strict=True)
-    ):
-        _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
-    evidence = tuple(
-        _evidence_sha256(
-            _VOLUME_EVIDENCE_DOMAIN,
-            (
-                target.target_token.digest_sha256,
-                volume.logical_name,
-                volume.runtime_name,
-                volume.destination,
-                volume.private_inspect_sha256,
-            ),
-        )
-        for volume in target.volumes
-    )
-    if len(set(evidence)) != len(expected):
-        _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
-    return evidence
-
-
 def _observation_from_target(
     target: ResolvedRepairTarget,
 ) -> ExistingRollbackRuntimeObservation:
     if type(target) is not ResolvedRepairTarget:
         _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
     try:
+        authority = derive_rollback_runtime_recovery_authority(target)
         return ExistingRollbackRuntimeObservation(
             1,
-            target.target_token.digest_sha256,
-            _stable_identity(target),
-            _runtime_evidence(target),
+            authority.target_token_sha256,
+            authority.package_root_identity,
+            authority.runtime_evidence_sha256,
             _container_evidence(target),
-            _volume_evidence(target),
+            authority.volume_evidence_sha256s,
         )
     except NativeRollbackRuntimeAvailabilityError:
         raise
@@ -313,10 +255,19 @@ class NativeWindowsExistingRollbackRuntimeAvailability:
         self,
         package_root: PathHierarchyTrust,
         stream: JournalStreamIdentity,
+        authority: RollbackRuntimeRecoveryAuthority,
     ) -> RollbackRuntimeAvailabilityEvidence:
-        if type(stream) is not JournalStreamIdentity:
+        if (
+            type(stream) is not JournalStreamIdentity
+            or type(authority) is not RollbackRuntimeRecoveryAuthority
+        ):
             _fail(NativeRollbackRuntimeAvailabilityErrorCode.INPUT_INVALID)
         _assert_package_root(package_root, stream)
+        if (
+            authority.target_token_sha256 != stream.target_token_sha256
+            or authority.package_root_identity != stream.package_root_identity
+        ):
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
         try:
             observed = self._capture(self._provider)
         except BaseException as error:
@@ -330,6 +281,8 @@ class NativeWindowsExistingRollbackRuntimeAvailability:
             type(observed) is not ExistingRollbackRuntimeObservation
             or observed.target_token_sha256 != stream.target_token_sha256
             or observed.package_root_identity != stream.package_root_identity
+            or observed.runtime_evidence_sha256 != authority.runtime_evidence_sha256
+            or observed.volume_evidence_sha256s != authority.volume_evidence_sha256s
         ):
             _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
         return RollbackRuntimeAvailabilityEvidence(

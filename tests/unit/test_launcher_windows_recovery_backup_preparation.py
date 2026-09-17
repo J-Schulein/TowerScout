@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Callable, TypeVar
 
@@ -28,6 +29,9 @@ from towerscout_launcher.windows_environment_replacement import (  # noqa: E402
 from towerscout_launcher.windows_protected_state import (  # noqa: E402
     CurrentUserProtectedBlob,
     ProtectedDataPurpose,
+)
+from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E402
+    RollbackRuntimeRecoveryAuthority,
 )
 from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
 
@@ -63,6 +67,17 @@ def _certificate_plan() -> CertificateReplacementPlan:
         MapProvider.GOOGLE,
         local_ca,
         b"system-bundle\n" + local_ca,
+    )
+
+
+def _runtime_authority() -> RollbackRuntimeRecoveryAuthority:
+    return RollbackRuntimeRecoveryAuthority(
+        1,
+        "b" * 64,
+        _identity(7),
+        "1" * 64,
+        tuple(f"{value:x}" * 64 for value in range(3, 11)),
+        True,
     )
 
 
@@ -216,6 +231,7 @@ def test_persist_backup_preparing_authenticates_summarizes_and_rereads() -> None
         certificates,
         environment_plan=_environment_plan(),
         certificate_plan=_certificate_plan(),
+        runtime_authority=_runtime_authority(),
         stream=stream,
         name_source=names,
         root=root,
@@ -250,6 +266,10 @@ def test_persist_backup_preparing_authenticates_summarizes_and_rereads() -> None
     assert record.ca_bundle_candidate_sha256 == certificate_plan.ca_bundle_sha256
     assert record.ca_bundle_candidate_size == len(certificate_plan.ca_bundle_contents)
     assert record.ca_bundle_candidate_mode == certificate_plan.ca_bundle_mode
+    authority = _runtime_authority()
+    assert record.rollback_runtime_evidence_sha256 == authority.runtime_evidence_sha256
+    assert record.rollback_volume_evidence_sha256s == authority.volume_evidence_sha256s
+    assert record.runtime_was_running
     assert names.calls == 2
     assert backend.created == [f"journal-{'a' * 32}-{1:020d}.generation"]
     assert not root.active
@@ -271,6 +291,7 @@ def test_persist_backup_preparing_preserves_absent_environment() -> None:
         certificates,
         environment_plan=_environment_plan(None),
         certificate_plan=_certificate_plan(),
+        runtime_authority=_runtime_authority(),
         stream=stream,
         name_source=_NameSource(),
         root=(root := _Root()),
@@ -307,6 +328,7 @@ def test_persist_backup_preparing_rejects_plan_original_drift_before_write() -> 
                 original_present=True,
             ),
             certificate_plan=_certificate_plan(),
+            runtime_authority=_runtime_authority(),
             stream=stream,
             name_source=names,
             root=root,
@@ -336,6 +358,7 @@ def test_backup_preparation_rejects_invalid_certificate_plan_before_write() -> N
             certificates,
             environment_plan=_environment_plan(),
             certificate_plan=object(),  # type: ignore[arg-type]
+            runtime_authority=_runtime_authority(),
             stream=stream,
             name_source=names,
             root=root,
@@ -347,6 +370,45 @@ def test_backup_preparation_rejects_invalid_certificate_plan_before_write() -> N
     assert (
         failure.value.code
         is preparation.RecoveryBackupPreparationErrorCode.INPUT_INVALID
+    )
+    assert names.calls == 0
+    assert not backend.created
+
+
+@pytest.mark.parametrize(
+    "authority",
+    (
+        replace(_runtime_authority(), target_token_sha256="d" * 64),
+        replace(_runtime_authority(), package_root_identity=_identity(9)),
+    ),
+)
+def test_backup_preparation_rejects_unbound_runtime_authority_before_write(
+    authority: RollbackRuntimeRecoveryAuthority,
+) -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    names = _NameSource()
+    root = _Root()
+    backend = _Storage(root)
+
+    with pytest.raises(preparation.RecoveryBackupPreparationError) as failure:
+        preparation.persist_backup_preparing_generation(
+            environment,
+            certificates,
+            environment_plan=_environment_plan(),
+            certificate_plan=_certificate_plan(),
+            runtime_authority=authority,
+            stream=stream,
+            name_source=names,
+            root=root,
+            storage=backend,
+            backup_protection=protection,
+            journal_protection=protection,
+        )
+
+    assert (
+        failure.value.code
+        is preparation.RecoveryBackupPreparationErrorCode.PLAN_INVALID
     )
     assert names.calls == 0
     assert not backend.created
@@ -365,6 +427,7 @@ def test_persist_backup_preparing_rejects_cross_stream_before_name_or_write() ->
             certificates,
             environment_plan=_environment_plan(),
             certificate_plan=_certificate_plan(),
+            runtime_authority=_runtime_authority(),
             stream=_stream(journal_id="f" * 32),
             name_source=names,
             root=root,
@@ -388,6 +451,7 @@ def test_persist_backup_preparing_retry_fails_closed_without_second_write() -> N
         "stream": stream,
         "environment_plan": _environment_plan(),
         "certificate_plan": _certificate_plan(),
+        "runtime_authority": _runtime_authority(),
         "name_source": names,
         "root": root,
         "storage": backend,
@@ -431,6 +495,7 @@ def test_persist_backup_preparing_rejects_invalid_or_reused_names() -> None:
                 certificates,
                 environment_plan=_environment_plan(),
                 certificate_plan=_certificate_plan(),
+                runtime_authority=_runtime_authority(),
                 stream=stream,
                 name_source=name_source,
                 root=root,
@@ -465,6 +530,7 @@ def test_name_source_failure_is_sanitized_and_process_control_propagates() -> No
             certificates,
             environment_plan=_environment_plan(),
             certificate_plan=_certificate_plan(),
+            runtime_authority=_runtime_authority(),
             stream=stream,
             name_source=_FailingNames(),
             root=root,
@@ -485,6 +551,7 @@ def test_name_source_failure_is_sanitized_and_process_control_propagates() -> No
             certificates,
             environment_plan=_environment_plan(),
             certificate_plan=_certificate_plan(),
+            runtime_authority=_runtime_authority(),
             stream=stream,
             name_source=_InterruptingNames(),
             root=root,

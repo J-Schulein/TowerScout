@@ -35,6 +35,7 @@ from .windows_recovery_journal_storage import (
     PersistedEnvironmentJournalChain,
     append_persisted_environment_journal_generation,
 )
+from .windows_recovery_runtime_authority import RollbackRuntimeRecoveryAuthority
 
 
 class RecoveryBackupPreparationErrorCode(str, Enum):
@@ -104,6 +105,7 @@ def persist_backup_preparing_generation(
     *,
     environment_plan: EnvironmentReplacementPlan,
     certificate_plan: CertificateReplacementPlan,
+    runtime_authority: RollbackRuntimeRecoveryAuthority,
     stream: JournalStreamIdentity,
     name_source: RecoveryBackupNameSource,
     root: JournalStorageRootPort,
@@ -118,6 +120,7 @@ def persist_backup_preparing_generation(
         or type(certificate_sealed) is not SealedCertificateExactStateBackup
         or type(environment_plan) is not EnvironmentReplacementPlan
         or type(certificate_plan) is not CertificateReplacementPlan
+        or type(runtime_authority) is not RollbackRuntimeRecoveryAuthority
         or type(stream) is not JournalStreamIdentity
     ):
         _fail(RecoveryBackupPreparationErrorCode.INPUT_INVALID)
@@ -132,9 +135,12 @@ def persist_backup_preparing_generation(
         protection=backup_protection,
     )
     environment_security = environment.security
-    if (
-        environment.existed and environment_security is None
-    ) or environment_plan.original_contents != environment.contents:
+    if (environment.existed and environment_security is None) or (
+        environment_plan.original_contents != environment.contents
+        or runtime_authority.target_token_sha256 != stream.target_token_sha256
+        or runtime_authority.package_root_identity != stream.package_root_identity
+        or runtime_authority.runtime_was_running is not True
+    ):
         _fail(RecoveryBackupPreparationErrorCode.PLAN_INVALID)
     try:
         record = BackupPreparingRecord(
@@ -145,6 +151,13 @@ def persist_backup_preparing_generation(
             environment_candidate_sha256=environment_plan.candidate_sha256,
             environment_candidate_size=len(environment_plan.candidate_contents),
             environment_present=environment.existed,
+            rollback_runtime_evidence_sha256=(
+                runtime_authority.runtime_evidence_sha256
+            ),
+            rollback_volume_evidence_sha256s=(
+                runtime_authority.volume_evidence_sha256s
+            ),
+            runtime_was_running=runtime_authority.runtime_was_running,
             environment_original_identity=environment.identity,
             environment_sha256=(
                 environment.contents_sha256 if environment.existed else None

@@ -221,6 +221,12 @@ def _pending_recovery_scan(
             "f" * 64,
             12,
             False,
+            "b" * 64,
+            tuple(
+                hashlib.sha256(str(index).encode("ascii")).hexdigest()
+                for index in range(8)
+            ),
+            True,
             local_ca_candidate_sha256="1" * 64,
             local_ca_candidate_size=100,
             local_ca_candidate_mode=0o644,
