@@ -214,6 +214,44 @@ class EnvironmentTempVerifiedRecord:
 
 
 @dataclass(frozen=True, slots=True, repr=False)
+class EnvironmentAppliedRecord:
+    schema_version: int
+    verified_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    candidate_identity: StableFileIdentity = field(repr=False)
+    candidate_sha256: str = field(repr=False)
+    candidate_size: int
+    candidate_file_attributes: int
+    candidate_security_descriptor_sha256: str = field(repr=False)
+    temp_name: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.verified_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+            or type(self.candidate_identity) is not StableFileIdentity
+            or self.candidate_identity == self.package_root_identity
+            or not _valid_hash(self.candidate_sha256)
+            or type(self.candidate_size) is not int
+            or not 1 <= self.candidate_size <= MAX_ENVIRONMENT_BYTES
+            or type(self.candidate_file_attributes) is not int
+            or not 0 <= self.candidate_file_attributes <= 0xFFFFFFFF
+            or not _valid_hash(self.candidate_security_descriptor_sha256)
+            or not _valid_temp_name(self.temp_name)
+        ):
+            raise ValueError("Applied environment record is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "EnvironmentAppliedRecord("
+            f"schema_version={self.schema_version}, "
+            f"candidate_size={self.candidate_size}, <redacted>)"
+        )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
 class EnvironmentTempPlannedReceipt:
     record: EnvironmentTempPlanRecord = field(repr=False)
     generation_sha256: str = field(repr=False)
@@ -937,6 +975,7 @@ class NativeWindowsEnvironmentReplacementApi:
 
 
 __all__ = [
+    "EnvironmentAppliedRecord",
     "EnvironmentReplacementJournalPort",
     "EnvironmentTempCreatedReceipt",
     "EnvironmentTempCreatedRecord",

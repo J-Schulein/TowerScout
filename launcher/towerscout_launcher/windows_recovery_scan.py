@@ -33,6 +33,7 @@ _PROVIDER_ENVIRONMENT_STATES = frozenset(
         EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
         EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED,
         EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED,
+        EnvironmentJournalState.ENVIRONMENT_APPLIED,
     }
 )
 

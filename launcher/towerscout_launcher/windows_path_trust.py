@@ -1086,6 +1086,41 @@ class NativeWindowsPathTrustApi:
             allowed.append(AccessAllowedAce(sid, int(mask), int(header.ace_flags)))
         return tuple(allowed)
 
+    def _dacl_bytes(self, dacl: ctypes.c_void_p) -> bytes:
+        _kernel32, advapi32 = self._require()
+        size = _AclSizeInformation()
+        if not advapi32.GetAclInformation(
+            dacl, ctypes.byref(size), ctypes.sizeof(size), 2
+        ):
+            self._last_error("Native Windows DACL query failed.")
+        amount = int(size.bytes_in_use)
+        if not 1 <= amount <= _MAX_SECURITY_DESCRIPTOR_BYTES:
+            raise OSError("Native Windows DACL is invalid.")
+        return ctypes.string_at(dacl, amount)
+
+    @staticmethod
+    def _security_fingerprint(
+        owner_sid: str,
+        dacl_present: bool,
+        dacl_protected: bool,
+        dacl_bytes: bytes,
+    ) -> str:
+        # Bind the security policy itself, not the allocation/layout details of
+        # the self-relative descriptor returned by Windows. ReplaceFileW may
+        # normalize those representation details while preserving the owner
+        # and exact DACL bytes that authorize access.
+        digest = hashlib.sha256()
+        digest.update(b"TowerScout.WindowsSecurityDescriptorFingerprint.v1")
+        for value in (
+            owner_sid.upper().encode("ascii", errors="strict"),
+            b"\x01" if dacl_present else b"\x00",
+            b"\x01" if dacl_protected else b"\x00",
+            dacl_bytes,
+        ):
+            digest.update(len(value).to_bytes(8, "big"))
+            digest.update(value)
+        return digest.hexdigest()
+
     def query_security(self, handle: object) -> NativeSecurityFacts:
         kernel32, advapi32 = self._require()
         owner = ctypes.c_void_p()
@@ -1111,6 +1146,7 @@ class NativeWindowsPathTrustApi:
                 )
             owner_sid = self._sid_text(owner)
             allowed = self._allowed_aces(dacl) if dacl else ()
+            dacl_bytes = self._dacl_bytes(dacl) if dacl else b""
             control = ctypes.c_ushort()
             revision = ctypes.c_uint32()
             if not advapi32.GetSecurityDescriptorControl(
@@ -1122,14 +1158,18 @@ class NativeWindowsPathTrustApi:
             descriptor_size = int(advapi32.GetSecurityDescriptorLength(descriptor))
             if not 1 <= descriptor_size <= _MAX_SECURITY_DESCRIPTOR_BYTES:
                 raise OSError("Native Windows security descriptor is invalid.")
-            descriptor_sha256 = hashlib.sha256(
-                ctypes.string_at(descriptor, descriptor_size)
-            ).hexdigest()
+            dacl_protected = bool(control.value & _SE_DACL_PROTECTED)
+            descriptor_sha256 = self._security_fingerprint(
+                owner_sid,
+                bool(dacl),
+                dacl_protected,
+                dacl_bytes,
+            )
             return NativeSecurityFacts(
                 owner_sid,
                 bool(dacl),
                 allowed,
-                dacl_protected=bool(control.value & _SE_DACL_PROTECTED),
+                dacl_protected=dacl_protected,
                 security_descriptor_sha256=descriptor_sha256,
             )
         finally:

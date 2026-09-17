@@ -16,6 +16,7 @@ if str(LAUNCHER_ROOT) not in sys.path:
 
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 from towerscout_launcher.windows_environment_replacement_native import (  # noqa: E402
+    EnvironmentAppliedRecord,
     EnvironmentTempCreatedRecord,
     EnvironmentTempPlanRecord,
     EnvironmentTempVerifiedRecord,
@@ -360,6 +361,43 @@ def _pointer(
     )
 
 
+def _applied_generation(
+    protection: _Protection,
+    stream: journal.JournalStreamIdentity,
+    generations: tuple[journal.SealedEnvironmentJournalGeneration, ...],
+) -> journal.SealedEnvironmentJournalGeneration:
+    selection = journal.select_environment_journal_chain(
+        generations,
+        None,
+        expected_stream=stream,
+        protection=protection,
+    )
+    verified = selection.tip.record
+    assert type(verified) is EnvironmentTempVerifiedRecord
+    record = EnvironmentAppliedRecord(
+        1,
+        selection.tip_generation_sha256,
+        verified.package_root_identity,
+        verified.temp_identity,
+        verified.candidate_sha256,
+        verified.candidate_size,
+        0x20,
+        "9" * 64,
+        verified.temp_name,
+    )
+    return _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            4,
+            selection.tip_generation_sha256,
+            journal.EnvironmentJournalState.ENVIRONMENT_APPLIED,
+            record,
+        ),
+        protection,
+    )
+
+
 def test_generation_round_trip_is_canonical_and_redacted() -> None:
     protection = _Protection()
     stream = _stream()
@@ -390,6 +428,54 @@ def test_generation_round_trip_is_canonical_and_redacted() -> None:
     assert record.temp_name not in rendered
     assert record.candidate_sha256 not in rendered
     assert stream.target_token_sha256 not in rendered
+
+
+def test_environment_applied_round_trip_binds_verified_identity_and_observation() -> (
+    None
+):
+    protection = _Protection()
+    stream, generations = _build_chain(protection)
+    applied = _applied_generation(protection, stream, generations)
+
+    selection = journal.select_environment_journal_chain(
+        generations + (applied,),
+        _pointer(stream, applied, 4),
+        expected_stream=stream,
+        protection=protection,
+    )
+
+    assert selection.tip.state is journal.EnvironmentJournalState.ENVIRONMENT_APPLIED
+    assert type(selection.tip.record) is EnvironmentAppliedRecord
+    assert selection.tip.record.candidate_identity == _identity(11)
+    assert selection.tip.record.candidate_file_attributes == 0x20
+    assert selection.pointer_disposition is journal.JournalPointerDisposition.CURRENT
+    assert selection.tip.record.candidate_sha256 not in repr(selection)
+
+
+def test_environment_applied_rejects_wrong_verified_predecessor_or_identity() -> None:
+    protection = _Protection()
+    stream, generations = _build_chain(protection)
+    applied = _applied_generation(protection, stream, generations)
+    authenticated = journal.authenticate_environment_journal_generation(
+        applied,
+        protection=protection,
+    )
+    record = authenticated.record
+    assert type(record) is EnvironmentAppliedRecord
+
+    for drifted in (
+        replace(record, verified_generation_sha256="8" * 64),
+        replace(record, candidate_identity=_identity(99)),
+    ):
+        sealed = _seal(replace(authenticated, record=drifted), protection)
+        with pytest.raises(journal.RecoveryJournalError) as failure:
+            journal.select_environment_journal_chain(
+                generations + (sealed,),
+                None,
+                expected_stream=stream,
+                protection=protection,
+            )
+        assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
 
 
 def test_backup_preparing_round_trip_is_singleton_bound_and_redacted() -> None:

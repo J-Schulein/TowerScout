@@ -16,6 +16,7 @@ from enum import Enum
 from typing import Any, NoReturn, Protocol, cast
 
 from .windows_environment_replacement_native import (
+    EnvironmentAppliedRecord,
     EnvironmentTempCreatedRecord,
     EnvironmentTempPlanRecord,
     EnvironmentTempVerifiedRecord,
@@ -131,6 +132,7 @@ class EnvironmentJournalState(str, Enum):
     ENVIRONMENT_TEMP_PLANNED = "environment_temp_planned"
     ENVIRONMENT_TEMP_CREATED = "environment_temp_created"
     ENVIRONMENT_TEMP_VERIFIED = "environment_temp_verified"
+    ENVIRONMENT_APPLIED = "environment_applied"
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -623,6 +625,7 @@ EnvironmentTempJournalRecord = (
     EnvironmentTempPlanRecord
     | EnvironmentTempCreatedRecord
     | EnvironmentTempVerifiedRecord
+    | EnvironmentAppliedRecord
 )
 EnvironmentJournalRecord = (
     BackupPreparingRecord
@@ -654,6 +657,7 @@ _RECORD_TYPE_BY_STATE: dict[EnvironmentJournalState, type[object]] = {
     EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED: EnvironmentTempPlanRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED: EnvironmentTempCreatedRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED: EnvironmentTempVerifiedRecord,
+    EnvironmentJournalState.ENVIRONMENT_APPLIED: EnvironmentAppliedRecord,
 }
 
 
@@ -1124,6 +1128,14 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             record.candidate_security_descriptor_sha256
         )
         return common
+    if type(record) is EnvironmentAppliedRecord:
+        common["verified_generation_sha256"] = record.verified_generation_sha256
+        common["candidate_identity"] = _identity_to_json(record.candidate_identity)
+        common["candidate_file_attributes"] = record.candidate_file_attributes
+        common["candidate_security_descriptor_sha256"] = (
+            record.candidate_security_descriptor_sha256
+        )
+        return common
     raise ValueError("Environment journal record is invalid.")
 
 
@@ -1444,6 +1456,30 @@ def _record_from_json(
             item["planned_generation_sha256"],
             _identity_from_json(item["package_root_identity"]),
             _identity_from_json(item["temp_identity"]),
+            item["candidate_sha256"],
+            item["candidate_size"],
+            item["candidate_file_attributes"],
+            item["candidate_security_descriptor_sha256"],
+            item["temp_name"],
+        )
+    if state is EnvironmentJournalState.ENVIRONMENT_APPLIED:
+        item = _exact_keys(
+            value,
+            common
+            | {
+                "candidate_file_attributes",
+                "candidate_identity",
+                "candidate_security_descriptor_sha256",
+                "verified_generation_sha256",
+            },
+        )
+        if type(item["schema_version"]) is not int:
+            raise ValueError("Environment record schema is invalid.")
+        return EnvironmentAppliedRecord(
+            item["schema_version"],
+            item["verified_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            _identity_from_json(item["candidate_identity"]),
             item["candidate_sha256"],
             item["candidate_size"],
             item["candidate_file_attributes"],
@@ -1809,6 +1845,7 @@ def _validate_record_continuity(
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
     previous: _AuthenticatedEnvironmentJournalGeneration | None = None
     created: EnvironmentTempCreatedRecord | None = None
+    environment_verified: EnvironmentTempVerifiedRecord | None = None
     for item in generations:
         generation = item.generation
         record = cast(EnvironmentTempJournalRecord, generation.record)
@@ -1836,6 +1873,14 @@ def _validate_record_continuity(
                     != created.candidate_file_attributes
                     or record.candidate_security_descriptor_sha256
                     != created.candidate_security_descriptor_sha256
+                ):
+                    _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+                environment_verified = record
+            elif type(record) is EnvironmentAppliedRecord:
+                if (
+                    environment_verified is None
+                    or record.verified_generation_sha256 != previous.generation_sha256
+                    or record.candidate_identity != environment_verified.temp_identity
                 ):
                     _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         previous = item
@@ -1886,6 +1931,7 @@ def select_environment_journal_chain(
         EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
         EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED,
         EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED,
+        EnvironmentJournalState.ENVIRONMENT_APPLIED,
     )
     observed_states = tuple(item.generation.state for item in ordered)
     valid_states = observed_states == backup_states[: len(ordered)] or (
@@ -1937,6 +1983,7 @@ def select_environment_journal_chain(
 __all__ = [
     "BackupPreparingRecord",
     "BackupVerifiedRecord",
+    "EnvironmentAppliedRecord",
     "EnvironmentJournalChainSelection",
     "EnvironmentJournalGeneration",
     "EnvironmentJournalPointer",
