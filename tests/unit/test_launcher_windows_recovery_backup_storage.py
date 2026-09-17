@@ -19,6 +19,7 @@ import towerscout_launcher.windows_recovery_backup_storage as blob_storage  # no
 import towerscout_launcher.windows_recovery as recovery  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
+import towerscout_launcher.windows_recovery_manager as manager  # noqa: E402
 from towerscout_launcher.windows_recovery_certificate_storage import (  # noqa: E402
     CertificateRestoreTempIdentities,
     RecoveryCertificateStorageError,
@@ -4155,3 +4156,328 @@ def test_recovery_cleanup_failure_persists_pending_then_retries_exactly() -> Non
     assert cleanup.cleanup_calls == 2
     assert cleaned.selection.tip.state is journal.EnvironmentJournalState.CLEANED
     assert len(cleaned.selection.generations) == 19
+
+
+def test_fresh_process_manager_resumes_verified_environment_through_cleanup() -> None:
+    protection = _Protection()
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        blobs,
+        package_root,
+        environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    initial = storage.load_persisted_environment_journal_chain_with_pointer(
+        stream,
+        root=root,
+        generation_storage=generations,
+        pointer_storage=generations,
+        protection=protection,
+    )
+    assert initial is not None
+    availability = _RuntimeAvailability(stream)
+    certificate_storage = _CertificateStorage(root)
+    restart = _RuntimeRestart(stream)
+    cleanup = _RecoveryCleanup(stream)
+    ports = manager.WindowsRecoveryManagerPorts(
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_verification=blobs,
+        backup_storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+        environment_name_source=_EnvironmentTempNameSource(),
+        environment_storage=environment_storage,
+        environment_restoration=_EnvironmentRestoration(),
+        runtime_availability=availability,
+        certificate_name_source=_CertificateTempNameSource(),
+        certificate_storage=certificate_storage,
+        certificate_restoration=_CertificateRestoration(stream, availability),
+        runtime_restart=restart,
+        rollback_verification=_RollbackVerification(stream, restart),
+        cleanup=cleanup,
+    )
+    try:
+        result = package_root.run_while_held(
+            lambda: manager.resume_persisted_rollback_from_held_package_root(
+                stream=stream,
+                provider_stream=provider_stream,
+                package_root=package_root,
+                initial_chain=initial,
+                ports=ports,
+            )
+        )
+        reverified = package_root.run_while_held(
+            lambda: manager.resume_persisted_rollback_from_held_package_root(
+                stream=stream,
+                provider_stream=provider_stream,
+                package_root=package_root,
+                initial_chain=result,
+                ports=ports,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert result.selection.tip.state is journal.EnvironmentJournalState.CLEANED
+    assert len(result.selection.generations) == 18
+    assert reverified.selection.tip == result.selection.tip
+    assert availability.calls == 1
+    assert restart.restart_calls == 1
+    assert restart.verify_calls == 0
+    assert cleanup.cleanup_calls == 1
+    assert cleanup.verify_calls == 1
+
+
+def test_fresh_process_manager_resumes_armed_rollback_through_cleanup() -> None:
+    protection = _Protection()
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        blobs,
+        package_root,
+        environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    recovery_prefix = f"journal-{stream.journal_id}-"
+    for name in tuple(generations.files):
+        if name.startswith(recovery_prefix) and int(name[-31:-11]) > 3:
+            del generations.files[name]
+    generations.pointer = None
+    initial = storage.load_persisted_environment_journal_chain_with_pointer(
+        stream,
+        root=root,
+        generation_storage=generations,
+        pointer_storage=generations,
+        protection=protection,
+    )
+    assert initial is not None
+    assert initial.selection.tip.state is journal.EnvironmentJournalState.ROLLBACK_ARMED
+    availability = _RuntimeAvailability(stream)
+    certificate_storage = _CertificateStorage(root)
+    restart = _RuntimeRestart(stream)
+    ports = manager.WindowsRecoveryManagerPorts(
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_verification=blobs,
+        backup_storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+        environment_name_source=_EnvironmentTempNameSource(),
+        environment_storage=environment_storage,
+        environment_restoration=_EnvironmentRestoration(),
+        runtime_availability=availability,
+        certificate_name_source=_CertificateTempNameSource(),
+        certificate_storage=certificate_storage,
+        certificate_restoration=_CertificateRestoration(stream, availability),
+        runtime_restart=restart,
+        rollback_verification=_RollbackVerification(stream, restart),
+        cleanup=_RecoveryCleanup(stream),
+    )
+    try:
+        result = package_root.run_while_held(
+            lambda: manager.resume_persisted_rollback_from_held_package_root(
+                stream=stream,
+                provider_stream=provider_stream,
+                package_root=package_root,
+                initial_chain=initial,
+                ports=ports,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert result.selection.tip.state is journal.EnvironmentJournalState.CLEANED
+    assert len(result.selection.generations) == 18
+
+
+@pytest.mark.parametrize(
+    ("sequence", "operation_name"),
+    (
+        (7, "persist_environment_restored_generation_from_held_package_root"),
+        (8, "persist_rollback_runtime_available_generation_from_held_package_root"),
+        (9, "plan_persisted_certificate_restore"),
+        (10, "create_persisted_certificate_restore_temps"),
+        (11, "write_persisted_certificate_restore_temps"),
+        (12, "persist_certificates_restored_generation_from_held_package_root"),
+        (13, "persist_rollback_runtime_restarting_generation_from_held_package_root"),
+        (14, "persist_rollback_runtime_restarted_generation_from_held_package_root"),
+        (15, "persist_rollback_verifying_generation_from_held_package_root"),
+        (16, "persist_rollback_verified_generation_from_held_package_root"),
+        (17, "persist_recovery_cleaned_generation_from_held_package_root"),
+    ),
+)
+def test_fresh_process_manager_resumes_each_post_environment_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+    sequence: int,
+    operation_name: str,
+) -> None:
+    protection = _Protection()
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        blobs,
+        package_root,
+        environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    initial = storage.load_persisted_environment_journal_chain_with_pointer(
+        stream,
+        root=root,
+        generation_storage=generations,
+        pointer_storage=generations,
+        protection=protection,
+    )
+    assert initial is not None
+    availability = _RuntimeAvailability(stream)
+    certificate_storage = _CertificateStorage(root)
+    restart = _RuntimeRestart(stream)
+    cleanup = _RecoveryCleanup(stream)
+    ports = manager.WindowsRecoveryManagerPorts(
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_verification=blobs,
+        backup_storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+        environment_name_source=_EnvironmentTempNameSource(),
+        environment_storage=environment_storage,
+        environment_restoration=_EnvironmentRestoration(),
+        runtime_availability=availability,
+        certificate_name_source=_CertificateTempNameSource(),
+        certificate_storage=certificate_storage,
+        certificate_restoration=_CertificateRestoration(stream, availability),
+        runtime_restart=restart,
+        rollback_verification=_RollbackVerification(stream, restart),
+        cleanup=cleanup,
+    )
+    original = getattr(manager, operation_name)
+
+    def interrupt(**_kwargs: object) -> storage.PersistedEnvironmentJournalChain:
+        raise RuntimeError("simulated abrupt process termination")
+
+    monkeypatch.setattr(manager, operation_name, interrupt)
+    try:
+        with pytest.raises(RuntimeError, match="abrupt process termination"):
+            package_root.run_while_held(
+                lambda: manager.resume_persisted_rollback_from_held_package_root(
+                    stream=stream,
+                    provider_stream=provider_stream,
+                    package_root=package_root,
+                    initial_chain=initial,
+                    ports=ports,
+                )
+            )
+        interrupted = storage.load_persisted_environment_journal_chain_with_pointer(
+            stream,
+            root=root,
+            generation_storage=generations,
+            pointer_storage=generations,
+            protection=protection,
+        )
+        assert interrupted is not None
+        assert interrupted.selection.tip.sequence == sequence
+        monkeypatch.setattr(manager, operation_name, original)
+        completed = package_root.run_while_held(
+            lambda: manager.resume_persisted_rollback_from_held_package_root(
+                stream=stream,
+                provider_stream=provider_stream,
+                package_root=package_root,
+                initial_chain=interrupted,
+                ports=ports,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert completed.selection.tip.state is journal.EnvironmentJournalState.CLEANED
+
+
+def test_fresh_process_manager_retries_durable_cleanup_pending_state() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_rollback_verified_state(
+        protection
+    )
+    initial = storage.load_persisted_environment_journal_chain_with_pointer(
+        stream,
+        root=root,
+        generation_storage=generations,
+        pointer_storage=generations,
+        protection=protection,
+    )
+    assert initial is not None
+    provider_stream = journal.JournalStreamIdentity(
+        1,
+        "c" * 32,
+        stream.target_token_sha256,
+        stream.package_root_identity,
+    )
+    availability = _RuntimeAvailability(stream)
+    restart = _RuntimeRestart(stream)
+    cleanup = _RecoveryCleanup(stream)
+    cleanup.fail = True
+    blobs = _BlobStorage(root)
+    ports = manager.WindowsRecoveryManagerPorts(
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_verification=blobs,
+        backup_storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+        environment_name_source=_EnvironmentTempNameSource(),
+        environment_storage=_EnvironmentStorage(),
+        environment_restoration=_EnvironmentRestoration(),
+        runtime_availability=availability,
+        certificate_name_source=_CertificateTempNameSource(),
+        certificate_storage=_CertificateStorage(root),
+        certificate_restoration=_CertificateRestoration(stream, availability),
+        runtime_restart=restart,
+        rollback_verification=_RollbackVerification(stream, restart),
+        cleanup=cleanup,
+    )
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            package_root.run_while_held(
+                lambda: manager.resume_persisted_rollback_from_held_package_root(
+                    stream=stream,
+                    provider_stream=provider_stream,
+                    package_root=package_root,
+                    initial_chain=initial,
+                    ports=ports,
+                )
+            )
+        pending = storage.load_persisted_environment_journal_chain_with_pointer(
+            stream,
+            root=root,
+            generation_storage=generations,
+            pointer_storage=generations,
+            protection=protection,
+        )
+        assert pending is not None
+        cleanup.fail = False
+        completed = package_root.run_while_held(
+            lambda: manager.resume_persisted_rollback_from_held_package_root(
+                stream=stream,
+                provider_stream=provider_stream,
+                package_root=package_root,
+                initial_chain=pending,
+                ports=ports,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.CLEANUP_PENDING
+    assert pending.selection.tip.state is (
+        journal.EnvironmentJournalState.RECOVERY_CLEANUP_PENDING
+    )
+    assert completed.selection.tip.state is journal.EnvironmentJournalState.CLEANED
+    assert len(completed.selection.generations) == 19

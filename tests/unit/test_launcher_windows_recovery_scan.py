@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -375,6 +376,24 @@ def test_applied_provider_journals_are_terminal_and_do_not_block_next_update() -
 
     assert result.provider_environment_pending is False
     assert result.mutation_blocked is False
+
+
+def test_cleaned_repair_journal_is_terminal_and_does_not_block_next_update() -> None:
+    package_root = _identity(1)
+    stream = JournalStreamIdentity(1, "a" * 32, "b" * 64, package_root)
+    chain = SimpleNamespace(
+        selection=SimpleNamespace(
+            tip=SimpleNamespace(
+                stream=stream,
+                state=EnvironmentJournalState.CLEANED,
+            ),
+            generations=(
+                SimpleNamespace(state=EnvironmentJournalState.BACKUP_PREPARING),
+            ),
+        )
+    )
+
+    assert scan._pending_protocol(chain, package_root) is None  # type: ignore[arg-type]  # noqa: SLF001
 
 
 def test_terminal_provider_history_allows_one_new_pending_stream() -> None:

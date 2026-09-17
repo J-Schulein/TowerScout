@@ -1,10 +1,10 @@
 """Fresh-process planning for authenticated Windows rollback.
 
-This Gate-A layer may reverify the exact encrypted backups, restore the exact
-package environment authorized by a matching applied provider journal, attest
-that the prior runtime is available, and plan protected certificate staging.
-It cannot yet restore certificates, clean completed transaction artifacts, or
-mutate a runtime.
+This Gate-A layer defines the port-driven orchestration that reverifies exact
+encrypted backups, restores the authorized package environment and certificate
+destinations, restarts and verifies the prior runtime, and records terminal
+cleanup.  Native runtime/certificate/cleanup adapters and a product repair call
+site remain outside this module.
 """
 
 from __future__ import annotations

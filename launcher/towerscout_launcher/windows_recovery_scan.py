@@ -188,7 +188,7 @@ def _pending_protocol(
         return None
     first_state = chain.selection.generations[0].state
     if first_state in _REPAIR_STATES:
-        return "repair"
+        return None if tip.state is EnvironmentJournalState.CLEANED else "repair"
     if first_state in _PROVIDER_ENVIRONMENT_STATES:
         return (
             None
