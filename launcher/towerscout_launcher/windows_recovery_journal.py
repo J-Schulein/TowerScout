@@ -175,6 +175,12 @@ class BackupPreparingRecord:
     ca_bundle_present: bool = False
     ca_bundle_sha256: str | None = field(default=None, repr=False)
     ca_bundle_mode: int | None = None
+    local_ca_candidate_sha256: str = field(default="", repr=False)
+    local_ca_candidate_size: int = -1
+    local_ca_candidate_mode: int = -1
+    ca_bundle_candidate_sha256: str = field(default="", repr=False)
+    ca_bundle_candidate_size: int = -1
+    ca_bundle_candidate_mode: int = -1
 
     def __post_init__(self) -> None:
         if (
@@ -192,6 +198,18 @@ class BackupPreparingRecord:
             or type(self.environment_present) is not bool
             or type(self.local_ca_present) is not bool
             or type(self.ca_bundle_present) is not bool
+            or not _valid_hash(self.local_ca_candidate_sha256)
+            or type(self.local_ca_candidate_size) is not int
+            or not 1 <= self.local_ca_candidate_size <= _MAX_CERTIFICATE_BYTES
+            or type(self.local_ca_candidate_mode) is not int
+            or self.local_ca_candidate_mode != 0o644
+            or not _valid_hash(self.ca_bundle_candidate_sha256)
+            or type(self.ca_bundle_candidate_size) is not int
+            or not 1 <= self.ca_bundle_candidate_size <= _MAX_CERTIFICATE_BUNDLE_BYTES
+            or self.ca_bundle_candidate_size <= self.local_ca_candidate_size
+            or type(self.ca_bundle_candidate_mode) is not int
+            or self.ca_bundle_candidate_mode != 0o644
+            or self.local_ca_candidate_sha256 == self.ca_bundle_candidate_sha256
         ):
             raise ValueError("Backup preparation record is invalid.")
         environment_values = (
@@ -245,7 +263,10 @@ class BackupPreparingRecord:
             f"environment_candidate_size={self.environment_candidate_size!r}, "
             f"environment_present={self.environment_present!r}, "
             f"local_ca_present={self.local_ca_present!r}, "
-            f"ca_bundle_present={self.ca_bundle_present!r}, <redacted>)"
+            f"ca_bundle_present={self.ca_bundle_present!r}, "
+            f"local_ca_candidate_size={self.local_ca_candidate_size!r}, "
+            f"ca_bundle_candidate_size={self.ca_bundle_candidate_size!r}, "
+            "<redacted>)"
         )
 
 
@@ -1365,6 +1386,9 @@ def _stream_from_json(value: object) -> JournalStreamIdentity:
 def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
     if type(record) is BackupPreparingRecord:
         return {
+            "ca_bundle_candidate_mode": record.ca_bundle_candidate_mode,
+            "ca_bundle_candidate_sha256": record.ca_bundle_candidate_sha256,
+            "ca_bundle_candidate_size": record.ca_bundle_candidate_size,
             "ca_bundle_mode": record.ca_bundle_mode,
             "ca_bundle_present": record.ca_bundle_present,
             "ca_bundle_sha256": record.ca_bundle_sha256,
@@ -1386,6 +1410,9 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             "local_ca_mode": record.local_ca_mode,
             "local_ca_present": record.local_ca_present,
             "local_ca_sha256": record.local_ca_sha256,
+            "local_ca_candidate_mode": record.local_ca_candidate_mode,
+            "local_ca_candidate_sha256": record.local_ca_candidate_sha256,
+            "local_ca_candidate_size": record.local_ca_candidate_size,
             "package_root_identity": _identity_to_json(record.package_root_identity),
             "schema_version": record.schema_version,
         }
@@ -1726,6 +1753,9 @@ def _record_from_json(
             value,
             frozenset(
                 {
+                    "ca_bundle_candidate_mode",
+                    "ca_bundle_candidate_sha256",
+                    "ca_bundle_candidate_size",
                     "ca_bundle_mode",
                     "ca_bundle_present",
                     "ca_bundle_sha256",
@@ -1741,6 +1771,9 @@ def _record_from_json(
                     "local_ca_mode",
                     "local_ca_present",
                     "local_ca_sha256",
+                    "local_ca_candidate_mode",
+                    "local_ca_candidate_sha256",
+                    "local_ca_candidate_size",
                     "package_root_identity",
                     "schema_version",
                 }
@@ -1769,6 +1802,12 @@ def _record_from_json(
             item["ca_bundle_present"],
             item["ca_bundle_sha256"],
             item["ca_bundle_mode"],
+            item["local_ca_candidate_sha256"],
+            item["local_ca_candidate_size"],
+            item["local_ca_candidate_mode"],
+            item["ca_bundle_candidate_sha256"],
+            item["ca_bundle_candidate_size"],
+            item["ca_bundle_candidate_mode"],
         )
     if state is EnvironmentJournalState.BACKUP_VERIFIED:
         item = _exact_keys(

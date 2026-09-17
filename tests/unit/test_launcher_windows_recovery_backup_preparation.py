@@ -17,6 +17,10 @@ import towerscout_launcher.windows_recovery_backup as backup  # noqa: E402
 import towerscout_launcher.windows_recovery_backup_preparation as preparation  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
+from towerscout_launcher.target_contracts import MapProvider  # noqa: E402
+from towerscout_launcher.windows_certificate_replacement import (  # noqa: E402
+    CertificateReplacementPlan,
+)
 from towerscout_launcher.windows_environment_replacement import (  # noqa: E402
     EnvironmentReplacementPlan,
     plan_ca_environment_replacement,
@@ -46,6 +50,19 @@ def _environment_plan(
     return plan_ca_environment_replacement(
         contents if contents is not None else _ENVIRONMENT_TEMPLATE,
         original_present=contents is not None,
+    )
+
+
+def _certificate_plan() -> CertificateReplacementPlan:
+    local_ca = (
+        b"-----BEGIN CERTIFICATE-----\n"
+        b"Y2FuZGlkYXRl\n"
+        b"-----END CERTIFICATE-----\n"
+    )
+    return CertificateReplacementPlan(
+        MapProvider.GOOGLE,
+        local_ca,
+        b"system-bundle\n" + local_ca,
     )
 
 
@@ -198,6 +215,7 @@ def test_persist_backup_preparing_authenticates_summarizes_and_rereads() -> None
         environment,
         certificates,
         environment_plan=_environment_plan(),
+        certificate_plan=_certificate_plan(),
         stream=stream,
         name_source=names,
         root=root,
@@ -225,6 +243,13 @@ def test_persist_backup_preparing_authenticates_summarizes_and_rereads() -> None
     assert record.local_ca_present
     assert record.local_ca_mode == 0o644
     assert not record.ca_bundle_present
+    certificate_plan = _certificate_plan()
+    assert record.local_ca_candidate_sha256 == certificate_plan.local_ca_sha256
+    assert record.local_ca_candidate_size == len(certificate_plan.local_ca_contents)
+    assert record.local_ca_candidate_mode == certificate_plan.local_ca_mode
+    assert record.ca_bundle_candidate_sha256 == certificate_plan.ca_bundle_sha256
+    assert record.ca_bundle_candidate_size == len(certificate_plan.ca_bundle_contents)
+    assert record.ca_bundle_candidate_mode == certificate_plan.ca_bundle_mode
     assert names.calls == 2
     assert backend.created == [f"journal-{'a' * 32}-{1:020d}.generation"]
     assert not root.active
@@ -245,6 +270,7 @@ def test_persist_backup_preparing_preserves_absent_environment() -> None:
         environment,
         certificates,
         environment_plan=_environment_plan(None),
+        certificate_plan=_certificate_plan(),
         stream=stream,
         name_source=_NameSource(),
         root=(root := _Root()),
@@ -280,6 +306,7 @@ def test_persist_backup_preparing_rejects_plan_original_drift_before_write() -> 
                 b"OTHER=changed\r\n",
                 original_present=True,
             ),
+            certificate_plan=_certificate_plan(),
             stream=stream,
             name_source=names,
             root=root,
@@ -291,6 +318,35 @@ def test_persist_backup_preparing_rejects_plan_original_drift_before_write() -> 
     assert (
         failure.value.code
         is preparation.RecoveryBackupPreparationErrorCode.PLAN_INVALID
+    )
+    assert names.calls == 0
+    assert not backend.created
+
+
+def test_backup_preparation_rejects_invalid_certificate_plan_before_write() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    names = _NameSource()
+    root = _Root()
+    backend = _Storage(root)
+
+    with pytest.raises(preparation.RecoveryBackupPreparationError) as failure:
+        preparation.persist_backup_preparing_generation(
+            environment,
+            certificates,
+            environment_plan=_environment_plan(),
+            certificate_plan=object(),  # type: ignore[arg-type]
+            stream=stream,
+            name_source=names,
+            root=root,
+            storage=backend,
+            backup_protection=protection,
+            journal_protection=protection,
+        )
+
+    assert (
+        failure.value.code
+        is preparation.RecoveryBackupPreparationErrorCode.INPUT_INVALID
     )
     assert names.calls == 0
     assert not backend.created
@@ -308,6 +364,7 @@ def test_persist_backup_preparing_rejects_cross_stream_before_name_or_write() ->
             environment,
             certificates,
             environment_plan=_environment_plan(),
+            certificate_plan=_certificate_plan(),
             stream=_stream(journal_id="f" * 32),
             name_source=names,
             root=root,
@@ -330,6 +387,7 @@ def test_persist_backup_preparing_retry_fails_closed_without_second_write() -> N
     arguments = {
         "stream": stream,
         "environment_plan": _environment_plan(),
+        "certificate_plan": _certificate_plan(),
         "name_source": names,
         "root": root,
         "storage": backend,
@@ -372,6 +430,7 @@ def test_persist_backup_preparing_rejects_invalid_or_reused_names() -> None:
                 environment,
                 certificates,
                 environment_plan=_environment_plan(),
+                certificate_plan=_certificate_plan(),
                 stream=stream,
                 name_source=name_source,
                 root=root,
@@ -405,6 +464,7 @@ def test_name_source_failure_is_sanitized_and_process_control_propagates() -> No
             environment,
             certificates,
             environment_plan=_environment_plan(),
+            certificate_plan=_certificate_plan(),
             stream=stream,
             name_source=_FailingNames(),
             root=root,
@@ -424,6 +484,7 @@ def test_name_source_failure_is_sanitized_and_process_control_propagates() -> No
             environment,
             certificates,
             environment_plan=_environment_plan(),
+            certificate_plan=_certificate_plan(),
             stream=stream,
             name_source=_InterruptingNames(),
             root=root,

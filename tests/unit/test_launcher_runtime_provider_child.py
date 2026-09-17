@@ -221,6 +221,12 @@ def _pending_recovery_scan(
             "f" * 64,
             12,
             False,
+            local_ca_candidate_sha256="1" * 64,
+            local_ca_candidate_size=100,
+            local_ca_candidate_mode=0o644,
+            ca_bundle_candidate_sha256="2" * 64,
+            ca_bundle_candidate_size=200,
+            ca_bundle_candidate_mode=0o644,
         )
     protection = _RecoveryProtection()
     sealed = protect_environment_journal_generation(

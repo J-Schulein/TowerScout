@@ -11,6 +11,7 @@ from enum import Enum
 import secrets
 from typing import NoReturn, Protocol
 
+from .windows_certificate_replacement import CertificateReplacementPlan
 from .windows_environment_replacement import EnvironmentReplacementPlan
 from .windows_recovery_backup import (
     BackupProtectionPort,
@@ -102,6 +103,7 @@ def persist_backup_preparing_generation(
     certificate_sealed: SealedCertificateExactStateBackup,
     *,
     environment_plan: EnvironmentReplacementPlan,
+    certificate_plan: CertificateReplacementPlan,
     stream: JournalStreamIdentity,
     name_source: RecoveryBackupNameSource,
     root: JournalStorageRootPort,
@@ -115,6 +117,7 @@ def persist_backup_preparing_generation(
         type(environment_sealed) is not SealedEnvironmentExactStateBackup
         or type(certificate_sealed) is not SealedCertificateExactStateBackup
         or type(environment_plan) is not EnvironmentReplacementPlan
+        or type(certificate_plan) is not CertificateReplacementPlan
         or type(stream) is not JournalStreamIdentity
     ):
         _fail(RecoveryBackupPreparationErrorCode.INPUT_INVALID)
@@ -174,6 +177,12 @@ def persist_backup_preparing_generation(
             ca_bundle_mode=(
                 certificates.ca_bundle.mode if certificates.ca_bundle.existed else None
             ),
+            local_ca_candidate_sha256=certificate_plan.local_ca_sha256,
+            local_ca_candidate_size=len(certificate_plan.local_ca_contents),
+            local_ca_candidate_mode=certificate_plan.local_ca_mode,
+            ca_bundle_candidate_sha256=certificate_plan.ca_bundle_sha256,
+            ca_bundle_candidate_size=len(certificate_plan.ca_bundle_contents),
+            ca_bundle_candidate_mode=certificate_plan.ca_bundle_mode,
         )
         generation = EnvironmentJournalGeneration(
             1,

@@ -29,7 +29,13 @@ from towerscout_launcher.windows_recovery_certificate_storage import (  # noqa: 
     RecoveryCertificateStorageError,
     RecoveryCertificateStorageErrorCode,
 )
-from towerscout_launcher.target_contracts import ABSENT_FILE_SHA256  # noqa: E402
+from towerscout_launcher.target_contracts import (  # noqa: E402
+    ABSENT_FILE_SHA256,
+    MapProvider,
+)
+from towerscout_launcher.windows_certificate_replacement import (  # noqa: E402
+    CertificateReplacementPlan,
+)
 from towerscout_launcher.windows_environment_replacement import (  # noqa: E402
     plan_ca_environment_replacement,
 )
@@ -73,6 +79,19 @@ _Result = TypeVar("_Result")
 
 def _identity(value: int) -> StableFileIdentity:
     return StableFileIdentity(7, value.to_bytes(16, "big"))
+
+
+def _certificate_plan() -> CertificateReplacementPlan:
+    local_ca = (
+        b"-----BEGIN CERTIFICATE-----\n"
+        b"Y2FuZGlkYXRl\n"
+        b"-----END CERTIFICATE-----\n"
+    )
+    return CertificateReplacementPlan(
+        MapProvider.GOOGLE,
+        local_ca,
+        b"system-bundle\n" + local_ca,
+    )
 
 
 def _stream() -> journal.JournalStreamIdentity:
@@ -775,6 +794,7 @@ def _prepared(
         environment,
         certificates,
         environment_plan=environment_plan,
+        certificate_plan=_certificate_plan(),
         stream=stream,
         name_source=_NameSource(),
         root=root,

@@ -153,6 +153,12 @@ def _backup_preparing_record(
         local_ca_sha256="e" * 64,
         local_ca_mode=0o644,
         ca_bundle_present=False,
+        local_ca_candidate_sha256="1" * 64,
+        local_ca_candidate_size=100,
+        local_ca_candidate_mode=0o644,
+        ca_bundle_candidate_sha256="2" * 64,
+        ca_bundle_candidate_size=200,
+        ca_bundle_candidate_mode=0o644,
     )
 
 
@@ -2252,49 +2258,39 @@ def test_environment_restore_temp_verified_supports_absent_original() -> None:
 
 def test_backup_preparing_rejects_inconsistent_state_and_names() -> None:
     with pytest.raises(ValueError):
-        journal.BackupPreparingRecord(
-            1,
-            _identity(7),
-            "recovery-backup-" + "1" * 32 + ".blob",
-            "recovery-backup-" + "2" * 32 + ".blob",
-            "not-a-hash",
-            0,
-            False,
+        replace(
+            _backup_preparing_record(environment_present=False),
+            environment_candidate_sha256="not-a-hash",
+            environment_candidate_size=0,
         )
 
     with pytest.raises(ValueError):
-        journal.BackupPreparingRecord(
-            1,
-            _identity(7),
-            "recovery-backup-" + "1" * 32 + ".blob",
-            "recovery-backup-" + "1" * 32 + ".blob",
-            "a" * 64,
-            37,
-            False,
+        replace(
+            _backup_preparing_record(environment_present=False),
+            certificate_backup_name="recovery-backup-" + "1" * 32 + ".blob",
         )
 
     with pytest.raises(ValueError):
-        journal.BackupPreparingRecord(
-            1,
-            _identity(7),
-            "../recovery-backup-" + "1" * 32 + ".blob",
-            "recovery-backup-" + "2" * 32 + ".blob",
-            "a" * 64,
-            37,
-            False,
+        replace(
+            _backup_preparing_record(environment_present=False),
+            environment_backup_name="../recovery-backup-" + "1" * 32 + ".blob",
         )
 
     with pytest.raises(ValueError):
-        journal.BackupPreparingRecord(
-            1,
-            _identity(7),
-            "recovery-backup-" + "1" * 32 + ".blob",
-            "recovery-backup-" + "2" * 32 + ".blob",
-            "a" * 64,
-            37,
-            False,
+        replace(
+            _backup_preparing_record(environment_present=False),
             environment_sha256="c" * 64,
         )
+
+    for changes in (
+        {"local_ca_candidate_sha256": "not-a-hash"},
+        {"local_ca_candidate_mode": 0o600},
+        {"ca_bundle_candidate_mode": 0o600},
+        {"ca_bundle_candidate_size": 100},
+        {"ca_bundle_candidate_sha256": "1" * 64},
+    ):
+        with pytest.raises(ValueError):
+            replace(_backup_preparing_record(), **changes)
 
 
 def test_backup_preparing_rejects_mixed_or_repeated_chain() -> None:
