@@ -1507,6 +1507,43 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-17 - Durable Provider Environment Apply Orchestration Added
+
+**Objective**: Make the exact provider `.env` staging and promotion authority
+survive process exit and reconcile the apply result safely after restart.
+
+**Context**: The staging and native promotion boundaries were individually
+exact, but their receipts were not yet backed by the authenticated provider
+mini-journal. The immutable plan also needed to carry all original-destination
+facts used by promotion rather than relying on process memory.
+
+**Decision**: Bind exact original presence, identity, content, attributes, and
+owner/DACL policy into the plan. Return a staging receipt only after appending,
+rereading, authenticating, and selecting its exact generation. Hold the package
+root while reloading the verified chain and applying; require generation 3 to
+be current before mutation, append generation 4 exactly once, and on restart
+repair only an otherwise exact applied pointer.
+
+**Execution**: Committed checkpoint
+`30e30efd62d94bdd9f279f3217f79a52e8609b67` adds the storage-backed staging
+adapter, held-root promotion orchestrator, expanded journal codec/continuity,
+and exact restart/failure tests for existing and originally absent `.env`
+destinations.
+
+**Output**: Every successful plan/create/verify/apply receipt is now durable
+and authenticated. The forward apply can be reconciled without trusting
+process memory, including the crash window between destination completion and
+the applied-generation append. Installer and repair call sites remain
+deliberately unwired, so runtime mutation is still disabled.
+
+**Validation**: The affected ring passes `249/249`; the broad launcher suite
+passes `1973/1973` with only the unchanged antivirus-blocked PowerShell helper
+module excluded. Black, strict mypy, configured Flake8, medium/high Bandit,
+compilation, and diff checks pass.
+
+**Next**: Add exact planned/created temp orphan handling and terminal mini-
+journal cleanup, then consume the applied authority in generation-8 rollback.
+
 ### 2026-09-17 - Exact Native Environment Promotion Boundary Added
 
 **Objective**: Implement the narrow Windows destination operation needed for

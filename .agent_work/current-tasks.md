@@ -154,6 +154,14 @@ and the broad launcher ring passes `1959/1959` with only the unchanged
 antivirus-blocked host-helper module excluded. Production journal orchestration
 and every repair/runtime call site remain disabled; push, exact-head workflows,
 and independent review remain pending.
+Committed checkpoint `30e30ef` durably records the exact original `.env`
+authority, appends and reauthenticates all staging generations, requires the
+verified generation to be current before apply, persists `environment_applied`
+exactly once, and repairs only its exact pointer after restart. Focused tests
+pass `249/249`; the broad launcher ring passes `1973/1973` with only the
+unchanged antivirus-blocked host-helper module excluded. No installer/repair
+call site exists, so runtime mutation remains disabled; push, exact-head
+workflows, and independent review remain pending.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -174,8 +182,8 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `5e83e46` is committed locally; it and
-  pushed checkpoints `39127a5`, `6637c0d`,
+- Task-087 implementation checkpoint `30e30ef` is committed locally; it and
+  checkpoint `5e83e46` plus pushed checkpoints `39127a5`, `6637c0d`,
   `16a8224`, and predecessor `1b85a93` await exact-head workflows and
   independent review.
   Checkpoint
@@ -425,11 +433,19 @@ move passes; `108/108` final review tests pass with the expected unelevated
 policy skip; and the broad launcher ring passes `1959/1959`. It remains unwired
 from durable journal orchestration and production repair, so mutation stays
 disabled. Push, exact-head workflows, and independent review remain pending.
+Committed checkpoint `30e30ef` adds the durable staging adapter and held-root
+promotion orchestration. It authenticates every immutable generation before
+returning a receipt, makes generation 3 current before destination apply,
+appends generation 4 exactly once after exact completion, and handles a fresh-
+process retry by re-verifying applied state and repairing only the exact
+pointer. Focused and broad tests pass `249/249` and `1973/1973`; all focused
+static/security checks pass. Product call sites and runtime mutation remain
+disabled; push, exact-head workflows, and independent review remain pending.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `5e83e46` against the fixed acceptance
+**Remaining Estimate**: Rebaseline after `30e30ef` against the fixed acceptance
 criteria rather than commit count. Remaining recovery states/action,
 recovery/transaction and provider `.env` integration, successful Windows trust
 proof, final exact-head review, and the PR #67 decision still precede Task-096.
