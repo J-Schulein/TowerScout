@@ -182,22 +182,13 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `30e30ef` is committed locally; it and
-  checkpoint `5e83e46` plus pushed checkpoints `39127a5`, `6637c0d`,
-  `16a8224`, and predecessor `1b85a93` await exact-head workflows and
-  independent review.
-  Checkpoint
-  `d9f6563` is independently reviewed and exact-head validated. The current
-  sequence makes package-bound recovery
-  scanning mandatory before target-lock acquisition, blocks pending provider
-  environment recovery, retains pending repair recovery only as read-only
-  owner evidence, persists generation 6 after exact zero-byte temp creation or
-  secure absence, and stages/reverifies exact authenticated original bytes in
-  that recorded temp before persisting generation 7, then defines the strict
-  non-mutating generation-8 restored-state contract. CI/CD run `35238335037`,
-  Task-087 run `35238334999`, and Trivy pass. It replaces or removes no `.env`,
-  performs no completed-transaction cleanup, writes no certificate, and mutates
-  no repair/runtime state. PR #67 remains Draft.
+- Task-087 implementation head `4ff6967` contains the hardened provider `.env`
+  path, fresh-process rollback manager, and exact authenticated native terminal
+  cleanup. It is the validated exact head: CI/CD run `35274231293`, Task-087
+  run `35274231290`, and Trivy passed; the main-only build was neutral as
+  designed. The native recovery ports,
+  transaction integration, and live trust/runtime proof remain; PR #67 remains
+  Draft.
   Gate A remains open and mutation remains disabled. Detailed
   status and evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -314,7 +305,15 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. Slices 1-3 are complete. The September 14 checkpoint connects the
+open. The current implementation and validated exact head is `4ff6967`.
+Provider `.env` mutation/reconciliation, fresh-process
+rollback resumption, all durable rollback states, and native terminal cleanup
+are implemented. Remaining implementation is the production native runtime-
+availability, certificate-restoration, runtime-restart, and rollback-
+verification adapters plus the `repair.py` transaction refactor. Live Windows
+trust and Docker/rootless-Podman proof remains pending a supported context and
+runtime-readiness confirmation. The chronological ledger follows. Slices 1-3
+are complete. The September 14 checkpoint connects the
 retained exact-target facade to bounded typed confirmation and adds ordered
 revalidation hooks. Slice 4 remains partial: the independently reviewed native
 path limits authorization to one eligible Windows root and a bounded exact
@@ -457,10 +456,10 @@ Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `121db54` against the fixed acceptance
-criteria rather than commit count. Remaining certificate/runtime recovery states,
-recovery/transaction and provider `.env` integration, successful Windows trust
-proof, final exact-head review, and the PR #67 decision still precede Task-096.
+**Remaining Estimate**: Rebaseline after `4ff6967` against the fixed acceptance
+criteria rather than commit count. Remaining native recovery adapters,
+recovery/transaction integration, successful Windows trust/live-runtime proof,
+final exact-head review, and the PR #67 decision still precede Task-096.
 **Task File**:
 `.agent_work/tasks/active/TASK-087-host-side-tls-repair-control-plane.md`
 **Canonical Gate A Burn-Down**:
