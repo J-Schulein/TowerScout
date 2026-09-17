@@ -32,6 +32,7 @@ from towerscout_launcher.windows_recovery_environment_storage import (  # noqa: 
 from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
     EnvironmentRestoreTempCreatedRecord,
     EnvironmentRestoreTempPlanRecord,
+    EnvironmentRestoreTempVerifiedRecord,
 )
 from towerscout_launcher.windows_security import (  # noqa: E402
     NativeFileFacts,
@@ -125,6 +126,7 @@ class _Handle:
     path: str
     identity: StableFileIdentity
     delete_on_close: bool = False
+    offset: int = 0
 
 
 class _Api:
@@ -132,9 +134,11 @@ class _Api:
         self._supported = True
         self.files: dict[str, _File] = {}
         self.create_identity = _identity(31)
+        self.update_identity: StableFileIdentity | None = None
         self.reopen_identity: StableFileIdentity | None = None
         self.create_error: BaseException | None = None
         self.flush_error: BaseException | None = None
+        self.write_results: list[int | BaseException] = []
         self.delete_error: BaseException | None = None
         self.close_error: BaseException | None = None
         self.events: list[str] = []
@@ -170,6 +174,13 @@ class _Api:
         self.events.append("reopen")
         item = self.files[path]
         identity = self.reopen_identity or item.identity
+        return _Handle(path, identity)
+
+    def open_existing_file_for_update(self, path: str) -> object:
+        assert path == _TEMP_PATH
+        self.events.append("open-update")
+        item = self.files[path]
+        identity = self.update_identity or item.identity
         return _Handle(path, identity)
 
     def open_file_for_delete_if_exists(self, path: str) -> object | None:
@@ -212,6 +223,37 @@ class _Api:
         self.events.append("flush")
         if self.flush_error is not None:
             raise self.flush_error
+
+    def write_file(self, handle: object, contents: bytes) -> int:
+        assert isinstance(handle, _Handle)
+        self.events.append("write")
+        result: int | BaseException = len(contents)
+        if self.write_results:
+            result = self.write_results.pop(0)
+        if isinstance(result, BaseException):
+            raise result
+        amount = min(result, len(contents))
+        item = self.files[handle.path]
+        item.contents = (
+            item.contents[: handle.offset]
+            + contents[:amount]
+            + item.contents[handle.offset + amount :]
+        )
+        handle.offset += amount
+        return amount
+
+    def seek_file(self, handle: object, offset: int) -> None:
+        assert isinstance(handle, _Handle)
+        self.events.append("seek")
+        handle.offset = offset
+
+    def read_file(self, handle: object, maximum: int) -> bytes:
+        assert isinstance(handle, _Handle)
+        self.events.append("read")
+        item = self.files[handle.path]
+        chunk = item.contents[handle.offset : handle.offset + maximum]
+        handle.offset += len(chunk)
+        return chunk
 
     def mark_file_for_deletion(self, handle: object) -> None:
         assert isinstance(handle, _Handle)
@@ -276,6 +318,48 @@ def _created(
         plan.environment_security_descriptor_sha256,
         plan.temp_name,
         identity,
+    )
+
+
+def _created_for_contents(
+    plan: EnvironmentRestoreTempPlanRecord,
+    identity: StableFileIdentity,
+    contents: bytes,
+) -> EnvironmentRestoreTempCreatedRecord:
+    return EnvironmentRestoreTempCreatedRecord(
+        1,
+        "5" * 64,
+        plan.package_root_identity,
+        plan.environment_backup_identity,
+        plan.environment_ciphertext_sha256,
+        plan.environment_ciphertext_size,
+        True,
+        hashlib.sha256(contents).hexdigest(),
+        len(contents),
+        plan.environment_file_attributes,
+        plan.environment_security_descriptor_sha256,
+        plan.temp_name,
+        identity,
+    )
+
+
+def _verified(
+    created: EnvironmentRestoreTempCreatedRecord,
+) -> EnvironmentRestoreTempVerifiedRecord:
+    return EnvironmentRestoreTempVerifiedRecord(
+        1,
+        "6" * 64,
+        created.package_root_identity,
+        created.environment_backup_identity,
+        created.environment_ciphertext_sha256,
+        created.environment_ciphertext_size,
+        created.environment_present,
+        created.environment_sha256,
+        created.environment_size,
+        created.environment_file_attributes,
+        created.environment_security_descriptor_sha256,
+        created.temp_name,
+        created.temp_identity,
     )
 
 
@@ -437,6 +521,224 @@ def test_verify_restore_temp_requires_exact_recorded_identity() -> None:
         root.close()  # type: ignore[attr-defined]
 
 
+def test_write_restore_temp_flushes_reads_and_reopens_exact_contents() -> None:
+    root, _path_api = _root()
+    api = _Api()
+    contents = b"GOOGLE_API_KEY=restored\n"
+    plan = _plan(root.evidence.root_identity)  # type: ignore[attr-defined]
+    created = _created_for_contents(plan, api.create_identity, contents)
+    api.files[_TEMP_PATH] = _File(
+        api.create_identity,
+        b"",
+        _protected_security(),
+        _TEMP_PATH,
+    )
+    storage = native.NativeWindowsEnvironmentRestoreTempStorage(api=api)
+    try:
+        identity = root.run_while_held(  # type: ignore[attr-defined]
+            lambda: storage.write_and_verify_environment_restore_temp_from_held_package_root(
+                root,  # type: ignore[arg-type]
+                created,
+                contents,
+            )
+        )
+        assert identity == api.create_identity
+        assert api.files[_TEMP_PATH].contents == contents
+        assert api.events.count("open-update") == 1
+        assert api.events.count("write") == 1
+        assert api.events.count("flush") == 1
+        assert api.events.count("reopen") == 1
+        assert api.events.count("read") == 2
+        assert "delete" not in api.events
+
+        assert (
+            root.run_while_held(  # type: ignore[attr-defined]
+                lambda: storage.verify_written_environment_restore_temp_from_held_package_root(
+                    root,  # type: ignore[arg-type]
+                    _verified(created),
+                )
+            )
+            == api.create_identity
+        )
+        assert api.events.count("write") == 1
+    finally:
+        root.close()  # type: ignore[attr-defined]
+
+
+def test_write_restore_temp_reverifies_exact_crash_residue_without_rewrite() -> None:
+    root, _path_api = _root()
+    api = _Api()
+    contents = b"DEFAULT_MAP_PROVIDER=azure\n"
+    plan = _plan(root.evidence.root_identity)  # type: ignore[attr-defined]
+    created = _created_for_contents(plan, api.create_identity, contents)
+    api.files[_TEMP_PATH] = _File(
+        api.create_identity,
+        contents,
+        _protected_security(),
+        _TEMP_PATH,
+    )
+    storage = native.NativeWindowsEnvironmentRestoreTempStorage(api=api)
+    try:
+        assert (
+            root.run_while_held(  # type: ignore[attr-defined]
+                lambda: storage.write_and_verify_environment_restore_temp_from_held_package_root(
+                    root,  # type: ignore[arg-type]
+                    created,
+                    contents,
+                )
+            )
+            == api.create_identity
+        )
+        assert "write" not in api.events
+        assert api.events.count("read") == 3
+    finally:
+        root.close()  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize("existing", [b"partial", b"X" * 24])
+def test_write_restore_temp_preserves_partial_or_wrong_complete_content(
+    existing: bytes,
+) -> None:
+    root, _path_api = _root()
+    api = _Api()
+    contents = b"GOOGLE_API_KEY=restored\n"
+    assert len(existing) != 0
+    plan = _plan(root.evidence.root_identity)  # type: ignore[attr-defined]
+    created = _created_for_contents(plan, api.create_identity, contents)
+    api.files[_TEMP_PATH] = _File(
+        api.create_identity,
+        existing,
+        _protected_security(),
+        _TEMP_PATH,
+    )
+    storage = native.NativeWindowsEnvironmentRestoreTempStorage(api=api)
+    try:
+        with pytest.raises(RecoveryEnvironmentStorageError) as failure:
+            root.run_while_held(  # type: ignore[attr-defined]
+                lambda: storage.write_and_verify_environment_restore_temp_from_held_package_root(
+                    root,  # type: ignore[arg-type]
+                    created,
+                    contents,
+                )
+            )
+        assert failure.value.code is RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED
+        assert api.files[_TEMP_PATH].contents == existing
+        assert "write" not in api.events
+        assert "delete" not in api.events
+    finally:
+        root.close()  # type: ignore[attr-defined]
+
+
+def test_write_restore_temp_preserves_partial_file_after_write_failure() -> None:
+    root, _path_api = _root()
+    api = _Api()
+    contents = b"AZURE_MAPS_SUBSCRIPTION_KEY=restored\n"
+    plan = _plan(root.evidence.root_identity)  # type: ignore[attr-defined]
+    created = _created_for_contents(plan, api.create_identity, contents)
+    api.files[_TEMP_PATH] = _File(
+        api.create_identity,
+        b"",
+        _protected_security(),
+        _TEMP_PATH,
+    )
+    api.write_results = [7, OSError("private write failure")]
+    storage = native.NativeWindowsEnvironmentRestoreTempStorage(api=api)
+    try:
+        with pytest.raises(RecoveryEnvironmentStorageError) as failure:
+            root.run_while_held(  # type: ignore[attr-defined]
+                lambda: storage.write_and_verify_environment_restore_temp_from_held_package_root(
+                    root,  # type: ignore[arg-type]
+                    created,
+                    contents,
+                )
+            )
+        assert failure.value.code is RecoveryEnvironmentStorageErrorCode.WRITE_FAILED
+        assert api.files[_TEMP_PATH].contents == contents[:7]
+        assert "delete" not in api.events
+        assert _TEMP_PATH not in str(failure.value)
+    finally:
+        root.close()  # type: ignore[attr-defined]
+
+
+def test_write_restore_temp_preserves_complete_file_after_flush_failure() -> None:
+    root, _path_api = _root()
+    api = _Api()
+    contents = b"FLASK_SECRET_KEY=restored\n"
+    plan = _plan(root.evidence.root_identity)  # type: ignore[attr-defined]
+    created = _created_for_contents(plan, api.create_identity, contents)
+    api.files[_TEMP_PATH] = _File(
+        api.create_identity,
+        b"",
+        _protected_security(),
+        _TEMP_PATH,
+    )
+    api.flush_error = OSError("private flush failure")
+    storage = native.NativeWindowsEnvironmentRestoreTempStorage(api=api)
+    try:
+        with pytest.raises(RecoveryEnvironmentStorageError) as failure:
+            root.run_while_held(  # type: ignore[attr-defined]
+                lambda: storage.write_and_verify_environment_restore_temp_from_held_package_root(
+                    root,  # type: ignore[arg-type]
+                    created,
+                    contents,
+                )
+            )
+        assert failure.value.code is RecoveryEnvironmentStorageErrorCode.WRITE_FAILED
+        assert api.files[_TEMP_PATH].contents == contents
+        assert "delete" not in api.events
+    finally:
+        root.close()  # type: ignore[attr-defined]
+
+
+def test_write_restore_temp_rejects_update_and_reopen_identity_drift() -> None:
+    root, _path_api = _root()
+    api = _Api()
+    contents = b"GOOGLE_API_KEY=restored\n"
+    plan = _plan(root.evidence.root_identity)  # type: ignore[attr-defined]
+    created = _created_for_contents(plan, api.create_identity, contents)
+    api.files[_TEMP_PATH] = _File(
+        api.create_identity,
+        b"",
+        _protected_security(),
+        _TEMP_PATH,
+    )
+    storage = native.NativeWindowsEnvironmentRestoreTempStorage(api=api)
+    try:
+        api.update_identity = _identity(32)
+        with pytest.raises(RecoveryEnvironmentStorageError) as update_failure:
+            root.run_while_held(  # type: ignore[attr-defined]
+                lambda: storage.write_and_verify_environment_restore_temp_from_held_package_root(
+                    root,  # type: ignore[arg-type]
+                    created,
+                    contents,
+                )
+            )
+        assert (
+            update_failure.value.code
+            is RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED
+        )
+        assert api.files[_TEMP_PATH].contents == b""
+
+        api.update_identity = None
+        api.reopen_identity = _identity(33)
+        with pytest.raises(RecoveryEnvironmentStorageError) as reopen_failure:
+            root.run_while_held(  # type: ignore[attr-defined]
+                lambda: storage.write_and_verify_environment_restore_temp_from_held_package_root(
+                    root,  # type: ignore[arg-type]
+                    created,
+                    contents,
+                )
+            )
+        assert (
+            reopen_failure.value.code
+            is RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED
+        )
+        assert api.files[_TEMP_PATH].contents == contents
+        assert "delete" not in api.events
+    finally:
+        root.close()  # type: ignore[attr-defined]
+
+
 @pytest.mark.skipif(os.name != "nt", reason="requires native Windows file APIs")
 def test_native_restore_temp_round_trip_under_held_package_root(tmp_path: Path) -> None:
     api = native.NativeWindowsRecoveryEnvironmentTempApi()
@@ -500,6 +802,28 @@ def test_native_restore_temp_round_trip_under_held_package_root(tmp_path: Path) 
                 lambda: storage.verify_environment_restore_temp_from_held_package_root(
                     root,
                     _created(plan, identity),
+                )
+            )
+            == identity
+        )
+        contents = b"GOOGLE_API_KEY=restored\n"
+        created = _created_for_contents(plan, identity, contents)
+        assert (
+            root.run_while_held(
+                lambda: storage.write_and_verify_environment_restore_temp_from_held_package_root(
+                    root,
+                    created,
+                    contents,
+                )
+            )
+            == identity
+        )
+        assert path.read_bytes() == contents
+        assert (
+            root.run_while_held(
+                lambda: storage.verify_written_environment_restore_temp_from_held_package_root(
+                    root,
+                    _verified(created),
                 )
             )
             == identity

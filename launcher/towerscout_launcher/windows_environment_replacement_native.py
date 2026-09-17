@@ -823,6 +823,40 @@ class NativeWindowsEnvironmentReplacementApi:
     def reopen_file_for_verification(self, path: str) -> object:
         return self._file_api.open_file_for_identity(path)
 
+    def open_existing_file_for_update(self, path: str) -> object:
+        if (
+            type(path) is not str
+            or not path
+            or "\x00" in path
+            or len(path) > _MAX_PATH_CHARACTERS
+        ):
+            raise ValueError("Native Windows environment update request is invalid.")
+        _advapi32, kernel32 = self._require()
+        invalid = ctypes.c_void_p(-1).value
+        native: int | None = None
+        try:
+            ctypes.set_last_error(0)
+            raw_handle = kernel32.CreateFileW(
+                path,
+                0xC0020000,  # GENERIC_READ | GENERIC_WRITE | READ_CONTROL
+                0x00000001,  # FILE_SHARE_READ; deny write and delete sharing
+                None,
+                3,  # OPEN_EXISTING
+                0x00200080,  # OPEN_REPARSE_POINT | FILE_ATTRIBUTE_NORMAL
+                None,
+            )
+            if raw_handle is None or raw_handle == invalid:
+                self._last_error("Native Windows environment update open failed.")
+            native = int(raw_handle)
+            return native
+        except BaseException:
+            if native is not None and native != invalid:
+                try:
+                    self._file_api.close_handle(native)
+                except BaseException:
+                    pass
+            raise
+
     def query_file(self, handle: object) -> NativeFileFacts:
         return self._file_api.query_file(handle)
 

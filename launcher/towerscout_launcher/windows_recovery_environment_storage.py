@@ -1,8 +1,9 @@
 """Narrow storage contract for a Windows environment-restore temporary file.
 
-The port can create or verify only the zero-byte file already named by an
-authenticated recovery-journal record. It cannot write content, move, replace,
-or remove the package environment file.
+The port can create the zero-byte file named by an authenticated recovery
+journal, write only its exact authenticated restore bytes, or reverify the
+recorded result. It cannot move, replace, or remove the package environment
+file.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from .windows_path_trust import PathHierarchyTrust
 from .windows_recovery_journal import (
     EnvironmentRestoreTempCreatedRecord,
     EnvironmentRestoreTempPlanRecord,
+    EnvironmentRestoreTempVerifiedRecord,
 )
 from .windows_security import StableFileIdentity
 
@@ -22,6 +24,7 @@ class RecoveryEnvironmentStorageErrorCode(str, Enum):
     INPUT_INVALID = "recovery_environment_storage_input_invalid"
     STORAGE_UNAVAILABLE = "recovery_environment_storage_unavailable"
     CREATE_FAILED = "recovery_environment_storage_create_failed"
+    WRITE_FAILED = "recovery_environment_storage_write_failed"
     CLEANUP_FAILED = "recovery_environment_storage_cleanup_failed"
     VERIFY_FAILED = "recovery_environment_storage_verify_failed"
 
@@ -38,6 +41,9 @@ class RecoveryEnvironmentStorageError(RuntimeError):
         ),
         RecoveryEnvironmentStorageErrorCode.CREATE_FAILED: (
             "The environment restore temporary file could not be created safely."
+        ),
+        RecoveryEnvironmentStorageErrorCode.WRITE_FAILED: (
+            "The environment restore temporary file could not be written safely."
         ),
         RecoveryEnvironmentStorageErrorCode.CLEANUP_FAILED: (
             "The environment restore temporary file could not be reconciled safely."
@@ -68,6 +74,19 @@ class EnvironmentRestoreTempStoragePort(Protocol):
         self,
         package_root: PathHierarchyTrust,
         created: EnvironmentRestoreTempCreatedRecord,
+    ) -> StableFileIdentity: ...
+
+    def write_and_verify_environment_restore_temp_from_held_package_root(
+        self,
+        package_root: PathHierarchyTrust,
+        created: EnvironmentRestoreTempCreatedRecord,
+        contents: bytes,
+    ) -> StableFileIdentity: ...
+
+    def verify_written_environment_restore_temp_from_held_package_root(
+        self,
+        package_root: PathHierarchyTrust,
+        verified: EnvironmentRestoreTempVerifiedRecord,
     ) -> StableFileIdentity: ...
 
 

@@ -1,13 +1,15 @@
-"""Native zero-byte storage for a planned Windows environment restore temp.
+"""Native storage for a journal-bound Windows environment restore temp.
 
 The adapter requires an already-held package-root lease. It may reconcile only
 the exact planned-name, zero-byte, restrictive-DACL orphan left before a
-generation-6 journal append. It has no content-write, move, replacement, or
+generation-6 journal append. After generation 6, it may write only exact
+authenticated restore bytes and reverify them. It has no move, replacement, or
 package-environment deletion operation.
 """
 
 from __future__ import annotations
 
+import hashlib
 import ntpath
 import re
 from typing import Callable, NoReturn, Protocol, TypeVar
@@ -29,6 +31,7 @@ from .windows_recovery_environment_storage import (
 from .windows_recovery_journal import (
     EnvironmentRestoreTempCreatedRecord,
     EnvironmentRestoreTempPlanRecord,
+    EnvironmentRestoreTempVerifiedRecord,
 )
 from .windows_security import (
     NativeFileFacts,
@@ -44,6 +47,7 @@ _FILE_ALL_ACCESS = 0x001F01FF
 _SYSTEM_SID = "S-1-5-18"
 _SID = re.compile(r"^S-(?:[0-9]+-){1,14}[0-9]+$", re.IGNORECASE)
 _TEMP_NAME = re.compile(r"^\.towerscout-env-[0-9a-f]{32}\.tmp$")
+_HASH_CHUNK_BYTES = 65_536
 _Result = TypeVar("_Result")
 
 
@@ -54,6 +58,8 @@ class _WindowsRecoveryEnvironmentTempApi(Protocol):
     def current_user_sid(self) -> str: ...
 
     def create_new_restricted_file(self, path: str, *, owner_sid: str) -> object: ...
+
+    def open_existing_file_for_update(self, path: str) -> object: ...
 
     def reopen_file_for_verification(self, path: str) -> object: ...
 
@@ -66,6 +72,12 @@ class _WindowsRecoveryEnvironmentTempApi(Protocol):
     def query_security(self, handle: object) -> NativeSecurityFacts: ...
 
     def flush_file(self, handle: object) -> None: ...
+
+    def write_file(self, handle: object, contents: bytes) -> int: ...
+
+    def seek_file(self, handle: object, offset: int) -> None: ...
+
+    def read_file(self, handle: object, maximum: int) -> bytes: ...
 
     def mark_file_for_deletion(self, handle: object) -> None: ...
 
@@ -94,6 +106,9 @@ class NativeWindowsRecoveryEnvironmentTempApi:
     def create_new_restricted_file(self, path: str, *, owner_sid: str) -> object:
         return self._creation.create_new_restricted_file(path, owner_sid=owner_sid)
 
+    def open_existing_file_for_update(self, path: str) -> object:
+        return self._creation.open_existing_file_for_update(path)
+
     def reopen_file_for_verification(self, path: str) -> object:
         return self._files.open_file_for_identity(path)
 
@@ -111,6 +126,15 @@ class NativeWindowsRecoveryEnvironmentTempApi:
 
     def flush_file(self, handle: object) -> None:
         self._creation.flush_file(handle)
+
+    def write_file(self, handle: object, contents: bytes) -> int:
+        return self._creation.write_file(handle, contents)
+
+    def seek_file(self, handle: object, offset: int) -> None:
+        self._creation.seek_file(handle, offset)
+
+    def read_file(self, handle: object, maximum: int) -> bytes:
+        return self._creation.read_file(handle, maximum)
 
     def mark_file_for_deletion(self, handle: object) -> None:
         self._files.mark_file_for_deletion(handle)
@@ -218,6 +242,7 @@ def _validate_file(
     expected_path: str,
     package_root_identity: StableFileIdentity,
     expected_identity: StableFileIdentity | None,
+    expected_size: int,
     code: RecoveryEnvironmentStorageErrorCode,
 ) -> StableFileIdentity:
     if type(facts) is not NativeFileFacts:
@@ -234,7 +259,7 @@ def _validate_file(
         & (_FILE_ATTRIBUTE_DIRECTORY | _FILE_ATTRIBUTE_REPARSE_POINT)
         or facts.reparse_tag != 0
         or facts.link_count != 1
-        or facts.size != 0
+        or facts.size != expected_size
         or (expected_identity is not None and identity != expected_identity)
     ):
         _fail(code)
@@ -249,6 +274,7 @@ def _inspect_handle(
     package_root_identity: StableFileIdentity,
     current_user_sid: str,
     expected_identity: StableFileIdentity | None,
+    expected_size: int = 0,
     code: RecoveryEnvironmentStorageErrorCode,
 ) -> StableFileIdentity:
     identity = _validate_file(
@@ -256,6 +282,7 @@ def _inspect_handle(
         expected_path=expected_path,
         package_root_identity=package_root_identity,
         expected_identity=expected_identity,
+        expected_size=expected_size,
         code=code,
     )
     _validate_security(
@@ -263,6 +290,87 @@ def _inspect_handle(
         current_user_sid,
         code,
     )
+    return identity
+
+
+def _write_all(
+    api: _WindowsRecoveryEnvironmentTempApi,
+    handle: object,
+    contents: bytes,
+) -> None:
+    offset = 0
+    while offset < len(contents):
+        written = _call(
+            lambda: api.write_file(handle, contents[offset:]),
+            RecoveryEnvironmentStorageErrorCode.WRITE_FAILED,
+        )
+        if type(written) is not int or not 0 < written <= len(contents) - offset:
+            _fail(RecoveryEnvironmentStorageErrorCode.WRITE_FAILED)
+        offset += written
+
+
+def _read_exact(
+    api: _WindowsRecoveryEnvironmentTempApi,
+    handle: object,
+    expected_size: int,
+) -> bytes:
+    _call(
+        lambda: api.seek_file(handle, 0),
+        RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED,
+    )
+    chunks: list[bytes] = []
+    remaining = expected_size
+    while remaining:
+        chunk = _call(
+            lambda: api.read_file(handle, min(remaining, _HASH_CHUNK_BYTES)),
+            RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED,
+        )
+        if type(chunk) is not bytes or not chunk or len(chunk) > remaining:
+            _fail(RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED)
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def _reopen_and_verify_written(
+    api: _WindowsRecoveryEnvironmentTempApi,
+    *,
+    path: str,
+    package_root_identity: StableFileIdentity,
+    current_user_sid: str,
+    expected_identity: StableFileIdentity,
+    expected_size: int,
+    expected_sha256: str,
+) -> StableFileIdentity:
+    handle = _call(
+        lambda: api.reopen_file_for_verification(path),
+        RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED,
+    )
+    if handle is None:
+        _fail(RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED)
+    held: object | None = handle
+    try:
+        identity = _inspect_handle(
+            api,
+            handle,
+            expected_path=path,
+            package_root_identity=package_root_identity,
+            current_user_sid=current_user_sid,
+            expected_identity=expected_identity,
+            expected_size=expected_size,
+            code=RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED,
+        )
+        contents = _read_exact(api, handle, expected_size)
+        if hashlib.sha256(contents).hexdigest() != expected_sha256:
+            _fail(RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED)
+        _call(
+            lambda: api.close_handle(handle),
+            RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED,
+        )
+        held = None
+    finally:
+        if held is not None:
+            _safe_close(api, held)
     return identity
 
 
@@ -396,7 +504,7 @@ def _create_and_verify(
 
 
 class NativeWindowsEnvironmentRestoreTempStorage:
-    """Create/reconcile and verify only a journal-planned zero-byte temp."""
+    """Create, write, and verify only a journal-bound restore temp."""
 
     __slots__ = ("_api",)
 
@@ -512,6 +620,160 @@ class NativeWindowsEnvironmentRestoreTempStorage:
         finally:
             if held is not None:
                 _safe_close(self._api, held)
+        return identity
+
+    def write_and_verify_environment_restore_temp_from_held_package_root(
+        self,
+        package_root: PathHierarchyTrust,
+        created: EnvironmentRestoreTempCreatedRecord,
+        contents: bytes,
+    ) -> StableFileIdentity:
+        self._require_supported()
+        if (
+            type(created) is not EnvironmentRestoreTempCreatedRecord
+            or not created.environment_present
+            or type(created.temp_name) is not str
+            or type(created.temp_identity) is not StableFileIdentity
+            or type(created.environment_sha256) is not str
+            or type(created.environment_size) is not int
+            or type(contents) is not bytes
+            or len(contents) != created.environment_size
+            or hashlib.sha256(contents).hexdigest() != created.environment_sha256
+        ):
+            _fail(RecoveryEnvironmentStorageErrorCode.INPUT_INVALID)
+        path = _restore_temp_path(
+            package_root,
+            created.package_root_identity,
+            created.temp_name,
+        )
+        current_user_sid = _current_user_sid(
+            self._api,
+            RecoveryEnvironmentStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        handle = _call(
+            lambda: self._api.open_existing_file_for_update(path),
+            RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED,
+        )
+        if handle is None:
+            _fail(RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED)
+        held: object | None = handle
+        try:
+            facts = _call(
+                lambda: self._api.query_file(handle),
+                RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED,
+            )
+            if type(facts) is not NativeFileFacts or facts.size not in {
+                0,
+                len(contents),
+            }:
+                _fail(RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED)
+            existing_size = facts.size
+            identity = _inspect_handle(
+                self._api,
+                handle,
+                expected_path=path,
+                package_root_identity=created.package_root_identity,
+                current_user_sid=current_user_sid,
+                expected_identity=created.temp_identity,
+                expected_size=existing_size,
+                code=RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED,
+            )
+            if existing_size == len(contents):
+                if _read_exact(self._api, handle, len(contents)) != contents:
+                    _fail(RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED)
+            else:
+                _call(
+                    lambda: self._api.seek_file(handle, 0),
+                    RecoveryEnvironmentStorageErrorCode.WRITE_FAILED,
+                )
+                _write_all(self._api, handle, contents)
+            _call(
+                lambda: self._api.flush_file(handle),
+                RecoveryEnvironmentStorageErrorCode.WRITE_FAILED,
+            )
+            _inspect_handle(
+                self._api,
+                handle,
+                expected_path=path,
+                package_root_identity=created.package_root_identity,
+                current_user_sid=current_user_sid,
+                expected_identity=identity,
+                expected_size=len(contents),
+                code=RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED,
+            )
+            if _read_exact(self._api, handle, len(contents)) != contents:
+                _fail(RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED)
+            _call(
+                lambda: self._api.close_handle(handle),
+                RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED,
+            )
+            held = None
+        finally:
+            if held is not None:
+                _safe_close(self._api, held)
+
+        verified_identity = _reopen_and_verify_written(
+            self._api,
+            path=path,
+            package_root_identity=created.package_root_identity,
+            current_user_sid=current_user_sid,
+            expected_identity=created.temp_identity,
+            expected_size=len(contents),
+            expected_sha256=created.environment_sha256,
+        )
+        if (
+            _restore_temp_path(
+                package_root,
+                created.package_root_identity,
+                created.temp_name,
+            )
+            != path
+        ):
+            _fail(RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED)
+        return verified_identity
+
+    def verify_written_environment_restore_temp_from_held_package_root(
+        self,
+        package_root: PathHierarchyTrust,
+        verified: EnvironmentRestoreTempVerifiedRecord,
+    ) -> StableFileIdentity:
+        self._require_supported()
+        if (
+            type(verified) is not EnvironmentRestoreTempVerifiedRecord
+            or not verified.environment_present
+            or type(verified.temp_name) is not str
+            or type(verified.temp_identity) is not StableFileIdentity
+            or type(verified.environment_sha256) is not str
+            or type(verified.environment_size) is not int
+        ):
+            _fail(RecoveryEnvironmentStorageErrorCode.INPUT_INVALID)
+        path = _restore_temp_path(
+            package_root,
+            verified.package_root_identity,
+            verified.temp_name,
+        )
+        current_user_sid = _current_user_sid(
+            self._api,
+            RecoveryEnvironmentStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        identity = _reopen_and_verify_written(
+            self._api,
+            path=path,
+            package_root_identity=verified.package_root_identity,
+            current_user_sid=current_user_sid,
+            expected_identity=verified.temp_identity,
+            expected_size=verified.environment_size,
+            expected_sha256=verified.environment_sha256,
+        )
+        if (
+            _restore_temp_path(
+                package_root,
+                verified.package_root_identity,
+                verified.temp_name,
+            )
+            != path
+        ):
+            _fail(RecoveryEnvironmentStorageErrorCode.VERIFY_FAILED)
         return identity
 
 

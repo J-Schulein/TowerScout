@@ -132,8 +132,14 @@ class _EnvironmentStorage:
         self.identity = _identity(50)
         self.created: list[journal.EnvironmentRestoreTempPlanRecord] = []
         self.verified: list[journal.EnvironmentRestoreTempCreatedRecord] = []
+        self.written: list[
+            tuple[journal.EnvironmentRestoreTempCreatedRecord, bytes]
+        ] = []
+        self.written_verified: list[journal.EnvironmentRestoreTempVerifiedRecord] = []
         self.create_error: RecoveryEnvironmentStorageError | None = None
+        self.write_error: RecoveryEnvironmentStorageError | None = None
         self.verification_identity: StableFileIdentity | None = None
+        self.written_verification_identity: StableFileIdentity | None = None
 
     def create_environment_restore_temp_from_held_package_root(
         self,
@@ -155,6 +161,29 @@ class _EnvironmentStorage:
         self.verified.append(created)
         assert created.temp_identity is not None
         return self.verification_identity or created.temp_identity
+
+    def write_and_verify_environment_restore_temp_from_held_package_root(
+        self,
+        package_root: PathHierarchyTrust,
+        created: journal.EnvironmentRestoreTempCreatedRecord,
+        contents: bytes,
+    ) -> StableFileIdentity:
+        package_root.assert_unchanged_while_held()
+        self.written.append((created, contents))
+        if self.write_error is not None:
+            raise self.write_error
+        assert created.temp_identity is not None
+        return created.temp_identity
+
+    def verify_written_environment_restore_temp_from_held_package_root(
+        self,
+        package_root: PathHierarchyTrust,
+        verified: journal.EnvironmentRestoreTempVerifiedRecord,
+    ) -> StableFileIdentity:
+        package_root.assert_unchanged_while_held()
+        self.written_verified.append(verified)
+        assert verified.temp_identity is not None
+        return self.written_verification_identity or verified.temp_identity
 
 
 def _package_root() -> PathHierarchyTrust:
@@ -431,6 +460,75 @@ def _persist_and_activate_rollback(
         journal_protection=protection,
     )
     return persisted_blobs
+
+
+def _persist_created_environment_restore_state(
+    protection: _Protection,
+    *,
+    environment_contents: bytes | None = b"GOOGLE_API_KEY=private-value\r\n",
+) -> tuple[
+    journal.JournalStreamIdentity,
+    _Root,
+    _GenerationStorage,
+    _BlobStorage,
+    PathHierarchyTrust,
+    _EnvironmentStorage,
+]:
+    stream, environment, certificates = _sealed_backups(
+        protection,
+        environment_contents=environment_contents,
+    )
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    _persist_and_activate_rollback(
+        protection,
+        stream,
+        environment,
+        certificates,
+        root,
+        generations,
+        blobs,
+    )
+    recovery.begin_persisted_rollback(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        verification=blobs,
+        journal_protection=protection,
+    )
+    recovery.plan_persisted_environment_restore(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+        name_source=_EnvironmentTempNameSource(),
+    )
+    package_root = _package_root()
+    environment_storage = _EnvironmentStorage()
+    package_root.run_while_held(
+        lambda: recovery.create_persisted_environment_restore_temp_from_held_package_root(
+            stream=stream,
+            package_root=package_root,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            environment_storage=environment_storage,
+            journal_protection=protection,
+        )
+    )
+    return (
+        stream,
+        root,
+        generations,
+        blobs,
+        package_root,
+        environment_storage,
+    )
 
 
 def test_persist_prepared_blobs_writes_only_planned_ciphertexts_under_root() -> None:
@@ -1785,6 +1883,197 @@ def test_create_environment_restore_temp_preserves_plan_on_create_failure() -> N
             generations.pointer.contents
         ).sequence
         == 5
+    )
+
+
+def test_write_environment_restore_temp_authenticates_backup_and_selects_verified() -> (
+    None
+):
+    protection = _Protection()
+    contents = b"GOOGLE_API_KEY=private-value\r\n"
+    stream, root, generations, blobs, package_root, environment_storage = (
+        _persist_created_environment_restore_state(
+            protection,
+            environment_contents=contents,
+        )
+    )
+    blobs.read.clear()
+    try:
+        verified = package_root.run_while_held(
+            lambda: recovery.write_persisted_environment_restore_temp_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                backup_storage=blobs,
+                environment_storage=environment_storage,
+                backup_protection=protection,
+                journal_protection=protection,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert len(blobs.read) == 1
+    assert blobs.read[0].purpose is ProtectedDataPurpose.ENVIRONMENT_BACKUP
+    assert len(environment_storage.written) == 1
+    assert environment_storage.written[0][1] == contents
+    assert environment_storage.written_verified == []
+    assert len(generations.files) == 7
+    assert verified.selection.pointer_disposition is (
+        journal.JournalPointerDisposition.CURRENT
+    )
+    record = verified.selection.tip.record
+    assert type(record) is journal.EnvironmentRestoreTempVerifiedRecord
+    assert record.created_generation_sha256 == verified.selection.generation_sha256s[5]
+    assert record.environment_sha256 == hashlib.sha256(contents).hexdigest()
+    assert record.temp_identity == environment_storage.identity
+
+
+def test_write_environment_restore_temp_records_absence_without_storage_call() -> None:
+    protection = _Protection()
+    stream, root, generations, blobs, package_root, environment_storage = (
+        _persist_created_environment_restore_state(
+            protection,
+            environment_contents=None,
+        )
+    )
+    try:
+        verified = package_root.run_while_held(
+            lambda: recovery.write_persisted_environment_restore_temp_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                backup_storage=blobs,
+                environment_storage=environment_storage,
+                backup_protection=protection,
+                journal_protection=protection,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert environment_storage.written == []
+    assert environment_storage.written_verified == []
+    record = verified.selection.tip.record
+    assert type(record) is journal.EnvironmentRestoreTempVerifiedRecord
+    assert not record.environment_present
+    assert record.temp_name is None
+    assert record.temp_identity is None
+
+
+def test_write_environment_restore_temp_preserves_created_on_write_failure() -> None:
+    protection = _Protection()
+    stream, root, generations, blobs, package_root, environment_storage = (
+        _persist_created_environment_restore_state(protection)
+    )
+    environment_storage.write_error = RecoveryEnvironmentStorageError(
+        RecoveryEnvironmentStorageErrorCode.WRITE_FAILED
+    )
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            package_root.run_while_held(
+                lambda: recovery.write_persisted_environment_restore_temp_from_held_package_root(
+                    stream=stream,
+                    package_root=package_root,
+                    root=root,
+                    journal_storage=generations,
+                    pointer_storage=generations,
+                    backup_storage=blobs,
+                    environment_storage=environment_storage,
+                    backup_protection=protection,
+                    journal_protection=protection,
+                )
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.WRITE_FAILED
+    assert "private" not in str(failure.value)
+    assert len(generations.files) == 6
+    assert len(environment_storage.written) == 1
+    assert environment_storage.written_verified == []
+
+
+def test_write_environment_restore_temp_repairs_pointer_without_second_write() -> None:
+    protection = _Protection()
+    stream, root, generations, blobs, package_root, environment_storage = (
+        _persist_created_environment_restore_state(protection)
+    )
+    generations.fail_pointer_replace = OSError("private verified pointer path")
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as pointer_failure:
+            package_root.run_while_held(
+                lambda: recovery.write_persisted_environment_restore_temp_from_held_package_root(
+                    stream=stream,
+                    package_root=package_root,
+                    root=root,
+                    journal_storage=generations,
+                    pointer_storage=generations,
+                    backup_storage=blobs,
+                    environment_storage=environment_storage,
+                    backup_protection=protection,
+                    journal_protection=protection,
+                )
+            )
+
+        assert (
+            pointer_failure.value.code is recovery.WindowsRecoveryErrorCode.WRITE_FAILED
+        )
+        assert len(generations.files) == 7
+        assert len(environment_storage.written) == 1
+        generations.fail_pointer_replace = None
+        environment_storage.written_verification_identity = _identity(51)
+
+        with pytest.raises(recovery.WindowsRecoveryError) as verification_failure:
+            package_root.run_while_held(
+                lambda: recovery.write_persisted_environment_restore_temp_from_held_package_root(
+                    stream=stream,
+                    package_root=package_root,
+                    root=root,
+                    journal_storage=generations,
+                    pointer_storage=generations,
+                    backup_storage=blobs,
+                    environment_storage=environment_storage,
+                    backup_protection=protection,
+                    journal_protection=protection,
+                )
+            )
+
+        assert verification_failure.value.code is (
+            recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
+        )
+        assert len(generations.files) == 7
+        assert len(environment_storage.written) == 1
+        environment_storage.written_verification_identity = None
+
+        verified = package_root.run_while_held(
+            lambda: recovery.write_persisted_environment_restore_temp_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                backup_storage=blobs,
+                environment_storage=environment_storage,
+                backup_protection=protection,
+                journal_protection=protection,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert len(generations.files) == 7
+    assert len(environment_storage.written) == 1
+    assert len(environment_storage.written_verified) == 2
+    assert verified.selection.pointer_disposition is (
+        journal.JournalPointerDisposition.CURRENT
+    )
+    assert verified.selection.tip.state is (
+        journal.EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_VERIFIED
     )
 
 
