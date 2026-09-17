@@ -65,6 +65,7 @@ def _certificate_plan() -> CertificateReplacementPlan:
     )
     return CertificateReplacementPlan(
         MapProvider.GOOGLE,
+        "f" * 64,
         local_ca,
         b"system-bundle\n" + local_ca,
     )
@@ -266,6 +267,11 @@ def test_persist_backup_preparing_authenticates_summarizes_and_rereads() -> None
     assert record.ca_bundle_candidate_sha256 == certificate_plan.ca_bundle_sha256
     assert record.ca_bundle_candidate_size == len(certificate_plan.ca_bundle_contents)
     assert record.ca_bundle_candidate_mode == certificate_plan.ca_bundle_mode
+    assert record.certificate_provider is certificate_plan.provider
+    assert (
+        record.windows_root_fingerprint_sha256
+        == certificate_plan.windows_root_fingerprint_sha256
+    )
     authority = _runtime_authority()
     assert record.rollback_runtime_evidence_sha256 == authority.runtime_evidence_sha256
     assert record.rollback_volume_evidence_sha256s == authority.volume_evidence_sha256s

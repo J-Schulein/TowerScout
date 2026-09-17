@@ -13,6 +13,7 @@ if str(LAUNCHER_ROOT) not in sys.path:
     sys.path.insert(0, str(LAUNCHER_ROOT))
 
 import towerscout_launcher.windows_recovery_scan as scan  # noqa: E402
+from towerscout_launcher.target_contracts import MapProvider  # noqa: E402
 from towerscout_launcher.windows_environment_replacement_native import (  # noqa: E402
     EnvironmentAppliedRecord,
     EnvironmentTempCreatedRecord,
@@ -157,6 +158,8 @@ def _chain(
             "e" * 64,
             12,
             False,
+            MapProvider.GOOGLE,
+            "a" * 64,
             "f" * 64,
             tuple(
                 hashlib.sha256(str(index).encode("ascii")).hexdigest()

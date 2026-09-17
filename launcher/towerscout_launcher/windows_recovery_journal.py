@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, NoReturn, Protocol, cast
 
+from .target_contracts import MapProvider
 from .windows_environment_replacement_native import (
     EnvironmentAppliedRecord,
     EnvironmentTempCreatedRecord,
@@ -159,6 +160,8 @@ class BackupPreparingRecord:
     environment_candidate_sha256: str = field(repr=False)
     environment_candidate_size: int
     environment_present: bool
+    certificate_provider: MapProvider
+    windows_root_fingerprint_sha256: str = field(repr=False)
     rollback_runtime_evidence_sha256: str = field(repr=False)
     rollback_volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
     runtime_was_running: bool
@@ -199,6 +202,8 @@ class BackupPreparingRecord:
             or type(self.environment_candidate_size) is not int
             or not 1 <= self.environment_candidate_size <= _MAX_ENVIRONMENT_BYTES
             or type(self.environment_present) is not bool
+            or type(self.certificate_provider) is not MapProvider
+            or not _valid_hash(self.windows_root_fingerprint_sha256)
             or not _valid_hash(self.rollback_runtime_evidence_sha256)
             or type(self.rollback_volume_evidence_sha256s) is not tuple
             or len(self.rollback_volume_evidence_sha256s) != 8
@@ -275,6 +280,7 @@ class BackupPreparingRecord:
             "BackupPreparingRecord("
             f"environment_candidate_size={self.environment_candidate_size!r}, "
             f"environment_present={self.environment_present!r}, "
+            f"certificate_provider={self.certificate_provider.value!r}, "
             f"runtime_was_running={self.runtime_was_running!r}, "
             f"local_ca_present={self.local_ca_present!r}, "
             f"ca_bundle_present={self.ca_bundle_present!r}, "
@@ -1407,6 +1413,7 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             "ca_bundle_present": record.ca_bundle_present,
             "ca_bundle_sha256": record.ca_bundle_sha256,
             "certificate_backup_name": record.certificate_backup_name,
+            "certificate_provider": record.certificate_provider.value,
             "environment_backup_name": record.environment_backup_name,
             "environment_candidate_sha256": record.environment_candidate_sha256,
             "environment_candidate_size": record.environment_candidate_size,
@@ -1436,6 +1443,7 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             ),
             "runtime_was_running": record.runtime_was_running,
             "schema_version": record.schema_version,
+            "windows_root_fingerprint_sha256": (record.windows_root_fingerprint_sha256),
         }
     if type(record) is BackupVerifiedRecord:
         return {
@@ -1781,6 +1789,7 @@ def _record_from_json(
                     "ca_bundle_present",
                     "ca_bundle_sha256",
                     "certificate_backup_name",
+                    "certificate_provider",
                     "environment_backup_name",
                     "environment_candidate_sha256",
                     "environment_candidate_size",
@@ -1800,6 +1809,7 @@ def _record_from_json(
                     "rollback_volume_evidence_sha256s",
                     "runtime_was_running",
                     "schema_version",
+                    "windows_root_fingerprint_sha256",
                 }
             ),
         )
@@ -1815,6 +1825,8 @@ def _record_from_json(
             item["environment_candidate_sha256"],
             item["environment_candidate_size"],
             item["environment_present"],
+            MapProvider(item["certificate_provider"]),
+            item["windows_root_fingerprint_sha256"],
             item["rollback_runtime_evidence_sha256"],
             tuple(rollback_volume_evidence),
             item["runtime_was_running"],

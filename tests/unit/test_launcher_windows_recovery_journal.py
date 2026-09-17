@@ -27,7 +27,10 @@ from towerscout_launcher.windows_protected_state import (  # noqa: E402
     ProtectedStateError,
 )
 from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
-from towerscout_launcher.target_contracts import ABSENT_FILE_SHA256  # noqa: E402
+from towerscout_launcher.target_contracts import (  # noqa: E402
+    ABSENT_FILE_SHA256,
+    MapProvider,
+)
 
 
 class _Protection:
@@ -143,6 +146,8 @@ def _backup_preparing_record(
         environment_candidate_sha256="a" * 64,
         environment_candidate_size=37,
         environment_present=environment_present,
+        certificate_provider=MapProvider.GOOGLE,
+        windows_root_fingerprint_sha256="f" * 64,
         rollback_runtime_evidence_sha256="1" * 64,
         rollback_volume_evidence_sha256s=tuple(
             f"{value:x}" * 64 for value in range(3, 11)
@@ -2329,6 +2334,8 @@ def test_backup_preparing_rejects_inconsistent_state_and_names() -> None:
         {"ca_bundle_candidate_mode": 0o600},
         {"ca_bundle_candidate_size": 100},
         {"ca_bundle_candidate_sha256": "1" * 64},
+        {"certificate_provider": object()},
+        {"windows_root_fingerprint_sha256": "not-a-hash"},
     ):
         with pytest.raises(ValueError):
             replace(_backup_preparing_record(), **changes)

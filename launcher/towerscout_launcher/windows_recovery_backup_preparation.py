@@ -151,6 +151,10 @@ def persist_backup_preparing_generation(
             environment_candidate_sha256=environment_plan.candidate_sha256,
             environment_candidate_size=len(environment_plan.candidate_contents),
             environment_present=environment.existed,
+            certificate_provider=certificate_plan.provider,
+            windows_root_fingerprint_sha256=(
+                certificate_plan.windows_root_fingerprint_sha256
+            ),
             rollback_runtime_evidence_sha256=(
                 runtime_authority.runtime_evidence_sha256
             ),

@@ -33,6 +33,7 @@ def test_plan_binds_exact_root_and_combined_bundle_without_repr_bytes():
     plan = plan_certificate_replacement(selected, b"private-system-bundle\r\n")
 
     assert plan.provider is MapProvider.GOOGLE
+    assert plan.windows_root_fingerprint_sha256 == selected.fingerprint_sha256
     assert plan.local_ca_contents == selected.pem_bytes
     assert plan.ca_bundle_contents == b"private-system-bundle\n" + selected.pem_bytes
     assert plan.local_ca_sha256 == selected.pem_sha256
@@ -42,6 +43,25 @@ def test_plan_binds_exact_root_and_combined_bundle_without_repr_bytes():
     rendered = repr(plan)
     assert "private" not in rendered
     assert "CERTIFICATE" not in rendered
+
+
+@pytest.mark.parametrize(
+    "fingerprint",
+    ["F" * 64, "f" * 63, "g" * 64],
+    ids=("uppercase", "short", "non-hex"),
+)
+def test_direct_plan_rejects_invalid_windows_root_fingerprint(
+    fingerprint: str,
+):
+    selected = _selected()
+
+    with pytest.raises(ValueError, match="Certificate replacement plan is invalid"):
+        CertificateReplacementPlan(
+            MapProvider.GOOGLE,
+            fingerprint,
+            selected.pem_bytes,
+            b"system-bundle\n" + selected.pem_bytes,
+        )
 
 
 @pytest.mark.parametrize(
@@ -88,7 +108,7 @@ def test_direct_plan_rejects_unbound_or_unsafe_contents(
     bundle: bytes,
 ):
     with pytest.raises(ValueError, match="Certificate replacement plan is invalid"):
-        CertificateReplacementPlan(MapProvider.GOOGLE, local, bundle)
+        CertificateReplacementPlan(MapProvider.GOOGLE, "f" * 64, local, bundle)
 
 
 def test_direct_plan_requires_fixed_regular_file_modes():
@@ -98,6 +118,7 @@ def test_direct_plan_requires_fixed_regular_file_modes():
     with pytest.raises(ValueError, match="Certificate replacement plan is invalid"):
         CertificateReplacementPlan(
             MapProvider.GOOGLE,
+            selected.fingerprint_sha256,
             selected.pem_bytes,
             contents,
             local_ca_mode=0o600,
@@ -105,6 +126,7 @@ def test_direct_plan_requires_fixed_regular_file_modes():
     with pytest.raises(ValueError, match="Certificate replacement plan is invalid"):
         CertificateReplacementPlan(
             MapProvider.GOOGLE,
+            selected.fingerprint_sha256,
             selected.pem_bytes,
             contents,
             ca_bundle_mode=0o600,

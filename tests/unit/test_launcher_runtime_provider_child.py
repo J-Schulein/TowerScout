@@ -221,6 +221,8 @@ def _pending_recovery_scan(
             "f" * 64,
             12,
             False,
+            MapProvider.GOOGLE,
+            "a" * 64,
             "b" * 64,
             tuple(
                 hashlib.sha256(str(index).encode("ascii")).hexdigest()

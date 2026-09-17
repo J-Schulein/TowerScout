@@ -92,6 +92,7 @@ def _certificate_plan() -> CertificateReplacementPlan:
     )
     return CertificateReplacementPlan(
         MapProvider.GOOGLE,
+        "f" * 64,
         local_ca,
         b"system-bundle\n" + local_ca,
     )

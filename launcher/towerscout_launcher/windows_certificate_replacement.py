@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import hashlib
+import re
 from typing import NoReturn
 
 from .target_contracts import MapProvider
@@ -12,6 +13,7 @@ from .trust_policy import SelectedWindowsRootMaterial
 MAX_LOCAL_CA_BYTES = 256 * 1024
 MAX_CA_BUNDLE_BYTES = 1024 * 1024
 CERTIFICATE_FILE_MODE = 0o644
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _fail() -> NoReturn:
@@ -27,6 +29,7 @@ class CertificateReplacementPlan:
     """Bind the exact two transaction-produced certificate destinations."""
 
     provider: MapProvider
+    windows_root_fingerprint_sha256: str = field(repr=False)
     local_ca_contents: bytes = field(repr=False)
     ca_bundle_contents: bytes = field(repr=False)
     local_ca_mode: int = CERTIFICATE_FILE_MODE
@@ -37,6 +40,8 @@ class CertificateReplacementPlan:
     def __post_init__(self) -> None:
         if (
             type(self.provider) is not MapProvider
+            or type(self.windows_root_fingerprint_sha256) is not str
+            or _SHA256.fullmatch(self.windows_root_fingerprint_sha256) is None
             or type(self.local_ca_contents) is not bytes
             or type(self.ca_bundle_contents) is not bytes
         ):
@@ -107,6 +112,7 @@ def plan_certificate_replacement(
         _fail()
     return CertificateReplacementPlan(
         selected_root.provider,
+        selected_root.fingerprint_sha256,
         local_ca,
         combined,
     )
