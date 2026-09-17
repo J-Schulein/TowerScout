@@ -1507,6 +1507,41 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-17 - Candidate Identity And Metadata Made Durable
+
+**Objective**: Supply the exact candidate authority needed to classify an
+atomic `.env` promotion after success, an API error, or fresh-process restart.
+
+**Context**: The candidate temp identity was already journal-bound before its
+write, and a same-volume rename preserves that identity. Recovery also needs
+durable file attributes and security-descriptor evidence to reject a drifted
+or substituted destination rather than trusting content alone.
+
+**Decision**: Capture the raw native security-descriptor digest in shared
+Windows security facts. Record candidate attributes and that digest in both
+created and verified temp states, require them to remain exact after write and
+no-follow reopen, and enforce their continuity in authenticated selection.
+
+**Execution**: Pushed checkpoint
+`39127a58b8b857ce71a7fb012bad7575f0b5dd4b` updates the native staging adapter,
+canonical journal codec, continuity validation, and drift tests.
+
+**Output**: The candidate temp now carries complete durable identity/content/
+metadata authority for the next atomic promotion and rollback-classification
+boundaries. No destination operation, repair action, or runtime mutation is
+enabled.
+
+**Validation**: Focused Windows staging/trust/journal tests pass `171/171`; the
+broad launcher set excluding only the externally antivirus-blocked host-helper
+module passes `1930/1930`. The unfiltered run passed 1,931 tests before four
+unchanged PowerShell-helper tests were blocked pre-execution by Windows
+antivirus. Black, strict mypy, configured Flake8, medium/high Bandit,
+compilation, and diff checks pass. Exact-head workflows and independent review
+remain pending.
+
+**Next**: Implement exact destination observation, atomic promotion, and
+same-call/fresh-process reconciliation using only this authenticated authority.
+
 ### 2026-09-17 - Exact Environment Restore State Classified Fail-Closed
 
 **Objective**: Ensure a fresh recovery process can distinguish only the exact

@@ -2,13 +2,13 @@
 
 **As Of**: September 17, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `6637c0d7019711146447312bc11371138d6a6960`
+**Implementation Head**: `39127a58b8b857ce71a7fb012bad7575f0b5dd4b`
 **Validated Exact Head**: `d9f656387f3220588a38f984397acfdad8a24387`
 **Remote Exact-Head Status**: CI/CD run `35238335037`, Task-087 run
 `35238334999`, and Trivy passed; the main-only build is neutral as designed.
-**Local Candidate**: Pushed exact restore-classification checkpoint `6637c0d`;
-exact-head workflows and independent review remain pending. No `.env`
-destination mutation is implemented or authorized by this checkpoint.
+**Local Candidate**: Pushed candidate-metadata checkpoint `39127a5`; exact-
+head workflows and independent review remain pending. No `.env` destination
+mutation is implemented or authorized by this checkpoint.
 **Current Checkpoint**: Slices 2-3 exact-target confirmation wiring complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
 hosts, so slice 4 remains partial. Slice 5 has independently reviewed
@@ -294,6 +294,19 @@ descriptor drift is a preserved blocking third state. A candidate without a
 future durable applied identity is never authorized. Affected tests pass
 `54/54`, the broader recovery/provider ring passes `361/361`, and focused
 static/security checks pass. No destination operation or runtime mutation is
+enabled. Exact-head workflows and independent review are pending.
+
+Pushed checkpoint `39127a5` makes the already journal-bound candidate temp the
+durable forward/recovery authority by recording its exact file attributes and
+raw security-descriptor digest with its stable identity, hash, and size. Native
+staging now requires those facts at creation, after the same-handle write, and
+after no-follow reopen; journal continuity rejects either metadata field
+drifting between created and verified states. Focused Windows tests pass
+`171/171`, and the broad launcher set passes `1930/1930` with only the real
+host-helper module excluded because Windows antivirus blocks the unchanged
+PowerShell helper before execution. The unfiltered run otherwise passed 1,931
+tests and produced four identical antivirus-policy failures. Static/security
+checks pass. No promotion, destination replacement, or runtime mutation is
 enabled. Exact-head workflows and independent review are pending.
 
 **Slice 9 validation ledger continuation**: Independently reviewed checkpoint
@@ -582,10 +595,10 @@ state definitions above.
 
 ## Next-Session Resume Point
 
-Continue from the checkpointed exact restore classifier by durably recording
-the forward-applied candidate identity and metadata, then implement the narrow
-native destination observe/apply boundary, metadata restoration, and post-call
-reconciliation before generation 8 can be appended. Then add the
+Continue from the checkpointed candidate identity/metadata authority by
+implementing the narrow native destination observe/apply boundary, metadata
+restoration, and post-call reconciliation before generation 8 can be appended.
+Then add the
 remaining certificate, runtime, rollback-verification, cleaned, and cleanup-
 pending states and integrate the transaction boundary. Retry
 slice 4's successful revocation-aware fixed-host and

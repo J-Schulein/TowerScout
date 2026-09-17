@@ -140,6 +140,12 @@ exact original, an exact future journal-bound candidate, or secure absence can
 be acted on; every metadata/content/identity drift blocks. Affected and broader
 tests pass `54/54` and `361/361`. No destination operation is enabled; exact-
 head workflows and independent review remain pending.
+Pushed checkpoint `39127a5` extends candidate temp authority with exact file
+attributes and raw security-descriptor digest, requiring stable native facts at
+creation, after write, and after no-follow reopen. Focused Windows tests pass
+`171/171`; the broad launcher set excluding only the antivirus-blocked host-
+helper module passes `1930/1930`. No destination promotion is enabled; exact-
+head workflows and independent review remain pending.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -160,8 +166,9 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `6637c0d` is pushed; it, `16a8224`, and
-  predecessor `1b85a93` await exact-head workflows and independent review.
+- Task-087 implementation checkpoint `39127a5` is pushed; it, `6637c0d`,
+  `16a8224`, and predecessor `1b85a93` await exact-head workflows and
+  independent review.
   Checkpoint
   `d9f6563` is independently reviewed and exact-head validated. The current
   sequence makes package-bound recovery
@@ -396,11 +403,17 @@ exact-original/candidate/absence/third-state restore decision. Affected tests
 pass `54/54`, the broader recovery/provider ring passes `361/361`, and all
 focused static/security checks pass. No destination operation is enabled and
 exact-head workflows/independent review remain pending.
+Pushed checkpoint `39127a5` records and reverifies candidate file attributes
+and security-descriptor digest alongside its stable identity/hash/size. Focused
+Windows tests pass `171/171` and the broad launcher set, excluding only the
+externally antivirus-blocked host-helper module, passes `1930/1930`. No
+destination promotion is enabled; exact-head workflows and independent review
+remain pending.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `6637c0d` against the fixed acceptance
+**Remaining Estimate**: Rebaseline after `39127a5` against the fixed acceptance
 criteria rather than commit count. Remaining recovery states/action,
 recovery/transaction and provider `.env` integration, successful Windows trust
 proof, final exact-head review, and the PR #67 decision still precede Task-096.
