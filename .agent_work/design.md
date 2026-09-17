@@ -1,6 +1,6 @@
 # TowerScout Current Technical Design
 
-**Last Updated**: September 16, 2026
+**Last Updated**: September 17, 2026
 **Scope**: Unsigned fix-first preview iteration, four-profile runtime
 qualification, October production signing, and cdcai handoff
 **Archived Pre-Rebaseline Design**:
@@ -533,6 +533,18 @@ retry from generation 6 reverifies that exact identity before repairing only
 the exact pointer, with no duplicate append or create. Restore content, `.env`
 replacement/removal, completed-transaction cleanup, certificate writes, repair
 activation, and runtime mutation remain outside this boundary.
+
+Independently reviewed checkpoints `1eb3363` and `d9f6563` extend that boundary
+through generation 7 `environment_restore_temp_verified`. A fresh process reads
+and authenticates the exact environment backup, matches its complete original
+state to durable authority, opens only the recorded generation-6 temp without
+truncation or reparse following, writes the exact bytes, flushes, rereads, then
+closes/reopens and verifies path, volume, stable identity, DACL, size, and hash.
+Exact complete crash residue is reverified without another write; partial or
+mismatched residue remains preserved and blocking. Secure absence makes no
+storage call. Generation 7 appends at most once and retry repairs only its exact
+pointer. This does not replace/remove `.env`, write certificates, clean
+artifacts, activate repair, or mutate runtime state.
 
 ## Launcher Front-Door Design Boundary
 

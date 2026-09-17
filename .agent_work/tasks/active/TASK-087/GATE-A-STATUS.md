@@ -1,13 +1,13 @@
 # TASK-087 Gate A Status
 
-**As Of**: September 16, 2026
+**As Of**: September 17, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `57e280ea49a0cfeccf26d614d481efd2e9c323c3`
-**Validated Exact Head**: `57e280ea49a0cfeccf26d614d481efd2e9c323c3`
-**Remote Exact-Head Status**: CI/CD run `35159400390`, Task-087 run
-`35159400276`, and Trivy passed; the main-only build is neutral as designed.
-**Local Candidate**: Evidence reconciliation for `57e280e` only; no uncommitted
-source candidate.
+**Implementation Head**: `d9f656387f3220588a38f984397acfdad8a24387`
+**Validated Exact Head**: `d9f656387f3220588a38f984397acfdad8a24387`
+**Remote Exact-Head Status**: CI/CD run `35238335037`, Task-087 run
+`35238334999`, and Trivy passed; the main-only build is neutral as designed.
+**Local Candidate**: Generation-7 evidence reconciliation only; no uncommitted
+source candidate and no `.env` destination mutation authorized.
 **Current Checkpoint**: Slices 2-3 exact-target confirmation wiring complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
 hosts, so slice 4 remains partial. Slice 5 has independently reviewed
@@ -251,6 +251,17 @@ with identity reverification and exact pointer repair on retry. Content write/
 verification, actual restore, cleanup, native destination replacement, and end-
 to-end recovery/transaction integration remain open.
 
+Checkpoints `1eb3363` and `d9f6563` supersede the content-write portion of that
+correction. They add strict generation-7 authority and stage only the exact
+freshly authenticated original bytes into the recorded generation-6 temp,
+followed by held-handle and reopen verification. Complete exact crash residue
+is accepted without another write; partial or mismatched residue is preserved
+and blocks. Generation 7 appends at most once and retry repairs only its exact
+pointer. Exact-head CI/CD run `35238335037`, Task-087 run `35238334999`, and
+Trivy pass; the main-only build is neutral as designed. Actual `.env`
+replacement/removal, certificate restore, cleanup, recovery/transaction
+integration, and runtime mutation remain open and disabled.
+
 **Slice 9 validation ledger continuation**: Independently reviewed checkpoint
 `ebb9d69` passes `39/39` focused, `105/105` adjacent, and `1647/1647` complete
 launcher tests plus Black, strict mypy, blocking Flake8, medium/high Bandit,
@@ -419,6 +430,16 @@ CI/CD run `35159400390`, Task-087 run `35159400276`, and Trivy passed; the main-
 only build is neutral as designed. It creates or reverifies only the exact
 planned zero-byte temp and persists generation 6; all later recovery action and
 runtime mutation remain disabled.
+
+**Slice 9 validation ledger continuation**: Independently reviewed checkpoints
+`1eb3363` and `d9f6563` pass `15/15` native recovery-storage tests, `95/95`
+integrated generation-7 tests, and `1854/1854` complete launcher tests. Black,
+configured Flake8, strict mypy, Bandit, compilation, diagnostics, and diff
+checks pass. Separate storage and orchestration reviews returned `CLEAN/PASS`.
+Exact-head CI/CD run `35238335037`, Task-087 run `35238334999`, and Trivy pass;
+the main-only build is neutral as designed. This checkpoint stages and attests
+exact original environment bytes only in the recorded private temp and enables
+no `.env` replacement/removal or later recovery/runtime mutation.
 
 ## Progress Interpretation
 

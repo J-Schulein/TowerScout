@@ -1,7 +1,7 @@
 # TowerScout Pilot Feedback And cdcai Adoption Plan
 
 **Decision Date**: July 10, 2026; rebaselined July 23, 2026
-**Last Reconciled**: September 16, 2026
+**Last Reconciled**: September 17, 2026
 **Status**: CURRENT for the Pilot Package and cdcai hold
 **Forward Development Plan**:
 [`2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md`](./2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md)
@@ -145,15 +145,18 @@ backlog, and migration-ready handoff without changing cdcai.
   repair on Docker and Podman; the August 21 approval authorizes Gate A work
   under the exact-target/durable-recovery design before exact-head re-review.
   Independently reviewed and exact-head validated implementation checkpoint
-  `57e280e` is the current source baseline. CI/CD run `35159400390`, Task-087
-  run `35159400276`, and Trivy passed; the main-only build is neutral as
-  designed. The intervening checkpoints add generation-6 zero-byte
+  `d9f6563` is the current source baseline. CI/CD run `35238335037`, Task-087
+  run `35238334999`, and Trivy pass; the main-only build is neutral as designed.
+  The intervening checkpoints add generation-6 zero-byte
   restore-temp storage and mandatory authenticated package recovery scanning
   before target-lock acquisition. Provider-environment pending state blocks;
   repair pending state is retained only as read-only evidence. Generation 6
   now persists at most once after exact planned zero-byte creation or secure
-  absence, with exact identity reverification before pointer repair. Restore
-  content, `.env` replacement/removal, completed-transaction cleanup,
+  absence, with exact identity reverification before pointer repair. Generation
+  7 now stages exact authenticated original bytes only in that recorded temp,
+  verifies the same handle and reopened identity/content, and repairs its
+  pointer without a second write. `.env` replacement/removal,
+  completed-transaction cleanup,
   certificate writes, repair, and runtime mutation remain disabled.
   After Gate A acceptance and the PR #67 merge decision, Tasks 096 and 102
   precede Task-087 Gate B normal-package integration.

@@ -1492,6 +1492,54 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-17 - Generation-7 Environment Restore Temp Verification Checkpointed
+
+**Objective**: Stage and durably attest the exact authenticated original `.env`
+bytes in the generation-6 restore temp without replacing or removing `.env` or
+activating any repair/runtime mutation.
+
+**Context**: Checkpoint `57e280e` created or reverified only the exact planned
+zero-byte restore temp and persisted generation 6. The next approved bounded
+step was content write and reverification while retaining the strict
+no-mutation boundary for the package destination and runtime.
+
+**Decision**: Define generation 7 `environment_restore_temp_verified`, then
+open only the recorded temp through `OPEN_EXISTING` with no-follow and denied
+write/delete sharing. Freshly authenticate the exact environment backup before
+writing, require complete summary equality, flush and verify the held handle,
+then close/reopen and verify path, volume, identity, DACL, size, and hash. Treat
+an exact complete file as retryable crash residue without another write;
+preserve and reject every partial or mismatched artifact.
+
+**Execution**: Schema checkpoint
+`1eb33636d36eda63edc9b10093372fb9207df9e5` adds the strict redacted record,
+canonical codec, secure-absence representation, and seven-generation
+continuity. Implementation checkpoint
+`d9f656387f3220588a38f984397acfdad8a24387` adds the narrow native
+`OPEN_EXISTING` update handle, exact write/flush/read/reopen verification, and
+fresh-process orchestration that appends generation 7 at most once. Retry
+freshly reauthenticates the backup, performs read-only temp verification, and
+repairs only the exact generation-7 pointer. No production/runtime call site
+activates recovery.
+
+**Output**: The authenticated rollback chain can now reach
+`environment_restore_temp_verified` with exact original bytes staged only in
+the journal-bound private temp. Secure absence uses no storage operation.
+`.env` replacement/removal, certificate writes, completed-transaction cleanup,
+repair activation, and runtime mutation remain disabled.
+
+**Validation**: Recovery storage tests pass `15/15`; the integrated generation-7
+stack passes `95/95`; and the complete launcher suite passes `1854/1854`.
+Black, configured Flake8, strict mypy, Bandit, compilation, editor diagnostics,
+and diff checks pass. Two independent reviews returned `CLEAN/PASS`. Exact-head
+CI/CD run `35238335037`, Task-087 run `35238334999`, and Trivy pass; the main-
+only build is neutral as designed.
+
+**Next**: Keep the strict no-mutation boundary selected on September 17. Do not
+implement generation-8 `.env` replacement/removal or provider-installer `.env`
+replacement without new explicit authorization. Remaining certificate,
+runtime, cleanup, trust-proof, integration, and final review gates remain open.
+
 ### 2026-09-16 - Generation-6 Environment Restore Temp Creation Checkpointed
 
 **Objective**: Consume the authenticated generation-5 plan through the narrow

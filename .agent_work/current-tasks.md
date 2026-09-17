@@ -2,7 +2,7 @@
 
 **Sprint Period**: August 8-August 21, 2026; active-task continuation retained
 through the current Task-087 Gate A work
-**Last Updated**: September 16, 2026
+**Last Updated**: September 17, 2026
 **Focus**: Task-101 is complete. Task-087 is the active implementation task.
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
@@ -107,6 +107,19 @@ CI/CD run `35159400390`, Task-087 run `35159400276`, and Trivy passed; the
 main-only build is neutral as designed. Restore content, `.env` replacement or
 removal, completed-transaction cleanup, certificate writes, repair activation,
 and runtime mutation remain disabled.
+Independently reviewed checkpoints `1eb3363` and `d9f6563` define and implement
+generation 7 `environment_restore_temp_verified`. A fresh process reauthenticates
+the exact environment backup, writes its original bytes only to the recorded
+generation-6 temp through a non-truncating `OPEN_EXISTING` handle, flushes and
+verifies the same handle, then closes/reopens and verifies identity, DACL,
+size, and hash before appending generation 7. Complete exact crash residue is
+reverified without another write; partial or mismatched residue is preserved
+and blocks. Secure absence makes no storage call. Local validation passes
+`1854/1854` launcher tests plus all focused static/security gates and two
+independent reviews. Exact-head CI/CD run `35238335037`, Task-087 run
+`35238334999`, and Trivy pass; the main-only build is neutral as designed.
+`.env` replacement/removal and all later recovery or runtime mutation remain
+disabled.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -127,14 +140,16 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `57e280e` is pushed, independently
+- Task-087 implementation checkpoint `d9f6563` is pushed, independently
   reviewed, and exact-head validated. It makes package-bound recovery
   scanning mandatory before target-lock acquisition, blocks pending provider
   environment recovery, retains pending repair recovery only as read-only
-  owner evidence, and persists generation 6 after exact zero-byte temp creation
-  or secure absence. It writes no restore content, replaces or removes no
-  `.env`, performs no completed-transaction cleanup, writes no certificate,
-  and mutates no repair/runtime state. PR #67 remains Draft.
+  owner evidence, persists generation 6 after exact zero-byte temp creation or
+  secure absence, and stages/reverifies exact authenticated original bytes in
+  that recorded temp before persisting generation 7. CI/CD run `35238335037`,
+  Task-087 run `35238334999`, and Trivy pass. It replaces or removes no `.env`,
+  performs no completed-transaction cleanup, writes no certificate, and mutates
+  no repair/runtime state. PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed
   status and evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
@@ -332,11 +347,20 @@ persists generation 6 at most once. Present-state retry verifies the exact
 recorded temp identity before pointer repair; secure absence creates no temp.
 No restore content, `.env` replacement/removal, completed-transaction cleanup,
 certificate write, repair activation, or runtime mutation is enabled.
+Independently reviewed checkpoints `1eb3363` and `d9f6563` add strict generation
+7 schema/continuity and exact restore-temp content staging. The original bytes
+are freshly authenticated from the encrypted backup, written only through the
+recorded generation-6 identity, flushed, reread, reopened, and verified before
+generation 7 is appended. Retry accepts only exact complete residue and repairs
+only the generation-7 pointer; partial or mismatched artifacts remain preserved.
+Exact-head CI/CD run `35238335037`, Task-087 run `35238334999`, and Trivy pass;
+the main-only build is neutral as designed. `.env` replacement/removal and all
+later mutation remain disabled.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `57e280e` against the fixed acceptance
+**Remaining Estimate**: Rebaseline after `d9f6563` against the fixed acceptance
 criteria rather than commit count. Remaining recovery states/action,
 recovery/transaction and provider `.env` integration, successful Windows trust
 proof, final exact-head review, and the PR #67 decision still precede Task-096.

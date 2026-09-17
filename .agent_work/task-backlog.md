@@ -1,6 +1,6 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: September 16, 2026
+**Last Updated**: September 17, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Task-087 is active under its fixed nine-slice
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md). Exact-head
@@ -51,7 +51,15 @@ provider `.env` hardening, and environment-dependent Windows revocation and
 Docker/Podman proof as the principal uncertainties. Independently reviewed and
 exact-head validated checkpoint `57e280e` now persists generation 6 at most
 once after exact planned zero-byte creation or secure absence, and reverifies
-the recorded identity before pointer repair on retry. After Gate A source
+the recorded identity before pointer repair on retry. Independently reviewed
+checkpoints `1eb3363` and `d9f6563` then define and persist generation 7 after
+exact authenticated original bytes are written only to that recorded temp and
+verified on the same handle and after reopen. Retry performs no second write
+and repairs only the exact generation-7 pointer; secure absence performs no
+storage call. Exact-head CI/CD run `35238335037`, Task-087 run `35238334999`,
+and Trivy pass; the main-only build is neutral as designed. `.env`
+replacement/removal and later recovery/runtime mutation remain disabled.
+After Gate A source
 acceptance and the PR #67 merge decision, complete Task-096 lifecycle controls
 and Task-102 native first-run setup before resuming Task-087 Gate B normal-
 package integration. Then qualify the completed front door under Task-097,

@@ -3,7 +3,7 @@
 This is the primary high-context guidance file for AI coding agents working in
 the TowerScout repository. It preserves project context, guardrails, and
 workflow guidance while reflecting the current repository state as of
-2026-09-16.
+2026-09-17.
 
 ## Mission and Product Context
 
@@ -121,6 +121,16 @@ The project still carries public-health workflow expectations:
   Trivy passed. Restore content, `.env` replacement/removal, completed-
   transaction cleanup, certificate writes, repair activation, and runtime
   mutation remain disabled.
+  Independently reviewed checkpoints `1eb3363` and `d9f6563` define generation
+  7 and stage only the exact freshly authenticated original environment bytes
+  in that recorded temp. They use a non-truncating no-follow existing-file
+  handle, flush and same-handle verification, then close/reopen identity, DACL,
+  size, and hash verification. Exact complete crash residue is reverified
+  without another write; partial or mismatched residue is preserved and
+  blocks. Generation 7 appends at most once and retry repairs only its pointer.
+  Exact-head CI/CD run `35238335037`, Task-087 run `35238334999`, and Trivy
+  pass; the main-only build is neutral as designed. `.env` replacement/removal
+  and every later recovery/runtime mutation remain disabled.
   Preview-integrity Gate B remains
   later. PR
   #64 and every browser/helper activation gate remain on hold.
@@ -1003,6 +1013,14 @@ An agent should leave with the following understanding:
   repair on retry; restore content, `.env` replacement/removal, completed-
   transaction cleanup, certificate writes, repair activation, and runtime
   mutation remain disabled
+- independently reviewed checkpoints `1eb3363` and `d9f6563` define and persist
+  generation 7 after exact authenticated original environment bytes are
+  written only to the recorded generation-6 temp, flushed, and verified on the
+  same handle and after reopen; retry performs no second write and repairs only
+  the generation-7 pointer, while partial or mismatched residue is preserved
+  and blocks; exact-head CI/CD run `35238335037`, Task-087 run `35238334999`,
+  and Trivy pass; `.env` replacement/removal and later recovery/runtime mutation
+  remain disabled
 - after Gate A acceptance and the PR #67 merge decision, the controlling order
   is Task-096 lifecycle controls, Task-102 first-run setup, Task-087 Gate B
   package integration, and Task-097 four-profile qualification
