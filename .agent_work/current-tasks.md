@@ -182,11 +182,12 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `095c04d` adds retained-existing-container
-  rollback availability to the hardened provider `.env`, fresh-process manager,
-  and native terminal-cleanup chain. `a9f57b7` is the validated exact head:
-  CI/CD run `35274887590`, Task-087 run `35274887609`, and Trivy passed. Missing-
-  container recreation, the other native recovery ports,
+- Task-087 implementation head `6bc37b3` adds exact certificate replacement
+  planning and authenticated candidate summaries to the retained-runtime,
+  hardened provider `.env`, fresh-process manager, and native terminal-cleanup
+  chain. `eb76746` is the validated exact head: CI/CD run `35276303269`,
+  Task-087 run `35276303330` after its timing-only failed-job rerun, and Trivy
+  passed. Missing-container recreation, the native recovery ports,
   transaction integration, and live trust/runtime proof remain; PR #67 remains
   Draft.
   Gate A remains open and mutation remains disabled. Detailed
@@ -305,12 +306,14 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. The current implementation head is `095c04d`; `a9f57b7` is the validated
+open. The current implementation head is `6bc37b3`; `eb76746` is the validated
 exact head. Provider `.env` mutation/reconciliation, fresh-process rollback
 resumption, all durable rollback states, native terminal cleanup, and retained-
-container native runtime availability are implemented. Remaining implementation
-is missing-container exact recreation, native certificate restoration, runtime
-restart, rollback verification, and the `repair.py` transaction refactor. Live
+container native runtime availability are implemented. Exact certificate
+replacement bytes and their durable candidate summaries are now bound before
+backup persistence. Remaining implementation is missing-container exact
+recreation, native certificate application/restoration, runtime restart,
+rollback verification, and the `repair.py` transaction refactor. Live
 Windows trust and Docker/rootless-Podman proof remains pending a supported
 context and runtime-readiness confirmation. The chronological ledger follows.
 Slices 1-3
@@ -457,7 +460,7 @@ Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `095c04d` against the fixed acceptance
+**Remaining Estimate**: Rebaseline after `6bc37b3` against the fixed acceptance
 criteria rather than commit count. Remaining missing-container recreation and
 native recovery adapters,
 recovery/transaction integration, successful Windows trust/live-runtime proof,

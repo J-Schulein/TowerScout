@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `095c04d`; `a9f57b7` is the validated exact head.
+implementation head is `6bc37b3`; `eb76746` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -15,9 +15,13 @@ and `8/8` focused plus `376/376` recovery-ring cleanup tests. CI/CD run
 `35274231293`, Task-087 run `35274231290`, and Trivy passed at `4ff6967`;
 the main-only build was neutral as designed. Checkpoint `095c04d` adds the
 read-only retained-existing-container availability adapter; its `8/8` focused,
-`13/13` integration, and `296/296` affected broad tests pass while exact-head
-checks run. Missing-container recreation remains open. Remaining Gate A
-implementation is that recreation boundary, native certificate-restore,
+`13/13` integration, and `296/296` affected broad tests pass. Checkpoint
+`6bc37b3` adds exact certificate replacement planning plus authenticated
+generation-1 candidate hashes, sizes, and fixed modes. Its `69/69` focused and
+`458/458` recovery-ring tests pass; native ACL tests were rerun outside the
+filesystem sandbox after sandbox-only pytest teardown denials. Missing-container
+recreation remains open. Remaining Gate A implementation is that recreation
+boundary, native certificate application/restore,
 runtime-restart, and rollback-verification adapters plus the `repair.py`
 transaction refactor/integration. The successful Windows trust and isolated
 Docker/rootless-Podman evidence remains pending a supported context and the
@@ -157,12 +161,24 @@ missing fresh-process authority for an originally absent `.env` without
 durable candidate plaintext. Recovery/provider regressions pass `343/343`;
 exact-head workflows and independent review remain pending. It enables no
 destination or runtime mutation.
+Pushed checkpoint `6bc37b3` creates the immutable certificate replacement plan
+from one selected Windows root and one bounded system bundle, and records both
+repair-produced candidate hashes, sizes, and fixed `0644` modes in the
+authenticated `backup_preparing` generation before backup artifacts or
+mutation. The strict codec rejects omitted or malformed candidate authority;
+representations remain redacted. Focused tests pass `69/69`, and the complete
+recovery ring passes `458/458` with native Windows ACL tests run outside the
+filesystem sandbox. Black, strict mypy, blocking Flake8, line-length/complexity,
+Bandit, compilation, Python 3.11 grammar, and diff checks pass. The prior
+`eb76746` Task-087 Windows helper timing failure passed on exact failed-job
+rerun. Production certificate application/restoration, transaction wiring, and
+the new exact-head workflows remain pending.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `095c04d` against the fixed acceptance
+**Estimated Effort**: Rebaseline after `6bc37b3` against the fixed acceptance
 criteria rather than commit count. Remaining missing-container recreation and
 native recovery adapters,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
