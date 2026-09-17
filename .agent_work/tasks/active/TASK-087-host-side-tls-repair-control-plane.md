@@ -1507,6 +1507,50 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-17 - Exact Native Environment Promotion Boundary Added
+
+**Objective**: Implement the narrow Windows destination operation needed for
+forward `.env` application without yet wiring a production mutation path.
+
+**Context**: The candidate identity/content/metadata was durable, but the
+destination still needed exact pre/post classification, Win32 replacement or
+non-overwriting move semantics, API-error reconciliation, and a durable applied
+record shape. Testing also showed that hashing the entire self-relative Windows
+security descriptor binds representation details that `ReplaceFileW` may
+normalize even when it preserves the actual owner/DACL access policy.
+
+**Decision**: Reopen destination and temp without following a leaf reparse,
+require local fixed-volume single-link exact observations, and authorize only
+`ReplaceFileW` for an exact existing original or write-through `MoveFileExW`
+without replacement for exact absence. Reconcile every ordinary result from
+the exact post-call state. Fingerprint owner SID, DACL presence/protection, and
+exact in-use DACL bytes; do not fingerprint unstable descriptor layout bytes.
+
+**Execution**: Committed checkpoint
+`5e83e46ef4415f7b63939339a0161e4e67df25ed` adds the pure promotion authority/
+classifier, injectable and ctypes-native storage boundary, real-Windows smoke,
+and generation-4 provider mini-journal `environment_applied` schema/continuity.
+
+**Output**: Existing destinations must adopt the verified temp identity and
+candidate bytes while retaining exact original attributes and owner/DACL
+policy. Originally absent destinations must retain all verified temp metadata.
+Completed calls are idempotent, apparent API errors are accepted only after
+exact completion proof, unchanged state is retryable, and every third state is
+preserved and blocks. There is no production call site or durable append
+orchestration yet, so repair/runtime mutation remains disabled.
+
+**Validation**: Focused promotion/staging/trust/journal/recovery tests pass
+`171/171`; the elevated native `ReplaceFileW`/`MoveFileExW` identity and
+metadata proof passes; the final focused review passes `108/108` with one
+expected unelevated host-policy skip; and the broad launcher suite passes
+`1959/1959` with the unchanged antivirus-blocked PowerShell helper module
+excluded. Black, strict mypy, configured Flake8, medium/high Bandit,
+compilation, and diff checks pass.
+
+**Next**: Build held-root orchestration that reloads the durable original and
+verified candidate, applies/reconciles once, appends `environment_applied`, and
+repairs only its exact pointer on restart before generation-8 rollback work.
+
 ### 2026-09-17 - Candidate Identity And Metadata Made Durable
 
 **Objective**: Supply the exact candidate authority needed to classify an
@@ -1517,8 +1561,8 @@ write, and a same-volume rename preserves that identity. Recovery also needs
 durable file attributes and security-descriptor evidence to reject a drifted
 or substituted destination rather than trusting content alone.
 
-**Decision**: Capture the raw native security-descriptor digest in shared
-Windows security facts. Record candidate attributes and that digest in both
+**Decision**: Capture a stable owner/DACL policy fingerprint in shared Windows
+security facts. Record candidate attributes and that fingerprint in both
 created and verified temp states, require them to remain exact after write and
 no-follow reopen, and enforce their continuity in authenticated selection.
 
