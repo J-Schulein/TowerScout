@@ -62,8 +62,11 @@ replacement/removal and later recovery/runtime mutation remain disabled.
 Checkpoint `da09dff` also persists the selected provider and Windows-root
 fingerprint in authenticated generation 1 so fresh-process recovery can rebuild
 the original target-plan certificate identity without certificate bytes or a
-new trust-selection call. Missing-container recreation and the remaining native
-recovery ports are still open.
+new trust-selection call. Checkpoint `9b12645` then adds read-only absent-target
+observation: it retains native authority, proves exact absence plus the pinned
+image and all eight volumes twice, and re-derives the persisted rollback-runtime
+authority without issuing a runtime command. Exact prior-profile recreation and
+the remaining native recovery ports are still open.
 After Gate A source
 acceptance and the PR #67 merge decision, complete Task-096 lifecycle controls
 and Task-102 native first-run setup before resuming Task-087 Gate B normal-
@@ -240,7 +243,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at independently reviewed and exact-head validated checkpoint `56ba458`. Generation 5 durably plans environment restoration from both exact authenticated backups without creating a file or enabling mutation. Slice 4 still needs successful revocation-aware fixed-host and repeated container proof; remaining recovery states/actions, cross-protocol scanning, transaction refactor, provider `.env` hardening, and final validation remain. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at implementation head `9b12645`; `211db7f` is the validated exact head. Read-only fresh-process absent-target observation now retains native authority and re-derives the original runtime/all-volume authority; exact prior-profile recreation, the other native recovery ports, transaction integration, live trust/runtime proof, and final validation remain. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
 | `TASK-096` Launcher Lifecycle Controls | Backlog / NOT_STARTED. Begins only after Task-087 Gate A acceptance and the PR #67 merge decision; owns native state-driven Start/Open/Stop/Restart. |
 | `TASK-102` Native Launcher First-Run Setup | Backlog / NOT_STARTED. Begins after Task-096; owns package/asset/runtime/readiness setup and opens the browser Setup Wizard for provider keys before Task-087 Gate B. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |

@@ -182,12 +182,13 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `da09dff` adds the provider and Windows-root
-  fingerprint needed for fresh-process target-plan reconstruction to the
-  authenticated hashes-only runtime, image, Compose, all-volume, and exact
-  certificate authority. `3d1f99d` is the validated exact head: CI/CD run
-  `35279748675`, Task-087 run `35279748728`, and Trivy passed.
-  Missing-container observation/recreation, the native recovery ports,
+- Task-087 implementation head `9b12645` adds read-only absent-container
+  observation under retained native authority. It rebuilds the original plan
+  from the authenticated certificate identity, twice binds absence plus the
+  pinned image and all eight volumes, and re-derives the persisted runtime
+  authority without a runtime command. `211db7f` is the validated exact head:
+  CI/CD run `35281207900`, Task-087 run `35281207896`, and Trivy passed.
+  Exact prior-profile recreation, the native recovery ports,
   transaction integration, and live trust/runtime proof remain; PR #67 remains
   Draft.
   Gate A remains open and mutation remains disabled. Detailed
@@ -306,15 +307,17 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. The current implementation head is `6d2ade4`; `42ac83e` is the validated
+open. The current implementation head is `9b12645`; `211db7f` is the validated
 exact head. Provider `.env` mutation/reconciliation, fresh-process rollback
 resumption, all durable rollback states, native terminal cleanup, and retained-
 container native runtime availability are implemented. Exact certificate
 replacement bytes and their durable candidate summaries are now bound before
 backup persistence. Stage-stable runtime/image/Compose and all-volume recovery
 authority is also bound before mutation and enforced at runtime availability.
-Remaining implementation is missing-container exact
-recreation, native certificate application/restoration, runtime restart,
+The read-only absent-target owner now reconstructs and twice revalidates the
+same Compose/image/all-volume authority without another trust-selection call.
+Remaining implementation is exact prior-profile recreation, native certificate
+application/restoration, runtime restart,
 rollback verification, and the `repair.py` transaction refactor. Live
 Windows trust and Docker/rootless-Podman proof remains pending a supported
 context and runtime-readiness confirmation. The chronological ledger follows.

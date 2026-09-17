@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `da09dff`; `3d1f99d` is the validated exact head.
+implementation head is `9b12645`; `211db7f` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -27,10 +27,14 @@ adds the provider and lowercase SHA-256 Windows-root fingerprint to the exact
 certificate plan and authenticated generation 1, enabling fresh-process plan
 reconstruction without persisting certificate bytes or rerunning trust
 selection. Its focused recovery/provider tests pass `233/233`, and focused
-static/security checks pass. Missing-container
-observation/recreation remains open. Remaining Gate A implementation is that recreation
-boundary, native certificate application/restore,
-runtime-restart, and rollback-verification adapters plus the `repair.py`
+static/security checks pass. Checkpoint `9b12645` adds read-only absent-target
+observation under retained native authority. It reconstructs the original plan
+without a trust-selection call, twice proves exact absence plus the pinned image
+and all eight volumes, and re-derives the persisted rollback-runtime authority.
+Focused tests pass `224/224`; broader clean evidence passes `566/566` non-native
+plus `96/96` native tests. Exact prior-profile recreation remains open.
+Remaining Gate A implementation is that recreation boundary, native certificate
+application/restore, runtime-restart, and rollback-verification adapters plus the `repair.py`
 transaction refactor/integration. The successful Windows trust and isolated
 Docker/rootless-Podman evidence remains pending a supported context and the
 required runtime-readiness confirmation. Repair/runtime integration remains
@@ -206,10 +210,26 @@ grammar, and diff checks pass. One multi-file Black check stalled without
 output, was interrupted, and was superseded by all nine isolated per-file
 checks passing. No certificate bytes, trust-store mutation, or runtime mutation
 was introduced.
+Committed checkpoint `9b12645` adds the read-only absent-container half of
+native rollback-runtime availability. It reconstructs the exact plan from the
+authenticated generation-1 provider/root-fingerprint identity without
+persisting certificate bytes or rerunning trust selection, transfers the held
+native observation authority, requires exact absence, and binds both Compose
+models, the pinned image, and every ordered volume. Two captures must reproduce
+the persisted runtime/all-volume authority and observation binding; the returned
+owner can fail closed on later drift. Focused tests pass `224/224`; the clean
+broader runs pass `566/566` non-native and `96/96` native tests. Strict mypy,
+blocking Flake8, Bandit, compilation, Python 3.11 grammar, and diff checks pass.
+Two zero-collection commands caused by nonexistent filenames and six shared
+pytest-temp setup denials were addressed through exact file discovery and the
+clean split broad/native reruns. Default Flake8's multiprocessing denial and
+79-column findings are superseded by its serial blocking-rule check and the
+repository's Black-88 formatting checks. No runtime command or mutation was
+introduced.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `da09dff` against the fixed acceptance
-criteria rather than commit count. Remaining missing-container recreation and
+**Estimated Effort**: Rebaseline after `9b12645` against the fixed acceptance
+criteria rather than commit count. Remaining exact prior-profile recreation and
 native recovery adapters,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
 final exact-head review, and the PR #67 decision remain
