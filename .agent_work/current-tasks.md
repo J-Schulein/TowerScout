@@ -182,11 +182,11 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `4ff6967` contains the hardened provider `.env`
-  path, fresh-process rollback manager, and exact authenticated native terminal
-  cleanup. It is the validated exact head: CI/CD run `35274231293`, Task-087
-  run `35274231290`, and Trivy passed; the main-only build was neutral as
-  designed. The native recovery ports,
+- Task-087 implementation head `095c04d` adds retained-existing-container
+  rollback availability to the hardened provider `.env`, fresh-process manager,
+  and native terminal-cleanup chain. `a9f57b7` is the validated exact head:
+  CI/CD run `35274887590`, Task-087 run `35274887609`, and Trivy passed. Missing-
+  container recreation, the other native recovery ports,
   transaction integration, and live trust/runtime proof remain; PR #67 remains
   Draft.
   Gate A remains open and mutation remains disabled. Detailed
@@ -305,14 +305,15 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. The current implementation and validated exact head is `4ff6967`.
-Provider `.env` mutation/reconciliation, fresh-process
-rollback resumption, all durable rollback states, and native terminal cleanup
-are implemented. Remaining implementation is the production native runtime-
-availability, certificate-restoration, runtime-restart, and rollback-
-verification adapters plus the `repair.py` transaction refactor. Live Windows
-trust and Docker/rootless-Podman proof remains pending a supported context and
-runtime-readiness confirmation. The chronological ledger follows. Slices 1-3
+open. The current implementation head is `095c04d`; `a9f57b7` is the validated
+exact head. Provider `.env` mutation/reconciliation, fresh-process rollback
+resumption, all durable rollback states, native terminal cleanup, and retained-
+container native runtime availability are implemented. Remaining implementation
+is missing-container exact recreation, native certificate restoration, runtime
+restart, rollback verification, and the `repair.py` transaction refactor. Live
+Windows trust and Docker/rootless-Podman proof remains pending a supported
+context and runtime-readiness confirmation. The chronological ledger follows.
+Slices 1-3
 are complete. The September 14 checkpoint connects the
 retained exact-target facade to bounded typed confirmation and adds ordered
 revalidation hooks. Slice 4 remains partial: the independently reviewed native
@@ -456,8 +457,9 @@ Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `4ff6967` against the fixed acceptance
-criteria rather than commit count. Remaining native recovery adapters,
+**Remaining Estimate**: Rebaseline after `095c04d` against the fixed acceptance
+criteria rather than commit count. Remaining missing-container recreation and
+native recovery adapters,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
 final exact-head review, and the PR #67 decision still precede Task-096.
 **Task File**:

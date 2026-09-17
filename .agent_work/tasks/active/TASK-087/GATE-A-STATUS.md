@@ -2,28 +2,32 @@
 
 **As Of**: September 17, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `4ff6967`
-**Validated Exact Head**: `4ff6967`
-**Remote Exact-Head Status**: CI/CD run `35274231293`, Task-087 run
-`35274231290`, and Trivy passed at `4ff6967`; the main-only build was neutral
+**Implementation Head**: `095c04d`
+**Validated Exact Head**: `a9f57b7`
+**Remote Exact-Head Status**: CI/CD run `35274887590`, Task-087 run
+`35274887609`, and Trivy passed at `a9f57b7`; the main-only build was neutral
 as designed.
-**Local Candidate**: Pushed native terminal-cleanup checkpoint `4ff6967`.
-It deletes only the exact authenticated terminal-chain artifacts, preserves
-the journal/pointer evidence, supports exact retry from cleanup-pending, and
-reverifies absence from cleaned. Repair/runtime integration remains disabled.
+**Local Candidate**: Pushed retained-runtime availability checkpoint `095c04d`.
+It recaptures the exact native target under the held package root and attests
+all eight volumes without issuing a runtime command. Missing-container
+recreation and exact-head workflows remain open; runtime mutation is disabled.
 **Current Gate A Checkpoint**: Provider `.env` update/reconciliation is
 implemented at `d8818bd`; fresh-process rollback resumption is implemented at
 `032db8b`; and native terminal cleanup is implemented at `4ff6967`. Local
 evidence is `21/21` focused plus `568/568` broad for provider hardening,
 `15/15` focused plus `89/89` manager and `368/368` recovery-ring tests for the
 fresh manager, and `8/8` focused plus `376/376` recovery-ring tests for native
-cleanup. Focused formatting, typing, lint, complexity/line-length, Bandit,
+cleanup. Checkpoint `095c04d` implements the retained-existing-container half
+of native rollback runtime availability. Its evidence is `8/8` focused,
+`13/13` generation-9 integration, and `296/296` affected broad tests. Focused
+formatting, typing, lint, complexity/line-length, Bandit,
 compilation, Python 3.11 grammar, and diff checks pass. Production native
-runtime-availability, certificate-restoration, runtime-restart, and rollback-
-verification ports plus transaction integration remain. Live Windows trust,
-Docker, and rootless-Podman evidence is pending a supported context and the
-required runtime-readiness confirmation.
-**Historical Checkpoint Ledger**: Slices 2-3 exact-target confirmation wiring complete.
+missing-container recreation, certificate-restoration, runtime-restart, and
+rollback-verification ports plus transaction integration remain. Live Windows
+trust, Docker, and rootless-Podman evidence is pending a supported context and
+the required runtime-readiness confirmation.
+**Historical Checkpoint Ledger**: Slices 2-3 exact-target confirmation wiring
+complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
 hosts, so slice 4 remains partial. Slice 5 has independently reviewed
 protected-state/DPAPI and secure-absence foundations. Its pure byte-transform/
@@ -660,16 +664,23 @@ count, determine completion.
   lists or globs, preserves journals and their pointer, persists cleanup-
   pending on partial failure, and revalidates absence from cleaned. Its local
   focused/recovery-ring evidence and exact-head workflows pass.
+- Checkpoint `095c04d` adds read-only native rollback-runtime availability for
+  the retained exact-container path. It binds the target token, package-root
+  identity, authenticated runtime/endpoint/provider evidence, exact container,
+  and all eight ordered volumes while the caller's package-root lease remains
+  held. It fails closed without issuing a runtime command when the exact target
+  cannot be recaptured. Missing-container exact recreation remains open.
 - No live Docker, Podman, certificate-store, or runtime mutation was run for
   these source checkpoints. The runtime-readiness confirmation required before
   live evidence remains outstanding.
 
 ## Remaining Outcome Sequence
 
-1. **Finish production recovery adapters (slice 6).** Implement native runtime-
-   availability, certificate-restoration, runtime-restart, and rollback-
-   verification ports with the same exact-target/fail-closed boundaries, then
-   exercise fresh-process recovery with those adapters.
+1. **Finish production recovery adapters (slice 6).** Add exact missing-
+   container recreation to runtime availability, then implement native
+   certificate restoration, runtime restart, and rollback verification with
+   the same exact-target/fail-closed boundaries. Exercise fresh-process recovery
+   with the complete adapters.
 2. **Refactor the transaction (slices 5 and 7).** Make `repair.py` consume the
    immutable resolved target and durable recovery manager, remove process-
    memory-only backup/unchecked rollback, and retain the required pre-write,
@@ -688,8 +699,9 @@ state definitions above.
 
 ## Next-Session Resume Point
 
-Continue from pushed native-cleanup checkpoint `4ff6967`. First implement the
-four production recovery adapters and their adversarial tests. Then refactor
+Continue from pushed retained-runtime checkpoint `095c04d`. First add exact
+missing-container recreation and implement the other three production recovery
+adapters with their adversarial tests. Then refactor
 `repair.py` around the immutable target and fresh-process manager, preserving
 mutation-off until that integrated path is complete and reviewed. Retry slice
 4's revocation-aware fixed-host and Docker/rootless-Podman containment proof
@@ -723,8 +735,9 @@ Gate B resumes only after those launcher surfaces stabilize, so the normal
 release-package path integrates the intended front door once. Task-097 then
 qualifies that integrated package across Docker CPU/GPU and Podman CPU/GPU.
 
-Planning after `4ff6967` remains based on fixed acceptance criteria rather than
-commit count. Remaining work is the four production recovery adapters,
+Planning after `095c04d` remains based on fixed acceptance criteria rather than
+commit count. Remaining work is missing-container exact recreation plus the
+other three production recovery adapters,
 transaction refactor/integration, successful Windows trust and live runtime
 proof, final exact-head workflows and review, and the PR #67 decision. Gate B,
 Task-096, Task-102, and Task-097 are outside that Gate A estimate.

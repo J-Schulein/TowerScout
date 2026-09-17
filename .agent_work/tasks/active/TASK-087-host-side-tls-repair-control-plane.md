@@ -5,16 +5,19 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation and validated exact head is `4ff6967`. Checkpoint `d8818bd`
-implements protected atomic provider `.env` update
+implementation head is `095c04d`; `a9f57b7` is the validated exact head.
+Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
 cleaned. Local evidence passes `21/21` focused plus `568/568` broad provider
 tests, `15/15` focused plus `89/89` manager and `368/368` recovery-ring tests,
 and `8/8` focused plus `376/376` recovery-ring cleanup tests. CI/CD run
 `35274231293`, Task-087 run `35274231290`, and Trivy passed at `4ff6967`;
-the main-only build was neutral as designed. Remaining
-Gate A implementation is the native runtime-availability, certificate-restore,
+the main-only build was neutral as designed. Checkpoint `095c04d` adds the
+read-only retained-existing-container availability adapter; its `8/8` focused,
+`13/13` integration, and `296/296` affected broad tests pass while exact-head
+checks run. Missing-container recreation remains open. Remaining Gate A
+implementation is that recreation boundary, native certificate-restore,
 runtime-restart, and rollback-verification adapters plus the `repair.py`
 transaction refactor/integration. The successful Windows trust and isolated
 Docker/rootless-Podman evidence remains pending a supported context and the
@@ -159,8 +162,9 @@ live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `4ff6967` against the fixed acceptance
-criteria rather than commit count. Remaining native recovery adapters,
+**Estimated Effort**: Rebaseline after `095c04d` against the fixed acceptance
+criteria rather than commit count. Remaining missing-container recreation and
+native recovery adapters,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
 final exact-head review, and the PR #67 decision remain
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
