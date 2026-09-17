@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `fd1ef6b`; `7620684` is the validated exact head.
+implementation head is `852a72c`; `9cb53c4` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -48,9 +48,18 @@ retained/recreated evidence, and closes every owner. Its focused/adjacent tests
 pass `146/146`; the broad selected recovery/runtime ring passes `845/845`.
 Strict typing initially found one branch-local redeclaration and the first Black
 command used an unsupported option; both were corrected and replaced by clean
-runs. Remaining Gate A implementation is native
-certificate application/restore, runtime-restart, and rollback-verification
-adapters plus the `repair.py` transaction refactor/integration. The successful
+runs. Checkpoint `852a72c` adds native certificate restoration through exact
+retained Docker/Podman targets. Authenticated recovery authority permits only
+already restored, restore exact original, remove exact candidate, or block;
+native host originals remain held and revalidated through contained engine
+copy/apply operations, and every nonzero result is reconciled from exact post-
+state. Replacement evidence passes `734/734` non-native plus `177/177` native
+tests; Black, strict mypy, blocking Flake8, compilation, Python 3.11 grammar,
+diff, and focused Bandit checks pass. Its command-plan, typing, grammar, patch-
+layout, and combined pytest-teardown failures were corrected or superseded by
+clean replacement runs. Remaining Gate A implementation is native runtime-
+restart and rollback-verification adapters plus the `repair.py` transaction
+refactor/integration. The successful
 Windows trust and isolated Docker/rootless-Podman evidence remains pending a
 supported context and the
 required runtime-readiness confirmation. Repair/runtime integration remains
@@ -242,11 +251,34 @@ clean split broad/native reruns. Default Flake8's multiprocessing denial and
 79-column findings are superseded by its serial blocking-rule check and the
 repository's Black-88 formatting checks. No runtime command or mutation was
 introduced.
+Committed checkpoints `351c9a9` and `fd1ef6b` then complete exact absent-target
+recreation and connect both retained and recreated targets to the manager-facing
+runtime-availability port. One fixed volume-preserving Docker/Podman command is
+permitted only after exact absence is revalidated, four post-command captures
+must recover the authenticated runtime and all-volume authority, and all native
+owners close on every path. Focused/adjacent evidence passes `146/146`; the
+broad selected recovery/runtime ring passes `845/845`. The initial mypy
+redeclaration and unsupported Black option were corrected and superseded by
+clean runs.
+Committed checkpoint `852a72c` adds the production certificate-restoration
+port. Pure classification derives authority only from the authenticated stream;
+the native adapter holds and revalidates exact original host bytes across fixed
+contained engine commands, atomically restores exact originals or removes exact
+candidates, cleans only exact staged residue, and accepts command errors only
+after exact post-state reconciliation. Focused sets pass `94/94`, `29/29`,
+`20/20`, `107/107`, `78/78`, and `108/108`; replacement broad evidence passes
+`734/734` non-native plus `177/177` native tests. Black, strict mypy, blocking
+Flake8, compilation, Python 3.11 grammar, diff, and focused Bandit checks pass.
+The initial two command-plan failures, strict-mypy findings, invalid grammar
+invocation, patch-context/layout errors, and ACL-blocked combined pytest teardown
+were corrected or superseded by that clean evidence. The full touched-source
+Bandit run contains only the unchanged existing backend baseline, while the new
+restoration modules are clean. No live runtime command was issued.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `9b12645` against the fixed acceptance
-criteria rather than commit count. Remaining exact prior-profile recreation and
-native recovery adapters,
+**Estimated Effort**: Rebaseline after `852a72c` against the fixed acceptance
+criteria rather than commit count. Remaining runtime-restart and rollback-
+verification adapters,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
 final exact-head review, and the PR #67 decision remain
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
