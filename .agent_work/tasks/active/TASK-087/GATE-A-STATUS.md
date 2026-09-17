@@ -2,13 +2,13 @@
 
 **As Of**: September 17, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `1b85a93003c38554113f283c646361b57c7c95ca`
+**Implementation Head**: `16a8224ad3db9930bba0670a3ae907ea895d5b1e`
 **Validated Exact Head**: `d9f656387f3220588a38f984397acfdad8a24387`
 **Remote Exact-Head Status**: CI/CD run `35238335037`, Task-087 run
 `35238334999`, and Trivy passed; the main-only build is neutral as designed.
-**Local Candidate**: Pushed generation-8 state-contract checkpoint `1b85a93`;
-exact-head workflows and independent review remain pending. No `.env`
-destination mutation is implemented or authorized by this checkpoint.
+**Local Candidate**: Pushed candidate-authority checkpoint `16a8224`; exact-
+head workflows and independent review remain pending. No `.env` destination
+mutation is implemented or authorized by this checkpoint.
 **Current Checkpoint**: Slices 2-3 exact-target confirmation wiring complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
 hosts, so slice 4 remains partial. Slice 5 has independently reviewed
@@ -273,6 +273,17 @@ the adjacent journal/storage set passes `143/143`, and the broader Windows
 recovery selection passes `280/280`. This checkpoint performs no destination
 operation and grants no `.env`, certificate, repair, cleanup, or runtime
 mutation authority. Exact-head workflows and independent review remain open.
+
+Pushed checkpoint `16a8224` closes the pre-apply authority gap for originally
+absent `.env`: `backup_preparing` now authenticates an immutable replacement
+plan whose original state exactly matches the encrypted environment backup and
+durably binds its candidate hash and size before any backup name or write.
+That lets later fresh-process recovery distinguish the transaction-produced
+candidate from an unrelated file without persisting candidate plaintext.
+Recovery/provider regressions pass `343/343`; strict typing, configured lint,
+Bandit, Black, compilation, and diff checks pass. No destination operation or
+runtime mutation is enabled. Exact-head workflows and independent review are
+pending.
 
 **Slice 9 validation ledger continuation**: Independently reviewed checkpoint
 `ebb9d69` passes `39/39` focused, `105/105` adjacent, and `1647/1647` complete

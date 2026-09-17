@@ -127,6 +127,12 @@ present-state destination identity to generation 7. Focused, adjacent, and
 broader recovery tests pass `44/44`, `143/143`, and `280/280`. It performs no
 destination operation and grants no mutation authority; exact-head workflows
 and independent review remain pending.
+Pushed checkpoint `16a8224` additionally binds the immutable environment
+candidate hash and size into authenticated `backup_preparing` authority after
+requiring the plan's original state to equal the encrypted backup. This closes
+fresh-process classification for an originally absent `.env` without storing
+candidate plaintext. Recovery/provider regressions pass `343/343`; exact-head
+workflows and independent review remain pending. No mutation is enabled.
 No repair or mutation is enabled. Gate B preview integration and Task-100
 signing remain separate. Earlier independently reviewed checkpoint `2edcb8e`
 adds the protected Local AppData/current-user DPAPI
@@ -147,9 +153,10 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation checkpoint `1b85a93` is pushed. Its predecessor
-  `d9f6563` is independently reviewed and exact-head validated. The latest
-  checkpoint makes package-bound recovery
+- Task-087 implementation checkpoint `16a8224` is pushed; it and predecessor
+  `1b85a93` await exact-head workflows and independent review. Checkpoint
+  `d9f6563` is independently reviewed and exact-head validated. The current
+  sequence makes package-bound recovery
   scanning mandatory before target-lock acquisition, blocks pending provider
   environment recovery, retains pending repair recovery only as read-only
   owner evidence, persists generation 6 after exact zero-byte temp creation or
@@ -371,11 +378,16 @@ continuity, and present/absent shape validation. Focused, adjacent, and broader
 recovery tests pass `44/44`, `143/143`, and `280/280`. Native destination
 classification/apply, generation-8 orchestration, and every later mutation
 remain open. Exact-head workflows and independent review are pending.
+Pushed checkpoint `16a8224` binds the candidate hash/size required for exact
+present/absent/candidate/third-state recovery classification into generation 1
+after matching the immutable plan to the authenticated original backup.
+Recovery/provider regressions pass `343/343`; no destination operation is
+enabled and exact-head workflows/independent review remain pending.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `1b85a93` against the fixed acceptance
+**Remaining Estimate**: Rebaseline after `16a8224` against the fixed acceptance
 criteria rather than commit count. Remaining recovery states/action,
 recovery/transaction and provider `.env` integration, successful Windows trust
 proof, final exact-head review, and the PR #67 decision still precede Task-096.

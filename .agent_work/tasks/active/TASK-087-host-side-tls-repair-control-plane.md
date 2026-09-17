@@ -128,12 +128,19 @@ in the generation-6 temp before persisting generation 7. Pushed checkpoint
 adjacent, and broader recovery tests pass `44/44`, `143/143`, and `280/280`;
 exact-head workflows and independent review remain pending. It performs no
 destination operation or other mutation.
+Pushed checkpoint `16a8224` then requires the immutable environment plan's
+original state to match the authenticated backup before any backup name/write
+and records its candidate hash/size in `backup_preparing`. This supplies the
+missing fresh-process authority for an originally absent `.env` without
+durable candidate plaintext. Recovery/provider regressions pass `343/343`;
+exact-head workflows and independent review remain pending. It enables no
+destination or runtime mutation.
 PR #67 remains Draft, mutation remains disabled, and no
 live runtime, repair, or host/container mutation occurred in the current
 source sequence. Gate B preview work and Task-100 signing remain separate.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `1b85a93` against the fixed acceptance
+**Estimated Effort**: Rebaseline after `16a8224` against the fixed acceptance
 criteria rather than commit count. Remaining recovery states/action,
 recovery/transaction integration, provider `.env` hardening, successful
 Windows trust proof, final exact-head review, and the PR #67 decision remain
@@ -1499,6 +1506,38 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-17 - Environment Candidate Authority Bound Before Recovery Apply
+
+**Objective**: Give fresh-process rollback exact authority to distinguish its
+own transaction-produced `.env` candidate from unrelated user state,
+especially when the original `.env` was absent.
+
+**Context**: Generation 8 could attest a restored result, but secure-absence
+backup data alone could not identify the candidate that a forward transaction
+would have created. Implementing removal without that fact would risk deleting
+an unrelated file.
+
+**Decision**: Require `backup_preparing` to consume the immutable environment
+replacement plan, verify that its original bytes/absence exactly match the
+authenticated environment backup, and record only candidate hash and size.
+Do this before generating names or writing recovery data.
+
+**Execution**: Pushed checkpoint
+`16a8224ad3db9930bba0670a3ae907ea895d5b1e` extends the strict canonical
+generation-1 schema and preparation boundary, including present/absent and
+original-drift tests.
+
+**Output**: Later recovery can classify exact original, candidate, absence, or
+third state from durable authenticated authority without storing candidate
+plaintext. No destination operation or runtime mutation is enabled.
+
+**Validation**: Recovery/provider regression tests pass `343/343`; strict
+mypy, configured single-job Flake8, medium/high Bandit, Black, compilation, and
+diff checks pass. Exact-head workflows and independent review remain pending.
+
+**Next**: Implement the narrow native destination classifier/apply boundary,
+preserving every third or indeterminate state.
 
 ### 2026-09-17 - Generation-8 Restored-State Contract Checkpointed
 
