@@ -137,6 +137,13 @@ class EnvironmentJournalState(str, Enum):
     CERTIFICATE_RESTORE_TEMP_PLANNED = "certificate_restore_temp_planned"
     CERTIFICATE_RESTORE_TEMP_CREATED = "certificate_restore_temp_created"
     CERTIFICATE_RESTORE_TEMP_VERIFIED = "certificate_restore_temp_verified"
+    CERTIFICATES_RESTORED = "certificates_restored"
+    ROLLBACK_RUNTIME_RESTARTING = "rollback_runtime_restarting"
+    ROLLBACK_RUNTIME_RESTARTED = "rollback_runtime_restarted"
+    ROLLBACK_VERIFYING = "rollback_verifying"
+    ROLLBACK_VERIFIED = "rollback_verified"
+    RECOVERY_CLEANUP_PENDING = "recovery_cleanup_pending"
+    CLEANED = "cleaned"
     ENVIRONMENT_TEMP_PLANNED = "environment_temp_planned"
     ENVIRONMENT_TEMP_CREATED = "environment_temp_created"
     ENVIRONMENT_TEMP_VERIFIED = "environment_temp_verified"
@@ -810,6 +817,207 @@ class CertificateRestoreTempVerifiedRecord:
         return "CertificateRestoreTempVerifiedRecord(<redacted>)"
 
 
+def _validate_runtime_evidence(
+    runtime_sha256: object,
+    container_sha256: object,
+    volume_sha256s: object,
+) -> None:
+    if (
+        not _valid_hash(runtime_sha256)
+        or not _valid_hash(container_sha256)
+        or type(volume_sha256s) is not tuple
+        or len(volume_sha256s) != 8
+        or any(not _valid_hash(value) for value in volume_sha256s)
+        or len(set(volume_sha256s)) != 8
+    ):
+        raise ValueError("Runtime evidence is invalid.")
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class CertificatesRestoredRecord:
+    schema_version: int
+    certificate_temp_verified_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    runtime_evidence_sha256: str = field(repr=False)
+    container_evidence_sha256: str = field(repr=False)
+    volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
+    local_ca_destination_evidence_sha256: str = field(repr=False)
+    ca_bundle_destination_evidence_sha256: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.certificate_temp_verified_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+            or not _valid_hash(self.local_ca_destination_evidence_sha256)
+            or not _valid_hash(self.ca_bundle_destination_evidence_sha256)
+        ):
+            raise ValueError("Restored certificate evidence is invalid.")
+        _validate_runtime_evidence(
+            self.runtime_evidence_sha256,
+            self.container_evidence_sha256,
+            self.volume_evidence_sha256s,
+        )
+
+    def __repr__(self) -> str:
+        return "CertificatesRestoredRecord(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class RollbackRuntimeRestartingRecord:
+    schema_version: int
+    certificates_restored_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    runtime_evidence_sha256: str = field(repr=False)
+    container_evidence_sha256: str = field(repr=False)
+    volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.certificates_restored_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+        ):
+            raise ValueError("Rollback runtime restart intent is invalid.")
+        _validate_runtime_evidence(
+            self.runtime_evidence_sha256,
+            self.container_evidence_sha256,
+            self.volume_evidence_sha256s,
+        )
+
+    def __repr__(self) -> str:
+        return "RollbackRuntimeRestartingRecord(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class RollbackRuntimeRestartedRecord:
+    schema_version: int
+    restarting_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    runtime_evidence_sha256: str = field(repr=False)
+    container_evidence_sha256: str = field(repr=False)
+    volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.restarting_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+        ):
+            raise ValueError("Restarted rollback runtime evidence is invalid.")
+        _validate_runtime_evidence(
+            self.runtime_evidence_sha256,
+            self.container_evidence_sha256,
+            self.volume_evidence_sha256s,
+        )
+
+    def __repr__(self) -> str:
+        return "RollbackRuntimeRestartedRecord(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class RollbackVerifyingRecord:
+    schema_version: int
+    runtime_restarted_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.runtime_restarted_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+        ):
+            raise ValueError("Rollback verification intent is invalid.")
+
+    def __repr__(self) -> str:
+        return "RollbackVerifyingRecord(<redacted>)"
+
+
+class RollbackProviderOutcome(str, Enum):
+    SUCCESS = "success"
+    REPAIRABLE_TLS_FAILURE = "repairable_tls_failure"
+    PROVIDER_RECHECK_INDETERMINATE = "provider_recheck_indeterminate"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class RollbackVerifiedRecord:
+    schema_version: int
+    verifying_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    environment_evidence_sha256: str = field(repr=False)
+    certificate_evidence_sha256: str = field(repr=False)
+    runtime_evidence_sha256: str = field(repr=False)
+    container_evidence_sha256: str = field(repr=False)
+    volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
+    readiness_evidence_sha256: str = field(repr=False)
+    provider_outcome: RollbackProviderOutcome
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.verifying_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+            or not _valid_hash(self.environment_evidence_sha256)
+            or not _valid_hash(self.certificate_evidence_sha256)
+            or not _valid_hash(self.readiness_evidence_sha256)
+            or type(self.provider_outcome) is not RollbackProviderOutcome
+        ):
+            raise ValueError("Verified rollback evidence is invalid.")
+        _validate_runtime_evidence(
+            self.runtime_evidence_sha256,
+            self.container_evidence_sha256,
+            self.volume_evidence_sha256s,
+        )
+
+    def __repr__(self) -> str:
+        return f"RollbackVerifiedRecord(provider_outcome={self.provider_outcome!r}, <redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class RecoveryCleanupPendingRecord:
+    schema_version: int
+    rollback_verified_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.rollback_verified_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+        ):
+            raise ValueError("Recovery cleanup-pending record is invalid.")
+
+    def __repr__(self) -> str:
+        return "RecoveryCleanupPendingRecord(<redacted>)"
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class RecoveryCleanedRecord:
+    schema_version: int
+    terminal_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    cleanup_evidence_sha256: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.terminal_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+            or not _valid_hash(self.cleanup_evidence_sha256)
+        ):
+            raise ValueError("Cleaned recovery record is invalid.")
+
+    def __repr__(self) -> str:
+        return "RecoveryCleanedRecord(<redacted>)"
+
+
 EnvironmentTempJournalRecord = (
     EnvironmentTempPlanRecord
     | EnvironmentTempCreatedRecord
@@ -829,6 +1037,13 @@ EnvironmentJournalRecord = (
     | CertificateRestoreTempPlanRecord
     | CertificateRestoreTempCreatedRecord
     | CertificateRestoreTempVerifiedRecord
+    | CertificatesRestoredRecord
+    | RollbackRuntimeRestartingRecord
+    | RollbackRuntimeRestartedRecord
+    | RollbackVerifyingRecord
+    | RollbackVerifiedRecord
+    | RecoveryCleanupPendingRecord
+    | RecoveryCleanedRecord
     | EnvironmentTempJournalRecord
 )
 
@@ -859,6 +1074,15 @@ _RECORD_TYPE_BY_STATE: dict[EnvironmentJournalState, type[object]] = {
     EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED: (
         CertificateRestoreTempVerifiedRecord
     ),
+    EnvironmentJournalState.CERTIFICATES_RESTORED: CertificatesRestoredRecord,
+    EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTING: (
+        RollbackRuntimeRestartingRecord
+    ),
+    EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTED: RollbackRuntimeRestartedRecord,
+    EnvironmentJournalState.ROLLBACK_VERIFYING: RollbackVerifyingRecord,
+    EnvironmentJournalState.ROLLBACK_VERIFIED: RollbackVerifiedRecord,
+    EnvironmentJournalState.RECOVERY_CLEANUP_PENDING: RecoveryCleanupPendingRecord,
+    EnvironmentJournalState.CLEANED: RecoveryCleanedRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED: EnvironmentTempPlanRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED: EnvironmentTempCreatedRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED: EnvironmentTempVerifiedRecord,
@@ -1369,6 +1593,79 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             ),
             "schema_version": record.schema_version,
         }
+    if type(record) is CertificatesRestoredRecord:
+        return {
+            "ca_bundle_destination_evidence_sha256": (
+                record.ca_bundle_destination_evidence_sha256
+            ),
+            "certificate_temp_verified_generation_sha256": (
+                record.certificate_temp_verified_generation_sha256
+            ),
+            "container_evidence_sha256": record.container_evidence_sha256,
+            "local_ca_destination_evidence_sha256": (
+                record.local_ca_destination_evidence_sha256
+            ),
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "runtime_evidence_sha256": record.runtime_evidence_sha256,
+            "schema_version": record.schema_version,
+            "volume_evidence_sha256s": list(record.volume_evidence_sha256s),
+        }
+    if type(record) is RollbackRuntimeRestartingRecord:
+        return {
+            "certificates_restored_generation_sha256": (
+                record.certificates_restored_generation_sha256
+            ),
+            "container_evidence_sha256": record.container_evidence_sha256,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "runtime_evidence_sha256": record.runtime_evidence_sha256,
+            "schema_version": record.schema_version,
+            "volume_evidence_sha256s": list(record.volume_evidence_sha256s),
+        }
+    if type(record) is RollbackRuntimeRestartedRecord:
+        return {
+            "container_evidence_sha256": record.container_evidence_sha256,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "restarting_generation_sha256": record.restarting_generation_sha256,
+            "runtime_evidence_sha256": record.runtime_evidence_sha256,
+            "schema_version": record.schema_version,
+            "volume_evidence_sha256s": list(record.volume_evidence_sha256s),
+        }
+    if type(record) is RollbackVerifyingRecord:
+        return {
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "runtime_restarted_generation_sha256": (
+                record.runtime_restarted_generation_sha256
+            ),
+            "schema_version": record.schema_version,
+        }
+    if type(record) is RollbackVerifiedRecord:
+        return {
+            "certificate_evidence_sha256": record.certificate_evidence_sha256,
+            "container_evidence_sha256": record.container_evidence_sha256,
+            "environment_evidence_sha256": record.environment_evidence_sha256,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "provider_outcome": record.provider_outcome.value,
+            "readiness_evidence_sha256": record.readiness_evidence_sha256,
+            "runtime_evidence_sha256": record.runtime_evidence_sha256,
+            "schema_version": record.schema_version,
+            "verifying_generation_sha256": record.verifying_generation_sha256,
+            "volume_evidence_sha256s": list(record.volume_evidence_sha256s),
+        }
+    if type(record) is RecoveryCleanupPendingRecord:
+        return {
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "rollback_verified_generation_sha256": (
+                record.rollback_verified_generation_sha256
+            ),
+            "schema_version": record.schema_version,
+        }
+    if type(record) is RecoveryCleanedRecord:
+        return {
+            "cleanup_evidence_sha256": record.cleanup_evidence_sha256,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "schema_version": record.schema_version,
+            "terminal_generation_sha256": record.terminal_generation_sha256,
+        }
     environment_record = cast(EnvironmentTempJournalRecord, record)
     common: dict[str, Any] = {
         "candidate_sha256": environment_record.candidate_sha256,
@@ -1823,6 +2120,168 @@ def _record_from_json(
                 else None
             ),
         )
+    if state is EnvironmentJournalState.CERTIFICATES_RESTORED:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "ca_bundle_destination_evidence_sha256",
+                    "certificate_temp_verified_generation_sha256",
+                    "container_evidence_sha256",
+                    "local_ca_destination_evidence_sha256",
+                    "package_root_identity",
+                    "runtime_evidence_sha256",
+                    "schema_version",
+                    "volume_evidence_sha256s",
+                }
+            ),
+        )
+        volumes = item["volume_evidence_sha256s"]
+        if type(volumes) is not list:
+            raise ValueError("Restored certificate runtime evidence is invalid.")
+        return CertificatesRestoredRecord(
+            item["schema_version"],
+            item["certificate_temp_verified_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            item["runtime_evidence_sha256"],
+            item["container_evidence_sha256"],
+            tuple(volumes),
+            item["local_ca_destination_evidence_sha256"],
+            item["ca_bundle_destination_evidence_sha256"],
+        )
+    if state is EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTING:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "certificates_restored_generation_sha256",
+                    "container_evidence_sha256",
+                    "package_root_identity",
+                    "runtime_evidence_sha256",
+                    "schema_version",
+                    "volume_evidence_sha256s",
+                }
+            ),
+        )
+        volumes = item["volume_evidence_sha256s"]
+        if type(volumes) is not list:
+            raise ValueError("Rollback restart intent evidence is invalid.")
+        return RollbackRuntimeRestartingRecord(
+            item["schema_version"],
+            item["certificates_restored_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            item["runtime_evidence_sha256"],
+            item["container_evidence_sha256"],
+            tuple(volumes),
+        )
+    if state is EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTED:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "container_evidence_sha256",
+                    "package_root_identity",
+                    "restarting_generation_sha256",
+                    "runtime_evidence_sha256",
+                    "schema_version",
+                    "volume_evidence_sha256s",
+                }
+            ),
+        )
+        volumes = item["volume_evidence_sha256s"]
+        if type(volumes) is not list:
+            raise ValueError("Restarted rollback runtime evidence is invalid.")
+        return RollbackRuntimeRestartedRecord(
+            item["schema_version"],
+            item["restarting_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            item["runtime_evidence_sha256"],
+            item["container_evidence_sha256"],
+            tuple(volumes),
+        )
+    if state is EnvironmentJournalState.ROLLBACK_VERIFYING:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "package_root_identity",
+                    "runtime_restarted_generation_sha256",
+                    "schema_version",
+                }
+            ),
+        )
+        return RollbackVerifyingRecord(
+            item["schema_version"],
+            item["runtime_restarted_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+        )
+    if state is EnvironmentJournalState.ROLLBACK_VERIFIED:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "certificate_evidence_sha256",
+                    "container_evidence_sha256",
+                    "environment_evidence_sha256",
+                    "package_root_identity",
+                    "provider_outcome",
+                    "readiness_evidence_sha256",
+                    "runtime_evidence_sha256",
+                    "schema_version",
+                    "verifying_generation_sha256",
+                    "volume_evidence_sha256s",
+                }
+            ),
+        )
+        volumes = item["volume_evidence_sha256s"]
+        if type(volumes) is not list:
+            raise ValueError("Verified rollback runtime evidence is invalid.")
+        return RollbackVerifiedRecord(
+            item["schema_version"],
+            item["verifying_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            item["environment_evidence_sha256"],
+            item["certificate_evidence_sha256"],
+            item["runtime_evidence_sha256"],
+            item["container_evidence_sha256"],
+            tuple(volumes),
+            item["readiness_evidence_sha256"],
+            RollbackProviderOutcome(item["provider_outcome"]),
+        )
+    if state is EnvironmentJournalState.RECOVERY_CLEANUP_PENDING:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "package_root_identity",
+                    "rollback_verified_generation_sha256",
+                    "schema_version",
+                }
+            ),
+        )
+        return RecoveryCleanupPendingRecord(
+            item["schema_version"],
+            item["rollback_verified_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+        )
+    if state is EnvironmentJournalState.CLEANED:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "cleanup_evidence_sha256",
+                    "package_root_identity",
+                    "schema_version",
+                    "terminal_generation_sha256",
+                }
+            ),
+        )
+        return RecoveryCleanedRecord(
+            item["schema_version"],
+            item["terminal_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            item["cleanup_evidence_sha256"],
+        )
     common = frozenset(
         {
             "candidate_sha256",
@@ -2109,7 +2568,26 @@ def _validate_record_continuity(
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         if len(generations) == 1:
             return
-        if len(generations) not in {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}:
+        if len(generations) not in {
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+        }:
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         verified_generation = generations[1]
         verified = verified_generation.generation.record
@@ -2345,6 +2823,130 @@ def _validate_record_continuity(
             != certificate_created.ca_bundle_temp_identity
         ):
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 12:
+            return
+        certificates_restored_generation = generations[12]
+        certificates_restored = certificates_restored_generation.generation.record
+        if (
+            type(certificates_restored) is not CertificatesRestoredRecord
+            or certificates_restored_generation.generation.previous_generation_sha256
+            != certificate_verified_generation.generation_sha256
+            or certificates_restored.certificate_temp_verified_generation_sha256
+            != certificate_verified_generation.generation_sha256
+            or certificates_restored.package_root_identity
+            != certificate_plan.package_root_identity
+            or certificates_restored.runtime_evidence_sha256
+            != runtime.runtime_evidence_sha256
+            or certificates_restored.container_evidence_sha256
+            != runtime.container_evidence_sha256
+            or certificates_restored.volume_evidence_sha256s
+            != runtime.volume_evidence_sha256s
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 13:
+            return
+        restarting_generation = generations[13]
+        restarting = restarting_generation.generation.record
+        if (
+            type(restarting) is not RollbackRuntimeRestartingRecord
+            or restarting_generation.generation.previous_generation_sha256
+            != certificates_restored_generation.generation_sha256
+            or restarting.certificates_restored_generation_sha256
+            != certificates_restored_generation.generation_sha256
+            or restarting.package_root_identity
+            != certificates_restored.package_root_identity
+            or restarting.runtime_evidence_sha256
+            != certificates_restored.runtime_evidence_sha256
+            or restarting.container_evidence_sha256
+            != certificates_restored.container_evidence_sha256
+            or restarting.volume_evidence_sha256s
+            != certificates_restored.volume_evidence_sha256s
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 14:
+            return
+        restarted_generation = generations[14]
+        restarted = restarted_generation.generation.record
+        if (
+            type(restarted) is not RollbackRuntimeRestartedRecord
+            or restarted_generation.generation.previous_generation_sha256
+            != restarting_generation.generation_sha256
+            or restarted.restarting_generation_sha256
+            != restarting_generation.generation_sha256
+            or restarted.package_root_identity != restarting.package_root_identity
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 15:
+            return
+        verifying_generation = generations[15]
+        verifying = verifying_generation.generation.record
+        if (
+            type(verifying) is not RollbackVerifyingRecord
+            or verifying_generation.generation.previous_generation_sha256
+            != restarted_generation.generation_sha256
+            or verifying.runtime_restarted_generation_sha256
+            != restarted_generation.generation_sha256
+            or verifying.package_root_identity != restarted.package_root_identity
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 16:
+            return
+        rollback_verified_generation = generations[16]
+        rollback_verified = rollback_verified_generation.generation.record
+        if (
+            type(rollback_verified) is not RollbackVerifiedRecord
+            or rollback_verified_generation.generation.previous_generation_sha256
+            != verifying_generation.generation_sha256
+            or rollback_verified.verifying_generation_sha256
+            != verifying_generation.generation_sha256
+            or rollback_verified.package_root_identity
+            != verifying.package_root_identity
+            or rollback_verified.runtime_evidence_sha256
+            != restarted.runtime_evidence_sha256
+            or rollback_verified.container_evidence_sha256
+            != restarted.container_evidence_sha256
+            or rollback_verified.volume_evidence_sha256s
+            != restarted.volume_evidence_sha256s
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 17:
+            return
+        cleanup_generation = generations[17]
+        cleanup = cleanup_generation.generation.record
+        if type(cleanup) is RecoveryCleanedRecord:
+            if (
+                len(generations) != 18
+                or cleanup_generation.generation.previous_generation_sha256
+                != rollback_verified_generation.generation_sha256
+                or cleanup.terminal_generation_sha256
+                != rollback_verified_generation.generation_sha256
+                or cleanup.package_root_identity
+                != rollback_verified.package_root_identity
+            ):
+                _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+            return
+        if (
+            type(cleanup) is not RecoveryCleanupPendingRecord
+            or cleanup_generation.generation.previous_generation_sha256
+            != rollback_verified_generation.generation_sha256
+            or cleanup.rollback_verified_generation_sha256
+            != rollback_verified_generation.generation_sha256
+            or cleanup.package_root_identity != rollback_verified.package_root_identity
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 18:
+            return
+        cleaned_generation = generations[18]
+        cleaned = cleaned_generation.generation.record
+        if (
+            type(cleaned) is not RecoveryCleanedRecord
+            or cleaned_generation.generation.previous_generation_sha256
+            != cleanup_generation.generation_sha256
+            or cleaned.terminal_generation_sha256
+            != cleanup_generation.generation_sha256
+            or cleaned.package_root_identity != cleanup.package_root_identity
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         return
     if type(plan) is not EnvironmentTempPlanRecord:
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
@@ -2436,7 +3038,7 @@ def select_environment_journal_chain(
     )
     if any(item.generation.stream != expected_stream for item in generations):
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
-    if len(generations) > 12:
+    if len(generations) > 19:
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
     digests = tuple(item.generation_sha256 for item in generations)
     if len(set(digests)) != len(digests):
@@ -2455,6 +3057,16 @@ def select_environment_journal_chain(
         EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_PLANNED,
         EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_CREATED,
         EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED,
+        EnvironmentJournalState.CERTIFICATES_RESTORED,
+        EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTING,
+        EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTED,
+        EnvironmentJournalState.ROLLBACK_VERIFYING,
+        EnvironmentJournalState.ROLLBACK_VERIFIED,
+    )
+    cleanup_success_states = backup_states + (EnvironmentJournalState.CLEANED,)
+    cleanup_pending_states = backup_states + (
+        EnvironmentJournalState.RECOVERY_CLEANUP_PENDING,
+        EnvironmentJournalState.CLEANED,
     )
     environment_temp_states = (
         EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
@@ -2463,8 +3075,10 @@ def select_environment_journal_chain(
         EnvironmentJournalState.ENVIRONMENT_APPLIED,
     )
     observed_states = tuple(item.generation.state for item in ordered)
-    valid_states = observed_states == backup_states[: len(ordered)] or (
-        observed_states == environment_temp_states[: len(ordered)]
+    valid_states = (
+        observed_states == cleanup_success_states[: len(ordered)]
+        or observed_states == cleanup_pending_states[: len(ordered)]
+        or observed_states == environment_temp_states[: len(ordered)]
     )
     if (
         tuple(item.generation.sequence for item in ordered)
@@ -2515,6 +3129,7 @@ __all__ = [
     "CertificateRestoreTempCreatedRecord",
     "CertificateRestoreTempPlanRecord",
     "CertificateRestoreTempVerifiedRecord",
+    "CertificatesRestoredRecord",
     "EnvironmentAppliedRecord",
     "EnvironmentJournalChainSelection",
     "EnvironmentJournalGeneration",
@@ -2530,9 +3145,16 @@ __all__ = [
     "JournalStreamIdentity",
     "RecoveryJournalError",
     "RecoveryJournalErrorCode",
+    "RecoveryCleanedRecord",
+    "RecoveryCleanupPendingRecord",
     "RollbackArmedRecord",
+    "RollbackProviderOutcome",
     "RollbackRuntimeAvailableRecord",
+    "RollbackRuntimeRestartedRecord",
+    "RollbackRuntimeRestartingRecord",
     "RollbackStartedRecord",
+    "RollbackVerifiedRecord",
+    "RollbackVerifyingRecord",
     "SealedEnvironmentJournalGeneration",
     "authenticate_environment_journal_generation",
     "decode_environment_journal_pointer",

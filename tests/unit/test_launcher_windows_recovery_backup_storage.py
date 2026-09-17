@@ -353,6 +353,185 @@ class _CertificateStorage:
         return self.verification_override or self.identities
 
 
+class _CertificateRestoration:
+    def __init__(
+        self,
+        stream: journal.JournalStreamIdentity,
+        runtime: _RuntimeAvailability,
+    ) -> None:
+        self.calls = 0
+        self.error: BaseException | None = None
+        self.evidence = recovery.CertificateRestorationEvidence(
+            1,
+            stream.target_token_sha256,
+            stream.package_root_identity,
+            runtime.evidence.runtime_evidence_sha256,
+            runtime.evidence.container_evidence_sha256,
+            runtime.evidence.volume_evidence_sha256s,
+            recovery.CertificateDestinationRestoreEvidence(
+                1,
+                True,
+                hashlib.sha256(b"private-local-ca").hexdigest(),
+                len(b"private-local-ca"),
+                0o644,
+                "b" * 64,
+            ),
+            recovery.CertificateDestinationRestoreEvidence(
+                1,
+                False,
+                destination_evidence_sha256="c" * 64,
+            ),
+        )
+
+    def restore_certificates_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        protected_root_path: str,
+        stream: journal.JournalStreamIdentity,
+        plan: journal.CertificateRestoreTempPlanRecord,
+        verified: journal.CertificateRestoreTempVerifiedRecord,
+    ) -> recovery.CertificateRestorationEvidence:
+        package_root.assert_unchanged_while_held()
+        assert protected_root_path.endswith(r"TowerScout\Recovery\v1")
+        assert stream.target_token_sha256 == self.evidence.target_token_sha256
+        assert plan.local_ca_present
+        assert verified.local_ca_temp_identity is not None
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        return self.evidence
+
+
+class _RuntimeRestart:
+    def __init__(self, stream: journal.JournalStreamIdentity) -> None:
+        self.restart_calls = 0
+        self.verify_calls = 0
+        self.error: BaseException | None = None
+        self.evidence = recovery.RollbackRuntimeRestartEvidence(
+            1,
+            stream.target_token_sha256,
+            stream.package_root_identity,
+            "d" * 64,
+            "e" * 64,
+            tuple(f"{value:x}" * 64 for value in range(1, 9)),
+        )
+
+    def restart_rollback_runtime_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        stream: journal.JournalStreamIdentity,
+        intent: journal.RollbackRuntimeRestartingRecord,
+    ) -> recovery.RollbackRuntimeRestartEvidence:
+        package_root.assert_unchanged_while_held()
+        assert intent.package_root_identity == stream.package_root_identity
+        self.restart_calls += 1
+        if self.error is not None:
+            raise self.error
+        return self.evidence
+
+    def verify_restarted_rollback_runtime_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        stream: journal.JournalStreamIdentity,
+        restarted: journal.RollbackRuntimeRestartedRecord,
+    ) -> recovery.RollbackRuntimeRestartEvidence:
+        package_root.assert_unchanged_while_held()
+        assert restarted.package_root_identity == stream.package_root_identity
+        self.verify_calls += 1
+        if self.error is not None:
+            raise self.error
+        return self.evidence
+
+
+class _RollbackVerification:
+    def __init__(
+        self,
+        stream: journal.JournalStreamIdentity,
+        restart: _RuntimeRestart,
+    ) -> None:
+        self.calls = 0
+        self.error: BaseException | None = None
+        self.evidence = recovery.RollbackVerificationEvidence(
+            1,
+            stream.target_token_sha256,
+            stream.package_root_identity,
+            "f" * 64,
+            "a" * 64,
+            restart.evidence.runtime_evidence_sha256,
+            restart.evidence.container_evidence_sha256,
+            restart.evidence.volume_evidence_sha256s,
+            "b" * 64,
+            journal.RollbackProviderOutcome.REPAIRABLE_TLS_FAILURE,
+            True,
+            True,
+            True,
+            True,
+        )
+
+    def verify_rollback_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        stream: journal.JournalStreamIdentity,
+        restarted: journal.RollbackRuntimeRestartedRecord,
+    ) -> recovery.RollbackVerificationEvidence:
+        package_root.assert_unchanged_while_held()
+        assert restarted.package_root_identity == stream.package_root_identity
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        return self.evidence
+
+
+class _RecoveryCleanup:
+    def __init__(self, stream: journal.JournalStreamIdentity) -> None:
+        self.cleanup_calls = 0
+        self.verify_calls = 0
+        self.fail = False
+        self.cleaned = False
+        self.evidence = recovery.RecoveryCleanupEvidence(
+            1,
+            stream.target_token_sha256,
+            stream.package_root_identity,
+            "c" * 64,
+        )
+
+    def cleanup_rollback_artifacts_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        protected_root_path: str,
+        stream: journal.JournalStreamIdentity,
+        chain: storage.PersistedEnvironmentJournalChain,
+    ) -> recovery.RecoveryCleanupEvidence:
+        package_root.assert_unchanged_while_held()
+        assert protected_root_path.endswith(r"TowerScout\Recovery\v1")
+        assert chain.selection.tip.state in {
+            journal.EnvironmentJournalState.ROLLBACK_VERIFIED,
+            journal.EnvironmentJournalState.RECOVERY_CLEANUP_PENDING,
+        }
+        assert stream.target_token_sha256 == self.evidence.target_token_sha256
+        self.cleanup_calls += 1
+        if self.fail:
+            raise OSError("private cleanup detail")
+        self.cleaned = True
+        return self.evidence
+
+    def verify_rollback_artifacts_cleaned_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        protected_root_path: str,
+        stream: journal.JournalStreamIdentity,
+        chain: storage.PersistedEnvironmentJournalChain,
+    ) -> recovery.RecoveryCleanupEvidence:
+        package_root.assert_unchanged_while_held()
+        assert protected_root_path.endswith(r"TowerScout\Recovery\v1")
+        assert chain.selection.tip.state is journal.EnvironmentJournalState.CLEANED
+        assert stream.target_token_sha256 == self.evidence.target_token_sha256
+        self.verify_calls += 1
+        if not self.cleaned:
+            raise OSError("private cleanup drift")
+        return self.evidence
+
+
 def _package_root() -> PathHierarchyTrust:
     return capture_path_hierarchy(
         r"C:\Users\reviewed-user\TowerScout",
@@ -3574,3 +3753,405 @@ def test_certificate_restore_temp_write_failure_keeps_created_tip() -> None:
 
     assert failure.value.code is recovery.WindowsRecoveryErrorCode.WRITE_FAILED
     assert len(generations.files) == generation_count
+
+
+def _persist_certificate_temps_verified_state(
+    protection: _Protection,
+) -> tuple[
+    journal.JournalStreamIdentity,
+    _Root,
+    _GenerationStorage,
+    PathHierarchyTrust,
+]:
+    stream, root, generations, blobs, package_root = (
+        _persist_certificate_restore_plan_state(protection)
+    )
+    certificate_storage = _CertificateStorage(root)
+    recovery.create_persisted_certificate_restore_temps(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        certificate_storage=certificate_storage,
+        journal_protection=protection,
+    )
+    recovery.write_persisted_certificate_restore_temps(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_storage=blobs,
+        certificate_storage=certificate_storage,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+    return stream, root, generations, package_root
+
+
+def _persist_certificates_restored_state(
+    protection: _Protection,
+) -> tuple[
+    journal.JournalStreamIdentity,
+    _Root,
+    _GenerationStorage,
+    PathHierarchyTrust,
+    _CertificateRestoration,
+]:
+    stream, root, generations, package_root = _persist_certificate_temps_verified_state(
+        protection
+    )
+    restoration = _CertificateRestoration(stream, _RuntimeAvailability(stream))
+    package_root.run_while_held(
+        lambda: recovery.persist_certificates_restored_generation_from_held_package_root(
+            stream=stream,
+            package_root=package_root,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            restoration=restoration,
+            journal_protection=protection,
+        )
+    )
+    return stream, root, generations, package_root, restoration
+
+
+def test_certificates_restored_reverifies_exact_runtime_and_destinations() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_certificate_temps_verified_state(
+        protection
+    )
+    restoration = _CertificateRestoration(stream, _RuntimeAvailability(stream))
+    try:
+        first = package_root.run_while_held(
+            lambda: recovery.persist_certificates_restored_generation_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                restoration=restoration,
+                journal_protection=protection,
+            )
+        )
+        generation_count = len(generations.files)
+        generations.pointer = None
+        second = package_root.run_while_held(
+            lambda: recovery.persist_certificates_restored_generation_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                restoration=restoration,
+                journal_protection=protection,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert restoration.calls == 2
+    assert len(generations.files) == generation_count
+    assert first.selection.tip == second.selection.tip
+    assert (
+        second.selection.tip.state
+        is journal.EnvironmentJournalState.CERTIFICATES_RESTORED
+    )
+
+
+def test_certificates_restored_rejects_destination_evidence_drift() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_certificate_temps_verified_state(
+        protection
+    )
+    restoration = _CertificateRestoration(stream, _RuntimeAvailability(stream))
+    restoration.evidence = replace(
+        restoration.evidence,
+        local_ca=replace(restoration.evidence.local_ca, mode=0o600),
+    )
+    generation_count = len(generations.files)
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            package_root.run_while_held(
+                lambda: recovery.persist_certificates_restored_generation_from_held_package_root(
+                    stream=stream,
+                    package_root=package_root,
+                    root=root,
+                    journal_storage=generations,
+                    pointer_storage=generations,
+                    restoration=restoration,
+                    journal_protection=protection,
+                )
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
+    assert len(generations.files) == generation_count
+
+
+def _persist_runtime_restart_intent_state(
+    protection: _Protection,
+) -> tuple[
+    journal.JournalStreamIdentity,
+    _Root,
+    _GenerationStorage,
+    PathHierarchyTrust,
+]:
+    stream, root, generations, package_root, _restoration = (
+        _persist_certificates_restored_state(protection)
+    )
+    package_root.run_while_held(
+        lambda: recovery.persist_rollback_runtime_restarting_generation_from_held_package_root(
+            stream=stream,
+            package_root=package_root,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            journal_protection=protection,
+        )
+    )
+    return stream, root, generations, package_root
+
+
+def test_runtime_restart_is_write_ahead_and_reverified_without_second_restart() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_runtime_restart_intent_state(
+        protection
+    )
+    restart = _RuntimeRestart(stream)
+    try:
+        first = package_root.run_while_held(
+            lambda: recovery.persist_rollback_runtime_restarted_generation_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                restart=restart,
+                journal_protection=protection,
+            )
+        )
+        generation_count = len(generations.files)
+        generations.pointer = None
+        second = package_root.run_while_held(
+            lambda: recovery.persist_rollback_runtime_restarted_generation_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                restart=restart,
+                journal_protection=protection,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert restart.restart_calls == 1
+    assert restart.verify_calls == 1
+    assert len(generations.files) == generation_count
+    assert first.selection.tip == second.selection.tip
+
+
+def test_terminal_rollback_verification_requires_every_exact_local_condition() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_runtime_restart_intent_state(
+        protection
+    )
+    restart = _RuntimeRestart(stream)
+    try:
+        package_root.run_while_held(
+            lambda: recovery.persist_rollback_runtime_restarted_generation_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                restart=restart,
+                journal_protection=protection,
+            )
+        )
+        package_root.run_while_held(
+            lambda: recovery.persist_rollback_verifying_generation_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                journal_protection=protection,
+            )
+        )
+        verification = _RollbackVerification(stream, restart)
+        verification.evidence = replace(
+            verification.evidence,
+            certificates_exact=False,
+        )
+        generation_count = len(generations.files)
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            package_root.run_while_held(
+                lambda: recovery.persist_rollback_verified_generation_from_held_package_root(
+                    stream=stream,
+                    package_root=package_root,
+                    root=root,
+                    journal_storage=generations,
+                    pointer_storage=generations,
+                    verification=verification,
+                    journal_protection=protection,
+                )
+            )
+        verification.evidence = replace(
+            verification.evidence,
+            certificates_exact=True,
+        )
+        terminal = package_root.run_while_held(
+            lambda: recovery.persist_rollback_verified_generation_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                verification=verification,
+                journal_protection=protection,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
+    assert len(generations.files) == generation_count + 1
+    assert (
+        terminal.selection.tip.state
+        is journal.EnvironmentJournalState.ROLLBACK_VERIFIED
+    )
+
+
+def _persist_rollback_verified_state(
+    protection: _Protection,
+) -> tuple[
+    journal.JournalStreamIdentity,
+    _Root,
+    _GenerationStorage,
+    PathHierarchyTrust,
+]:
+    stream, root, generations, package_root = _persist_runtime_restart_intent_state(
+        protection
+    )
+    restart = _RuntimeRestart(stream)
+    package_root.run_while_held(
+        lambda: recovery.persist_rollback_runtime_restarted_generation_from_held_package_root(
+            stream=stream,
+            package_root=package_root,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            restart=restart,
+            journal_protection=protection,
+        )
+    )
+    package_root.run_while_held(
+        lambda: recovery.persist_rollback_verifying_generation_from_held_package_root(
+            stream=stream,
+            package_root=package_root,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            journal_protection=protection,
+        )
+    )
+    package_root.run_while_held(
+        lambda: recovery.persist_rollback_verified_generation_from_held_package_root(
+            stream=stream,
+            package_root=package_root,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            verification=_RollbackVerification(stream, restart),
+            journal_protection=protection,
+        )
+    )
+    return stream, root, generations, package_root
+
+
+def test_recovery_cleanup_success_is_durable_and_reverified() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_rollback_verified_state(
+        protection
+    )
+    cleanup = _RecoveryCleanup(stream)
+    try:
+        first = package_root.run_while_held(
+            lambda: recovery.persist_recovery_cleaned_generation_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                cleanup=cleanup,
+                journal_protection=protection,
+            )
+        )
+        generation_count = len(generations.files)
+        generations.pointer = None
+        second = package_root.run_while_held(
+            lambda: recovery.persist_recovery_cleaned_generation_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                cleanup=cleanup,
+                journal_protection=protection,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert cleanup.cleanup_calls == 1
+    assert cleanup.verify_calls == 1
+    assert len(generations.files) == generation_count
+    assert first.selection.tip == second.selection.tip
+    assert second.selection.tip.state is journal.EnvironmentJournalState.CLEANED
+
+
+def test_recovery_cleanup_failure_persists_pending_then_retries_exactly() -> None:
+    protection = _Protection()
+    stream, root, generations, package_root = _persist_rollback_verified_state(
+        protection
+    )
+    cleanup = _RecoveryCleanup(stream)
+    cleanup.fail = True
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            package_root.run_while_held(
+                lambda: recovery.persist_recovery_cleaned_generation_from_held_package_root(
+                    stream=stream,
+                    package_root=package_root,
+                    root=root,
+                    journal_storage=generations,
+                    pointer_storage=generations,
+                    cleanup=cleanup,
+                    journal_protection=protection,
+                )
+            )
+        pending_count = len(generations.files)
+        cleanup.fail = False
+        cleaned = package_root.run_while_held(
+            lambda: recovery.persist_recovery_cleaned_generation_from_held_package_root(
+                stream=stream,
+                package_root=package_root,
+                root=root,
+                journal_storage=generations,
+                pointer_storage=generations,
+                cleanup=cleanup,
+                journal_protection=protection,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.CLEANUP_PENDING
+    assert "private" not in str(failure.value)
+    assert len(generations.files) == pending_count + 1
+    assert cleanup.cleanup_calls == 2
+    assert cleaned.selection.tip.state is journal.EnvironmentJournalState.CLEANED
+    assert len(cleaned.selection.generations) == 19

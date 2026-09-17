@@ -64,7 +64,9 @@ from .windows_recovery_journal import (
     CertificateRestoreTempCreatedRecord,
     CertificateRestoreTempPlanRecord,
     CertificateRestoreTempVerifiedRecord,
+    CertificatesRestoredRecord,
     EnvironmentJournalGeneration,
+    EnvironmentJournalRecord,
     EnvironmentJournalState,
     EnvironmentRestoreTempCreatedRecord,
     EnvironmentRestoreTempPlanRecord,
@@ -73,10 +75,17 @@ from .windows_recovery_journal import (
     JournalPointerDisposition,
     JournalProtectionPort,
     JournalStreamIdentity,
+    RecoveryCleanedRecord,
+    RecoveryCleanupPendingRecord,
     RecoveryJournalError,
     RollbackArmedRecord,
+    RollbackProviderOutcome,
     RollbackRuntimeAvailableRecord,
+    RollbackRuntimeRestartedRecord,
+    RollbackRuntimeRestartingRecord,
     RollbackStartedRecord,
+    RollbackVerifiedRecord,
+    RollbackVerifyingRecord,
     protect_environment_journal_generation,
 )
 from .windows_recovery_journal_storage import (
@@ -104,6 +113,7 @@ class WindowsRecoveryErrorCode(str, Enum):
     BACKUP_INVALID = "windows_recovery_backup_invalid"
     WRITE_FAILED = "windows_recovery_write_failed"
     VERIFY_FAILED = "windows_recovery_verify_failed"
+    CLEANUP_PENDING = "windows_recovery_cleanup_pending"
 
 
 class WindowsRecoveryError(RuntimeError):
@@ -127,6 +137,9 @@ class WindowsRecoveryError(RuntimeError):
         ),
         WindowsRecoveryErrorCode.VERIFY_FAILED: (
             "Windows recovery state could not be verified durably."
+        ),
+        WindowsRecoveryErrorCode.CLEANUP_PENDING: (
+            "Windows recovery is verified, but protected cleanup remains pending."
         ),
     }
 
@@ -191,7 +204,26 @@ def _recovery_records(
 ) -> tuple[BackupPreparingRecord, RollbackArmedRecord]:
     generations = chain.selection.generations
     if (
-        len(generations) not in {3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+        len(generations)
+        not in {
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+        }
         or type(generations[0].record) is not BackupPreparingRecord
         or generations[1].state is not EnvironmentJournalState.BACKUP_VERIFIED
         or type(generations[1].record) is not BackupVerifiedRecord
@@ -245,6 +277,43 @@ def _recovery_records(
             len(generations) == 12
             and chain.selection.tip.state
             is not EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_VERIFIED
+        )
+        or (
+            len(generations) == 13
+            and chain.selection.tip.state
+            is not EnvironmentJournalState.CERTIFICATES_RESTORED
+        )
+        or (
+            len(generations) == 14
+            and chain.selection.tip.state
+            is not EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTING
+        )
+        or (
+            len(generations) == 15
+            and chain.selection.tip.state
+            is not EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTED
+        )
+        or (
+            len(generations) == 16
+            and chain.selection.tip.state
+            is not EnvironmentJournalState.ROLLBACK_VERIFYING
+        )
+        or (
+            len(generations) == 17
+            and chain.selection.tip.state
+            is not EnvironmentJournalState.ROLLBACK_VERIFIED
+        )
+        or (
+            len(generations) == 18
+            and chain.selection.tip.state
+            not in {
+                EnvironmentJournalState.RECOVERY_CLEANUP_PENDING,
+                EnvironmentJournalState.CLEANED,
+            }
+        )
+        or (
+            len(generations) == 19
+            and chain.selection.tip.state is not EnvironmentJournalState.CLEANED
         )
     ):
         _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
@@ -606,6 +675,240 @@ class RollbackRuntimeAvailabilityPort(Protocol):
         package_root: PathHierarchyTrust,
         stream: JournalStreamIdentity,
     ) -> RollbackRuntimeAvailabilityEvidence: ...
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class CertificateDestinationRestoreEvidence:
+    schema_version: int
+    present: bool
+    contents_sha256: str | None = field(default=None, repr=False)
+    size: int | None = None
+    mode: int | None = None
+    destination_evidence_sha256: str = field(default="", repr=False)
+
+    def __post_init__(self) -> None:
+        values = (self.contents_sha256, self.size, self.mode)
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != 1
+            or type(self.present) is not bool
+            or _SHA256.fullmatch(self.destination_evidence_sha256) is None
+        ):
+            raise ValueError("Certificate destination restore evidence is invalid.")
+        if self.present:
+            if (
+                type(self.contents_sha256) is not str
+                or _SHA256.fullmatch(self.contents_sha256) is None
+                or type(self.size) is not int
+                or self.size < 0
+                or type(self.mode) is not int
+                or not 0 <= self.mode <= 0o7777
+            ):
+                raise ValueError("Certificate destination restore evidence is invalid.")
+        elif any(value is not None for value in values):
+            raise ValueError("Certificate destination restore evidence is invalid.")
+
+    def __repr__(self) -> str:
+        return f"CertificateDestinationRestoreEvidence(present={self.present!r}, <redacted>)"
+
+
+def _valid_runtime_evidence_values(
+    runtime_sha256: object,
+    container_sha256: object,
+    volumes: object,
+) -> bool:
+    return (
+        type(runtime_sha256) is str
+        and _SHA256.fullmatch(runtime_sha256) is not None
+        and type(container_sha256) is str
+        and _SHA256.fullmatch(container_sha256) is not None
+        and type(volumes) is tuple
+        and len(volumes) == 8
+        and all(
+            type(value) is str and _SHA256.fullmatch(value) is not None
+            for value in volumes
+        )
+        and len(set(volumes)) == 8
+    )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class CertificateRestorationEvidence:
+    schema_version: int
+    target_token_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    runtime_evidence_sha256: str = field(repr=False)
+    container_evidence_sha256: str = field(repr=False)
+    volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
+    local_ca: CertificateDestinationRestoreEvidence = field(repr=False)
+    ca_bundle: CertificateDestinationRestoreEvidence = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != 1
+            or _SHA256.fullmatch(self.target_token_sha256) is None
+            or type(self.package_root_identity) is not StableFileIdentity
+            or not _valid_runtime_evidence_values(
+                self.runtime_evidence_sha256,
+                self.container_evidence_sha256,
+                self.volume_evidence_sha256s,
+            )
+            or type(self.local_ca) is not CertificateDestinationRestoreEvidence
+            or type(self.ca_bundle) is not CertificateDestinationRestoreEvidence
+        ):
+            raise ValueError("Certificate restoration evidence is invalid.")
+
+    def __repr__(self) -> str:
+        return "CertificateRestorationEvidence(<redacted>)"
+
+
+class CertificateRestorationPort(Protocol):
+    def restore_certificates_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        protected_root_path: str,
+        stream: JournalStreamIdentity,
+        plan: CertificateRestoreTempPlanRecord,
+        verified: CertificateRestoreTempVerifiedRecord,
+    ) -> CertificateRestorationEvidence: ...
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class RollbackRuntimeRestartEvidence:
+    schema_version: int
+    target_token_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    runtime_evidence_sha256: str = field(repr=False)
+    container_evidence_sha256: str = field(repr=False)
+    volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != 1
+            or _SHA256.fullmatch(self.target_token_sha256) is None
+            or type(self.package_root_identity) is not StableFileIdentity
+            or not _valid_runtime_evidence_values(
+                self.runtime_evidence_sha256,
+                self.container_evidence_sha256,
+                self.volume_evidence_sha256s,
+            )
+        ):
+            raise ValueError("Rollback runtime restart evidence is invalid.")
+
+    def __repr__(self) -> str:
+        return "RollbackRuntimeRestartEvidence(<redacted>)"
+
+
+class RollbackRuntimeRestartPort(Protocol):
+    def restart_rollback_runtime_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        stream: JournalStreamIdentity,
+        intent: RollbackRuntimeRestartingRecord,
+    ) -> RollbackRuntimeRestartEvidence: ...
+
+    def verify_restarted_rollback_runtime_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        stream: JournalStreamIdentity,
+        restarted: RollbackRuntimeRestartedRecord,
+    ) -> RollbackRuntimeRestartEvidence: ...
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class RollbackVerificationEvidence:
+    schema_version: int
+    target_token_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    environment_evidence_sha256: str = field(repr=False)
+    certificate_evidence_sha256: str = field(repr=False)
+    runtime_evidence_sha256: str = field(repr=False)
+    container_evidence_sha256: str = field(repr=False)
+    volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
+    readiness_evidence_sha256: str = field(repr=False)
+    provider_outcome: RollbackProviderOutcome
+    environment_exact: bool
+    certificates_exact: bool
+    runtime_condition_restored: bool
+    readiness_condition_restored: bool
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != 1
+            or _SHA256.fullmatch(self.target_token_sha256) is None
+            or type(self.package_root_identity) is not StableFileIdentity
+            or _SHA256.fullmatch(self.environment_evidence_sha256) is None
+            or _SHA256.fullmatch(self.certificate_evidence_sha256) is None
+            or _SHA256.fullmatch(self.readiness_evidence_sha256) is None
+            or not _valid_runtime_evidence_values(
+                self.runtime_evidence_sha256,
+                self.container_evidence_sha256,
+                self.volume_evidence_sha256s,
+            )
+            or type(self.provider_outcome) is not RollbackProviderOutcome
+            or type(self.environment_exact) is not bool
+            or type(self.certificates_exact) is not bool
+            or type(self.runtime_condition_restored) is not bool
+            or type(self.readiness_condition_restored) is not bool
+        ):
+            raise ValueError("Rollback verification evidence is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "RollbackVerificationEvidence("
+            f"provider_outcome={self.provider_outcome!r}, <redacted>)"
+        )
+
+
+class RollbackVerificationPort(Protocol):
+    def verify_rollback_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        stream: JournalStreamIdentity,
+        restarted: RollbackRuntimeRestartedRecord,
+    ) -> RollbackVerificationEvidence: ...
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class RecoveryCleanupEvidence:
+    schema_version: int
+    target_token_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    cleanup_evidence_sha256: str = field(repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != 1
+            or _SHA256.fullmatch(self.target_token_sha256) is None
+            or type(self.package_root_identity) is not StableFileIdentity
+            or _SHA256.fullmatch(self.cleanup_evidence_sha256) is None
+        ):
+            raise ValueError("Recovery cleanup evidence is invalid.")
+
+    def __repr__(self) -> str:
+        return "RecoveryCleanupEvidence(<redacted>)"
+
+
+class RecoveryCleanupPort(Protocol):
+    def cleanup_rollback_artifacts_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        protected_root_path: str,
+        stream: JournalStreamIdentity,
+        chain: PersistedEnvironmentJournalChain,
+    ) -> RecoveryCleanupEvidence: ...
+
+    def verify_rollback_artifacts_cleaned_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        protected_root_path: str,
+        stream: JournalStreamIdentity,
+        chain: PersistedEnvironmentJournalChain,
+    ) -> RecoveryCleanupEvidence: ...
 
 
 def _ensure_pointer(
@@ -2295,12 +2598,835 @@ def write_persisted_certificate_restore_temps(
     return _run_under_root(root, authenticate_write_and_record)
 
 
+def _append_recovery_generation(
+    root_path: str,
+    *,
+    stream: JournalStreamIdentity,
+    previous_sha256: str,
+    sequence: int,
+    state: EnvironmentJournalState,
+    record: EnvironmentJournalRecord,
+    journal_storage: JournalGenerationStoragePort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    try:
+        generation = EnvironmentJournalGeneration(
+            1,
+            stream,
+            sequence,
+            previous_sha256,
+            state,
+            record,
+        )
+        sealed = protect_environment_journal_generation(
+            generation,
+            protection=journal_protection,
+        )
+    except (RecoveryJournalError, ValueError):
+        _fail(WindowsRecoveryErrorCode.WRITE_FAILED)
+    try:
+        chain = append_persisted_environment_journal_generation_from_held_root(
+            root_path,
+            sealed,
+            stream=stream,
+            storage=journal_storage,
+            protection=journal_protection,
+        )
+    except RecoveryJournalStorageError as exc:
+        if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+            _fail(WindowsRecoveryErrorCode.STORAGE_UNAVAILABLE)
+        if exc.code is RecoveryJournalStorageErrorCode.WRITE_FAILED:
+            _fail(WindowsRecoveryErrorCode.WRITE_FAILED)
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+    except RecoveryJournalError:
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+    if chain.selection.tip != generation:
+        _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+    return chain
+
+
+def _destination_matches_plan(
+    *,
+    present: bool,
+    sha256: str | None,
+    size: int | None,
+    mode: int | None,
+    evidence: CertificateDestinationRestoreEvidence,
+) -> bool:
+    return (
+        evidence.present is present
+        and evidence.contents_sha256 == sha256
+        and evidence.size == size
+        and evidence.mode == mode
+    )
+
+
+def persist_certificates_restored_generation_from_held_package_root(
+    *,
+    stream: JournalStreamIdentity,
+    package_root: PathHierarchyTrust,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    restoration: CertificateRestorationPort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Restore/reverify both exact certificate destinations and persist generation 13."""
+
+    if type(stream) is not JournalStreamIdentity or not callable(
+        getattr(restoration, "restore_certificates_while_package_root_held", None)
+    ):
+        _fail(WindowsRecoveryErrorCode.INPUT_INVALID)
+    _assert_held_package_root(package_root, stream)
+
+    def restore_and_record(root_path: str) -> PersistedEnvironmentJournalChain:
+        _assert_held_package_root(package_root, stream)
+        chain = _load_chain(root_path, stream, journal_storage, journal_protection)
+        generations = chain.selection.generations
+        if (
+            len(generations) not in {12, 13}
+            or type(generations[8].record) is not RollbackRuntimeAvailableRecord
+            or type(generations[9].record) is not CertificateRestoreTempPlanRecord
+            or type(generations[11].record) is not CertificateRestoreTempVerifiedRecord
+            or (
+                len(generations) == 13
+                and type(generations[12].record) is not CertificatesRestoredRecord
+            )
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        runtime = generations[8].record
+        plan = generations[9].record
+        verified = generations[11].record
+        if len(generations) == 12:
+            current = _ensure_pointer(
+                root_path,
+                stream,
+                generation_storage=journal_storage,
+                pointer_storage=pointer_storage,
+                protection=journal_protection,
+            )
+            if current.selection.tip != generations[11]:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        try:
+            evidence = restoration.restore_certificates_while_package_root_held(
+                package_root,
+                root_path,
+                stream,
+                plan,
+                verified,
+            )
+        except WindowsRecoveryError:
+            raise
+        except Exception:
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        if (
+            type(evidence) is not CertificateRestorationEvidence
+            or evidence.target_token_sha256 != stream.target_token_sha256
+            or evidence.package_root_identity != stream.package_root_identity
+            or evidence.runtime_evidence_sha256 != runtime.runtime_evidence_sha256
+            or evidence.container_evidence_sha256 != runtime.container_evidence_sha256
+            or evidence.volume_evidence_sha256s != runtime.volume_evidence_sha256s
+            or not _destination_matches_plan(
+                present=plan.local_ca_present,
+                sha256=plan.local_ca_sha256,
+                size=plan.local_ca_size,
+                mode=plan.local_ca_mode,
+                evidence=evidence.local_ca,
+            )
+            or not _destination_matches_plan(
+                present=plan.ca_bundle_present,
+                sha256=plan.ca_bundle_sha256,
+                size=plan.ca_bundle_size,
+                mode=plan.ca_bundle_mode,
+                evidence=evidence.ca_bundle,
+            )
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        _assert_held_package_root(package_root, stream)
+
+        if len(generations) == 12:
+            record = CertificatesRestoredRecord(
+                1,
+                chain.selection.tip_generation_sha256,
+                stream.package_root_identity,
+                evidence.runtime_evidence_sha256,
+                evidence.container_evidence_sha256,
+                evidence.volume_evidence_sha256s,
+                evidence.local_ca.destination_evidence_sha256,
+                evidence.ca_bundle.destination_evidence_sha256,
+            )
+            chain = _append_recovery_generation(
+                root_path,
+                stream=stream,
+                previous_sha256=chain.selection.tip_generation_sha256,
+                sequence=13,
+                state=EnvironmentJournalState.CERTIFICATES_RESTORED,
+                record=record,
+                journal_storage=journal_storage,
+                journal_protection=journal_protection,
+            )
+        else:
+            existing = generations[12].record
+            if (
+                type(existing) is not CertificatesRestoredRecord
+                or existing.runtime_evidence_sha256 != evidence.runtime_evidence_sha256
+                or existing.container_evidence_sha256
+                != evidence.container_evidence_sha256
+                or existing.volume_evidence_sha256s != evidence.volume_evidence_sha256s
+                or existing.local_ca_destination_evidence_sha256
+                != evidence.local_ca.destination_evidence_sha256
+                or existing.ca_bundle_destination_evidence_sha256
+                != evidence.ca_bundle.destination_evidence_sha256
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+
+        selected = _ensure_pointer(
+            root_path,
+            stream,
+            generation_storage=journal_storage,
+            pointer_storage=pointer_storage,
+            protection=journal_protection,
+        )
+        if (
+            len(selected.selection.generations) != 13
+            or selected.selection.tip.state
+            is not EnvironmentJournalState.CERTIFICATES_RESTORED
+            or selected.selection.tip_generation_sha256
+            != chain.selection.tip_generation_sha256
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        _assert_held_package_root(package_root, stream)
+        return selected
+
+    return _run_under_root(root, restore_and_record)
+
+
+def persist_rollback_runtime_restarting_generation_from_held_package_root(
+    *,
+    stream: JournalStreamIdentity,
+    package_root: PathHierarchyTrust,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Make the generation-14 restart intent durable before runtime mutation."""
+
+    if type(stream) is not JournalStreamIdentity:
+        _fail(WindowsRecoveryErrorCode.INPUT_INVALID)
+    _assert_held_package_root(package_root, stream)
+
+    def record_intent(root_path: str) -> PersistedEnvironmentJournalChain:
+        _assert_held_package_root(package_root, stream)
+        chain = _load_chain(root_path, stream, journal_storage, journal_protection)
+        generations = chain.selection.generations
+        if (
+            len(generations) not in {13, 14}
+            or type(generations[12].record) is not CertificatesRestoredRecord
+            or (
+                len(generations) == 14
+                and type(generations[13].record) is not RollbackRuntimeRestartingRecord
+            )
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        if len(generations) == 13:
+            current = _ensure_pointer(
+                root_path,
+                stream,
+                generation_storage=journal_storage,
+                pointer_storage=pointer_storage,
+                protection=journal_protection,
+            )
+            if current.selection.tip != generations[12]:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            restored = generations[12].record
+            record = RollbackRuntimeRestartingRecord(
+                1,
+                current.selection.tip_generation_sha256,
+                stream.package_root_identity,
+                restored.runtime_evidence_sha256,
+                restored.container_evidence_sha256,
+                restored.volume_evidence_sha256s,
+            )
+            chain = _append_recovery_generation(
+                root_path,
+                stream=stream,
+                previous_sha256=current.selection.tip_generation_sha256,
+                sequence=14,
+                state=EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTING,
+                record=record,
+                journal_storage=journal_storage,
+                journal_protection=journal_protection,
+            )
+        selected = _ensure_pointer(
+            root_path,
+            stream,
+            generation_storage=journal_storage,
+            pointer_storage=pointer_storage,
+            protection=journal_protection,
+        )
+        if (
+            len(selected.selection.generations) != 14
+            or selected.selection.tip.state
+            is not EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTING
+            or selected.selection.tip_generation_sha256
+            != chain.selection.tip_generation_sha256
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        _assert_held_package_root(package_root, stream)
+        return selected
+
+    return _run_under_root(root, record_intent)
+
+
+def _restart_evidence_matches(
+    evidence: object,
+    stream: JournalStreamIdentity,
+) -> bool:
+    return (
+        type(evidence) is RollbackRuntimeRestartEvidence
+        and evidence.target_token_sha256 == stream.target_token_sha256
+        and evidence.package_root_identity == stream.package_root_identity
+    )
+
+
+def persist_rollback_runtime_restarted_generation_from_held_package_root(
+    *,
+    stream: JournalStreamIdentity,
+    package_root: PathHierarchyTrust,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    restart: RollbackRuntimeRestartPort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Restart/reverify the exact prior runtime and persist generation 15."""
+
+    if (
+        type(stream) is not JournalStreamIdentity
+        or not callable(
+            getattr(
+                restart,
+                "restart_rollback_runtime_while_package_root_held",
+                None,
+            )
+        )
+        or not callable(
+            getattr(
+                restart,
+                "verify_restarted_rollback_runtime_while_package_root_held",
+                None,
+            )
+        )
+    ):
+        _fail(WindowsRecoveryErrorCode.INPUT_INVALID)
+    _assert_held_package_root(package_root, stream)
+
+    def restart_and_record(root_path: str) -> PersistedEnvironmentJournalChain:
+        _assert_held_package_root(package_root, stream)
+        chain = _load_chain(root_path, stream, journal_storage, journal_protection)
+        generations = chain.selection.generations
+        if (
+            len(generations) not in {14, 15}
+            or type(generations[13].record) is not RollbackRuntimeRestartingRecord
+            or (
+                len(generations) == 15
+                and type(generations[14].record) is not RollbackRuntimeRestartedRecord
+            )
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        intent = generations[13].record
+        try:
+            if len(generations) == 14:
+                current = _ensure_pointer(
+                    root_path,
+                    stream,
+                    generation_storage=journal_storage,
+                    pointer_storage=pointer_storage,
+                    protection=journal_protection,
+                )
+                if current.selection.tip != generations[13]:
+                    _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+                evidence = restart.restart_rollback_runtime_while_package_root_held(
+                    package_root,
+                    stream,
+                    intent,
+                )
+            else:
+                restarted = generations[14].record
+                if type(restarted) is not RollbackRuntimeRestartedRecord:
+                    _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+                evidence = (
+                    restart.verify_restarted_rollback_runtime_while_package_root_held(
+                        package_root,
+                        stream,
+                        restarted,
+                    )
+                )
+        except WindowsRecoveryError:
+            raise
+        except Exception:
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        if not _restart_evidence_matches(evidence, stream):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        _assert_held_package_root(package_root, stream)
+
+        if len(generations) == 14:
+            record = RollbackRuntimeRestartedRecord(
+                1,
+                chain.selection.tip_generation_sha256,
+                stream.package_root_identity,
+                evidence.runtime_evidence_sha256,
+                evidence.container_evidence_sha256,
+                evidence.volume_evidence_sha256s,
+            )
+            chain = _append_recovery_generation(
+                root_path,
+                stream=stream,
+                previous_sha256=chain.selection.tip_generation_sha256,
+                sequence=15,
+                state=EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTED,
+                record=record,
+                journal_storage=journal_storage,
+                journal_protection=journal_protection,
+            )
+        else:
+            existing = generations[14].record
+            if (
+                type(existing) is not RollbackRuntimeRestartedRecord
+                or existing.runtime_evidence_sha256 != evidence.runtime_evidence_sha256
+                or existing.container_evidence_sha256
+                != evidence.container_evidence_sha256
+                or existing.volume_evidence_sha256s != evidence.volume_evidence_sha256s
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+
+        selected = _ensure_pointer(
+            root_path,
+            stream,
+            generation_storage=journal_storage,
+            pointer_storage=pointer_storage,
+            protection=journal_protection,
+        )
+        if (
+            len(selected.selection.generations) != 15
+            or selected.selection.tip.state
+            is not EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTED
+            or selected.selection.tip_generation_sha256
+            != chain.selection.tip_generation_sha256
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        _assert_held_package_root(package_root, stream)
+        return selected
+
+    return _run_under_root(root, restart_and_record)
+
+
+def persist_rollback_verifying_generation_from_held_package_root(
+    *,
+    stream: JournalStreamIdentity,
+    package_root: PathHierarchyTrust,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Persist generation 16 before terminal rollback verification."""
+
+    if type(stream) is not JournalStreamIdentity:
+        _fail(WindowsRecoveryErrorCode.INPUT_INVALID)
+    _assert_held_package_root(package_root, stream)
+
+    def record_intent(root_path: str) -> PersistedEnvironmentJournalChain:
+        _assert_held_package_root(package_root, stream)
+        chain = _load_chain(root_path, stream, journal_storage, journal_protection)
+        generations = chain.selection.generations
+        if (
+            len(generations) not in {15, 16}
+            or type(generations[14].record) is not RollbackRuntimeRestartedRecord
+            or (
+                len(generations) == 16
+                and type(generations[15].record) is not RollbackVerifyingRecord
+            )
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        if len(generations) == 15:
+            current = _ensure_pointer(
+                root_path,
+                stream,
+                generation_storage=journal_storage,
+                pointer_storage=pointer_storage,
+                protection=journal_protection,
+            )
+            if current.selection.tip != generations[14]:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            record = RollbackVerifyingRecord(
+                1,
+                current.selection.tip_generation_sha256,
+                stream.package_root_identity,
+            )
+            chain = _append_recovery_generation(
+                root_path,
+                stream=stream,
+                previous_sha256=current.selection.tip_generation_sha256,
+                sequence=16,
+                state=EnvironmentJournalState.ROLLBACK_VERIFYING,
+                record=record,
+                journal_storage=journal_storage,
+                journal_protection=journal_protection,
+            )
+        selected = _ensure_pointer(
+            root_path,
+            stream,
+            generation_storage=journal_storage,
+            pointer_storage=pointer_storage,
+            protection=journal_protection,
+        )
+        if (
+            len(selected.selection.generations) != 16
+            or selected.selection.tip.state
+            is not EnvironmentJournalState.ROLLBACK_VERIFYING
+            or selected.selection.tip_generation_sha256
+            != chain.selection.tip_generation_sha256
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        _assert_held_package_root(package_root, stream)
+        return selected
+
+    return _run_under_root(root, record_intent)
+
+
+def persist_rollback_verified_generation_from_held_package_root(
+    *,
+    stream: JournalStreamIdentity,
+    package_root: PathHierarchyTrust,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    verification: RollbackVerificationPort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Verify exact local/runtime rollback and persist terminal generation 17."""
+
+    if type(stream) is not JournalStreamIdentity or not callable(
+        getattr(verification, "verify_rollback_while_package_root_held", None)
+    ):
+        _fail(WindowsRecoveryErrorCode.INPUT_INVALID)
+    _assert_held_package_root(package_root, stream)
+
+    def verify_and_record(root_path: str) -> PersistedEnvironmentJournalChain:
+        _assert_held_package_root(package_root, stream)
+        chain = _load_chain(root_path, stream, journal_storage, journal_protection)
+        generations = chain.selection.generations
+        if (
+            len(generations) not in {16, 17}
+            or type(generations[14].record) is not RollbackRuntimeRestartedRecord
+            or type(generations[15].record) is not RollbackVerifyingRecord
+            or (
+                len(generations) == 17
+                and type(generations[16].record) is not RollbackVerifiedRecord
+            )
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        restarted = generations[14].record
+        if len(generations) == 16:
+            current = _ensure_pointer(
+                root_path,
+                stream,
+                generation_storage=journal_storage,
+                pointer_storage=pointer_storage,
+                protection=journal_protection,
+            )
+            if current.selection.tip != generations[15]:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        try:
+            evidence = verification.verify_rollback_while_package_root_held(
+                package_root,
+                stream,
+                restarted,
+            )
+        except WindowsRecoveryError:
+            raise
+        except Exception:
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        if (
+            type(evidence) is not RollbackVerificationEvidence
+            or evidence.target_token_sha256 != stream.target_token_sha256
+            or evidence.package_root_identity != stream.package_root_identity
+            or evidence.runtime_evidence_sha256 != restarted.runtime_evidence_sha256
+            or evidence.container_evidence_sha256 != restarted.container_evidence_sha256
+            or evidence.volume_evidence_sha256s != restarted.volume_evidence_sha256s
+            or not evidence.environment_exact
+            or not evidence.certificates_exact
+            or not evidence.runtime_condition_restored
+            or not evidence.readiness_condition_restored
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        _assert_held_package_root(package_root, stream)
+
+        if len(generations) == 16:
+            record = RollbackVerifiedRecord(
+                1,
+                chain.selection.tip_generation_sha256,
+                stream.package_root_identity,
+                evidence.environment_evidence_sha256,
+                evidence.certificate_evidence_sha256,
+                evidence.runtime_evidence_sha256,
+                evidence.container_evidence_sha256,
+                evidence.volume_evidence_sha256s,
+                evidence.readiness_evidence_sha256,
+                evidence.provider_outcome,
+            )
+            chain = _append_recovery_generation(
+                root_path,
+                stream=stream,
+                previous_sha256=chain.selection.tip_generation_sha256,
+                sequence=17,
+                state=EnvironmentJournalState.ROLLBACK_VERIFIED,
+                record=record,
+                journal_storage=journal_storage,
+                journal_protection=journal_protection,
+            )
+        else:
+            existing = generations[16].record
+            if (
+                type(existing) is not RollbackVerifiedRecord
+                or existing.environment_evidence_sha256
+                != evidence.environment_evidence_sha256
+                or existing.certificate_evidence_sha256
+                != evidence.certificate_evidence_sha256
+                or existing.runtime_evidence_sha256 != evidence.runtime_evidence_sha256
+                or existing.container_evidence_sha256
+                != evidence.container_evidence_sha256
+                or existing.volume_evidence_sha256s != evidence.volume_evidence_sha256s
+                or existing.readiness_evidence_sha256
+                != evidence.readiness_evidence_sha256
+                or existing.provider_outcome is not evidence.provider_outcome
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+
+        selected = _ensure_pointer(
+            root_path,
+            stream,
+            generation_storage=journal_storage,
+            pointer_storage=pointer_storage,
+            protection=journal_protection,
+        )
+        if (
+            len(selected.selection.generations) != 17
+            or selected.selection.tip.state
+            is not EnvironmentJournalState.ROLLBACK_VERIFIED
+            or selected.selection.tip_generation_sha256
+            != chain.selection.tip_generation_sha256
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        _assert_held_package_root(package_root, stream)
+        return selected
+
+    return _run_under_root(root, verify_and_record)
+
+
+def _cleanup_evidence_matches(
+    evidence: object,
+    stream: JournalStreamIdentity,
+) -> bool:
+    return (
+        type(evidence) is RecoveryCleanupEvidence
+        and evidence.target_token_sha256 == stream.target_token_sha256
+        and evidence.package_root_identity == stream.package_root_identity
+    )
+
+
+def persist_recovery_cleaned_generation_from_held_package_root(
+    *,
+    stream: JournalStreamIdentity,
+    package_root: PathHierarchyTrust,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    cleanup: RecoveryCleanupPort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Clean exact terminal artifacts or durably retain cleanup-pending state."""
+
+    if (
+        type(stream) is not JournalStreamIdentity
+        or not callable(
+            getattr(
+                cleanup,
+                "cleanup_rollback_artifacts_while_package_root_held",
+                None,
+            )
+        )
+        or not callable(
+            getattr(
+                cleanup,
+                "verify_rollback_artifacts_cleaned_while_package_root_held",
+                None,
+            )
+        )
+    ):
+        _fail(WindowsRecoveryErrorCode.INPUT_INVALID)
+    _assert_held_package_root(package_root, stream)
+
+    def cleanup_and_record(root_path: str) -> PersistedEnvironmentJournalChain:
+        _assert_held_package_root(package_root, stream)
+        chain = _load_chain(root_path, stream, journal_storage, journal_protection)
+        generations = chain.selection.generations
+        if (
+            len(generations) not in {17, 18, 19}
+            or type(generations[16].record) is not RollbackVerifiedRecord
+            or (
+                len(generations) == 18
+                and type(generations[17].record)
+                not in {RecoveryCleanupPendingRecord, RecoveryCleanedRecord}
+            )
+            or (
+                len(generations) == 19
+                and (
+                    type(generations[17].record) is not RecoveryCleanupPendingRecord
+                    or type(generations[18].record) is not RecoveryCleanedRecord
+                )
+            )
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        already_cleaned = type(generations[-1].record) is RecoveryCleanedRecord
+        current = _ensure_pointer(
+            root_path,
+            stream,
+            generation_storage=journal_storage,
+            pointer_storage=pointer_storage,
+            protection=journal_protection,
+        )
+        if current.selection.tip != generations[-1]:
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+
+        if already_cleaned:
+            try:
+                verified_evidence = (
+                    cleanup.verify_rollback_artifacts_cleaned_while_package_root_held(
+                        package_root,
+                        root_path,
+                        stream,
+                        current,
+                    )
+                )
+            except WindowsRecoveryError:
+                raise
+            except Exception:
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            cleaned_record = generations[-1].record
+            if (
+                not _cleanup_evidence_matches(verified_evidence, stream)
+                or type(cleaned_record) is not RecoveryCleanedRecord
+                or cleaned_record.cleanup_evidence_sha256
+                != verified_evidence.cleanup_evidence_sha256
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            _assert_held_package_root(package_root, stream)
+            return current
+
+        cleanup_succeeded = False
+        evidence: RecoveryCleanupEvidence | None = None
+        try:
+            candidate = cleanup.cleanup_rollback_artifacts_while_package_root_held(
+                package_root,
+                root_path,
+                stream,
+                current,
+            )
+            if _cleanup_evidence_matches(candidate, stream):
+                evidence = candidate
+                cleanup_succeeded = True
+        except Exception:
+            cleanup_succeeded = False
+        _assert_held_package_root(package_root, stream)
+
+        if not cleanup_succeeded or evidence is None:
+            if len(generations) == 17:
+                pending_record = RecoveryCleanupPendingRecord(
+                    1,
+                    current.selection.tip_generation_sha256,
+                    stream.package_root_identity,
+                )
+                chain = _append_recovery_generation(
+                    root_path,
+                    stream=stream,
+                    previous_sha256=current.selection.tip_generation_sha256,
+                    sequence=18,
+                    state=EnvironmentJournalState.RECOVERY_CLEANUP_PENDING,
+                    record=pending_record,
+                    journal_storage=journal_storage,
+                    journal_protection=journal_protection,
+                )
+            else:
+                chain = current
+            pending = _ensure_pointer(
+                root_path,
+                stream,
+                generation_storage=journal_storage,
+                pointer_storage=pointer_storage,
+                protection=journal_protection,
+            )
+            if (
+                pending.selection.tip.state
+                is not EnvironmentJournalState.RECOVERY_CLEANUP_PENDING
+                or pending.selection.tip_generation_sha256
+                != chain.selection.tip_generation_sha256
+            ):
+                _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+            _fail(WindowsRecoveryErrorCode.CLEANUP_PENDING)
+
+        cleaned_record = RecoveryCleanedRecord(
+            1,
+            current.selection.tip_generation_sha256,
+            stream.package_root_identity,
+            evidence.cleanup_evidence_sha256,
+        )
+        chain = _append_recovery_generation(
+            root_path,
+            stream=stream,
+            previous_sha256=current.selection.tip_generation_sha256,
+            sequence=len(generations) + 1,
+            state=EnvironmentJournalState.CLEANED,
+            record=cleaned_record,
+            journal_storage=journal_storage,
+            journal_protection=journal_protection,
+        )
+        selected = _ensure_pointer(
+            root_path,
+            stream,
+            generation_storage=journal_storage,
+            pointer_storage=pointer_storage,
+            protection=journal_protection,
+        )
+        if (
+            selected.selection.tip.state is not EnvironmentJournalState.CLEANED
+            or selected.selection.tip_generation_sha256
+            != chain.selection.tip_generation_sha256
+        ):
+            _fail(WindowsRecoveryErrorCode.VERIFY_FAILED)
+        _assert_held_package_root(package_root, stream)
+        return selected
+
+    return _run_under_root(root, cleanup_and_record)
+
+
 __all__ = [
     "CertificateRestoreTempNameSource",
     "CertificateRestoreTempStoragePort",
+    "CertificateDestinationRestoreEvidence",
+    "CertificateRestorationEvidence",
+    "CertificateRestorationPort",
     "EnvironmentRestoreStoragePort",
     "RollbackRuntimeAvailabilityEvidence",
     "RollbackRuntimeAvailabilityPort",
+    "RollbackRuntimeRestartEvidence",
+    "RollbackRuntimeRestartPort",
+    "RollbackVerificationEvidence",
+    "RollbackVerificationPort",
+    "RecoveryCleanupEvidence",
+    "RecoveryCleanupPort",
     "WindowsRecoveryError",
     "WindowsRecoveryErrorCode",
     "begin_persisted_rollback",
@@ -2309,7 +3435,13 @@ __all__ = [
     "plan_persisted_environment_restore",
     "plan_persisted_certificate_restore",
     "persist_environment_restored_generation_from_held_package_root",
+    "persist_certificates_restored_generation_from_held_package_root",
+    "persist_recovery_cleaned_generation_from_held_package_root",
     "persist_rollback_runtime_available_generation_from_held_package_root",
+    "persist_rollback_runtime_restarted_generation_from_held_package_root",
+    "persist_rollback_runtime_restarting_generation_from_held_package_root",
+    "persist_rollback_verified_generation_from_held_package_root",
+    "persist_rollback_verifying_generation_from_held_package_root",
     "write_persisted_environment_restore_temp_from_held_package_root",
     "write_persisted_certificate_restore_temps",
 ]

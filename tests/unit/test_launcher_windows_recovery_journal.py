@@ -1811,6 +1811,206 @@ def test_environment_restore_verified_and_restored_round_trip_is_bound() -> None
     )
     assert verified_selection.tip == certificate_verified_generation
 
+    certificates_restored_record = journal.CertificatesRestoredRecord(
+        1,
+        certificate_verified.generation_sha256,
+        record.package_root_identity,
+        runtime_record.runtime_evidence_sha256,
+        runtime_record.container_evidence_sha256,
+        runtime_record.volume_evidence_sha256s,
+        "b" * 64,
+        "c" * 64,
+    )
+    certificates_restored_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        13,
+        certificate_verified.generation_sha256,
+        journal.EnvironmentJournalState.CERTIFICATES_RESTORED,
+        certificates_restored_record,
+    )
+    certificates_restored = _seal(certificates_restored_generation, protection)
+    restarting_record = journal.RollbackRuntimeRestartingRecord(
+        1,
+        certificates_restored.generation_sha256,
+        record.package_root_identity,
+        runtime_record.runtime_evidence_sha256,
+        runtime_record.container_evidence_sha256,
+        runtime_record.volume_evidence_sha256s,
+    )
+    restarting_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        14,
+        certificates_restored.generation_sha256,
+        journal.EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTING,
+        restarting_record,
+    )
+    restarting = _seal(restarting_generation, protection)
+    restarted_record = journal.RollbackRuntimeRestartedRecord(
+        1,
+        restarting.generation_sha256,
+        record.package_root_identity,
+        "d" * 64,
+        "e" * 64,
+        tuple(f"{value:x}" * 64 for value in range(1, 9)),
+    )
+    restarted_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        15,
+        restarting.generation_sha256,
+        journal.EnvironmentJournalState.ROLLBACK_RUNTIME_RESTARTED,
+        restarted_record,
+    )
+    restarted = _seal(restarted_generation, protection)
+    verifying_record = journal.RollbackVerifyingRecord(
+        1,
+        restarted.generation_sha256,
+        record.package_root_identity,
+    )
+    verifying_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        16,
+        restarted.generation_sha256,
+        journal.EnvironmentJournalState.ROLLBACK_VERIFYING,
+        verifying_record,
+    )
+    verifying = _seal(verifying_generation, protection)
+    rollback_verified_record = journal.RollbackVerifiedRecord(
+        1,
+        verifying.generation_sha256,
+        record.package_root_identity,
+        "f" * 64,
+        "a" * 64,
+        restarted_record.runtime_evidence_sha256,
+        restarted_record.container_evidence_sha256,
+        restarted_record.volume_evidence_sha256s,
+        "b" * 64,
+        journal.RollbackProviderOutcome.REPAIRABLE_TLS_FAILURE,
+    )
+    rollback_verified_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        17,
+        verifying.generation_sha256,
+        journal.EnvironmentJournalState.ROLLBACK_VERIFIED,
+        rollback_verified_record,
+    )
+    rollback_verified = _seal(rollback_verified_generation, protection)
+    terminal_selection = journal.select_environment_journal_chain(
+        (
+            prepared,
+            backup_verified,
+            armed,
+            started,
+            planned,
+            created,
+            verified,
+            restored,
+            runtime_available,
+            certificate_plan,
+            certificate_created,
+            certificate_verified,
+            certificates_restored,
+            restarting,
+            restarted,
+            verifying,
+            rollback_verified,
+        ),
+        _pointer(stream, rollback_verified, 17),
+        expected_stream=stream,
+        protection=protection,
+    )
+    assert terminal_selection.tip == rollback_verified_generation
+    terminal_rendered = repr(rollback_verified_record)
+    assert rollback_verified_record.environment_evidence_sha256 not in terminal_rendered
+    assert rollback_verified_record.readiness_evidence_sha256 not in terminal_rendered
+
+    recovery_prefix = (
+        prepared,
+        backup_verified,
+        armed,
+        started,
+        planned,
+        created,
+        verified,
+        restored,
+        runtime_available,
+        certificate_plan,
+        certificate_created,
+        certificate_verified,
+        certificates_restored,
+        restarting,
+        restarted,
+        verifying,
+        rollback_verified,
+    )
+    cleaned_record = journal.RecoveryCleanedRecord(
+        1,
+        rollback_verified.generation_sha256,
+        record.package_root_identity,
+        "c" * 64,
+    )
+    cleaned_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        18,
+        rollback_verified.generation_sha256,
+        journal.EnvironmentJournalState.CLEANED,
+        cleaned_record,
+    )
+    cleaned = _seal(cleaned_generation, protection)
+    assert (
+        journal.select_environment_journal_chain(
+            recovery_prefix + (cleaned,),
+            _pointer(stream, cleaned, 18),
+            expected_stream=stream,
+            protection=protection,
+        ).tip
+        == cleaned_generation
+    )
+
+    pending_record = journal.RecoveryCleanupPendingRecord(
+        1,
+        rollback_verified.generation_sha256,
+        record.package_root_identity,
+    )
+    pending_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        18,
+        rollback_verified.generation_sha256,
+        journal.EnvironmentJournalState.RECOVERY_CLEANUP_PENDING,
+        pending_record,
+    )
+    pending = _seal(pending_generation, protection)
+    cleaned_after_pending_record = journal.RecoveryCleanedRecord(
+        1,
+        pending.generation_sha256,
+        record.package_root_identity,
+        "d" * 64,
+    )
+    cleaned_after_pending_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        19,
+        pending.generation_sha256,
+        journal.EnvironmentJournalState.CLEANED,
+        cleaned_after_pending_record,
+    )
+    cleaned_after_pending = _seal(cleaned_after_pending_generation, protection)
+    assert (
+        journal.select_environment_journal_chain(
+            recovery_prefix + (pending, cleaned_after_pending),
+            _pointer(stream, cleaned_after_pending, 19),
+            expected_stream=stream,
+            protection=protection,
+        ).tip
+        == cleaned_after_pending_generation
+    )
+
     invalid_created = _seal(
         journal.EnvironmentJournalGeneration(
             1,
