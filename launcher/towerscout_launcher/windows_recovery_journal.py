@@ -1,9 +1,10 @@
 """Authenticated recovery-journal generation and chain-selection primitives.
 
 This source-only Gate-A layer defines canonical protected generation bytes and
-validates the environment temporary-file and restored-state transition chains.
-It does not read or write journal files, repair pointers, clean artifacts,
-stage package files, or enable repair/runtime mutation.
+validates the exact rollback chain through runtime availability and certificate
+restore-temp planning. It does not read or write journal files, repair
+pointers, clean artifacts, stage package files, or enable repair/runtime
+mutation.
 """
 
 from __future__ import annotations
@@ -38,6 +39,9 @@ _MAX_CHAIN_CANDIDATES = 64
 _MAX_SEQUENCE = 2**63 - 1
 _MAX_PROTECTED_BACKUP_BYTES = 4 * 1024 * 1024
 _MAX_ENVIRONMENT_BYTES = 262_144
+_MAX_CERTIFICATE_BYTES = 262_144
+_MAX_CERTIFICATE_BUNDLE_BYTES = 1_048_576
+_CERTIFICATE_TEMP_NAME = re.compile(r"^recovery-certificate-[0-9a-f]{32}\.tmp$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _JOURNAL_ID = re.compile(r"^[0-9a-f]{32}$")
 _BACKUP_NAME = re.compile(r"^recovery-backup-[0-9a-f]{32}\.blob$")
@@ -129,6 +133,8 @@ class EnvironmentJournalState(str, Enum):
     ENVIRONMENT_RESTORE_TEMP_CREATED = "environment_restore_temp_created"
     ENVIRONMENT_RESTORE_TEMP_VERIFIED = "environment_restore_temp_verified"
     ENVIRONMENT_RESTORED = "environment_restored"
+    ROLLBACK_RUNTIME_AVAILABLE = "rollback_runtime_available"
+    CERTIFICATE_RESTORE_TEMP_PLANNED = "certificate_restore_temp_planned"
     ENVIRONMENT_TEMP_PLANNED = "environment_temp_planned"
     ENVIRONMENT_TEMP_CREATED = "environment_temp_created"
     ENVIRONMENT_TEMP_VERIFIED = "environment_temp_verified"
@@ -621,6 +627,125 @@ class EnvironmentRestoredRecord:
         )
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class RollbackRuntimeAvailableRecord:
+    schema_version: int
+    environment_restored_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    runtime_evidence_sha256: str = field(repr=False)
+    container_evidence_sha256: str = field(repr=False)
+    volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
+    existing_container_retained: bool
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.environment_restored_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+            or not _valid_hash(self.runtime_evidence_sha256)
+            or not _valid_hash(self.container_evidence_sha256)
+            or type(self.volume_evidence_sha256s) is not tuple
+            or len(self.volume_evidence_sha256s) != 8
+            or any(not _valid_hash(value) for value in self.volume_evidence_sha256s)
+            or len(set(self.volume_evidence_sha256s)) != 8
+            or type(self.existing_container_retained) is not bool
+        ):
+            raise ValueError("Rollback runtime availability record is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "RollbackRuntimeAvailableRecord("
+            f"existing_container_retained={self.existing_container_retained!r}, "
+            "<redacted>)"
+        )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class CertificateRestoreTempPlanRecord:
+    schema_version: int
+    runtime_available_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    certificate_backup_identity: StableFileIdentity = field(repr=False)
+    certificate_ciphertext_sha256: str = field(repr=False)
+    certificate_ciphertext_size: int
+    local_ca_present: bool
+    local_ca_sha256: str | None = field(default=None, repr=False)
+    local_ca_size: int | None = None
+    local_ca_mode: int | None = None
+    local_ca_temp_name: str | None = field(default=None, repr=False)
+    ca_bundle_present: bool = False
+    ca_bundle_sha256: str | None = field(default=None, repr=False)
+    ca_bundle_size: int | None = None
+    ca_bundle_mode: int | None = None
+    ca_bundle_temp_name: str | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.runtime_available_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+            or type(self.certificate_backup_identity) is not StableFileIdentity
+            or not _valid_hash(self.certificate_ciphertext_sha256)
+            or type(self.certificate_ciphertext_size) is not int
+            or not 1 <= self.certificate_ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
+            or type(self.local_ca_present) is not bool
+            or type(self.ca_bundle_present) is not bool
+        ):
+            raise ValueError("Certificate restore-temp plan is invalid.")
+        local_values = (
+            self.local_ca_sha256,
+            self.local_ca_size,
+            self.local_ca_mode,
+            self.local_ca_temp_name,
+        )
+        bundle_values = (
+            self.ca_bundle_sha256,
+            self.ca_bundle_size,
+            self.ca_bundle_mode,
+            self.ca_bundle_temp_name,
+        )
+        if self.local_ca_present:
+            if (
+                not _valid_hash(self.local_ca_sha256)
+                or type(self.local_ca_size) is not int
+                or not 0 <= self.local_ca_size <= _MAX_CERTIFICATE_BYTES
+                or type(self.local_ca_mode) is not int
+                or not 0 <= self.local_ca_mode <= 0o7777
+                or type(self.local_ca_temp_name) is not str
+                or _CERTIFICATE_TEMP_NAME.fullmatch(self.local_ca_temp_name) is None
+            ):
+                raise ValueError("Certificate restore-temp plan is invalid.")
+        elif any(value is not None for value in local_values):
+            raise ValueError("Certificate restore-temp plan is invalid.")
+        if self.ca_bundle_present:
+            if (
+                not _valid_hash(self.ca_bundle_sha256)
+                or type(self.ca_bundle_size) is not int
+                or not 0 <= self.ca_bundle_size <= _MAX_CERTIFICATE_BUNDLE_BYTES
+                or type(self.ca_bundle_mode) is not int
+                or not 0 <= self.ca_bundle_mode <= 0o7777
+                or type(self.ca_bundle_temp_name) is not str
+                or _CERTIFICATE_TEMP_NAME.fullmatch(self.ca_bundle_temp_name) is None
+            ):
+                raise ValueError("Certificate restore-temp plan is invalid.")
+        elif any(value is not None for value in bundle_values):
+            raise ValueError("Certificate restore-temp plan is invalid.")
+        if (
+            self.local_ca_temp_name is not None
+            and self.local_ca_temp_name == self.ca_bundle_temp_name
+        ):
+            raise ValueError("Certificate restore-temp plan is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "CertificateRestoreTempPlanRecord("
+            f"local_ca_present={self.local_ca_present!r}, "
+            f"ca_bundle_present={self.ca_bundle_present!r}, <redacted>)"
+        )
+
+
 EnvironmentTempJournalRecord = (
     EnvironmentTempPlanRecord
     | EnvironmentTempCreatedRecord
@@ -636,6 +761,8 @@ EnvironmentJournalRecord = (
     | EnvironmentRestoreTempCreatedRecord
     | EnvironmentRestoreTempVerifiedRecord
     | EnvironmentRestoredRecord
+    | RollbackRuntimeAvailableRecord
+    | CertificateRestoreTempPlanRecord
     | EnvironmentTempJournalRecord
 )
 
@@ -654,6 +781,12 @@ _RECORD_TYPE_BY_STATE: dict[EnvironmentJournalState, type[object]] = {
         EnvironmentRestoreTempVerifiedRecord
     ),
     EnvironmentJournalState.ENVIRONMENT_RESTORED: EnvironmentRestoredRecord,
+    EnvironmentJournalState.ROLLBACK_RUNTIME_AVAILABLE: (
+        RollbackRuntimeAvailableRecord
+    ),
+    EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_PLANNED: (
+        CertificateRestoreTempPlanRecord
+    ),
     EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED: EnvironmentTempPlanRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED: EnvironmentTempCreatedRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED: EnvironmentTempVerifiedRecord,
@@ -1099,6 +1232,41 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             "schema_version": record.schema_version,
             "verified_generation_sha256": record.verified_generation_sha256,
         }
+    if type(record) is RollbackRuntimeAvailableRecord:
+        return {
+            "container_evidence_sha256": record.container_evidence_sha256,
+            "environment_restored_generation_sha256": (
+                record.environment_restored_generation_sha256
+            ),
+            "existing_container_retained": record.existing_container_retained,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "runtime_evidence_sha256": record.runtime_evidence_sha256,
+            "schema_version": record.schema_version,
+            "volume_evidence_sha256s": list(record.volume_evidence_sha256s),
+        }
+    if type(record) is CertificateRestoreTempPlanRecord:
+        return {
+            "ca_bundle_mode": record.ca_bundle_mode,
+            "ca_bundle_present": record.ca_bundle_present,
+            "ca_bundle_sha256": record.ca_bundle_sha256,
+            "ca_bundle_size": record.ca_bundle_size,
+            "ca_bundle_temp_name": record.ca_bundle_temp_name,
+            "certificate_backup_identity": _identity_to_json(
+                record.certificate_backup_identity
+            ),
+            "certificate_ciphertext_sha256": record.certificate_ciphertext_sha256,
+            "certificate_ciphertext_size": record.certificate_ciphertext_size,
+            "local_ca_mode": record.local_ca_mode,
+            "local_ca_present": record.local_ca_present,
+            "local_ca_sha256": record.local_ca_sha256,
+            "local_ca_size": record.local_ca_size,
+            "local_ca_temp_name": record.local_ca_temp_name,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "runtime_available_generation_sha256": (
+                record.runtime_available_generation_sha256
+            ),
+            "schema_version": record.schema_version,
+        }
     environment_record = cast(EnvironmentTempJournalRecord, record)
     common: dict[str, Any] = {
         "candidate_sha256": environment_record.candidate_sha256,
@@ -1428,6 +1596,75 @@ def _record_from_json(
                 else None
             ),
         )
+    if state is EnvironmentJournalState.ROLLBACK_RUNTIME_AVAILABLE:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "container_evidence_sha256",
+                    "environment_restored_generation_sha256",
+                    "existing_container_retained",
+                    "package_root_identity",
+                    "runtime_evidence_sha256",
+                    "schema_version",
+                    "volume_evidence_sha256s",
+                }
+            ),
+        )
+        volume_evidence = item["volume_evidence_sha256s"]
+        if type(volume_evidence) is not list:
+            raise ValueError("Rollback runtime evidence is invalid.")
+        return RollbackRuntimeAvailableRecord(
+            item["schema_version"],
+            item["environment_restored_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            item["runtime_evidence_sha256"],
+            item["container_evidence_sha256"],
+            tuple(volume_evidence),
+            item["existing_container_retained"],
+        )
+    if state is EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_PLANNED:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "ca_bundle_mode",
+                    "ca_bundle_present",
+                    "ca_bundle_sha256",
+                    "ca_bundle_size",
+                    "ca_bundle_temp_name",
+                    "certificate_backup_identity",
+                    "certificate_ciphertext_sha256",
+                    "certificate_ciphertext_size",
+                    "local_ca_mode",
+                    "local_ca_present",
+                    "local_ca_sha256",
+                    "local_ca_size",
+                    "local_ca_temp_name",
+                    "package_root_identity",
+                    "runtime_available_generation_sha256",
+                    "schema_version",
+                }
+            ),
+        )
+        return CertificateRestoreTempPlanRecord(
+            item["schema_version"],
+            item["runtime_available_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            _identity_from_json(item["certificate_backup_identity"]),
+            item["certificate_ciphertext_sha256"],
+            item["certificate_ciphertext_size"],
+            item["local_ca_present"],
+            item["local_ca_sha256"],
+            item["local_ca_size"],
+            item["local_ca_mode"],
+            item["local_ca_temp_name"],
+            item["ca_bundle_present"],
+            item["ca_bundle_sha256"],
+            item["ca_bundle_size"],
+            item["ca_bundle_mode"],
+            item["ca_bundle_temp_name"],
+        )
     common = frozenset(
         {
             "candidate_sha256",
@@ -1714,7 +1951,7 @@ def _validate_record_continuity(
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         if len(generations) == 1:
             return
-        if len(generations) not in {2, 3, 4, 5, 6, 7, 8}:
+        if len(generations) not in {2, 3, 4, 5, 6, 7, 8, 9, 10}:
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         verified_generation = generations[1]
         verified = verified_generation.generation.record
@@ -1880,6 +2117,44 @@ def _validate_record_continuity(
             )
         ):
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 8:
+            return
+        runtime_generation = generations[8]
+        runtime = runtime_generation.generation.record
+        if (
+            type(runtime) is not RollbackRuntimeAvailableRecord
+            or runtime_generation.generation.previous_generation_sha256
+            != restored_generation.generation_sha256
+            or runtime.environment_restored_generation_sha256
+            != restored_generation.generation_sha256
+            or runtime.package_root_identity != restored.package_root_identity
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 9:
+            return
+        certificate_plan_generation = generations[9]
+        certificate_plan = certificate_plan_generation.generation.record
+        if (
+            type(certificate_plan) is not CertificateRestoreTempPlanRecord
+            or certificate_plan_generation.generation.previous_generation_sha256
+            != runtime_generation.generation_sha256
+            or certificate_plan.runtime_available_generation_sha256
+            != runtime_generation.generation_sha256
+            or certificate_plan.package_root_identity != runtime.package_root_identity
+            or certificate_plan.certificate_backup_identity
+            != armed.certificate_backup_identity
+            or certificate_plan.certificate_ciphertext_sha256
+            != armed.certificate_ciphertext_sha256
+            or certificate_plan.certificate_ciphertext_size
+            != armed.certificate_ciphertext_size
+            or certificate_plan.local_ca_present is not plan.local_ca_present
+            or certificate_plan.local_ca_sha256 != plan.local_ca_sha256
+            or certificate_plan.local_ca_mode != plan.local_ca_mode
+            or certificate_plan.ca_bundle_present is not plan.ca_bundle_present
+            or certificate_plan.ca_bundle_sha256 != plan.ca_bundle_sha256
+            or certificate_plan.ca_bundle_mode != plan.ca_bundle_mode
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         return
     if type(plan) is not EnvironmentTempPlanRecord:
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
@@ -1971,7 +2246,7 @@ def select_environment_journal_chain(
     )
     if any(item.generation.stream != expected_stream for item in generations):
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
-    if len(generations) > 8:
+    if len(generations) > 10:
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
     digests = tuple(item.generation_sha256 for item in generations)
     if len(set(digests)) != len(digests):
@@ -1986,6 +2261,8 @@ def select_environment_journal_chain(
         EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_CREATED,
         EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_VERIFIED,
         EnvironmentJournalState.ENVIRONMENT_RESTORED,
+        EnvironmentJournalState.ROLLBACK_RUNTIME_AVAILABLE,
+        EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_PLANNED,
     )
     environment_temp_states = (
         EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
@@ -2043,6 +2320,7 @@ def select_environment_journal_chain(
 __all__ = [
     "BackupPreparingRecord",
     "BackupVerifiedRecord",
+    "CertificateRestoreTempPlanRecord",
     "EnvironmentAppliedRecord",
     "EnvironmentJournalChainSelection",
     "EnvironmentJournalGeneration",
@@ -2059,6 +2337,7 @@ __all__ = [
     "RecoveryJournalError",
     "RecoveryJournalErrorCode",
     "RollbackArmedRecord",
+    "RollbackRuntimeAvailableRecord",
     "RollbackStartedRecord",
     "SealedEnvironmentJournalGeneration",
     "authenticate_environment_journal_generation",

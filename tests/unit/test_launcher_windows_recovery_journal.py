@@ -1646,6 +1646,183 @@ def test_environment_restore_verified_and_restored_round_trip_is_bound() -> None
     assert restored_record.environment_sha256 not in rendered
     assert repr(restored_record.environment_identity) not in rendered
 
+    runtime_record = journal.RollbackRuntimeAvailableRecord(
+        1,
+        restored.generation_sha256,
+        record.package_root_identity,
+        "1" * 64,
+        "2" * 64,
+        tuple(f"{value:x}" * 64 for value in range(3, 11)),
+        True,
+    )
+    runtime_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        9,
+        restored.generation_sha256,
+        journal.EnvironmentJournalState.ROLLBACK_RUNTIME_AVAILABLE,
+        runtime_record,
+    )
+    runtime_available = _seal(runtime_generation, protection)
+    runtime_selection = journal.select_environment_journal_chain(
+        (
+            prepared,
+            backup_verified,
+            armed,
+            started,
+            planned,
+            created,
+            verified,
+            restored,
+            runtime_available,
+        ),
+        _pointer(stream, runtime_available, 9),
+        expected_stream=stream,
+        protection=protection,
+    )
+    assert runtime_selection.tip == runtime_generation
+    assert (
+        runtime_selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+    rendered = repr(runtime_record) + repr(runtime_generation)
+    assert runtime_record.runtime_evidence_sha256 not in rendered
+    assert runtime_record.container_evidence_sha256 not in rendered
+    assert all(
+        value not in rendered for value in runtime_record.volume_evidence_sha256s
+    )
+
+    certificate_plan_record = journal.CertificateRestoreTempPlanRecord(
+        1,
+        runtime_available.generation_sha256,
+        record.package_root_identity,
+        _identity(22),
+        "9" * 64,
+        202,
+        True,
+        "e" * 64,
+        77,
+        0o644,
+        "recovery-certificate-" + "1" * 32 + ".tmp",
+        False,
+    )
+    certificate_plan_generation = journal.EnvironmentJournalGeneration(
+        1,
+        stream,
+        10,
+        runtime_available.generation_sha256,
+        journal.EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_PLANNED,
+        certificate_plan_record,
+    )
+    certificate_plan = _seal(certificate_plan_generation, protection)
+    certificate_selection = journal.select_environment_journal_chain(
+        (
+            prepared,
+            backup_verified,
+            armed,
+            started,
+            planned,
+            created,
+            verified,
+            restored,
+            runtime_available,
+            certificate_plan,
+        ),
+        _pointer(stream, certificate_plan, 10),
+        expected_stream=stream,
+        protection=protection,
+    )
+    assert certificate_selection.tip == certificate_plan_generation
+    rendered = repr(certificate_plan_record) + repr(certificate_plan_generation)
+    assert certificate_plan_record.local_ca_sha256 not in rendered
+    assert certificate_plan_record.local_ca_temp_name not in rendered
+
+    drifted_certificate_plan = journal.CertificateRestoreTempPlanRecord(
+        1,
+        runtime_available.generation_sha256,
+        record.package_root_identity,
+        _identity(22),
+        "9" * 64,
+        202,
+        True,
+        "e" * 64,
+        77,
+        0o600,
+        "recovery-certificate-" + "1" * 32 + ".tmp",
+        False,
+    )
+    invalid_certificate_plan = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            10,
+            runtime_available.generation_sha256,
+            journal.EnvironmentJournalState.CERTIFICATE_RESTORE_TEMP_PLANNED,
+            drifted_certificate_plan,
+        ),
+        protection,
+    )
+    with pytest.raises(journal.RecoveryJournalError) as certificate_failure:
+        journal.select_environment_journal_chain(
+            (
+                prepared,
+                backup_verified,
+                armed,
+                started,
+                planned,
+                created,
+                verified,
+                restored,
+                runtime_available,
+                invalid_certificate_plan,
+            ),
+            None,
+            expected_stream=stream,
+            protection=protection,
+        )
+    assert (
+        certificate_failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+    )
+
+    wrong_runtime_predecessor = journal.RollbackRuntimeAvailableRecord(
+        1,
+        "f" * 64,
+        record.package_root_identity,
+        runtime_record.runtime_evidence_sha256,
+        runtime_record.container_evidence_sha256,
+        runtime_record.volume_evidence_sha256s,
+        runtime_record.existing_container_retained,
+    )
+    invalid_runtime = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            9,
+            restored.generation_sha256,
+            journal.EnvironmentJournalState.ROLLBACK_RUNTIME_AVAILABLE,
+            wrong_runtime_predecessor,
+        ),
+        protection,
+    )
+    with pytest.raises(journal.RecoveryJournalError) as runtime_failure:
+        journal.select_environment_journal_chain(
+            (
+                prepared,
+                backup_verified,
+                armed,
+                started,
+                planned,
+                created,
+                verified,
+                restored,
+                invalid_runtime,
+            ),
+            None,
+            expected_stream=stream,
+            protection=protection,
+        )
+    assert runtime_failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+
     drifted_restored = journal.EnvironmentRestoredRecord(
         1,
         verified.generation_sha256,

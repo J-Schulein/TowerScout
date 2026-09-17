@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Callable, TypeVar
 
@@ -118,6 +119,15 @@ class _EnvironmentTempNameSource:
         return f".towerscout-env-{self.calls:032x}.tmp"
 
 
+class _CertificateTempNameSource:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def new_certificate_temp_name(self) -> str:
+        self.calls += 1
+        return f"recovery-certificate-{self.calls:032x}.tmp"
+
+
 class _PackagePathApi:
     supported = True
 
@@ -232,6 +242,33 @@ class _EnvironmentRestoration:
             restore.original_file_attributes,
             restore.original_security_descriptor_sha256,
         )
+
+
+class _RuntimeAvailability:
+    def __init__(self, stream: journal.JournalStreamIdentity) -> None:
+        self.calls = 0
+        self.error: BaseException | None = None
+        self.evidence = recovery.RollbackRuntimeAvailabilityEvidence(
+            1,
+            stream.target_token_sha256,
+            stream.package_root_identity,
+            "1" * 64,
+            "2" * 64,
+            tuple(f"{value:x}" * 64 for value in range(3, 11)),
+            True,
+        )
+
+    def establish_rollback_runtime_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        stream: journal.JournalStreamIdentity,
+    ) -> recovery.RollbackRuntimeAvailabilityEvidence:
+        package_root.assert_unchanged_while_held()
+        assert stream.target_token_sha256 == self.evidence.target_token_sha256
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        return self.evidence
 
 
 def _package_root() -> PathHierarchyTrust:
@@ -750,6 +787,81 @@ def _persist_verified_environment_restore_state(
         package_root,
         environment_storage,
     )
+
+
+def _persist_restored_environment_state(
+    protection: _Protection,
+) -> tuple[
+    journal.JournalStreamIdentity,
+    journal.JournalStreamIdentity,
+    _Root,
+    _GenerationStorage,
+    PathHierarchyTrust,
+]:
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        _blobs,
+        package_root,
+        _environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    _restore_environment_generation(
+        stream,
+        provider_stream,
+        root,
+        generations,
+        package_root,
+        protection,
+        _EnvironmentRestoration(),
+    )
+    return stream, provider_stream, root, generations, package_root
+
+
+def _persist_runtime_available_state(
+    protection: _Protection,
+    *,
+    environment_contents: bytes | None = b"GOOGLE_API_KEY=private-value\r\n",
+) -> tuple[
+    journal.JournalStreamIdentity,
+    _Root,
+    _GenerationStorage,
+    _BlobStorage,
+    PathHierarchyTrust,
+    _RuntimeAvailability,
+]:
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        blobs,
+        package_root,
+        _environment_storage,
+    ) = _persist_verified_environment_restore_state(
+        protection,
+        environment_contents=environment_contents,
+    )
+    _restore_environment_generation(
+        stream,
+        provider_stream,
+        root,
+        generations,
+        package_root,
+        protection,
+        _EnvironmentRestoration(),
+    )
+    availability = _RuntimeAvailability(stream)
+    _record_runtime_available(
+        stream,
+        root,
+        generations,
+        package_root,
+        protection,
+        availability,
+    )
+    return stream, root, generations, blobs, package_root, availability
 
 
 def test_persist_prepared_blobs_writes_only_planned_ciphertexts_under_root() -> None:
@@ -2921,3 +3033,278 @@ def test_environment_restore_rejects_non_original_post_state() -> None:
 
     assert failure.value.code is recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
     assert len(generations.files) == 11
+
+
+def _record_runtime_available(
+    stream: journal.JournalStreamIdentity,
+    root: _Root,
+    generations: _GenerationStorage,
+    package_root: PathHierarchyTrust,
+    protection: _Protection,
+    availability: _RuntimeAvailability,
+) -> storage.PersistedEnvironmentJournalChain:
+    return package_root.run_while_held(
+        lambda: recovery.persist_rollback_runtime_available_generation_from_held_package_root(
+            stream=stream,
+            package_root=package_root,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            journal_protection=protection,
+            runtime_availability=availability,
+        )
+    )
+
+
+def test_rollback_runtime_available_is_attested_and_selected_once() -> None:
+    protection = _Protection()
+    stream, _provider_stream, root, generations, package_root = (
+        _persist_restored_environment_state(protection)
+    )
+    availability = _RuntimeAvailability(stream)
+    try:
+        result = _record_runtime_available(
+            stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            availability,
+        )
+    finally:
+        package_root.close()
+
+    assert availability.calls == 1
+    assert len(result.selection.generations) == 9
+    assert (
+        result.selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+    record = result.selection.tip.record
+    assert type(record) is journal.RollbackRuntimeAvailableRecord
+    assert (
+        record.runtime_evidence_sha256 == availability.evidence.runtime_evidence_sha256
+    )
+    assert (
+        record.volume_evidence_sha256s == availability.evidence.volume_evidence_sha256s
+    )
+
+
+def test_rollback_runtime_available_restart_reverifies_and_repairs_pointer() -> None:
+    protection = _Protection()
+    stream, _provider_stream, root, generations, package_root = (
+        _persist_restored_environment_state(protection)
+    )
+    availability = _RuntimeAvailability(stream)
+    try:
+        first = _record_runtime_available(
+            stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            availability,
+        )
+        generation_count = len(generations.files)
+        generations.pointer = None
+        second = _record_runtime_available(
+            stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            availability,
+        )
+    finally:
+        package_root.close()
+
+    assert availability.calls == 2
+    assert len(generations.files) == generation_count
+    assert first.selection.tip == second.selection.tip
+    assert (
+        second.selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+
+
+def test_rollback_runtime_available_rejects_restart_evidence_drift() -> None:
+    protection = _Protection()
+    stream, _provider_stream, root, generations, package_root = (
+        _persist_restored_environment_state(protection)
+    )
+    availability = _RuntimeAvailability(stream)
+    try:
+        _record_runtime_available(
+            stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            availability,
+        )
+        generation_count = len(generations.files)
+        availability.evidence = replace(
+            availability.evidence,
+            container_evidence_sha256="f" * 64,
+        )
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            _record_runtime_available(
+                stream,
+                root,
+                generations,
+                package_root,
+                protection,
+                availability,
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
+    assert len(generations.files) == generation_count
+
+
+def test_rollback_runtime_available_preserves_restored_tip_on_failure() -> None:
+    protection = _Protection()
+    stream, _provider_stream, root, generations, package_root = (
+        _persist_restored_environment_state(protection)
+    )
+    availability = _RuntimeAvailability(stream)
+    availability.error = OSError("private runtime detail")
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            _record_runtime_available(
+                stream,
+                root,
+                generations,
+                package_root,
+                protection,
+                availability,
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
+    assert "private" not in str(failure.value)
+    assert len(generations.files) == 12
+
+
+def _plan_certificate_restore(
+    stream: journal.JournalStreamIdentity,
+    root: _Root,
+    generations: _GenerationStorage,
+    blobs: _BlobStorage,
+    protection: _Protection,
+    names: _CertificateTempNameSource,
+    *,
+    backup_protection: _Protection | None = None,
+) -> storage.PersistedEnvironmentJournalChain:
+    return recovery.plan_persisted_certificate_restore(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_storage=blobs,
+        backup_protection=backup_protection or protection,
+        journal_protection=protection,
+        name_source=names,
+    )
+
+
+def test_certificate_restore_plan_authenticates_backup_and_selects_generation_10() -> (
+    None
+):
+    protection = _Protection()
+    stream, root, generations, blobs, package_root, _availability = (
+        _persist_runtime_available_state(protection)
+    )
+    names = _CertificateTempNameSource()
+    try:
+        result = _plan_certificate_restore(
+            stream,
+            root,
+            generations,
+            blobs,
+            protection,
+            names,
+        )
+    finally:
+        package_root.close()
+
+    assert names.calls == 1
+    assert len(result.selection.generations) == 10
+    assert (
+        result.selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+    record = result.selection.tip.record
+    assert type(record) is journal.CertificateRestoreTempPlanRecord
+    assert record.local_ca_present is True
+    assert record.local_ca_size == len(b"private-local-ca")
+    assert record.local_ca_mode == 0o644
+    assert record.local_ca_temp_name == f"recovery-certificate-{1:032x}.tmp"
+    assert record.ca_bundle_present is False
+    assert record.ca_bundle_temp_name is None
+
+
+def test_certificate_restore_plan_restart_repairs_pointer_without_new_name() -> None:
+    protection = _Protection()
+    stream, root, generations, blobs, package_root, _availability = (
+        _persist_runtime_available_state(protection)
+    )
+    names = _CertificateTempNameSource()
+    try:
+        first = _plan_certificate_restore(
+            stream,
+            root,
+            generations,
+            blobs,
+            protection,
+            names,
+        )
+        generation_count = len(generations.files)
+        generations.pointer = None
+        second = _plan_certificate_restore(
+            stream,
+            root,
+            generations,
+            blobs,
+            protection,
+            names,
+        )
+    finally:
+        package_root.close()
+
+    assert names.calls == 1
+    assert len(generations.files) == generation_count
+    assert first.selection.tip == second.selection.tip
+    assert (
+        second.selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+
+
+def test_certificate_restore_plan_preserves_runtime_tip_on_backup_auth_failure() -> (
+    None
+):
+    protection = _Protection()
+    stream, root, generations, blobs, package_root, _availability = (
+        _persist_runtime_available_state(protection)
+    )
+    names = _CertificateTempNameSource()
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            _plan_certificate_restore(
+                stream,
+                root,
+                generations,
+                blobs,
+                protection,
+                names,
+                backup_protection=_RejectingBackupProtection(),
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.BACKUP_INVALID
+    assert names.calls == 0
+    assert len(generations.files) == 13
