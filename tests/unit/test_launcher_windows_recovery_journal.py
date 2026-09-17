@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -304,6 +305,8 @@ def _build_chain(
         temp_identity=_identity(11),
         candidate_sha256=planned_record.candidate_sha256,
         candidate_size=planned_record.candidate_size,
+        candidate_file_attributes=0x80,
+        candidate_security_descriptor_sha256="f" * 64,
         temp_name=planned_record.temp_name,
     )
     created = _seal(
@@ -324,6 +327,10 @@ def _build_chain(
         temp_identity=created_record.temp_identity,
         candidate_sha256=created_record.candidate_sha256,
         candidate_size=created_record.candidate_size,
+        candidate_file_attributes=created_record.candidate_file_attributes,
+        candidate_security_descriptor_sha256=(
+            created_record.candidate_security_descriptor_sha256
+        ),
         temp_name=created_record.temp_name,
     )
     verified = _seal(
@@ -1717,6 +1724,8 @@ def test_equivalent_plaintext_uses_actual_ciphertext_identity() -> None:
                 _identity(11),
                 "d" * 64,
                 37,
+                0x80,
+                "f" * 64,
                 ".towerscout-env-" + "e" * 32 + ".tmp",
             ),
         ),
@@ -1778,6 +1787,8 @@ def test_schema_versions_require_exact_integers() -> None:
                 _identity(11),
                 "d" * 64,
                 37,
+                0x80,
+                "f" * 64,
                 ".towerscout-env-" + "e" * 32 + ".tmp",
             )
         with pytest.raises(ValueError):
@@ -1788,6 +1799,8 @@ def test_schema_versions_require_exact_integers() -> None:
                 _identity(11),
                 "d" * 64,
                 37,
+                0x80,
+                "f" * 64,
                 ".towerscout-env-" + "e" * 32 + ".tmp",
             )
         with pytest.raises(ValueError):
@@ -1945,6 +1958,8 @@ def test_branch_and_duplicate_generation_fail_closed() -> None:
         _identity(12),
         "d" * 64,
         37,
+        0x80,
+        "f" * 64,
         ".towerscout-env-" + "e" * 32 + ".tmp",
     )
     alternate = _seal(
@@ -1980,6 +1995,8 @@ def test_gap_or_cross_record_drift_fails_closed() -> None:
         _identity(11),
         "9" * 64,
         37,
+        0x80,
+        "f" * 64,
         ".towerscout-env-" + "e" * 32 + ".tmp",
     )
     drifted = _seal(
@@ -2003,6 +2020,41 @@ def test_gap_or_cross_record_drift_fails_closed() -> None:
                 protection=protection,
             )
         assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("candidate_file_attributes", 0x20),
+        ("candidate_security_descriptor_sha256", "e" * 64),
+    ),
+)
+def test_verified_candidate_metadata_drift_fails_closed(
+    field: str,
+    value: object,
+) -> None:
+    protection = _Protection()
+    stream, chain = _build_chain(protection)
+    verified_generation = journal.authenticate_environment_journal_generation(
+        chain[2],
+        protection=protection,
+    )
+    assert type(verified_generation.record) is EnvironmentTempVerifiedRecord
+    drifted_record = replace(verified_generation.record, **{field: value})
+    drifted = _seal(
+        replace(verified_generation, record=drifted_record),
+        protection,
+    )
+
+    with pytest.raises(journal.RecoveryJournalError) as failure:
+        journal.select_environment_journal_chain(
+            (chain[0], chain[1], drifted),
+            None,
+            expected_stream=stream,
+            protection=protection,
+        )
+
+    assert failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
 
 
 def test_wrong_expected_stream_or_invalid_candidate_is_not_ignored() -> None:
@@ -2242,6 +2294,8 @@ def test_record_link_must_equal_actual_predecessor_ciphertext_digest() -> None:
         _identity(11),
         plan_record.candidate_sha256,
         plan_record.candidate_size,
+        0x80,
+        "f" * 64,
         plan_record.temp_name,
     )
     created = _seal(

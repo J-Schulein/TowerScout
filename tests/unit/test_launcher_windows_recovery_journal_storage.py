@@ -215,6 +215,8 @@ def _sealed_chain(
         _identity(11),
         plan.candidate_sha256,
         plan.candidate_size,
+        0x80,
+        "f" * 64,
         plan.temp_name,
     )
     created = journal.protect_environment_journal_generation(
@@ -235,6 +237,8 @@ def _sealed_chain(
         created_record.temp_identity,
         plan.candidate_sha256,
         plan.candidate_size,
+        created_record.candidate_file_attributes,
+        created_record.candidate_security_descriptor_sha256,
         plan.temp_name,
     )
     verified = journal.protect_environment_journal_generation(

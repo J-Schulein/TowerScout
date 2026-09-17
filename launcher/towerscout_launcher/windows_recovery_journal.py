@@ -1111,10 +1111,18 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
     if type(record) is EnvironmentTempCreatedRecord:
         common["planned_generation_sha256"] = record.planned_generation_sha256
         common["temp_identity"] = _identity_to_json(record.temp_identity)
+        common["candidate_file_attributes"] = record.candidate_file_attributes
+        common["candidate_security_descriptor_sha256"] = (
+            record.candidate_security_descriptor_sha256
+        )
         return common
     if type(record) is EnvironmentTempVerifiedRecord:
         common["created_generation_sha256"] = record.created_generation_sha256
         common["temp_identity"] = _identity_to_json(record.temp_identity)
+        common["candidate_file_attributes"] = record.candidate_file_attributes
+        common["candidate_security_descriptor_sha256"] = (
+            record.candidate_security_descriptor_sha256
+        )
         return common
     raise ValueError("Environment journal record is invalid.")
 
@@ -1421,7 +1429,13 @@ def _record_from_json(
     if state is EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED:
         item = _exact_keys(
             value,
-            common | {"planned_generation_sha256", "temp_identity"},
+            common
+            | {
+                "candidate_file_attributes",
+                "candidate_security_descriptor_sha256",
+                "planned_generation_sha256",
+                "temp_identity",
+            },
         )
         if type(item["schema_version"]) is not int:
             raise ValueError("Environment record schema is invalid.")
@@ -1432,11 +1446,19 @@ def _record_from_json(
             _identity_from_json(item["temp_identity"]),
             item["candidate_sha256"],
             item["candidate_size"],
+            item["candidate_file_attributes"],
+            item["candidate_security_descriptor_sha256"],
             item["temp_name"],
         )
     item = _exact_keys(
         value,
-        common | {"created_generation_sha256", "temp_identity"},
+        common
+        | {
+            "candidate_file_attributes",
+            "candidate_security_descriptor_sha256",
+            "created_generation_sha256",
+            "temp_identity",
+        },
     )
     if type(item["schema_version"]) is not int:
         raise ValueError("Environment record schema is invalid.")
@@ -1447,6 +1469,8 @@ def _record_from_json(
         _identity_from_json(item["temp_identity"]),
         item["candidate_sha256"],
         item["candidate_size"],
+        item["candidate_file_attributes"],
+        item["candidate_security_descriptor_sha256"],
         item["temp_name"],
     )
 
@@ -1808,6 +1832,10 @@ def _validate_record_continuity(
                     created is None
                     or record.created_generation_sha256 != previous.generation_sha256
                     or record.temp_identity != created.temp_identity
+                    or record.candidate_file_attributes
+                    != created.candidate_file_attributes
+                    or record.candidate_security_descriptor_sha256
+                    != created.candidate_security_descriptor_sha256
                 ):
                     _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         previous = item

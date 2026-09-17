@@ -156,6 +156,8 @@ def _environment_chain(
         _identity(11),
         plan_record.candidate_sha256,
         plan_record.candidate_size,
+        0x80,
+        "f" * 64,
         plan_record.temp_name,
     )
     created = _seal_environment(

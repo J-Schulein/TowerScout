@@ -255,6 +255,8 @@ def _environment_chain(
         _identity(11),
         plan.candidate_sha256,
         plan.candidate_size,
+        0x80,
+        "f" * 64,
         plan.temp_name,
     )
     created = journal.protect_environment_journal_generation(

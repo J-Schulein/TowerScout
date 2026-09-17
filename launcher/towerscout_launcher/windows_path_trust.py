@@ -8,6 +8,7 @@ launcher discovery, child execution, or filesystem mutation.
 from __future__ import annotations
 
 import ctypes
+import hashlib
 import os
 import threading
 from dataclasses import dataclass, field
@@ -23,6 +24,7 @@ from .windows_security import (
 
 _MAX_PATH_CHARACTERS = 32_768
 _MAX_ACES = 4_096
+_MAX_SECURITY_DESCRIPTOR_BYTES = 65_536
 _FILE_ATTRIBUTE_DIRECTORY = 0x00000010
 _FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
 _FILE_ATTRIBUTE_OFFLINE = 0x00001000
@@ -138,6 +140,7 @@ class NativeSecurityFacts:
     dacl_present: bool
     allowed_aces: tuple[AccessAllowedAce, ...] = field(repr=False)
     dacl_protected: bool = False
+    security_descriptor_sha256: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if (
@@ -147,6 +150,17 @@ class NativeSecurityFacts:
             or len(self.allowed_aces) > _MAX_ACES
             or any(type(ace) is not AccessAllowedAce for ace in self.allowed_aces)
             or type(self.dacl_protected) is not bool
+            or (
+                self.security_descriptor_sha256 is not None
+                and (
+                    type(self.security_descriptor_sha256) is not str
+                    or len(self.security_descriptor_sha256) != 64
+                    or any(
+                        character not in "0123456789abcdef"
+                        for character in self.security_descriptor_sha256
+                    )
+                )
+            )
         ):
             raise ValueError("Windows security descriptor facts are invalid.")
 
@@ -887,6 +901,8 @@ class NativeWindowsPathTrustApi:
             ctypes.POINTER(ctypes.c_uint32),
         )
         advapi32.GetSecurityDescriptorControl.restype = ctypes.c_int
+        advapi32.GetSecurityDescriptorLength.argtypes = (ctypes.c_void_p,)
+        advapi32.GetSecurityDescriptorLength.restype = ctypes.c_uint32
         advapi32.IsValidSid.argtypes = (ctypes.c_void_p,)
         advapi32.IsValidSid.restype = ctypes.c_int
         advapi32.GetLengthSid.argtypes = (ctypes.c_void_p,)
@@ -1103,11 +1119,18 @@ class NativeWindowsPathTrustApi:
                 ctypes.byref(revision),
             ):
                 self._last_error("Native Windows DACL control query failed.")
+            descriptor_size = int(advapi32.GetSecurityDescriptorLength(descriptor))
+            if not 1 <= descriptor_size <= _MAX_SECURITY_DESCRIPTOR_BYTES:
+                raise OSError("Native Windows security descriptor is invalid.")
+            descriptor_sha256 = hashlib.sha256(
+                ctypes.string_at(descriptor, descriptor_size)
+            ).hexdigest()
             return NativeSecurityFacts(
                 owner_sid,
                 bool(dacl),
                 allowed,
                 dacl_protected=bool(control.value & _SE_DACL_PROTECTED),
+                security_descriptor_sha256=descriptor_sha256,
             )
         finally:
             if descriptor:

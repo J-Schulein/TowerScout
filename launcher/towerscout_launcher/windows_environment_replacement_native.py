@@ -145,6 +145,8 @@ class EnvironmentTempCreatedRecord:
     temp_identity: StableFileIdentity = field(repr=False)
     candidate_sha256: str = field(repr=False)
     candidate_size: int
+    candidate_file_attributes: int
+    candidate_security_descriptor_sha256: str = field(repr=False)
     temp_name: str = field(repr=False)
 
     def __post_init__(self) -> None:
@@ -157,6 +159,9 @@ class EnvironmentTempCreatedRecord:
             or not _valid_hash(self.candidate_sha256)
             or type(self.candidate_size) is not int
             or not 1 <= self.candidate_size <= MAX_ENVIRONMENT_BYTES
+            or type(self.candidate_file_attributes) is not int
+            or not 0 <= self.candidate_file_attributes <= 0xFFFFFFFF
+            or not _valid_hash(self.candidate_security_descriptor_sha256)
             or not _valid_temp_name(self.temp_name)
         ):
             raise ValueError("Environment temporary-file creation record is invalid.")
@@ -177,6 +182,8 @@ class EnvironmentTempVerifiedRecord:
     temp_identity: StableFileIdentity = field(repr=False)
     candidate_sha256: str = field(repr=False)
     candidate_size: int
+    candidate_file_attributes: int
+    candidate_security_descriptor_sha256: str = field(repr=False)
     temp_name: str = field(repr=False)
 
     def __post_init__(self) -> None:
@@ -189,6 +196,9 @@ class EnvironmentTempVerifiedRecord:
             or not _valid_hash(self.candidate_sha256)
             or type(self.candidate_size) is not int
             or not 1 <= self.candidate_size <= MAX_ENVIRONMENT_BYTES
+            or type(self.candidate_file_attributes) is not int
+            or not 0 <= self.candidate_file_attributes <= 0xFFFFFFFF
+            or not _valid_hash(self.candidate_security_descriptor_sha256)
             or not _valid_temp_name(self.temp_name)
         ):
             raise ValueError(
@@ -376,6 +386,7 @@ def _validate_security(
             or ace.flags != 0
             for ace in security.allowed_aces
         )
+        or not _valid_hash(security.security_descriptor_sha256)
     ):
         _fail(error_code)
 
@@ -513,6 +524,9 @@ def _stage_while_root_held(
             expected_size=0,
             error_code=EnvironmentTempStageErrorCode.SECURITY_FAILED,
         )
+        if type(created_facts) is not NativeFileFacts:
+            _fail(EnvironmentTempStageErrorCode.SECURITY_FAILED)
+        candidate_file_attributes = created_facts.attributes
         security = _call(
             lambda: api.query_security(handle),
             EnvironmentTempStageErrorCode.SECURITY_FAILED,
@@ -522,6 +536,13 @@ def _stage_while_root_held(
             current_user_sid,
             error_code=EnvironmentTempStageErrorCode.SECURITY_FAILED,
         )
+        if type(security) is not NativeSecurityFacts:
+            _fail(EnvironmentTempStageErrorCode.SECURITY_FAILED)
+        candidate_security_descriptor_sha256 = security.security_descriptor_sha256
+        if type(candidate_security_descriptor_sha256) is not str or not _valid_hash(
+            candidate_security_descriptor_sha256
+        ):
+            _fail(EnvironmentTempStageErrorCode.SECURITY_FAILED)
         created_record = EnvironmentTempCreatedRecord(
             _SCHEMA_VERSION,
             planned_receipt.generation_sha256,
@@ -529,6 +550,8 @@ def _stage_while_root_held(
             temp_identity,
             plan.candidate_sha256,
             len(plan.candidate_contents),
+            candidate_file_attributes,
+            candidate_security_descriptor_sha256,
             temp_name,
         )
         created_receipt = _journal_transition(
@@ -554,6 +577,11 @@ def _stage_while_root_held(
             expected_identity=temp_identity,
             error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
         )
+        if (
+            type(written_facts) is not NativeFileFacts
+            or written_facts.attributes != candidate_file_attributes
+        ):
+            _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
         if (
             _read_exact(api, handle, len(plan.candidate_contents))
             != plan.candidate_contents
@@ -588,6 +616,11 @@ def _stage_while_root_held(
             expected_identity=temp_identity,
             error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
         )
+        if (
+            type(reopened_facts) is not NativeFileFacts
+            or reopened_facts.attributes != candidate_file_attributes
+        ):
+            _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
         reopened_security = _call(
             lambda: api.query_security(reopened),
             EnvironmentTempStageErrorCode.VERIFY_FAILED,
@@ -597,6 +630,12 @@ def _stage_while_root_held(
             current_user_sid,
             error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
         )
+        if (
+            type(reopened_security) is not NativeSecurityFacts
+            or reopened_security.security_descriptor_sha256
+            != candidate_security_descriptor_sha256
+        ):
+            _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
         reopened_contents = _read_exact(api, reopened, len(plan.candidate_contents))
         if hashlib.sha256(reopened_contents).hexdigest() != plan.candidate_sha256:
             _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
@@ -616,6 +655,8 @@ def _stage_while_root_held(
         temp_identity,
         plan.candidate_sha256,
         len(plan.candidate_contents),
+        candidate_file_attributes,
+        candidate_security_descriptor_sha256,
         temp_name,
     )
     verified_receipt = _journal_transition(

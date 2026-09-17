@@ -36,6 +36,7 @@ _TEMP_PATH = rf"{_PACKAGE_ROOT}\{_TEMP_NAME}"
 _USER_SID = "S-1-5-21-1000"
 _SYSTEM_SID = "S-1-5-18"
 _CANDIDATE_SOURCE = b"OTHER=value\r\n"
+_SECURITY_DESCRIPTOR_SHA256 = "a" * 64
 
 
 def _identity(value: str) -> bytes:
@@ -126,6 +127,7 @@ def _protected_file_security() -> NativeSecurityFacts:
             AccessAllowedAce(_SYSTEM_SID, 0x001F01FF, 0),
         ),
         dacl_protected=True,
+        security_descriptor_sha256=_SECURITY_DESCRIPTOR_SHA256,
     )
 
 
@@ -139,6 +141,8 @@ class _StagingApi:
         self.security = _protected_file_security()
         self.reopen_security: NativeSecurityFacts | None = None
         self.reopen_identity = self.identity
+        self.written_attributes: int | None = None
+        self.reopen_attributes: int | None = None
         self.reopened = False
         self.create_error: Exception | None = None
         self.readback_contents: bytes | None = None
@@ -167,7 +171,15 @@ class _StagingApi:
     def query_file(self, handle: object) -> NativeFileFacts:
         assert isinstance(handle, _FileHandle)
         self.events.append("api:query")
-        return _file_facts(identity=handle.identity, contents=self.contents)
+        attributes = 0x80
+        if self.reopened and self.reopen_attributes is not None:
+            attributes = self.reopen_attributes
+        elif self.contents and self.written_attributes is not None:
+            attributes = self.written_attributes
+        return replace(
+            _file_facts(identity=handle.identity, contents=self.contents),
+            attributes=attributes,
+        )
 
     def query_security(self, handle: object) -> NativeSecurityFacts:
         assert isinstance(handle, _FileHandle)
@@ -302,6 +314,11 @@ def test_stage_orders_durable_journal_transitions_around_native_io() -> None:
         result.verified_receipt.record.candidate_sha256
         == hashlib.sha256(api.contents).hexdigest()
     )
+    assert result.verified_receipt.record.candidate_file_attributes == 0x80
+    assert (
+        result.verified_receipt.record.candidate_security_descriptor_sha256
+        == _SECURITY_DESCRIPTOR_SHA256
+    )
     assert _TEMP_PATH not in repr(result)
     assert _TEMP_NAME not in repr(result)
 
@@ -429,6 +446,54 @@ def test_reopen_dacl_drift_blocks_verified_record() -> None:
     assert failure.value.code is staging.EnvironmentTempStageErrorCode.VERIFY_FAILED
     assert "journal:verified" not in events
     assert api.closed == 2
+
+
+@pytest.mark.parametrize("phase", ["written", "reopened"])
+def test_file_attribute_drift_blocks_verified_record(phase: str) -> None:
+    events: list[str] = []
+    api = _StagingApi(events)
+    if phase == "written":
+        api.written_attributes = 0x20
+    else:
+        api.reopen_attributes = 0x20
+
+    with pytest.raises(staging.EnvironmentTempStageError) as failure:
+        _stage(api=api, journal=_Journal(events))
+
+    assert failure.value.code is staging.EnvironmentTempStageErrorCode.VERIFY_FAILED
+    assert "journal:verified" not in events
+
+
+def test_reopen_security_descriptor_drift_blocks_verified_record() -> None:
+    events: list[str] = []
+    api = _StagingApi(events)
+    api.reopen_security = replace(
+        _protected_file_security(),
+        security_descriptor_sha256="b" * 64,
+    )
+
+    with pytest.raises(staging.EnvironmentTempStageError) as failure:
+        _stage(api=api, journal=_Journal(events))
+
+    assert failure.value.code is staging.EnvironmentTempStageErrorCode.VERIFY_FAILED
+    assert "journal:verified" not in events
+    assert api.closed == 2
+
+
+def test_missing_created_security_descriptor_digest_blocks_created_record() -> None:
+    events: list[str] = []
+    api = _StagingApi(events)
+    api.security = replace(
+        _protected_file_security(),
+        security_descriptor_sha256=None,
+    )
+
+    with pytest.raises(staging.EnvironmentTempStageError) as failure:
+        _stage(api=api, journal=_Journal(events))
+
+    assert failure.value.code is staging.EnvironmentTempStageErrorCode.SECURITY_FAILED
+    assert "journal:created" not in events
+    assert "api:write" not in events
 
 
 @pytest.mark.parametrize(
@@ -644,6 +709,7 @@ def test_native_api_creates_writes_flushes_and_reopens_restrictive_file(
         }
         assert all(ace.access_mask == 0x001F01FF for ace in security.allowed_aces)
         assert all(ace.flags == 0 for ace in security.allowed_aces)
+        assert security.security_descriptor_sha256 is not None
 
         assert api.write_file(handle, contents) == len(contents)
         api.flush_file(handle)
@@ -654,8 +720,13 @@ def test_native_api_creates_writes_flushes_and_reopens_restrictive_file(
 
         reopened = api.reopen_file_for_verification(str(path))
         verified = api.query_file(reopened)
+        verified_security = api.query_security(reopened)
         assert StableFileIdentity(verified.volume_serial, verified.file_id) == (
             StableFileIdentity(created.volume_serial, created.file_id)
+        )
+        assert (
+            verified_security.security_descriptor_sha256
+            == security.security_descriptor_sha256
         )
         api.seek_file(reopened, 0)
         assert api.read_file(reopened, len(contents)) == contents
