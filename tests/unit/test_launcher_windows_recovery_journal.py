@@ -1608,7 +1608,7 @@ def test_environment_restore_verified_and_restored_round_trip_is_bound() -> None
         record.environment_size,
         record.environment_file_attributes,
         record.environment_security_descriptor_sha256,
-        _identity(41),
+        record.temp_identity,
     )
     restored_generation = journal.EnvironmentJournalGeneration(
         1,
@@ -1655,7 +1655,7 @@ def test_environment_restore_verified_and_restored_round_trip_is_bound() -> None
         record.environment_size,
         record.environment_file_attributes,
         record.environment_security_descriptor_sha256,
-        _identity(41),
+        record.temp_identity,
     )
     invalid_restored = _seal(
         journal.EnvironmentJournalGeneration(
@@ -1685,6 +1685,46 @@ def test_environment_restore_verified_and_restored_round_trip_is_bound() -> None
             protection=protection,
         )
     assert restored_failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
+
+    unrelated_identity = journal.EnvironmentRestoredRecord(
+        1,
+        verified.generation_sha256,
+        record.package_root_identity,
+        record.environment_present,
+        record.environment_sha256,
+        record.environment_size,
+        record.environment_file_attributes,
+        record.environment_security_descriptor_sha256,
+        _identity(41),
+    )
+    invalid_identity = _seal(
+        journal.EnvironmentJournalGeneration(
+            1,
+            stream,
+            8,
+            verified.generation_sha256,
+            journal.EnvironmentJournalState.ENVIRONMENT_RESTORED,
+            unrelated_identity,
+        ),
+        protection,
+    )
+    with pytest.raises(journal.RecoveryJournalError) as identity_failure:
+        journal.select_environment_journal_chain(
+            (
+                prepared,
+                backup_verified,
+                armed,
+                started,
+                planned,
+                created,
+                verified,
+                invalid_identity,
+            ),
+            None,
+            expected_stream=stream,
+            protection=protection,
+        )
+    assert identity_failure.value.code is journal.RecoveryJournalErrorCode.CHAIN_INVALID
 
 
 def test_environment_restore_temp_verified_supports_absent_original() -> None:

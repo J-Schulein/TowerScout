@@ -1870,6 +1870,14 @@ def _validate_record_continuity(
             != restore_verified.environment_file_attributes
             or restored.environment_security_descriptor_sha256
             != restore_verified.environment_security_descriptor_sha256
+            or (
+                restored.environment_present
+                and restored.environment_identity
+                not in {
+                    plan.environment_original_identity,
+                    restore_verified.temp_identity,
+                }
+            )
         ):
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         return

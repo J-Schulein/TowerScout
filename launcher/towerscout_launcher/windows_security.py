@@ -1153,8 +1153,8 @@ class NativeWindowsFileApi:
 
         return self._open_file_if_exists(
             path,
-            0x00010000 | 0x00020000 | 0x00000080,
-            # DELETE | READ_CONTROL | FILE_READ_ATTRIBUTES
+            0x80000000 | 0x00010000 | 0x00020000 | 0x00000080,
+            # GENERIC_READ | DELETE | READ_CONTROL | FILE_READ_ATTRIBUTES
         )
 
     def _open_file_if_exists(self, path: str, desired_access: int) -> object | None:

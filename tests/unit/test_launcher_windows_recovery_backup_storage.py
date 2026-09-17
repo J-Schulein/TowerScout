@@ -18,8 +18,15 @@ import towerscout_launcher.windows_recovery_backup_storage as blob_storage  # no
 import towerscout_launcher.windows_recovery as recovery  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
+from towerscout_launcher.target_contracts import ABSENT_FILE_SHA256  # noqa: E402
 from towerscout_launcher.windows_environment_replacement import (  # noqa: E402
     plan_ca_environment_replacement,
+)
+from towerscout_launcher.windows_environment_replacement_native import (  # noqa: E402
+    EnvironmentAppliedRecord,
+    EnvironmentTempCreatedRecord,
+    EnvironmentTempPlanRecord,
+    EnvironmentTempVerifiedRecord,
 )
 from towerscout_launcher.windows_protected_state import (  # noqa: E402
     CurrentUserProtectedBlob,
@@ -35,6 +42,14 @@ from towerscout_launcher.windows_path_trust import (  # noqa: E402
 from towerscout_launcher.windows_recovery_environment_storage import (  # noqa: E402
     RecoveryEnvironmentStorageError,
     RecoveryEnvironmentStorageErrorCode,
+)
+from towerscout_launcher.windows_recovery_environment_restore import (  # noqa: E402
+    EnvironmentDestinationObservation,
+)
+from towerscout_launcher.windows_recovery_environment_restore_native import (  # noqa: E402
+    EnvironmentRestoreStorageAuthority,
+    EnvironmentRestoreStorageError,
+    EnvironmentRestoreStorageErrorCode,
 )
 from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
 
@@ -187,6 +202,36 @@ class _EnvironmentStorage:
         self.written_verified.append(verified)
         assert verified.temp_identity is not None
         return self.written_verification_identity or verified.temp_identity
+
+
+class _EnvironmentRestoration:
+    def __init__(self) -> None:
+        self.calls: list[EnvironmentRestoreStorageAuthority] = []
+        self.error: BaseException | None = None
+        self.override: EnvironmentDestinationObservation | None = None
+
+    def restore_environment_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        authority: EnvironmentRestoreStorageAuthority,
+    ) -> EnvironmentDestinationObservation:
+        package_root.assert_unchanged_while_held()
+        self.calls.append(authority)
+        if self.error is not None:
+            raise self.error
+        if self.override is not None:
+            return self.override
+        restore = authority.restore
+        if not restore.original_present:
+            return EnvironmentDestinationObservation(False)
+        return EnvironmentDestinationObservation(
+            True,
+            restore.restore_temp_identity,
+            restore.original_sha256,
+            restore.original_size,
+            restore.original_file_attributes,
+            restore.original_security_descriptor_sha256,
+        )
 
 
 def _package_root() -> PathHierarchyTrust:
@@ -542,6 +587,163 @@ def _persist_created_environment_restore_state(
     )
     return (
         stream,
+        root,
+        generations,
+        blobs,
+        package_root,
+        environment_storage,
+    )
+
+
+def _persist_verified_environment_restore_state(
+    protection: _Protection,
+    *,
+    environment_contents: bytes | None = b"GOOGLE_API_KEY=private-value\r\n",
+) -> tuple[
+    journal.JournalStreamIdentity,
+    journal.JournalStreamIdentity,
+    _Root,
+    _GenerationStorage,
+    _BlobStorage,
+    PathHierarchyTrust,
+    _EnvironmentStorage,
+]:
+    (
+        stream,
+        root,
+        generations,
+        blobs,
+        package_root,
+        environment_storage,
+    ) = _persist_created_environment_restore_state(
+        protection,
+        environment_contents=environment_contents,
+    )
+    verified_chain = package_root.run_while_held(
+        lambda: recovery.write_persisted_environment_restore_temp_from_held_package_root(
+            stream=stream,
+            package_root=package_root,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            backup_storage=blobs,
+            environment_storage=environment_storage,
+            backup_protection=protection,
+            journal_protection=protection,
+        )
+    )
+    preparing = verified_chain.selection.generations[0].record
+    restore_verified = verified_chain.selection.generations[6].record
+    assert type(preparing) is journal.BackupPreparingRecord
+    assert type(restore_verified) is journal.EnvironmentRestoreTempVerifiedRecord
+    provider_stream = journal.JournalStreamIdentity(
+        1,
+        "c" * 32,
+        stream.target_token_sha256,
+        stream.package_root_identity,
+    )
+    provider_temp_name = ".towerscout-env-" + "9" * 32 + ".tmp"
+    provider_plan = EnvironmentTempPlanRecord(
+        1,
+        stream.package_root_identity,
+        (
+            restore_verified.environment_sha256
+            if restore_verified.environment_present
+            else ABSENT_FILE_SHA256
+        ),
+        preparing.environment_candidate_sha256,
+        preparing.environment_candidate_size,
+        provider_temp_name,
+        restore_verified.environment_present,
+        preparing.environment_original_identity,
+        restore_verified.environment_size,
+        restore_verified.environment_file_attributes,
+        restore_verified.environment_security_descriptor_sha256,
+    )
+    sealed_generations: list[journal.SealedEnvironmentJournalGeneration] = []
+    previous = journal.GENESIS_GENERATION_SHA256
+
+    def add(state: journal.EnvironmentJournalState, record: object) -> str:
+        nonlocal previous
+        generation = journal.EnvironmentJournalGeneration(
+            1,
+            provider_stream,
+            len(sealed_generations) + 1,
+            previous,
+            state,
+            record,  # type: ignore[arg-type]
+        )
+        sealed = journal.protect_environment_journal_generation(
+            generation,
+            protection=protection,
+        )
+        sealed_generations.append(sealed)
+        previous = sealed.generation_sha256
+        return previous
+
+    planned_hash = add(
+        journal.EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
+        provider_plan,
+    )
+    created = EnvironmentTempCreatedRecord(
+        1,
+        planned_hash,
+        stream.package_root_identity,
+        _identity(80),
+        provider_plan.candidate_sha256,
+        provider_plan.candidate_size,
+        0x80,
+        "d" * 64,
+        provider_plan.temp_name,
+    )
+    created_hash = add(
+        journal.EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED,
+        created,
+    )
+    provider_verified = EnvironmentTempVerifiedRecord(
+        1,
+        created_hash,
+        stream.package_root_identity,
+        created.temp_identity,
+        created.candidate_sha256,
+        created.candidate_size,
+        created.candidate_file_attributes,
+        created.candidate_security_descriptor_sha256,
+        created.temp_name,
+    )
+    provider_verified_hash = add(
+        journal.EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED,
+        provider_verified,
+    )
+    applied = EnvironmentAppliedRecord(
+        1,
+        provider_verified_hash,
+        stream.package_root_identity,
+        provider_verified.temp_identity,
+        provider_verified.candidate_sha256,
+        provider_verified.candidate_size,
+        (
+            provider_plan.original_file_attributes
+            if provider_plan.original_present
+            else provider_verified.candidate_file_attributes
+        ),
+        (
+            provider_plan.original_security_descriptor_sha256
+            if provider_plan.original_present
+            else provider_verified.candidate_security_descriptor_sha256
+        ),
+        provider_verified.temp_name,
+    )
+    add(journal.EnvironmentJournalState.ENVIRONMENT_APPLIED, applied)
+    for sequence, sealed in enumerate(sealed_generations, start=1):
+        name = f"journal-{provider_stream.journal_id}-{sequence:020d}.generation"
+        generations.files[name] = storage.StoredJournalGenerationFile(
+            _identity(80 + sequence),
+            sealed.protected_blob.ciphertext,
+        )
+    return (
+        stream,
+        provider_stream,
         root,
         generations,
         blobs,
@@ -2467,3 +2669,255 @@ def test_receipts_redact_names_hashes_and_identities() -> None:
     assert stored.name not in rendered
     assert stored.ciphertext_sha256 not in rendered
     assert repr(stored.identity) not in rendered
+
+
+def _restore_environment_generation(
+    stream: journal.JournalStreamIdentity,
+    provider_stream: journal.JournalStreamIdentity,
+    root: _Root,
+    generations: _GenerationStorage,
+    package_root: PathHierarchyTrust,
+    protection: _Protection,
+    restoration: _EnvironmentRestoration,
+) -> storage.PersistedEnvironmentJournalChain:
+    return package_root.run_while_held(
+        lambda: recovery.persist_environment_restored_generation_from_held_package_root(
+            stream=stream,
+            provider_stream=provider_stream,
+            package_root=package_root,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            journal_protection=protection,
+            environment_restoration=restoration,
+        )
+    )
+
+
+def test_environment_restore_reloads_provider_authority_and_selects_generation_8() -> (
+    None
+):
+    protection = _Protection()
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        _blobs,
+        package_root,
+        environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    restoration = _EnvironmentRestoration()
+    try:
+        result = _restore_environment_generation(
+            stream,
+            provider_stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            restoration,
+        )
+    finally:
+        package_root.close()
+
+    assert len(restoration.calls) == 1
+    authority = restoration.calls[0].restore
+    assert authority.candidate_identity == _identity(80)
+    assert authority.restore_temp_identity == environment_storage.identity
+    assert len(result.selection.generations) == 8
+    assert (
+        result.selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+    record = result.selection.tip.record
+    assert type(record) is journal.EnvironmentRestoredRecord
+    assert record.environment_identity == environment_storage.identity
+
+
+def test_environment_restore_restart_reverifies_and_repairs_only_pointer() -> None:
+    protection = _Protection()
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        _blobs,
+        package_root,
+        _environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    restoration = _EnvironmentRestoration()
+    try:
+        first = _restore_environment_generation(
+            stream,
+            provider_stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            restoration,
+        )
+        generation_count = len(generations.files)
+        generations.pointer = None
+        second = _restore_environment_generation(
+            stream,
+            provider_stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            restoration,
+        )
+    finally:
+        package_root.close()
+
+    assert len(restoration.calls) == 2
+    assert len(generations.files) == generation_count
+    assert first.selection.tip == second.selection.tip
+    assert (
+        second.selection.pointer_disposition
+        is journal.JournalPointerDisposition.CURRENT
+    )
+
+
+def test_environment_restore_records_secure_absence() -> None:
+    protection = _Protection()
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        _blobs,
+        package_root,
+        _environment_storage,
+    ) = _persist_verified_environment_restore_state(
+        protection,
+        environment_contents=None,
+    )
+    restoration = _EnvironmentRestoration()
+    try:
+        result = _restore_environment_generation(
+            stream,
+            provider_stream,
+            root,
+            generations,
+            package_root,
+            protection,
+            restoration,
+        )
+    finally:
+        package_root.close()
+
+    record = result.selection.tip.record
+    assert type(record) is journal.EnvironmentRestoredRecord
+    assert record.environment_present is False
+    assert record.environment_identity is None
+    assert restoration.calls[0].restore.restore_temp_identity is None
+
+
+def test_environment_restore_rejects_cross_transaction_provider_stream() -> None:
+    protection = _Protection()
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        _blobs,
+        package_root,
+        _environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    wrong_provider = journal.JournalStreamIdentity(
+        1,
+        provider_stream.journal_id,
+        "e" * 64,
+        provider_stream.package_root_identity,
+    )
+    restoration = _EnvironmentRestoration()
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            _restore_environment_generation(
+                stream,
+                wrong_provider,
+                root,
+                generations,
+                package_root,
+                protection,
+                restoration,
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.AUTHORITY_INVALID
+    assert restoration.calls == []
+    assert len(generations.files) == 11
+
+
+def test_environment_restore_preserves_verified_tip_on_native_failure() -> None:
+    protection = _Protection()
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        _blobs,
+        package_root,
+        _environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    restoration = _EnvironmentRestoration()
+    restoration.error = EnvironmentRestoreStorageError(
+        EnvironmentRestoreStorageErrorCode.APPLY_FAILED
+    )
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            _restore_environment_generation(
+                stream,
+                provider_stream,
+                root,
+                generations,
+                package_root,
+                protection,
+                restoration,
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.WRITE_FAILED
+    assert len(generations.files) == 11
+
+
+def test_environment_restore_rejects_non_original_post_state() -> None:
+    protection = _Protection()
+    (
+        stream,
+        provider_stream,
+        root,
+        generations,
+        _blobs,
+        package_root,
+        _environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    restoration = _EnvironmentRestoration()
+    restoration.override = EnvironmentDestinationObservation(
+        True,
+        _identity(99),
+        "f" * 64,
+        1,
+        0x20,
+        "e" * 64,
+    )
+    try:
+        with pytest.raises(recovery.WindowsRecoveryError) as failure:
+            _restore_environment_generation(
+                stream,
+                provider_stream,
+                root,
+                generations,
+                package_root,
+                protection,
+                restoration,
+            )
+    finally:
+        package_root.close()
+
+    assert failure.value.code is recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
+    assert len(generations.files) == 11
