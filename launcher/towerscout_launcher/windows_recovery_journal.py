@@ -126,6 +126,7 @@ class EnvironmentJournalState(str, Enum):
     ROLLBACK_STARTED = "rollback_started"
     ENVIRONMENT_RESTORE_TEMP_PLANNED = "environment_restore_temp_planned"
     ENVIRONMENT_RESTORE_TEMP_CREATED = "environment_restore_temp_created"
+    ENVIRONMENT_RESTORE_TEMP_VERIFIED = "environment_restore_temp_verified"
     ENVIRONMENT_TEMP_PLANNED = "environment_temp_planned"
     ENVIRONMENT_TEMP_CREATED = "environment_temp_created"
     ENVIRONMENT_TEMP_VERIFIED = "environment_temp_verified"
@@ -474,6 +475,79 @@ class EnvironmentRestoreTempCreatedRecord:
         )
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class EnvironmentRestoreTempVerifiedRecord:
+    schema_version: int
+    created_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    environment_backup_identity: StableFileIdentity = field(repr=False)
+    environment_ciphertext_sha256: str = field(repr=False)
+    environment_ciphertext_size: int
+    environment_present: bool
+    environment_sha256: str | None = field(default=None, repr=False)
+    environment_size: int | None = None
+    environment_file_attributes: int | None = None
+    environment_security_descriptor_sha256: str | None = field(
+        default=None,
+        repr=False,
+    )
+    temp_name: str | None = field(default=None, repr=False)
+    temp_identity: StableFileIdentity | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.created_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+            or type(self.environment_backup_identity) is not StableFileIdentity
+            or self.environment_backup_identity == self.package_root_identity
+            or not _valid_hash(self.environment_ciphertext_sha256)
+            or type(self.environment_ciphertext_size) is not int
+            or not 1 <= self.environment_ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
+            or type(self.environment_present) is not bool
+        ):
+            raise ValueError(
+                "Environment restore temporary-file verification is invalid."
+            )
+        environment_values = (
+            self.environment_sha256,
+            self.environment_size,
+            self.environment_file_attributes,
+            self.environment_security_descriptor_sha256,
+            self.temp_name,
+            self.temp_identity,
+        )
+        if self.environment_present:
+            if (
+                not _valid_hash(self.environment_sha256)
+                or type(self.environment_size) is not int
+                or not 0 <= self.environment_size <= _MAX_ENVIRONMENT_BYTES
+                or type(self.environment_file_attributes) is not int
+                or not 0 <= self.environment_file_attributes <= 0xFFFFFFFF
+                or not _valid_hash(self.environment_security_descriptor_sha256)
+                or type(self.temp_name) is not str
+                or _ENVIRONMENT_TEMP_NAME.fullmatch(self.temp_name) is None
+                or type(self.temp_identity) is not StableFileIdentity
+                or self.temp_identity
+                in {self.package_root_identity, self.environment_backup_identity}
+            ):
+                raise ValueError(
+                    "Environment restore temporary-file verification is invalid."
+                )
+        elif any(value is not None for value in environment_values):
+            raise ValueError(
+                "Environment restore temporary-file verification is invalid."
+            )
+
+    def __repr__(self) -> str:
+        return (
+            "EnvironmentRestoreTempVerifiedRecord("
+            f"environment_present={self.environment_present!r}, "
+            f"environment_size={self.environment_size!r}, <redacted>)"
+        )
+
+
 EnvironmentTempJournalRecord = (
     EnvironmentTempPlanRecord
     | EnvironmentTempCreatedRecord
@@ -486,6 +560,7 @@ EnvironmentJournalRecord = (
     | RollbackStartedRecord
     | EnvironmentRestoreTempPlanRecord
     | EnvironmentRestoreTempCreatedRecord
+    | EnvironmentRestoreTempVerifiedRecord
     | EnvironmentTempJournalRecord
 )
 
@@ -499,6 +574,9 @@ _RECORD_TYPE_BY_STATE: dict[EnvironmentJournalState, type[object]] = {
     ),
     EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_CREATED: (
         EnvironmentRestoreTempCreatedRecord
+    ),
+    EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_VERIFIED: (
+        EnvironmentRestoreTempVerifiedRecord
     ),
     EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED: EnvironmentTempPlanRecord,
     EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED: EnvironmentTempCreatedRecord,
@@ -895,6 +973,30 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             ),
             "temp_name": record.temp_name,
         }
+    if type(record) is EnvironmentRestoreTempVerifiedRecord:
+        return {
+            "created_generation_sha256": record.created_generation_sha256,
+            "environment_backup_identity": _identity_to_json(
+                record.environment_backup_identity
+            ),
+            "environment_ciphertext_sha256": record.environment_ciphertext_sha256,
+            "environment_ciphertext_size": record.environment_ciphertext_size,
+            "environment_file_attributes": record.environment_file_attributes,
+            "environment_present": record.environment_present,
+            "environment_security_descriptor_sha256": (
+                record.environment_security_descriptor_sha256
+            ),
+            "environment_sha256": record.environment_sha256,
+            "environment_size": record.environment_size,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "schema_version": record.schema_version,
+            "temp_identity": (
+                _identity_to_json(record.temp_identity)
+                if record.temp_identity is not None
+                else None
+            ),
+            "temp_name": record.temp_name,
+        }
     environment_record = cast(EnvironmentTempJournalRecord, record)
     common: dict[str, Any] = {
         "candidate_sha256": environment_record.candidate_sha256,
@@ -1104,6 +1206,43 @@ def _record_from_json(
         return EnvironmentRestoreTempCreatedRecord(
             item["schema_version"],
             item["planned_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            _identity_from_json(item["environment_backup_identity"]),
+            item["environment_ciphertext_sha256"],
+            item["environment_ciphertext_size"],
+            item["environment_present"],
+            item["environment_sha256"],
+            item["environment_size"],
+            item["environment_file_attributes"],
+            item["environment_security_descriptor_sha256"],
+            item["temp_name"],
+            _identity_from_json(temp_identity) if temp_identity is not None else None,
+        )
+    if state is EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_VERIFIED:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "created_generation_sha256",
+                    "environment_backup_identity",
+                    "environment_ciphertext_sha256",
+                    "environment_ciphertext_size",
+                    "environment_file_attributes",
+                    "environment_present",
+                    "environment_security_descriptor_sha256",
+                    "environment_sha256",
+                    "environment_size",
+                    "package_root_identity",
+                    "schema_version",
+                    "temp_identity",
+                    "temp_name",
+                }
+            ),
+        )
+        temp_identity = item["temp_identity"]
+        return EnvironmentRestoreTempVerifiedRecord(
+            item["schema_version"],
+            item["created_generation_sha256"],
             _identity_from_json(item["package_root_identity"]),
             _identity_from_json(item["environment_backup_identity"]),
             item["environment_ciphertext_sha256"],
@@ -1341,7 +1480,7 @@ def _validate_record_continuity(
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         if len(generations) == 1:
             return
-        if len(generations) not in {2, 3, 4, 5, 6}:
+        if len(generations) not in {2, 3, 4, 5, 6, 7}:
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         verified_generation = generations[1]
         verified = verified_generation.generation.record
@@ -1449,6 +1588,36 @@ def _validate_record_continuity(
             or restore_created.temp_name != restore_plan.temp_name
         ):
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+        if len(generations) == 6:
+            return
+        restore_verified_generation = generations[6]
+        restore_verified = restore_verified_generation.generation.record
+        if (
+            type(restore_verified) is not EnvironmentRestoreTempVerifiedRecord
+            or restore_verified_generation.generation.previous_generation_sha256
+            != restore_created_generation.generation_sha256
+            or restore_verified.created_generation_sha256
+            != restore_created_generation.generation_sha256
+            or restore_verified.package_root_identity
+            != restore_created.package_root_identity
+            or restore_verified.environment_backup_identity
+            != restore_created.environment_backup_identity
+            or restore_verified.environment_ciphertext_sha256
+            != restore_created.environment_ciphertext_sha256
+            or restore_verified.environment_ciphertext_size
+            != restore_created.environment_ciphertext_size
+            or restore_verified.environment_present
+            is not restore_created.environment_present
+            or restore_verified.environment_sha256 != restore_created.environment_sha256
+            or restore_verified.environment_size != restore_created.environment_size
+            or restore_verified.environment_file_attributes
+            != restore_created.environment_file_attributes
+            or restore_verified.environment_security_descriptor_sha256
+            != restore_created.environment_security_descriptor_sha256
+            or restore_verified.temp_name != restore_created.temp_name
+            or restore_verified.temp_identity != restore_created.temp_identity
+        ):
+            _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         return
     if type(plan) is not EnvironmentTempPlanRecord:
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
@@ -1507,7 +1676,7 @@ def select_environment_journal_chain(
     )
     if any(item.generation.stream != expected_stream for item in generations):
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
-    if len(generations) > 6:
+    if len(generations) > 7:
         _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
     digests = tuple(item.generation_sha256 for item in generations)
     if len(set(digests)) != len(digests):
@@ -1520,6 +1689,7 @@ def select_environment_journal_chain(
         EnvironmentJournalState.ROLLBACK_STARTED,
         EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_PLANNED,
         EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_CREATED,
+        EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_VERIFIED,
     )
     environment_temp_states = (
         EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED,
@@ -1581,6 +1751,7 @@ __all__ = [
     "EnvironmentJournalPointer",
     "EnvironmentRestoreTempCreatedRecord",
     "EnvironmentRestoreTempPlanRecord",
+    "EnvironmentRestoreTempVerifiedRecord",
     "EnvironmentJournalState",
     "GENESIS_GENERATION_SHA256",
     "JournalPointerDisposition",
