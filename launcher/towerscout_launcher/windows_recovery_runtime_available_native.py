@@ -185,6 +185,18 @@ class AbsentObservationBackendCapture(Protocol):
     def __call__(self, plan: TargetResolutionPlan) -> _AbsentObservationBackend: ...
 
 
+class ResolvedTargetCapture(Protocol):
+    def __call__(self, provider: MapProvider) -> BoundResolvedRepairTarget: ...
+
+
+class AbsentRollbackRuntimeCapture(Protocol):
+    def __call__(
+        self,
+        certificate: CertificateIdentity,
+        authority: RollbackRuntimeRecoveryAuthority,
+    ) -> BoundAbsentRollbackRuntimeTarget: ...
+
+
 def _fail(code: NativeRollbackRuntimeAvailabilityErrorCode) -> NoReturn:
     raise NativeRollbackRuntimeAvailabilityError(code) from None
 
@@ -690,7 +702,171 @@ class NativeWindowsExistingRollbackRuntimeAvailability:
         )
 
 
+def _close_resolved_target(owner: _ResolvedTargetOwner) -> bool:
+    failed = False
+    try:
+        owner.close()
+    except BaseException as error:
+        if not isinstance(error, Exception):
+            raise
+        failed = True
+    try:
+        closed = owner.closed is True
+    except Exception:
+        closed = False
+    return failed or not closed
+
+
+def _consume_resolved_target(
+    owner: _ResolvedTargetOwner,
+    stream: JournalStreamIdentity,
+    authority: RollbackRuntimeRecoveryAuthority,
+    *,
+    existing_container_retained: bool,
+) -> RollbackRuntimeAvailabilityEvidence:
+    primary: BaseException | None = None
+    result: RollbackRuntimeAvailabilityEvidence | None = None
+    try:
+        if owner.closed:
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+        owner.assert_unchanged()
+        observed = _observation_from_target(owner.target)
+        if (
+            observed.target_token_sha256 != stream.target_token_sha256
+            or observed.package_root_identity != stream.package_root_identity
+            or observed.runtime_evidence_sha256 != authority.runtime_evidence_sha256
+            or observed.volume_evidence_sha256s != authority.volume_evidence_sha256s
+        ):
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
+        owner.assert_unchanged()
+        result = RollbackRuntimeAvailabilityEvidence(
+            1,
+            observed.target_token_sha256,
+            observed.package_root_identity,
+            observed.runtime_evidence_sha256,
+            observed.container_evidence_sha256,
+            observed.volume_evidence_sha256s,
+            existing_container_retained,
+        )
+    except BaseException as error:
+        primary = error
+    cleanup_failed = _close_resolved_target(owner)
+    if primary is not None and not isinstance(primary, Exception):
+        raise primary
+    if cleanup_failed:
+        _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+    if isinstance(primary, NativeRollbackRuntimeAvailabilityError):
+        raise primary from None
+    if primary is not None or result is None:
+        _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+    return result
+
+
+class NativeWindowsRollbackRuntimeAvailability:
+    """Attest an existing target or exactly recreate a proven absent target."""
+
+    __slots__ = ("_absent_capture", "_certificate", "_existing_capture")
+
+    def __init__(
+        self,
+        certificate: CertificateIdentity,
+        *,
+        existing_capture: ResolvedTargetCapture = capture_native_windows_resolved_target,
+        absent_capture: AbsentRollbackRuntimeCapture = (
+            capture_native_absent_rollback_runtime_target
+        ),
+    ) -> None:
+        if (
+            type(certificate) is not CertificateIdentity
+            or not callable(existing_capture)
+            or not callable(absent_capture)
+        ):
+            raise ValueError("Rollback runtime availability configuration is invalid.")
+        self._certificate = certificate
+        self._existing_capture = existing_capture
+        self._absent_capture = absent_capture
+
+    def establish_rollback_runtime_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        stream: JournalStreamIdentity,
+        authority: RollbackRuntimeRecoveryAuthority,
+    ) -> RollbackRuntimeAvailabilityEvidence:
+        if (
+            type(stream) is not JournalStreamIdentity
+            or type(authority) is not RollbackRuntimeRecoveryAuthority
+            or authority.target_token_sha256 != stream.target_token_sha256
+            or authority.package_root_identity != stream.package_root_identity
+        ):
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.INPUT_INVALID)
+        _assert_package_root(package_root, stream)
+        present: BoundResolvedRepairTarget | None = None
+        try:
+            present = self._existing_capture(self._certificate.provider)
+        except BaseException as error:
+            if not isinstance(error, Exception):
+                raise
+        if present is not None:
+            result = _consume_resolved_target(
+                present,
+                stream,
+                authority,
+                existing_container_retained=True,
+            )
+            _assert_package_root(package_root, stream)
+            return result
+
+        absent: BoundAbsentRollbackRuntimeTarget | None = None
+        absent_result: RollbackRuntimeAvailabilityEvidence | None = None
+        primary: BaseException | None = None
+        try:
+            absent = self._absent_capture(self._certificate, authority)
+            if absent.closed:
+                _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+            absent.assert_unchanged()
+            present = absent.recreate_prior_profile()
+            if absent.closed is not True:
+                _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+            absent_result = _consume_resolved_target(
+                present,
+                stream,
+                authority,
+                existing_container_retained=False,
+            )
+            present = None
+        except BaseException as error:
+            primary = error
+        cleanup_failed = False
+        if present is not None:
+            cleanup_failed = _close_resolved_target(present)
+        if absent is not None and not absent.closed:
+            try:
+                absent.close()
+                cleanup_failed = absent.closed is not True or cleanup_failed
+            except BaseException as error:
+                if not isinstance(error, Exception) and primary is None:
+                    primary = error
+                cleanup_failed = True
+        if primary is not None and not isinstance(primary, Exception):
+            raise primary
+        if cleanup_failed:
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+        if isinstance(primary, NativeRollbackRuntimeAvailabilityError):
+            raise primary from None
+        if primary is not None or absent_result is None:
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+        _assert_package_root(package_root, stream)
+        return absent_result
+
+    def __repr__(self) -> str:
+        return (
+            "NativeWindowsRollbackRuntimeAvailability("
+            f"provider={self._certificate.provider.value!r}, <redacted>)"
+        )
+
+
 __all__ = [
+    "AbsentRollbackRuntimeCapture",
     "AbsentObservationBackendCapture",
     "AbsentPlanInputCapture",
     "BoundAbsentRollbackRuntimeTarget",
@@ -698,6 +874,8 @@ __all__ = [
     "NativeRollbackRuntimeAvailabilityError",
     "NativeRollbackRuntimeAvailabilityErrorCode",
     "NativeWindowsExistingRollbackRuntimeAvailability",
+    "NativeWindowsRollbackRuntimeAvailability",
+    "ResolvedTargetCapture",
     "capture_native_existing_rollback_runtime",
     "capture_native_absent_rollback_runtime_target",
 ]

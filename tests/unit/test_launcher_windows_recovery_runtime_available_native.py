@@ -55,6 +55,7 @@ from towerscout_launcher.windows_recovery_runtime_available_native import (  # n
     NativeRollbackRuntimeAvailabilityError,
     NativeRollbackRuntimeAvailabilityErrorCode,
     NativeWindowsExistingRollbackRuntimeAvailability,
+    NativeWindowsRollbackRuntimeAvailability,
     capture_native_absent_rollback_runtime_target,
     capture_native_existing_rollback_runtime,
 )
@@ -62,6 +63,7 @@ from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E4
     RollbackRuntimeRecoveryAuthority,
     derive_absent_rollback_runtime_recovery_authority,
     derive_recreated_rollback_runtime_recovery_authority,
+    derive_rollback_runtime_recovery_authority,
 )
 from towerscout_launcher.windows_security import (  # noqa: E402
     StableFileIdentity,
@@ -75,6 +77,14 @@ def _identity(value: int) -> StableFileIdentity:
 class _PackagePathApi:
     supported = True
 
+    def __init__(
+        self,
+        root_path: str = r"C:\Users\reviewed-user\TowerScout",
+        root_identity: StableFileIdentity | None = None,
+    ) -> None:
+        self.root_path = root_path
+        self.root_identity = root_identity or _identity(7)
+
     def current_user_sid(self) -> str:
         return "S-1-5-21-1000"
 
@@ -85,11 +95,19 @@ class _PackagePathApi:
     def query_directory(self, handle: object) -> NativeDirectoryFacts:
         assert isinstance(handle, str)
         file_id = (
-            _identity(7).file_id
-            if handle.casefold() == r"C:\Users\reviewed-user\TowerScout".casefold()
+            self.root_identity.file_id
+            if handle.casefold() == self.root_path.casefold()
             else hashlib.sha256(handle.casefold().encode("utf-16-le")).digest()[:16]
         )
-        return NativeDirectoryFacts(handle, 7, file_id, 0x10, 3, 1, 0)
+        return NativeDirectoryFacts(
+            handle,
+            self.root_identity.volume_serial,
+            file_id,
+            0x10,
+            3,
+            1,
+            0,
+        )
 
     def query_security(self, handle: object) -> NativeSecurityFacts:
         assert isinstance(handle, str)
@@ -104,6 +122,19 @@ def _package_root():
         r"C:\Users\reviewed-user\TowerScout",
         purpose=PathTrustPurpose.PACKAGE_ROOT,
         api=_PackagePathApi(),
+    )
+
+
+def _package_root_for_target(target):
+    identity = StableFileIdentity(
+        target.package_root.volume_serial,
+        target.package_root.file_id,
+    )
+    path = str(target.package_root.final_path)
+    return capture_path_hierarchy(
+        path,
+        purpose=PathTrustPurpose.PACKAGE_ROOT,
+        api=_PackagePathApi(path, identity),
     )
 
 
@@ -160,6 +191,28 @@ class _Owner:
     def close(self) -> None:
         if self.close_error:
             raise OSError("private close detail")
+        self.closed = True
+
+
+class _RecreatedAbsentOwner:
+    def __init__(self, present: _Owner) -> None:
+        self.closed = False
+        self.present = present
+        self.assertions = 0
+        self.recreations = 0
+
+    def assert_unchanged(self) -> object:
+        assert not self.closed
+        self.assertions += 1
+        return object()
+
+    def recreate_prior_profile(self) -> _Owner:
+        assert not self.closed
+        self.recreations += 1
+        self.closed = True
+        return self.present
+
+    def close(self) -> None:
         self.closed = True
 
 
@@ -511,6 +564,144 @@ def test_adapter_attests_retained_runtime_under_matching_package_root():
     assert evidence.existing_container_retained
     assert evidence.target_token_sha256 == "b" * 64
     assert evidence.package_root_identity == _identity(7)
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_complete_adapter_retains_an_existing_exact_runtime(product):
+    target, _python, _identity_key = _target(product)
+    authority = derive_rollback_runtime_recovery_authority(target)
+    stream = JournalStreamIdentity(
+        1,
+        "a" * 32,
+        authority.target_token_sha256,
+        authority.package_root_identity,
+    )
+    owner = _Owner(target)
+    absent_calls = 0
+
+    def absent_capture(certificate, candidate_authority):
+        nonlocal absent_calls
+        absent_calls += 1
+        raise AssertionError((certificate, candidate_authority))
+
+    adapter = NativeWindowsRollbackRuntimeAvailability(
+        target.certificate,
+        existing_capture=lambda provider: owner,
+        absent_capture=absent_capture,
+    )
+    package_root = _package_root_for_target(target)
+    try:
+        evidence = package_root.run_while_held(
+            lambda: adapter.establish_rollback_runtime_while_package_root_held(
+                package_root,
+                stream,
+                authority,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert evidence.existing_container_retained
+    assert evidence.runtime_evidence_sha256 == authority.runtime_evidence_sha256
+    assert owner.assertions == 2
+    assert owner.closed
+    assert absent_calls == 0
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_complete_adapter_recreates_only_an_exact_absent_runtime(product):
+    target, _python, _identity_key = _target(product)
+    authority = derive_rollback_runtime_recovery_authority(target)
+    stream = JournalStreamIdentity(
+        1,
+        "a" * 32,
+        authority.target_token_sha256,
+        authority.package_root_identity,
+    )
+    present = _Owner(target)
+    absent = _RecreatedAbsentOwner(present)
+    existing_calls = 0
+    absent_calls = 0
+
+    def existing_capture(provider):
+        nonlocal existing_calls
+        existing_calls += 1
+        raise OSError("exact container is absent")
+
+    def absent_capture(certificate, candidate_authority):
+        nonlocal absent_calls
+        absent_calls += 1
+        assert certificate == target.certificate
+        assert candidate_authority == authority
+        return absent
+
+    adapter = NativeWindowsRollbackRuntimeAvailability(
+        target.certificate,
+        existing_capture=existing_capture,
+        absent_capture=absent_capture,
+    )
+    package_root = _package_root_for_target(target)
+    try:
+        evidence = package_root.run_while_held(
+            lambda: adapter.establish_rollback_runtime_while_package_root_held(
+                package_root,
+                stream,
+                authority,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert evidence.existing_container_retained is False
+    assert evidence.runtime_evidence_sha256 == authority.runtime_evidence_sha256
+    assert existing_calls == 1
+    assert absent_calls == 1
+    assert absent.assertions == 1
+    assert absent.recreations == 1
+    assert absent.closed
+    assert present.assertions == 2
+    assert present.closed
+
+
+def test_complete_adapter_sanitizes_existing_and_absent_capture_failures():
+    target, _python, _identity_key = _target(RuntimeProduct.DOCKER)
+    authority = derive_rollback_runtime_recovery_authority(target)
+    stream = JournalStreamIdentity(
+        1,
+        "a" * 32,
+        authority.target_token_sha256,
+        authority.package_root_identity,
+    )
+
+    def fail_existing(provider):
+        raise OSError("private existing capture detail")
+
+    def fail_absent(certificate, candidate_authority):
+        raise OSError("private absent capture detail")
+
+    adapter = NativeWindowsRollbackRuntimeAvailability(
+        target.certificate,
+        existing_capture=fail_existing,
+        absent_capture=fail_absent,
+    )
+    package_root = _package_root_for_target(target)
+    try:
+        with pytest.raises(NativeRollbackRuntimeAvailabilityError) as caught:
+            package_root.run_while_held(
+                lambda: adapter.establish_rollback_runtime_while_package_root_held(
+                    package_root,
+                    stream,
+                    authority,
+                )
+            )
+    finally:
+        package_root.close()
+
+    assert (
+        caught.value.code
+        is NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE
+    )
+    assert "private" not in str(caught.value).casefold()
 
 
 @pytest.mark.parametrize(
