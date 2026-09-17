@@ -192,73 +192,83 @@ class PersistedEnvironmentReplacementJournal(EnvironmentReplacementJournalPort):
         record: object,
         sequence: int,
     ) -> str:
-        def append_or_reconcile(root_path: str) -> str:
-            chain = self._load(root_path)
-            if chain is not None and len(chain.selection.generations) == sequence:
-                if (
-                    chain.selection.tip.state is not state
-                    or chain.selection.tip.record != record
-                ):
-                    _fail(EnvironmentReplacementJournalErrorCode.AUTHORITY_INVALID)
-                return self._ensure_pointer(
-                    root_path,
-                    chain.selection.tip_generation_sha256,
-                ).selection.tip_generation_sha256
-
-            prior_count = sequence - 1
-            if (prior_count == 0 and chain is not None) or (
-                prior_count > 0
-                and (chain is None or len(chain.selection.generations) != prior_count)
-            ):
-                _fail(EnvironmentReplacementJournalErrorCode.AUTHORITY_INVALID)
-            previous = (
-                GENESIS_GENERATION_SHA256
-                if chain is None
-                else chain.selection.tip_generation_sha256
-            )
-            if chain is not None:
-                self._ensure_pointer(root_path, previous)
-            try:
-                generation = EnvironmentJournalGeneration(
-                    1,
-                    self._stream,
-                    sequence,
-                    previous,
-                    state,
-                    record,  # type: ignore[arg-type]
-                )
-                sealed = protect_environment_journal_generation(
-                    generation,
-                    protection=self._protection,
-                )
-            except (RecoveryJournalError, ValueError):
-                _fail(EnvironmentReplacementJournalErrorCode.AUTHORITY_INVALID)
-            try:
-                appended = (
-                    append_persisted_environment_journal_generation_from_held_root(
-                        root_path,
-                        sealed,
-                        stream=self._stream,
-                        storage=self._generation_storage,
-                        protection=self._protection,
-                    )
-                )
-            except RecoveryJournalStorageError as exc:
-                if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
-                    _fail(EnvironmentReplacementJournalErrorCode.STORAGE_UNAVAILABLE)
-                if exc.code is RecoveryJournalStorageErrorCode.WRITE_FAILED:
-                    _fail(EnvironmentReplacementJournalErrorCode.WRITE_FAILED)
-                _fail(EnvironmentReplacementJournalErrorCode.VERIFY_FAILED)
-            except RecoveryJournalError:
-                _fail(EnvironmentReplacementJournalErrorCode.VERIFY_FAILED)
-            if appended.selection.tip != generation:
-                _fail(EnvironmentReplacementJournalErrorCode.VERIFY_FAILED)
-            return self._ensure_pointer(
+        return self._run_under_root(
+            lambda root_path: self._record_from_held_root(
                 root_path,
-                appended.selection.tip_generation_sha256,
-            ).selection.tip_generation_sha256
+                state,
+                record,
+                sequence,
+            )
+        )
 
-        return self._run_under_root(append_or_reconcile)
+    def _record_from_held_root(
+        self,
+        root_path: str,
+        state: EnvironmentJournalState,
+        record: object,
+        sequence: int,
+    ) -> str:
+        """Append/reconcile while a caller already owns the protected root."""
+
+        chain = self._load(root_path)
+        if chain is not None and len(chain.selection.generations) >= sequence:
+            selected = chain.selection.generations[sequence - 1]
+            if selected.state is not state or selected.record != record:
+                _fail(EnvironmentReplacementJournalErrorCode.AUTHORITY_INVALID)
+            if len(chain.selection.generations) == sequence:
+                self._ensure_pointer(root_path, chain.selection.tip_generation_sha256)
+            return chain.selection.generation_sha256s[sequence - 1]
+
+        prior_count = sequence - 1
+        if (prior_count == 0 and chain is not None) or (
+            prior_count > 0
+            and (chain is None or len(chain.selection.generations) != prior_count)
+        ):
+            _fail(EnvironmentReplacementJournalErrorCode.AUTHORITY_INVALID)
+        previous = (
+            GENESIS_GENERATION_SHA256
+            if chain is None
+            else chain.selection.tip_generation_sha256
+        )
+        if chain is not None:
+            self._ensure_pointer(root_path, previous)
+        try:
+            generation = EnvironmentJournalGeneration(
+                1,
+                self._stream,
+                sequence,
+                previous,
+                state,
+                record,  # type: ignore[arg-type]
+            )
+            sealed = protect_environment_journal_generation(
+                generation,
+                protection=self._protection,
+            )
+        except (RecoveryJournalError, ValueError):
+            _fail(EnvironmentReplacementJournalErrorCode.AUTHORITY_INVALID)
+        try:
+            appended = append_persisted_environment_journal_generation_from_held_root(
+                root_path,
+                sealed,
+                stream=self._stream,
+                storage=self._generation_storage,
+                protection=self._protection,
+            )
+        except RecoveryJournalStorageError as exc:
+            if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                _fail(EnvironmentReplacementJournalErrorCode.STORAGE_UNAVAILABLE)
+            if exc.code is RecoveryJournalStorageErrorCode.WRITE_FAILED:
+                _fail(EnvironmentReplacementJournalErrorCode.WRITE_FAILED)
+            _fail(EnvironmentReplacementJournalErrorCode.VERIFY_FAILED)
+        except RecoveryJournalError:
+            _fail(EnvironmentReplacementJournalErrorCode.VERIFY_FAILED)
+        if appended.selection.tip != generation:
+            _fail(EnvironmentReplacementJournalErrorCode.VERIFY_FAILED)
+        return self._ensure_pointer(
+            root_path,
+            appended.selection.tip_generation_sha256,
+        ).selection.tip_generation_sha256
 
     def record_environment_temp_planned(
         self,

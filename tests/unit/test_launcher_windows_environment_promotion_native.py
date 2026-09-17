@@ -124,7 +124,8 @@ class _Api:
         return self._supported
 
     def open_file_if_exists(self, path: str) -> object | None:
-        self.events.append(f"open:{path.rsplit('\\', 1)[-1]}")
+        leaf_name = path.rsplit("\\", 1)[-1]
+        self.events.append(f"open:{leaf_name}")
         item = self.files.get(path)
         return None if item is None else _Handle(path, item.identity)
 

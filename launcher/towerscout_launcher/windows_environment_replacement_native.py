@@ -370,7 +370,13 @@ class _WindowsEnvironmentReplacementApi(Protocol):
 
     def create_new_restricted_file(self, path: str, *, owner_sid: str) -> object: ...
 
+    def open_existing_file_for_update(self, path: str) -> object: ...
+
     def reopen_file_for_verification(self, path: str) -> object: ...
+
+    def open_file_for_delete_if_exists(self, path: str) -> object | None: ...
+
+    def reopen_file_if_exists(self, path: str) -> object | None: ...
 
     def query_file(self, handle: object) -> NativeFileFacts: ...
 
@@ -380,9 +386,13 @@ class _WindowsEnvironmentReplacementApi(Protocol):
 
     def flush_file(self, handle: object) -> None: ...
 
+    def truncate_file(self, handle: object) -> None: ...
+
     def seek_file(self, handle: object, offset: int) -> None: ...
 
     def read_file(self, handle: object, maximum: int) -> bytes: ...
+
+    def mark_file_for_deletion(self, handle: object) -> None: ...
 
     def close_handle(self, handle: object) -> None: ...
 
@@ -530,6 +540,138 @@ def _read_exact(
         chunks.append(chunk)
         remaining -= len(chunk)
     return b"".join(chunks)
+
+
+def _temp_path(
+    package_root: PathHierarchyTrust,
+    package_root_identity: StableFileIdentity,
+    temp_name: str,
+) -> str:
+    if (
+        type(package_root) is not PathHierarchyTrust
+        or package_root.closed
+        or package_root.evidence.purpose is not PathTrustPurpose.PACKAGE_ROOT
+        or package_root.evidence.root_identity != package_root_identity
+        or not _valid_temp_name(temp_name)
+    ):
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    package_path = package_root.root_snapshot.final_path
+    path = ntpath.join(package_path, temp_name)
+    if len(path) > _MAX_PATH_CHARACTERS or _path_key(ntpath.dirname(path)) != _path_key(
+        package_path
+    ):
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    return path
+
+
+def _remove_exact_planned_orphan(
+    api: _WindowsEnvironmentReplacementApi,
+    *,
+    path: str,
+    package_root_identity: StableFileIdentity,
+    current_user_sid: str,
+) -> None:
+    handle = _call(
+        lambda: api.open_file_for_delete_if_exists(path),
+        EnvironmentTempStageErrorCode.VERIFY_FAILED,
+    )
+    if handle is None:
+        return
+    held: object | None = handle
+    operation_failed = False
+    try:
+        identity = _validate_file(
+            _call(
+                lambda: api.query_file(handle),
+                EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            ),
+            expected_path=path,
+            package_root_identity=package_root_identity,
+            expected_size=0,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        _validate_security(
+            _call(
+                lambda: api.query_security(handle),
+                EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            ),
+            current_user_sid,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        _validate_file(
+            _call(
+                lambda: api.query_file(handle),
+                EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            ),
+            expected_path=path,
+            package_root_identity=package_root_identity,
+            expected_size=0,
+            expected_identity=identity,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        _validate_security(
+            _call(
+                lambda: api.query_security(handle),
+                EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            ),
+            current_user_sid,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        try:
+            api.mark_file_for_deletion(handle)
+        except Exception:
+            operation_failed = True
+        try:
+            api.close_handle(handle)
+        except Exception:
+            operation_failed = True
+        else:
+            held = None
+    finally:
+        if held is not None:
+            _safe_close(api, held)
+    remaining = _call(
+        lambda: api.reopen_file_if_exists(path),
+        EnvironmentTempStageErrorCode.VERIFY_FAILED,
+    )
+    if remaining is not None:
+        _safe_close(api, remaining)
+        _fail(
+            EnvironmentTempStageErrorCode.WRITE_FAILED
+            if operation_failed
+            else EnvironmentTempStageErrorCode.VERIFY_FAILED
+        )
+
+
+def _record_matches_request(
+    plan: EnvironmentReplacementPlan,
+    original: EnvironmentDestinationObservation,
+    package_root_identity: StableFileIdentity,
+    record: EnvironmentTempPlanRecord,
+) -> bool:
+    return record == EnvironmentTempPlanRecord(
+        _SCHEMA_VERSION,
+        package_root_identity,
+        plan.original_sha256,
+        plan.candidate_sha256,
+        len(plan.candidate_contents),
+        record.temp_name,
+        original.present,
+        original.identity,
+        original.size,
+        original.file_attributes,
+        original.security_descriptor_sha256,
+    )
+
+
+class _FixedEnvironmentTempNameSource:
+    __slots__ = ("_name",)
+
+    def __init__(self, name: str) -> None:
+        self._name = name
+
+    def new_environment_temp_name(self) -> str:
+        return self._name
 
 
 def _validate_original_observation(
@@ -768,6 +910,398 @@ def _stage_while_root_held(
     return StagedEnvironmentCandidate(verified_receipt)
 
 
+def _resume_environment_candidate_while_root_held(
+    plan: EnvironmentReplacementPlan,
+    original: EnvironmentDestinationObservation,
+    package_root: PathHierarchyTrust,
+    journal: EnvironmentReplacementJournalPort,
+    planned_receipt: EnvironmentTempPlannedReceipt,
+    created_receipt: EnvironmentTempCreatedReceipt | None,
+    *,
+    api: _WindowsEnvironmentReplacementApi,
+) -> StagedEnvironmentCandidate:
+    """Resume only one authenticated planned or created candidate temp."""
+
+    if (
+        type(plan) is not EnvironmentReplacementPlan
+        or type(original) is not EnvironmentDestinationObservation
+        or type(package_root) is not PathHierarchyTrust
+        or package_root.closed
+        or package_root.evidence.purpose is not PathTrustPurpose.PACKAGE_ROOT
+        or type(planned_receipt) is not EnvironmentTempPlannedReceipt
+        or (
+            created_receipt is not None
+            and type(created_receipt) is not EnvironmentTempCreatedReceipt
+        )
+        or journal is None
+        or api is None
+    ):
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    package_root_identity = package_root.evidence.root_identity
+    _validate_original_observation(plan, original, package_root_identity)
+    planned = planned_receipt.record
+    try:
+        matches_request = _record_matches_request(
+            plan,
+            original,
+            package_root_identity,
+            planned,
+        )
+    except ValueError:
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    if not matches_request:
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    path = _temp_path(package_root, package_root_identity, planned.temp_name)
+    current_user_sid = _call(
+        api.current_user_sid,
+        EnvironmentTempStageErrorCode.PLATFORM_UNAVAILABLE,
+    )
+    if type(current_user_sid) is not str or _SID.fullmatch(current_user_sid) is None:
+        _fail(EnvironmentTempStageErrorCode.PLATFORM_UNAVAILABLE)
+
+    if created_receipt is None:
+        _remove_exact_planned_orphan(
+            api,
+            path=path,
+            package_root_identity=package_root_identity,
+            current_user_sid=current_user_sid,
+        )
+        return _stage_while_root_held(
+            plan,
+            original,
+            package_root,
+            journal,
+            api,
+            _FixedEnvironmentTempNameSource(planned.temp_name),
+        )
+
+    created = created_receipt.record
+    if (
+        created.planned_generation_sha256 != planned_receipt.generation_sha256
+        or created.package_root_identity != package_root_identity
+        or created.candidate_sha256 != plan.candidate_sha256
+        or created.candidate_size != len(plan.candidate_contents)
+        or created.temp_name != planned.temp_name
+    ):
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    handle = _call(
+        lambda: api.open_existing_file_for_update(path),
+        EnvironmentTempStageErrorCode.VERIFY_FAILED,
+    )
+    if handle is None:
+        _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
+    held: object | None = handle
+    try:
+        facts = _call(
+            lambda: api.query_file(handle),
+            EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        if type(facts) is not NativeFileFacts or not 0 <= facts.size <= len(
+            plan.candidate_contents
+        ):
+            _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
+        _validate_file(
+            facts,
+            expected_path=path,
+            package_root_identity=package_root_identity,
+            expected_size=facts.size,
+            expected_identity=created.temp_identity,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        security = _call(
+            lambda: api.query_security(handle),
+            EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        _validate_security(
+            security,
+            current_user_sid,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        if (
+            facts.attributes != created.candidate_file_attributes
+            or type(security) is not NativeSecurityFacts
+            or security.security_descriptor_sha256
+            != created.candidate_security_descriptor_sha256
+        ):
+            _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
+        contents = _read_exact(api, handle, facts.size)
+        if contents != plan.candidate_contents:
+            second_facts = _call(
+                lambda: api.query_file(handle),
+                EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            )
+            _validate_file(
+                second_facts,
+                expected_path=path,
+                package_root_identity=package_root_identity,
+                expected_size=facts.size,
+                expected_identity=created.temp_identity,
+                error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            )
+            second_security = _call(
+                lambda: api.query_security(handle),
+                EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            )
+            _validate_security(
+                second_security,
+                current_user_sid,
+                error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            )
+            if (
+                type(second_facts) is not NativeFileFacts
+                or second_facts.attributes != created.candidate_file_attributes
+                or type(second_security) is not NativeSecurityFacts
+                or second_security.security_descriptor_sha256
+                != created.candidate_security_descriptor_sha256
+            ):
+                _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
+            _call(
+                lambda: api.truncate_file(handle),
+                EnvironmentTempStageErrorCode.WRITE_FAILED,
+            )
+            truncated = _call(
+                lambda: api.query_file(handle),
+                EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            )
+            _validate_file(
+                truncated,
+                expected_path=path,
+                package_root_identity=package_root_identity,
+                expected_size=0,
+                expected_identity=created.temp_identity,
+                error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            )
+            truncated_security = _call(
+                lambda: api.query_security(handle),
+                EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            )
+            _validate_security(
+                truncated_security,
+                current_user_sid,
+                error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+            )
+            if (
+                type(truncated) is not NativeFileFacts
+                or truncated.attributes != created.candidate_file_attributes
+                or type(truncated_security) is not NativeSecurityFacts
+                or truncated_security.security_descriptor_sha256
+                != created.candidate_security_descriptor_sha256
+            ):
+                _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
+            _write_all(api, handle, plan.candidate_contents)
+        _call(
+            lambda: api.flush_file(handle),
+            EnvironmentTempStageErrorCode.WRITE_FAILED,
+        )
+        written = _call(
+            lambda: api.query_file(handle),
+            EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        _validate_file(
+            written,
+            expected_path=path,
+            package_root_identity=package_root_identity,
+            expected_size=len(plan.candidate_contents),
+            expected_identity=created.temp_identity,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        if (
+            type(written) is not NativeFileFacts
+            or written.attributes != created.candidate_file_attributes
+            or _read_exact(api, handle, len(plan.candidate_contents))
+            != plan.candidate_contents
+        ):
+            _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
+        _call(
+            lambda: api.close_handle(handle),
+            EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        held = None
+    finally:
+        if held is not None:
+            _safe_close(api, held)
+
+    reopened = _call(
+        lambda: api.reopen_file_for_verification(path),
+        EnvironmentTempStageErrorCode.VERIFY_FAILED,
+    )
+    if reopened is None:
+        _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
+    reopened_held: object | None = reopened
+    try:
+        reopened_facts = _call(
+            lambda: api.query_file(reopened),
+            EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        _validate_file(
+            reopened_facts,
+            expected_path=path,
+            package_root_identity=package_root_identity,
+            expected_size=len(plan.candidate_contents),
+            expected_identity=created.temp_identity,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        reopened_security = _call(
+            lambda: api.query_security(reopened),
+            EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        _validate_security(
+            reopened_security,
+            current_user_sid,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        if (
+            type(reopened_facts) is not NativeFileFacts
+            or reopened_facts.attributes != created.candidate_file_attributes
+            or type(reopened_security) is not NativeSecurityFacts
+            or reopened_security.security_descriptor_sha256
+            != created.candidate_security_descriptor_sha256
+            or hashlib.sha256(
+                _read_exact(api, reopened, len(plan.candidate_contents))
+            ).hexdigest()
+            != plan.candidate_sha256
+        ):
+            _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
+        _call(
+            lambda: api.close_handle(reopened),
+            EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        reopened_held = None
+    finally:
+        if reopened_held is not None:
+            _safe_close(api, reopened_held)
+
+    verified = EnvironmentTempVerifiedRecord(
+        _SCHEMA_VERSION,
+        created_receipt.generation_sha256,
+        package_root_identity,
+        created.temp_identity,
+        plan.candidate_sha256,
+        len(plan.candidate_contents),
+        created.candidate_file_attributes,
+        created.candidate_security_descriptor_sha256,
+        planned.temp_name,
+    )
+    receipt = _journal_transition(
+        lambda: journal.record_environment_temp_verified(verified),
+        EnvironmentTempVerifiedReceipt,
+        verified,
+    )
+    return StagedEnvironmentCandidate(receipt)
+
+
+def _verify_environment_candidate_while_root_held(
+    plan: EnvironmentReplacementPlan,
+    original: EnvironmentDestinationObservation,
+    package_root: PathHierarchyTrust,
+    planned_receipt: EnvironmentTempPlannedReceipt,
+    created_receipt: EnvironmentTempCreatedReceipt,
+    verified_receipt: EnvironmentTempVerifiedReceipt,
+    *,
+    api: _WindowsEnvironmentReplacementApi,
+) -> StagedEnvironmentCandidate:
+    """Reverify one immutable generation-3 temp without repairing drift."""
+
+    if (
+        type(plan) is not EnvironmentReplacementPlan
+        or type(original) is not EnvironmentDestinationObservation
+        or type(package_root) is not PathHierarchyTrust
+        or package_root.closed
+        or package_root.evidence.purpose is not PathTrustPurpose.PACKAGE_ROOT
+        or type(planned_receipt) is not EnvironmentTempPlannedReceipt
+        or type(created_receipt) is not EnvironmentTempCreatedReceipt
+        or type(verified_receipt) is not EnvironmentTempVerifiedReceipt
+        or api is None
+    ):
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    package_root_identity = package_root.evidence.root_identity
+    _validate_original_observation(plan, original, package_root_identity)
+    planned = planned_receipt.record
+    created = created_receipt.record
+    verified = verified_receipt.record
+    try:
+        matches_request = _record_matches_request(
+            plan,
+            original,
+            package_root_identity,
+            planned,
+        )
+    except ValueError:
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    if (
+        not matches_request
+        or created.planned_generation_sha256 != planned_receipt.generation_sha256
+        or verified.created_generation_sha256 != created_receipt.generation_sha256
+        or created.package_root_identity != package_root_identity
+        or verified.package_root_identity != package_root_identity
+        or verified.temp_identity != created.temp_identity
+        or verified.candidate_sha256 != plan.candidate_sha256
+        or verified.candidate_size != len(plan.candidate_contents)
+        or verified.candidate_file_attributes != created.candidate_file_attributes
+        or verified.candidate_security_descriptor_sha256
+        != created.candidate_security_descriptor_sha256
+        or verified.temp_name != planned.temp_name
+    ):
+        _fail(EnvironmentTempStageErrorCode.INPUT_INVALID)
+    path = _temp_path(package_root, package_root_identity, verified.temp_name)
+    current_user_sid = _call(
+        api.current_user_sid,
+        EnvironmentTempStageErrorCode.PLATFORM_UNAVAILABLE,
+    )
+    if type(current_user_sid) is not str or _SID.fullmatch(current_user_sid) is None:
+        _fail(EnvironmentTempStageErrorCode.PLATFORM_UNAVAILABLE)
+    handle = _call(
+        lambda: api.reopen_file_for_verification(path),
+        EnvironmentTempStageErrorCode.VERIFY_FAILED,
+    )
+    if handle is None:
+        _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
+    held: object | None = handle
+    try:
+        facts = _call(
+            lambda: api.query_file(handle),
+            EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        _validate_file(
+            facts,
+            expected_path=path,
+            package_root_identity=package_root_identity,
+            expected_size=verified.candidate_size,
+            expected_identity=verified.temp_identity,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        security = _call(
+            lambda: api.query_security(handle),
+            EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        _validate_security(
+            security,
+            current_user_sid,
+            error_code=EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        if (
+            type(facts) is not NativeFileFacts
+            or facts.attributes != verified.candidate_file_attributes
+            or type(security) is not NativeSecurityFacts
+            or security.security_descriptor_sha256
+            != verified.candidate_security_descriptor_sha256
+            or hashlib.sha256(
+                _read_exact(api, handle, verified.candidate_size)
+            ).hexdigest()
+            != verified.candidate_sha256
+        ):
+            _fail(EnvironmentTempStageErrorCode.VERIFY_FAILED)
+        _call(
+            lambda: api.close_handle(handle),
+            EnvironmentTempStageErrorCode.VERIFY_FAILED,
+        )
+        held = None
+    finally:
+        if held is not None:
+            _safe_close(api, held)
+    return StagedEnvironmentCandidate(verified_receipt)
+
+
 def _stage_environment_candidate_with_api(
     plan: EnvironmentReplacementPlan,
     original: EnvironmentDestinationObservation,
@@ -895,6 +1429,8 @@ class NativeWindowsEnvironmentReplacementApi:
         kernel32.WriteFile.restype = ctypes.c_int
         kernel32.FlushFileBuffers.argtypes = (ctypes.c_void_p,)
         kernel32.FlushFileBuffers.restype = ctypes.c_int
+        kernel32.SetEndOfFile.argtypes = (ctypes.c_void_p,)
+        kernel32.SetEndOfFile.restype = ctypes.c_int
         kernel32.LocalFree.argtypes = (ctypes.c_void_p,)
         kernel32.LocalFree.restype = ctypes.c_void_p
 
@@ -968,6 +1504,12 @@ class NativeWindowsEnvironmentReplacementApi:
     def reopen_file_for_verification(self, path: str) -> object:
         return self._file_api.open_file_for_identity(path)
 
+    def open_file_for_delete_if_exists(self, path: str) -> object | None:
+        return self._file_api.open_file_for_delete_if_exists(path)
+
+    def reopen_file_if_exists(self, path: str) -> object | None:
+        return self._file_api.open_file_if_exists(path)
+
     def open_existing_file_for_update(self, path: str) -> object:
         if (
             type(path) is not str
@@ -1030,11 +1572,20 @@ class NativeWindowsEnvironmentReplacementApi:
         if not kernel32.FlushFileBuffers(self._handle(handle)):
             self._last_error("Native Windows environment flush failed.")
 
+    def truncate_file(self, handle: object) -> None:
+        _advapi32, kernel32 = self._require()
+        self._file_api.seek_file(handle, 0)
+        if not kernel32.SetEndOfFile(self._handle(handle)):
+            self._last_error("Native Windows environment truncate failed.")
+
     def seek_file(self, handle: object, offset: int) -> None:
         self._file_api.seek_file(handle, offset)
 
     def read_file(self, handle: object, maximum: int) -> bytes:
         return self._file_api.read_file(handle, maximum)
+
+    def mark_file_for_deletion(self, handle: object) -> None:
+        self._file_api.mark_file_for_deletion(handle)
 
     def close_handle(self, handle: object) -> None:
         self._file_api.close_handle(handle)

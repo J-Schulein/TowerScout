@@ -15,8 +15,12 @@ if str(LAUNCHER_ROOT) not in sys.path:
 
 import towerscout_launcher.windows_environment_promotion_storage as applied  # noqa: E402
 import towerscout_launcher.windows_environment_replacement_journal as replacement_journal  # noqa: E402
+import towerscout_launcher.windows_environment_replacement_storage as replacement_storage  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
+from towerscout_launcher.windows_environment_replacement import (  # noqa: E402
+    plan_ca_environment_replacement,
+)
 from towerscout_launcher.windows_environment_replacement_native import (  # noqa: E402
     EnvironmentAppliedRecord,
     EnvironmentTempCreatedRecord,
@@ -24,6 +28,7 @@ from towerscout_launcher.windows_environment_replacement_native import (  # noqa
     EnvironmentTempVerifiedRecord,
 )
 from towerscout_launcher.windows_path_trust import (  # noqa: E402
+    AccessAllowedAce,
     NativeDirectoryFacts,
     NativeSecurityFacts,
     PathTrustPurpose,
@@ -37,6 +42,7 @@ from towerscout_launcher.windows_recovery_environment_restore import (  # noqa: 
     EnvironmentDestinationObservation,
 )
 from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
+from towerscout_launcher.windows_security import NativeFileFacts  # noqa: E402
 from towerscout_launcher.target_contracts import ABSENT_FILE_SHA256  # noqa: E402
 
 _Result = TypeVar("_Result")
@@ -606,3 +612,440 @@ def test_staging_journal_rejects_skipped_or_conflicting_transition() -> None:
         replacement_journal.EnvironmentReplacementJournalErrorCode.AUTHORITY_INVALID
     )
     assert len(storage_port.files) == 1
+
+
+class _FixedNameSource:
+    def new_environment_temp_name(self) -> str:
+        return _TEMP
+
+
+class _CandidateHandle:
+    def __init__(self, identity: StableFileIdentity) -> None:
+        self.identity = identity
+        self.cursor = 0
+
+
+class _CandidateApi:
+    supported = True
+
+    def __init__(self, events: list[str]) -> None:
+        self.events = events
+        self.exists = False
+        self.identity = _identity(9)
+        self.contents = b""
+        self.attributes = 0x80
+        self.descriptor = "f" * 64
+        self.delete_error: Exception | None = None
+        self.delete_error_after_apply = False
+
+    def current_user_sid(self) -> str:
+        return "S-1-5-21-1000"
+
+    def create_new_restricted_file(self, path: str, *, owner_sid: str) -> object:
+        assert path == rf"{_ROOT}\{_TEMP}"
+        assert owner_sid == self.current_user_sid()
+        self.events.append("temp:create")
+        if self.exists:
+            raise FileExistsError("private")
+        self.exists = True
+        self.identity = _identity(9)
+        self.contents = b""
+        return _CandidateHandle(self.identity)
+
+    def open_existing_file_for_update(self, path: str) -> object:
+        assert path == rf"{_ROOT}\{_TEMP}"
+        self.events.append("temp:update")
+        if not self.exists:
+            raise FileNotFoundError("private")
+        return _CandidateHandle(self.identity)
+
+    def reopen_file_for_verification(self, path: str) -> object:
+        assert path == rf"{_ROOT}\{_TEMP}"
+        self.events.append("temp:reopen")
+        if not self.exists:
+            raise FileNotFoundError("private")
+        return _CandidateHandle(self.identity)
+
+    def open_file_for_delete_if_exists(self, path: str) -> object | None:
+        assert path == rf"{_ROOT}\{_TEMP}"
+        self.events.append("temp:delete-open")
+        return _CandidateHandle(self.identity) if self.exists else None
+
+    def reopen_file_if_exists(self, path: str) -> object | None:
+        assert path == rf"{_ROOT}\{_TEMP}"
+        self.events.append("temp:presence")
+        return _CandidateHandle(self.identity) if self.exists else None
+
+    def query_file(self, handle: object) -> NativeFileFacts:
+        assert isinstance(handle, _CandidateHandle)
+        return NativeFileFacts(
+            rf"{_ROOT}\{_TEMP}",
+            handle.identity.volume_serial,
+            handle.identity.file_id,
+            self.attributes,
+            1,
+            len(self.contents),
+            100,
+            200,
+            3,
+            1,
+            0,
+        )
+
+    def query_security(self, handle: object) -> NativeSecurityFacts:
+        assert isinstance(handle, _CandidateHandle)
+        return NativeSecurityFacts(
+            self.current_user_sid(),
+            True,
+            (
+                AccessAllowedAce(self.current_user_sid(), 0x001F01FF, 0),
+                AccessAllowedAce("S-1-5-18", 0x001F01FF, 0),
+            ),
+            True,
+            self.descriptor,
+        )
+
+    def write_file(self, handle: object, contents: bytes) -> int:
+        assert isinstance(handle, _CandidateHandle)
+        self.events.append("temp:write")
+        end = handle.cursor + len(contents)
+        self.contents = self.contents[: handle.cursor] + contents + self.contents[end:]
+        handle.cursor = end
+        return len(contents)
+
+    def flush_file(self, handle: object) -> None:
+        assert isinstance(handle, _CandidateHandle)
+        self.events.append("temp:flush")
+
+    def truncate_file(self, handle: object) -> None:
+        assert isinstance(handle, _CandidateHandle)
+        self.events.append("temp:truncate")
+        self.contents = b""
+        handle.cursor = 0
+
+    def seek_file(self, handle: object, offset: int) -> None:
+        assert isinstance(handle, _CandidateHandle)
+        handle.cursor = offset
+
+    def read_file(self, handle: object, maximum: int) -> bytes:
+        assert isinstance(handle, _CandidateHandle)
+        chunk = self.contents[handle.cursor : handle.cursor + maximum]
+        handle.cursor += len(chunk)
+        return chunk
+
+    def mark_file_for_deletion(self, handle: object) -> None:
+        assert isinstance(handle, _CandidateHandle)
+        self.events.append("temp:delete")
+        if self.delete_error is not None and not self.delete_error_after_apply:
+            raise self.delete_error
+        self.exists = False
+        if self.delete_error is not None:
+            raise self.delete_error
+
+    def close_handle(self, handle: object) -> None:
+        assert isinstance(handle, _CandidateHandle)
+
+
+def _staging_request() -> tuple[object, EnvironmentDestinationObservation]:
+    original = b"OTHER=value\r\n"
+    plan = plan_ca_environment_replacement(original, original_present=True)
+    observation = EnvironmentDestinationObservation(
+        True,
+        _identity(8),
+        hashlib.sha256(original).hexdigest(),
+        len(original),
+        0x20,
+        "e" * 64,
+    )
+    return plan, observation
+
+
+def _stage_persisted(
+    package_root: object,
+    durable: replacement_journal.PersistedEnvironmentReplacementJournal,
+    api: _CandidateApi,
+) -> object:
+    plan, original = _staging_request()
+    return replacement_storage.stage_or_resume_persisted_environment_candidate(
+        plan,  # type: ignore[arg-type]
+        original,
+        package_root,  # type: ignore[arg-type]
+        durable,
+        api=api,
+        name_source=_FixedNameSource(),
+    )
+
+
+def _staging_arrangement() -> tuple[
+    object,
+    _Root,
+    _Storage,
+    _Protection,
+    replacement_journal.PersistedEnvironmentReplacementJournal,
+    _CandidateApi,
+    list[str],
+]:
+    events: list[str] = []
+    root = _Root(events)
+    storage_port = _Storage(root, events)
+    protection = _Protection()
+    durable = _replacement_journal(root, storage_port, protection)
+    package_root = capture_path_hierarchy(
+        _ROOT,
+        purpose=PathTrustPurpose.PACKAGE_ROOT,
+        api=_PathApi(),
+    )
+    return (
+        package_root,
+        root,
+        storage_port,
+        protection,
+        durable,
+        _CandidateApi(events),
+        events,
+    )
+
+
+def _planned_record() -> EnvironmentTempPlanRecord:
+    plan, original = _staging_request()
+    return EnvironmentTempPlanRecord(
+        1,
+        _identity(7),
+        plan.original_sha256,  # type: ignore[attr-defined]
+        plan.candidate_sha256,  # type: ignore[attr-defined]
+        len(plan.candidate_contents),  # type: ignore[attr-defined]
+        _TEMP,
+        True,
+        original.identity,
+        original.size,
+        original.file_attributes,
+        original.security_descriptor_sha256,
+    )
+
+
+def test_persisted_staging_creates_and_selects_complete_candidate() -> None:
+    package_root, _root, storage_port, _protection, durable, api, events = (
+        _staging_arrangement()
+    )
+    try:
+        result = _stage_persisted(package_root, durable, api)
+    finally:
+        package_root.close()  # type: ignore[attr-defined]
+
+    assert (
+        result.verified_receipt.record.candidate_sha256
+        == hashlib.sha256(api.contents).hexdigest()
+    )
+    assert len(storage_port.files) == 3
+    assert events == [
+        "journal:1",
+        "pointer:1",
+        "temp:create",
+        "journal:2",
+        "pointer:2",
+        "temp:write",
+        "temp:flush",
+        "temp:reopen",
+        "journal:3",
+        "pointer:3",
+    ]
+
+
+def test_planned_restart_removes_only_empty_private_orphan_then_recreates() -> None:
+    package_root, _root, storage_port, _protection, durable, api, events = (
+        _staging_arrangement()
+    )
+    durable.record_environment_temp_planned(_planned_record())
+    api.exists = True
+    api.identity = _identity(99)
+    events.clear()
+    try:
+        _stage_persisted(package_root, durable, api)
+    finally:
+        package_root.close()  # type: ignore[attr-defined]
+
+    assert api.exists
+    assert api.identity == _identity(9)
+    assert len(storage_port.files) == 3
+    assert events[:4] == [
+        "temp:delete-open",
+        "temp:delete",
+        "temp:presence",
+        "temp:create",
+    ]
+
+
+def test_planned_orphan_delete_error_is_reconciled_from_exact_absence() -> None:
+    package_root, _root, storage_port, _protection, durable, api, events = (
+        _staging_arrangement()
+    )
+    durable.record_environment_temp_planned(_planned_record())
+    api.exists = True
+    api.identity = _identity(99)
+    api.delete_error = OSError("private")
+    api.delete_error_after_apply = True
+    events.clear()
+    try:
+        _stage_persisted(package_root, durable, api)
+    finally:
+        package_root.close()  # type: ignore[attr-defined]
+
+    assert api.exists
+    assert api.identity == _identity(9)
+    assert len(storage_port.files) == 3
+    assert events[:4] == [
+        "temp:delete-open",
+        "temp:delete",
+        "temp:presence",
+        "temp:create",
+    ]
+
+
+def test_planned_orphan_failed_delete_preserves_exact_file_and_blocks() -> None:
+    package_root, _root, storage_port, _protection, durable, api, events = (
+        _staging_arrangement()
+    )
+    durable.record_environment_temp_planned(_planned_record())
+    api.exists = True
+    api.identity = _identity(99)
+    api.delete_error = OSError("private")
+    events.clear()
+    try:
+        with pytest.raises(
+            replacement_storage.EnvironmentReplacementStorageError
+        ) as failure:
+            _stage_persisted(package_root, durable, api)
+    finally:
+        package_root.close()  # type: ignore[attr-defined]
+
+    assert failure.value.code is (
+        replacement_storage.EnvironmentReplacementStorageErrorCode.WRITE_FAILED
+    )
+    assert api.exists
+    assert "temp:create" not in events
+    assert len(storage_port.files) == 1
+
+
+def test_planned_nonempty_collision_is_preserved_without_delete_or_create() -> None:
+    package_root, _root, storage_port, _protection, durable, api, events = (
+        _staging_arrangement()
+    )
+    durable.record_environment_temp_planned(_planned_record())
+    api.exists = True
+    api.identity = _identity(99)
+    api.contents = b"untrusted"
+    events.clear()
+    try:
+        with pytest.raises(
+            replacement_storage.EnvironmentReplacementStorageError
+        ) as failure:
+            _stage_persisted(package_root, durable, api)
+    finally:
+        package_root.close()  # type: ignore[attr-defined]
+
+    assert failure.value.code is (
+        replacement_storage.EnvironmentReplacementStorageErrorCode.VERIFY_FAILED
+    )
+    assert api.exists
+    assert api.contents == b"untrusted"
+    assert "temp:delete" not in events
+    assert "temp:create" not in events
+    assert len(storage_port.files) == 1
+
+
+def test_created_restart_rewrites_partial_exact_identity_without_recreating() -> None:
+    package_root, _root, storage_port, _protection, durable, api, events = (
+        _staging_arrangement()
+    )
+    planned = durable.record_environment_temp_planned(_planned_record())
+    plan, _original = _staging_request()
+    created_record = EnvironmentTempCreatedRecord(
+        1,
+        planned.generation_sha256,
+        _identity(7),
+        api.identity,
+        plan.candidate_sha256,  # type: ignore[attr-defined]
+        len(plan.candidate_contents),  # type: ignore[attr-defined]
+        api.attributes,
+        api.descriptor,
+        _TEMP,
+    )
+    durable.record_environment_temp_created(created_record)
+    api.exists = True
+    api.contents = b"partial"
+    events.clear()
+    try:
+        result = _stage_persisted(package_root, durable, api)
+    finally:
+        package_root.close()  # type: ignore[attr-defined]
+
+    assert result.verified_receipt.record.temp_identity == api.identity
+    assert api.contents == plan.candidate_contents  # type: ignore[attr-defined]
+    assert "temp:truncate" in events
+    assert "temp:create" not in events
+    assert "temp:delete" not in events
+    assert len(storage_port.files) == 3
+
+
+def test_created_restart_preserves_substituted_identity_without_rewrite() -> None:
+    package_root, _root, storage_port, _protection, durable, api, events = (
+        _staging_arrangement()
+    )
+    planned = durable.record_environment_temp_planned(_planned_record())
+    plan, _original = _staging_request()
+    created_record = EnvironmentTempCreatedRecord(
+        1,
+        planned.generation_sha256,
+        _identity(7),
+        api.identity,
+        plan.candidate_sha256,  # type: ignore[attr-defined]
+        len(plan.candidate_contents),  # type: ignore[attr-defined]
+        api.attributes,
+        api.descriptor,
+        _TEMP,
+    )
+    durable.record_environment_temp_created(created_record)
+    api.exists = True
+    api.identity = _identity(99)
+    api.contents = b"substituted"
+    events.clear()
+    try:
+        with pytest.raises(
+            replacement_storage.EnvironmentReplacementStorageError
+        ) as failure:
+            _stage_persisted(package_root, durable, api)
+    finally:
+        package_root.close()  # type: ignore[attr-defined]
+
+    assert failure.value.code is (
+        replacement_storage.EnvironmentReplacementStorageErrorCode.VERIFY_FAILED
+    )
+    assert api.identity == _identity(99)
+    assert api.contents == b"substituted"
+    assert "temp:truncate" not in events
+    assert "temp:write" not in events
+    assert len(storage_port.files) == 2
+
+
+def test_verified_restart_preserves_drift_and_never_rewrites() -> None:
+    package_root, _root, storage_port, _protection, durable, api, events = (
+        _staging_arrangement()
+    )
+    try:
+        _stage_persisted(package_root, durable, api)
+        api.contents = b"drift"
+        events.clear()
+        with pytest.raises(
+            replacement_storage.EnvironmentReplacementStorageError
+        ) as failure:
+            _stage_persisted(package_root, durable, api)
+    finally:
+        package_root.close()  # type: ignore[attr-defined]
+
+    assert failure.value.code is (
+        replacement_storage.EnvironmentReplacementStorageErrorCode.VERIFY_FAILED
+    )
+    assert api.contents == b"drift"
+    assert "temp:write" not in events
+    assert "temp:truncate" not in events
+    assert len(storage_port.files) == 3

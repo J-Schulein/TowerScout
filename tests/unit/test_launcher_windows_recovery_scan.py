@@ -12,7 +12,10 @@ if str(LAUNCHER_ROOT) not in sys.path:
 
 import towerscout_launcher.windows_recovery_scan as scan  # noqa: E402
 from towerscout_launcher.windows_environment_replacement_native import (  # noqa: E402
+    EnvironmentAppliedRecord,
+    EnvironmentTempCreatedRecord,
     EnvironmentTempPlanRecord,
+    EnvironmentTempVerifiedRecord,
 )
 from towerscout_launcher.windows_protected_state import (  # noqa: E402
     CurrentUserProtectedBlob,
@@ -115,6 +118,7 @@ def _chain(
     journal_id: str,
     package_root_identity: StableFileIdentity,
     provider_environment: bool,
+    provider_applied: bool = False,
 ) -> PersistedEnvironmentJournalChain:
     protection = _Protection()
     stream = JournalStreamIdentity(
@@ -149,24 +153,116 @@ def _chain(
             12,
             False,
         )
-    sealed = protect_environment_journal_generation(
-        EnvironmentJournalGeneration(
+    generations: list[tuple[EnvironmentJournalState, object]] = [(state, record)]
+    if provider_applied:
+        assert provider_environment
+        assert type(record) is EnvironmentTempPlanRecord
+        created = EnvironmentTempCreatedRecord(
             1,
-            stream,
+            "0" * 64,
+            package_root_identity,
+            _identity(9),
+            record.candidate_sha256,
+            record.candidate_size,
+            0x80,
+            "1" * 64,
+            record.temp_name,
+        )
+        verified = EnvironmentTempVerifiedRecord(
             1,
-            GENESIS_GENERATION_SHA256,
-            state,
-            record,
-        ),
-        protection=protection,
-    )
+            "0" * 64,
+            package_root_identity,
+            created.temp_identity,
+            created.candidate_sha256,
+            created.candidate_size,
+            created.candidate_file_attributes,
+            created.candidate_security_descriptor_sha256,
+            created.temp_name,
+        )
+        applied = EnvironmentAppliedRecord(
+            1,
+            "0" * 64,
+            package_root_identity,
+            created.temp_identity,
+            created.candidate_sha256,
+            created.candidate_size,
+            record.original_file_attributes or 0,
+            record.original_security_descriptor_sha256 or "2" * 64,
+            created.temp_name,
+        )
+        generations.extend(
+            (
+                (EnvironmentJournalState.ENVIRONMENT_TEMP_CREATED, created),
+                (EnvironmentJournalState.ENVIRONMENT_TEMP_VERIFIED, verified),
+                (EnvironmentJournalState.ENVIRONMENT_APPLIED, applied),
+            )
+        )
+    sealed_items = []
+    previous = GENESIS_GENERATION_SHA256
+    for sequence, (selected_state, selected_record) in enumerate(
+        generations,
+        start=1,
+    ):
+        if type(selected_record) is EnvironmentTempCreatedRecord:
+            selected_record = EnvironmentTempCreatedRecord(
+                1,
+                previous,
+                selected_record.package_root_identity,
+                selected_record.temp_identity,
+                selected_record.candidate_sha256,
+                selected_record.candidate_size,
+                selected_record.candidate_file_attributes,
+                selected_record.candidate_security_descriptor_sha256,
+                selected_record.temp_name,
+            )
+        elif type(selected_record) is EnvironmentTempVerifiedRecord:
+            selected_record = EnvironmentTempVerifiedRecord(
+                1,
+                previous,
+                selected_record.package_root_identity,
+                selected_record.temp_identity,
+                selected_record.candidate_sha256,
+                selected_record.candidate_size,
+                selected_record.candidate_file_attributes,
+                selected_record.candidate_security_descriptor_sha256,
+                selected_record.temp_name,
+            )
+        elif type(selected_record) is EnvironmentAppliedRecord:
+            selected_record = EnvironmentAppliedRecord(
+                1,
+                previous,
+                selected_record.package_root_identity,
+                selected_record.candidate_identity,
+                selected_record.candidate_sha256,
+                selected_record.candidate_size,
+                selected_record.candidate_file_attributes,
+                selected_record.candidate_security_descriptor_sha256,
+                selected_record.temp_name,
+            )
+        sealed = protect_environment_journal_generation(
+            EnvironmentJournalGeneration(
+                1,
+                stream,
+                sequence,
+                previous,
+                selected_state,
+                selected_record,  # type: ignore[arg-type]
+            ),
+            protection=protection,
+        )
+        sealed_items.append(sealed)
+        previous = sealed.generation_sha256
     selection = select_environment_journal_chain(
-        (sealed,),
+        tuple(sealed_items),
         None,
         expected_stream=stream,
         protection=protection,
     )
-    return PersistedEnvironmentJournalChain((sealed,), (_identity(90),), selection)
+    return PersistedEnvironmentJournalChain(
+        tuple(sealed_items),
+        tuple(_identity(90 + index) for index in range(len(sealed_items))),
+        selection,
+    )
 
 
 def test_classification_ignores_foreign_package_journals() -> None:
@@ -208,6 +304,50 @@ def test_classification_reports_both_pending_protocols() -> None:
     assert result.provider_environment_pending is True
     assert result.mutation_blocked is True
     assert "a" * 32 not in repr(result)
+
+
+def test_applied_provider_journals_are_terminal_and_do_not_block_next_update() -> None:
+    package_root = _identity(1)
+    terminal = _chain(
+        journal_id="a" * 32,
+        package_root_identity=package_root,
+        provider_environment=True,
+        provider_applied=True,
+    )
+
+    result = scan.classify_package_recovery_journals((terminal,), package_root)
+
+    assert result.provider_environment_pending is False
+    assert result.mutation_blocked is False
+
+
+def test_terminal_provider_history_allows_one_new_pending_stream() -> None:
+    package_root = _identity(1)
+    first = _chain(
+        journal_id="a" * 32,
+        package_root_identity=package_root,
+        provider_environment=True,
+        provider_applied=True,
+    )
+    second = _chain(
+        journal_id="b" * 32,
+        package_root_identity=package_root,
+        provider_environment=True,
+        provider_applied=True,
+    )
+    pending = _chain(
+        journal_id="c" * 32,
+        package_root_identity=package_root,
+        provider_environment=True,
+    )
+
+    result = scan.classify_package_recovery_journals(
+        (first, pending, second),
+        package_root,
+    )
+
+    assert result.provider_environment is pending
+    assert result.provider_environment_pending is True
 
 
 @pytest.mark.parametrize("provider_environment", (False, True))

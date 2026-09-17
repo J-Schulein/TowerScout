@@ -804,6 +804,49 @@ def test_native_api_creates_writes_flushes_and_reopens_restrictive_file(
 
 
 @pytest.mark.skipif(os.name != "nt", reason="requires native Windows file APIs")
+def test_native_api_truncates_and_deletes_only_a_held_exact_temp(
+    tmp_path: Path,
+) -> None:
+    api = staging.NativeWindowsEnvironmentReplacementApi()
+    path = (
+        tmp_path / staging.NativeEnvironmentTempNameSource().new_environment_temp_name()
+    )
+    handle: object | None = None
+    try:
+        handle = api.create_new_restricted_file(
+            str(path),
+            owner_sid=api.current_user_sid(),
+        )
+        created = api.query_file(handle)
+        assert api.write_file(handle, b"partial") == len(b"partial")
+        api.truncate_file(handle)
+        truncated = api.query_file(handle)
+        assert truncated.size == 0
+        assert (truncated.volume_serial, truncated.file_id) == (
+            created.volume_serial,
+            created.file_id,
+        )
+        api.close_handle(handle)
+        handle = None
+
+        handle = api.open_file_for_delete_if_exists(str(path))
+        assert handle is not None
+        deleting = api.query_file(handle)
+        assert (deleting.volume_serial, deleting.file_id) == (
+            created.volume_serial,
+            created.file_id,
+        )
+        api.mark_file_for_deletion(handle)
+        api.close_handle(handle)
+        handle = None
+        assert api.reopen_file_if_exists(str(path)) is None
+    finally:
+        if handle is not None:
+            api.close_handle(handle)
+        path.unlink(missing_ok=True)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires native Windows file APIs")
 def test_native_stage_runs_under_retained_package_root_trust(tmp_path: Path) -> None:
     events: list[str] = []
     journal = _Journal(events)

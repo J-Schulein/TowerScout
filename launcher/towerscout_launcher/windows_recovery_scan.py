@@ -176,7 +176,8 @@ def classify_package_recovery_journals(
         if first_state in _REPAIR_STATES:
             repair.append(chain)
         elif first_state in _PROVIDER_ENVIRONMENT_STATES:
-            provider_environment.append(chain)
+            if tip.state is not EnvironmentJournalState.ENVIRONMENT_APPLIED:
+                provider_environment.append(chain)
         else:
             _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
     if len(repair) > 1 or len(provider_environment) > 1:
