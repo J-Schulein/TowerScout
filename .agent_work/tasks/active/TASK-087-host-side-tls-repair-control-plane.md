@@ -1507,6 +1507,41 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-17 - Exact Environment Restore State Classified Fail-Closed
+
+**Objective**: Ensure a fresh recovery process can distinguish only the exact
+original `.env`, the exact transaction-applied candidate, secure absence, and
+all unauthorized third states before any destination mutation is implemented.
+
+**Context**: Candidate hash and size were durable, but exact classification
+also requires the original file identity and a future candidate-applied
+identity plus metadata. Content equality alone cannot authorize overwriting or
+removing a file that another actor may have replaced.
+
+**Decision**: Carry the original stable identity through the purpose-separated
+encrypted backup and generation-1 authority. Add a pure restore-decision model
+that requires exact identity, content, size, attributes, and security metadata
+for either authorized present state; preserve and block every drift or
+indeterminate state. Never authorize a candidate until a later forward journal
+record supplies its applied identity and metadata.
+
+**Execution**: Pushed checkpoint
+`6637c0d7019711146447312bc11371138d6a6960` updates backup canonical encoding,
+preparation/persistence summary checks, and recovery summary matching, then
+adds the redacted pure classifier and adversarial drift coverage.
+
+**Output**: Recovery now has the fail-closed classification prerequisite for
+the native generation-8 apply boundary. No `.env` destination operation,
+certificate write, repair action, cleanup, or runtime mutation is enabled.
+
+**Validation**: Affected backup/restore tests pass `54/54`; the broader
+recovery/provider ring passes `361/361`. Black, strict mypy, configured
+single-job Flake8, medium/high Bandit, compilation, and diff checks pass.
+Exact-head workflows and independent review remain pending.
+
+**Next**: Persist exact forward candidate-applied identity/metadata, then wire
+the narrow native observe/apply/reconcile boundary and generation 8.
+
 ### 2026-09-17 - Environment Candidate Authority Bound Before Recovery Apply
 
 **Objective**: Give fresh-process rollback exact authority to distinguish its

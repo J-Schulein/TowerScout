@@ -2,13 +2,13 @@
 
 **As Of**: September 17, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `16a8224ad3db9930bba0670a3ae907ea895d5b1e`
+**Implementation Head**: `6637c0d7019711146447312bc11371138d6a6960`
 **Validated Exact Head**: `d9f656387f3220588a38f984397acfdad8a24387`
 **Remote Exact-Head Status**: CI/CD run `35238335037`, Task-087 run
 `35238334999`, and Trivy passed; the main-only build is neutral as designed.
-**Local Candidate**: Pushed candidate-authority checkpoint `16a8224`; exact-
-head workflows and independent review remain pending. No `.env` destination
-mutation is implemented or authorized by this checkpoint.
+**Local Candidate**: Pushed exact restore-classification checkpoint `6637c0d`;
+exact-head workflows and independent review remain pending. No `.env`
+destination mutation is implemented or authorized by this checkpoint.
 **Current Checkpoint**: Slices 2-3 exact-target confirmation wiring complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
 hosts, so slice 4 remains partial. Slice 5 has independently reviewed
@@ -284,6 +284,17 @@ Recovery/provider regressions pass `343/343`; strict typing, configured lint,
 Bandit, Black, compilation, and diff checks pass. No destination operation or
 runtime mutation is enabled. Exact-head workflows and independent review are
 pending.
+
+Pushed checkpoint `6637c0d` authenticates the original `.env` stable identity
+through the encrypted backup and generation-1 authority, rejects backup
+persistence if that identity drifts, and adds a pure restore classifier. The
+classifier authorizes only an exact original, an exact durably recorded
+candidate, or secure absence; identity, content, size, attributes, or security-
+descriptor drift is a preserved blocking third state. A candidate without a
+future durable applied identity is never authorized. Affected tests pass
+`54/54`, the broader recovery/provider ring passes `361/361`, and focused
+static/security checks pass. No destination operation or runtime mutation is
+enabled. Exact-head workflows and independent review are pending.
 
 **Slice 9 validation ledger continuation**: Independently reviewed checkpoint
 `ebb9d69` passes `39/39` focused, `105/105` adjacent, and `1647/1647` complete
@@ -571,10 +582,10 @@ state definitions above.
 
 ## Next-Session Resume Point
 
-Continue from the checkpointed generation-8 state contract by implementing the
-narrow native destination classification/apply boundary, including exact
-original/candidate/absent/third-state handling, metadata restoration, and
-post-call reconciliation before generation 8 can be appended. Then add the
+Continue from the checkpointed exact restore classifier by durably recording
+the forward-applied candidate identity and metadata, then implement the narrow
+native destination observe/apply boundary, metadata restoration, and post-call
+reconciliation before generation 8 can be appended. Then add the
 remaining certificate, runtime, rollback-verification, cleaned, and cleanup-
 pending states and integrate the transaction boundary. Retry
 slice 4's successful revocation-aware fixed-host and
