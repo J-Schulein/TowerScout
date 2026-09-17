@@ -426,27 +426,39 @@ Windows tests pass `171/171` and the broad launcher set, excluding only the
 externally antivirus-blocked host-helper module, passes `1930/1930`. No
 destination promotion is enabled; exact-head workflows and independent review
 remain pending.
-Committed checkpoint `5e83e46` implements the exact native destination
+Pushed checkpoint `5e83e46` implements the exact native destination
 promotion/reconciliation boundary and authenticated applied-state schema.
 Focused promotion/recovery tests pass `171/171`; elevated native replacement/
 move passes; `108/108` final review tests pass with the expected unelevated
 policy skip; and the broad launcher ring passes `1959/1959`. It remains unwired
 from durable journal orchestration and production repair, so mutation stays
-disabled. Push, exact-head workflows, and independent review remain pending.
-Committed checkpoint `30e30ef` adds the durable staging adapter and held-root
+disabled; independent review remains pending.
+Pushed checkpoint `30e30ef` adds the durable staging adapter and held-root
 promotion orchestration. It authenticates every immutable generation before
 returning a receipt, makes generation 3 current before destination apply,
 appends generation 4 exactly once after exact completion, and handles a fresh-
 process retry by re-verifying applied state and repairing only the exact
 pointer. Focused and broad tests pass `249/249` and `1973/1973`; all focused
 static/security checks pass. Product call sites and runtime mutation remain
-disabled; push, exact-head workflows, and independent review remain pending.
+disabled; independent review remains pending.
+Pushed checkpoint `d531f82` reconciles planned/created provider residue across
+restart, removes only the exact authorized zero-byte orphan, resumes the exact
+partial temp, and treats applied provider journals as terminal scan evidence.
+Its exact-head Python 3.11/3.12, security, frontend, Docker frontend, Task-087,
+and Trivy checks pass; the main-only build skips as designed.
+Pushed checkpoint `121db54` reloads and cross-checks the authenticated terminal
+provider stream, restores or removes only its exact applied candidate through a
+native held/no-follow boundary, verifies exact original state, and appends
+generation 8 at most once. Focused recovery tests pass `92/92`, the affected
+native ring passes `443/443`, and the broad launcher/Windows set passes
+`2003/2003`; focused static/security and Python 3.11 grammar checks pass.
+Exact-head workflows and independent review remain pending.
 Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `30e30ef` against the fixed acceptance
-criteria rather than commit count. Remaining recovery states/action,
+**Remaining Estimate**: Rebaseline after `121db54` against the fixed acceptance
+criteria rather than commit count. Remaining certificate/runtime recovery states,
 recovery/transaction and provider `.env` integration, successful Windows trust
 proof, final exact-head review, and the PR #67 decision still precede Task-096.
 **Task File**:

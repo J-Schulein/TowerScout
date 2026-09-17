@@ -1507,6 +1507,74 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-17 - Exact Environment Rollback And Generation 8 Persisted
+
+**Objective**: Restore the original package `.env` or secure absence using only
+authenticated recovery and terminal provider authority, then attest the exact
+result durably.
+
+**Context**: Generation 7 held an exact restrictive-DACL restore temp and the
+provider mini-journal held the applied candidate identity/metadata, but no
+native rollback operation or durable generation-8 append consumed both streams.
+
+**Decision**: Reload both authenticated streams under the same protected-root
+hold, require distinct journal IDs with the same target token and package-root
+identity, and cross-check original/candidate facts before mutation. Make
+generation 7 current first. Use `ReplaceFileW` only for the exact candidate when
+an original existed; otherwise delete only that exact candidate through a held
+read/delete handle. Append generation 8 only after exact post-state proof and
+re-verify before pointer-only repair on restart.
+
+**Execution**: Pushed checkpoint `121db54` adds the pure/native rollback
+authority, real Windows replacement/deletion and race tests, provider/recovery
+cross-stream orchestration, restored-identity continuity, and the read access
+needed to hash a delete-held candidate safely.
+
+**Output**: Exact environment rollback survives the apply/append crash window,
+preserves every substituted or drifted third state, and records present or
+absent restoration at most once. Certificate restore, runtime restart/
+verification, terminal cleanup, and production repair wiring remain disabled.
+
+**Validation**: Focused recovery/journal tests pass `92/92`; the corrected
+affected ring passes `443/443`; and broad launcher/Windows tests pass
+`2003/2003`. Strict mypy, Black, blocking Flake8, Bandit, compilation, diff,
+and Python 3.11 grammar checks pass. Exact-head workflows and independent
+review are pending.
+
+**Next**: Add certificate restoration and the remaining recovery/runtime/
+cleanup states before integrating the transaction.
+
+### 2026-09-17 - Provider Restart Reconciliation And Orphan Handling Added
+
+**Objective**: Resume exact provider staging after process termination without
+deleting or overwriting unverified package state.
+
+**Context**: The durable provider mini-journal could apply and attest a verified
+candidate, but planned zero-byte residue and created partial residue still
+blocked restart, and the recovery scanner treated terminal applied history as
+pending.
+
+**Decision**: Remove only the exact recorded zero-byte restrictive-DACL planned
+orphan by a held handle. Resume only the exact created identity by truncating,
+rewriting, flushing, closing, and no-follow reopening it. Preserve every drift
+or ambiguous object. Treat an authenticated applied provider chain as terminal
+scan evidence while retaining repair journals as pending.
+
+**Execution**: Pushed checkpoint `d531f82` adds restart-safe provider staging
+orchestration, exact orphan/partial handling, terminal scan classification, and
+the Python 3.11-safe test expression found by exact-head CI.
+
+**Output**: Planned and created provider states can resume safely after a fresh
+process, and historical applied streams no longer prevent a later transaction.
+
+**Validation**: Affected provider tests pass `137/137`; broad launcher and
+Windows launcher sets passed `1931/1931` and `49/49` at the checkpoint. Its PR
+checks now pass Python 3.11/3.12, security, frontend, Docker frontend, Task-087
+contracts/e2e/host-helper, and Trivy; the main-only build skipped as designed.
+
+**Next**: Consume the authenticated applied record during generation-8
+environment rollback.
+
 ### 2026-09-17 - Durable Provider Environment Apply Orchestration Added
 
 **Objective**: Make the exact provider `.env` staging and promotion authority
@@ -1524,7 +1592,7 @@ root while reloading the verified chain and applying; require generation 3 to
 be current before mutation, append generation 4 exactly once, and on restart
 repair only an otherwise exact applied pointer.
 
-**Execution**: Committed checkpoint
+**Execution**: Pushed checkpoint
 `30e30efd62d94bdd9f279f3217f79a52e8609b67` adds the storage-backed staging
 adapter, held-root promotion orchestrator, expanded journal codec/continuity,
 and exact restart/failure tests for existing and originally absent `.env`
@@ -1563,7 +1631,7 @@ without replacement for exact absence. Reconcile every ordinary result from
 the exact post-call state. Fingerprint owner SID, DACL presence/protection, and
 exact in-use DACL bytes; do not fingerprint unstable descriptor layout bytes.
 
-**Execution**: Committed checkpoint
+**Execution**: Pushed checkpoint
 `5e83e46ef4415f7b63939339a0161e4e67df25ed` adds the pure promotion authority/
 classifier, injectable and ctypes-native storage boundary, real-Windows smoke,
 and generation-4 provider mini-journal `environment_applied` schema/continuity.
