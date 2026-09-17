@@ -109,6 +109,7 @@ class WindowsFileSecurityMetadata:
 class EnvironmentExactStateBackup:
     schema_version: int
     stream: JournalStreamIdentity = field(repr=False)
+    identity: StableFileIdentity | None = field(repr=False)
     contents: bytes | None = field(repr=False)
     security: WindowsFileSecurityMetadata | None = field(repr=False)
     contents_sha256: str = field(init=False, repr=False)
@@ -119,16 +120,23 @@ class EnvironmentExactStateBackup:
             or self.schema_version != _SCHEMA_VERSION
             or type(self.stream) is not JournalStreamIdentity
             or (
+                self.contents is None
+                and (self.identity is not None or self.security is not None)
+            )
+            or (
+                self.contents is not None
+                and (
+                    type(self.identity) is not StableFileIdentity
+                    or self.identity == self.stream.package_root_identity
+                    or type(self.security) is not WindowsFileSecurityMetadata
+                )
+            )
+            or (
                 self.contents is not None
                 and (
                     type(self.contents) is not bytes
                     or len(self.contents) > MAX_ENVIRONMENT_BYTES
                 )
-            )
-            or (self.contents is None and self.security is not None)
-            or (
-                self.contents is not None
-                and type(self.security) is not WindowsFileSecurityMetadata
             )
         ):
             raise ValueError("Environment exact-state backup is invalid.")
@@ -436,6 +444,11 @@ def _environment_to_bytes(backup: EnvironmentExactStateBackup) -> bytes:
         {
             "contents": _encode_bytes(backup.contents),
             "contents_sha256": backup.contents_sha256,
+            "identity": (
+                _identity_to_json(backup.identity)
+                if backup.identity is not None
+                else None
+            ),
             "schema_version": backup.schema_version,
             "security": _security_to_json(backup.security),
             "stream": _stream_to_json(backup.stream),
@@ -451,6 +464,7 @@ def _environment_from_bytes(raw: bytes) -> EnvironmentExactStateBackup:
                 {
                     "contents",
                     "contents_sha256",
+                    "identity",
                     "schema_version",
                     "security",
                     "stream",
@@ -458,11 +472,13 @@ def _environment_from_bytes(raw: bytes) -> EnvironmentExactStateBackup:
             ),
         )
         contents = _decode_bytes(item["contents"])
+        identity = item["identity"]
         if not _valid_hash(item["contents_sha256"]):
             raise ValueError("Environment backup digest is invalid.")
         backup = EnvironmentExactStateBackup(
             item["schema_version"],
             _stream_from_json(item["stream"]),
+            _identity_from_json(identity) if identity is not None else None,
             contents,
             _security_from_json(item["security"]),
         )

@@ -142,6 +142,7 @@ def persist_backup_preparing_generation(
             environment_candidate_sha256=environment_plan.candidate_sha256,
             environment_candidate_size=len(environment_plan.candidate_contents),
             environment_present=environment.existed,
+            environment_original_identity=environment.identity,
             environment_sha256=(
                 environment.contents_sha256 if environment.existed else None
             ),

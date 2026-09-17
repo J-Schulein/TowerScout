@@ -351,6 +351,7 @@ def _sealed_backups(
     protection: _Protection,
     *,
     environment_contents: bytes | None = b"GOOGLE_API_KEY=private-value\r\n",
+    environment_identity: StableFileIdentity = _identity(8),
 ) -> tuple[
     journal.JournalStreamIdentity,
     backup.SealedEnvironmentExactStateBackup,
@@ -360,6 +361,7 @@ def _sealed_backups(
     environment = backup.EnvironmentExactStateBackup(
         1,
         stream,
+        environment_identity if environment_contents is not None else None,
         environment_contents,
         (
             None
@@ -2226,6 +2228,44 @@ def test_summary_drift_fails_before_root_or_blob_write() -> None:
     _stream_again, changed_environment, _certificates_again = _sealed_backups(
         protection,
         environment_contents=b"GOOGLE_API_KEY=changed\r\n",
+    )
+    blobs = _BlobStorage(root)
+
+    with pytest.raises(blob_storage.RecoveryBackupStorageError) as failure:
+        blob_storage.persist_prepared_recovery_backup_blobs(
+            changed_environment,
+            certificates,
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            storage=blobs,
+            backup_protection=protection,
+            journal_protection=protection,
+        )
+
+    assert (
+        failure.value.code
+        is blob_storage.RecoveryBackupStorageErrorCode.AUTHORITY_INVALID
+    )
+    assert not blobs.created
+
+
+def test_original_environment_identity_drift_fails_before_blob_write() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    _prepared(
+        protection,
+        root,
+        generations,
+        environment,
+        certificates,
+        stream,
+    )
+    _stream_again, changed_environment, _certificates_again = _sealed_backups(
+        protection,
+        environment_identity=_identity(80),
     )
     blobs = _BlobStorage(root)
 

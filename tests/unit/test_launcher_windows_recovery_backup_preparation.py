@@ -150,6 +150,7 @@ def _sealed_backups(
     environment = backup.EnvironmentExactStateBackup(
         1,
         selected_stream,
+        _identity(8) if environment_contents is not None else None,
         environment_contents,
         (
             None
@@ -212,6 +213,7 @@ def test_persist_backup_preparing_authenticates_summarizes_and_rereads() -> None
         is journal.EnvironmentJournalState.BACKUP_PREPARING
     )
     assert record.environment_present
+    assert record.environment_original_identity == _identity(8)
     plan = _environment_plan()
     assert record.environment_candidate_sha256 == plan.candidate_sha256
     assert record.environment_candidate_size == len(plan.candidate_contents)
@@ -254,6 +256,7 @@ def test_persist_backup_preparing_preserves_absent_environment() -> None:
     record = persisted.selection.tip.record
     assert type(record) is journal.BackupPreparingRecord
     assert not record.environment_present
+    assert record.environment_original_identity is None
     assert record.environment_sha256 is None
     assert record.environment_file_attributes is None
     assert record.environment_security_descriptor_sha256 is None

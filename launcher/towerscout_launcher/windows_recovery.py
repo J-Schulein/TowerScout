@@ -316,6 +316,7 @@ def _backup_summaries_match(
     security = environment.security
     return (
         preparing.environment_present is environment.existed
+        and preparing.environment_original_identity == environment.identity
         and preparing.environment_sha256
         == (environment.contents_sha256 if environment.existed else None)
         and preparing.environment_file_attributes

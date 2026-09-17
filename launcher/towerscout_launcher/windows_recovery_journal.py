@@ -142,6 +142,10 @@ class BackupPreparingRecord:
     environment_candidate_sha256: str = field(repr=False)
     environment_candidate_size: int
     environment_present: bool
+    environment_original_identity: StableFileIdentity | None = field(
+        default=None,
+        repr=False,
+    )
     environment_sha256: str | None = field(default=None, repr=False)
     environment_file_attributes: int | None = None
     environment_security_descriptor_sha256: str | None = field(
@@ -174,6 +178,7 @@ class BackupPreparingRecord:
         ):
             raise ValueError("Backup preparation record is invalid.")
         environment_values = (
+            self.environment_original_identity,
             self.environment_sha256,
             self.environment_file_attributes,
             self.environment_security_descriptor_sha256,
@@ -181,6 +186,8 @@ class BackupPreparingRecord:
         if self.environment_present:
             if (
                 not _valid_hash(self.environment_sha256)
+                or type(self.environment_original_identity) is not StableFileIdentity
+                or self.environment_original_identity == self.package_root_identity
                 or type(self.environment_file_attributes) is not int
                 or not 0 <= self.environment_file_attributes <= 0xFFFFFFFF
                 or not _valid_hash(self.environment_security_descriptor_sha256)
@@ -933,6 +940,11 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             "environment_candidate_sha256": record.environment_candidate_sha256,
             "environment_candidate_size": record.environment_candidate_size,
             "environment_file_attributes": record.environment_file_attributes,
+            "environment_original_identity": (
+                _identity_to_json(record.environment_original_identity)
+                if record.environment_original_identity is not None
+                else None
+            ),
             "environment_present": record.environment_present,
             "environment_security_descriptor_sha256": (
                 record.environment_security_descriptor_sha256
@@ -1124,6 +1136,7 @@ def _record_from_json(
                     "environment_candidate_sha256",
                     "environment_candidate_size",
                     "environment_file_attributes",
+                    "environment_original_identity",
                     "environment_present",
                     "environment_security_descriptor_sha256",
                     "environment_sha256",
@@ -1135,6 +1148,7 @@ def _record_from_json(
                 }
             ),
         )
+        environment_original_identity = item["environment_original_identity"]
         return BackupPreparingRecord(
             item["schema_version"],
             _identity_from_json(item["package_root_identity"]),
@@ -1143,6 +1157,11 @@ def _record_from_json(
             item["environment_candidate_sha256"],
             item["environment_candidate_size"],
             item["environment_present"],
+            (
+                _identity_from_json(environment_original_identity)
+                if environment_original_identity is not None
+                else None
+            ),
             item["environment_sha256"],
             item["environment_file_attributes"],
             item["environment_security_descriptor_sha256"],

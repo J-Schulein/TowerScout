@@ -134,6 +134,7 @@ def _backup_preparing_record(
         environment_candidate_sha256="a" * 64,
         environment_candidate_size=37,
         environment_present=environment_present,
+        environment_original_identity=_identity(8) if environment_present else None,
         environment_sha256="c" * 64 if environment_present else None,
         environment_file_attributes=0x20 if environment_present else None,
         environment_security_descriptor_sha256=(

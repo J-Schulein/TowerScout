@@ -117,6 +117,7 @@ def _environment(
     return backup.EnvironmentExactStateBackup(
         1,
         stream or _stream(),
+        _identity(8) if contents is not None else None,
         contents,
         security,
     )
@@ -160,6 +161,7 @@ def test_environment_backup_round_trip_is_exact_bound_and_redacted() -> None:
 
     assert restored == expected
     assert restored.existed
+    assert restored.identity == _identity(8)
     assert (
         restored.contents_sha256 == hashlib.sha256(expected.contents or b"").hexdigest()
     )
@@ -185,6 +187,7 @@ def test_absent_environment_backup_round_trip_preserves_absence() -> None:
 
     assert restored == expected
     assert not restored.existed
+    assert restored.identity is None
     assert restored.contents_sha256 == backup.ABSENT_BACKUP_CONTENT_SHA256
 
 
@@ -217,6 +220,15 @@ def test_exact_state_models_reject_inconsistent_presence_metadata() -> None:
             1,
             _stream(),
             None,
+            None,
+            backup.WindowsFileSecurityMetadata(1, 0x20, b"descriptor"),
+        )
+    with pytest.raises(ValueError):
+        backup.EnvironmentExactStateBackup(
+            1,
+            _stream(),
+            None,
+            b"contents",
             backup.WindowsFileSecurityMetadata(1, 0x20, b"descriptor"),
         )
     with pytest.raises(ValueError):

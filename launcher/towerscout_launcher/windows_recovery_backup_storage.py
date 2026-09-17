@@ -183,6 +183,7 @@ def _matches_environment_summary(
     security = backup.security
     return (
         record.environment_present is backup.existed
+        and record.environment_original_identity == backup.identity
         and record.environment_sha256
         == (backup.contents_sha256 if backup.existed else None)
         and record.environment_file_attributes
