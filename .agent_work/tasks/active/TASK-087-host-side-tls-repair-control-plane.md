@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `515c1f5`; `50f6524` is the validated exact head.
+implementation head is `f298a3e`; `801ad72` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -66,12 +66,15 @@ Focused and adversarial tests pass `146/146`; split broad replacement evidence
 passes `536/536` non-native plus `189/189` Windows-native tests. Static/security
 checks pass outside the unchanged backend safe-loader baseline. The initial
 assertion, transition-code, and mypy seam failures were corrected and
-superseded by clean runs. Remaining Gate A implementation is native rollback
-verification plus the `repair.py` transaction refactor/integration. The successful
-Windows trust and isolated Docker/rootless-Podman evidence remains pending a
-supported context and the
-required runtime-readiness confirmation. Repair/runtime integration remains
-disabled.
+superseded by clean runs. Checkpoint `f298a3e` completes native rollback
+verification through retained exact Docker/Podman authority, read-only local-
+state observation, complete runtime/all-volume proof, and bounded readiness/
+provider probes. Its focused tests pass `144/144`, and the selected recovery/
+runtime-target ring passes `764/764`; focused static/security gates pass. The
+remaining Gate A implementation is the `repair.py` transaction/recovery-manager
+integration. The successful Windows trust and isolated Docker/rootless-Podman
+evidence remains pending a supported context and the required runtime-readiness
+confirmation. Repair/runtime integration remains disabled.
 
 Checkpoint `515c1f5` binds the sanitized pre-mutation readiness condition and
 repairable provider outcome into authenticated generation 1, then derives exact
@@ -85,6 +88,23 @@ blocking/unused-code Flake8, Bandit, and diff checks pass. All observed fixture,
 test-layout, lint-invocation, unused-local, and over-broad patch failures were
 corrected and superseded by clean replacement runs. No live runtime command was
 issued.
+
+Checkpoint `f298a3e` completes the native terminal rollback-verification port.
+It uses fixed contained Docker/Podman commands to obtain only bounded readiness
+and keyless provider TLS categories, freshly observes the exact held package
+`.env` and both fixed certificate destinations, and verifies the authenticated
+runtime, container, and all eight volume identities before terminal evidence is
+accepted. Exact prior readiness or provider-success-plus-`ready` is required;
+external probe uncertainty remains `provider_recheck_indeterminate` and cannot
+claim provider success. Focused tests pass `144/144`; the selected complete
+recovery/runtime-target ring passes `764/764`. Black, strict/normal mypy,
+blocking/unused-code Flake8, focused Bandit outside the unchanged backend
+safe-loader/assert baseline, compilation, Python 3.11 grammar, and diff checks
+pass. The two ACL-inaccessible pytest basetemps were superseded by `1/1` native
+and `144/144` focused passes in fresh external roots. The initial strict-mypy
+object narrowing finding was fixed while preserving exact-type rejection; the
+Black check/diff pipe denial was superseded by a clean single-worker format run.
+No failed product check is carried, and no live runtime command was issued.
 
 **Chronological implementation ledger**: The September 14
 checkpoint closes slices 2-3 exact-target confirmation ownership and ordered
@@ -312,10 +332,10 @@ and normal typing failures were corrected and superseded by clean runs. No live
 runtime command was issued.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `515c1f5` against the fixed acceptance
-criteria rather than commit count. Remaining rollback-verification adapter,
-recovery/transaction integration, successful Windows trust/live-runtime proof,
-final exact-head review, and the PR #67 decision remain
+**Estimated Effort**: Rebaseline after `f298a3e` against the fixed acceptance
+criteria rather than commit count. Recovery/transaction integration, successful
+Windows trust/live-runtime proof, final exact-head review, and the PR #67
+decision remain
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision
 and the canonical October roadmap
 **Created**: 2026-06-29
