@@ -5,7 +5,8 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `d1494f6`; `076d566` is the validated exact head.
+implementation head is `b2f6458`; `076d566` remains the last remotely validated
+exact head until the new checkpoint is pushed and its workflows finish.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -71,10 +72,14 @@ verification through retained exact Docker/Podman authority, read-only local-
 state observation, complete runtime/all-volume proof, and bounded readiness/
 provider probes. Its focused tests pass `144/144`, and the selected recovery/
 runtime-target ring passes `764/764`; focused static/security gates pass. The
-ordered lock/recovery context is now retained through confirmation. The
-remaining Gate A implementation is its durable recovery/`repair.py` execution
-integration plus the absent-target recovery front door. The successful Windows
-trust and isolated Docker/rootless-Podman
+ordered lock/recovery context is now retained through confirmation. Checkpoint
+`b2f6458` adds the authenticated fresh-process recovery front door for retained-
+present or exact-absent targets under the same ordered lock pair, resumes the
+durable native manager, and requires a clean rescan. Its evidence passes
+`226/226` focused, `849/849` broad non-native, and `245/245` isolated native
+tests plus focused static/security gates. The remaining Gate A implementation
+is launcher admission and durable forward-transaction/`repair.py` integration.
+The successful Windows trust and isolated Docker/rootless-Podman
 evidence remains pending a supported context and the required runtime-readiness
 confirmation. Repair/runtime integration remains disabled.
 
@@ -153,6 +158,62 @@ unavailable, and a raw Flake8 run included non-gate line-length findings; both
 were superseded by the isolated native proof and the repository's actual lint
 gates. No failed product check is carried, and no live runtime command was
 issued.
+
+### 2026-09-18 - Authenticated Recovery Front Door Checkpointed
+
+**Objective**: Close the fresh-process recovery-front-door increment before
+launcher admission and forward-transaction integration.
+
+**Execution**: Reviewed the complete WIP diff, corrected the transaction-context
+module contract, added adversarial present-to-absent fallback and interruption
+tests, and committed the source/test checkpoint as `b2f6458`. The front door
+captures only the fixed executable-relative package root, holds the environment
+mutex before protected-state scan, blocks provider recovery, reconstructs target
+authority only from the authenticated repair chain, acquires the stable target
+mutex, transfers every retained owner into the transaction context, resumes the
+native rollback manager, and requires a clean rescan. Forward repair remains
+disabled and the launcher still does not call this boundary.
+
+**Validation**: Python 3.12 focused tests pass `226/226`; the broad non-native
+recovery/target/environment ring passes `849/849`; and 12 Windows-native files
+pass `245/245` in isolated external temp roots. Black, strict mypy, single-worker
+blocking/unused-code Flake8, Bandit, compilation, Python 3.11 grammar, and diff
+checks pass. The first pytest command selected ambient Python 3.14 without
+pytest, so no tests ran; the repository Python 3.12 environment superseded it.
+Flake8 multiprocessing was denied before analysis and was superseded by clean
+single-worker runs. No failed product check is carried.
+
+**Next**: Push the checkpoint and documentation ledger, require exact-head
+workflows, then wire startup recovery admission and replace the legacy
+`repair.py` transaction only after the durable forward-journal and terminal-
+provider linkage boundaries are explicit.
+
+### 2026-09-17 - Recovery Front Door Left As Validated WIP
+
+**Objective**: Preserve an exact resume point after implementing but before
+committing the absent-target fresh-process recovery front door.
+
+**Execution**: The uncommitted candidate captures fixed package and protected
+roots, acquires the environment mutex before scanning, blocks provider recovery,
+reconstructs certificate/runtime authority from authenticated repair state,
+supports retained-present and exact-absent targets under the same stable target
+mutex, transfers all owners to the retained context, resumes the durable native
+manager, and requires a clean rescan. Confirmation now blocks a new repair when
+repair recovery is pending. The launcher app is not wired to the new front door,
+and forward mutation remains disabled.
+
+**Validation**: The focused set passes `223/223`; two direct authority-helper
+regressions pass; and Black, strict mypy, blocking/unused-code Flake8, Bandit,
+compilation, Python 3.11 grammar, and diff checks pass across the touched set.
+The missing test import and two Bandit silent-handler findings were fixed and
+superseded by clean reruns. PR #67 is green at `bd354eb`. No failed product check
+is carried and no live mutation was run.
+
+**Resume**: Follow the exact file inventory, remaining validation, design
+boundaries, and first commands in the
+[`recovery-front-door WIP handoff`](../../context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
+Rerun the focused set after the final cleanup refactor, complete broad/native
+evidence, then commit/push before starting launcher admission or `repair.py`.
 
 ### 2026-09-17 - Ordered Repair Transaction Context Retained
 

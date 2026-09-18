@@ -188,12 +188,15 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `d1494f6` retains the exact target plus ordered
-  lock/recovery context through confirmation after native rollback composition.
-  `076d566` is the validated exact head: CI/CD run `35294378326`, Task-087 run
-  `35294378346`, and Trivy passed. Durable transaction/fresh-process recovery
-  integration and live trust/runtime proof remain; PR #67
-  remains Draft.
+- Task-087 implementation head `b2f6458` adds the authenticated fresh-process
+  recovery front door on top of the retained exact target and ordered lock/
+  recovery context. Local evidence passes `226/226` focused, `849/849` broad
+  non-native, and `245/245` isolated Windows-native tests plus all focused
+  static/security gates. The pre-push PR head `bd354eb` remains fully green.
+  See the
+  [`September 17 WIP handoff`](./context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
+  Launcher admission, durable forward-transaction integration, and live trust/
+  runtime proof remain; PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed
   status and evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
