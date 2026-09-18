@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `6ff351c`; `076d566` is the validated exact head.
+implementation head is `d1494f6`; `076d566` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -71,8 +71,10 @@ verification through retained exact Docker/Podman authority, read-only local-
 state observation, complete runtime/all-volume proof, and bounded readiness/
 provider probes. Its focused tests pass `144/144`, and the selected recovery/
 runtime-target ring passes `764/764`; focused static/security gates pass. The
-remaining Gate A implementation is the `repair.py` transaction/recovery-manager
-integration. The successful Windows trust and isolated Docker/rootless-Podman
+ordered lock/recovery context is now retained through confirmation. The
+remaining Gate A implementation is its durable recovery/`repair.py` execution
+integration plus the absent-target recovery front door. The successful Windows
+trust and isolated Docker/rootless-Podman
 evidence remains pending a supported context and the required runtime-readiness
 confirmation. Repair/runtime integration remains disabled.
 
@@ -132,6 +134,53 @@ formatting issue, two missing test annotation imports, and two stale source
 imports; all were corrected and superseded by clean runs. The full touched-
 source Bandit run reports only the unchanged strict-loader/assert baseline.
 No failed product check is carried, and no live runtime command was issued.
+
+Checkpoint `d1494f6` adds the retained Windows transaction context and connects
+it to the production confirmation lifetime. It duplicates and identity-matches
+the package-root lease while the exact owner is held, retains one protected
+recovery root, acquires the environment mutex before the authenticated recovery
+scan and the target mutex afterward, and retains the scan plus abandoned-lock
+evidence through cleanup. Provider-environment recovery blocks before target-
+lock acquisition; pending repair recovery remains read-only evidence. Focused
+tests pass `16/16`; the affected broad ring passes `421/421`; and the native
+protected-DACL proof passes `1/1` in an isolated external temp root. Black,
+strict mypy, blocking/unused-code Flake8, Bandit, compilation, Python 3.11
+grammar, and diff checks pass. New exception-chain assertions exposed private
+failure detail behind an otherwise sanitized confirmation error; error raising
+was moved outside the private handler and the assertions now pass. The first
+combined broad run's intentional DACL hardening made its shared pytest temp
+unavailable, and a raw Flake8 run included non-gate line-length findings; both
+were superseded by the isolated native proof and the repository's actual lint
+gates. No failed product check is carried, and no live runtime command was
+issued.
+
+### 2026-09-17 - Ordered Repair Transaction Context Retained
+
+**Objective**: Carry the exact target, protected recovery state, and required
+cross-session lock ownership across typed confirmation without enabling repair
+mutation.
+
+**Execution**: Added a native transaction-context capture that duplicates the
+already-held package-root authority and rejects an identity mismatch, captures
+one protected recovery root, acquires the environment mutex, scans and
+classifies authenticated provider/repair recovery state, then acquires the
+exact target mutex. The context retains all owners on the creating thread and
+revalidates them around each package-root callback. The confirmation
+coordinator now owns both the resolved target and this context and closes both
+on rejection, timeout, drift, cancellation, or mutation-disabled execution.
+
+**Validation**: Focused context/confirmation tests passed `16/16`; the selected
+target, observation, factory, lock, recovery-scan, protected-state, and legacy
+launcher ring passed `421/421`; and the native protected-DACL test passed `1/1`
+in an isolated external temp root. Formatting, strict typing, blocking and
+unused-code lint, Bandit, compilation, Python 3.11 grammar, and diff checks
+passed. A real exception-chain disclosure found during double-checking was
+fixed and covered. The ACL temp-root and over-broad raw-lint failures were
+replaced by clean scoped evidence; no failed product check remains.
+
+**Next**: Add fresh-process admission when the authenticated repair journal is
+pending but the original container may be absent, then transfer the retained
+context into the durable repair executor and remove the unsafe prototype path.
 
 ### 2026-09-17 - Retained Package-Root Lease Bridge Added
 
