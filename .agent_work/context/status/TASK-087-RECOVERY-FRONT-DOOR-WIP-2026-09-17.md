@@ -1,25 +1,25 @@
 # TASK-087 Recovery And Forward-Journal WIP Handoff
 
-**As Of**: September 18, 2026 certificate-staging checkpoint
+**As Of**: September 18, 2026 certificate-apply checkpoint
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Local Head**: `8a6dd47`
-**Remote/PR Head**: `4ced15d`
+**Local Head**: `9bdf51c`
+**Remote/PR Head**: `9873c42`
 **State**: Recovery front door and startup admission are exact-head validated;
-durable forward linkage and certificate candidate staging are committed locally;
-certificate apply and transaction integration remain disabled
+durable forward linkage, candidate staging, and retained-target certificate
+apply are committed locally; transaction integration remains disabled
 
 ## Remote Status
 
-PR #67 remains Draft at exact head `4ced15d`. CI/CD run `35362357713`, Task-087
-run `35362357721`, and Trivy are green: Python 3.11, Python 3.12, security,
+PR #67 remains Draft at exact head `9873c42`. CI/CD run `35364176635`, Task-087
+run `35364176462`, and Trivy are green: Python 3.11, Python 3.12, security,
 frontend, Docker frontend, production controller contracts/e2e, and Windows
 host-helper contracts pass. The main-only build is skipped as designed.
 
 ## Current Checkpoint
 
-Checkpoints `9d7f533` and `8a6dd47` add a separate authenticated forward repair
-stream and exact certificate candidate staging without changing the proven
-rollback chain:
+Checkpoints `9d7f533`, `8a6dd47`, and `9bdf51c` add a separate authenticated
+forward repair stream, exact candidate staging, and retained-target certificate
+apply without changing the proven rollback chain:
 
 - the stream is anchored to the exact rollback journal ID and
   `rollback_armed` generation digest;
@@ -40,10 +40,14 @@ rollback chain:
   the exact current-user/SYSTEM DACL, flushes and rereads exact bytes, and
   verifies by no-follow reopen before the verified generation; and
 - retry handles bytes-written/generation-missing and generation-written/pointer-
-  missing windows without choosing another name or accepting drift.
+  missing windows without choosing another name or accepting drift; and
+- apply independently reconciles the authenticated pointer, retains both exact
+  protected-root sources, accepts only the authenticated original/absence or
+  already-applied candidate, atomically replaces and flushes each destination,
+  proves both stage paths absent, then persists `certificates_applied`.
 
-The checkpoint intentionally provides no certificate apply executor, forward
-cleanup owner, or live runtime mutation. The legacy `repair.py`
+The checkpoint intentionally provides no forward-temp cleanup owner or
+integrated live runtime mutation. The legacy `repair.py`
 transaction is still not authoritative and forward mutation remains disabled.
 
 Do not stage or remove the ACL-inaccessible `.agent_work/pytest-basetemp-*`
@@ -51,7 +55,8 @@ directories. They are local test residue and unrelated to the candidate.
 
 ## Evidence Completed
 
-- Certificate/recovery/storage selected ring: `197/197` passed.
+- Retained-target/recovery/journal selected ring: `337/337` passed.
+- Certificate/recovery/storage staging ring: `197/197` passed.
 - Forward journal/storage/scanner/context tests: `65/65` passed before the
   certificate staging extension.
 - Broader selected recovery/provider/target/native-storage ring: `700/700`
@@ -82,10 +87,12 @@ carried.
    `4ced15d` passed all exact-head checks.
 4. Exact forward certificate temp metadata plus protected native candidate
    staging through verified generation were committed as `8a6dd47`.
+5. Retained-target atomic certificate apply plus durable
+   `certificates_applied` proof were committed as `9bdf51c`.
 
 ## Resume Point
 
-Add authenticated certificate apply and cleanup ownership, then refactor
+Add authenticated forward-temp cleanup ownership, then refactor
 `repair.py` around the immutable resolved target, forward journal,
 and durable rollback manager. Preserve the `BEFORE_MUTATION`, `BEFORE_RESTART`,
 and `TERMINAL` revalidation order and keep live mutation disabled until the

@@ -1896,6 +1896,39 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-18 - Verified Certificate Candidates Applied Durably
+
+**Objective**: Apply both authenticated forward candidates without recapturing
+an ambient runtime target or claiming success before exact post-mutation proof.
+
+**Decision**: Bind apply to the exact current forward pointer, armed rollback
+generation, rollback original-state record, candidate plan, target token, and
+package identity. Retain both protected-root source identities while copying;
+accept only the authenticated original/absence or already-applied candidate;
+and persist `certificates_applied` only after both destination hashes, sizes,
+modes, and in-container stage absences are freshly verified.
+
+**Execution**: Checkpoint `9bdf51c` adds fixed Docker/Podman candidate stage,
+atomic apply, and exact staged-candidate removal operations. The container-side
+apply validates the current destination and staged source, normalizes mode,
+flushes the candidate, atomically replaces the fixed destination, and flushes
+the parent directory. The orchestrator safely resumes stage/apply/journal crash
+windows, blocks unrelated destination or stage drift, retains the two native
+host source handles throughout copy/apply, and appends generation 4 only after
+exact proof.
+
+**Validation**: The affected retained-target, recovery, journal, staging, and
+transaction-context ring passes `337/337` in a fresh external temp root. Black,
+strict mypy, blocking/unused-code Flake8, Bandit, and diff checks pass. During
+review, the apply boundary was corrected to reconcile and reread the forward
+pointer because the generation-only loader deliberately reports it missing;
+the corrected full ring passes. No failed product check is carried.
+
+**Next**: Delete only the two exact recorded forward temp identities after the
+applied generation is durable, then integrate provider/runtime/terminal states
+and refactor `repair.py` behind ordered revalidation. Launcher mutation remains
+disabled until that integrated path is complete and reviewed.
+
 ### 2026-09-18 - Forward Certificate Candidates Staged Durably
 
 **Objective**: Close the forward journal's certificate-temp metadata gap and
