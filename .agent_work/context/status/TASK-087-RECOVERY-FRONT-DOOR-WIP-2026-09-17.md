@@ -1,17 +1,18 @@
 # TASK-087 Recovery And Forward-Journal WIP Handoff
 
-**As Of**: September 18, 2026 mutation-composition checkpoint
+**As Of**: September 18, 2026 runtime-start checkpoint
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Local Head**: `4b9a44d`
-**Remote/PR Head**: `8fd5806`
+**Local Head**: `ab5aefa`
+**Remote/PR Head**: `01d2a96`
 **State**: Recovery front door and startup admission are exact-head validated;
-durable rollback/forward preparation plus certificate/provider mutation
-composition are committed locally; transaction integration remains disabled
+durable rollback/forward preparation plus certificate/provider/runtime mutation
+composition through `runtime_started` are committed locally; transaction
+integration remains disabled
 
 ## Remote Status
 
-PR #67 remains Draft at pushed head `8fd5806`. CI/CD run `35372618247`,
-Task-087 run `35372618295`, and Trivy are fully green; the main-only build is
+PR #67 remains Draft at pushed head `01d2a96`. CI/CD run `35373767689`,
+Task-087 run `35373767723`, and Trivy are fully green; the main-only build is
 skipped as designed.
 
 ## Current Checkpoint
@@ -111,15 +112,23 @@ carried.
     promotion were composed as `4b9a44d`. The forward journal reaches current
     `environment_applied`; focused tests pass `16/16`, strict typing and
     focused static/security checks pass, and no launcher call site was added.
+11. Exact old-container removal was composed as `e9a8559`; the retained owner
+    is consumed at the fixed direct-ID removal boundary after durable
+    `runtime_stopping` intent and reaches current `runtime_stopped` only on
+    exact successful process evidence.
+12. Repaired-profile start/rebinding was composed as `ab5aefa`. Fresh inputs
+    and exact absence are captured twice, only the fixed service is started,
+    and a new owner is returned after unchanged image/all-volume proof and a
+    changed container. The expanded runtime/repair ring passes `371/371` and
+    focused static/security checks pass.
 
 ## Resume Point
 
-Compose runtime stop/start, terminal verification, commit, exact cleanup, and
-recovery-on-failure above the now-current `environment_applied` forward state.
-Then refactor `repair.py` around the immutable resolved target and durable
-rollback manager. Preserve the `BEFORE_MUTATION`, `BEFORE_RESTART`, and
-`TERMINAL` revalidation order and keep live mutation disabled until the
-integrated path is complete and reviewed.
+Compose terminal verification, commit, exact cleanup, and recovery-on-failure
+above the now-current `runtime_started` forward state. Then refactor `repair.py`
+around the immutable resolved target and durable rollback manager. Preserve the
+`BEFORE_MUTATION`, `BEFORE_RESTART`, and `TERMINAL` revalidation order and keep
+live mutation disabled until the integrated path is complete and reviewed.
 
 The successful revocation-aware Windows trust proof and isolated Docker/rootless
 Podman mutation/recovery evidence still require a supported context and explicit

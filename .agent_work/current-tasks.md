@@ -189,16 +189,16 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `4b9a44d` composes exact certificate apply/temp
-  cleanup and authenticated provider `.env` stage/promotion through durable
-  `environment_applied` under the retained transaction context. Focused tests
-  pass `16/16`, and the static/security checks pass. Validated exact head
-  `8fd5806` is fully green in CI/CD run `35372618247`, Task-087 run
-  `35372618295`, and Trivy.
+- Task-087 implementation head `ab5aefa` now composes exact certificate and
+  provider mutation through runtime stop/start, including fresh twice-captured
+  repaired-profile absence, fixed service-only start, and a newly bound exact
+  container owner. The expanded runtime/repair ring passes `371/371`, and the
+  focused static/security checks pass. Validated exact head `01d2a96` is fully
+  green in CI/CD run `35373767689`, Task-087 run `35373767723`, and Trivy.
   See the
   [`September 17 WIP handoff`](./context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
-  Remaining runtime/terminal/cleanup and recovery-on-failure integration, the
-  `repair.py` refactor, and live trust/runtime proof remain;
+  Remaining terminal verification/commit/cleanup and recovery-on-failure
+  integration, the `repair.py` refactor, and live trust/runtime proof remain;
   PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed
   status and evidence are maintained in the

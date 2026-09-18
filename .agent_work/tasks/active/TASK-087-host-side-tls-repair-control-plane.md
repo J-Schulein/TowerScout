@@ -5,8 +5,8 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `4b9a44d`; `8fd5806` is the latest remotely validated
-exact head. Its CI/CD run `35372618247`, Task-087 run `35372618295`, and Trivy
+implementation head is `ab5aefa`; `01d2a96` is the latest remotely validated
+exact head. Its CI/CD run `35373767689`, Task-087 run `35373767723`, and Trivy
 passed; the main-only build was neutral as designed.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
@@ -89,8 +89,15 @@ isolated strict typing, single-worker lint, Bandit, compilation, Python 3.11
 grammar, and diff checks pass. Checkpoint `4b9a44d` composes exact certificate
 apply/temp cleanup and provider environment stage/promotion through durable
 current `environment_applied`; its focused `16/16` and static/security checks
-pass. The remaining Gate A implementation is runtime/terminal/cleanup and
-recovery-on-failure composition plus durable `repair.py` integration.
+pass. Checkpoint `e9a8559` then durably records stop intent and removes only the
+authenticated old container by exact ID. Checkpoint `ab5aefa` reconstructs the
+post-promotion plan without trust reselection, twice verifies exact absence,
+starts only the repaired service profile, and returns a newly captured exact
+owner after proving unchanged image and all-volume authority plus a changed
+container. The expanded runtime/repair ring passes `371/371`; strict typing,
+blocking lint, focused Bandit, compilation, and diff checks pass. The remaining
+Gate A implementation is terminal verification/commit/cleanup and recovery-on-
+failure composition plus durable `repair.py` integration.
 The successful Windows trust and isolated Docker/rootless-Podman
 evidence remains pending a supported context and the required runtime-readiness
 confirmation. Repair/runtime integration remains disabled.
