@@ -1,25 +1,25 @@
 # TASK-087 Recovery And Forward-Journal WIP Handoff
 
-**As Of**: September 18, 2026 certificate-apply checkpoint
+**As Of**: September 18, 2026 certificate-temp-cleanup checkpoint
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Local Head**: `9bdf51c`
-**Remote/PR Head**: `9873c42`
+**Local Head**: `244eeb7`
+**Remote/PR Head**: `c62f759`
 **State**: Recovery front door and startup admission are exact-head validated;
-durable forward linkage, candidate staging, and retained-target certificate
-apply are committed locally; transaction integration remains disabled
+durable forward linkage, candidate staging/apply, and exact forward-temp cleanup
+are committed locally; transaction integration remains disabled
 
 ## Remote Status
 
-PR #67 remains Draft at exact head `9873c42`. CI/CD run `35364176635`, Task-087
-run `35364176462`, and Trivy are green: Python 3.11, Python 3.12, security,
-frontend, Docker frontend, production controller contracts/e2e, and Windows
-host-helper contracts pass. The main-only build is skipped as designed.
+PR #67 remains Draft at pushed head `c62f759`; its specialized/security checks
+pass while Python 3.11/3.12 remain in progress. Validated exact head `9873c42`
+is fully green in CI/CD run `35364176635`, Task-087 run `35364176462`, and
+Trivy. The main-only build is skipped as designed.
 
 ## Current Checkpoint
 
-Checkpoints `9d7f533`, `8a6dd47`, and `9bdf51c` add a separate authenticated
-forward repair stream, exact candidate staging, and retained-target certificate
-apply without changing the proven rollback chain:
+Checkpoints `9d7f533`, `8a6dd47`, `9bdf51c`, and `244eeb7` add a separate
+authenticated forward repair stream, exact candidate staging/apply, and
+forward-temp cleanup without changing the proven rollback chain:
 
 - the stream is anchored to the exact rollback journal ID and
   `rollback_armed` generation digest;
@@ -44,10 +44,12 @@ apply without changing the proven rollback chain:
 - apply independently reconciles the authenticated pointer, retains both exact
   protected-root sources, accepts only the authenticated original/absence or
   already-applied candidate, atomically replaces and flushes each destination,
-  proves both stage paths absent, then persists `certificates_applied`.
+  proves both stage paths absent, then persists `certificates_applied`; and
+- cleanup accepts exact absence and otherwise deletes only the two recorded host
+  identities after revalidating restrictive DACL, size, and full content hash.
 
-The checkpoint intentionally provides no forward-temp cleanup owner or
-integrated live runtime mutation. The legacy `repair.py`
+The checkpoint intentionally provides no integrated live runtime mutation. The
+legacy `repair.py`
 transaction is still not authoritative and forward mutation remains disabled.
 
 Do not stage or remove the ACL-inaccessible `.agent_work/pytest-basetemp-*`
@@ -55,7 +57,7 @@ directories. They are local test residue and unrelated to the candidate.
 
 ## Evidence Completed
 
-- Retained-target/recovery/journal selected ring: `337/337` passed.
+- Retained-target/recovery/journal selected ring: `339/339` passed.
 - Certificate/recovery/storage staging ring: `197/197` passed.
 - Forward journal/storage/scanner/context tests: `65/65` passed before the
   certificate staging extension.
@@ -89,11 +91,11 @@ carried.
    staging through verified generation were committed as `8a6dd47`.
 5. Retained-target atomic certificate apply plus durable
    `certificates_applied` proof were committed as `9bdf51c`.
+6. Retry-safe exact forward-candidate temp cleanup was committed as `244eeb7`.
 
 ## Resume Point
 
-Add authenticated forward-temp cleanup ownership, then refactor
-`repair.py` around the immutable resolved target, forward journal,
+Refactor `repair.py` around the immutable resolved target, forward journal,
 and durable rollback manager. Preserve the `BEFORE_MUTATION`, `BEFORE_RESTART`,
 and `TERMINAL` revalidation order and keep live mutation disabled until the
 integrated path is complete and reviewed.

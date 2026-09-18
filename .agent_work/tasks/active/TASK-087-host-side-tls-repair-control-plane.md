@@ -1896,6 +1896,33 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-18 - Applied Certificate Temps Cleaned By Exact Identity
+
+**Objective**: Remove the two plaintext forward candidate files after durable
+apply without deleting a substituted file or making a partial cleanup fatal to
+retry.
+
+**Decision**: Permit cleanup only from an authenticated current four-generation
+forward chain ending in `certificates_applied`. Treat exact absence as success;
+otherwise require the recorded stable identity, protected DACL, exact size, and
+full candidate hash immediately before handle-based deletion.
+
+**Execution**: Checkpoint `244eeb7` adds a purpose-limited cleanup owner and the
+native deletion primitive. It reconciles/rereads the forward pointer under the
+protected root, accepts a first-file-deleted/second-file-present retry, and
+preserves any identity, ACL, size, or content drift for recovery rather than
+guessing.
+
+**Validation**: The affected retained-target, recovery, journal, staging,
+cleanup, and transaction-context ring passes `339/339`. Black, strict mypy,
+blocking/unused-code Flake8, Bandit, and diff checks pass. No failed product
+check is carried.
+
+**Next**: Compose certificate staging/apply/cleanup with the existing provider
+environment transaction, runtime stop/start, terminal verifier, and rollback
+manager behind ordered confirmation revalidation. Launcher mutation remains
+disabled until that integrated path is complete and reviewed.
+
 ### 2026-09-18 - Verified Certificate Candidates Applied Durably
 
 **Objective**: Apply both authenticated forward candidates without recapturing
