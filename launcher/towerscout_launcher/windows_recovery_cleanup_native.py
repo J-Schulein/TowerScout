@@ -39,6 +39,12 @@ from .windows_recovery_journal import (
     RollbackVerifiedRecord,
 )
 from .windows_recovery_journal_storage import PersistedEnvironmentJournalChain
+from .windows_repair_transaction_journal import (
+    RepairTransactionState,
+)
+from .windows_repair_transaction_journal_storage import (
+    PersistedRepairTransactionChain,
+)
 from .windows_security import (
     NativeFileFacts,
     NativeWindowsFileApi,
@@ -68,6 +74,13 @@ _CLEANUP_STATES = frozenset(
     }
 )
 _CLEANED_STATES = frozenset({EnvironmentJournalState.CLEANED})
+_REPAIR_CLEANUP_STATES = frozenset(
+    {
+        RepairTransactionState.COMMITTED,
+        RepairTransactionState.RECOVERY_CLEANUP_PENDING,
+    }
+)
+_REPAIR_CLEANED_STATES = frozenset({RepairTransactionState.CLEANED})
 _Result = TypeVar("_Result")
 
 
@@ -405,6 +418,57 @@ def _cleanup_artifacts(
     return tuple(artifacts)
 
 
+def _repair_cleanup_artifacts(
+    rollback: PersistedEnvironmentJournalChain,
+    forward: PersistedRepairTransactionChain,
+) -> tuple[_CleanupArtifact, ...]:
+    if (
+        type(rollback) is not PersistedEnvironmentJournalChain
+        or type(forward) is not PersistedRepairTransactionChain
+        or len(rollback.selection.generations) < 3
+        or len(forward.selection.generations) not in {14, 15, 16}
+        or forward.selection.tip.stream.rollback_journal_id
+        != rollback.selection.tip.stream.journal_id
+        or forward.selection.tip.stream.rollback_armed_generation_sha256
+        != rollback.selection.generation_sha256s[2]
+        or forward.selection.tip.stream.target_token_sha256
+        != rollback.selection.tip.stream.target_token_sha256
+        or forward.selection.tip.stream.package_root_identity
+        != rollback.selection.tip.stream.package_root_identity
+    ):
+        _fail(RecoveryCleanupStorageErrorCode.AUTHORITY_INVALID)
+    preparing = rollback.selection.generations[0].record
+    verified = rollback.selection.generations[1].record
+    if (
+        type(preparing) is not BackupPreparingRecord
+        or type(verified) is not BackupVerifiedRecord
+        or preparing.package_root_identity
+        != forward.selection.tip.stream.package_root_identity
+        or verified.package_root_identity
+        != forward.selection.tip.stream.package_root_identity
+    ):
+        _fail(RecoveryCleanupStorageErrorCode.AUTHORITY_INVALID)
+    artifacts = (
+        _CleanupArtifact(
+            _ArtifactLocation.PROTECTED_ROOT,
+            preparing.environment_backup_name,
+            verified.environment_backup_identity,
+            verified.environment_ciphertext_sha256,
+            verified.environment_ciphertext_size,
+        ),
+        _CleanupArtifact(
+            _ArtifactLocation.PROTECTED_ROOT,
+            preparing.certificate_backup_name,
+            verified.certificate_backup_identity,
+            verified.certificate_ciphertext_sha256,
+            verified.certificate_ciphertext_size,
+        ),
+    )
+    if len({artifact.name for artifact in artifacts}) != len(artifacts):
+        _fail(RecoveryCleanupStorageErrorCode.AUTHORITY_INVALID)
+    return artifacts
+
+
 def _evidence_sha256(
     stream: JournalStreamIdentity,
     artifacts: tuple[_CleanupArtifact, ...],
@@ -420,6 +484,36 @@ def _evidence_sha256(
         values.extend(
             (
                 artifact.location.value.encode("ascii"),
+                artifact.name.encode("ascii"),
+                artifact.identity.volume_serial.to_bytes(8, "big"),
+                artifact.identity.file_id,
+                artifact.contents_sha256.encode("ascii"),
+                artifact.size.to_bytes(8, "big"),
+            )
+        )
+    digest = hashlib.sha256()
+    for value in values:
+        digest.update(struct.pack(">Q", len(value)))
+        digest.update(value)
+    return digest.hexdigest()
+
+
+def _repair_evidence_sha256(
+    forward: PersistedRepairTransactionChain,
+    artifacts: tuple[_CleanupArtifact, ...],
+) -> str:
+    stream = forward.selection.tip.stream
+    values = [
+        b"TowerScout.WindowsRepairCleanupEvidence.v1",
+        stream.journal_id.encode("ascii"),
+        stream.rollback_journal_id.encode("ascii"),
+        stream.target_token_sha256.encode("ascii"),
+        stream.package_root_identity.volume_serial.to_bytes(8, "big"),
+        stream.package_root_identity.file_id,
+    ]
+    for artifact in artifacts:
+        values.extend(
+            (
                 artifact.name.encode("ascii"),
                 artifact.identity.volume_serial.to_bytes(8, "big"),
                 artifact.identity.file_id,
@@ -691,6 +785,128 @@ class NativeWindowsRecoveryCleanup:
         except ValueError:
             _fail(RecoveryCleanupStorageErrorCode.AUTHORITY_INVALID)
         return paths, evidence
+
+    def _repair_context(
+        self,
+        package_root: PathHierarchyTrust,
+        protected_root_path: str,
+        rollback: PersistedEnvironmentJournalChain,
+        forward: PersistedRepairTransactionChain,
+        permitted_states: frozenset[RepairTransactionState],
+    ) -> tuple[
+        tuple[tuple[str, _CleanupArtifact], ...],
+        RecoveryCleanupEvidence,
+    ]:
+        root_evidence = (
+            None
+            if type(package_root) is not PathHierarchyTrust
+            else package_root.evidence
+        )
+        if (
+            type(rollback) is not PersistedEnvironmentJournalChain
+            or type(forward) is not PersistedRepairTransactionChain
+        ):
+            _fail(RecoveryCleanupStorageErrorCode.INPUT_INVALID)
+        stream = forward.selection.tip.stream
+        if (
+            type(package_root) is not PathHierarchyTrust
+            or package_root.closed
+            or root_evidence is None
+            or root_evidence.purpose is not PathTrustPurpose.PACKAGE_ROOT
+            or root_evidence.root_identity != stream.package_root_identity
+            or type(protected_root_path) is not str
+            or not protected_root_path
+            or forward.selection.tip.state not in permitted_states
+        ):
+            _fail(RecoveryCleanupStorageErrorCode.INPUT_INVALID)
+        try:
+            package_root.assert_unchanged_while_held()
+        except WindowsSecurityError:
+            _fail(RecoveryCleanupStorageErrorCode.VERIFY_FAILED)
+        supported = _call(
+            lambda: self._api.supported,
+            RecoveryCleanupStorageErrorCode.PLATFORM_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(RecoveryCleanupStorageErrorCode.PLATFORM_UNAVAILABLE)
+        artifacts = _repair_cleanup_artifacts(rollback, forward)
+        paths = tuple(
+            (
+                _artifact_path(protected_root_path, artifact),
+                artifact,
+            )
+            for artifact in artifacts
+        )
+        try:
+            evidence = RecoveryCleanupEvidence(
+                1,
+                stream.target_token_sha256,
+                stream.package_root_identity,
+                _repair_evidence_sha256(forward, artifacts),
+            )
+        except ValueError:
+            _fail(RecoveryCleanupStorageErrorCode.AUTHORITY_INVALID)
+        return paths, evidence
+
+    def cleanup_committed_repair_artifacts_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        protected_root_path: str,
+        rollback: PersistedEnvironmentJournalChain,
+        forward: PersistedRepairTransactionChain,
+    ) -> RecoveryCleanupEvidence:
+        """Delete only exact encrypted backups after durable repair commit."""
+
+        paths, evidence = self._repair_context(
+            package_root,
+            protected_root_path,
+            rollback,
+            forward,
+            _REPAIR_CLEANUP_STATES,
+        )
+        current_user_sid = _current_user_sid(self._api)
+        for path, artifact in paths:
+            try:
+                package_root.assert_unchanged_while_held()
+            except WindowsSecurityError:
+                _fail(RecoveryCleanupStorageErrorCode.VERIFY_FAILED)
+            _delete_exact_or_accept_absence(
+                self._api,
+                path=path,
+                artifact=artifact,
+                current_user_sid=current_user_sid,
+            )
+        for path, _artifact in paths:
+            _verify_absent(self._api, path)
+        try:
+            package_root.assert_unchanged_while_held()
+        except WindowsSecurityError:
+            _fail(RecoveryCleanupStorageErrorCode.VERIFY_FAILED)
+        return evidence
+
+    def verify_committed_repair_artifacts_cleaned_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        protected_root_path: str,
+        rollback: PersistedEnvironmentJournalChain,
+        forward: PersistedRepairTransactionChain,
+    ) -> RecoveryCleanupEvidence:
+        """Reverify exact backup absence for an already-cleaned repair."""
+
+        paths, evidence = self._repair_context(
+            package_root,
+            protected_root_path,
+            rollback,
+            forward,
+            _REPAIR_CLEANED_STATES,
+        )
+        for path, _artifact in paths:
+            _verify_absent(self._api, path)
+        try:
+            package_root.assert_unchanged_while_held()
+        except WindowsSecurityError:
+            _fail(RecoveryCleanupStorageErrorCode.VERIFY_FAILED)
+        return evidence
 
     def cleanup_rollback_artifacts_while_package_root_held(
         self,

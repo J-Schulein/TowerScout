@@ -754,9 +754,9 @@ def _valid_state_sequence(states: tuple[RepairTransactionState, ...]) -> bool:
     direct_cleanup = _FORWARD_STATES + (RepairTransactionState.CLEANED,)
     pending_cleanup = _FORWARD_STATES + (
         RepairTransactionState.RECOVERY_CLEANUP_PENDING,
-        RepairTransactionState.CLEANED,
     )
-    return states in {direct_cleanup, pending_cleanup}
+    completed_pending_cleanup = pending_cleanup + (RepairTransactionState.CLEANED,)
+    return states in {direct_cleanup, pending_cleanup, completed_pending_cleanup}
 
 
 def select_repair_transaction_chain(

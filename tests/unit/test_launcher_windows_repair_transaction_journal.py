@@ -346,6 +346,29 @@ def test_accepts_both_authenticated_cleanup_paths(cleanup_pending: bool) -> None
     )
 
 
+def test_accepts_durable_cleanup_pending_before_retry() -> None:
+    protection = _Protection()
+    sealed = _sealed_chain(_states(cleanup_pending=True)[:-1], protection=protection)
+    pointer = journal.RepairTransactionJournalPointer(
+        1,
+        "a" * 32,
+        len(sealed),
+        sealed[-1].generation_sha256,
+    )
+
+    selected = journal.select_repair_transaction_chain(
+        sealed,
+        pointer,
+        expected_stream=_stream(),
+        protection=protection,
+    )
+
+    assert selected.tip.state is journal.RepairTransactionState.RECOVERY_CLEANUP_PENDING
+    assert selected.pointer_disposition is (
+        journal.RepairTransactionPointerDisposition.CURRENT
+    )
+
+
 def test_terminal_environment_link_is_exact_and_redacted() -> None:
     protection = _Protection()
     sealed = _sealed_chain(_states()[:8], protection=protection)
