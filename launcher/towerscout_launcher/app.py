@@ -444,3 +444,17 @@ def show_duplicate_instance_message() -> None:
         parent=root,
     )
     root.destroy()
+
+
+def show_startup_recovery_message(message: str, *, failed: bool) -> None:
+    """Show one fixed, sanitized startup recovery outcome."""
+
+    root = tk.Tk()
+    root.withdraw()
+    show = messagebox.showerror if failed else messagebox.showinfo
+    show(
+        "TowerScout repair recovery",
+        message,
+        parent=root,
+    )
+    root.destroy()
