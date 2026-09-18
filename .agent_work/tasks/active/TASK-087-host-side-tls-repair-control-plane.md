@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `f298a3e`; `801ad72` is the validated exact head.
+implementation head is `2266f84`; `ebdbebe` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -105,6 +105,20 @@ and `144/144` focused passes in fresh external roots. The initial strict-mypy
 object narrowing finding was fixed while preserving exact-type rejection; the
 Black check/diff pipe denial was superseded by a clean single-worker format run.
 No failed product check is carried, and no live runtime command was issued.
+
+Checkpoint `2266f84` composes all native rollback adapters under one retained
+protected-state root and reconstructs certificate identity only from the
+authenticated recovery chain. It also fixes post-arm failure before provider
+apply: a missing provider stream now carries no candidate identity and can
+advance only if native observation still proves the exact original `.env` or
+secure absence. Focused tests pass `37/37`; the broad selected ring accounts
+for all `890` cases via `876` combined passes, one expected skip, and `13/13`
+isolated elevated native passes after ACL-hardening tests made a shared pytest
+base unavailable. Black, strict/normal mypy, blocking/unused-code Flake8,
+Bandit, compilation, Python 3.11 grammar, and diff checks pass. Exact head
+`ebdbebe` passed CI/CD run `35293042668`, Task-087 run `35293042650`, and Trivy.
+Mutation remains disabled while the package-root lease and transaction front
+door are integrated.
 
 **Chronological implementation ledger**: The September 14
 checkpoint closes slices 2-3 exact-target confirmation ownership and ordered
@@ -1698,6 +1712,31 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-17 - Native Recovery Composition And Pre-Apply Recovery Added
+
+**Objective**: Bind the completed rollback chain to its production native ports
+without enabling repair, and ensure failure after `rollback_armed` but before
+provider `.env` apply remains recoverable.
+
+**Execution**: Checkpoint `2266f84` adds a native recovery owner that retains one
+protected-state root for DPAPI, journal, backup, restore, restart, verification,
+and cleanup operations. It derives the certificate identity from authenticated
+generation 1 and supplies the missing unpredictable certificate-temp names.
+The manager now accepts no provider stream only for the pre-apply case; the
+resulting authority has no candidate identity, so any candidate or third state
+blocks rather than being overwritten.
+
+**Validation**: Focused tests pass `37/37`. The broad selected recovery,
+environment, protected-state, and runtime-target ring produced `876` passes and
+one expected skip before 13 Windows ACL tests could no longer create fixtures
+under the shared base. Those exact tests then passed `13/13` in separate elevated
+temp roots. Formatting, typing, lint, security, compilation, Python 3.11 grammar,
+and diff checks pass. The runner-layout errors are superseded; no failed product
+check is carried.
+
+**Next**: Add the retained package-root lease bridge and refactor the active
+transaction around the native recovery owner while keeping mutation disabled.
 
 ### 2026-09-17 - Exact Environment Rollback And Generation 8 Persisted
 

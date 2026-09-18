@@ -4,6 +4,10 @@
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Task-087 is active under its fixed nine-slice
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md). Exact-head
+validated checkpoint `ebdbebe` is green. Implementation checkpoint `2266f84`
+composes the native rollback ports under one protected root and safely admits
+pre-provider-apply recovery only for exact original state; transaction wiring
+and live proof remain open. Exact-head
 validated implementation checkpoint `299ae96` promotes only the exact
 authenticated pointer temp after source and prior-destination verification and
 requires exact completed-move evidence. Exact-head validated checkpoint

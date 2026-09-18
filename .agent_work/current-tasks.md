@@ -7,7 +7,11 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, partial, not-started, and
-validation states. The September 14 checkpoint closes slices 2-3: confirmation
+validation states. Checkpoint `2266f84` now composes all native rollback ports
+under one retained protected root and safely handles post-arm failure before a
+provider `.env` journal exists; the retained package-root/transaction bridge is
+next and mutation remains disabled. The September 14 checkpoint closes slices
+2-3: confirmation
 now consumes and retains the native exact target, shows only its public summary,
 times out and cleans up safely, and exposes ordered revalidation hooks. Slice 4
 remains partial: cache-only revocation was restored during independent review,
