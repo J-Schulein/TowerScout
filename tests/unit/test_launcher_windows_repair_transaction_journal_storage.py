@@ -159,6 +159,17 @@ def _generation(
 ) -> journal.RepairTransactionGeneration:
     state = _STATES[sequence - 1]
     provider_sequence = sequence - 4 if 5 <= sequence <= 8 else None
+    certificate_names = (
+        (
+            "repair-certificate-" + "1" * 32 + ".tmp",
+            "repair-certificate-" + "2" * 32 + ".tmp",
+        )
+        if sequence == 1
+        else None
+    )
+    certificate_identities = (
+        (_identity(40), _identity(41)) if sequence in {2, 3} else None
+    )
     return journal.RepairTransactionGeneration(
         1,
         selected_stream,
@@ -173,6 +184,8 @@ def _generation(
             "e" * 32 if provider_sequence is not None else None,
             provider_sequence,
             f"{provider_sequence:064x}" if provider_sequence is not None else None,
+            certificate_names,
+            certificate_identities,
         ),
     )
 

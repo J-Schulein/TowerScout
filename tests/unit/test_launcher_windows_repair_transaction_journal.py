@@ -141,6 +141,23 @@ def _sealed_chain(
                 else provider_generation_sha256s[provider_index]
             )
             provider_index += 1
+        certificate_names = (
+            (
+                "repair-certificate-" + "1" * 32 + ".tmp",
+                "repair-certificate-" + "2" * 32 + ".tmp",
+            )
+            if state is journal.RepairTransactionState.CERTIFICATE_TEMP_PLANNED
+            else None
+        )
+        certificate_identities = (
+            (_identity(40), _identity(41))
+            if state
+            in {
+                journal.RepairTransactionState.CERTIFICATE_TEMP_CREATED,
+                journal.RepairTransactionState.CERTIFICATE_TEMP_VERIFIED,
+            }
+            else None
+        )
         record = journal.RepairTransitionRecord(
             schema_version=1,
             predecessor_generation_sha256=previous,
@@ -149,6 +166,8 @@ def _sealed_chain(
             provider_journal_id=provider_journal_id,
             provider_sequence=provider_sequence,
             provider_generation_sha256=provider_generation_sha256,
+            certificate_temp_names=certificate_names,
+            certificate_temp_identities=certificate_identities,
         )
         generation = journal.RepairTransactionGeneration(
             schema_version=1,
@@ -501,6 +520,69 @@ def test_rejects_chain_not_anchored_to_exact_rollback_generation() -> None:
     assert (
         captured.value.code is journal.RepairTransactionJournalErrorCode.CHAIN_INVALID
     )
+
+
+def test_rejects_changed_certificate_temp_identity_between_created_and_verified() -> (
+    None
+):
+    protection = _Protection()
+    sealed = list(_sealed_chain(_states()[:3], protection=protection))
+    created = journal.authenticate_repair_transaction_generation(
+        sealed[1],
+        protection=protection,
+    )
+    changed_record = replace(
+        created.record,
+        certificate_temp_identities=(_identity(40), _identity(99)),
+    )
+    changed = replace(
+        created,
+        sequence=3,
+        previous_generation_sha256=sealed[1].generation_sha256,
+        state=journal.RepairTransactionState.CERTIFICATE_TEMP_VERIFIED,
+        record=replace(
+            changed_record,
+            predecessor_generation_sha256=sealed[1].generation_sha256,
+        ),
+    )
+    sealed[2] = journal.protect_repair_transaction_generation(
+        changed,
+        protection=protection,
+    )
+
+    with pytest.raises(journal.RepairTransactionJournalError) as captured:
+        journal.select_repair_transaction_chain(
+            tuple(sealed),
+            None,
+            expected_stream=_stream(),
+            protection=protection,
+        )
+
+    assert (
+        captured.value.code is journal.RepairTransactionJournalErrorCode.CHAIN_INVALID
+    )
+
+
+def test_certificate_temp_metadata_is_state_specific_and_redacted() -> None:
+    protection = _Protection()
+    sealed = _sealed_chain(_states()[:3], protection=protection)
+    selected = journal.select_repair_transaction_chain(
+        sealed,
+        None,
+        expected_stream=_stream(),
+        protection=protection,
+    )
+
+    planned, created, verified = selected.generations
+    assert planned.record.certificate_temp_names is not None
+    assert planned.record.certificate_temp_identities is None
+    assert created.record.certificate_temp_names is None
+    assert (
+        created.record.certificate_temp_identities
+        == verified.record.certificate_temp_identities
+    )
+    rendered = repr(planned.record) + repr(created.record) + repr(selected)
+    assert "repair-certificate-" not in rendered
 
 
 def test_rejects_skipped_state_and_stale_or_foreign_pointer() -> None:

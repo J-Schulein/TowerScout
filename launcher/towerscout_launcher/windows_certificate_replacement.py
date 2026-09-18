@@ -24,6 +24,31 @@ def _sha256(contents: bytes) -> str:
     return hashlib.sha256(contents).hexdigest()
 
 
+def certificate_replacement_evidence_sha256(
+    plan: CertificateReplacementPlan,
+) -> str:
+    """Return a bytes-free digest binding every immutable candidate summary."""
+
+    if type(plan) is not CertificateReplacementPlan:
+        _fail()
+    fields = (
+        b"TowerScout.CertificateReplacementPlan.v1",
+        plan.provider.value.encode("ascii", errors="strict"),
+        plan.windows_root_fingerprint_sha256.encode("ascii", errors="strict"),
+        plan.local_ca_sha256.encode("ascii", errors="strict"),
+        str(len(plan.local_ca_contents)).encode("ascii", errors="strict"),
+        str(plan.local_ca_mode).encode("ascii", errors="strict"),
+        plan.ca_bundle_sha256.encode("ascii", errors="strict"),
+        str(len(plan.ca_bundle_contents)).encode("ascii", errors="strict"),
+        str(plan.ca_bundle_mode).encode("ascii", errors="strict"),
+    )
+    digest = hashlib.sha256()
+    for field_value in fields:
+        digest.update(len(field_value).to_bytes(4, "big"))
+        digest.update(field_value)
+    return digest.hexdigest()
+
+
 @dataclass(frozen=True, slots=True, repr=False)
 class CertificateReplacementPlan:
     """Bind the exact two transaction-produced certificate destinations."""
@@ -123,5 +148,6 @@ __all__ = [
     "MAX_CA_BUNDLE_BYTES",
     "MAX_LOCAL_CA_BYTES",
     "CertificateReplacementPlan",
+    "certificate_replacement_evidence_sha256",
     "plan_certificate_replacement",
 ]

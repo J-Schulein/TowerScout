@@ -391,6 +391,17 @@ def _forward_chain(
             provider_digest = provider.selection.generation_sha256s[
                 provider_sequence - 1
             ]
+        certificate_names = (
+            (
+                "repair-certificate-" + "1" * 32 + ".tmp",
+                "repair-certificate-" + "2" * 32 + ".tmp",
+            )
+            if sequence == 1
+            else None
+        )
+        certificate_identities = (
+            (_identity(140), _identity(141)) if sequence in {2, 3} else None
+        )
         generation = forward_journal.RepairTransactionGeneration(
             1,
             stream,
@@ -405,6 +416,8 @@ def _forward_chain(
                 provider_id,
                 provider_sequence,
                 provider_digest,
+                certificate_names,
+                certificate_identities,
             ),
         )
         sealed = forward_journal.protect_repair_transaction_generation(

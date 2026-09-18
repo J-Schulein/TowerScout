@@ -16,6 +16,15 @@ from towerscout_launcher.windows_path_trust import (  # noqa: E402
     AccessAllowedAce,
     NativeSecurityFacts,
 )
+from towerscout_launcher.target_contracts import MapProvider  # noqa: E402
+from towerscout_launcher.windows_certificate_replacement import (  # noqa: E402
+    CertificateReplacementPlan,
+    certificate_replacement_evidence_sha256,
+)
+from towerscout_launcher.windows_protected_state import (  # noqa: E402
+    CurrentUserProtectedBlob,
+    ProtectedDataPurpose,
+)
 from towerscout_launcher.windows_recovery_certificate_storage import (  # noqa: E402
     RecoveryCertificateStorageError,
     RecoveryCertificateStorageErrorCode,
@@ -24,6 +33,7 @@ from towerscout_launcher.windows_recovery_certificate_storage_native import (  #
     HeldCertificateRestoreTempPaths,
     NativeCertificateRestoreTempNameSource,
     NativeWindowsCertificateRestoreTempStorage,
+    NativeWindowsRepairCertificateTempStorage,
     capture_held_certificate_restore_temps,
 )
 from towerscout_launcher.windows_recovery_certificate_restore import (  # noqa: E402
@@ -39,6 +49,7 @@ from towerscout_launcher.windows_security import (  # noqa: E402
     NativeFileFacts,
     StableFileIdentity,
 )
+import towerscout_launcher.windows_repair_transaction_journal as forward_journal  # noqa: E402
 
 _ROOT = r"C:\Users\private\AppData\Local\TowerScout\Recovery\v1"
 _LOCAL_NAME = "recovery-certificate-" + "1" * 32 + ".tmp"
@@ -49,6 +60,14 @@ _USER_SID = "S-1-5-21-1000"
 _SYSTEM_SID = "S-1-5-18"
 _LOCAL = b"private-local-ca"
 _BUNDLE = b"private-ca-bundle"
+_REPAIR_LOCAL_NAME = "repair-certificate-" + "3" * 32 + ".tmp"
+_REPAIR_BUNDLE_NAME = "repair-certificate-" + "4" * 32 + ".tmp"
+_REPAIR_LOCAL_PATH = rf"{_ROOT}\{_REPAIR_LOCAL_NAME}"
+_REPAIR_BUNDLE_PATH = rf"{_ROOT}\{_REPAIR_BUNDLE_NAME}"
+_CANDIDATE_LOCAL = (
+    b"-----BEGIN CERTIFICATE-----\nprivate-root\n-----END CERTIFICATE-----\n"
+)
+_CANDIDATE_BUNDLE = b"private-system-bundle\n" + _CANDIDATE_LOCAL
 
 
 def _identity(value: int) -> StableFileIdentity:
@@ -192,6 +211,97 @@ class _Api:
             self.events.append(f"deleted:{handle.path}")
 
 
+class _ForwardProtection:
+    def __init__(self) -> None:
+        self.nonce = 0
+
+    def protect(
+        self,
+        plaintext: bytes,
+        purpose: ProtectedDataPurpose,
+    ) -> CurrentUserProtectedBlob:
+        self.nonce += 1
+        return CurrentUserProtectedBlob(
+            purpose,
+            b"TSF1" + self.nonce.to_bytes(4, "big") + plaintext,
+        )
+
+    def unprotect(
+        self,
+        blob: CurrentUserProtectedBlob,
+        purpose: ProtectedDataPurpose,
+    ) -> bytes:
+        assert blob.purpose is purpose
+        return blob.ciphertext[8:]
+
+
+def _replacement_plan() -> CertificateReplacementPlan:
+    return CertificateReplacementPlan(
+        MapProvider.GOOGLE,
+        "a" * 64,
+        _CANDIDATE_LOCAL,
+        _CANDIDATE_BUNDLE,
+    )
+
+
+def _forward_selection(
+    count: int,
+    plan: CertificateReplacementPlan,
+    identities: tuple[StableFileIdentity, StableFileIdentity] | None = None,
+) -> forward_journal.RepairTransactionChainSelection:
+    protection = _ForwardProtection()
+    stream = forward_journal.RepairTransactionStreamIdentity(
+        1,
+        "a" * 32,
+        "b" * 32,
+        "c" * 64,
+        "d" * 64,
+        _identity(9),
+    )
+    states = (
+        forward_journal.RepairTransactionState.CERTIFICATE_TEMP_PLANNED,
+        forward_journal.RepairTransactionState.CERTIFICATE_TEMP_CREATED,
+        forward_journal.RepairTransactionState.CERTIFICATE_TEMP_VERIFIED,
+    )
+    previous = stream.rollback_armed_generation_sha256
+    sealed = []
+    for sequence, state in enumerate(states[:count], start=1):
+        record = forward_journal.RepairTransitionRecord(
+            1,
+            previous,
+            stream.package_root_identity,
+            (
+                certificate_replacement_evidence_sha256(plan)
+                if sequence == 1
+                else f"{sequence:064x}"
+            ),
+            certificate_temp_names=(
+                (_REPAIR_LOCAL_NAME, _REPAIR_BUNDLE_NAME) if sequence == 1 else None
+            ),
+            certificate_temp_identities=(identities if sequence in {2, 3} else None),
+        )
+        generation = forward_journal.RepairTransactionGeneration(
+            1,
+            stream,
+            sequence,
+            previous,
+            state,
+            record,
+        )
+        protected = forward_journal.protect_repair_transaction_generation(
+            generation,
+            protection=protection,
+        )
+        sealed.append(protected)
+        previous = protected.generation_sha256
+    return forward_journal.select_repair_transaction_chain(
+        tuple(sealed),
+        None,
+        expected_stream=stream,
+        protection=protection,
+    )
+
+
 def _plan(
     *, local: bool = True, bundle: bool = True
 ) -> CertificateRestoreTempPlanRecord:
@@ -286,6 +396,67 @@ def test_native_certificate_temps_create_write_and_reverify_both_files() -> None
     )
     assert api.files[_LOCAL_PATH].contents == _LOCAL
     assert api.files[_BUNDLE_PATH].contents == _BUNDLE
+
+
+def test_native_forward_certificate_temps_follow_authenticated_write_ahead() -> None:
+    api = _Api()
+    adapter = NativeWindowsRepairCertificateTempStorage(api=api)
+    plan = _replacement_plan()
+
+    planned = _forward_selection(1, plan)
+    identities = adapter.create_repair_certificate_temps(_ROOT, planned)
+    assert identities.local_ca is not None
+    assert identities.ca_bundle is not None
+    exact_identities = (identities.local_ca, identities.ca_bundle)
+
+    created = _forward_selection(2, plan, exact_identities)
+    assert adapter.verify_created_repair_certificate_temps(_ROOT, created) == identities
+    assert (
+        adapter.write_and_verify_repair_certificate_temps(_ROOT, created, plan)
+        == identities
+    )
+
+    verified = _forward_selection(3, plan, exact_identities)
+    assert (
+        adapter.verify_written_repair_certificate_temps(_ROOT, verified, plan)
+        == identities
+    )
+    assert api.files[_REPAIR_LOCAL_PATH].contents == _CANDIDATE_LOCAL
+    assert api.files[_REPAIR_BUNDLE_PATH].contents == _CANDIDATE_BUNDLE
+
+
+def test_native_forward_certificate_write_rejects_substituted_plan() -> None:
+    api = _Api()
+    adapter = NativeWindowsRepairCertificateTempStorage(api=api)
+    plan = _replacement_plan()
+    identities = adapter.create_repair_certificate_temps(
+        _ROOT,
+        _forward_selection(1, plan),
+    )
+    assert identities.local_ca is not None
+    assert identities.ca_bundle is not None
+    created = _forward_selection(
+        2,
+        plan,
+        (identities.local_ca, identities.ca_bundle),
+    )
+    substituted = CertificateReplacementPlan(
+        MapProvider.GOOGLE,
+        "b" * 64,
+        _CANDIDATE_LOCAL,
+        _CANDIDATE_BUNDLE,
+    )
+
+    with pytest.raises(RecoveryCertificateStorageError) as failure:
+        adapter.write_and_verify_repair_certificate_temps(
+            _ROOT,
+            created,
+            substituted,
+        )
+
+    assert failure.value.code is RecoveryCertificateStorageErrorCode.INPUT_INVALID
+    assert api.files[_REPAIR_LOCAL_PATH].contents == b""
+    assert api.files[_REPAIR_BUNDLE_PATH].contents == b""
 
 
 def test_held_certificate_restore_temps_revalidate_both_exact_sources() -> None:

@@ -11,6 +11,10 @@ from dataclasses import dataclass, field
 from pathlib import PureWindowsPath
 from typing import Callable, NoReturn, Protocol, TypeVar
 
+from .windows_certificate_replacement import (
+    CertificateReplacementPlan,
+    certificate_replacement_evidence_sha256,
+)
 from .windows_environment_replacement_native import (
     NativeWindowsEnvironmentReplacementApi,
 )
@@ -33,6 +37,10 @@ from .windows_recovery_journal import (
     CertificateRestoreTempPlanRecord,
     CertificateRestoreTempVerifiedRecord,
 )
+from .windows_repair_transaction_journal import (
+    RepairTransactionChainSelection,
+    RepairTransactionState,
+)
 from .windows_security import NativeFileFacts, NativeWindowsFileApi, StableFileIdentity
 
 _MAX_PATH_CHARACTERS = 32_768
@@ -42,7 +50,7 @@ _FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
 _FILE_ALL_ACCESS = 0x001F01FF
 _SYSTEM_SID = "S-1-5-18"
 _SID = re.compile(r"^S-(?:[0-9]+-){1,14}[0-9]+$", re.IGNORECASE)
-_TEMP_NAME = re.compile(r"^recovery-certificate-[0-9a-f]{32}\.tmp$")
+_TEMP_NAME = re.compile(r"^(?:recovery|repair)-certificate-[0-9a-f]{32}\.tmp$")
 _Result = TypeVar("_Result")
 
 
@@ -558,7 +566,7 @@ def _write_one(
     )
 
 
-class NativeWindowsCertificateRestoreTempStorage:
+class _NativeWindowsCertificateTempStorageBase:
     """Create, write, and verify only journal-bound certificate temps."""
 
     __slots__ = ("_api",)
@@ -661,6 +669,183 @@ class NativeWindowsCertificateRestoreTempStorage:
             )
             if created.ca_bundle_temp_identity is not None
             else None
+        )
+        return CertificateRestoreTempIdentities(local_identity, bundle_identity)
+
+
+def _forward_certificate_metadata(
+    forward: RepairTransactionChainSelection,
+    expected_state: RepairTransactionState,
+) -> tuple[
+    tuple[str, str],
+    tuple[StableFileIdentity, StableFileIdentity] | None,
+    str,
+]:
+    if (
+        type(forward) is not RepairTransactionChainSelection
+        or type(expected_state) is not RepairTransactionState
+        or forward.tip.state is not expected_state
+        or not 1 <= forward.tip.sequence <= 3
+    ):
+        _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+    planned = forward.generations[0].record
+    names = planned.certificate_temp_names
+    if names is None:
+        _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+    identities = (
+        None
+        if forward.tip.sequence == 1
+        else forward.generations[-1].record.certificate_temp_identities
+    )
+    if forward.tip.sequence > 1 and identities is None:
+        _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+    return names, identities, planned.evidence_sha256
+
+
+class _NativeWindowsCertificateTempStorage(_NativeWindowsCertificateTempStorageBase):
+    """Create, write, and verify only forward-journal-bound candidate temps."""
+
+    __slots__ = ("_api",)
+
+    def __init__(
+        self,
+        *,
+        api: _WindowsRecoveryCertificateTempApi | None = None,
+    ) -> None:
+        self._api = NativeWindowsRecoveryCertificateTempApi() if api is None else api
+
+    def _context(self) -> str:
+        supported = _call(
+            lambda: self._api.supported,
+            RecoveryCertificateStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(RecoveryCertificateStorageErrorCode.STORAGE_UNAVAILABLE)
+        return _current_user_sid(self._api)
+
+    def create_repair_certificate_temps(
+        self,
+        root_path: str,
+        forward: RepairTransactionChainSelection,
+    ) -> CertificateRestoreTempIdentities:
+        names, _identities, _evidence = _forward_certificate_metadata(
+            forward,
+            RepairTransactionState.CERTIFICATE_TEMP_PLANNED,
+        )
+        current_user_sid = self._context()
+        local_identity = _create_with_reconciliation(
+            self._api,
+            path=_temp_path(root_path, names[0]),
+            current_user_sid=current_user_sid,
+        )
+        bundle_identity = _create_with_reconciliation(
+            self._api,
+            path=_temp_path(root_path, names[1]),
+            current_user_sid=current_user_sid,
+        )
+        try:
+            return CertificateRestoreTempIdentities(local_identity, bundle_identity)
+        except ValueError:
+            _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+
+    def verify_created_repair_certificate_temps(
+        self,
+        root_path: str,
+        forward: RepairTransactionChainSelection,
+    ) -> CertificateRestoreTempIdentities:
+        names, identities, _evidence = _forward_certificate_metadata(
+            forward,
+            RepairTransactionState.CERTIFICATE_TEMP_CREATED,
+        )
+        if identities is None:
+            _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+        current_user_sid = self._context()
+        empty_sha256 = hashlib.sha256(b"").hexdigest()
+        local_identity = _verify_one(
+            self._api,
+            path=_temp_path(root_path, names[0]),
+            current_user_sid=current_user_sid,
+            expected_identity=identities[0],
+            expected_size=0,
+            expected_sha256=empty_sha256,
+        )
+        bundle_identity = _verify_one(
+            self._api,
+            path=_temp_path(root_path, names[1]),
+            current_user_sid=current_user_sid,
+            expected_identity=identities[1],
+            expected_size=0,
+            expected_sha256=empty_sha256,
+        )
+        return CertificateRestoreTempIdentities(local_identity, bundle_identity)
+
+    def write_and_verify_repair_certificate_temps(
+        self,
+        root_path: str,
+        forward: RepairTransactionChainSelection,
+        plan: CertificateReplacementPlan,
+    ) -> CertificateRestoreTempIdentities:
+        names, identities, evidence_sha256 = _forward_certificate_metadata(
+            forward,
+            RepairTransactionState.CERTIFICATE_TEMP_CREATED,
+        )
+        if (
+            identities is None
+            or type(plan) is not CertificateReplacementPlan
+            or certificate_replacement_evidence_sha256(plan) != evidence_sha256
+        ):
+            _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+        current_user_sid = self._context()
+        local_identity = _write_one(
+            self._api,
+            path=_temp_path(root_path, names[0]),
+            current_user_sid=current_user_sid,
+            expected_identity=identities[0],
+            contents=plan.local_ca_contents,
+            expected_sha256=plan.local_ca_sha256,
+        )
+        bundle_identity = _write_one(
+            self._api,
+            path=_temp_path(root_path, names[1]),
+            current_user_sid=current_user_sid,
+            expected_identity=identities[1],
+            contents=plan.ca_bundle_contents,
+            expected_sha256=plan.ca_bundle_sha256,
+        )
+        return CertificateRestoreTempIdentities(local_identity, bundle_identity)
+
+    def verify_written_repair_certificate_temps(
+        self,
+        root_path: str,
+        forward: RepairTransactionChainSelection,
+        plan: CertificateReplacementPlan,
+    ) -> CertificateRestoreTempIdentities:
+        names, identities, evidence_sha256 = _forward_certificate_metadata(
+            forward,
+            RepairTransactionState.CERTIFICATE_TEMP_VERIFIED,
+        )
+        if (
+            identities is None
+            or type(plan) is not CertificateReplacementPlan
+            or certificate_replacement_evidence_sha256(plan) != evidence_sha256
+        ):
+            _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+        current_user_sid = self._context()
+        local_identity = _verify_one(
+            self._api,
+            path=_temp_path(root_path, names[0]),
+            current_user_sid=current_user_sid,
+            expected_identity=identities[0],
+            expected_size=len(plan.local_ca_contents),
+            expected_sha256=plan.local_ca_sha256,
+        )
+        bundle_identity = _verify_one(
+            self._api,
+            path=_temp_path(root_path, names[1]),
+            current_user_sid=current_user_sid,
+            expected_identity=identities[1],
+            expected_size=len(plan.ca_bundle_contents),
+            expected_sha256=plan.ca_bundle_sha256,
         )
         return CertificateRestoreTempIdentities(local_identity, bundle_identity)
 
@@ -775,6 +960,16 @@ class NativeWindowsCertificateRestoreTempStorage:
             else None
         )
         return CertificateRestoreTempIdentities(local_identity, bundle_identity)
+
+
+class NativeWindowsCertificateRestoreTempStorage(_NativeWindowsCertificateTempStorage):
+    def __repr__(self) -> str:
+        return "NativeWindowsCertificateRestoreTempStorage(<redacted>)"
+
+
+class NativeWindowsRepairCertificateTempStorage(_NativeWindowsCertificateTempStorage):
+    def __repr__(self) -> str:
+        return "NativeWindowsRepairCertificateTempStorage(<redacted>)"
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -1025,6 +1220,7 @@ __all__ = [
     "HeldCertificateRestoreTemps",
     "NativeCertificateRestoreTempNameSource",
     "NativeWindowsCertificateRestoreTempStorage",
+    "NativeWindowsRepairCertificateTempStorage",
     "NativeWindowsRecoveryCertificateTempApi",
     "capture_held_certificate_restore_temps",
 ]

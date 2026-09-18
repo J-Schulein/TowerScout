@@ -19,6 +19,7 @@ from towerscout_launcher.windows_certificate_replacement import (  # noqa: E402
     CERTIFICATE_FILE_MODE,
     MAX_CA_BUNDLE_BYTES,
     CertificateReplacementPlan,
+    certificate_replacement_evidence_sha256,
     plan_certificate_replacement,
 )
 
@@ -43,6 +44,17 @@ def test_plan_binds_exact_root_and_combined_bundle_without_repr_bytes():
     rendered = repr(plan)
     assert "private" not in rendered
     assert "CERTIFICATE" not in rendered
+
+
+def test_plan_evidence_digest_binds_candidate_summaries_without_contents():
+    first = plan_certificate_replacement(_selected(), b"private-system-bundle\n")
+    second = plan_certificate_replacement(_selected(), b"changed-system-bundle\n")
+
+    first_digest = certificate_replacement_evidence_sha256(first)
+
+    assert len(first_digest) == 64
+    assert first_digest != certificate_replacement_evidence_sha256(second)
+    assert "private" not in first_digest
 
 
 @pytest.mark.parametrize(

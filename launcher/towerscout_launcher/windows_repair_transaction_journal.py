@@ -34,6 +34,7 @@ _MAX_JSON_NODES = 160
 _MAX_JSON_STRING_CHARACTERS = 1_024
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _JOURNAL_ID = re.compile(r"^[0-9a-f]{32}$")
+_CERTIFICATE_TEMP_NAME = re.compile(r"^repair-certificate-[0-9a-f]{32}\.tmp$")
 
 
 class RepairTransactionJournalErrorCode(str, Enum):
@@ -165,6 +166,10 @@ class RepairTransitionRecord:
     provider_journal_id: str | None = field(default=None, repr=False)
     provider_sequence: int | None = None
     provider_generation_sha256: str | None = field(default=None, repr=False)
+    certificate_temp_names: tuple[str, str] | None = field(default=None, repr=False)
+    certificate_temp_identities: (
+        tuple[StableFileIdentity, StableFileIdentity] | None
+    ) = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         provider_values = (
@@ -172,6 +177,8 @@ class RepairTransitionRecord:
             self.provider_sequence,
             self.provider_generation_sha256,
         )
+        names = self.certificate_temp_names
+        identities = self.certificate_temp_identities
         if (
             type(self.schema_version) is not int
             or self.schema_version != _SCHEMA_VERSION
@@ -185,6 +192,31 @@ class RepairTransitionRecord:
                     or type(self.provider_sequence) is not int
                     or not 1 <= self.provider_sequence <= 4
                     or not _valid_hash(self.provider_generation_sha256)
+                )
+            )
+            or (
+                names is not None
+                and (
+                    type(names) is not tuple
+                    or len(names) != 2
+                    or any(
+                        type(name) is not str
+                        or _CERTIFICATE_TEMP_NAME.fullmatch(name) is None
+                        for name in names
+                    )
+                    or names[0] == names[1]
+                )
+            )
+            or (
+                identities is not None
+                and (
+                    type(identities) is not tuple
+                    or len(identities) != 2
+                    or any(
+                        type(identity) is not StableFileIdentity
+                        for identity in identities
+                    )
+                    or identities[0] == identities[1]
                 )
             )
         ):
@@ -210,6 +242,13 @@ class RepairTransactionGeneration:
             self.record.provider_sequence,
             self.record.provider_generation_sha256,
         )
+        expects_certificate_names = (
+            self.state is RepairTransactionState.CERTIFICATE_TEMP_PLANNED
+        )
+        expects_certificate_identities = self.state in {
+            RepairTransactionState.CERTIFICATE_TEMP_CREATED,
+            RepairTransactionState.CERTIFICATE_TEMP_VERIFIED,
+        }
         if (
             type(self.schema_version) is not int
             or self.schema_version != _SCHEMA_VERSION
@@ -234,6 +273,10 @@ class RepairTransactionGeneration:
                     in {self.stream.journal_id, self.stream.rollback_journal_id}
                 )
             )
+            or (self.record.certificate_temp_names is not None)
+            is not expects_certificate_names
+            or (self.record.certificate_temp_identities is not None)
+            is not expects_certificate_identities
         ):
             raise ValueError("Repair transaction generation is invalid.")
 
@@ -475,12 +518,45 @@ def _identity_from_json(value: object) -> StableFileIdentity:
     return StableFileIdentity(item["volume_serial"], bytes.fromhex(item["file_id"]))
 
 
+def _certificate_names_from_json(value: object) -> tuple[str, str] | None:
+    if value is None:
+        return None
+    if type(value) is not list or len(value) != 2:
+        raise ValueError("Certificate temp names are invalid.")
+    if any(type(name) is not str for name in value):
+        raise ValueError("Certificate temp names are invalid.")
+    return (value[0], value[1])
+
+
+def _certificate_identities_from_json(
+    value: object,
+) -> tuple[StableFileIdentity, StableFileIdentity] | None:
+    if value is None:
+        return None
+    if type(value) is not list or len(value) != 2:
+        raise ValueError("Certificate temp identities are invalid.")
+    return (_identity_from_json(value[0]), _identity_from_json(value[1]))
+
+
 def _generation_to_bytes(generation: RepairTransactionGeneration) -> bytes:
     record = generation.record
     return _canonical_json(
         {
             "previous_generation_sha256": generation.previous_generation_sha256,
             "record": {
+                "certificate_temp_identities": (
+                    None
+                    if record.certificate_temp_identities is None
+                    else [
+                        _identity_to_json(identity)
+                        for identity in record.certificate_temp_identities
+                    ]
+                ),
+                "certificate_temp_names": (
+                    None
+                    if record.certificate_temp_names is None
+                    else list(record.certificate_temp_names)
+                ),
                 "evidence_sha256": record.evidence_sha256,
                 "package_root_identity": _identity_to_json(
                     record.package_root_identity
@@ -546,6 +622,8 @@ def _generation_from_bytes(raw: bytes) -> RepairTransactionGeneration:
             item["record"],
             frozenset(
                 {
+                    "certificate_temp_identities",
+                    "certificate_temp_names",
                     "evidence_sha256",
                     "package_root_identity",
                     "predecessor_generation_sha256",
@@ -572,6 +650,10 @@ def _generation_from_bytes(raw: bytes) -> RepairTransactionGeneration:
             record_item["provider_journal_id"],
             record_item["provider_sequence"],
             record_item["provider_generation_sha256"],
+            _certificate_names_from_json(record_item["certificate_temp_names"]),
+            _certificate_identities_from_json(
+                record_item["certificate_temp_identities"]
+            ),
         )
         return RepairTransactionGeneration(
             item["schema_version"],
@@ -734,6 +816,11 @@ def select_repair_transaction_chain(
                 provider_journal_id = linked_provider
             elif linked_provider != provider_journal_id:
                 _fail(RepairTransactionJournalErrorCode.CHAIN_INVALID)
+    if len(ordered) >= 3:
+        created_identities = ordered[1][0].record.certificate_temp_identities
+        verified_identities = ordered[2][0].record.certificate_temp_identities
+        if created_identities != verified_identities:
+            _fail(RepairTransactionJournalErrorCode.CHAIN_INVALID)
     tip, tip_digest = ordered[-1]
     if pointer is None:
         disposition = RepairTransactionPointerDisposition.MISSING_REPAIR
