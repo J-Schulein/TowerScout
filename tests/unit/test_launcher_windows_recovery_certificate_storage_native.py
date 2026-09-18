@@ -22,6 +22,7 @@ from towerscout_launcher.windows_recovery_certificate_storage import (  # noqa: 
 )
 from towerscout_launcher.windows_recovery_certificate_storage_native import (  # noqa: E402
     HeldCertificateRestoreTempPaths,
+    NativeCertificateRestoreTempNameSource,
     NativeWindowsCertificateRestoreTempStorage,
     capture_held_certificate_restore_temps,
 )
@@ -52,6 +53,19 @@ _BUNDLE = b"private-ca-bundle"
 
 def _identity(value: int) -> StableFileIdentity:
     return StableFileIdentity(7, value.to_bytes(16, "big"))
+
+
+def test_native_certificate_restore_temp_names_are_bounded_and_unique() -> None:
+    source = NativeCertificateRestoreTempNameSource()
+
+    first = source.new_certificate_temp_name()
+    second = source.new_certificate_temp_name()
+
+    assert first != second
+    assert len(first) == len("recovery-certificate-") + 32 + len(".tmp")
+    assert first.startswith("recovery-certificate-")
+    assert first.endswith(".tmp")
+    assert all(character in "0123456789abcdef" for character in first[21:-4])
 
 
 def _security() -> NativeSecurityFacts:

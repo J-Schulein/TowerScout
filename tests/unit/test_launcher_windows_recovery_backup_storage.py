@@ -22,6 +22,7 @@ import towerscout_launcher.windows_recovery as recovery  # noqa: E402
 import towerscout_launcher.windows_recovery_journal as journal  # noqa: E402
 import towerscout_launcher.windows_recovery_journal_storage as storage  # noqa: E402
 import towerscout_launcher.windows_recovery_manager as manager  # noqa: E402
+import towerscout_launcher.windows_recovery_manager_native as manager_native  # noqa: E402
 from towerscout_launcher import (  # noqa: E402
     windows_recovery_cleanup_native as cleanup_native,
 )
@@ -32,6 +33,7 @@ from towerscout_launcher.windows_recovery_certificate_storage import (  # noqa: 
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
     ABSENT_FILE_SHA256,
+    CertificateIdentity,
     MapProvider,
 )
 from towerscout_launcher.windows_certificate_replacement import (  # noqa: E402
@@ -3118,7 +3120,7 @@ def test_receipts_redact_names_hashes_and_identities() -> None:
 
 def _restore_environment_generation(
     stream: journal.JournalStreamIdentity,
-    provider_stream: journal.JournalStreamIdentity,
+    provider_stream: journal.JournalStreamIdentity | None,
     root: _Root,
     generations: _GenerationStorage,
     package_root: PathHierarchyTrust,
@@ -3178,6 +3180,41 @@ def test_environment_restore_reloads_provider_authority_and_selects_generation_8
     record = result.selection.tip.record
     assert type(record) is journal.EnvironmentRestoredRecord
     assert record.environment_identity == environment_storage.identity
+
+
+def test_environment_restore_accepts_exact_original_before_provider_apply() -> None:
+    protection = _Protection()
+    (
+        stream,
+        _provider_stream,
+        root,
+        generations,
+        _blobs,
+        package_root,
+        environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    restoration = _EnvironmentRestoration()
+    try:
+        result = _restore_environment_generation(
+            stream,
+            None,
+            root,
+            generations,
+            package_root,
+            protection,
+            restoration,
+        )
+    finally:
+        package_root.close()
+
+    authority = restoration.calls[0].restore
+    assert authority.candidate_identity is None
+    assert authority.candidate_file_attributes is None
+    assert authority.candidate_security_descriptor_sha256 is None
+    assert authority.restore_temp_identity == environment_storage.identity
+    assert result.selection.tip.state is (
+        journal.EnvironmentJournalState.ENVIRONMENT_RESTORED
+    )
 
 
 def test_environment_restore_restart_reverifies_and_repairs_only_pointer() -> None:
@@ -4317,6 +4354,73 @@ def test_fresh_process_manager_resumes_verified_environment_through_cleanup() ->
     assert cleanup.verify_calls == 1
 
 
+def test_native_manager_reconstructs_certificate_identity_from_authenticated_chain() -> (
+    None
+):
+    protection = _Protection()
+    (
+        stream,
+        _provider_stream,
+        root,
+        generations,
+        _blobs,
+        package_root,
+        _environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    try:
+        initial = storage.load_persisted_environment_journal_chain_with_pointer(
+            stream,
+            root=root,
+            generation_storage=generations,
+            pointer_storage=generations,
+            protection=protection,
+        )
+    finally:
+        package_root.close()
+
+    assert initial is not None
+    preparing = initial.selection.generations[0].record
+    assert type(preparing) is journal.BackupPreparingRecord
+    certificate = manager_native.certificate_identity_from_recovery_chain(initial)
+    assert certificate == CertificateIdentity(
+        preparing.certificate_provider,
+        preparing.windows_root_fingerprint_sha256,
+        preparing.local_ca_candidate_sha256,
+    )
+
+
+def test_native_manager_composes_all_ports_under_one_protected_root() -> None:
+    class Root(_Root, _Protection):
+        def __init__(self) -> None:
+            _Root.__init__(self)
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    protected_root = Root()
+    certificate = CertificateIdentity(MapProvider.GOOGLE, "a" * 64, "b" * 64)
+
+    ports = manager_native.build_native_windows_recovery_manager_ports(
+        certificate,
+        protected_root,  # type: ignore[arg-type]
+    )
+    owner = manager_native.NativeWindowsRecoveryManager(
+        protected_root,  # type: ignore[arg-type]
+        ports,
+    )
+
+    assert ports.root is protected_root
+    assert ports.backup_protection is protected_root
+    assert ports.journal_protection is protected_root
+    assert ports.backup_storage is ports.backup_verification
+    assert owner.ports is ports
+    assert "private" not in repr(owner).lower()
+    owner.close()
+    assert owner.closed
+    assert protected_root.closed
+
+
 def test_fresh_process_manager_resumes_armed_rollback_through_cleanup() -> None:
     protection = _Protection()
     (
@@ -4369,6 +4473,71 @@ def test_fresh_process_manager_resumes_armed_rollback_through_cleanup() -> None:
             lambda: manager.resume_persisted_rollback_from_held_package_root(
                 stream=stream,
                 provider_stream=provider_stream,
+                package_root=package_root,
+                initial_chain=initial,
+                ports=ports,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert result.selection.tip.state is journal.EnvironmentJournalState.CLEANED
+    assert len(result.selection.generations) == 18
+
+
+def test_fresh_process_manager_resumes_preapply_rollback_without_provider_stream() -> (
+    None
+):
+    protection = _Protection()
+    (
+        stream,
+        _provider_stream,
+        root,
+        generations,
+        blobs,
+        package_root,
+        environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    recovery_prefix = f"journal-{stream.journal_id}-"
+    for name in tuple(generations.files):
+        if name.startswith(recovery_prefix) and int(name[-31:-11]) > 3:
+            del generations.files[name]
+    generations.pointer = None
+    initial = storage.load_persisted_environment_journal_chain_with_pointer(
+        stream,
+        root=root,
+        generation_storage=generations,
+        pointer_storage=generations,
+        protection=protection,
+    )
+    assert initial is not None
+    availability = _RuntimeAvailability(stream)
+    certificate_storage = _CertificateStorage(root)
+    restart = _RuntimeRestart(stream)
+    ports = manager.WindowsRecoveryManagerPorts(
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        backup_verification=blobs,
+        backup_storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+        environment_name_source=_EnvironmentTempNameSource(),
+        environment_storage=environment_storage,
+        environment_restoration=_EnvironmentRestoration(),
+        runtime_availability=availability,
+        certificate_name_source=_CertificateTempNameSource(),
+        certificate_storage=certificate_storage,
+        certificate_restoration=_CertificateRestoration(stream, availability),
+        runtime_restart=restart,
+        rollback_verification=_RollbackVerification(stream, restart),
+        cleanup=_RecoveryCleanup(stream),
+    )
+    try:
+        result = package_root.run_while_held(
+            lambda: manager.resume_persisted_rollback_from_held_package_root(
+                stream=stream,
+                provider_stream=None,
                 package_root=package_root,
                 initial_chain=initial,
                 ports=ports,

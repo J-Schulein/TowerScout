@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import ntpath
 import re
+import secrets
 import threading
 from dataclasses import dataclass, field
 from pathlib import PureWindowsPath
@@ -43,6 +44,13 @@ _SYSTEM_SID = "S-1-5-18"
 _SID = re.compile(r"^S-(?:[0-9]+-){1,14}[0-9]+$", re.IGNORECASE)
 _TEMP_NAME = re.compile(r"^recovery-certificate-[0-9a-f]{32}\.tmp$")
 _Result = TypeVar("_Result")
+
+
+class NativeCertificateRestoreTempNameSource:
+    """Generate one unpredictable protected-root certificate temp leaf."""
+
+    def new_certificate_temp_name(self) -> str:
+        return f"recovery-certificate-{secrets.token_hex(16)}.tmp"
 
 
 class _WindowsRecoveryCertificateTempApi(Protocol):
@@ -1015,6 +1023,7 @@ def capture_held_certificate_restore_temps(
 __all__ = [
     "HeldCertificateRestoreTempPaths",
     "HeldCertificateRestoreTemps",
+    "NativeCertificateRestoreTempNameSource",
     "NativeWindowsCertificateRestoreTempStorage",
     "NativeWindowsRecoveryCertificateTempApi",
     "capture_held_certificate_restore_temps",

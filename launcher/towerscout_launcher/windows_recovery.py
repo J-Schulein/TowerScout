@@ -1606,12 +1606,11 @@ def write_persisted_environment_restore_temp_from_held_package_root(
 
 def _environment_restore_authority(
     recovery_chain: PersistedEnvironmentJournalChain,
-    provider_chain: PersistedEnvironmentJournalChain,
+    provider_chain: PersistedEnvironmentJournalChain | None,
     recovery_stream: JournalStreamIdentity,
-    provider_stream: JournalStreamIdentity,
+    provider_stream: JournalStreamIdentity | None,
 ) -> EnvironmentRestoreStorageAuthority:
     recovery_generations = recovery_chain.selection.generations
-    provider_generations = provider_chain.selection.generations
     if (
         len(recovery_generations) not in {7, 8}
         or type(recovery_generations[0].record) is not BackupPreparingRecord
@@ -1621,51 +1620,76 @@ def _environment_restore_authority(
             len(recovery_generations) == 8
             and type(recovery_generations[7].record) is not EnvironmentRestoredRecord
         )
-        or len(provider_generations) != 4
-        or provider_generations[0].state
-        is not EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED
-        or type(provider_generations[0].record) is not EnvironmentTempPlanRecord
-        or provider_generations[3].state
-        is not EnvironmentJournalState.ENVIRONMENT_APPLIED
-        or type(provider_generations[3].record) is not EnvironmentAppliedRecord
-        or provider_stream.journal_id == recovery_stream.journal_id
-        or provider_stream.target_token_sha256 != recovery_stream.target_token_sha256
-        or provider_stream.package_root_identity
-        != recovery_stream.package_root_identity
+        or (provider_chain is None) is not (provider_stream is None)
     ):
         _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
     preparing = recovery_generations[0].record
     verified = recovery_generations[6].record
-    provider_plan = provider_generations[0].record
-    applied = provider_generations[3].record
-    original_matches = (
-        provider_plan.original_present is preparing.environment_present
-        and provider_plan.original_identity == preparing.environment_original_identity
-        and provider_plan.original_file_attributes
-        == verified.environment_file_attributes
-        and provider_plan.original_security_descriptor_sha256
-        == verified.environment_security_descriptor_sha256
-        and (
-            (
-                preparing.environment_present
-                and provider_plan.original_sha256 == verified.environment_sha256
-                and provider_plan.original_size == verified.environment_size
-            )
-            or (
-                not preparing.environment_present
-                and provider_plan.original_identity is None
-                and provider_plan.original_size is None
-            )
-        )
-    )
-    if (
-        not original_matches
-        or provider_plan.candidate_sha256 != preparing.environment_candidate_sha256
-        or provider_plan.candidate_size != preparing.environment_candidate_size
-        or applied.candidate_sha256 != preparing.environment_candidate_sha256
-        or applied.candidate_size != preparing.environment_candidate_size
+    if not (
+        verified.environment_present is preparing.environment_present
+        and verified.environment_sha256 == preparing.environment_sha256
+        and verified.environment_file_attributes
+        == preparing.environment_file_attributes
+        and verified.environment_security_descriptor_sha256
+        == preparing.environment_security_descriptor_sha256
     ):
         _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+    candidate_identity: StableFileIdentity | None = None
+    candidate_file_attributes: int | None = None
+    candidate_security_descriptor_sha256: str | None = None
+    if provider_chain is not None and provider_stream is not None:
+        provider_generations = provider_chain.selection.generations
+        if (
+            len(provider_generations) != 4
+            or provider_generations[0].state
+            is not EnvironmentJournalState.ENVIRONMENT_TEMP_PLANNED
+            or type(provider_generations[0].record) is not EnvironmentTempPlanRecord
+            or provider_generations[3].state
+            is not EnvironmentJournalState.ENVIRONMENT_APPLIED
+            or type(provider_generations[3].record) is not EnvironmentAppliedRecord
+            or provider_stream.journal_id == recovery_stream.journal_id
+            or provider_stream.target_token_sha256
+            != recovery_stream.target_token_sha256
+            or provider_stream.package_root_identity
+            != recovery_stream.package_root_identity
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        provider_plan = provider_generations[0].record
+        applied = provider_generations[3].record
+        original_matches = (
+            provider_plan.original_present is preparing.environment_present
+            and provider_plan.original_identity
+            == preparing.environment_original_identity
+            and provider_plan.original_file_attributes
+            == verified.environment_file_attributes
+            and provider_plan.original_security_descriptor_sha256
+            == verified.environment_security_descriptor_sha256
+            and (
+                (
+                    preparing.environment_present
+                    and provider_plan.original_sha256 == verified.environment_sha256
+                    and provider_plan.original_size == verified.environment_size
+                )
+                or (
+                    not preparing.environment_present
+                    and provider_plan.original_identity is None
+                    and provider_plan.original_size is None
+                )
+            )
+        )
+        if (
+            not original_matches
+            or provider_plan.candidate_sha256 != preparing.environment_candidate_sha256
+            or provider_plan.candidate_size != preparing.environment_candidate_size
+            or applied.candidate_sha256 != preparing.environment_candidate_sha256
+            or applied.candidate_size != preparing.environment_candidate_size
+        ):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
+        candidate_identity = applied.candidate_identity
+        candidate_file_attributes = applied.candidate_file_attributes
+        candidate_security_descriptor_sha256 = (
+            applied.candidate_security_descriptor_sha256
+        )
     try:
         authority = EnvironmentRestoreAuthority(
             1,
@@ -1678,9 +1702,9 @@ def _environment_restore_authority(
             verified.environment_security_descriptor_sha256,
             preparing.environment_candidate_sha256,
             preparing.environment_candidate_size,
-            applied.candidate_identity,
-            applied.candidate_file_attributes,
-            applied.candidate_security_descriptor_sha256,
+            candidate_identity,
+            candidate_file_attributes,
+            candidate_security_descriptor_sha256,
             verified.temp_identity,
         )
         return EnvironmentRestoreStorageAuthority(
@@ -1741,7 +1765,7 @@ def _restored_record_matches(
 def persist_environment_restored_generation_from_held_package_root(
     *,
     stream: JournalStreamIdentity,
-    provider_stream: JournalStreamIdentity,
+    provider_stream: JournalStreamIdentity | None,
     package_root: PathHierarchyTrust,
     root: JournalStorageRootPort,
     journal_storage: JournalGenerationStoragePort,
@@ -1753,7 +1777,10 @@ def persist_environment_restored_generation_from_held_package_root(
 
     if (
         type(stream) is not JournalStreamIdentity
-        or type(provider_stream) is not JournalStreamIdentity
+        or (
+            provider_stream is not None
+            and type(provider_stream) is not JournalStreamIdentity
+        )
         or not callable(
             getattr(
                 environment_restoration,
@@ -1771,11 +1798,15 @@ def persist_environment_restored_generation_from_held_package_root(
         _recovery_records(chain)
         if len(chain.selection.generations) not in {7, 8}:
             _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
-        provider_chain = _load_chain(
-            root_path,
-            provider_stream,
-            journal_storage,
-            journal_protection,
+        provider_chain = (
+            None
+            if provider_stream is None
+            else _load_chain(
+                root_path,
+                provider_stream,
+                journal_storage,
+                journal_protection,
+            )
         )
         authority = _environment_restore_authority(
             chain,

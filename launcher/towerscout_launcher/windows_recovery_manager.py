@@ -146,14 +146,16 @@ def _validated_sequence(
 
 def _validate_streams(
     stream: JournalStreamIdentity,
-    provider_stream: JournalStreamIdentity,
+    provider_stream: JournalStreamIdentity | None,
 ) -> None:
-    if (
-        type(stream) is not JournalStreamIdentity
-        or type(provider_stream) is not JournalStreamIdentity
-        or stream.journal_id == provider_stream.journal_id
-        or stream.target_token_sha256 != provider_stream.target_token_sha256
-        or stream.package_root_identity != provider_stream.package_root_identity
+    if type(stream) is not JournalStreamIdentity or (
+        provider_stream is not None
+        and (
+            type(provider_stream) is not JournalStreamIdentity
+            or stream.journal_id == provider_stream.journal_id
+            or stream.target_token_sha256 != provider_stream.target_token_sha256
+            or stream.package_root_identity != provider_stream.package_root_identity
+        )
     ):
         _fail(WindowsRecoveryErrorCode.INPUT_INVALID)
 
@@ -175,7 +177,7 @@ def _advance_environment_restore(
     sequence: int,
     *,
     stream: JournalStreamIdentity,
-    provider_stream: JournalStreamIdentity,
+    provider_stream: JournalStreamIdentity | None,
     package_root: PathHierarchyTrust,
     ports: WindowsRecoveryManagerPorts,
 ) -> PersistedEnvironmentJournalChain:
@@ -283,7 +285,7 @@ def _advance_certificate_and_runtime_restore(
 def resume_persisted_rollback_from_held_package_root(
     *,
     stream: JournalStreamIdentity,
-    provider_stream: JournalStreamIdentity,
+    provider_stream: JournalStreamIdentity | None,
     package_root: PathHierarchyTrust,
     initial_chain: PersistedEnvironmentJournalChain,
     ports: WindowsRecoveryManagerPorts,
