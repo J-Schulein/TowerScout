@@ -1,25 +1,26 @@
 # TASK-087 Recovery And Forward-Journal WIP Handoff
 
-**As Of**: September 18, 2026 certificate-temp-cleanup checkpoint
+**As Of**: September 18, 2026 exact-certificate-plan checkpoint
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Local Head**: `244eeb7`
-**Remote/PR Head**: `c62f759`
+**Local Head**: `fa9d3eb`
+**Remote/PR Head**: `d593259`
 **State**: Recovery front door and startup admission are exact-head validated;
-durable forward linkage, candidate staging/apply, and exact forward-temp cleanup
-are committed locally; transaction integration remains disabled
+durable forward linkage, candidate staging/apply/cleanup, and exact native
+certificate-plan preparation are committed locally; transaction integration
+remains disabled
 
 ## Remote Status
 
-PR #67 remains Draft at pushed head `c62f759`; its specialized/security checks
-pass while Python 3.11/3.12 remain in progress. Validated exact head `9873c42`
-is fully green in CI/CD run `35364176635`, Task-087 run `35364176462`, and
-Trivy. The main-only build is skipped as designed.
+PR #67 remains Draft at pushed head `d593259`. CI/CD run `35366777685`,
+Task-087 run `35366777693`, and Trivy are fully green; the main-only build is
+skipped as designed.
 
 ## Current Checkpoint
 
-Checkpoints `9d7f533`, `8a6dd47`, `9bdf51c`, and `244eeb7` add a separate
-authenticated forward repair stream, exact candidate staging/apply, and
-forward-temp cleanup without changing the proven rollback chain:
+Checkpoints `9d7f533`, `8a6dd47`, `9bdf51c`, `244eeb7`, and `fa9d3eb` add a
+separate authenticated forward repair stream, exact candidate staging/apply,
+forward-temp cleanup, and exact native plan preparation without changing the
+proven rollback chain:
 
 - the stream is anchored to the exact rollback journal ID and
   `rollback_armed` generation digest;
@@ -46,7 +47,12 @@ forward-temp cleanup without changing the proven rollback chain:
   already-applied candidate, atomically replaces and flushes each destination,
   proves both stage paths absent, then persists `certificates_applied`; and
 - cleanup accepts exact absence and otherwise deletes only the two recorded host
-  identities after revalidating restrictive DACL, size, and full content hash.
+  identities after revalidating restrictive DACL, size, and full content hash;
+  and
+- target capture retains the exact twice-reviewed Windows root material only
+  for the owner's lifetime, reads the fixed OS bundle through a bounded
+  no-follow Docker/Podman command, and fails closed before producing a
+  mismatched or oversized replacement plan.
 
 The checkpoint intentionally provides no integrated live runtime mutation. The
 legacy `repair.py`
@@ -57,7 +63,7 @@ directories. They are local test residue and unrelated to the candidate.
 
 ## Evidence Completed
 
-- Retained-target/recovery/journal selected ring: `339/339` passed.
+- Exact plan/retained-target/recovery/journal selected ring: `347/347` passed.
 - Certificate/recovery/storage staging ring: `197/197` passed.
 - Forward journal/storage/scanner/context tests: `65/65` passed before the
   certificate staging extension.
@@ -92,6 +98,8 @@ carried.
 5. Retained-target atomic certificate apply plus durable
    `certificates_applied` proof were committed as `9bdf51c`.
 6. Retry-safe exact forward-candidate temp cleanup was committed as `244eeb7`.
+7. Exact retained-root plus bounded system-bundle plan preparation was committed
+   as `fa9d3eb`.
 
 ## Resume Point
 

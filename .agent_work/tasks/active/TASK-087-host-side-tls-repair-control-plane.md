@@ -5,9 +5,9 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `ee76805`; `88d29f2` is the latest remotely validated
-exact head until the startup-admission checkpoint is pushed and its workflows
-finish.
+implementation head is `fa9d3eb`; `d593259` is the latest remotely validated
+exact head. Its CI/CD run `35366777685`, Task-087 run `35366777693`, and Trivy
+passed; the main-only build was neutral as designed.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -1895,6 +1895,39 @@ Exit criteria:
   can expose local environment details if helper output is not sanitized.
 
 ## Implementation Log
+
+### 2026-09-18 - Exact Certificate Plan Prepared Under Retained Authority
+
+**Objective**: Preserve the reviewed Windows root through confirmation and
+build the exact two-file replacement plan without a second ambient trust
+selection or an unbounded container read.
+
+**Decision**: Require identical selected-root material across both trusted
+target-plan captures, retain it only for the lifetime of the immutable exact-
+target owner, and read only `/etc/ssl/certs/ca-certificates.crt` through a
+fixed no-follow, regular-file, stable-stat, one-MiB-bounded Docker/Podman
+operation.
+
+**Execution**: Checkpoint `fa9d3eb` carries the selected material through the
+native resolution bridge, clears it whenever the target owner closes or is
+poisoned, and adds a sanitized native planner that validates the produced
+provider, root fingerprint, and local-certificate hash against the resolved
+target. It does not persist certificate bytes or enable mutation.
+
+**Validation**: The selected certificate, forward journal, storage, scan,
+transaction-context, and runtime-target ring passes `347/347`; the final
+retention/planner rerun passes `118/118`. No-cache single-file Black, strict
+mypy, single-worker blocking/unused-code Flake8, Bandit, compilation, and diff
+checks pass. Initial tests exposed the wrong bundle-path constant and a test
+that inspected the final revalidation call rather than the scoped read; both
+were corrected before the complete passing runs. Sandbox-denied Black/Flake8
+multiprocessing was superseded by the clean single-file/single-worker commands.
+No live runtime command was issued.
+
+**Next**: Compose backup/rollback arming, certificate and provider application,
+runtime transition, terminal verification, commit, and cleanup behind the
+ordered confirmation boundary. Keep mutation disabled until the integrated
+path is complete and reviewed.
 
 ### 2026-09-18 - Applied Certificate Temps Cleaned By Exact Identity
 

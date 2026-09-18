@@ -2,15 +2,16 @@
 
 **Sprint Period**: August 8-August 21, 2026; active-task continuation retained
 through the current Task-087 Gate A work
-**Last Updated**: September 17, 2026
+**Last Updated**: September 18, 2026
 **Focus**: Task-101 is complete. Task-087 is the active implementation task.
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, partial, not-started, and
-validation states. Checkpoint `d1494f6` now retains the identity-matched
-package-root authority, protected recovery root, authenticated recovery scan,
-and ordered environment/target locks through confirmation, after `2266f84`
-composed all native rollback ports. Fresh-process/repair-executor integration
+validation states. Checkpoint `fa9d3eb` now retains the twice-reviewed Windows
+root only inside the immutable exact-target owner and builds the certificate
+replacement plan from a fixed, bounded no-follow container system-bundle read.
+It follows the committed forward journal and exact certificate staging/apply/
+cleanup checkpoints through `244eeb7`. Full forward transaction composition
 and the `repair.py` refactor are next; mutation remains disabled. The
 September 14 checkpoint closes slices
 2-3: confirmation

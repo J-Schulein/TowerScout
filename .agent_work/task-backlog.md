@@ -1,14 +1,14 @@
 # Task Backlog - October 2026 Roadmap
 
-**Last Updated**: September 17, 2026
+**Last Updated**: September 18, 2026
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Task-087 is active under its fixed nine-slice
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md). Exact-head
-validated checkpoint `076d566` is green. Implementation checkpoint `d1494f6`
-retains the identity-matched package-root authority, protected recovery root,
-authenticated scan, and ordered environment/target locks through confirmation,
-after native rollback composition at `2266f84`; fresh-process/repair-executor
-integration and live proof remain open. Exact-head
+validated checkpoint `d593259` is green. Implementation checkpoint `fa9d3eb`
+retains twice-reviewed Windows root material only inside the exact-target owner
+and builds an exact replacement plan from a bounded no-follow read of the fixed
+container system bundle. Full forward transaction composition, the legacy
+transaction replacement, and live proof remain open. Exact-head
 validated implementation checkpoint `299ae96` promotes only the exact
 authenticated pointer temp after source and prior-destination verification and
 requires exact completed-move evidence. Exact-head validated checkpoint
@@ -93,8 +93,9 @@ flushed/reopened verification only after rollback is armed and current.
 Checkpoint `9bdf51c` applies/reconciles both verified candidates through the
 retained exact target and durably records `certificates_applied` only after
 destination and stage proof. Checkpoint `244eeb7` idempotently cleans only the
-two recorded protected-root identities. Remaining execution integration and
-the legacy transaction refactor are still open.
+two recorded protected-root identities. Checkpoint `fa9d3eb` supplies the
+missing native plan-preparation boundary without enabling mutation. Remaining
+execution integration and the legacy transaction refactor are still open.
 After Gate A source
 acceptance and the PR #67 merge decision, complete Task-096 lifecycle controls
 and Task-102 native first-run setup before resuming Task-087 Gate B normal-
