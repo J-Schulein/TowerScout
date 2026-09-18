@@ -256,6 +256,25 @@ class HeldWindowsTransactionContext:
                 _fail(WindowsTransactionContextErrorCode.TARGET_CHANGED)
             return locks.target_abandoned
 
+    def assert_target_binding(
+        self,
+        target_token_sha256: str,
+        package_root_identity: StableFileIdentity,
+    ) -> None:
+        """Require the exact target/package binding retained at capture."""
+
+        with self._mutex:
+            package_root = self._package_root
+            if (
+                type(target_token_sha256) is not str
+                or type(package_root_identity) is not StableFileIdentity
+                or package_root is None
+                or package_root.closed
+                or self._target_token != target_token_sha256
+                or package_root.root_snapshot.identity != package_root_identity
+            ):
+                _fail(WindowsTransactionContextErrorCode.TARGET_CHANGED)
+
     def assert_unchanged(self) -> PackageRecoveryJournalScan:
         """Revalidate every retained owner without rescanning mutable journals."""
 
@@ -314,6 +333,18 @@ class HeldWindowsTransactionContext:
     ) -> _Result:
         if not callable(operation):
             _fail(WindowsTransactionContextErrorCode.INPUT_INVALID)
+        return self.run_with_transaction_roots_held(
+            lambda package_root, _protected_root: operation(package_root)
+        )
+
+    def run_with_transaction_roots_held(
+        self,
+        operation: Callable[[PathHierarchyTrust, ProtectedStateRoot], _Result],
+    ) -> _Result:
+        """Run one serialized operation while both retained roots stay valid."""
+
+        if not callable(operation):
+            _fail(WindowsTransactionContextErrorCode.INPUT_INVALID)
         with self._mutex:
             package_root = self._package_root
             protected_root = self._protected_root
@@ -340,7 +371,10 @@ class HeldWindowsTransactionContext:
                     nonlocal operation_error, result
                     package_root.assert_unchanged_while_held()
                     try:
-                        result = operation(cast(PathHierarchyTrust, package_root))
+                        result = operation(
+                            cast(PathHierarchyTrust, package_root),
+                            cast(ProtectedStateRoot, protected_root),
+                        )
                     except BaseException as error:
                         operation_error = error
                     package_root.assert_unchanged_while_held()

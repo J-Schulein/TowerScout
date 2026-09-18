@@ -230,6 +230,15 @@ def test_context_scans_between_ordered_locks_and_retains_every_owner() -> None:
     )
     assert result == (True, True)
 
+    both = context.run_with_transaction_roots_held(
+        lambda package_root, protected_root: (
+            package_root is retained,
+            protected_root is protected,
+            retained.active,
+        )
+    )
+    assert both == (True, True, True)
+
     context.close()
     assert context.closed is True
     assert events[-3:] == ["locks:close", "protected:close", "retained:close"]
