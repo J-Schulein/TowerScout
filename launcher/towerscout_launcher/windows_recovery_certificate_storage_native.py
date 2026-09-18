@@ -685,21 +685,78 @@ def _forward_certificate_metadata(
         type(forward) is not RepairTransactionChainSelection
         or type(expected_state) is not RepairTransactionState
         or forward.tip.state is not expected_state
-        or not 1 <= forward.tip.sequence <= 3
+        or not 1 <= forward.tip.sequence <= 4
     ):
         _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
     planned = forward.generations[0].record
     names = planned.certificate_temp_names
     if names is None:
         _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
-    identities = (
-        None
-        if forward.tip.sequence == 1
-        else forward.generations[-1].record.certificate_temp_identities
-    )
+    identities = None
+    if forward.tip.sequence > 1:
+        identity_generation = forward.generations[min(forward.tip.sequence, 3) - 1]
+        identities = identity_generation.record.certificate_temp_identities
     if forward.tip.sequence > 1 and identities is None:
         _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
     return names, identities, planned.evidence_sha256
+
+
+def _delete_exact_repair_temp(
+    api: _WindowsRecoveryCertificateTempApi,
+    *,
+    path: str,
+    current_user_sid: str,
+    expected_identity: StableFileIdentity,
+    expected_size: int,
+    expected_sha256: str,
+) -> None:
+    handle = _call(
+        lambda: api.open_file_for_delete_if_exists(path),
+        RecoveryCertificateStorageErrorCode.CLEANUP_FAILED,
+    )
+    if handle is None:
+        return
+    held: object | None = handle
+    try:
+        _inspect(
+            api,
+            handle,
+            path=path,
+            current_user_sid=current_user_sid,
+            expected_identity=expected_identity,
+            expected_size=expected_size,
+        )
+        if hashlib.sha256(_read_exact(api, handle, expected_size)).hexdigest() != (
+            expected_sha256
+        ):
+            _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+        _inspect(
+            api,
+            handle,
+            path=path,
+            current_user_sid=current_user_sid,
+            expected_identity=expected_identity,
+            expected_size=expected_size,
+        )
+        _call(
+            lambda: api.mark_file_for_deletion(handle),
+            RecoveryCertificateStorageErrorCode.CLEANUP_FAILED,
+        )
+        _call(
+            lambda: api.close_handle(handle),
+            RecoveryCertificateStorageErrorCode.CLEANUP_FAILED,
+        )
+        held = None
+    finally:
+        if held is not None:
+            _safe_close(api, held)
+    remaining = _call(
+        lambda: api.reopen_file_if_exists(path),
+        RecoveryCertificateStorageErrorCode.CLEANUP_FAILED,
+    )
+    if remaining is not None:
+        _safe_close(api, remaining)
+        _fail(RecoveryCertificateStorageErrorCode.CLEANUP_FAILED)
 
 
 class _NativeWindowsCertificateTempStorage(_NativeWindowsCertificateTempStorageBase):
@@ -848,6 +905,40 @@ class _NativeWindowsCertificateTempStorage(_NativeWindowsCertificateTempStorageB
             expected_sha256=plan.ca_bundle_sha256,
         )
         return CertificateRestoreTempIdentities(local_identity, bundle_identity)
+
+    def delete_applied_repair_certificate_temps(
+        self,
+        root_path: str,
+        forward: RepairTransactionChainSelection,
+        plan: CertificateReplacementPlan,
+    ) -> None:
+        names, identities, evidence_sha256 = _forward_certificate_metadata(
+            forward,
+            RepairTransactionState.CERTIFICATES_APPLIED,
+        )
+        if (
+            identities is None
+            or type(plan) is not CertificateReplacementPlan
+            or certificate_replacement_evidence_sha256(plan) != evidence_sha256
+        ):
+            _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+        current_user_sid = self._context()
+        _delete_exact_repair_temp(
+            self._api,
+            path=_temp_path(root_path, names[0]),
+            current_user_sid=current_user_sid,
+            expected_identity=identities[0],
+            expected_size=len(plan.local_ca_contents),
+            expected_sha256=plan.local_ca_sha256,
+        )
+        _delete_exact_repair_temp(
+            self._api,
+            path=_temp_path(root_path, names[1]),
+            current_user_sid=current_user_sid,
+            expected_identity=identities[1],
+            expected_size=len(plan.ca_bundle_contents),
+            expected_sha256=plan.ca_bundle_sha256,
+        )
 
     def write_and_verify_certificate_restore_temps(
         self,

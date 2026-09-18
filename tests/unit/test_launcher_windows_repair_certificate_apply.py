@@ -29,6 +29,9 @@ from towerscout_launcher.windows_repair_certificate_apply import (  # noqa: E402
     _apply_destination,
     apply_repair_certificates,
 )
+from towerscout_launcher.windows_repair_certificate_cleanup import (  # noqa: E402
+    cleanup_applied_repair_certificate_candidates,
+)
 
 from test_launcher_runtime_execution import _target  # noqa: E402
 from test_launcher_windows_recovery_certificate_storage_native import (  # noqa: E402
@@ -186,6 +189,17 @@ class _Temps:
 
     def close(self) -> None:
         self.closed = True
+
+
+class _CleanupStorage:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def delete_applied_repair_certificate_temps(
+        self, _root_path: str, forward: object, _plan: object
+    ) -> None:
+        self.calls += 1
+        assert forward.tip.state is RepairTransactionState.CERTIFICATES_APPLIED
 
 
 def _identity(value: int) -> StableFileIdentity:
@@ -465,3 +479,17 @@ def test_apply_repair_certificates_persists_fourth_generation_after_exact_proof(
     assert owner.states[_BUNDLE].contents_sha256 == plan.ca_bundle_sha256
     assert owner.assertions == 1
     assert temps.closed
+
+    cleanup_storage = _CleanupStorage()
+    cleaned = cleanup_applied_repair_certificate_candidates(
+        applied,
+        plan,
+        root=_Root(),
+        certificate_storage=cleanup_storage,  # type: ignore[arg-type]
+        generation_storage=storage,
+        pointer_storage=storage,
+        protection=_ForwardProtection(),
+    )
+
+    assert cleaned.selection.generation_sha256s == applied.selection.generation_sha256s
+    assert cleanup_storage.calls == 1

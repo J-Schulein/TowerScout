@@ -263,6 +263,7 @@ def _forward_selection(
         forward_journal.RepairTransactionState.CERTIFICATE_TEMP_PLANNED,
         forward_journal.RepairTransactionState.CERTIFICATE_TEMP_CREATED,
         forward_journal.RepairTransactionState.CERTIFICATE_TEMP_VERIFIED,
+        forward_journal.RepairTransactionState.CERTIFICATES_APPLIED,
     )
     previous = stream.rollback_armed_generation_sha256
     sealed = []
@@ -512,6 +513,59 @@ def test_held_repair_certificate_temps_revalidate_both_exact_candidates() -> Non
     )
     owner.close()
     assert owner.closed
+
+
+def test_applied_repair_certificate_temp_cleanup_is_exact_and_idempotent() -> None:
+    api = _Api()
+    adapter = NativeWindowsRepairCertificateTempStorage(api=api)
+    plan = _replacement_plan()
+    created = adapter.create_repair_certificate_temps(
+        _ROOT,
+        _forward_selection(1, plan),
+    )
+    assert created.local_ca is not None and created.ca_bundle is not None
+    identities = (created.local_ca, created.ca_bundle)
+    adapter.write_and_verify_repair_certificate_temps(
+        _ROOT,
+        _forward_selection(2, plan, identities),
+        plan,
+    )
+    applied = _forward_selection(4, plan, identities)
+
+    adapter.delete_applied_repair_certificate_temps(_ROOT, applied, plan)
+    adapter.delete_applied_repair_certificate_temps(_ROOT, applied, plan)
+
+    assert _REPAIR_LOCAL_PATH not in api.files
+    assert _REPAIR_BUNDLE_PATH not in api.files
+
+
+def test_applied_repair_certificate_temp_cleanup_preserves_identity_drift() -> None:
+    api = _Api()
+    adapter = NativeWindowsRepairCertificateTempStorage(api=api)
+    plan = _replacement_plan()
+    created = adapter.create_repair_certificate_temps(
+        _ROOT,
+        _forward_selection(1, plan),
+    )
+    assert created.local_ca is not None and created.ca_bundle is not None
+    identities = (created.local_ca, created.ca_bundle)
+    adapter.write_and_verify_repair_certificate_temps(
+        _ROOT,
+        _forward_selection(2, plan, identities),
+        plan,
+    )
+    api.files[_REPAIR_LOCAL_PATH].identity = _identity(99)
+
+    with pytest.raises(RecoveryCertificateStorageError) as failure:
+        adapter.delete_applied_repair_certificate_temps(
+            _ROOT,
+            _forward_selection(4, plan, identities),
+            plan,
+        )
+
+    assert failure.value.code is RecoveryCertificateStorageErrorCode.VERIFY_FAILED
+    assert _REPAIR_LOCAL_PATH in api.files
+    assert _REPAIR_BUNDLE_PATH in api.files
 
 
 def test_held_certificate_restore_temps_detect_source_drift_after_operation() -> None:
