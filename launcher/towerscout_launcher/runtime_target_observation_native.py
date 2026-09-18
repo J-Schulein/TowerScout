@@ -65,6 +65,7 @@ from .runtime_target_resolution import (
     TargetResolutionPlan,
     capture_bound_resolved_repair_target,
 )
+from .trust_policy import SelectedWindowsRootMaterial
 from .runtime_verification import (
     BoundRuntimeEvidence,
     open_package_bound_runtime_evidence,
@@ -1099,6 +1100,8 @@ def capture_native_windows_target_observation_backend(
 
 def capture_native_windows_resolved_repair_target(
     plan: TargetResolutionPlan,
+    *,
+    certificate_material: SelectedWindowsRootMaterial | None = None,
 ) -> BoundResolvedRepairTarget:
     """Resolve one exact target through the production native authority path.
 
@@ -1128,7 +1131,11 @@ def capture_native_windows_resolved_repair_target(
         raise TargetResolutionError(
             failure_code or TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
         )
-    return capture_bound_resolved_repair_target(plan, backend=backend)
+    return capture_bound_resolved_repair_target(
+        plan,
+        backend=backend,
+        certificate_material=certificate_material,
+    )
 
 
 __all__ = [

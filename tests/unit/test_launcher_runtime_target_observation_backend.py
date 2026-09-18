@@ -470,6 +470,8 @@ class _Executor:
             ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE,
         }:
             return b""
+        if process.operation is ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE:
+            return b"private-system-bundle\n"
         if process.operation is ObservationOperation.CONTAINER_LIST:
             return (_CONTAINER_ID + "\r\n").encode("ascii")
         if process.operation is ObservationOperation.CONTAINER_INSPECT:
@@ -732,6 +734,32 @@ def test_bound_target_executes_only_fixed_forward_certificate_processes(
     assert applied.operation is ObservationOperation.CERTIFICATE_APPLY_CANDIDATE
     assert applied_absent.operation is ObservationOperation.CERTIFICATE_APPLY_CANDIDATE
     assert removed.operation is ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE
+    assert authority.closed is False
+    assert executor.closed is False
+    owner.close()
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_bound_target_reads_only_the_fixed_system_certificate_bundle(
+    product: RuntimeProduct,
+) -> None:
+    plan, authority, executor, backend = _backend(product)
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+
+    result = owner.execute_scoped_process(
+        "certificate_read_system_bundle",
+        (_CONTAINER_ID,),
+    )
+
+    assert isinstance(result, TargetObservationProcessResult)
+    assert result.operation is ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE
+    assert result.stdout == b"private-system-bundle\n"
+    assert (
+        executor.calls.count(
+            (ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE, _CONTAINER_ID)
+        )
+        == 1
+    )
     assert authority.closed is False
     assert executor.closed is False
     owner.close()

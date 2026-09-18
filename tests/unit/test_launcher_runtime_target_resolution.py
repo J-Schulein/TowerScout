@@ -637,6 +637,26 @@ def test_capture_resolves_exact_cpu_target_for_both_runtimes(
     assert owner.closed is True
 
 
+def test_bound_target_retains_only_matching_selected_root_material() -> None:
+    selected = _selected_root(MapProvider.GOOGLE)
+    plan = _windows_trusted_plan(_plan())
+    snapshot = _snapshot(plan)
+    owner = capture_bound_resolved_repair_target(
+        plan,
+        backend=_Backend(snapshot, snapshot),
+        certificate_material=selected,
+    )
+
+    assert owner.certificate_material == selected
+    assert "CERTIFICATE" not in repr(owner)
+    owner.close()
+
+    with pytest.raises(TargetResolutionError) as caught:
+        _ = owner.certificate_material
+
+    assert caught.value.code is TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+
+
 @pytest.mark.parametrize("product", [RuntimeProduct.DOCKER, RuntimeProduct.PODMAN])
 def test_absent_resolution_preserves_exact_image_compose_and_volumes(
     product: RuntimeProduct,
@@ -1620,10 +1640,18 @@ def test_owned_plan_assembly_transfers_the_second_stable_plan(
         assembled.append(plan)
         return plan
 
-    def bridge(plan: TargetResolutionPlan) -> _ResolvedTargetOwner:
+    retained_material: list[SelectedWindowsRootMaterial] = []
+
+    def bridge(
+        plan: TargetResolutionPlan,
+        *,
+        certificate_material: SelectedWindowsRootMaterial | None = None,
+    ) -> _ResolvedTargetOwner:
         assert owner.closed is False
         assert plan is assembled[1]
+        assert certificate_material is not None
         captured.append(plan)
+        retained_material.append(certificate_material)
         return resolved
 
     monkeypatch.setattr(
@@ -1650,6 +1678,7 @@ def test_owned_plan_assembly_transfers_the_second_stable_plan(
     assert captured[0] is assembled[1]
     assert captured[0] == _windows_trusted_plan(_plan())
     assert captured[0].certificate != _plan().certificate
+    assert retained_material == [_selected_root(MapProvider.GOOGLE)]
     assert _fixed_native_windows_root == [MapProvider.GOOGLE, MapProvider.GOOGLE]
     assert owner.capture_calls == 2
     assert owner.close_calls == 1
@@ -1671,7 +1700,12 @@ def test_owned_plan_assembly_rejects_native_root_drift_before_bridge(
         lambda provider: _selected_root(provider, next(roots)),
     )
 
-    def bridge(_plan: TargetResolutionPlan) -> BoundResolvedRepairTarget:
+    def bridge(
+        _plan: TargetResolutionPlan,
+        *,
+        certificate_material: SelectedWindowsRootMaterial | None = None,
+    ) -> BoundResolvedRepairTarget:
+        del certificate_material
         nonlocal bridge_calls
         bridge_calls += 1
         raise AssertionError("bridge must not run")
@@ -1809,7 +1843,12 @@ def test_owned_plan_assembly_rejects_changed_inputs_before_native_capture(
     owner = _PlanInputOwner(first, second)
     bridge_calls = 0
 
-    def bridge(_plan: TargetResolutionPlan) -> BoundResolvedRepairTarget:
+    def bridge(
+        _plan: TargetResolutionPlan,
+        *,
+        certificate_material: SelectedWindowsRootMaterial | None = None,
+    ) -> BoundResolvedRepairTarget:
+        del certificate_material
         nonlocal bridge_calls
         bridge_calls += 1
         raise AssertionError("bridge must not run")
@@ -1874,10 +1913,19 @@ def test_owned_plan_assembly_closes_new_target_when_input_close_fails(
         "BoundResolvedRepairTarget",
         _ResolvedTargetOwner,
     )
+
+    def bridge(
+        _plan: TargetResolutionPlan,
+        *,
+        certificate_material: SelectedWindowsRootMaterial | None = None,
+    ) -> _ResolvedTargetOwner:
+        assert certificate_material is not None
+        return resolved
+
     monkeypatch.setattr(
         runtime_target_plan,
         "capture_native_windows_resolved_repair_target",
-        lambda _plan: resolved,
+        bridge,
     )
 
     with pytest.raises(TargetResolutionError) as caught:
@@ -1900,7 +1948,12 @@ def test_owned_plan_assembly_preserves_primary_failure_over_cleanup_failure(
         close_error=RuntimeError("PRIVATE CLOSE DETAIL"),
     )
 
-    def bridge(_plan: TargetResolutionPlan) -> BoundResolvedRepairTarget:
+    def bridge(
+        _plan: TargetResolutionPlan,
+        *,
+        certificate_material: SelectedWindowsRootMaterial | None = None,
+    ) -> BoundResolvedRepairTarget:
+        del certificate_material
         raise TargetResolutionError(TargetResolutionErrorCode.MODEL_INVALID)
 
     monkeypatch.setattr(
@@ -1924,7 +1977,12 @@ def test_owned_plan_assembly_sanitizes_unexpected_native_failure(
     inputs = _plan_inputs(_plan())
     owner = _PlanInputOwner(inputs, inputs)
 
-    def bridge(_plan: TargetResolutionPlan) -> BoundResolvedRepairTarget:
+    def bridge(
+        _plan: TargetResolutionPlan,
+        *,
+        certificate_material: SelectedWindowsRootMaterial | None = None,
+    ) -> BoundResolvedRepairTarget:
+        del certificate_material
         raise RuntimeError("PRIVATE NATIVE DETAIL")
 
     monkeypatch.setattr(

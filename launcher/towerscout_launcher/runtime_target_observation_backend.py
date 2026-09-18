@@ -1766,6 +1766,13 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
                 return self._binding.rollback_provider_probe(
                     container_id=container_id,
                 )
+            if operation == "certificate_read_system_bundle" and len(arguments) == 1:
+                (container_id,) = arguments
+                if type(container_id) is not str:
+                    raise ValueError
+                return self._binding.certificate_read_system_bundle(
+                    container_id=container_id,
+                )
             if operation == "certificate_observe" and len(arguments) == 3:
                 container_id, destination, restore_temp_name = arguments
                 if (

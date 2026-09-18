@@ -14,6 +14,7 @@ if str(LAUNCHER_ROOT) not in sys.path:
     sys.path.insert(0, str(LAUNCHER_ROOT))
 
 from towerscout_launcher.runtime_target_observation import (  # noqa: E402
+    CERTIFICATE_BUNDLE_STDOUT_LIMIT_BYTES,
     CERTIFICATE_OPERATION_TIMEOUT_MS,
     OBSERVATION_CA_DESTINATION,
     OBSERVATION_COMPOSE_STDOUT_LIMIT_BYTES,
@@ -556,6 +557,40 @@ def test_certificate_forward_apply_processes_are_fixed_contained_engine_commands
     assert apply.operation is ObservationOperation.CERTIFICATE_APPLY_CANDIDATE
     assert apply_absent.arguments[-4:] == ("0", "-", "-1", "0")
     assert remove.operation is ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_certificate_bundle_read_is_a_fixed_bounded_engine_command(
+    product: RuntimeProduct,
+) -> None:
+    plan = _plan(product)
+    request = TargetObservationExecutionBinding(plan).certificate_read_system_bundle(
+        container_id="d" * 64
+    )
+
+    assert request.operation is ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE
+    assert request.command[0] == str(plan.runtime.executable.final_path)
+    command_index = request.arguments.index("container")
+    assert request.arguments[command_index : command_index + 5] == (
+        "container",
+        "exec",
+        "d" * 64,
+        "python",
+        "-c",
+    )
+    assert request.timeout_ms == CERTIFICATE_OPERATION_TIMEOUT_MS
+    assert request.stdout_limit_bytes == CERTIFICATE_BUNDLE_STDOUT_LIMIT_BYTES
+    assert request.stdin_closed is True
+    assert request.shell is False
+    assert "--volumes" not in request.arguments
+    assert "-v" not in request.arguments
+    script = request.arguments[command_index + 5]
+    ast.parse(script, feature_version=(3, 11))
+    assert "/etc/ssl/certs/ca-certificates.crt" in script
+    assert "O_NOFOLLOW" in script
+    assert not {"sh", "bash", "cmd", "powershell"} & {
+        item.casefold() for item in request.arguments
+    }
 
 
 def test_certificate_stage_rejects_source_outside_exact_recovery_root() -> None:

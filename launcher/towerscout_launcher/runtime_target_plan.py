@@ -69,12 +69,19 @@ class _WindowsTrustedTargetResolutionPlanInputs:
 
     inputs: TargetResolutionPlanInputs = field(repr=False)
     certificate: CertificateIdentity = field(repr=False)
+    selected_root: SelectedWindowsRootMaterial = field(repr=False)
 
     def __post_init__(self) -> None:
         if (
             type(self.inputs) is not TargetResolutionPlanInputs
             or type(self.certificate) is not CertificateIdentity
             or self.certificate.provider is not self.inputs.provider
+            or type(self.selected_root) is not SelectedWindowsRootMaterial
+            or self.selected_root.provider is not self.inputs.provider
+            or self.selected_root.fingerprint_sha256
+            != self.certificate.windows_root_fingerprint_sha256
+            or self.selected_root.pem_sha256
+            != self.certificate.candidate_content_sha256
         ):
             raise ValueError("Trusted target-plan inputs are invalid.")
 
@@ -190,7 +197,11 @@ class _WindowsTrustedPlanInputOwner:
                     windows_root_fingerprint_sha256=selected.fingerprint_sha256,
                     candidate_content_sha256=selected.pem_sha256,
                 )
-                return _WindowsTrustedTargetResolutionPlanInputs(inputs, certificate)
+                return _WindowsTrustedTargetResolutionPlanInputs(
+                    inputs,
+                    certificate,
+                    selected,
+                )
             except (OverflowError, TypeError, UnicodeError, ValueError):
                 raise TargetResolutionError(
                     TargetResolutionErrorCode.AUTHORITY_MISMATCH
@@ -308,6 +319,43 @@ def _capture_plan(
     )
 
 
+def _capture_trusted(
+    owner: _WindowsTrustedPlanInputOwner,
+) -> _WindowsTrustedTargetResolutionPlanInputs:
+    trusted: _WindowsTrustedTargetResolutionPlanInputs | None = None
+    failure: TargetResolutionErrorCode | None = None
+    try:
+        trusted = owner.capture()
+    except TargetResolutionError as error:
+        failure = error.code
+    except Exception:
+        failure = TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
+    if failure is not None:
+        raise TargetResolutionError(failure) from None
+    if type(trusted) is not _WindowsTrustedTargetResolutionPlanInputs:
+        raise TargetResolutionError(
+            TargetResolutionErrorCode.AUTHORITY_MISMATCH
+        ) from None
+    return trusted
+
+
+def _recapture_trusted(
+    owner: _WindowsTrustedPlanInputOwner,
+) -> _WindowsTrustedTargetResolutionPlanInputs:
+    trusted: _WindowsTrustedTargetResolutionPlanInputs | None = None
+    interrupted: BaseException | None = None
+    try:
+        trusted = _capture_trusted(owner)
+    except BaseException as error:
+        if not isinstance(error, Exception):
+            interrupted = error
+    if interrupted is not None:
+        raise interrupted from None
+    if trusted is None:
+        raise TargetResolutionError(TargetResolutionErrorCode.TARGET_CHANGED) from None
+    return trusted
+
+
 def _recapture_plan(
     owner: _WindowsTrustedPlanInputOwner,
 ) -> TargetResolutionPlan:
@@ -381,13 +429,28 @@ def capture_native_windows_resolved_target_from_inputs(
             raise TargetResolutionError(
                 TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE
             ) from None
-        first = _capture_plan(trusted_owner)
-        second = _recapture_plan(trusted_owner)
+        first_trusted = _capture_trusted(trusted_owner)
+        first = _assemble_target_resolution_plan(
+            first_trusted.inputs,
+            certificate=first_trusted.certificate,
+        )
+        second_trusted = _recapture_trusted(trusted_owner)
+        second = _assemble_target_resolution_plan(
+            second_trusted.inputs,
+            certificate=second_trusted.certificate,
+        )
         if first.authority_sha256 != second.authority_sha256:
             raise TargetResolutionError(
                 TargetResolutionErrorCode.TARGET_CHANGED
             ) from None
-        resolved = capture_native_windows_resolved_repair_target(second)
+        if first_trusted.selected_root != second_trusted.selected_root:
+            raise TargetResolutionError(
+                TargetResolutionErrorCode.TARGET_CHANGED
+            ) from None
+        resolved = capture_native_windows_resolved_repair_target(
+            second,
+            certificate_material=second_trusted.selected_root,
+        )
         if type(resolved) is not BoundResolvedRepairTarget or resolved.closed:
             raise TargetResolutionError(
                 TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE

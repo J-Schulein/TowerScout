@@ -43,6 +43,7 @@ from .target_contracts import (
     VolumeIdentity,
     WindowsProcessEnvironment,
 )
+from .trust_policy import SelectedWindowsRootMaterial
 from .windows_path_trust import PathHierarchyTrust
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -1514,6 +1515,7 @@ class BoundResolvedRepairTarget:
         "_active_owner",
         "_backend",
         "_binding_sha256",
+        "_certificate_material",
         "_closed",
         "_evidence",
         "_lifetime_lock",
@@ -1528,12 +1530,24 @@ class BoundResolvedRepairTarget:
         backend: TargetResolutionBackend,
         target: ResolvedRepairTarget,
         evidence: TargetResolutionEvidence,
+        certificate_material: SelectedWindowsRootMaterial | None = None,
     ) -> None:
         if (
             type(plan) is not TargetResolutionPlan
             or type(target) is not ResolvedRepairTarget
             or type(evidence) is not TargetResolutionEvidence
             or target.target_token.display != evidence.target_token
+            or (
+                certificate_material is not None
+                and (
+                    type(certificate_material) is not SelectedWindowsRootMaterial
+                    or certificate_material.provider is not target.certificate.provider
+                    or certificate_material.fingerprint_sha256
+                    != target.certificate.windows_root_fingerprint_sha256
+                    or certificate_material.pem_sha256
+                    != target.certificate.candidate_content_sha256
+                )
+            )
         ):
             raise ValueError("Bound resolved target is invalid.")
         self._lifetime_lock = threading.RLock()
@@ -1543,6 +1557,7 @@ class BoundResolvedRepairTarget:
         self._backend: TargetResolutionBackend | None = backend
         self._target = target
         self._evidence = evidence
+        self._certificate_material = certificate_material
         self._binding_sha256 = evidence.observation_binding_sha256
 
     @property
@@ -1552,6 +1567,13 @@ class BoundResolvedRepairTarget:
     @property
     def evidence(self) -> TargetResolutionEvidence:
         return self._evidence
+
+    @property
+    def certificate_material(self) -> SelectedWindowsRootMaterial:
+        material = self._certificate_material
+        if material is None or self.closed:
+            _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
+        return material
 
     @property
     def closed(self) -> bool:
@@ -1572,6 +1594,7 @@ class BoundResolvedRepairTarget:
     def _poison(self) -> None:
         backend = self._backend
         self._backend = None
+        self._certificate_material = None
         self._closed = True
         if backend is not None:
             _suppress_backend_close(backend)
@@ -1722,6 +1745,7 @@ class BoundResolvedRepairTarget:
                 primary = error
             retiring = self._backend
             self._backend = None
+            self._certificate_material = None
             self._closed = True
             if retiring is not None:
                 try:
@@ -1748,6 +1772,7 @@ class BoundResolvedRepairTarget:
                 return
             backend = self._backend
             self._backend = None
+            self._certificate_material = None
             self._closed = True
             if backend is not None and _close_backend(backend):
                 _fail(TargetResolutionErrorCode.TARGET_CHANGED)
@@ -1781,6 +1806,7 @@ def capture_bound_resolved_repair_target(
     plan: TargetResolutionPlan,
     *,
     backend: TargetResolutionBackend,
+    certificate_material: SelectedWindowsRootMaterial | None = None,
 ) -> BoundResolvedRepairTarget:
     """Resolve twice and transfer the read-only backend into the target owner."""
 
@@ -1823,6 +1849,7 @@ def capture_bound_resolved_repair_target(
             backend=backend,
             target=second.target,
             evidence=evidence,
+            certificate_material=certificate_material,
         )
         transferred = True
         return owner
