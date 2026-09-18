@@ -2,19 +2,22 @@
 
 **As Of**: September 18, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `fa9d3eb`
-**Validated Exact Head**: `d593259`
-**Remote Exact-Head Status**: CI/CD run `35366777685`, Task-087 run
-`35366777693`, and Trivy passed at `d593259`; the main-only build was neutral as
+**Implementation Head**: `e4261e0`
+**Validated Exact Head**: `174a261`
+**Remote Exact-Head Status**: CI/CD run `35369249829`, Task-087 run
+`35369249917`, and Trivy passed at `174a261`; the main-only build was neutral as
 designed.
-**Local Checkpoint**: Committed checkpoint `fa9d3eb` retains the twice-captured
-reviewed Windows root only inside the exact target owner, reads only the fixed
-container system bundle through a bounded no-follow command, and constructs the
-exact replacement plan without recapturing trust. The selected certificate,
-forward journal, storage, scan, context, and target ring passes `347/347`;
-focused formatting, strict typing, lint, Bandit, compilation, and diff checks
-pass. Provider/runtime/terminal execution integration remains absent, so
-launcher mutation remains disabled.
+**Local Checkpoint**: Committed checkpoint `e4261e0` captures the exact original
+fixed certificate destinations, the package `.env` bytes and normalized Windows
+security evidence, and a fresh repairable-TLS readiness authority while all
+corresponding target/root owners remain held. Docker and Podman use only fixed,
+bounded, no-follow reads. Focused evidence passes `146/146`; strict typing,
+Black, blocking lint, focused Bandit, compilation, and diff checks pass. A
+pre-existing native `ReplaceFileW` test is locally denied by host policy with
+Windows error 5; the same test passed at the preceding exact CI head, and
+diagnostic directory share-mode changes did not alter the result. No failed
+product assertion is carried. Rollback-arming and provider/runtime/terminal
+execution integration remain absent, so launcher mutation remains disabled.
 The preserved WIP state and corrected failures are recorded in the
 [`September 17 recovery-front-door handoff`](../../../context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
 **Current Gate A Checkpoint**: Provider `.env` update/reconciliation is

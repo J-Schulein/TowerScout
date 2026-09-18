@@ -100,12 +100,18 @@ carried.
 6. Retry-safe exact forward-candidate temp cleanup was committed as `244eeb7`.
 7. Exact retained-root plus bounded system-bundle plan preparation was committed
    as `fa9d3eb`.
+8. Exact original package/container state capture plus fresh pre-mutation
+   readiness authority was committed as `e4261e0`. Focused tests pass
+   `146/146`; strict typing, formatting, blocking lint, focused Bandit,
+   compilation, and diff checks pass.
 
 ## Resume Point
 
-Refactor `repair.py` around the immutable resolved target, forward journal,
-and durable rollback manager. Preserve the `BEFORE_MUTATION`, `BEFORE_RESTART`,
-and `TERMINAL` revalidation order and keep live mutation disabled until the
+Compose the captured exact backups, replacement plans, runtime authority, and
+readiness authority through durable `rollback_armed` activation. Then refactor
+`repair.py` around the immutable resolved target, forward journal, and durable
+rollback manager. Preserve the `BEFORE_MUTATION`, `BEFORE_RESTART`, and
+`TERMINAL` revalidation order and keep live mutation disabled until the
 integrated path is complete and reviewed.
 
 The successful revocation-aware Windows trust proof and isolated Docker/rootless

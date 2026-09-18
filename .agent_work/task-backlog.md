@@ -4,11 +4,12 @@
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Task-087 is active under its fixed nine-slice
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md). Exact-head
-validated checkpoint `d593259` is green. Implementation checkpoint `fa9d3eb`
-retains twice-reviewed Windows root material only inside the exact-target owner
-and builds an exact replacement plan from a bounded no-follow read of the fixed
-container system bundle. Full forward transaction composition, the legacy
-transaction replacement, and live proof remain open. Exact-head
+validated checkpoint `174a261` is green. Implementation checkpoint `e4261e0`
+captures the exact original package environment, fixed container certificate
+destinations, and fresh repairable-TLS readiness authority under retained
+owners. Durable rollback-arming composition, full forward transaction
+composition, the legacy transaction replacement, and live proof remain open.
+Exact-head
 validated implementation checkpoint `299ae96` promotes only the exact
 authenticated pointer temp after source and prior-destination verification and
 requires exact completed-move evidence. Exact-head validated checkpoint

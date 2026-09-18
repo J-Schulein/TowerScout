@@ -168,6 +168,34 @@ were superseded by the isolated native proof and the repository's actual lint
 gates. No failed product check is carried, and no live runtime command was
 issued.
 
+### 2026-09-18 - Exact Rollback Inputs Captured
+
+**Objective**: Close the last exact-state capture prerequisites before durable
+rollback arming and forward transaction composition.
+
+**Execution**: Checkpoint `e4261e0` adds fixed bounded no-follow reads for the
+two container certificate destinations, captures their exact original
+bytes/modes with observe-read-observe stability proof, captures the package
+`.env` twice under the retained package-root lease with exact file identity,
+contents, attributes, and normalized owner/DACL evidence, and derives fresh
+pre-mutation readiness authority only from fixed readiness and keyless provider
+probes. All stream, package-root, target-token, provider, and retained-owner
+bindings fail closed with sanitized errors. No mutation path was enabled.
+
+**Validation**: The focused observation/backend/backup/readiness set passes
+`146/146`. Black, strict mypy, single-worker blocking Flake8, focused Bandit,
+compilation, and `git diff --check` pass. The full touched-source Bandit run
+contains only the unchanged observation-backend safe-loader/assert baseline. A
+real-Windows restore integration test is locally blocked at `ReplaceFileW` with
+host-policy error 5; its logic is outside this checkpoint, the security digest
+formula remains byte-for-byte compatible, diagnostic directory share modes did
+not change the outcome, and the same test passed at exact-head CI `174a261`.
+
+**Next**: Compose these exact inputs through encrypted backup persistence,
+`backup_verified`, and activated `rollback_armed` under one retained transaction
+context. Keep first mutation unreachable until the complete forward and recovery
+path is integrated and reviewed.
+
 ### 2026-09-18 - Authenticated Recovery Front Door Checkpointed
 
 **Objective**: Close the fresh-process recovery-front-door increment before

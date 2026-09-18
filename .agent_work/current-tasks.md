@@ -7,12 +7,12 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, partial, not-started, and
-validation states. Checkpoint `fa9d3eb` now retains the twice-reviewed Windows
-root only inside the immutable exact-target owner and builds the certificate
-replacement plan from a fixed, bounded no-follow container system-bundle read.
-It follows the committed forward journal and exact certificate staging/apply/
-cleanup checkpoints through `244eeb7`. Full forward transaction composition
-and the `repair.py` refactor are next; mutation remains disabled. The
+validation states. Checkpoint `e4261e0` now captures the exact original `.env`
+and both fixed container certificate destinations plus fresh repairable-TLS
+readiness evidence under retained authority. It follows the exact-plan
+checkpoint and the committed forward journal/certificate stages. Durable
+rollback-arming composition, full forward execution, and the `repair.py`
+refactor are next; mutation remains disabled. The
 September 14 checkpoint closes slices
 2-3: confirmation
 now consumes and retains the native exact target, shows only its public summary,
