@@ -7,8 +7,9 @@ displays a non-mutating TLS repair plan for Google Maps or Azure Maps, and can
 resolve and retain one exact Windows-trusted target before a bounded typed
 `REPAIR TLS AND RESTART` confirmation. The reviewed source can execute the
 durable native repair only after that confirmation and its ordered revalidation
-hooks. No live repair has been run, and Gate A remains open pending exact-head
-checks plus the required Windows-trust and Docker/rootless-Podman proof.
+hooks. Exact-head checks pass at `21725f5`, but no live repair has been run.
+Gate A remains open pending successful Windows-trust and approved Docker/
+rootless-Podman proof.
 
 ## August 19 release sequencing
 

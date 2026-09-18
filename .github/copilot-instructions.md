@@ -105,8 +105,12 @@ The project still carries public-health workflow expectations:
   Pre-arm/aborted chains cannot enter rollback. Its final recovery ring passes
   `316/316`, independent re-review reports zero blockers, and legacy
   `repair.py` is retained only as an unreachable compatibility/test reference.
-  Exact-head checks and the required revocation-aware Windows plus
-  Docker/rootless-Podman live proof remain before Gate A exit.
+  Documentation head `21725f5` passed exact-head CI/CD run `35389528602`,
+  Task-087 run `35389528502`, and Trivy. The current-source live retry failed
+  closed as `chain_unverified` for both providers; Podman exposed only a
+  rootful machine and delegated Compose to Docker Desktop. The successful
+  revocation-aware Windows plus approved Docker/rootless-Podman live proof
+  remains before Gate A exit.
   Independently reviewed and exact-head validated checkpoint `56ba458` reads
   and authenticates both exact backups under one held protected-root interval,
   matches them to generation-1 summaries, and persists and selects generation

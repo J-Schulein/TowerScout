@@ -4,14 +4,15 @@
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Task-087 is active under its fixed nine-slice
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md). Exact-head
-validated checkpoint `250ea5b` is green. Implementation head `2999da0`
+validated checkpoint `21725f5` is green. Implementation head `2999da0`
 composes the complete durable repair path through target/provider mutation,
 runtime transitions, terminal verification/commit, exact backup cleanup, and
 recovery-on-failure. It also connects the production typed-confirmation call
 site to that path with ordered revalidation and rebound-owner terminal proof.
-Exact-head CI and live proof remain open. Independent re-review found zero
-blockers, and legacy `repair.py` is explicitly retained only as an unreachable
-compatibility/test reference.
+Independent re-review found zero blockers. Live proof remains open after both
+provider chains failed closed and Podman exposed a rootful machine with an
+unapproved Docker Desktop Compose delegation. Legacy `repair.py` is explicitly
+retained only as an unreachable compatibility/test reference.
 Exact-head
 validated implementation checkpoint `299ae96` promotes only the exact
 authenticated pointer temp after source and prior-destination verification and
@@ -285,7 +286,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / VALIDATE at implementation head `2999da0`; `250ea5b` is the validated exact head. The complete durable transaction reaches verified commit, exact cleanup, recovery-on-failure, and authenticated pre-arm abort through the production typed-confirmation call site. Independent re-review reports zero blockers; exact-head workflows, live trust/runtime proof, and final validation remain. Legacy `repair.py` is retained only as an unreachable compatibility/test reference. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / VALIDATE at implementation head `2999da0`; `21725f5` is the validated exact head. The complete durable transaction reaches verified commit, exact cleanup, recovery-on-failure, and authenticated pre-arm abort through the production typed-confirmation call site. Independent re-review reports zero blockers and exact-head workflows pass. Live trust/runtime proof and final validation remain after both provider chains failed closed and Podman did not satisfy the rootless standalone-provider boundary. Legacy `repair.py` is retained only as an unreachable compatibility/test reference. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
 | `TASK-096` Launcher Lifecycle Controls | Backlog / NOT_STARTED. Begins only after Task-087 Gate A acceptance and the PR #67 merge decision; owns native state-driven Start/Open/Stop/Restart. |
 | `TASK-102` Native Launcher First-Run Setup | Backlog / NOT_STARTED. Begins after Task-096; owns package/asset/runtime/readiness setup and opens the browser Setup Wizard for provider keys before Task-087 Gate B. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |

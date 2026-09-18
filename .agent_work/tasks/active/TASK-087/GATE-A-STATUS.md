@@ -3,9 +3,9 @@
 **As Of**: September 18, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
 **Implementation Head**: `2999da0`
-**Validated Exact Head**: `250ea5b`
-**Remote Exact-Head Status**: CI/CD run `35379191029`, Task-087 run
-`35379191026`, and Trivy passed at `250ea5b`; the main-only build was neutral as
+**Validated Exact Head**: `21725f5`
+**Remote Exact-Head Status**: CI/CD run `35389528602`, Task-087 run
+`35389528502`, and Trivy passed at `21725f5`; the main-only build was neutral as
 designed.
 **Local Checkpoint**: Committed checkpoints through `500a18a` compose the full
 durable repair path: exact runtime stop/start, terminal target/environment/
@@ -18,8 +18,8 @@ supplies the three required ordered revalidation hooks, adopts the rebound exact
 owner for terminal proof, and closes retained authority on every exit. The
 integrated selected Gate A ring passes `1881/1881`; strict typing, Black,
 blocking lint, focused Bandit, compilation, and diff checks pass. The legacy
-`repair.py` module is no longer the production execution path but remains
-in-tree pending a final delete-or-retain decision. No live mutation was run.
+`repair.py` module is no longer the production execution path and is retained
+only as an unreachable compatibility/test reference. No live mutation was run.
 The preserved WIP state and corrected failures are recorded in the
 [`September 17 recovery-front-door handoff`](../../../context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
 Checkpoint `2999da0` closes the final rollback-preparation failure gap. A fresh
@@ -38,6 +38,18 @@ checkpoint. Local endpoint protection still blocks execution of the separate
 PowerShell helper module; its source-only tests pass and no assertion was
 weakened. The legacy `repair.py` module is explicitly retained only as an
 unreachable compatibility/test reference. No live mutation was run.
+Exact-head validation then passed at documentation head `21725f5`: CI/CD run
+`35389528602`, Task-087 run `35389528502`, and Trivy are green; the main-only
+build is neutral as designed. After explicit Docker/Podman readiness
+confirmation, the current-source Windows trust selector still failed closed as
+`chain_unverified` for both approved providers without persisting certificate
+material. Docker was healthy, but no selected root existed for the required
+same-bytes containment proof. Podman 6.0.2 exposed only a running rootful
+machine, no standalone `podman-compose`, and an unset provider override that
+delegated to Docker Desktop Compose 5.3.1. No Podman machine setting, container,
+volume, package, `.env`, certificate, or trust state was changed. Gate A remains
+open on the successful revocation-aware trust proof and approved rootless-
+Podman runtime proof.
 **Current Gate A Checkpoint**: Provider `.env` update/reconciliation is
 implemented at `d8818bd`; fresh-process rollback resumption is implemented at
 `032db8b`; and native terminal cleanup is implemented at `4ff6967`. Local
@@ -163,9 +175,10 @@ before raising the sanitized confirmation error. The shared-temp ACL cleanup
 failure and an over-broad line-length lint invocation were superseded by the
 isolated native pass and repository gate commands; no failed product check is
 carried.
-Live Windows
-trust, Docker, and rootless-Podman evidence is pending a supported context and
-the required runtime-readiness confirmation.
+Live Windows trust, Docker, and rootless-Podman evidence remains pending a
+supported context. Runtime readiness was explicitly confirmed, but the current
+host failed closed on both provider chains and exposed only a rootful Podman
+machine with an unapproved Docker Desktop Compose delegation.
 **Historical Checkpoint Ledger**: Slices 2-3 exact-target confirmation wiring
 complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
@@ -910,9 +923,9 @@ count, determine completion.
 
 ## Remaining Outcome Sequence
 
-1. **Validate the reviewed source checkpoint (slices 5-8).** Require exact-head
-  CI/CD, Task-087, and Trivy success for `2999da0` plus its documentation
-  checkpoint. The independent corrected-diff review reports zero blockers.
+1. **Validate the reviewed source checkpoint (slices 5-8).** **COMPLETE** at
+  `21725f5`: CI/CD run `35389528602`, Task-087 run `35389528502`, and Trivy
+  passed. The independent corrected-diff review reports zero blockers.
 2. **Close trust and integration proof (slices 4 and 8).** Obtain the successful
    revocation-aware fixed-host Windows proof, exercise the hardened provider
    path, and repeat one-root Docker/rootless-Podman containment after runtime
@@ -927,11 +940,12 @@ state definitions above.
 
 ## Next-Session Resume Point
 
-Continue from reviewed source checkpoint `2999da0`. First require exact-head
-workflows. Retry slice 4's revocation-aware fixed-host and Docker/rootless-
-Podman containment proof only in a supported context and only after runtime
-readiness is explicitly confirmed. Finish with the complete slice 9 evidence
-set, documentation reconciliation, and PR #67 merge decision.
+Continue from validated documentation head `21725f5`, containing reviewed
+implementation checkpoint `2999da0`. Retry slice 4's revocation-aware fixed-
+host proof in a context where cache-only revocation succeeds. Then repeat the
+same-root Docker containment and use an approved standalone Compose provider on
+a rootless Podman machine. Finish with the complete slice 9 evidence set,
+documentation reconciliation, and PR #67 merge decision.
 
 ## Scope Control
 
@@ -962,8 +976,9 @@ qualifies that integrated package across Docker CPU/GPU and Podman CPU/GPU.
 
 Planning after `d1494f6` remains based on fixed acceptance criteria rather than
 commit count. Transaction/recovery integration and pre-arm failure
-reconciliation are present through `2999da0`. Remaining work is exact-head CI,
-successful Windows trust and live runtime/recovery proof, final
+reconciliation are present through `2999da0`, and exact-head validation passes
+at `21725f5`. Remaining work is successful Windows trust and live runtime/
+recovery proof, final
 Gate A evidence, and the PR #67 decision. Gate B, Task-096, Task-102, and
 Task-097 are outside that Gate A estimate.
 

@@ -2,8 +2,7 @@
 
 **As Of**: September 18, 2026 production-integration checkpoint
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Local Head**: `2999da0`
-**Remote/PR Head**: `a8215b4` before the current publish
+**Validated Documentation Head**: `21725f5`
 **State**: Recovery front door and startup admission are exact-head validated;
 durable rollback/forward preparation, certificate/provider/runtime mutation,
 terminal verification/commit, exact cleanup, recovery-on-failure, and the
@@ -13,9 +12,9 @@ live mutation has been run
 
 ## Remote Status
 
-PR #67 remains Draft. The latest fully validated exact
-head is `250ea5b`: CI/CD run `35379191029`,
-Task-087 run `35379191026`, and Trivy are fully green; the main-only build is
+PR #67 remains Draft. The latest fully validated exact head is `21725f5`:
+CI/CD run `35389528602`, Task-087 run `35389528502`, and Trivy are fully green;
+the main-only build is
 skipped as designed.
 
 ## Current Checkpoint
@@ -171,14 +170,15 @@ carried.
 
 ## Resume Point
 
-Push `2999da0` and this documentation checkpoint, then require exact-head
-CI/CD, Task-087, and Trivy success. Legacy `repair.py` is retained only as an
-explicit unreachable compatibility/test fixture; production imports are gone.
-Keep live mutation on hold until runtime readiness is explicitly confirmed,
-then complete the revocation-aware fixed-host Windows and approved
-Docker/rootless-Podman proof before the Gate A/PR #67 decision.
+Exact-head source validation is complete at `21725f5`. Runtime readiness was
+explicitly confirmed, but the current-source Windows trust selector failed
+closed as `chain_unverified` for both providers, so no selected root was
+available for Docker containment or mutation. Podman 6.0.2 exposed only a
+rootful machine and delegated Compose to Docker Desktop 5.3.1 because no
+standalone provider or override was available. No runtime, package, `.env`,
+certificate, trust, volume, or machine configuration was changed.
 
-The successful revocation-aware Windows trust proof and isolated Docker/rootless
-Podman mutation/recovery evidence still require a supported context and explicit
-runtime-readiness confirmation. Do not run those live mutations before that
-confirmation.
+Resume in a supported Windows context where cache-only revocation succeeds,
+then use those exact selected bytes for Docker containment and an approved
+standalone Compose provider on a rootless Podman machine. Complete the remaining
+slice 9 evidence before the Gate A/PR #67 decision.

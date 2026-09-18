@@ -5,8 +5,8 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `2999da0`; `250ea5b` is the latest remotely validated
-exact head. Its CI/CD run `35379191029`, Task-087 run `35379191026`, and Trivy
+implementation head is `2999da0`; `21725f5` is the latest remotely validated
+exact head. Its CI/CD run `35389528602`, Task-087 run `35389528502`, and Trivy
 passed; the main-only build was neutral as designed.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
@@ -125,8 +125,10 @@ judged the source suitable for a Gate A checkpoint. The separate PowerShell
 helper module remains locally blocked by endpoint protection; no test or
 security control was weakened.
 The successful Windows trust and isolated Docker/rootless-Podman
-evidence remains pending a supported context and the required runtime-readiness
-confirmation. No live repair/runtime mutation was run; the local source path is
+evidence remains pending a supported context. Runtime readiness was confirmed,
+but both providers failed closed as `chain_unverified`, and Podman exposed only
+a rootful machine with Docker Desktop Compose delegation. No live repair/runtime
+mutation was run; the local source path is
 now mutation-capable only after exact typed confirmation, while validation-only
 package manifests remain mutation-disabled.
 
@@ -205,6 +207,38 @@ unavailable, and a raw Flake8 run included non-gate line-length findings; both
 were superseded by the isolated native proof and the repository's actual lint
 gates. No failed product check is carried, and no live runtime command was
 issued.
+
+### 2026-09-18 - Exact-Head Checks Passed; Live Host Proof Remains Blocked
+
+**Objective**: Validate the published pre-arm reconciliation checkpoint and
+attempt the remaining Gate A host/runtime proof without weakening its trust or
+rootless-runtime boundaries.
+
+**Execution**: Published implementation checkpoint `2999da0` and documentation
+checkpoint `21725f5`. After explicit Docker/Podman readiness confirmation, ran
+the current-source native Windows selector for Google and Azure with only
+sanitized outcome categories retained. Inspected both engines, Podman machine
+mode, and Compose-provider selection before any mutation.
+
+**Output**: Both providers failed closed as `chain_unverified`; no certificate
+material was persisted and no selected root was available for same-bytes Docker
+containment. Docker 29.7.2 was healthy with only historical Task-087 targets.
+Podman 6.0.2 exposed one running rootful machine, no standalone
+`podman-compose`, and no provider override, so `podman compose` delegated to
+Docker Desktop Compose 5.3.1. No machine setting, container, volume, package,
+`.env`, certificate, or trust state was changed.
+
+**Validation**: At exact head `21725f5`, CI/CD run `35389528602`, Task-087 run
+`35389528502`, and Trivy passed; the main-only build was neutral as designed.
+The independent source/security re-review remains zero-blocker.
+
+**Decision**: Gate A remains open. A fail-closed trust result cannot authorize
+container mutation, and rootful Podman with Docker Desktop Compose delegation
+cannot satisfy the approved rootless standalone-provider boundary.
+
+**Next**: Repeat the revocation-aware selector in a supported Windows context,
+then prove same-root Docker containment and perform approved rootless-Podman
+mutation/recovery before the final Gate A and PR #67 decision.
 
 ### 2026-09-18 - Pre-Arm Failure Reconciliation Checkpointed
 

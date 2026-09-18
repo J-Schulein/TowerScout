@@ -18,8 +18,10 @@ reports only fixed success/failure messages. The legacy `repair.py` module is no
 longer the production execution path and is retained only as an unreachable
 compatibility/test reference. Exact pre-arm failure now terminates through an
 authenticated abort in the same session or after restart without entering
-rollback. Independent re-review reports zero blockers. Exact-head workflows and
-the required live trust/runtime proof remain; no live mutation has been run. The
+rollback. Independent re-review reports zero blockers, and exact-head workflows
+pass at `21725f5`. The required live trust/runtime proof remains: both providers
+failed closed as `chain_unverified`, and Podman is rootful with unapproved Docker
+Desktop Compose delegation. No live mutation has been run. The
 September 14 checkpoint closes slices
 2-3: confirmation
 now consumes and retains the native exact target, shows only its public summary,
@@ -203,13 +205,15 @@ base CPython dependency closure.
   the same session or after restart without admitting that state to rollback.
   The final recovery ring passes `316/316`, the non-helper unit baseline exits
   `0` across `2840` collected tests, focused static/security checks pass, and
-  independent re-review reports zero blockers. Validated
-  exact head `250ea5b` is fully
-  green in CI/CD run `35379191029`, Task-087 run `35379191026`, and Trivy.
+  independent re-review reports zero blockers. Validated exact head `21725f5`
+  is fully green in CI/CD run `35389528602`, Task-087 run `35389528502`, and
+  Trivy.
   See the
   [`September 17 WIP handoff`](./context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
-  Exact-head CI and live trust/runtime proof remain; PR #67 remains Draft.
-  Gate A remains open. Legacy `repair.py` is retained only as an unreachable
+  Live trust/runtime proof remains; PR #67 remains Draft. The latest retry
+  failed closed for both provider chains, and Podman did not satisfy the
+  rootless standalone-provider boundary. Gate A remains open. Legacy
+  `repair.py` is retained only as an unreachable
   compatibility/test reference. The local
   source path is mutation-capable after exact typed confirmation, but no live
   repair was run and validation-only package manifests remain mutation-disabled.
@@ -602,9 +606,9 @@ decision still precede Task-096.
   durable-recovery, cross-session-lock, filesystem, and provider `.env` source gate;
    run adversarial/local/live-isolated validation without reviving earlier
    helper, bypass, admin, runtime-default, or volume-deletion paths.
-11. [ ] Require exact-head CI/Task-087 checks and independent technical/security
+11. [x] Require exact-head CI/Task-087 checks and independent technical/security
   re-review before any PR #67 merge decision. Independent source re-review
-  is complete with zero blockers at `2999da0`; exact-head checks remain.
+  found zero blockers at `2999da0`; exact-head checks passed at `21725f5`.
 12. [ ] After Gate A source acceptance and the PR #67 merge decision, select
   Task-096 and add native state-driven Start/Open/Stop/Restart controls without
   PowerShell, CMD/BAT wrappers, shell text, the dormant helper, or runtime
