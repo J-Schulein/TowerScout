@@ -7,10 +7,11 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, partial, not-started, and
-validation states. Checkpoint `2266f84` now composes all native rollback ports
-under one retained protected root and safely handles post-arm failure before a
-provider `.env` journal exists; the retained package-root/transaction bridge is
-next and mutation remains disabled. The September 14 checkpoint closes slices
+validation states. Checkpoint `6ff351c` now exposes the retained package-root
+trust only through the exact target owner, after `2266f84` composed all native
+rollback ports under one protected root. Ordered-lock/recovery ownership and
+the transaction refactor are next; mutation remains disabled. The September 14
+checkpoint closes slices
 2-3: confirmation
 now consumes and retains the native exact target, shows only its public summary,
 times out and cleans up safely, and exposes ordered revalidation hooks. Slice 4
@@ -186,10 +187,11 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `f298a3e` completes native exact-state rollback
-  verification after the volume-preserving restart. `801ad72` is the validated
-  exact head: CI/CD run `35291634907`, Task-087 run `35291634957`, and Trivy
-  passed. Transaction integration and live trust/runtime proof remain; PR #67
+- Task-087 implementation head `6ff351c` exposes the retained package-root
+  lease only through the exact target owner after native rollback composition.
+  `076d566` is the validated exact head: CI/CD run `35294378326`, Task-087 run
+  `35294378346`, and Trivy passed. Ordered-lock/recovery ownership, transaction
+  integration, and live trust/runtime proof remain; PR #67
   remains Draft.
   Gate A remains open and mutation remains disabled. Detailed
   status and evidence are maintained in the
@@ -307,7 +309,7 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. The current implementation head is `f298a3e`; `801ad72` is the validated
+open. The current implementation head is `6ff351c`; `076d566` is the validated
 exact head. Provider `.env` mutation/reconciliation, fresh-process rollback
 resumption, all durable rollback states, native terminal cleanup, and retained-
 container native runtime availability are implemented. Exact certificate
@@ -342,8 +344,10 @@ container, all-volume, readiness, and provider state through retained Docker/
 Podman authority. Its focused evidence passes `144/144`, and the complete
 selected recovery/runtime-target ring passes `764/764`; all encountered typing,
 pytest-temp ACL, and Black pipe failures were corrected or superseded by clean
-runs. Remaining implementation is the `repair.py` transaction/recovery-manager
-refactor. Live
+runs. Native rollback ports are now composed under one protected-state root,
+and the retained package-root trust is exposed only through the exact target
+owner between full target captures. Remaining implementation is ordered-lock/
+recovery ownership plus the `repair.py` transaction refactor. Live
 Windows trust and Docker/rootless-Podman proof remains pending a supported
 context and runtime-readiness confirmation. The chronological ledger follows.
 Slices 1-3

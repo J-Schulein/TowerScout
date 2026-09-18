@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `2266f84`; `ebdbebe` is the validated exact head.
+implementation head is `6ff351c`; `076d566` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -116,9 +116,47 @@ for all `890` cases via `876` combined passes, one expected skip, and `13/13`
 isolated elevated native passes after ACL-hardening tests made a shared pytest
 base unavailable. Black, strict/normal mypy, blocking/unused-code Flake8,
 Bandit, compilation, Python 3.11 grammar, and diff checks pass. Exact head
-`ebdbebe` passed CI/CD run `35293042668`, Task-087 run `35293042650`, and Trivy.
-Mutation remains disabled while the package-root lease and transaction front
-door are integrated.
+`076d566` passed CI/CD run `35294378326`, Task-087 run `35294378346`, and Trivy.
+Mutation remains disabled while the transaction front door is integrated.
+
+Checkpoint `6ff351c` exposes the retained package-root trust only through the
+exact target owner. The native authority supplies the exact package-root lease
+only while every authenticated target input is held; the owned backend
+serializes that callback, and the immutable resolved-target owner brackets it
+with complete target captures before and after. The callback is explicitly for
+non-mutating preparation; intentional target replacement remains confined to
+the scoped-transition boundary. Focused/adjacent tests pass `302/302`; Black,
+strict mypy, blocking and unused-code Flake8, compilation, Python 3.11 grammar,
+diff, and focused Bandit checks pass. The first Black/lint runs found one
+formatting issue, two missing test annotation imports, and two stale source
+imports; all were corrected and superseded by clean runs. The full touched-
+source Bandit run reports only the unchanged strict-loader/assert baseline.
+No failed product check is carried, and no live runtime command was issued.
+
+### 2026-09-17 - Retained Package-Root Lease Bridge Added
+
+**Objective**: Connect the exact resolved target to the held package-root trust
+needed by the recovery transaction without exposing a path-by-name or enabling
+mutation.
+
+**Execution**: Added one serialized package-root callback to the native target
+authority, required that capability at the owned observation backend, and
+exposed it through `BoundResolvedRepairTarget` only between full target
+captures. The callback receives the exact held `PathHierarchyTrust` and
+immutable target for its duration; callers cannot retain ownership, and an
+intentional mutation must use the existing scoped-transition boundary.
+
+**Validation**: The final focused/adjacent target, observation, factory, input,
+and confirmation ring passed `302/302`. Black, strict mypy, blocking and unused-
+code Flake8, compilation, Python 3.11 grammar, `git diff --check`, and Bandit
+outside the unchanged backend strict-loader/assert baseline passed. Initial
+formatting, missing-import, and stale-import findings were fixed and replaced
+by clean checks. PR #67 was also fully green at exact head `076d566`.
+
+**Next**: Bind the ordered cross-session locks, protected recovery scan/root,
+and transferable transaction lifetime to this exact owner, then refactor
+`repair.py` without enabling mutation until the integrated recovery path is
+complete and reviewed.
 
 **Chronological implementation ledger**: The September 14
 checkpoint closes slices 2-3 exact-target confirmation ownership and ordered
