@@ -77,6 +77,12 @@ class _PathOwner:
         self.events.append(f"{self.name}:validate")
         return self.evidence
 
+    def assert_unchanged(self) -> object:
+        assert self.closed is False
+        assert self.active is False
+        self.events.append(f"{self.name}:validate-unheld")
+        return self.evidence
+
     def close(self) -> None:
         self.events.append(f"{self.name}:close")
         self.closed = True
@@ -238,6 +244,15 @@ def test_context_scans_between_ordered_locks_and_retains_every_owner() -> None:
         )
     )
     assert both == (True, True, True)
+
+    unheld = context.run_with_transaction_roots(
+        lambda package_root, protected_root: (
+            package_root is retained,
+            protected_root is protected,
+            retained.active,
+        )
+    )
+    assert unheld == (True, True, False)
 
     context.close()
     assert context.closed is True

@@ -90,6 +90,10 @@ class _PackageRoot:
         assert self.active and not self.closed
         return self.evidence
 
+    def assert_unchanged(self) -> object:
+        assert not self.active and not self.closed
+        return self.evidence
+
     def close(self) -> None:
         self.closed = True
 

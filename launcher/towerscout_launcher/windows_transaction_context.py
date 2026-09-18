@@ -124,6 +124,8 @@ class _PackageRootOwner(Protocol):
 
     def run_while_held(self, operation: Callable[[], _Result]) -> _Result: ...
 
+    def assert_unchanged(self) -> object: ...
+
     def assert_unchanged_while_held(self) -> object: ...
 
     def close(self) -> None: ...
@@ -380,6 +382,59 @@ class HeldWindowsTransactionContext:
                     package_root.assert_unchanged_while_held()
 
                 package_root.run_while_held(invoke)
+                protected_root.assert_unchanged()
+                if locks.closed:
+                    _fail(WindowsTransactionContextErrorCode.TARGET_CHANGED)
+            except WindowsTransactionContextError:
+                raise
+            except BaseException as error:
+                if not isinstance(error, Exception):
+                    raise
+                _fail(WindowsTransactionContextErrorCode.TARGET_CHANGED)
+            finally:
+                self._active = False
+            if operation_error is not None:
+                raise operation_error
+            return cast(_Result, result)
+
+    def run_with_transaction_roots(
+        self,
+        operation: Callable[[PathHierarchyTrust, ProtectedStateRoot], _Result],
+    ) -> _Result:
+        """Run one operation that manages its own package-root lease."""
+
+        if not callable(operation):
+            _fail(WindowsTransactionContextErrorCode.INPUT_INVALID)
+        with self._mutex:
+            package_root = self._package_root
+            protected_root = self._protected_root
+            locks = self._locks
+            if threading.get_ident() != self._owner_thread:
+                _fail(WindowsTransactionContextErrorCode.WRONG_THREAD)
+            if (
+                self._active
+                or package_root is None
+                or protected_root is None
+                or locks is None
+                or package_root.closed
+                or protected_root.closed
+                or locks.closed
+            ):
+                _fail(WindowsTransactionContextErrorCode.TARGET_CHANGED)
+            self._active = True
+            operation_error: BaseException | None = None
+            result: _Result | None = None
+            try:
+                protected_root.assert_unchanged()
+                package_root.assert_unchanged()
+                try:
+                    result = operation(
+                        cast(PathHierarchyTrust, package_root),
+                        cast(ProtectedStateRoot, protected_root),
+                    )
+                except BaseException as error:
+                    operation_error = error
+                package_root.assert_unchanged()
                 protected_root.assert_unchanged()
                 if locks.closed:
                     _fail(WindowsTransactionContextErrorCode.TARGET_CHANGED)
