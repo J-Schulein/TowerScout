@@ -264,6 +264,10 @@ Its architecture is:
    other's pending state before mutation. Startup blocks new repair until
    authenticated incomplete recovery commits, rolls back idempotently, or
    remains explicitly recovery-pending with its protected data retained.
+   If rollback preparation fails before authenticated `rollback_armed`, rescan
+   durable state and reconcile only `backup_preparing`, `backup_verified`, or a
+   stale-pointer `aborted_without_mutation` chain through exact encrypted-blob
+   deletion and terminal pointer repair. Never route those states into rollback.
 6. Check and verify every rollback action. Never clear backup state after an
    unverified restore, and never report generic failure as safe rollback.
 7. Use handle/file-ID/reparse/DACL checks and ACL-preserving atomic `.env`

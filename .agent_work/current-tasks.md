@@ -3,11 +3,11 @@
 **Sprint Period**: August 8-August 21, 2026; active-task continuation retained
 through the current Task-087 Gate A work
 **Last Updated**: September 18, 2026
-**Focus**: Task-101 is complete. Task-087 is the active implementation task.
+**Focus**: Task-101 is complete. Task-087 is the active validation task.
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, partial, not-started, and
-validation states. Implementation head `500a18a` now composes the complete
+validation states. Implementation head `2999da0` now composes the complete
 durable repair path from rollback arming through terminal verification,
 commit, exact backup cleanup, and recovery-on-failure. Fresh-process recovery
 distinguishes an incomplete repair from committed cleanup and suppresses paired
@@ -15,9 +15,11 @@ terminal journal history in either direction. The production typed-confirmation
 call site now supplies the required pre-mutation, pre-restart, and terminal
 revalidation hooks, adopts the rebound exact owner for terminal proof, and
 reports only fixed success/failure messages. The legacy `repair.py` module is no
-longer the production execution path, but its removal or retention as a test
-reference remains an explicit final-review decision. No live mutation has been
-run. The
+longer the production execution path and is retained only as an unreachable
+compatibility/test reference. Exact pre-arm failure now terminates through an
+authenticated abort in the same session or after restart without entering
+rollback. Independent re-review reports zero blockers. Exact-head workflows and
+the required live trust/runtime proof remain; no live mutation has been run. The
 September 14 checkpoint closes slices
 2-3: confirmation
 now consumes and retains the native exact target, shows only its public summary,
@@ -194,18 +196,21 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `500a18a` now composes exact certificate and
+- Task-087 implementation head `2999da0` now composes exact certificate and
   provider mutation, runtime stop/start, terminal verification and commit,
   exact backup cleanup, recovery-on-failure, and the production typed-
-  confirmation handoff. The complete selected Gate A runtime/recovery/repair
-  ring passes `1881/1881`, and focused formatting,
-  strict typing, lint, security, compilation, and diff checks pass. Validated
+  confirmation handoff. It also terminally reconciles exact pre-arm failure in
+  the same session or after restart without admitting that state to rollback.
+  The final recovery ring passes `316/316`, the non-helper unit baseline exits
+  `0` across `2840` collected tests, focused static/security checks pass, and
+  independent re-review reports zero blockers. Validated
   exact head `250ea5b` is fully
   green in CI/CD run `35379191029`, Task-087 run `35379191026`, and Trivy.
   See the
   [`September 17 WIP handoff`](./context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
-  Final review, exact-head CI, the legacy-module disposition, and live trust/
-  runtime proof remain; PR #67 remains Draft. Gate A remains open. The local
+  Exact-head CI and live trust/runtime proof remain; PR #67 remains Draft.
+  Gate A remains open. Legacy `repair.py` is retained only as an unreachable
+  compatibility/test reference. The local
   source path is mutation-capable after exact typed confirmation, but no live
   repair was run and validation-only package manifests remain mutation-disabled.
   Detailed
@@ -323,16 +328,16 @@ Task-101 completion plus Task-087's explicit resume
 
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
-**Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. Implementation head `500a18a` connects the production typed-confirmation
+**Status**: IN_PROGRESS / VALIDATE - Gate A is materially advanced and remains
+open. Implementation head `2999da0` connects the production typed-confirmation
 call site to the complete durable native repair coordinator. The exact target,
 protected recovery context, certificate/provider mutation, volume-preserving
 runtime replacement, rebound-owner terminal verification, durable commit,
-exact cleanup, and recovery-on-failure are now composed. The integrated selected
-ring passes `1881/1881`, and the focused static/security gates pass. The legacy
-`repair.py` module is no longer the production execution path, but final review
-must decide whether to remove it or explicitly retain it as a constrained test/
-compatibility reference. Exact-head CI, independent review, successful
+exact cleanup, recovery-on-failure, and terminal pre-arm abort are now composed.
+The final recovery ring passes `316/316`, focused static/security gates pass,
+and corrected independent re-review reports zero blockers. Legacy `repair.py`
+is explicitly retained only as an unreachable compatibility/test reference.
+Exact-head CI, successful
 revocation-aware Windows trust proof, OneDrive/two-session evidence, and
 approved Docker/rootless-Podman mutation/recovery proof remain. No live repair
 was run. The chronological ledger follows.
@@ -593,12 +598,13 @@ decision still precede Task-096.
    toolchain review, and independent runtime/recovery/security-boundary audits.
 9. [x] Obtain explicit project-lead approval before IMPLEMENT; approval was
    recorded August 21 for the August 20 remediation design.
-10. [ ] Implement the exact-target, trusted-runtime, Windows-trust, durable-
-   recovery, cross-session-lock, filesystem, and provider `.env` source gate;
+10. [ ] Implement and validate the exact-target, trusted-runtime, Windows-trust,
+  durable-recovery, cross-session-lock, filesystem, and provider `.env` source gate;
    run adversarial/local/live-isolated validation without reviving earlier
    helper, bypass, admin, runtime-default, or volume-deletion paths.
 11. [ ] Require exact-head CI/Task-087 checks and independent technical/security
-    re-review before any PR #67 merge decision.
+  re-review before any PR #67 merge decision. Independent source re-review
+  is complete with zero blockers at `2999da0`; exact-head checks remain.
 12. [ ] After Gate A source acceptance and the PR #67 merge decision, select
   Task-096 and add native state-driven Start/Open/Stop/Restart controls without
   PowerShell, CMD/BAT wrappers, shell text, the dormant helper, or runtime

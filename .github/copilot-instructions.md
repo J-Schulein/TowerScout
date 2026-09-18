@@ -58,7 +58,7 @@ The project still carries public-health workflow expectations:
   then passed exact-head CI/CD run `32383065903` and Task-087 run `32383065959`,
   completing Task-101's remaining acceptance gate. This governance update marks
   Task-101 complete.
-- `TASK-087` is active / IMPLEMENT under ADR-018's launcher
+- `TASK-087` is active / VALIDATE under ADR-018's launcher
   security boundary and ADR-019's release sequence. Lifecycle head `6e0f744`
   passed CI/CD run `32385304086` and Task-087 run `32385304052`; independent
   technical/security review then requested source changes. Draft PR #67 remains
@@ -97,9 +97,16 @@ The project still carries public-health workflow expectations:
   records, freshly reverifies both exact blobs under one held-root interval,
   and appends and selects generation 4 `rollback_started` at most once. Retry
   repairs only the exact started pointer. Restore, cleanup, `.env` replacement,
-  certificate writes, repair, and runtime mutation remain disabled. The
-  current estimate is one substantive Gate A checkpoint and approximately 1-3
-  actual PR #67 commits.
+  certificate writes, repair, and runtime mutation remain disabled at that
+  historical checkpoint. Current implementation checkpoint `2999da0` composes
+  the complete production transaction and closes the pre-arm failure window
+  with authenticated `aborted_without_mutation`, exact journal-authorized blob
+  deletion, same-session durable rescan, and fresh-process abort/pointer repair.
+  Pre-arm/aborted chains cannot enter rollback. Its final recovery ring passes
+  `316/316`, independent re-review reports zero blockers, and legacy
+  `repair.py` is retained only as an unreachable compatibility/test reference.
+  Exact-head checks and the required revocation-aware Windows plus
+  Docker/rootless-Podman live proof remain before Gate A exit.
   Independently reviewed and exact-head validated checkpoint `56ba458` reads
   and authenticates both exact backups under one held protected-root interval,
   matches them to generation-1 summaries, and persists and selects generation

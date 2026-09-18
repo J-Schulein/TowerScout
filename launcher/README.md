@@ -5,8 +5,10 @@ current UI reports TowerScout/package status, probes Docker and Podman with
 fixed read-only commands, identifies the selected package/runtime profile,
 displays a non-mutating TLS repair plan for Google Maps or Azure Maps, and can
 resolve and retain one exact Windows-trusted target before a bounded typed
-`REPAIR TLS AND RESTART` confirmation. Runtime mutation remains disabled while
-the remaining Gate A recovery and Windows-security work is incomplete.
+`REPAIR TLS AND RESTART` confirmation. The reviewed source can execute the
+durable native repair only after that confirmation and its ordered revalidation
+hooks. No live repair has been run, and Gate A remains open pending exact-head
+checks plus the required Windows-trust and Docker/rootless-Podman proof.
 
 ## August 19 release sequencing
 
@@ -73,12 +75,20 @@ confirmation boundary. It:
   one Windows-store-selected root;
 - retains that exact target owner through the confirmation lifetime and shows
   only its bounded public summary;
-- closes the owner on rejection, the fixed 120-second timeout, error, or the
-  mutation-disabled terminal path;
+- closes the owner on rejection, the fixed 120-second timeout, error, or
+  transaction completion, and transfers it only to the retained native
+  transaction context after confirmation;
 - revalidates immediately before accepting confirmation and again at the named
   pre-mutation boundary; and
-- exposes ordered pre-restart and terminal hooks for the durable transaction
-  refactor, while continuing to fail closed before any repair mutation.
+- requires ordered pre-mutation, pre-restart, and terminal hooks for the durable
+  transaction, and fails closed if any hook is skipped, repeated, or mismatched.
+
+Rollback preparation is also fail-closed. Any authenticated failure before
+`rollback_armed` rescans durable state and can only delete the two exact
+journal-authorized encrypted blobs before recording
+`aborted_without_mutation`. Partial or substituted artifacts remain preserved
+and recovery-pending. Startup completes generation-1/2 abort or repairs only a
+stale terminal pointer; none of those states can enter rollback.
 
 The Windows trust adapter uses Current User and Local Machine `ROOT` entries as
 eligible anchors, Windows `CA` plus server-supplied intermediates only as chain

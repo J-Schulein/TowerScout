@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `500a18a`; `250ea5b` is the latest remotely validated
+implementation head is `2999da0`; `250ea5b` is the latest remotely validated
 exact head. Its CI/CD run `35379191029`, Task-087 run `35379191026`, and Trivy
 passed; the main-only build was neutral as designed.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
@@ -109,8 +109,21 @@ for terminal proof, closes transaction authority on every exit, and maps native
 failures to fixed public messages. The integrated selected ring passes
 `1881/1881`; strict typing, formatting, blocking lint, focused Bandit,
 compilation, and diff checks pass. The legacy `repair.py` module is no longer
-the production execution path but remains as a compatibility/test reference
-pending final-review disposition.
+the production execution path and is explicitly retained only as a constrained
+compatibility/test reference; production imports and dead app helpers are gone.
+Checkpoint `2999da0` then closes the rollback-preparation failure window before
+`rollback_armed`. It binds both exact ciphertext digests/sizes in generation 1,
+deletes only matching journal-authorized blobs, proves both absent before an
+authenticated terminal abort, preserves ambiguous artifacts, and routes both
+same-session and fresh-process generation-1/2 recovery through that abort.
+An already-appended abort with a missing/stale pointer repairs only the pointer
+and never enters rollback. The final recovery ring passes `316/316`; the full
+non-helper unit baseline collected `2840` tests and exited `0`. Changed-file
+Black/blocking Flake8, focused strict mypy, medium/high Bandit, compilation,
+and editor diagnostics pass. Independent re-review found zero blockers and
+judged the source suitable for a Gate A checkpoint. The separate PowerShell
+helper module remains locally blocked by endpoint protection; no test or
+security control was weakened.
 The successful Windows trust and isolated Docker/rootless-Podman
 evidence remains pending a supported context and the required runtime-readiness
 confirmation. No live repair/runtime mutation was run; the local source path is
@@ -192,6 +205,45 @@ unavailable, and a raw Flake8 run included non-gate line-length findings; both
 were superseded by the isolated native proof and the repository's actual lint
 gates. No failed product check is carried, and no live runtime command was
 issued.
+
+### 2026-09-18 - Pre-Arm Failure Reconciliation Checkpointed
+
+**Objective**: Make every rollback-preparation failure before generation 3
+terminally safe across same-session and fresh-process recovery.
+
+**Context**: Production integration could durably write generation 1 or 2 and
+then fail before `rollback_armed`. The existing recovery manager correctly
+requires generation 3, so preserving those chains indefinitely could block
+startup without a safe action.
+
+**Decision**: Add an authenticated `aborted_without_mutation` terminal branch.
+Delete only the exact two ciphertext blobs authorized by generation 1, prove
+both absent, append the terminal state at most once, and repair only its pointer
+on retry. Preserve any partial, substituted, or otherwise ambiguous artifact.
+Retain legacy `repair.py` only as an unreachable compatibility/test reference;
+removing it is not required for this bounded security checkpoint.
+
+**Execution**: Checkpoint `2999da0` records exact ciphertext digests/sizes in
+generation 1, implements strict abort codec/continuity, exact native deletion,
+terminal scan handling, same-session durable rescan routing, and fresh-process
+front-door abort/pointer repair. A shared authenticated state predicate keeps
+pre-arm chains out of rollback admission. Production legacy repair imports and
+dead app helpers were removed.
+
+**Validation**: The focused route/context/execution set passes `60/60`; the
+complete recovery ring passes `316/316`; and the non-helper unit baseline
+collected `2840` tests with exit code `0`. Changed-file Black and blocking
+Flake8, strict isolated mypy for the final routing modules, medium/high Bandit,
+compilation, editor diagnostics, and `git diff --check` pass. Independent
+review initially found two sequence/state routing defects; both were corrected,
+covered through the concrete native adapter and same-session coordinator, and
+the re-review returned zero blockers with a checkpoint-suitable verdict. The
+PowerShell helper module still exits nonzero under local endpoint protection;
+its source-only contract tests pass and no assertion was changed to bypass it.
+
+**Next**: Push `2999da0` and the documentation checkpoint, require exact-head
+CI/CD, Task-087, and Trivy success, then obtain explicit runtime readiness before
+the remaining revocation-aware Windows and Docker/rootless-Podman live proof.
 
 ### 2026-09-18 - Production Confirmation Handoff Integrated
 

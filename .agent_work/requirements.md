@@ -315,6 +315,11 @@ Acceptance:
   before enabling another repair. Failed restoration keeps its encrypted data
   and reports recovery pending; it never deletes the only backup or claims the
   repair failed safely.
+- A failure before `rollback_armed` terminally aborts without runtime or package
+  mutation only after deleting and proving absent both exact journal-authorized
+  encrypted blobs. Mismatched or partial artifacts remain preserved and
+  recovery-pending. The authenticated abort is idempotent across restart,
+  repairs a missing/stale terminal pointer, and is never admitted to rollback.
 - Every certificate and `.env` restore/delete is checked for exact
   content/absence, identity, security metadata, and target containment. An
   unrelated post-failure user edit is never overwritten. Forward and rollback

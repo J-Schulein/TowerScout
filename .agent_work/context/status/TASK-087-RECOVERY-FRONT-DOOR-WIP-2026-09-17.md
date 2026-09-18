@@ -2,13 +2,14 @@
 
 **As Of**: September 18, 2026 production-integration checkpoint
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Local Head**: `500a18a`
-**Remote/PR Head**: `250ea5b` before the current local publish
+**Local Head**: `2999da0`
+**Remote/PR Head**: `a8215b4` before the current publish
 **State**: Recovery front door and startup admission are exact-head validated;
 durable rollback/forward preparation, certificate/provider/runtime mutation,
 terminal verification/commit, exact cleanup, recovery-on-failure, and the
-production typed-confirmation handoff are committed locally; no live mutation
-has been run
+production typed-confirmation handoff are committed. Exact authenticated
+pre-arm abort is committed and independently reviewed with zero blockers; no
+live mutation has been run
 
 ## Remote Status
 
@@ -64,6 +65,17 @@ every exit, and emits only fixed public success/failure messages. The legacy
 compatibility/test reference pending final disposition. No live runtime
 mutation was run.
 
+Checkpoint `2999da0` closes the remaining rollback-preparation failure window.
+Generation 1 binds the exact encrypted blob digests/sizes; same-session and
+fresh-process failures before `rollback_armed` delete only those matching
+journal-authorized blobs, prove both absent, and append
+`aborted_without_mutation` at most once. Ambiguous residue remains preserved and
+recovery-pending. A missing/stale pointer after terminal append repairs only
+that pointer, and all pre-arm/aborted states are rejected by rollback admission.
+Independent review initially found two residual sequence-based routing defects;
+both were replaced with one authenticated state predicate and direct concrete-
+adapter tests. Re-review returned zero blockers.
+
 Do not stage or remove the ACL-inaccessible `.agent_work/pytest-basetemp-*`
 directories. They are local test residue and unrelated to the candidate.
 
@@ -84,6 +96,13 @@ directories. They are local test residue and unrelated to the candidate.
   and `1881/1881` broad selected integration tests in a fresh elevated external
   temp root; Black, strict mypy, blocking Flake8, Bandit, compilation, and diff
   checks pass for the five changed files.
+- Pre-arm reconciliation passes `60/60` focused routing tests and `316/316`
+  complete recovery-ring tests. The non-helper unit baseline collected `2840`
+  tests and exited `0`. Changed-file Black/blocking Flake8, strict isolated
+  mypy for final routing modules, medium/high Bandit, compilation, editor
+  diagnostics, and diff checks pass. The isolated PowerShell helper module
+  still exits nonzero under local endpoint protection; source-only contract
+  tests pass and no assertion was weakened.
 
 Earlier test failures were corrected before checkpointing: one synthetic digest
 fixture was not 64 characters, one pointer test double hardcoded the rollback
@@ -152,11 +171,12 @@ carried.
 
 ## Resume Point
 
-Run exact-head workflows and independent source/security review against
-`500a18a`, including adversarial failure injection at rollback preparation.
-Resolve whether the now-non-production `repair.py` module should be deleted or
-retained as an explicit compatibility/test fixture. Keep live mutation on hold
-until review is clean and runtime readiness is explicitly confirmed.
+Push `2999da0` and this documentation checkpoint, then require exact-head
+CI/CD, Task-087, and Trivy success. Legacy `repair.py` is retained only as an
+explicit unreachable compatibility/test fixture; production imports are gone.
+Keep live mutation on hold until runtime readiness is explicitly confirmed,
+then complete the revocation-aware fixed-host Windows and approved
+Docker/rootless-Podman proof before the Gate A/PR #67 decision.
 
 The successful revocation-aware Windows trust proof and isolated Docker/rootless
 Podman mutation/recovery evidence still require a supported context and explicit
