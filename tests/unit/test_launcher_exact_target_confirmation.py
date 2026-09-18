@@ -27,6 +27,12 @@ from towerscout_launcher.target_contracts import (  # noqa: E402
     PublicRepairSummary,
     RuntimeProduct,
 )
+from towerscout_launcher.windows_repair_execution_native import (  # noqa: E402
+    NativeRepairExecutionError,
+    NativeRepairExecutionErrorCode,
+    NativeRepairExecutionOutcome,
+    NativeRepairExecutionResult,
+)
 
 
 def _summary() -> PublicRepairSummary:
@@ -54,7 +60,10 @@ class _Owner:
         self.closed = False
         self.assert_calls = 0
         self.close_calls = 0
-        self.target = SimpleNamespace(to_public_summary=_summary)
+        self.target = SimpleNamespace(
+            to_public_summary=_summary,
+            target_token=SimpleNamespace(display=_summary().target_token),
+        )
         self.fail_assert = False
         self.context: _Context | None = None
 
@@ -228,22 +237,88 @@ def test_stage_drift_poisons_confirmation_owner() -> None:
     assert "PRIVATE" not in str(raised.value)
 
 
-def test_execute_revalidates_pre_mutation_then_remains_disabled() -> None:
+def test_execute_supplies_ordered_hooks_and_adopts_restarted_owner() -> None:
     owner = _Owner()
-    coordinator = ExactTargetConfirmationCoordinator(capture=lambda _provider: owner)
+    replacement = _Owner()
+    events: list[str] = []
+
+    def execute_repair(_owner, _context, hooks):
+        assert _owner is owner
+        assert _context is owner.context
+        hooks.before_mutation()
+        events.append("mutation")
+        hooks.before_restart()
+        events.append("restart")
+        owner.close()
+        hooks.terminal(replacement)
+        events.append("terminal")
+        return NativeRepairExecutionResult(
+            NativeRepairExecutionOutcome.REPAIR_SUCCEEDED,
+            cleanup_recovered=False,
+        )
+
+    coordinator = ExactTargetConfirmationCoordinator(
+        capture=lambda _provider: owner,
+        execute_repair=execute_repair,
+    )
+    transaction = coordinator.prepare(MapProvider.AZURE)
+    coordinator.confirm(transaction, CONFIRMATION_TEXT)
+
+    result = coordinator.execute(transaction)
+
+    assert result.outcome is NativeRepairExecutionOutcome.REPAIR_SUCCEEDED
+    assert events == ["mutation", "restart", "terminal"]
+    assert coordinator.mutation_enabled is True
+    assert transaction.closed
+    assert owner.closed
+    assert replacement.closed
+    assert owner.context is not None
+    assert owner.context.closed is True
+    assert owner.assert_calls == 4
+    assert replacement.assert_calls == 1
+
+
+@pytest.mark.parametrize(
+    ("native_code", "public_code"),
+    (
+        (
+            NativeRepairExecutionErrorCode.EXECUTION_FAILED,
+            ExactTargetConfirmationErrorCode.REPAIR_FAILED,
+        ),
+        (
+            NativeRepairExecutionErrorCode.REPAIR_ROLLED_BACK,
+            ExactTargetConfirmationErrorCode.REPAIR_ROLLED_BACK,
+        ),
+        (
+            NativeRepairExecutionErrorCode.RECOVERY_PENDING,
+            ExactTargetConfirmationErrorCode.RECOVERY_REQUIRED,
+        ),
+    ),
+)
+def test_execute_maps_native_failure_without_private_detail(
+    native_code: NativeRepairExecutionErrorCode,
+    public_code: ExactTargetConfirmationErrorCode,
+) -> None:
+    owner = _Owner()
+
+    def fail(_owner, _context, _hooks):
+        raise NativeRepairExecutionError(native_code)
+
+    coordinator = ExactTargetConfirmationCoordinator(
+        capture=lambda _provider: owner,
+        execute_repair=fail,
+    )
     transaction = coordinator.prepare(MapProvider.AZURE)
     coordinator.confirm(transaction, CONFIRMATION_TEXT)
 
     with pytest.raises(ExactTargetConfirmationError) as raised:
         coordinator.execute(transaction)
 
-    assert raised.value.code is ExactTargetConfirmationErrorCode.MUTATION_DISABLED
-    assert coordinator.mutation_enabled is False
+    assert raised.value.code is public_code
     assert transaction.closed
-    assert owner.closed
-    assert owner.context is not None
-    assert owner.context.closed is True
-    assert owner.assert_calls == 3
+    assert "PRIVATE" not in str(raised.value)
+    assert raised.value.__cause__ is None
+    assert raised.value.__context__ is None
 
 
 def test_context_drift_poisons_both_retained_owners() -> None:

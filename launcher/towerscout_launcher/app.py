@@ -30,7 +30,7 @@ _USER_CONFIRMATION = CONFIRMATION_TEXT
 
 
 def _build_default_repair_coordinator() -> ExactTargetConfirmationCoordinator:
-    """Resolve one native exact target while keeping production mutation closed."""
+    """Resolve, confirm, and execute one exact native repair transaction."""
     return ExactTargetConfirmationCoordinator()
 
 
@@ -393,6 +393,16 @@ class TowerScoutLauncherApp:
                     return
                 self.repair_coordinator.confirm(transaction, typed)
                 self.repair_coordinator.execute(transaction)
+                success_message = (
+                    "TLS repair completed and TowerScout restarted successfully."
+                )
+                self.footer_var.set(success_message)
+                self._replace_preview_text("TLS repair succeeded", success_message)
+                messagebox.showinfo(
+                    "TowerScout TLS repair",
+                    success_message,
+                    parent=self.root,
+                )
             except ExactTargetConfirmationError as exc:
                 messagebox.showerror(
                     "TowerScout TLS repair",

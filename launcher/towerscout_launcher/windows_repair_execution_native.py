@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import NoReturn
+from typing import Callable, NoReturn
 
 from .runtime_target_resolution import BoundResolvedRepairTarget
 from .windows_repair_certificate_execution_native import (
@@ -72,6 +72,29 @@ class NativeRepairExecutionError(RuntimeError):
         return f"NativeRepairExecutionError(code={self.code.value!r})"
 
 
+@dataclass(frozen=True, slots=True, repr=False)
+class NativeRepairExecutionHooks:
+    """Required once-only authorization boundaries supplied by confirmation."""
+
+    before_mutation: Callable[[], None]
+    before_restart: Callable[[], None]
+    terminal: Callable[[BoundResolvedRepairTarget], None]
+
+    def __post_init__(self) -> None:
+        if not all(
+            callable(item)
+            for item in (
+                self.before_mutation,
+                self.before_restart,
+                self.terminal,
+            )
+        ):
+            raise ValueError("Native repair execution hooks are invalid.")
+
+    def __repr__(self) -> str:
+        return "NativeRepairExecutionHooks(<redacted>)"
+
+
 @dataclass(frozen=True, slots=True)
 class NativeRepairExecutionResult:
     outcome: NativeRepairExecutionOutcome
@@ -110,6 +133,7 @@ def _close(*owners: BoundResolvedRepairTarget | None) -> bool:
 def execute_native_windows_repair(
     owner: BoundResolvedRepairTarget,
     context: HeldWindowsTransactionContext,
+    hooks: NativeRepairExecutionHooks,
 ) -> NativeRepairExecutionResult:
     """Run all durable repair stages and recover every post-arm failure."""
 
@@ -118,6 +142,7 @@ def execute_native_windows_repair(
         or owner.closed
         or type(context) is not HeldWindowsTransactionContext
         or context.closed
+        or type(hooks) is not NativeRepairExecutionHooks
     ):
         _fail(NativeRepairExecutionErrorCode.INPUT_INVALID)
     armed = False
@@ -125,6 +150,7 @@ def execute_native_windows_repair(
     started: StartedRepairRuntime | None = None
     cleaned: CleanedRepair | None = None
     try:
+        hooks.before_mutation()
         rollback = prepare_native_windows_repair_rollback(owner, context)
         armed = True
         forward = prepare_native_windows_repair_forward(owner, context, rollback)
@@ -138,12 +164,14 @@ def execute_native_windows_repair(
             context,
             certificates,
         )
+        hooks.before_restart()
         stopped = stop_native_windows_repair_runtime(
             owner,
             context,
             environment,
         )
         started = start_native_windows_repair_runtime(context, stopped)
+        hooks.terminal(started.owner)
         verified: CommittedRepair = verify_and_commit_native_windows_repair(
             context,
             started,
@@ -185,6 +213,7 @@ def execute_native_windows_repair(
 __all__ = [
     "NativeRepairExecutionError",
     "NativeRepairExecutionErrorCode",
+    "NativeRepairExecutionHooks",
     "NativeRepairExecutionOutcome",
     "NativeRepairExecutionResult",
     "execute_native_windows_repair",

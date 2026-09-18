@@ -28,6 +28,7 @@ from towerscout_launcher.windows_repair_cleanup_execution_native import (  # noq
 from towerscout_launcher.windows_repair_execution_native import (  # noqa: E402
     NativeRepairExecutionError,
     NativeRepairExecutionErrorCode,
+    NativeRepairExecutionHooks,
     NativeRepairExecutionOutcome,
     execute_native_windows_repair,
 )
@@ -35,6 +36,15 @@ from towerscout_launcher.windows_transaction_context import (  # noqa: E402
     HeldWindowsTransactionContext,
 )
 import towerscout_launcher.windows_repair_execution_native as execution_native  # noqa: E402,E501
+
+
+def _hooks(events: list[str] | None = None) -> NativeRepairExecutionHooks:
+    selected = [] if events is None else events
+    return NativeRepairExecutionHooks(
+        lambda: selected.append("before_mutation"),
+        lambda: selected.append("before_restart"),
+        lambda _owner: selected.append("terminal"),
+    )
 
 
 def _completed(monkeypatch: pytest.MonkeyPatch):
@@ -100,15 +110,18 @@ def test_coordinator_runs_every_stage_through_terminal_cleanup(
     values = _completed(monkeypatch)
     context = values[0]
     owner = _fresh_owner()
+    events: list[str] = []
     _patch_success_stages(monkeypatch, values)
 
     result = execute_native_windows_repair(
         owner,
         context,  # type: ignore[arg-type]
+        _hooks(events),
     )
 
     assert result.outcome is NativeRepairExecutionOutcome.REPAIR_SUCCEEDED
     assert result.cleanup_recovered is False
+    assert events == ["before_mutation", "before_restart", "terminal"]
     owner.close()
     context.close()  # type: ignore[attr-defined]
 
@@ -138,7 +151,11 @@ def test_post_arm_failure_rescans_and_reports_verified_rollback(
     )
 
     with pytest.raises(NativeRepairExecutionError) as captured:
-        execute_native_windows_repair(owner, context)  # type: ignore[arg-type]
+        execute_native_windows_repair(
+            owner,
+            context,  # type: ignore[arg-type]
+            _hooks(),
+        )
 
     assert captured.value.code is NativeRepairExecutionErrorCode.REPAIR_ROLLED_BACK
     assert owner.closed
@@ -167,7 +184,11 @@ def test_committed_cleanup_failure_recovers_cleanup_as_success(
         ),
     )
 
-    result = execute_native_windows_repair(owner, context)  # type: ignore[arg-type]
+    result = execute_native_windows_repair(
+        owner,
+        context,  # type: ignore[arg-type]
+        _hooks(),
+    )
 
     assert result.outcome is NativeRepairExecutionOutcome.REPAIR_SUCCEEDED
     assert result.cleanup_recovered is True
@@ -193,7 +214,11 @@ def test_pre_arm_failure_never_invokes_recovery(
     )
 
     with pytest.raises(NativeRepairExecutionError) as captured:
-        execute_native_windows_repair(owner, context)  # type: ignore[arg-type]
+        execute_native_windows_repair(
+            owner,
+            context,  # type: ignore[arg-type]
+            _hooks(),
+        )
 
     assert captured.value.code is NativeRepairExecutionErrorCode.EXECUTION_FAILED
     assert owner.closed

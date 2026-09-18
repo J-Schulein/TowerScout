@@ -1,9 +1,8 @@
 """Fail-closed confirmation ownership for one exact native repair target.
 
-This module remains repair-mutation-free. It connects the production exact-
-target facade and retained Windows lock/recovery context to the launcher
-confirmation lifetime, then exposes the ordered revalidation checkpoints that
-the later repair transaction must use.
+This module connects the production exact-target facade and retained Windows
+lock/recovery context to the launcher confirmation lifetime, then supplies the
+ordered authorization boundaries required by the native repair transaction.
 """
 
 from __future__ import annotations
@@ -11,7 +10,7 @@ from __future__ import annotations
 import threading
 import time
 from enum import Enum
-from typing import Callable, NoReturn, Protocol
+from typing import Callable, NoReturn, Protocol, cast
 
 from .runtime_target_factory import capture_native_windows_resolved_target
 from .runtime_target_resolution import (
@@ -22,6 +21,13 @@ from .windows_recovery_scan import PackageRecoveryJournalScan
 from .windows_transaction_context import (
     HeldWindowsTransactionContext,
     capture_native_windows_transaction_context,
+)
+from .windows_repair_execution_native import (
+    NativeRepairExecutionError,
+    NativeRepairExecutionErrorCode,
+    NativeRepairExecutionHooks,
+    NativeRepairExecutionResult,
+    execute_native_windows_repair,
 )
 
 CONFIRMATION_TEXT = "REPAIR TLS AND RESTART"
@@ -34,6 +40,8 @@ class ExactTargetConfirmationErrorCode(str, Enum):
     CONFIRMATION_REQUIRED = "confirmation_required"
     CONFIRMATION_EXPIRED = "confirmation_expired"
     RECOVERY_REQUIRED = "recovery_required"
+    REPAIR_FAILED = "repair_failed"
+    REPAIR_ROLLED_BACK = "repair_rolled_back"
     MUTATION_DISABLED = "mutation_disabled"
 
 
@@ -55,6 +63,12 @@ _PUBLIC_MESSAGES = {
     ExactTargetConfirmationErrorCode.RECOVERY_REQUIRED: (
         "A prior repair must finish recovery before a new repair can start. "
         "No new changes were made."
+    ),
+    ExactTargetConfirmationErrorCode.REPAIR_FAILED: (
+        "The repair could not begin safely. No runtime change was completed."
+    ),
+    ExactTargetConfirmationErrorCode.REPAIR_ROLLED_BACK: (
+        "The repair did not complete. The prior TowerScout state was restored."
     ),
     ExactTargetConfirmationErrorCode.MUTATION_DISABLED: (
         "The exact repair target was verified, but repair remains disabled until "
@@ -106,6 +120,16 @@ class _TransactionContext(Protocol):
     def assert_unchanged(self) -> PackageRecoveryJournalScan: ...
 
     def close(self) -> None: ...
+
+
+_RepairExecutor = Callable[
+    [
+        BoundResolvedRepairTarget,
+        HeldWindowsTransactionContext,
+        NativeRepairExecutionHooks,
+    ],
+    NativeRepairExecutionResult,
+]
 
 
 def _fail(code: ExactTargetConfirmationErrorCode) -> NoReturn:
@@ -282,10 +306,8 @@ class ExactTargetConfirmationTransaction:
     def revalidate(self, stage: TargetRevalidationStage) -> None:
         """Fail closed at one explicitly named transaction boundary.
 
-        Group 1 remains mutation-free, so every currently reachable stage must
-        still match the original running target exactly.  Slice 7 will supply
-        the authorized stop/recreation transition implementation behind these
-        same ordered hooks before mutation can be enabled.
+        Every stage must match the authorized target. The terminal stage runs
+        against the newly rebound owner adopted after the exact runtime restart.
         """
 
         with self._lock:
@@ -320,6 +342,58 @@ class ExactTargetConfirmationTransaction:
                 _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
             self._stage = stage
 
+    def _adopt_and_revalidate_terminal(
+        self,
+        owner: BoundResolvedRepairTarget,
+    ) -> None:
+        with self._lock:
+            current = self._owner
+            context = self._context
+            invalid = (
+                self._state is not ExactTargetConfirmationState.CONFIRMED
+                or self._stage is not TargetRevalidationStage.BEFORE_RESTART
+                or current is None
+                or not current.closed
+                or context is None
+                or context.closed
+                or not isinstance(owner, BoundResolvedRepairTarget)
+                or owner.closed
+                or owner.target.target_token.display != self._summary.target_token
+            )
+            if invalid:
+                _discard_resources(owner)
+                self._close_while_locked()
+                _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
+            self._owner = owner
+            self.revalidate(TargetRevalidationStage.TERMINAL)
+
+    def _execute_authorized(
+        self, executor: _RepairExecutor
+    ) -> NativeRepairExecutionResult:
+        with self._lock:
+            if (
+                not callable(executor)
+                or self._state is not ExactTargetConfirmationState.CONFIRMED
+                or self._stage is not TargetRevalidationStage.BEFORE_CONFIRMATION
+            ):
+                self._close_while_locked()
+                _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
+            owner = self._assert_live_while_locked()
+            context = self._context
+            if context is None:
+                self._close_while_locked()
+                _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
+            hooks = NativeRepairExecutionHooks(
+                lambda: self.revalidate(TargetRevalidationStage.BEFORE_MUTATION),
+                lambda: self.revalidate(TargetRevalidationStage.BEFORE_RESTART),
+                self._adopt_and_revalidate_terminal,
+            )
+            return executor(
+                cast(BoundResolvedRepairTarget, owner),
+                cast(HeldWindowsTransactionContext, context),
+                hooks,
+            )
+
     def cancel(self) -> None:
         with self._lock:
             if self._state is ExactTargetConfirmationState.CLOSED:
@@ -335,9 +409,15 @@ class ExactTargetConfirmationTransaction:
 
 
 class ExactTargetConfirmationCoordinator:
-    """Production composition used by the launcher while mutation stays off."""
+    """Production exact-target confirmation and native repair composition."""
 
-    __slots__ = ("_capture", "_capture_context", "_clock", "_timeout_seconds")
+    __slots__ = (
+        "_capture",
+        "_capture_context",
+        "_clock",
+        "_execute_repair",
+        "_timeout_seconds",
+    )
 
     def __init__(
         self,
@@ -348,12 +428,14 @@ class ExactTargetConfirmationCoordinator:
         capture_context: (
             Callable[[BoundResolvedRepairTarget], HeldWindowsTransactionContext] | None
         ) = None,
+        execute_repair: _RepairExecutor = execute_native_windows_repair,
         timeout_seconds: float = DEFAULT_CONFIRMATION_TIMEOUT_SECONDS,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         if (
             not callable(capture)
             or (capture_context is not None and not callable(capture_context))
+            or not callable(execute_repair)
             or not callable(clock)
             or not 1.0 <= timeout_seconds <= 600.0
         ):
@@ -366,10 +448,11 @@ class ExactTargetConfirmationCoordinator:
         )
         self._timeout_seconds = timeout_seconds
         self._clock = clock
+        self._execute_repair = execute_repair
 
     @property
     def mutation_enabled(self) -> bool:
-        return False
+        return True
 
     def prepare(self, provider: MapProvider) -> ExactTargetConfirmationTransaction:
         if type(provider) is not MapProvider:
@@ -425,15 +508,38 @@ class ExactTargetConfirmationCoordinator:
             _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
         transaction.cancel()
 
-    @staticmethod
-    def execute(transaction: ExactTargetConfirmationTransaction) -> NoReturn:
+    def execute(
+        self,
+        transaction: ExactTargetConfirmationTransaction,
+    ) -> NativeRepairExecutionResult:
         if type(transaction) is not ExactTargetConfirmationTransaction:
             _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
+        failure: ExactTargetConfirmationErrorCode | None = None
+        result: NativeRepairExecutionResult | None = None
         try:
-            transaction.revalidate(TargetRevalidationStage.BEFORE_MUTATION)
+            result = transaction._execute_authorized(self._execute_repair)
+        except NativeRepairExecutionError as error:
+            failure = {
+                NativeRepairExecutionErrorCode.INPUT_INVALID: (
+                    ExactTargetConfirmationErrorCode.TARGET_CHANGED
+                ),
+                NativeRepairExecutionErrorCode.EXECUTION_FAILED: (
+                    ExactTargetConfirmationErrorCode.REPAIR_FAILED
+                ),
+                NativeRepairExecutionErrorCode.REPAIR_ROLLED_BACK: (
+                    ExactTargetConfirmationErrorCode.REPAIR_ROLLED_BACK
+                ),
+                NativeRepairExecutionErrorCode.RECOVERY_PENDING: (
+                    ExactTargetConfirmationErrorCode.RECOVERY_REQUIRED
+                ),
+            }[error.code]
         finally:
             transaction.close()
-        _fail(ExactTargetConfirmationErrorCode.MUTATION_DISABLED)
+        if failure is not None:
+            _fail(failure)
+        if type(result) is not NativeRepairExecutionResult:
+            _fail(ExactTargetConfirmationErrorCode.REPAIR_FAILED)
+        return result
 
 
 __all__ = [
