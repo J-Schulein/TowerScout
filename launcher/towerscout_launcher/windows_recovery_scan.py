@@ -112,6 +112,53 @@ def _valid_forward_binding(
     return True
 
 
+def _bound_repair_for_forward(
+    forward: PersistedRepairTransactionChain,
+    repairs: tuple[PersistedEnvironmentJournalChain, ...],
+    chains: tuple[PersistedEnvironmentJournalChain, ...],
+) -> PersistedEnvironmentJournalChain | None:
+    stream = forward.selection.tip.stream
+    matches = tuple(
+        repair
+        for repair in repairs
+        if len(repair.selection.generations) >= 3
+        and stream.rollback_journal_id == repair.selection.tip.stream.journal_id
+        and stream.rollback_armed_generation_sha256
+        == repair.selection.generation_sha256s[2]
+        and stream.target_token_sha256
+        == repair.selection.tip.stream.target_token_sha256
+        and stream.package_root_identity
+        == repair.selection.tip.stream.package_root_identity
+    )
+    if len(matches) != 1:
+        return None
+    linked_ids = {
+        generation.record.provider_journal_id
+        for generation in forward.selection.generations
+        if generation.state
+        in {
+            RepairTransactionState.ENVIRONMENT_TEMP_PLANNED,
+            RepairTransactionState.ENVIRONMENT_TEMP_CREATED,
+            RepairTransactionState.ENVIRONMENT_TEMP_VERIFIED,
+            RepairTransactionState.ENVIRONMENT_APPLIED,
+        }
+    }
+    provider: PersistedEnvironmentJournalChain | None = None
+    if linked_ids:
+        if len(linked_ids) != 1:
+            return None
+        linked_id = next(iter(linked_ids))
+        providers = tuple(
+            chain
+            for chain in chains
+            if chain.selection.tip.stream.journal_id == linked_id
+        )
+        if len(providers) != 1:
+            return None
+        provider = providers[0]
+    return matches[0] if _valid_forward_binding(matches[0], forward, provider) else None
+
+
 class RecoveryJournalScanErrorCode(str, Enum):
     INPUT_INVALID = "recovery_journal_scan_input_invalid"
     STATE_AMBIGUOUS = "recovery_journal_state_ambiguous"
@@ -318,19 +365,51 @@ def classify_package_recovery_journals(
     if len(set(journal_ids)) != len(journal_ids):
         _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
 
-    repair: list[PersistedEnvironmentJournalChain] = []
+    repair_protocols: list[PersistedEnvironmentJournalChain] = []
     provider_environment: list[PersistedEnvironmentJournalChain] = []
     for chain in chains:
+        first_state = chain.selection.generations[0].state
+        if (
+            chain.selection.tip.stream.package_root_identity == package_root_identity
+            and first_state in _REPAIR_STATES
+        ):
+            repair_protocols.append(chain)
         protocol = _pending_protocol(chain, package_root_identity)
-        if protocol == "repair":
-            repair.append(chain)
-        elif protocol == "provider":
+        if protocol == "provider":
             provider_environment.append(chain)
-    forward = [
+    all_forward = [
         chain
         for chain in forward_chains
         if chain.selection.tip.stream.package_root_identity == package_root_identity
-        and chain.selection.tip.state is not RepairTransactionState.CLEANED
+    ]
+    pairs: list[
+        tuple[PersistedRepairTransactionChain, PersistedEnvironmentJournalChain]
+    ] = []
+    for candidate in all_forward:
+        bound = _bound_repair_for_forward(
+            candidate,
+            tuple(repair_protocols),
+            chains,
+        )
+        if bound is None:
+            _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
+        pairs.append((candidate, bound))
+    successful_repair_ids = {
+        id(repair)
+        for forward_chain, repair in pairs
+        if forward_chain.selection.tip.state is RepairTransactionState.CLEANED
+    }
+    repair = [
+        chain
+        for chain in repair_protocols
+        if chain.selection.tip.state is not EnvironmentJournalState.CLEANED
+        and id(chain) not in successful_repair_ids
+    ]
+    forward = [
+        forward_chain
+        for forward_chain, bound_repair in pairs
+        if forward_chain.selection.tip.state is not RepairTransactionState.CLEANED
+        and bound_repair.selection.tip.state is not EnvironmentJournalState.CLEANED
     ]
     repair_provider_environment: PersistedEnvironmentJournalChain | None = None
     if len(forward) > 1 or len(repair) > 1:

@@ -41,6 +41,7 @@ from towerscout_launcher.windows_transaction_context import (  # noqa: E402
     _capture_context,
 )
 import towerscout_launcher.windows_transaction_context as transaction_context  # noqa: E402
+import towerscout_launcher.windows_repair_cleanup_execution_native as repair_cleanup  # noqa: E402,E501
 
 
 class _PathOwner:
@@ -350,6 +351,74 @@ def test_native_recovery_uses_forward_owned_provider_stream(monkeypatch: Any) ->
     assert resume_arguments["initial_chain"] is repair
 
 
+def test_native_recovery_cleans_committed_forward_without_rollback(
+    monkeypatch: Any,
+) -> None:
+    target, _python, _identity_key = _target(RuntimeProduct.DOCKER)
+    identity = _identity(target)
+    repair = _recovery_chain(
+        journal_id="a" * 32,
+        package_root_identity=identity,
+        provider_environment=False,
+        repair_armed=True,
+        target_token_sha256=target.target_token.digest_sha256,
+    )
+    provider = _recovery_chain(
+        journal_id="e" * 32,
+        package_root_identity=identity,
+        provider_environment=True,
+        provider_applied=True,
+        target_token_sha256=target.target_token.digest_sha256,
+    )
+    forward = _forward_chain(repair, count=14, provider=provider)
+    recovery_scan = PackageRecoveryJournalScan(
+        1,
+        identity,
+        repair,
+        forward=forward,
+        repair_provider_environment=provider,
+    )
+    rescanned = PackageRecoveryJournalScan(1, identity)
+    calls: list[tuple[object, ...]] = []
+
+    monkeypatch.setattr(
+        repair_cleanup,
+        "resume_committed_native_windows_repair_cleanup",
+        lambda *args, **_kwargs: calls.append(args),
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "resume_persisted_rollback_from_held_package_root",
+        lambda **_kwargs: pytest.fail("committed repair must not roll back"),
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "scan_package_recovery_journals_from_held_root",
+        lambda *_args, **_kwargs: rescanned,
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "NativeWindowsJournalGenerationStorage",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "NativeWindowsJournalPointerStorage",
+        lambda: object(),
+    )
+
+    package_root = object()
+    protected_root = object()
+    result = transaction_context.resume_native_windows_pending_recovery(
+        package_root,  # type: ignore[arg-type]
+        protected_root,  # type: ignore[arg-type]
+        recovery_scan,
+    )
+
+    assert result is rescanned
+    assert calls == [(package_root, protected_root, repair, forward)]
+
+
 def test_changed_duplicate_package_root_is_closed_without_lock_acquisition() -> None:
     target, _python, _identity_key = _target(RuntimeProduct.DOCKER)
     identity = _identity(target)
@@ -480,6 +549,33 @@ def test_context_resumes_pending_recovery_under_retained_owners() -> None:
     assert result is recovered[0]
     assert result.mutation_blocked is False
     assert context.recovery_scan is result
+    context.close()
+
+
+def test_context_rescans_same_session_writes_before_recovery() -> None:
+    recovered: list[PackageRecoveryJournalScan] = []
+
+    def resume(
+        _package_root: PathHierarchyTrust,
+        _protected_root: object,
+        scan: PackageRecoveryJournalScan,
+    ) -> PackageRecoveryJournalScan:
+        assert scan.repair_pending
+        result = PackageRecoveryJournalScan(1, scan.package_root_identity)
+        recovered.append(result)
+        return result
+
+    context, events, _retained, _protected, _locks = _capture(
+        repair_pending=True,
+        resume_recovery=resume,
+    )
+    scans_before = events.count("scan")
+
+    result = context.refresh_and_resume_pending_recovery()
+
+    assert result is recovered[0]
+    assert events.count("scan") == scans_before + 1
+    assert not result.mutation_blocked
     context.close()
 
 

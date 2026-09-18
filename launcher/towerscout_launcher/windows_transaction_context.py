@@ -48,6 +48,7 @@ from .windows_recovery_scan import (
     RecoveryJournalScanError,
     scan_package_recovery_journals_from_held_root,
 )
+from .windows_repair_transaction_journal import RepairTransactionState
 from .windows_security import StableFileIdentity, WindowsSecurityError
 
 _Result = TypeVar("_Result")
@@ -157,12 +158,23 @@ _RecoveryRunner = Callable[
     [PathHierarchyTrust, _ProtectedRootOwner, PackageRecoveryJournalScan],
     PackageRecoveryJournalScan,
 ]
+_RecoveryScanner = Callable[
+    [PathHierarchyTrust, _ProtectedRootOwner],
+    PackageRecoveryJournalScan,
+]
 
 
 def _recovery_unavailable(
     _package_root: PathHierarchyTrust,
     _protected_root: _ProtectedRootOwner,
     _scan: PackageRecoveryJournalScan,
+) -> PackageRecoveryJournalScan:
+    _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
+
+
+def _rescan_unavailable(
+    _package_root: PathHierarchyTrust,
+    _protected_root: _ProtectedRootOwner,
 ) -> PackageRecoveryJournalScan:
     _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
 
@@ -178,6 +190,7 @@ class HeldWindowsTransactionContext:
         "_package_root",
         "_protected_root",
         "_recovery_scan",
+        "_rescan_recovery",
         "_resume_recovery",
         "_target_token",
     )
@@ -191,6 +204,7 @@ class HeldWindowsTransactionContext:
         locks: _LockOwner,
         recovery_scan: PackageRecoveryJournalScan,
         resume_recovery: _RecoveryRunner = _recovery_unavailable,
+        rescan_recovery: _RecoveryScanner = _rescan_unavailable,
     ) -> None:
         valid = False
         try:
@@ -209,6 +223,7 @@ class HeldWindowsTransactionContext:
                 and type(recovery_scan) is PackageRecoveryJournalScan
                 and recovery_scan.package_root_identity == identity
                 and callable(resume_recovery)
+                and callable(rescan_recovery)
                 and (
                     recovery_scan.repair is None
                     or recovery_scan.repair.selection.tip.stream.target_token_sha256
@@ -229,6 +244,7 @@ class HeldWindowsTransactionContext:
         self._locks: _LockOwner | None = locks
         self._recovery_scan = recovery_scan
         self._resume_recovery = resume_recovery
+        self._rescan_recovery = rescan_recovery
 
     @property
     def closed(self) -> bool:
@@ -328,6 +344,35 @@ class HeldWindowsTransactionContext:
                 _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
             self._recovery_scan = recovered
         return recovered
+
+    def refresh_and_resume_pending_recovery(self) -> PackageRecoveryJournalScan:
+        """Rescan durable state written in this session, then resume it."""
+
+        with self._mutex:
+            protected_root = self._protected_root
+            scan_before = self._recovery_scan
+            if protected_root is None or threading.get_ident() != self._owner_thread:
+                _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
+
+        candidate = self.run_with_package_root_held(
+            lambda package_root: self._rescan_recovery(
+                package_root,
+                protected_root,
+            )
+        )
+        if (
+            type(candidate) is not PackageRecoveryJournalScan
+            or candidate.package_root_identity != scan_before.package_root_identity
+            or candidate.repair is None
+            or candidate.repair.selection.tip.stream.target_token_sha256
+            != self._target_token
+        ):
+            _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
+        with self._mutex:
+            if self._package_root is None:
+                _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
+            self._recovery_scan = candidate
+        return self.resume_pending_recovery()
 
     def run_with_package_root_held(
         self,
@@ -636,6 +681,7 @@ def _capture_context(
             locks=locks,
             recovery_scan=recovery_scan,
             resume_recovery=resume_recovery,
+            rescan_recovery=scan_recovery,
         )
         package_root = None
         protected_root = None
@@ -673,24 +719,40 @@ def resume_native_windows_pending_recovery(
     if repair is None:
         _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
     concrete_root = cast(ProtectedStateRoot, protected_root)
-    certificate = certificate_identity_from_recovery_chain(repair)
-    ports = build_native_windows_recovery_manager_ports(
-        certificate,
-        concrete_root,
-    )
-    provider_chain = scan.repair_provider_environment
-    if provider_chain is None:
-        provider_chain = scan.provider_environment
-    provider_stream = (
-        None if provider_chain is None else provider_chain.selection.tip.stream
-    )
-    resume_persisted_rollback_from_held_package_root(
-        stream=repair.selection.tip.stream,
-        provider_stream=provider_stream,
-        package_root=package_root,
-        initial_chain=repair,
-        ports=ports,
-    )
+    forward = scan.forward
+    if forward is not None and forward.selection.tip.state in {
+        RepairTransactionState.COMMITTED,
+        RepairTransactionState.RECOVERY_CLEANUP_PENDING,
+    }:
+        from .windows_repair_cleanup_execution_native import (
+            resume_committed_native_windows_repair_cleanup,
+        )
+
+        resume_committed_native_windows_repair_cleanup(
+            package_root,
+            concrete_root,
+            repair,
+            forward,
+        )
+    else:
+        certificate = certificate_identity_from_recovery_chain(repair)
+        ports = build_native_windows_recovery_manager_ports(
+            certificate,
+            concrete_root,
+        )
+        provider_chain = scan.repair_provider_environment
+        if provider_chain is None:
+            provider_chain = scan.provider_environment
+        provider_stream = (
+            None if provider_chain is None else provider_chain.selection.tip.stream
+        )
+        resume_persisted_rollback_from_held_package_root(
+            stream=repair.selection.tip.stream,
+            provider_stream=provider_stream,
+            package_root=package_root,
+            initial_chain=repair,
+            ports=ports,
+        )
     return scan_package_recovery_journals_from_held_root(
         package_root,
         protected_root=concrete_root,

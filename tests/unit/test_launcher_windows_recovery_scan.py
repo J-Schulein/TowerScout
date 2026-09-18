@@ -37,9 +37,12 @@ from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
     BackupPreparingRecord,
     BackupVerifiedRecord,
     EnvironmentJournalGeneration,
+    EnvironmentJournalChainSelection,
     EnvironmentJournalState,
     GENESIS_GENERATION_SHA256,
+    JournalPointerDisposition,
     JournalStreamIdentity,
+    RecoveryCleanedRecord,
     RollbackProviderOutcome,
     RollbackArmedRecord,
     RollbackReadinessCondition,
@@ -378,11 +381,18 @@ def _forward_chain(
         forward_journal.RepairTransactionState.ENVIRONMENT_TEMP_CREATED,
         forward_journal.RepairTransactionState.ENVIRONMENT_TEMP_VERIFIED,
         forward_journal.RepairTransactionState.ENVIRONMENT_APPLIED,
+        forward_journal.RepairTransactionState.RUNTIME_STOPPING,
+        forward_journal.RepairTransactionState.RUNTIME_STOPPED,
+        forward_journal.RepairTransactionState.RUNTIME_STARTING,
+        forward_journal.RepairTransactionState.RUNTIME_STARTED,
+        forward_journal.RepairTransactionState.SUCCESS_VERIFYING,
+        forward_journal.RepairTransactionState.COMMITTED,
+        forward_journal.RepairTransactionState.CLEANED,
     )
     previous = stream.rollback_armed_generation_sha256
     sealed_items = []
     for sequence, state in enumerate(states[:count], start=1):
-        provider_sequence = sequence - 4 if sequence >= 5 else None
+        provider_sequence = sequence - 4 if 5 <= sequence <= 8 else None
         provider_digest = None
         provider_id = None
         if provider_sequence is not None:
@@ -439,6 +449,46 @@ def _forward_chain(
     )
 
 
+def _cleaned_repair_chain(
+    repair: PersistedEnvironmentJournalChain,
+) -> PersistedEnvironmentJournalChain:
+    protection = _Protection()
+    previous = repair.selection.tip_generation_sha256
+    cleaned_generation = EnvironmentJournalGeneration(
+        1,
+        repair.selection.tip.stream,
+        len(repair.selection.generations) + 1,
+        previous,
+        EnvironmentJournalState.CLEANED,
+        RecoveryCleanedRecord(
+            1,
+            previous,
+            repair.selection.tip.stream.package_root_identity,
+            "6" * 64,
+        ),
+    )
+    cleaned = protect_environment_journal_generation(
+        cleaned_generation,
+        protection=protection,
+    )
+    generations = repair.selection.generations + (cleaned_generation,)
+    generation_sha256s = repair.selection.generation_sha256s + (
+        cleaned.generation_sha256,
+    )
+    selection = EnvironmentJournalChainSelection(
+        generations,
+        generation_sha256s,
+        cleaned_generation,
+        cleaned.generation_sha256,
+        JournalPointerDisposition.CURRENT,
+    )
+    return PersistedEnvironmentJournalChain(
+        repair.sealed_generations + (cleaned,),
+        repair.file_identities + (_identity(99),),
+        selection,
+    )
+
+
 def test_classification_ignores_foreign_package_journals() -> None:
     package_root = _identity(1)
     foreign = _chain(
@@ -452,6 +502,55 @@ def test_classification_ignores_foreign_package_journals() -> None:
     assert result.repair_pending is False
     assert result.provider_environment_pending is False
     assert result.mutation_blocked is False
+
+
+def test_cleaned_forward_makes_its_armed_rollback_history_terminal() -> None:
+    package_root = _identity(1)
+    repair = _chain(
+        journal_id="a" * 32,
+        package_root_identity=package_root,
+        provider_environment=False,
+        repair_armed=True,
+    )
+    provider = _chain(
+        journal_id="e" * 32,
+        package_root_identity=package_root,
+        provider_environment=True,
+        provider_applied=True,
+    )
+    forward = _forward_chain(repair, count=15, provider=provider)
+
+    result = scan.classify_package_recovery_journals(
+        (repair, provider),
+        package_root,
+        forward_chains=(forward,),
+    )
+
+    assert not result.repair_pending
+    assert not result.forward_pending
+    assert not result.mutation_blocked
+
+
+def test_cleaned_rollback_makes_its_incomplete_forward_history_terminal() -> None:
+    package_root = _identity(1)
+    repair = _chain(
+        journal_id="a" * 32,
+        package_root_identity=package_root,
+        provider_environment=False,
+        repair_armed=True,
+    )
+    forward = _forward_chain(repair, count=4)
+    cleaned_repair = _cleaned_repair_chain(repair)
+
+    result = scan.classify_package_recovery_journals(
+        (cleaned_repair,),
+        package_root,
+        forward_chains=(forward,),
+    )
+
+    assert not result.repair_pending
+    assert not result.forward_pending
+    assert not result.mutation_blocked
 
 
 def test_classification_reports_both_pending_protocols() -> None:

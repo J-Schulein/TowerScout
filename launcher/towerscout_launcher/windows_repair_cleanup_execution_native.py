@@ -299,9 +299,123 @@ def cleanup_committed_native_windows_repair(
     return result
 
 
+def resume_committed_native_windows_repair_cleanup(
+    package_root: PathHierarchyTrust,
+    protected_root: ProtectedStateRoot,
+    rollback: PersistedEnvironmentJournalChain,
+    forward: PersistedRepairTransactionChain,
+    *,
+    cleanup: RepairCleanupPort | None = None,
+    journal_storage: JournalGenerationStoragePort | None = None,
+    pointer_storage: JournalPointerStoragePort | None = None,
+) -> PersistedRepairTransactionChain:
+    """Resume exact backup cleanup from committed or cleanup-pending state."""
+
+    if (
+        type(package_root) is not PathHierarchyTrust
+        or package_root.closed
+        or type(protected_root) is not ProtectedStateRoot
+        or protected_root.closed
+        or type(rollback) is not PersistedEnvironmentJournalChain
+        or type(forward) is not PersistedRepairTransactionChain
+        or forward.selection.tip.state
+        not in {
+            RepairTransactionState.COMMITTED,
+            RepairTransactionState.RECOVERY_CLEANUP_PENDING,
+        }
+    ):
+        _fail(NativeRepairCleanupExecutionErrorCode.INPUT_INVALID)
+    stream = forward.selection.tip.stream
+    if (
+        rollback.selection.tip.stream.journal_id != stream.rollback_journal_id
+        or rollback.selection.tip.stream.target_token_sha256
+        != stream.target_token_sha256
+        or rollback.selection.tip.stream.package_root_identity
+        != stream.package_root_identity
+        or len(rollback.selection.generations) < 3
+        or rollback.selection.generation_sha256s[2]
+        != stream.rollback_armed_generation_sha256
+    ):
+        _fail(NativeRepairCleanupExecutionErrorCode.INPUT_INVALID)
+    selected_cleanup = NativeWindowsRecoveryCleanup() if cleanup is None else cleanup
+    selected_journal = (
+        NativeWindowsJournalGenerationStorage()
+        if journal_storage is None
+        else journal_storage
+    )
+    selected_pointer = (
+        NativeWindowsJournalPointerStorage()
+        if pointer_storage is None
+        else pointer_storage
+    )
+
+    def while_root_held(root_path: str) -> PersistedRepairTransactionChain:
+        current = forward
+        try:
+            evidence = selected_cleanup.cleanup_committed_repair_artifacts_while_package_root_held(
+                package_root,
+                root_path,
+                rollback,
+                current,
+            )
+        except BaseException as error:
+            if not isinstance(error, Exception):
+                raise
+            if current.selection.tip.state is RepairTransactionState.COMMITTED:
+                _append(
+                    root_path,
+                    current,
+                    RepairTransactionState.RECOVERY_CLEANUP_PENDING,
+                    _evidence(
+                        _PENDING_DOMAIN,
+                        (
+                            stream.target_token_sha256,
+                            current.selection.tip_generation_sha256,
+                        ),
+                    ),
+                    generation_storage=selected_journal,
+                    pointer_storage=selected_pointer,
+                    protection=protected_root,
+                )
+            _fail(NativeRepairCleanupExecutionErrorCode.CLEANUP_PENDING)
+        if type(evidence) is not RecoveryCleanupEvidence:
+            _fail(NativeRepairCleanupExecutionErrorCode.CLEANUP_FAILED)
+        return _append(
+            root_path,
+            current,
+            RepairTransactionState.CLEANED,
+            _evidence(
+                _CLEANED_DOMAIN,
+                (
+                    stream.target_token_sha256,
+                    evidence.cleanup_evidence_sha256,
+                ),
+            ),
+            generation_storage=selected_journal,
+            pointer_storage=selected_pointer,
+            protection=protected_root,
+        )
+
+    try:
+        result = protected_root.run_journal_storage(while_root_held)
+    except NativeRepairCleanupExecutionError:
+        raise
+    except BaseException as error:
+        if not isinstance(error, Exception):
+            raise
+        _fail(NativeRepairCleanupExecutionErrorCode.CLEANUP_FAILED)
+    if (
+        type(result) is not PersistedRepairTransactionChain
+        or result.selection.tip.state is not RepairTransactionState.CLEANED
+    ):
+        _fail(NativeRepairCleanupExecutionErrorCode.CLEANUP_FAILED)
+    return cast(PersistedRepairTransactionChain, result)
+
+
 __all__ = [
     "CleanedRepair",
     "NativeRepairCleanupExecutionError",
     "NativeRepairCleanupExecutionErrorCode",
     "cleanup_committed_native_windows_repair",
+    "resume_committed_native_windows_repair_cleanup",
 ]
