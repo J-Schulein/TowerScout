@@ -511,6 +511,54 @@ def test_certificate_stage_rejects_source_outside_exact_recovery_root() -> None:
     assert failure.value.code is TargetObservationBindingErrorCode.SELECTOR_REJECTED
 
 
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_rollback_probes_are_fixed_contained_engine_commands(
+    product: RuntimeProduct,
+) -> None:
+    plan = _plan(product)
+    binding = TargetObservationExecutionBinding(plan)
+    container_id = "d" * 64
+
+    readiness = binding.rollback_readiness_probe(container_id=container_id)
+    provider = binding.rollback_provider_probe(container_id=container_id)
+
+    assert readiness.operation is ObservationOperation.ROLLBACK_READINESS_PROBE
+    assert provider.operation is ObservationOperation.ROLLBACK_PROVIDER_PROBE
+    for request in (readiness, provider):
+        assert request.command[0] == str(plan.runtime.executable.final_path)
+        command_index = request.arguments.index("container")
+        assert request.arguments[command_index : command_index + 5] == (
+            "container",
+            "exec",
+            container_id,
+            "python",
+            "-c",
+        )
+        script_index = command_index + 5
+        ast.parse(request.arguments[script_index], feature_version=(3, 11))
+        assert request.timeout_ms == CERTIFICATE_OPERATION_TIMEOUT_MS
+        assert request.stdin_closed is True
+        assert request.shell is False
+        assert request.target is plan
+        assert not {"sh", "bash", "cmd", "powershell"} & {
+            item.casefold() for item in request.arguments
+        }
+    assert provider.arguments[-1] == (
+        "maps.googleapis.com"
+        if plan.provider is MapProvider.GOOGLE
+        else "atlas.microsoft.com"
+    )
+
+
+def test_rollback_probes_reject_unbound_container_selectors() -> None:
+    binding = TargetObservationExecutionBinding(_plan())
+
+    with pytest.raises(TargetObservationBindingError) as failure:
+        binding.rollback_readiness_probe(container_id="not-a-container")
+
+    assert failure.value.code is TargetObservationBindingErrorCode.SELECTOR_REJECTED
+
+
 def test_compose_plan_copies_are_immutable_and_planned_arguments_do_not_change() -> (
     None
 ):

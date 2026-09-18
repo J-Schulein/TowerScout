@@ -303,6 +303,44 @@ def test_present_original_replaces_only_candidate_with_verified_restore_temp() -
     assert api.events.count("replace") == 1
 
 
+@pytest.mark.parametrize("present", [True, False])
+def test_environment_observation_is_read_only_under_held_package_root(
+    present: bool,
+) -> None:
+    root, _path_api = _root()
+    api = _Api()
+    authority = _authority()
+    if present:
+        restore = authority.restore
+        assert restore.original_identity is not None
+        assert restore.original_sha256 is not None
+        assert restore.original_file_attributes is not None
+        assert restore.original_security_descriptor_sha256 is not None
+        api.files[_DESTINATION] = _File(
+            restore.original_identity,
+            b"original environment",
+            restore.original_file_attributes,
+            restore.original_security_descriptor_sha256,
+        )
+    storage = native.NativeWindowsEnvironmentRestoreStorage(api=api)
+    try:
+        observed = root.run_while_held(
+            lambda: storage.observe_environment_while_package_root_held(
+                root,
+                _identity(7),
+            )
+        )
+    finally:
+        root.close()
+
+    assert observed.present is present
+    assert "replace" not in api.events
+    assert not any(item.startswith("delete-open:") for item in api.events)
+    if present:
+        assert observed.identity == authority.restore.original_identity
+        assert observed.sha256 == authority.restore.original_sha256
+
+
 def test_absent_original_deletes_only_exact_candidate_by_held_handle() -> None:
     root, _path_api = _root()
     authority = _authority(original_present=False)

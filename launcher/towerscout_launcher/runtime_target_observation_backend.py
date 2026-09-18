@@ -1722,6 +1722,20 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
         try:
             if operation == "restart_prior_profile" and not arguments:
                 return self._binding.restart_prior_profile()
+            if operation == "rollback_readiness_probe" and len(arguments) == 1:
+                (container_id,) = arguments
+                if type(container_id) is not str:
+                    raise ValueError
+                return self._binding.rollback_readiness_probe(
+                    container_id=container_id,
+                )
+            if operation == "rollback_provider_probe" and len(arguments) == 1:
+                (container_id,) = arguments
+                if type(container_id) is not str:
+                    raise ValueError
+                return self._binding.rollback_provider_probe(
+                    container_id=container_id,
+                )
             if operation == "certificate_observe" and len(arguments) == 3:
                 container_id, destination, restore_temp_name = arguments
                 if (

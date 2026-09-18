@@ -376,6 +376,21 @@ def _destination_evidence(
     )
 
 
+def observe_certificate_destination_while_target_held(
+    owner: BoundResolvedRepairTarget,
+    destination: CertificateTargetDestination,
+) -> CertificateDestinationRestoreEvidence:
+    """Freshly observe one fixed certificate destination under target authority."""
+
+    if (
+        type(owner) is not BoundResolvedRepairTarget
+        or owner.closed
+        or type(destination) is not CertificateTargetDestination
+    ):
+        _fail(NativeCertificateRestorationErrorCode.INPUT_INVALID)
+    return _destination_evidence(destination, _observe(owner, destination))
+
+
 def _assert_package_root(
     package_root: PathHierarchyTrust,
     stream: JournalStreamIdentity,
@@ -543,4 +558,5 @@ __all__ = [
     "NativeCertificateRestorationErrorCode",
     "NativeWindowsCertificateRestoration",
     "ResolvedTargetCapture",
+    "observe_certificate_destination_while_target_held",
 ]

@@ -638,6 +638,46 @@ class NativeWindowsEnvironmentRestoreStorage:
         except Exception:
             _fail(EnvironmentRestoreStorageErrorCode.VERIFY_FAILED)
 
+    def observe_environment_while_package_root_held(
+        self,
+        package_root: PathHierarchyTrust,
+        package_root_identity: StableFileIdentity,
+    ) -> EnvironmentDestinationObservation:
+        """Freshly observe the fixed package ``.env`` under the retained root."""
+
+        if (
+            type(package_root) is not PathHierarchyTrust
+            or package_root.closed
+            or package_root.evidence.purpose is not PathTrustPurpose.PACKAGE_ROOT
+            or type(package_root_identity) is not StableFileIdentity
+            or package_root.root_snapshot.identity != package_root_identity
+            or self._api is None
+        ):
+            _fail(EnvironmentRestoreStorageErrorCode.INPUT_INVALID)
+        supported = _call(
+            lambda: self._api.supported,
+            EnvironmentRestoreStorageErrorCode.PLATFORM_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(EnvironmentRestoreStorageErrorCode.PLATFORM_UNAVAILABLE)
+        try:
+            package_root.assert_unchanged_while_held()
+            root_path = package_root.root_snapshot.final_path
+            destination = ntpath.join(root_path, ".env")
+            if len(destination) > _MAX_PATH_CHARACTERS or _path_key(
+                ntpath.dirname(destination)
+            ) != _path_key(root_path):
+                _fail(EnvironmentRestoreStorageErrorCode.INPUT_INVALID)
+            observed = _observe(self._api, destination, package_root_identity)
+            package_root.assert_unchanged_while_held()
+            return observed
+        except EnvironmentRestoreStorageError:
+            raise
+        except WindowsSecurityError:
+            _fail(EnvironmentRestoreStorageErrorCode.VERIFY_FAILED)
+        except Exception:
+            _fail(EnvironmentRestoreStorageErrorCode.VERIFY_FAILED)
+
 
 __all__ = [
     "EnvironmentRestoreStorageAuthority",

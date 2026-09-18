@@ -34,6 +34,7 @@ from .target_contracts import (
     ComposeInvocationKind,
     EndpointBindingKind,
     FileIdentity,
+    MapProvider,
     RuntimeProduct,
 )
 
@@ -77,6 +78,8 @@ class ObservationOperation(str, Enum):
     CERTIFICATE_APPLY_ORIGINAL = "certificate_apply_original"
     CERTIFICATE_REMOVE_CANDIDATE = "certificate_remove_candidate"
     CERTIFICATE_REMOVE_STAGED_ORIGINAL = "certificate_remove_staged_original"
+    ROLLBACK_READINESS_PROBE = "rollback_readiness_probe"
+    ROLLBACK_PROVIDER_PROBE = "rollback_provider_probe"
 
 
 class CertificateTargetDestination(str, Enum):
@@ -422,11 +425,42 @@ _CERTIFICATE_REMOVE_SCRIPT = (
     "os.unlink(p); os.close(f)\n"
 )
 
+_ROLLBACK_READINESS_PROBE_SCRIPT = (
+    "import json,sys,urllib.request\n"
+    "req=urllib.request.Request('http://127.0.0.1:5000/api/readiness',"
+    "headers={'Accept':'application/json'},method='GET')\n"
+    "with urllib.request.urlopen(req,timeout=5) as response:\n"
+    " data=response.read(8193)\n"
+    " if response.status!=200 or len(data)>8192: raise SystemExit(45)\n"
+    "value=json.loads(data.decode('utf-8','strict'))\n"
+    "state=value.get('state') if type(value) is dict else None\n"
+    "if state not in {'setup_required','degraded','ready'}: raise SystemExit(45)\n"
+    "print(state)\n"
+)
+
+_ROLLBACK_PROVIDER_PROBE_SCRIPT = (
+    "import socket,ssl,sys\n"
+    "host=sys.argv[1]\n"
+    "outcome='provider_recheck_indeterminate'\n"
+    "try:\n"
+    " context=ssl.create_default_context()\n"
+    " with socket.create_connection((host,443),timeout=5) as connection:\n"
+    "  with context.wrap_socket(connection,server_hostname=host): pass\n"
+    " outcome='success'\n"
+    "except ssl.SSLCertVerificationError:\n"
+    " outcome='repairable_tls_failure'\n"
+    "except (OSError,ssl.SSLError,TimeoutError):\n"
+    " pass\n"
+    "print(outcome)\n"
+)
+
 # Command arguments cannot contain control characters.  The reviewed program
 # is therefore passed as one literal to a fixed outer ``exec`` expression.
 _CERTIFICATE_OBSERVE_SCRIPT = f"exec({_CERTIFICATE_OBSERVE_SCRIPT!r})"
 _CERTIFICATE_APPLY_SCRIPT = f"exec({_CERTIFICATE_APPLY_SCRIPT!r})"
 _CERTIFICATE_REMOVE_SCRIPT = f"exec({_CERTIFICATE_REMOVE_SCRIPT!r})"
+_ROLLBACK_READINESS_PROBE_SCRIPT = f"exec({_ROLLBACK_READINESS_PROBE_SCRIPT!r})"
+_ROLLBACK_PROVIDER_PROBE_SCRIPT = f"exec({_ROLLBACK_PROVIDER_PROBE_SCRIPT!r})"
 
 
 def _certificate_selector_valid(
@@ -656,6 +690,11 @@ def _valid_selector(
         return type(selector) is CertificateRuntimeSelector and (
             _certificate_selector_valid(operation, selector)
         )
+    if operation in {
+        ObservationOperation.ROLLBACK_READINESS_PROBE,
+        ObservationOperation.ROLLBACK_PROVIDER_PROBE,
+    }:
+        return type(selector) is str and _CONTAINER_ID.fullmatch(selector) is not None
     return False
 
 
@@ -792,6 +831,36 @@ def _engine_expected(
             format(selector.original_mode or 0, "o"),
         )
         stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
+    elif operation is ObservationOperation.ROLLBACK_READINESS_PROBE:
+        if type(selector) is not str:
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        suffix = (
+            "container",
+            "exec",
+            selector,
+            "python",
+            "-c",
+            _ROLLBACK_READINESS_PROBE_SCRIPT,
+        )
+        stdout_limit = 128
+    elif operation is ObservationOperation.ROLLBACK_PROVIDER_PROBE:
+        if type(selector) is not str:
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        provider_host = (
+            "maps.googleapis.com"
+            if target.provider is MapProvider.GOOGLE
+            else "atlas.microsoft.com"
+        )
+        suffix = (
+            "container",
+            "exec",
+            selector,
+            "python",
+            "-c",
+            _ROLLBACK_PROVIDER_PROBE_SCRIPT,
+            provider_host,
+        )
+        stdout_limit = 128
     else:
         _reject(TargetObservationBindingErrorCode.OPERATION_REJECTED)
     return _ExpectedProcess(
@@ -808,6 +877,8 @@ def _engine_expected(
                 ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
                 ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
                 ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+                ObservationOperation.ROLLBACK_READINESS_PROBE,
+                ObservationOperation.ROLLBACK_PROVIDER_PROBE,
             }
             else OBSERVATION_TIMEOUT_MS
         ),
@@ -821,6 +892,8 @@ def _engine_expected(
                 ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
                 ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
                 ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+                ObservationOperation.ROLLBACK_READINESS_PROBE,
+                ObservationOperation.ROLLBACK_PROVIDER_PROBE,
             }
             else OBSERVATION_STDERR_LIMIT_BYTES
         ),
@@ -1207,6 +1280,26 @@ class TargetObservationExecutionBinding:
                 original_size=original_size,
                 original_mode=original_mode,
             ),
+        )
+
+    def rollback_readiness_probe(
+        self,
+        *,
+        container_id: str,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.ROLLBACK_READINESS_PROBE,
+            container_id,
+        )
+
+    def rollback_provider_probe(
+        self,
+        *,
+        container_id: str,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.ROLLBACK_PROVIDER_PROBE,
+            container_id,
         )
 
     def __repr__(self) -> str:

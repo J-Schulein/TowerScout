@@ -668,6 +668,64 @@ def test_bound_target_executes_only_fixed_certificate_processes_between_captures
 
 
 @pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_bound_target_executes_only_fixed_rollback_probes_between_captures(
+    product: RuntimeProduct,
+) -> None:
+    plan, authority, executor, backend = _backend(product)
+    executor.overrides[
+        (ObservationOperation.ROLLBACK_READINESS_PROBE, _CONTAINER_ID)
+    ] = b"degraded\n"
+    executor.overrides[
+        (ObservationOperation.ROLLBACK_PROVIDER_PROBE, _CONTAINER_ID)
+    ] = b"repairable_tls_failure\n"
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+
+    readiness = owner.execute_scoped_process(
+        "rollback_readiness_probe",
+        (_CONTAINER_ID,),
+    )
+    provider = owner.execute_scoped_process(
+        "rollback_provider_probe",
+        (_CONTAINER_ID,),
+    )
+
+    assert isinstance(readiness, TargetObservationProcessResult)
+    assert readiness.operation is ObservationOperation.ROLLBACK_READINESS_PROBE
+    assert readiness.stdout == b"degraded\n"
+    assert isinstance(provider, TargetObservationProcessResult)
+    assert provider.operation is ObservationOperation.ROLLBACK_PROVIDER_PROBE
+    assert provider.stdout == b"repairable_tls_failure\n"
+    assert authority.closed is False
+    assert executor.closed is False
+    assert owner.closed is False
+    owner.close()
+
+
+@pytest.mark.parametrize(
+    ("operation", "arguments"),
+    (
+        ("rollback_readiness_probe", ()),
+        ("rollback_provider_probe", ("not-a-container",)),
+        ("rollback_provider_probe", (_CONTAINER_ID, "extra")),
+    ),
+)
+def test_bound_target_rejects_invalid_rollback_probe_requests(
+    operation: str,
+    arguments: tuple[object, ...],
+) -> None:
+    plan, _authority, _executor, backend = _backend()
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+
+    with pytest.raises(TargetResolutionError) as caught:
+        owner.execute_scoped_process(operation, arguments)
+
+    assert caught.value.code is TargetResolutionErrorCode.TARGET_CHANGED
+    assert caught.value.__cause__ is None
+    assert owner.closed is True
+    assert backend.closed is True
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
 def test_bound_target_restarts_only_the_exact_prior_profile_between_captures(
     product: RuntimeProduct,
 ) -> None:
