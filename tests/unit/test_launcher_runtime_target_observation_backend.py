@@ -465,6 +465,9 @@ class _Executor:
             ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
             ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
             ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+            ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
+            ObservationOperation.CERTIFICATE_APPLY_CANDIDATE,
+            ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE,
         }:
             return b""
         if process.operation is ObservationOperation.CONTAINER_LIST:
@@ -667,6 +670,70 @@ def test_bound_target_executes_only_fixed_certificate_processes_between_captures
     assert authority.closed is False
     assert executor.closed is False
     assert owner.closed is False
+    owner.close()
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_bound_target_executes_only_fixed_forward_certificate_processes(
+    product: RuntimeProduct,
+) -> None:
+    _plan, authority, executor, backend = _backend(product)
+    owner = capture_bound_resolved_repair_target(_plan, backend=backend)
+    name = f"repair-certificate-{1:032x}.tmp"
+    source = PureWindowsPath(
+        rf"C:\Users\PRIVATE-PATH\AppData\Local\TowerScout\Recovery\v1\{name}"
+    )
+
+    staged = owner.execute_scoped_process(
+        "certificate_stage_candidate",
+        (_CONTAINER_ID, CertificateTargetDestination.LOCAL_CA, name, source),
+    )
+    applied = owner.execute_scoped_process(
+        "certificate_apply_candidate",
+        (
+            _CONTAINER_ID,
+            CertificateTargetDestination.LOCAL_CA,
+            name,
+            "1" * 64,
+            11,
+            0o600,
+            "2" * 64,
+            12,
+            0o644,
+        ),
+    )
+    applied_absent = owner.execute_scoped_process(
+        "certificate_apply_candidate",
+        (
+            _CONTAINER_ID,
+            CertificateTargetDestination.CA_BUNDLE,
+            name,
+            None,
+            None,
+            None,
+            "3" * 64,
+            13,
+            0o644,
+        ),
+    )
+    removed = owner.execute_scoped_process(
+        "certificate_remove_staged_candidate",
+        (
+            _CONTAINER_ID,
+            CertificateTargetDestination.LOCAL_CA,
+            name,
+            "2" * 64,
+            12,
+            0o600,
+        ),
+    )
+
+    assert staged.operation is ObservationOperation.CERTIFICATE_STAGE_CANDIDATE
+    assert applied.operation is ObservationOperation.CERTIFICATE_APPLY_CANDIDATE
+    assert applied_absent.operation is ObservationOperation.CERTIFICATE_APPLY_CANDIDATE
+    assert removed.operation is ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE
+    assert authority.closed is False
+    assert executor.closed is False
     owner.close()
 
 

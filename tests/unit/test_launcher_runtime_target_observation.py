@@ -496,6 +496,68 @@ def test_certificate_recovery_processes_are_fixed_contained_engine_commands(
     }
 
 
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_certificate_forward_apply_processes_are_fixed_contained_engine_commands(
+    product: RuntimeProduct,
+) -> None:
+    plan = _plan(product)
+    binding = TargetObservationExecutionBinding(plan)
+    container_id = "d" * 64
+    name = f"repair-certificate-{1:032x}.tmp"
+    source = PureWindowsPath(
+        rf"C:\Users\PRIVATE-PATH\AppData\Local\TowerScout\Recovery\v1\{name}"
+    )
+
+    stage = binding.certificate_stage_candidate(
+        container_id=container_id,
+        destination=CertificateTargetDestination.LOCAL_CA,
+        repair_temp_name=name,
+        source_path=source,
+    )
+    apply = binding.certificate_apply_candidate(
+        container_id=container_id,
+        destination=CertificateTargetDestination.LOCAL_CA,
+        repair_temp_name=name,
+        original_sha256="1" * 64,
+        original_size=11,
+        original_mode=0o600,
+        candidate_sha256="2" * 64,
+        candidate_size=12,
+        candidate_mode=0o644,
+    )
+    apply_absent = binding.certificate_apply_candidate(
+        container_id=container_id,
+        destination=CertificateTargetDestination.CA_BUNDLE,
+        repair_temp_name=name,
+        original_sha256=None,
+        original_size=None,
+        original_mode=None,
+        candidate_sha256="3" * 64,
+        candidate_size=13,
+        candidate_mode=0o644,
+    )
+    remove = binding.certificate_remove_staged_candidate(
+        container_id=container_id,
+        destination=CertificateTargetDestination.LOCAL_CA,
+        repair_temp_name=name,
+        candidate_sha256="2" * 64,
+        candidate_size=12,
+        candidate_mode=0o600,
+    )
+
+    for request in (stage, apply, apply_absent, remove):
+        assert request.command[0] == str(plan.runtime.executable.final_path)
+        assert request.timeout_ms == CERTIFICATE_OPERATION_TIMEOUT_MS
+        assert request.stdin_closed is True
+        assert request.shell is False
+        assert "--volumes" not in request.arguments
+        assert "-v" not in request.arguments
+    assert stage.arguments[-1] == f"{container_id}:/app/webapp/config/certs/.{name}"
+    assert apply.operation is ObservationOperation.CERTIFICATE_APPLY_CANDIDATE
+    assert apply_absent.arguments[-4:] == ("0", "-", "-1", "0")
+    assert remove.operation is ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE
+
+
 def test_certificate_stage_rejects_source_outside_exact_recovery_root() -> None:
     binding = TargetObservationExecutionBinding(_plan())
     name = f"recovery-certificate-{1:032x}.tmp"

@@ -20,7 +20,7 @@ import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import PureWindowsPath
-from typing import Any, Callable, NoReturn, Protocol, TypeVar
+from typing import Any, Callable, NoReturn, Protocol, TypeVar, cast
 
 from .runtime_target_observation import (
     CertificateTargetDestination,
@@ -1883,6 +1883,91 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
                     original_sha256=original_sha256,
                     original_size=original_size,
                     original_mode=original_mode,
+                )
+            if operation == "certificate_stage_candidate" and len(arguments) == 4:
+                container_id, destination, repair_temp_name, source_path = arguments
+                if (
+                    type(container_id) is not str
+                    or type(destination) is not CertificateTargetDestination
+                    or type(repair_temp_name) is not str
+                    or type(source_path) is not PureWindowsPath
+                ):
+                    raise ValueError
+                return self._binding.certificate_stage_candidate(
+                    container_id=container_id,
+                    destination=destination,
+                    repair_temp_name=repair_temp_name,
+                    source_path=source_path,
+                )
+            if operation == "certificate_apply_candidate" and len(arguments) == 9:
+                (
+                    container_id,
+                    destination,
+                    repair_temp_name,
+                    original_sha256,
+                    original_size,
+                    original_mode,
+                    candidate_sha256,
+                    candidate_size,
+                    candidate_mode,
+                ) = arguments
+                original_values = (original_sha256, original_size, original_mode)
+                if (
+                    type(container_id) is not str
+                    or type(destination) is not CertificateTargetDestination
+                    or type(repair_temp_name) is not str
+                    or not (
+                        all(value is None for value in original_values)
+                        or (
+                            type(original_sha256) is str
+                            and type(original_size) is int
+                            and type(original_mode) is int
+                        )
+                    )
+                    or type(candidate_sha256) is not str
+                    or type(candidate_size) is not int
+                    or type(candidate_mode) is not int
+                ):
+                    raise ValueError
+                return self._binding.certificate_apply_candidate(
+                    container_id=container_id,
+                    destination=destination,
+                    repair_temp_name=repair_temp_name,
+                    original_sha256=cast(str | None, original_sha256),
+                    original_size=cast(int | None, original_size),
+                    original_mode=cast(int | None, original_mode),
+                    candidate_sha256=candidate_sha256,
+                    candidate_size=candidate_size,
+                    candidate_mode=candidate_mode,
+                )
+            if (
+                operation == "certificate_remove_staged_candidate"
+                and len(arguments) == 6
+            ):
+                (
+                    container_id,
+                    destination,
+                    repair_temp_name,
+                    candidate_sha256,
+                    candidate_size,
+                    candidate_mode,
+                ) = arguments
+                if (
+                    type(container_id) is not str
+                    or type(destination) is not CertificateTargetDestination
+                    or type(repair_temp_name) is not str
+                    or type(candidate_sha256) is not str
+                    or type(candidate_size) is not int
+                    or type(candidate_mode) is not int
+                ):
+                    raise ValueError
+                return self._binding.certificate_remove_staged_candidate(
+                    container_id=container_id,
+                    destination=destination,
+                    repair_temp_name=repair_temp_name,
+                    candidate_sha256=candidate_sha256,
+                    candidate_size=candidate_size,
+                    candidate_mode=candidate_mode,
                 )
         except Exception:
             _fail(TargetObservationAdapterErrorCode.PROCESS_REJECTED)

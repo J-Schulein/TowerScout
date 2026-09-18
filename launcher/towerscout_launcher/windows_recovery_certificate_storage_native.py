@@ -1215,6 +1215,89 @@ def capture_held_certificate_restore_temps(
         raise
 
 
+def capture_held_repair_certificate_temps(
+    root_path: str,
+    forward: RepairTransactionChainSelection,
+    plan: CertificateReplacementPlan,
+    *,
+    api: _WindowsRecoveryCertificateTempApi | None = None,
+) -> HeldCertificateRestoreTemps:
+    """Open and retain both authenticated forward candidates while copied."""
+
+    names, identities, evidence_sha256 = _forward_certificate_metadata(
+        forward,
+        RepairTransactionState.CERTIFICATE_TEMP_VERIFIED,
+    )
+    if (
+        identities is None
+        or type(plan) is not CertificateReplacementPlan
+        or certificate_replacement_evidence_sha256(plan) != evidence_sha256
+    ):
+        _fail(RecoveryCertificateStorageErrorCode.INPUT_INVALID)
+    selected_api = NativeWindowsRecoveryCertificateTempApi() if api is None else api
+    supported = _call(
+        lambda: selected_api.supported,
+        RecoveryCertificateStorageErrorCode.STORAGE_UNAVAILABLE,
+    )
+    if supported is not True:
+        _fail(RecoveryCertificateStorageErrorCode.STORAGE_UNAVAILABLE)
+    user_sid = _current_user_sid(selected_api)
+    entries: list[_HeldCertificateTemp] = []
+    try:
+        for name, identity, contents_sha256, size in (
+            (
+                names[0],
+                identities[0],
+                plan.local_ca_sha256,
+                len(plan.local_ca_contents),
+            ),
+            (
+                names[1],
+                identities[1],
+                plan.ca_bundle_sha256,
+                len(plan.ca_bundle_contents),
+            ),
+        ):
+            path = _temp_path(root_path, name)
+            handle = _call(
+                lambda: selected_api.reopen_file_for_verification(path),
+                RecoveryCertificateStorageErrorCode.VERIFY_FAILED,
+            )
+            if handle is None:
+                _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+            entry = _HeldCertificateTemp(path, identity, size, contents_sha256, handle)
+            try:
+                _inspect(
+                    selected_api,
+                    handle,
+                    path=path,
+                    current_user_sid=user_sid,
+                    expected_identity=identity,
+                    expected_size=size,
+                )
+                if hashlib.sha256(
+                    _read_exact(selected_api, handle, size)
+                ).hexdigest() != (contents_sha256):
+                    _fail(RecoveryCertificateStorageErrorCode.VERIFY_FAILED)
+                entries.append(entry)
+            except BaseException:
+                _safe_close(selected_api, handle)
+                raise
+        return HeldCertificateRestoreTemps(
+            api=selected_api,
+            user_sid=user_sid,
+            entries=tuple(entries),
+            paths=HeldCertificateRestoreTempPaths(
+                PureWindowsPath(entries[0].path),
+                PureWindowsPath(entries[1].path),
+            ),
+        )
+    except BaseException:
+        for entry in reversed(entries):
+            _safe_close(selected_api, entry.handle)
+        raise
+
+
 __all__ = [
     "HeldCertificateRestoreTempPaths",
     "HeldCertificateRestoreTemps",
@@ -1223,4 +1306,5 @@ __all__ = [
     "NativeWindowsRepairCertificateTempStorage",
     "NativeWindowsRecoveryCertificateTempApi",
     "capture_held_certificate_restore_temps",
+    "capture_held_repair_certificate_temps",
 ]

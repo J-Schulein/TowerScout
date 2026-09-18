@@ -379,6 +379,8 @@ def _destination_evidence(
 def observe_certificate_destination_while_target_held(
     owner: BoundResolvedRepairTarget,
     destination: CertificateTargetDestination,
+    *,
+    restore_temp_name: str | None = None,
 ) -> CertificateDestinationRestoreEvidence:
     """Freshly observe one fixed certificate destination under target authority."""
 
@@ -386,9 +388,13 @@ def observe_certificate_destination_while_target_held(
         type(owner) is not BoundResolvedRepairTarget
         or owner.closed
         or type(destination) is not CertificateTargetDestination
+        or (restore_temp_name is not None and type(restore_temp_name) is not str)
     ):
         _fail(NativeCertificateRestorationErrorCode.INPUT_INVALID)
-    return _destination_evidence(destination, _observe(owner, destination))
+    return _destination_evidence(
+        destination,
+        _observe(owner, destination, restore_temp_name=restore_temp_name),
+    )
 
 
 def _assert_package_root(

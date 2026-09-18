@@ -55,7 +55,9 @@ CERTIFICATE_OPERATION_STDERR_LIMIT_BYTES = 16 * 1024
 _CONTAINER_ID = re.compile(r"^[0-9a-f]{64}$")
 _DOCKER_IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
 _PODMAN_IMAGE_ID = re.compile(r"^[0-9a-f]{64}$")
-_CERTIFICATE_TEMP_NAME = re.compile(r"^recovery-certificate-[0-9a-f]{32}\.tmp$")
+_CERTIFICATE_TEMP_NAME = re.compile(
+    r"^(?:recovery|repair)-certificate-[0-9a-f]{32}\.tmp$"
+)
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _MAX_ARGUMENTS = 128
 _MAX_ARGUMENT_CHARACTERS = 32_767
@@ -78,6 +80,9 @@ class ObservationOperation(str, Enum):
     CERTIFICATE_APPLY_ORIGINAL = "certificate_apply_original"
     CERTIFICATE_REMOVE_CANDIDATE = "certificate_remove_candidate"
     CERTIFICATE_REMOVE_STAGED_ORIGINAL = "certificate_remove_staged_original"
+    CERTIFICATE_STAGE_CANDIDATE = "certificate_stage_candidate"
+    CERTIFICATE_APPLY_CANDIDATE = "certificate_apply_candidate"
+    CERTIFICATE_REMOVE_STAGED_CANDIDATE = "certificate_remove_staged_candidate"
     ROLLBACK_READINESS_PROBE = "rollback_readiness_probe"
     ROLLBACK_PROVIDER_PROBE = "rollback_provider_probe"
 
@@ -425,6 +430,41 @@ _CERTIFICATE_REMOVE_SCRIPT = (
     "os.unlink(p); os.close(f)\n"
 )
 
+_CERTIFICATE_APPLY_CANDIDATE_SCRIPT = (
+    "import hashlib,os,stat,sys\n"
+    "d,t,ch,cz,cm,op,oh,oz,om=sys.argv[1:]\n"
+    "cz=int(cz); cm=int(cm,8); op=op=='1'; oz=int(oz); om=int(om,8)\n"
+    "def snap(p,h,z,m):\n"
+    " f=os.open(p,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)); s=os.fstat(f)\n"
+    " x=hashlib.sha256()\n"
+    " while True:\n"
+    "  b=os.read(f,1048576)\n"
+    "  if not b: break\n"
+    "  x.update(b)\n"
+    " s2=os.fstat(f)\n"
+    " ok=(stat.S_ISREG(s.st_mode) and s.st_size==z and "
+    "stat.S_IMODE(s.st_mode)==m and x.hexdigest()==h and "
+    "(s.st_dev,s.st_ino,s.st_size,s.st_mode)=="
+    "(s2.st_dev,s2.st_ino,s2.st_size,s2.st_mode) and "
+    "os.path.samestat(s2,os.lstat(p)))\n"
+    " return f,ok\n"
+    "tf,tok=snap(t,ch,cz,stat.S_IMODE(os.lstat(t).st_mode))\n"
+    "os.fchmod(tf,cm); ts=os.fstat(tf)\n"
+    "tok=tok and stat.S_IMODE(ts.st_mode)==cm and os.path.samestat(ts,os.lstat(t))\n"
+    "df=None\n"
+    "if op:\n"
+    " df,dok=snap(d,oh,oz,om)\n"
+    "else:\n"
+    " dok=not os.path.lexists(d)\n"
+    "if not dok or not tok: raise SystemExit(46)\n"
+    "os.fsync(tf)\n"
+    "os.replace(t,d)\n"
+    "pf=os.open(os.path.dirname(d),os.O_RDONLY|getattr(os,'O_DIRECTORY',0))\n"
+    "os.fsync(pf); os.close(pf)\n"
+    "if df is not None: os.close(df)\n"
+    "os.close(tf)\n"
+)
+
 _ROLLBACK_READINESS_PROBE_SCRIPT = (
     "import json,sys,urllib.request\n"
     "req=urllib.request.Request('http://127.0.0.1:5000/api/readiness',"
@@ -459,6 +499,7 @@ _ROLLBACK_PROVIDER_PROBE_SCRIPT = (
 _CERTIFICATE_OBSERVE_SCRIPT = f"exec({_CERTIFICATE_OBSERVE_SCRIPT!r})"
 _CERTIFICATE_APPLY_SCRIPT = f"exec({_CERTIFICATE_APPLY_SCRIPT!r})"
 _CERTIFICATE_REMOVE_SCRIPT = f"exec({_CERTIFICATE_REMOVE_SCRIPT!r})"
+_CERTIFICATE_APPLY_CANDIDATE_SCRIPT = f"exec({_CERTIFICATE_APPLY_CANDIDATE_SCRIPT!r})"
 _ROLLBACK_READINESS_PROBE_SCRIPT = f"exec({_ROLLBACK_READINESS_PROBE_SCRIPT!r})"
 _ROLLBACK_PROVIDER_PROBE_SCRIPT = f"exec({_ROLLBACK_PROVIDER_PROBE_SCRIPT!r})"
 
@@ -481,7 +522,10 @@ def _certificate_selector_valid(
         return selector.source_path is None and all(
             value is None for value in optional[2:]
         )
-    if operation is ObservationOperation.CERTIFICATE_STAGE_ORIGINAL:
+    if operation in {
+        ObservationOperation.CERTIFICATE_STAGE_ORIGINAL,
+        ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
+    }:
         return (
             selector.restore_temp_name is not None
             and selector.source_path is not None
@@ -506,6 +550,24 @@ def _certificate_selector_valid(
             and selector.source_path is None
             and all(value is not None for value in optional[2:5])
             and all(value is None for value in optional[5:])
+        )
+    if operation is ObservationOperation.CERTIFICATE_APPLY_CANDIDATE:
+        original = optional[2:5]
+        return (
+            selector.restore_temp_name is not None
+            and selector.source_path is None
+            and (
+                all(value is None for value in original)
+                or all(value is not None for value in original)
+            )
+            and all(value is not None for value in optional[5:])
+        )
+    if operation is ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE:
+        return (
+            selector.restore_temp_name is not None
+            and selector.source_path is None
+            and all(value is None for value in optional[2:5])
+            and all(value is not None for value in optional[5:])
         )
     return False
 
@@ -686,6 +748,9 @@ def _valid_selector(
         ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
         ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
         ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+        ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
+        ObservationOperation.CERTIFICATE_APPLY_CANDIDATE,
+        ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE,
     }:
         return type(selector) is CertificateRuntimeSelector and (
             _certificate_selector_valid(operation, selector)
@@ -759,7 +824,10 @@ def _engine_expected(
             path,
         )
         stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
-    elif operation is ObservationOperation.CERTIFICATE_STAGE_ORIGINAL:
+    elif operation in {
+        ObservationOperation.CERTIFICATE_STAGE_ORIGINAL,
+        ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
+    }:
         if (
             type(selector) is not CertificateRuntimeSelector
             or selector.source_path is None
@@ -831,6 +899,49 @@ def _engine_expected(
             format(selector.original_mode or 0, "o"),
         )
         stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
+    elif operation is ObservationOperation.CERTIFICATE_APPLY_CANDIDATE:
+        if (
+            type(selector) is not CertificateRuntimeSelector
+            or selector.stage_path is None
+        ):
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        suffix = (
+            "container",
+            "exec",
+            selector.container_id,
+            "python",
+            "-c",
+            _CERTIFICATE_APPLY_CANDIDATE_SCRIPT,
+            selector.destination_path,
+            selector.stage_path,
+            selector.candidate_sha256 or "",
+            str(selector.candidate_size),
+            format(selector.candidate_mode or 0, "o"),
+            "1" if selector.original_sha256 else "0",
+            selector.original_sha256 or "-",
+            str(selector.original_size if selector.original_size is not None else -1),
+            format(selector.original_mode or 0, "o"),
+        )
+        stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
+    elif operation is ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE:
+        if (
+            type(selector) is not CertificateRuntimeSelector
+            or selector.stage_path is None
+        ):
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        suffix = (
+            "container",
+            "exec",
+            selector.container_id,
+            "python",
+            "-c",
+            _CERTIFICATE_REMOVE_SCRIPT,
+            selector.stage_path,
+            selector.candidate_sha256 or "",
+            str(selector.candidate_size),
+            format(selector.candidate_mode or 0, "o"),
+        )
+        stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
     elif operation is ObservationOperation.ROLLBACK_READINESS_PROBE:
         if type(selector) is not str:
             _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
@@ -877,6 +988,9 @@ def _engine_expected(
                 ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
                 ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
                 ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+                ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
+                ObservationOperation.CERTIFICATE_APPLY_CANDIDATE,
+                ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE,
                 ObservationOperation.ROLLBACK_READINESS_PROBE,
                 ObservationOperation.ROLLBACK_PROVIDER_PROBE,
             }
@@ -892,6 +1006,9 @@ def _engine_expected(
                 ObservationOperation.CERTIFICATE_APPLY_ORIGINAL,
                 ObservationOperation.CERTIFICATE_REMOVE_CANDIDATE,
                 ObservationOperation.CERTIFICATE_REMOVE_STAGED_ORIGINAL,
+                ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
+                ObservationOperation.CERTIFICATE_APPLY_CANDIDATE,
+                ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE,
                 ObservationOperation.ROLLBACK_READINESS_PROBE,
                 ObservationOperation.ROLLBACK_PROVIDER_PROBE,
             }
@@ -1279,6 +1396,74 @@ class TargetObservationExecutionBinding:
                 original_sha256=original_sha256,
                 original_size=original_size,
                 original_mode=original_mode,
+            ),
+        )
+
+    def certificate_stage_candidate(
+        self,
+        *,
+        container_id: str,
+        destination: CertificateTargetDestination,
+        repair_temp_name: str,
+        source_path: PureWindowsPath,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
+            CertificateRuntimeSelector(
+                container_id,
+                destination,
+                restore_temp_name=repair_temp_name,
+                source_path=source_path,
+            ),
+        )
+
+    def certificate_apply_candidate(
+        self,
+        *,
+        container_id: str,
+        destination: CertificateTargetDestination,
+        repair_temp_name: str,
+        original_sha256: str | None,
+        original_size: int | None,
+        original_mode: int | None,
+        candidate_sha256: str,
+        candidate_size: int,
+        candidate_mode: int,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.CERTIFICATE_APPLY_CANDIDATE,
+            CertificateRuntimeSelector(
+                container_id,
+                destination,
+                restore_temp_name=repair_temp_name,
+                original_sha256=original_sha256,
+                original_size=original_size,
+                original_mode=original_mode,
+                candidate_sha256=candidate_sha256,
+                candidate_size=candidate_size,
+                candidate_mode=candidate_mode,
+            ),
+        )
+
+    def certificate_remove_staged_candidate(
+        self,
+        *,
+        container_id: str,
+        destination: CertificateTargetDestination,
+        repair_temp_name: str,
+        candidate_sha256: str,
+        candidate_size: int,
+        candidate_mode: int,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE,
+            CertificateRuntimeSelector(
+                container_id,
+                destination,
+                restore_temp_name=repair_temp_name,
+                candidate_sha256=candidate_sha256,
+                candidate_size=candidate_size,
+                candidate_mode=candidate_mode,
             ),
         )
 

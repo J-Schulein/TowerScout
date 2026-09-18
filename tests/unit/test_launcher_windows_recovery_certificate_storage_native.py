@@ -35,6 +35,7 @@ from towerscout_launcher.windows_recovery_certificate_storage_native import (  #
     NativeWindowsCertificateRestoreTempStorage,
     NativeWindowsRepairCertificateTempStorage,
     capture_held_certificate_restore_temps,
+    capture_held_repair_certificate_temps,
 )
 from towerscout_launcher.windows_recovery_certificate_restore import (  # noqa: E402
     CertificateDestinationRestoreAuthority,
@@ -476,6 +477,38 @@ def test_held_certificate_restore_temps_revalidate_both_exact_sources() -> None:
     assert paths == HeldCertificateRestoreTempPaths(
         local_ca=PureWindowsPath(_LOCAL_PATH),
         ca_bundle=PureWindowsPath(_BUNDLE_PATH),
+    )
+    owner.close()
+    assert owner.closed
+
+
+def test_held_repair_certificate_temps_revalidate_both_exact_candidates() -> None:
+    api = _Api()
+    adapter = NativeWindowsRepairCertificateTempStorage(api=api)
+    plan = _replacement_plan()
+    created = adapter.create_repair_certificate_temps(
+        _ROOT,
+        _forward_selection(1, plan),
+    )
+    assert created.local_ca is not None and created.ca_bundle is not None
+    identities = (created.local_ca, created.ca_bundle)
+    adapter.write_and_verify_repair_certificate_temps(
+        _ROOT,
+        _forward_selection(2, plan, identities),
+        plan,
+    )
+
+    owner = capture_held_repair_certificate_temps(
+        _ROOT,
+        _forward_selection(3, plan, identities),
+        plan,
+        api=api,
+    )
+    paths = owner.run_while_held(lambda value: value)
+
+    assert paths == HeldCertificateRestoreTempPaths(
+        local_ca=PureWindowsPath(_REPAIR_LOCAL_PATH),
+        ca_bundle=PureWindowsPath(_REPAIR_BUNDLE_PATH),
     )
     owner.close()
     assert owner.closed

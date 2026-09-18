@@ -172,7 +172,7 @@ def _read_pointer(
         return None
     if type(stored_value) is not StoredJournalPointerFile:
         _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
-    stored = cast(StoredJournalPointerFile, stored_value)
+    stored = stored_value
     try:
         return decode_repair_transaction_pointer(stored.contents), stored
     except RepairTransactionJournalError:
@@ -202,7 +202,7 @@ def _load(
         )
         if type(stored_value) is not StoredJournalGenerationFile:
             _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
-        stored = cast(StoredJournalGenerationFile, stored_value)
+        stored = stored_value
         try:
             protected = CurrentUserProtectedBlob(
                 ProtectedDataPurpose.JOURNAL_GENERATION,
@@ -342,7 +342,7 @@ def append_persisted_repair_transaction_generation_from_held_root(
     )
     if type(created_value) is not StoredJournalGenerationFile:
         _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
-    created = cast(StoredJournalGenerationFile, created_value)
+    created = created_value
     if created.contents != sealed.protected_blob.ciphertext:
         _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
     persisted = _load(root_path, stream, storage, protection)
@@ -404,7 +404,7 @@ def ensure_persisted_repair_transaction_pointer_from_held_root(
     )
     if type(written_value) is not StoredJournalPointerFile:
         _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
-    written = cast(StoredJournalPointerFile, written_value)
+    written = written_value
     if written.contents != encoded:
         _fail(RecoveryJournalStorageErrorCode.VERIFY_FAILED)
     try:
@@ -477,7 +477,7 @@ def discover_persisted_repair_transaction_chains_from_held_root(
         )
         if type(stored_value) is not StoredJournalGenerationFile:
             _fail(RecoveryJournalStorageErrorCode.STORAGE_INVALID)
-        stored = cast(StoredJournalGenerationFile, stored_value)
+        stored = stored_value
         try:
             protected = CurrentUserProtectedBlob(
                 ProtectedDataPurpose.JOURNAL_GENERATION,
