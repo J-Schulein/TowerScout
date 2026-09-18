@@ -449,6 +449,7 @@ class TargetObservationProviderChildProcessRequest:
                 ObservationOperation.COMPOSE_MODEL_CURRENT,
                 ObservationOperation.COMPOSE_MODEL_PLANNED,
                 ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
+                ObservationOperation.COMPOSE_START_REPAIR_PROFILE,
             }
         ):
             raise ValueError("Target-observation provider-child plan is invalid.")

@@ -278,7 +278,6 @@ def apply_native_windows_repair_environment(
         )
         owner.assert_unchanged()
         result = context.run_with_transaction_roots(apply)
-        owner.assert_unchanged()
     except Exception:
         failed = True
     if failed or type(result) is not AppliedRepairEnvironment:

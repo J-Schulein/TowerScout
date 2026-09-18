@@ -14,58 +14,28 @@ for path in (LAUNCHER_ROOT, UNIT_ROOT):
 
 from test_launcher_windows_recovery_scan import (  # noqa: E402
     _chain as _provider_chain,
-    _Protection as _ProviderProtection,
 )
 from test_launcher_windows_repair_certificate_execution_native import (  # noqa: E402
     _applied_setup,
 )
-from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
-    EnvironmentJournalPointer,
-    select_environment_journal_chain,
-)
-from towerscout_launcher.windows_recovery_journal_storage import (  # noqa: E402
-    PersistedEnvironmentJournalChain,
+from test_launcher_windows_repair_environment_execution_native import (  # noqa: E402
+    _current_prefix,
+    _ProviderIds,
 )
 from towerscout_launcher.windows_repair_environment_execution_native import (  # noqa: E402
-    AppliedRepairEnvironment,
     apply_native_windows_repair_environment,
+)
+from towerscout_launcher.windows_repair_runtime_stop_native import (  # noqa: E402
+    StoppedRepairRuntime,
+    stop_native_windows_repair_runtime,
 )
 from towerscout_launcher.windows_repair_transaction_journal import (  # noqa: E402
     RepairTransactionState,
 )
-import towerscout_launcher.windows_repair_environment_execution_native as native  # noqa: E402
+import towerscout_launcher.windows_repair_environment_execution_native as environment_native  # noqa: E402,E501
 
 
-class _ProviderIds:
-    def new_provider_journal_id(self) -> str:
-        return "c" * 32
-
-
-def _current_prefix(
-    provider: PersistedEnvironmentJournalChain,
-    count: int,
-) -> PersistedEnvironmentJournalChain:
-    sealed = provider.sealed_generations[:count]
-    generation = provider.selection.generations[count - 1]
-    pointer = EnvironmentJournalPointer(
-        1,
-        generation.stream.journal_id,
-        generation.sequence,
-        provider.selection.generation_sha256s[count - 1],
-    )
-    return PersistedEnvironmentJournalChain(
-        sealed,
-        provider.file_identities[:count],
-        select_environment_journal_chain(
-            sealed,
-            pointer,
-            expected_stream=generation.stream,
-            protection=_ProviderProtection(),
-        ),
-    )
-
-
-def test_applies_provider_environment_and_links_all_forward_states(
+def test_persists_stop_intent_then_removes_only_exact_container(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     owner, context, certificates, _protected, storage = _applied_setup(monkeypatch)
@@ -80,22 +50,21 @@ def test_applies_provider_environment_and_links_all_forward_states(
     provider_staged = _current_prefix(provider, 3)
     provider_applied = _current_prefix(provider, 4)
     monkeypatch.setattr(
-        native,
+        environment_native,
         "stage_or_resume_persisted_environment_candidate",
         lambda *_args, **_kwargs: object(),
     )
     monkeypatch.setattr(
-        native,
+        environment_native,
         "load_persisted_environment_journal_chain_from_held_root",
         lambda *_args, **_kwargs: provider_staged,
     )
     monkeypatch.setattr(
-        native,
+        environment_native,
         "persist_environment_applied_generation",
         lambda **_kwargs: provider_applied,
     )
-
-    applied = apply_native_windows_repair_environment(
+    environment = apply_native_windows_repair_environment(
         owner,  # type: ignore[arg-type]
         context,  # type: ignore[arg-type]
         certificates,
@@ -104,13 +73,18 @@ def test_applies_provider_environment_and_links_all_forward_states(
         pointer_storage=storage,
     )
 
-    assert isinstance(applied, AppliedRepairEnvironment)
-    assert applied.provider.selection.tip.sequence == 4
-    assert len(applied.forward.selection.generations) == 8
-    assert (
-        applied.forward.selection.tip.state
-        is RepairTransactionState.ENVIRONMENT_APPLIED
+    stopped = stop_native_windows_repair_runtime(
+        owner,  # type: ignore[arg-type]
+        context,  # type: ignore[arg-type]
+        environment,
+        journal_storage=storage,
+        pointer_storage=storage,
     )
-    assert getattr(owner, "closed") is False
+
+    assert isinstance(stopped, StoppedRepairRuntime)
+    assert tuple(item.state for item in stopped.forward.selection.generations[-2:]) == (
+        RepairTransactionState.RUNTIME_STOPPING,
+        RepairTransactionState.RUNTIME_STOPPED,
+    )
+    assert getattr(owner, "closed") is True
     context.close()
-    owner.close()

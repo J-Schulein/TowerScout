@@ -459,6 +459,11 @@ class _Executor:
             return b""
         if process.operation is ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE:
             return b""
+        if process.operation in {
+            ObservationOperation.COMPOSE_START_REPAIR_PROFILE,
+            ObservationOperation.RUNTIME_REMOVE_EXACT_CONTAINER,
+        }:
+            return b""
         if process.operation is ObservationOperation.CERTIFICATE_OBSERVE:
             return b'{"present":false}'
         if process.operation in {
@@ -507,6 +512,7 @@ class _Executor:
                 ObservationOperation.COMPOSE_MODEL_PLANNED,
                 ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
                 ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE,
+                ObservationOperation.COMPOSE_START_REPAIR_PROFILE,
             }
         )
         result = TargetObservationProcessResult.from_plan(
@@ -866,6 +872,26 @@ def test_bound_target_restarts_only_the_exact_prior_profile_between_captures(
     assert isinstance(restarted, TargetObservationProcessResult)
     assert restarted.operation is ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE
     assert restarted.exit_code == 0
+    assert authority.closed is True
+    assert executor.closed is True
+    assert owner.closed is True
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_bound_target_removes_only_exact_repair_container_and_retires(
+    product: RuntimeProduct,
+) -> None:
+    plan, authority, executor, backend = _backend(product)
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+
+    removed = owner.execute_scoped_repair_container_removal()
+
+    assert isinstance(removed, TargetObservationProcessResult)
+    assert removed.operation is ObservationOperation.RUNTIME_REMOVE_EXACT_CONTAINER
+    assert executor.calls[-1] == (
+        ObservationOperation.RUNTIME_REMOVE_EXACT_CONTAINER,
+        _CONTAINER_ID,
+    )
     assert authority.closed is True
     assert executor.closed is True
     assert owner.closed is True

@@ -8,6 +8,7 @@ import secrets
 from typing import NoReturn, Protocol
 
 from .runtime_target_resolution import BoundResolvedRepairTarget
+from .target_contracts import ResolvedRepairTarget
 from .windows_certificate_replacement import CertificateReplacementPlan
 from .windows_environment_replacement import EnvironmentReplacementPlan
 from .windows_path_trust import PathHierarchyTrust
@@ -104,6 +105,7 @@ class NativeRecoveryJournalIdSource:
 
 @dataclass(frozen=True, slots=True, repr=False)
 class PreparedRepairRollback:
+    target: ResolvedRepairTarget = field(repr=False)
     stream: JournalStreamIdentity = field(repr=False)
     environment_plan: EnvironmentReplacementPlan = field(repr=False)
     certificate_plan: CertificateReplacementPlan = field(repr=False)
@@ -113,7 +115,8 @@ class PreparedRepairRollback:
 
     def __post_init__(self) -> None:
         if (
-            type(self.stream) is not JournalStreamIdentity
+            type(self.target) is not ResolvedRepairTarget
+            or type(self.stream) is not JournalStreamIdentity
             or type(self.environment_plan) is not EnvironmentReplacementPlan
             or type(self.certificate_plan) is not CertificateReplacementPlan
             or type(self.runtime_authority) is not RollbackRuntimeRecoveryAuthority
@@ -121,6 +124,12 @@ class PreparedRepairRollback:
             or type(self.activated) is not PersistedEnvironmentJournalChain
             or self.runtime_authority.target_token_sha256
             != self.stream.target_token_sha256
+            or self.target.target_token.digest_sha256 != self.stream.target_token_sha256
+            or StableFileIdentity(
+                self.target.package_root.volume_serial,
+                self.target.package_root.file_id,
+            )
+            != self.stream.package_root_identity
             or self.runtime_authority.package_root_identity
             != self.stream.package_root_identity
             or self.readiness_authority.target_token_sha256
@@ -292,6 +301,7 @@ def prepare_native_windows_repair_rollback(
             journal_protection=protected_root,
         )
         return PreparedRepairRollback(
+            owner.target,
             stream,
             environment_plan,
             certificate_plan,

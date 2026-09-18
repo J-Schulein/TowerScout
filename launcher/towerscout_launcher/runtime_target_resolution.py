@@ -1763,6 +1763,55 @@ class BoundResolvedRepairTarget:
         finally:
             self._end_use()
 
+    def execute_scoped_repair_container_removal(self) -> object:
+        """Remove only this target's exact container after an authorized write.
+
+        The package environment is intentionally replaced before runtime stop,
+        so a full pre-command target recapture would compare the repaired file
+        with the pre-repair model and fail by design. The retained backend still
+        holds every original immutable input while this fixed direct-engine
+        operation addresses only the already-authenticated container ID. The
+        owner is retired at the mutation boundary exactly like other scoped
+        transitions.
+        """
+
+        self._begin_use()
+        result: object | None = None
+        primary: BaseException | None = None
+        close_failed = False
+        try:
+            backend = self._backend
+            execute = getattr(backend, "execute_scoped_process", None)
+            if backend is None or not callable(execute):
+                _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
+            try:
+                result = execute(
+                    self._plan,
+                    "remove_exact_repair_container",
+                    (self._target.container.container_id,),
+                )
+            except BaseException as error:
+                primary = error
+            retiring = self._backend
+            self._backend = None
+            self._certificate_material = None
+            self._closed = True
+            if retiring is not None:
+                try:
+                    close_failed = _close_backend(retiring)
+                except BaseException as error:
+                    if primary is None:
+                        primary = error
+                    else:
+                        close_failed = True
+            if primary is not None:
+                raise primary
+            if close_failed or result is None:
+                _fail(TargetResolutionErrorCode.TARGET_CHANGED)
+            return result
+        finally:
+            self._end_use()
+
     def close(self) -> None:
         backend: TargetResolutionBackend | None = None
         with self._lifetime_lock:

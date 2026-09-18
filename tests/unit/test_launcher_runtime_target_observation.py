@@ -413,6 +413,42 @@ def test_prior_profile_restart_is_exact_scoped_and_preserves_volumes(
 
 
 @pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_repair_start_is_exact_scoped_and_preserves_volumes(
+    product: RuntimeProduct,
+) -> None:
+    plan = _plan(product)
+    start = TargetObservationExecutionBinding(plan).start_repair_profile()
+
+    assert start.operation is ObservationOperation.COMPOSE_START_REPAIR_PROFILE
+    assert start.arguments[-4:] == ("up", "-d", "--no-deps", "towerscout")
+    assert start.timeout_ms == RUNTIME_RESTART_TIMEOUT_MS
+    assert "--volumes" not in start.arguments
+    assert "-v" not in start.arguments
+    assert start.target is plan
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_exact_repair_container_removal_never_addresses_a_volume(
+    product: RuntimeProduct,
+) -> None:
+    plan = _plan(product)
+    container_id = "d" * 64
+
+    request = TargetObservationExecutionBinding(plan).remove_exact_repair_container(
+        container_id
+    )
+
+    assert request.operation is ObservationOperation.RUNTIME_REMOVE_EXACT_CONTAINER
+    assert request.arguments[-4:] == (
+        "container",
+        "rm",
+        "--force",
+        container_id,
+    )
+    assert not ({"volume", "--volumes", "-v"} & set(request.arguments))
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
 def test_certificate_recovery_processes_are_fixed_contained_engine_commands(
     product: RuntimeProduct,
 ) -> None:

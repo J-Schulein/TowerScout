@@ -77,6 +77,8 @@ class ObservationOperation(str, Enum):
     VOLUME_INSPECT = "volume_inspect"
     COMPOSE_RECREATE_PRIOR_PROFILE = "compose_recreate_prior_profile"
     COMPOSE_RESTART_PRIOR_PROFILE = "compose_restart_prior_profile"
+    COMPOSE_START_REPAIR_PROFILE = "compose_start_repair_profile"
+    RUNTIME_REMOVE_EXACT_CONTAINER = "runtime_remove_exact_container"
     CERTIFICATE_OBSERVE = "certificate_observe"
     CERTIFICATE_STAGE_ORIGINAL = "certificate_stage_original"
     CERTIFICATE_APPLY_ORIGINAL = "certificate_apply_original"
@@ -640,11 +642,13 @@ def _compose_expected(
         ObservationOperation.COMPOSE_MODEL_PLANNED,
         ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
         ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE,
+        ObservationOperation.COMPOSE_START_REPAIR_PROFILE,
     }:
         _reject(TargetObservationBindingErrorCode.OPERATION_REJECTED)
     planned = operation is ObservationOperation.COMPOSE_MODEL_PLANNED
     recreate = operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE
     restart = operation is ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE
+    start_repair = operation is ObservationOperation.COMPOSE_START_REPAIR_PROFILE
     environment = _windows_environment(target)
     if target.runtime.product is RuntimeProduct.DOCKER:
         provider = target.compose_provider
@@ -674,7 +678,7 @@ def _compose_expected(
         )
         docker_action = (
             ("up", "-d", "--no-deps", "towerscout")
-            if recreate
+            if recreate or start_repair
             else (
                 ("up", "-d", "--no-deps", "--force-recreate", "towerscout")
                 if restart
@@ -715,7 +719,7 @@ def _compose_expected(
         )
         podman_action = (
             ("up", "-d", "--no-deps", "towerscout")
-            if recreate
+            if recreate or start_repair
             else (
                 ("up", "-d", "--no-deps", "--force-recreate", "towerscout")
                 if restart
@@ -743,7 +747,11 @@ def _compose_expected(
         timeout_ms=(
             RECREATION_TIMEOUT_MS
             if recreate
-            else RUNTIME_RESTART_TIMEOUT_MS if restart else OBSERVATION_TIMEOUT_MS
+            else (
+                RUNTIME_RESTART_TIMEOUT_MS
+                if restart or start_repair
+                else OBSERVATION_TIMEOUT_MS
+            )
         ),
         stdout_limit_bytes=OBSERVATION_COMPOSE_STDOUT_LIMIT_BYTES,
         stderr_limit_bytes=(
@@ -752,7 +760,7 @@ def _compose_expected(
                 if recreate
                 else RUNTIME_RESTART_STDERR_LIMIT_BYTES
             )
-            if (recreate or restart)
+            if (recreate or restart or start_repair)
             else OBSERVATION_STDERR_LIMIT_BYTES
         ),
     )
@@ -768,6 +776,7 @@ def _valid_selector(
         ObservationOperation.COMPOSE_MODEL_PLANNED,
         ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
         ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE,
+        ObservationOperation.COMPOSE_START_REPAIR_PROFILE,
         ObservationOperation.CONTAINER_LIST,
     }:
         return selector is None
@@ -807,6 +816,7 @@ def _valid_selector(
         ObservationOperation.ROLLBACK_READINESS_PROBE,
         ObservationOperation.ROLLBACK_PROVIDER_PROBE,
         ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE,
+        ObservationOperation.RUNTIME_REMOVE_EXACT_CONTAINER,
     }:
         return type(selector) is str and _CONTAINER_ID.fullmatch(selector) is not None
     return False
@@ -859,6 +869,11 @@ def _engine_expected(
     elif operation is ObservationOperation.VOLUME_INSPECT:
         suffix = ("volume", "inspect", selector if type(selector) is str else "")
         stdout_limit = OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES
+    elif operation is ObservationOperation.RUNTIME_REMOVE_EXACT_CONTAINER:
+        if type(selector) is not str:
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        suffix = ("container", "rm", "--force", selector)
+        stdout_limit = OBSERVATION_LIST_STDOUT_LIMIT_BYTES
     elif operation is ObservationOperation.CERTIFICATE_OBSERVE:
         if type(selector) is not CertificateRuntimeSelector:
             _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
@@ -1069,6 +1084,7 @@ def _engine_expected(
                 ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE,
                 ObservationOperation.ROLLBACK_READINESS_PROBE,
                 ObservationOperation.ROLLBACK_PROVIDER_PROBE,
+                ObservationOperation.RUNTIME_REMOVE_EXACT_CONTAINER,
             }
             else OBSERVATION_TIMEOUT_MS
         ),
@@ -1089,6 +1105,7 @@ def _engine_expected(
                 ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE,
                 ObservationOperation.ROLLBACK_READINESS_PROBE,
                 ObservationOperation.ROLLBACK_PROVIDER_PROBE,
+                ObservationOperation.RUNTIME_REMOVE_EXACT_CONTAINER,
             }
             else OBSERVATION_STDERR_LIMIT_BYTES
         ),
@@ -1109,6 +1126,10 @@ def _expected_process(
     if operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE:
         return _compose_expected(target, operation=operation)
     if operation is ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE:
+        return _compose_expected(target, operation=operation)
+    if operation in {
+        ObservationOperation.COMPOSE_START_REPAIR_PROFILE,
+    }:
         return _compose_expected(target, operation=operation)
     return _engine_expected(target, operation, selector)
 
@@ -1341,11 +1362,26 @@ class TargetObservationExecutionBinding:
 
         return self._build(ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE)
 
+    def start_repair_profile(self) -> TargetObservationProcessPlan:
+        """Start only the exact service from the repaired package profile."""
+
+        return self._build(ObservationOperation.COMPOSE_START_REPAIR_PROFILE)
+
     def container_list(self) -> TargetObservationProcessPlan:
         return self._build(ObservationOperation.CONTAINER_LIST)
 
     def container_inspect(self, container_id: str) -> TargetObservationProcessPlan:
         return self._build(ObservationOperation.CONTAINER_INSPECT, container_id)
+
+    def remove_exact_repair_container(
+        self, container_id: str
+    ) -> TargetObservationProcessPlan:
+        """Stop/remove only the authenticated container ID, never its volumes."""
+
+        return self._build(
+            ObservationOperation.RUNTIME_REMOVE_EXACT_CONTAINER,
+            container_id,
+        )
 
     def image_inspect(self, image_id: str) -> TargetObservationProcessPlan:
         return self._build(ObservationOperation.IMAGE_INSPECT, image_id)

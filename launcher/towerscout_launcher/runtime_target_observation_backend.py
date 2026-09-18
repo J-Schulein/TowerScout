@@ -1373,6 +1373,7 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
                 ObservationOperation.COMPOSE_MODEL_PLANNED,
                 ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
                 ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE,
+                ObservationOperation.COMPOSE_START_REPAIR_PROFILE,
             }
         )
         if (
@@ -1752,6 +1753,13 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
         try:
             if operation == "restart_prior_profile" and not arguments:
                 return self._binding.restart_prior_profile()
+            if operation == "start_repair_profile" and not arguments:
+                return self._binding.start_repair_profile()
+            if operation == "remove_exact_repair_container" and len(arguments) == 1:
+                (container_id,) = arguments
+                if type(container_id) is not str:
+                    raise ValueError
+                return self._binding.remove_exact_repair_container(container_id)
             if operation == "rollback_readiness_probe" and len(arguments) == 1:
                 (container_id,) = arguments
                 if type(container_id) is not str:
