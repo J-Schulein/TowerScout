@@ -2,9 +2,9 @@
 
 This Gate-A layer reauthenticates persisted backup authority before narrow
 storage ports may create or reverify the two planned ciphertext blobs. It may
-advance only through ``rollback_armed`` and may activate that exact authenticated
-generation through the metadata pointer. It exposes no listing, deletion,
-restore, or repair/runtime mutation authority.
+advance through ``rollback_armed`` or terminally abort a pre-arm chain after
+exact cleanup. It exposes no listing, restore, or repair/runtime mutation
+authority.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from .windows_recovery_backup import (
     authenticate_environment_exact_state_backup,
 )
 from .windows_recovery_journal import (
+    AbortedWithoutMutationRecord,
     BackupPreparingRecord,
     BackupVerifiedRecord,
     EnvironmentJournalGeneration,
@@ -61,6 +62,7 @@ class RecoveryBackupStorageErrorCode(str, Enum):
     STORAGE_UNAVAILABLE = "recovery_backup_storage_unavailable"
     WRITE_FAILED = "recovery_backup_storage_write_failed"
     VERIFY_FAILED = "recovery_backup_storage_verify_failed"
+    DELETE_FAILED = "recovery_backup_storage_delete_failed"
 
 
 class RecoveryBackupStorageError(RuntimeError):
@@ -81,6 +83,9 @@ class RecoveryBackupStorageError(RuntimeError):
         ),
         RecoveryBackupStorageErrorCode.VERIFY_FAILED: (
             "A recovery backup blob could not be verified durably."
+        ),
+        RecoveryBackupStorageErrorCode.DELETE_FAILED: (
+            "A recovery backup blob could not be deleted safely."
         ),
     }
 
@@ -132,6 +137,41 @@ class StoredRecoveryBackupBlob:
 
 
 @dataclass(frozen=True, slots=True, repr=False)
+class PlannedRecoveryBackupBlob:
+    name: str = field(repr=False)
+    purpose: ProtectedDataPurpose
+    ciphertext_sha256: str = field(repr=False)
+    ciphertext_size: int
+    identity: StableFileIdentity | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.name) is not str
+            or _BACKUP_NAME.fullmatch(self.name) is None
+            or self.purpose
+            not in {
+                ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+                ProtectedDataPurpose.CERTIFICATE_BACKUP,
+            }
+            or not _SHA256.fullmatch(self.ciphertext_sha256)
+            or type(self.ciphertext_size) is not int
+            or not 1 <= self.ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
+            or (
+                self.identity is not None
+                and type(self.identity) is not StableFileIdentity
+            )
+        ):
+            raise ValueError("Planned recovery backup blob is invalid.")
+
+    def __repr__(self) -> str:
+        return (
+            "PlannedRecoveryBackupBlob("
+            f"purpose={self.purpose.value!r}, "
+            f"ciphertext_size={self.ciphertext_size}, <redacted>)"
+        )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
 class PersistedRecoveryBackupBlobs:
     environment: StoredRecoveryBackupBlob = field(repr=False)
     certificate: StoredRecoveryBackupBlob = field(repr=False)
@@ -176,6 +216,52 @@ class RecoveryBackupBlobReadPort(Protocol):
     ) -> CurrentUserProtectedBlob: ...
 
 
+class RecoveryBackupBlobDeletionPort(Protocol):
+    def delete_backup_blob_if_exact_or_absent(
+        self,
+        root_path: str,
+        expected: PlannedRecoveryBackupBlob,
+    ) -> None: ...
+
+
+def _deletion_call(
+    storage: object,
+    root_path: str,
+    expected: PlannedRecoveryBackupBlob,
+) -> None:
+    try:
+        operation = getattr(storage, "delete_backup_blob_if_exact_or_absent")
+        if not callable(operation):
+            raise TypeError("Recovery backup deletion is unavailable.")
+        operation(root_path, expected)
+    except RecoveryBackupStorageError:
+        raise
+    except Exception:
+        _fail(RecoveryBackupStorageErrorCode.DELETE_FAILED)
+
+
+def _absence_call(
+    storage: object,
+    root_path: str,
+    expected: PlannedRecoveryBackupBlob,
+) -> None:
+    try:
+        operation = getattr(storage, "verify_backup_blob_absent")
+        if not callable(operation):
+            raise TypeError("Recovery backup absence verification is unavailable.")
+        operation(root_path, expected)
+    except RecoveryBackupStorageError:
+        raise
+    except Exception:
+        _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+
+    def verify_backup_blob_absent(
+        self,
+        root_path: str,
+        expected: PlannedRecoveryBackupBlob,
+    ) -> None: ...
+
+
 def _matches_environment_summary(
     record: BackupPreparingRecord,
     backup: EnvironmentExactStateBackup,
@@ -206,6 +292,21 @@ def _matches_certificate_summary(
         and record.ca_bundle_sha256
         == (backup.ca_bundle.contents_sha256 if backup.ca_bundle.existed else None)
         and record.ca_bundle_mode == backup.ca_bundle.mode
+    )
+
+
+def _matches_planned_ciphertexts(
+    record: BackupPreparingRecord,
+    environment_blob: CurrentUserProtectedBlob,
+    certificate_blob: CurrentUserProtectedBlob,
+) -> bool:
+    return (
+        environment_blob.purpose is ProtectedDataPurpose.ENVIRONMENT_BACKUP
+        and record.environment_ciphertext_sha256 == environment_blob.ciphertext_sha256
+        and record.environment_ciphertext_size == len(environment_blob.ciphertext)
+        and certificate_blob.purpose is ProtectedDataPurpose.CERTIFICATE_BACKUP
+        and record.certificate_ciphertext_sha256 == certificate_blob.ciphertext_sha256
+        and record.certificate_ciphertext_size == len(certificate_blob.ciphertext)
     )
 
 
@@ -337,9 +438,19 @@ def persist_prepared_recovery_backup_blobs(
         if not _matches_environment_summary(
             record,
             environment,
-        ) or not _matches_certificate_summary(record, certificates):
+        ) or not _matches_certificate_summary(
+            record,
+            certificates,
+        ):
             _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
         environment_blob = environment_sealed.protected_blob
+        certificate_blob = certificate_sealed.protected_blob
+        if not _matches_planned_ciphertexts(
+            record,
+            environment_blob,
+            certificate_blob,
+        ):
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
         environment_stored = _storage_call(
             storage,
             root_path,
@@ -351,7 +462,6 @@ def persist_prepared_recovery_backup_blobs(
             name=record.environment_backup_name,
             blob=environment_blob,
         )
-        certificate_blob = certificate_sealed.protected_blob
         certificate_stored = _storage_call(
             storage,
             root_path,
@@ -434,6 +544,11 @@ def persist_backup_verified_generation(
         if (
             not _matches_environment_summary(preparation_record, environment)
             or not _matches_certificate_summary(preparation_record, certificates)
+            or not _matches_planned_ciphertexts(
+                preparation_record,
+                environment_blob,
+                certificate_blob,
+            )
             or persisted_blobs.environment.name
             != preparation_record.environment_backup_name
             or persisted_blobs.certificate.name
@@ -722,8 +837,149 @@ def activate_persisted_rollback_armed_generation(
     return _run_under_root(root, verify_and_activate)
 
 
+def persist_aborted_without_mutation_generation(
+    *,
+    stream: JournalStreamIdentity,
+    root: JournalStorageRootPort,
+    journal_storage: JournalGenerationStoragePort,
+    pointer_storage: JournalPointerStoragePort,
+    deletion: RecoveryBackupBlobDeletionPort,
+    journal_protection: JournalProtectionPort,
+) -> PersistedEnvironmentJournalChain:
+    """Delete exact pre-arm blobs and select one terminal abort generation."""
+
+    if type(stream) is not JournalStreamIdentity:
+        _fail(RecoveryBackupStorageErrorCode.INPUT_INVALID)
+
+    def abort(root_path: str) -> PersistedEnvironmentJournalChain:
+        try:
+            chain = load_persisted_environment_journal_chain_from_held_root(
+                root_path,
+                stream,
+                storage=journal_storage,
+                protection=journal_protection,
+            )
+        except RecoveryJournalStorageError as exc:
+            if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                _fail(RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE)
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        except RecoveryJournalError:
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        generations = chain.selection.generations
+        if (
+            len(generations) not in {1, 2, 3}
+            or type(generations[0].record) is not BackupPreparingRecord
+        ):
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        preparing = generations[0].record
+        terminal = (
+            chain.selection.tip.state
+            is EnvironmentJournalState.ABORTED_WITHOUT_MUTATION
+        )
+        source = generations[-2] if terminal else generations[-1]
+        if (terminal and len(generations) not in {2, 3}) or (
+            not terminal
+            and source.state
+            not in {
+                EnvironmentJournalState.BACKUP_PREPARING,
+                EnvironmentJournalState.BACKUP_VERIFIED,
+            }
+        ):
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        verified = (
+            source.record if type(source.record) is BackupVerifiedRecord else None
+        )
+        try:
+            environment = PlannedRecoveryBackupBlob(
+                preparing.environment_backup_name,
+                ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+                preparing.environment_ciphertext_sha256,
+                preparing.environment_ciphertext_size,
+                None if verified is None else verified.environment_backup_identity,
+            )
+            certificate = PlannedRecoveryBackupBlob(
+                preparing.certificate_backup_name,
+                ProtectedDataPurpose.CERTIFICATE_BACKUP,
+                preparing.certificate_ciphertext_sha256,
+                preparing.certificate_ciphertext_size,
+                None if verified is None else verified.certificate_backup_identity,
+            )
+        except ValueError:
+            _fail(RecoveryBackupStorageErrorCode.AUTHORITY_INVALID)
+        _deletion_call(deletion, root_path, environment)
+        _deletion_call(deletion, root_path, certificate)
+        _absence_call(deletion, root_path, environment)
+        _absence_call(deletion, root_path, certificate)
+        if not terminal:
+            try:
+                record = AbortedWithoutMutationRecord(
+                    1,
+                    chain.selection.tip_generation_sha256,
+                    stream.package_root_identity,
+                    preparing.environment_ciphertext_sha256,
+                    preparing.environment_ciphertext_size,
+                    preparing.certificate_ciphertext_sha256,
+                    preparing.certificate_ciphertext_size,
+                )
+                generation = EnvironmentJournalGeneration(
+                    1,
+                    stream,
+                    source.sequence + 1,
+                    chain.selection.tip_generation_sha256,
+                    EnvironmentJournalState.ABORTED_WITHOUT_MUTATION,
+                    record,
+                )
+                sealed = protect_environment_journal_generation(
+                    generation,
+                    protection=journal_protection,
+                )
+                chain = append_persisted_environment_journal_generation_from_held_root(
+                    root_path,
+                    sealed,
+                    stream=stream,
+                    storage=journal_storage,
+                    protection=journal_protection,
+                )
+            except RecoveryJournalStorageError as exc:
+                if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                    _fail(RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE)
+                if exc.code is RecoveryJournalStorageErrorCode.WRITE_FAILED:
+                    _fail(RecoveryBackupStorageErrorCode.WRITE_FAILED)
+                _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+            except (RecoveryJournalError, ValueError):
+                _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        try:
+            selected = ensure_persisted_environment_journal_pointer_from_held_root(
+                root_path,
+                stream,
+                generation_storage=journal_storage,
+                pointer_storage=pointer_storage,
+                protection=journal_protection,
+            )
+        except RecoveryJournalStorageError as exc:
+            if exc.code is RecoveryJournalStorageErrorCode.STORAGE_UNAVAILABLE:
+                _fail(RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE)
+            if exc.code is RecoveryJournalStorageErrorCode.WRITE_FAILED:
+                _fail(RecoveryBackupStorageErrorCode.WRITE_FAILED)
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        except RecoveryJournalError:
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        if (
+            selected.selection.pointer_disposition
+            is not JournalPointerDisposition.CURRENT
+            or selected.selection.tip.state
+            is not EnvironmentJournalState.ABORTED_WITHOUT_MUTATION
+        ):
+            _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
+        return selected
+
+    return _run_under_root(root, abort)
+
+
 __all__ = [
+    "PlannedRecoveryBackupBlob",
     "PersistedRecoveryBackupBlobs",
+    "RecoveryBackupBlobDeletionPort",
     "RecoveryBackupBlobReadPort",
     "RecoveryBackupBlobStoragePort",
     "RecoveryBackupBlobVerificationPort",
@@ -732,6 +988,7 @@ __all__ = [
     "StoredRecoveryBackupBlob",
     "activate_persisted_rollback_armed_generation",
     "persist_backup_verified_generation",
+    "persist_aborted_without_mutation_generation",
     "persist_prepared_recovery_backup_blobs",
     "persist_rollback_armed_generation",
 ]

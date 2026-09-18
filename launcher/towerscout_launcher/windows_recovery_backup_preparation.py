@@ -137,6 +137,8 @@ def persist_backup_preparing_generation(
         expected_stream=stream,
         protection=backup_protection,
     )
+    environment_blob = environment_sealed.protected_blob
+    certificate_blob = certificate_sealed.protected_blob
     environment_security = environment.security
     if (environment.existed and environment_security is None) or (
         environment_plan.original_contents != environment.contents
@@ -170,6 +172,10 @@ def persist_backup_preparing_generation(
             prior_readiness_condition=readiness_authority.condition,
             prior_readiness_evidence_sha256=readiness_authority.evidence_sha256,
             prior_provider_outcome=readiness_authority.provider_outcome,
+            environment_ciphertext_sha256=environment_blob.ciphertext_sha256,
+            environment_ciphertext_size=len(environment_blob.ciphertext),
+            certificate_ciphertext_sha256=certificate_blob.ciphertext_sha256,
+            certificate_ciphertext_size=len(certificate_blob.ciphertext),
             environment_original_identity=environment.identity,
             environment_sha256=(
                 environment.contents_sha256 if environment.existed else None

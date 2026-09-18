@@ -8,7 +8,11 @@ import re
 from typing import NoReturn
 
 from .windows_path_trust import PathHierarchyTrust, PathTrustPurpose
-from .windows_recovery_journal import EnvironmentJournalState, JournalProtectionPort
+from .windows_recovery_journal import (
+    EnvironmentJournalState,
+    JournalPointerDisposition,
+    JournalProtectionPort,
+)
 from .windows_recovery_journal_storage import (
     JournalGenerationStoragePort,
     JournalPointerStoragePort,
@@ -56,6 +60,20 @@ _PROVIDER_ENVIRONMENT_STATES = frozenset(
         EnvironmentJournalState.ENVIRONMENT_APPLIED,
     }
 )
+_TERMINAL_REPAIR_STATES = frozenset(
+    {
+        EnvironmentJournalState.ABORTED_WITHOUT_MUTATION,
+        EnvironmentJournalState.CLEANED,
+    }
+)
+
+
+def _repair_is_terminal(chain: PersistedEnvironmentJournalChain) -> bool:
+    state = chain.selection.tip.state
+    return state is EnvironmentJournalState.CLEANED or (
+        state is EnvironmentJournalState.ABORTED_WITHOUT_MUTATION
+        and chain.selection.pointer_disposition is JournalPointerDisposition.CURRENT
+    )
 
 
 def _chain_matches(
@@ -237,6 +255,7 @@ class PackageRecoveryJournalScan:
                     _REPAIR_STATES,
                 )
             )
+            or (self.repair is not None and _repair_is_terminal(self.repair))
             or (
                 self.provider_environment is not None
                 and not _chain_matches(
@@ -333,7 +352,7 @@ def _pending_protocol(
         return None
     first_state = chain.selection.generations[0].state
     if first_state in _REPAIR_STATES:
-        return None if tip.state is EnvironmentJournalState.CLEANED else "repair"
+        return None if _repair_is_terminal(chain) else "repair"
     if first_state in _PROVIDER_ENVIRONMENT_STATES:
         return (
             None
@@ -402,8 +421,7 @@ def classify_package_recovery_journals(
     repair = [
         chain
         for chain in repair_protocols
-        if chain.selection.tip.state is not EnvironmentJournalState.CLEANED
-        and id(chain) not in successful_repair_ids
+        if not _repair_is_terminal(chain) and id(chain) not in successful_repair_ids
     ]
     forward = [
         forward_chain

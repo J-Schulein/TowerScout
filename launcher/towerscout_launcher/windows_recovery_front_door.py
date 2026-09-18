@@ -1,16 +1,16 @@
-"""Fresh-process admission for one authenticated Windows repair rollback.
+"""Fresh-process admission for one authenticated Windows repair recovery.
 
 The front door owns the fixed package root, protected recovery root, and
 environment mutex before it trusts any pending journal. It then reconstructs
 the persisted target without rerunning trust selection, acquires the target
 mutex, and transfers every owner to the retained transaction context before
-invoking the rollback manager.
+aborting an unarmed preparation or invoking the rollback manager.
 """
 
 from __future__ import annotations
 
 from enum import Enum
-from typing import NoReturn
+from typing import NoReturn, TypeAlias
 
 from .runtime_target_inputs import capture_native_windows_fixed_package_root_trust
 from .runtime_target_resolution import BoundResolvedRepairTarget
@@ -52,6 +52,8 @@ from .windows_recovery_scan import (
 from .windows_security import derive_environment_mutex_name
 from .windows_transaction_context import (
     HeldWindowsTransactionContext,
+    abort_native_windows_prearm_recovery,
+    is_prearm_recovery_pending,
     resume_native_windows_pending_recovery,
 )
 
@@ -96,7 +98,9 @@ def _fail(code: WindowsRecoveryFrontDoorErrorCode) -> NoReturn:
     raise WindowsRecoveryFrontDoorError(code) from None
 
 
-_RecoveryTarget = BoundResolvedRepairTarget | BoundAbsentRollbackRuntimeTarget
+_RecoveryTarget: TypeAlias = (
+    BoundResolvedRepairTarget | BoundAbsentRollbackRuntimeTarget
+)
 
 
 def _close(resource: object | None) -> bool:
@@ -266,11 +270,15 @@ def recover_native_windows_pending_repair(
                 locks=locks,
                 recovery_scan=initial_scan,
                 resume_recovery=resume_native_windows_pending_recovery,
+                abort_recovery=abort_native_windows_prearm_recovery,
             )
             package_root = None
             protected_root = None
             locks = None
-            context.resume_pending_recovery()
+            if is_prearm_recovery_pending(initial_scan):
+                context.abort_pending_prearm_recovery()
+            else:
+                context.resume_pending_recovery()
             outcome = WindowsRecoveryFrontDoorOutcome.RECOVERED
     except WindowsRecoveryFrontDoorError as error:
         failure = error.code

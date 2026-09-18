@@ -19,6 +19,7 @@ from test_launcher_windows_repair_cleanup_execution_native import (  # noqa: E40
 from test_launcher_windows_repair_runtime_start_native import (  # noqa: E402
     _fresh_owner,
 )
+from test_launcher_windows_recovery_scan import _chain as _recovery_chain  # noqa: E402
 from towerscout_launcher.windows_recovery_scan import (  # noqa: E402
     PackageRecoveryJournalScan,
 )
@@ -146,7 +147,12 @@ def test_post_arm_failure_rescans_and_reports_verified_rollback(
     identity = rollback.stream.package_root_identity
     monkeypatch.setattr(
         HeldWindowsTransactionContext,
-        "refresh_and_resume_pending_recovery",
+        "refresh_recovery_scan",
+        lambda _self: PackageRecoveryJournalScan(1, identity, rollback.activated),
+    )
+    monkeypatch.setattr(
+        HeldWindowsTransactionContext,
+        "resume_pending_recovery",
         lambda _self: PackageRecoveryJournalScan(1, identity),
     )
 
@@ -177,7 +183,7 @@ def test_committed_cleanup_failure_recovers_cleanup_as_success(
     )
     monkeypatch.setattr(
         HeldWindowsTransactionContext,
-        "refresh_and_resume_pending_recovery",
+        "refresh_recovery_scan",
         lambda _self: PackageRecoveryJournalScan(
             1,
             rollback.stream.package_root_identity,
@@ -196,7 +202,7 @@ def test_committed_cleanup_failure_recovers_cleanup_as_success(
     context.close()  # type: ignore[attr-defined]
 
 
-def test_pre_arm_failure_never_invokes_recovery(
+def test_failure_before_durable_write_rescans_without_invoking_recovery(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     values = _completed(monkeypatch)
@@ -209,8 +215,16 @@ def test_pre_arm_failure_never_invokes_recovery(
     )
     monkeypatch.setattr(
         HeldWindowsTransactionContext,
-        "refresh_and_resume_pending_recovery",
-        lambda _self: pytest.fail("pre-arm failure must not recover"),
+        "refresh_recovery_scan",
+        lambda _self: PackageRecoveryJournalScan(
+            1,
+            context.recovery_scan.package_root_identity,
+        ),
+    )
+    monkeypatch.setattr(
+        HeldWindowsTransactionContext,
+        "resume_pending_recovery",
+        lambda _self: pytest.fail("clear durable state must not recover"),
     )
 
     with pytest.raises(NativeRepairExecutionError) as captured:
@@ -221,5 +235,112 @@ def test_pre_arm_failure_never_invokes_recovery(
         )
 
     assert captured.value.code is NativeRepairExecutionErrorCode.EXECUTION_FAILED
+    assert owner.closed
+    context.close()  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    ("repair_verified", "repair_aborted_at"),
+    ((False, None), (True, None), (False, 1), (False, 2)),
+)
+def test_partial_rollback_preparation_is_aborted_without_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+    repair_verified: bool,
+    repair_aborted_at: int | None,
+) -> None:
+    values = _completed(monkeypatch)
+    context = values[0]
+    rollback = values[1]
+    owner = _fresh_owner()
+    partial = _recovery_chain(
+        journal_id="9" * 32,
+        package_root_identity=rollback.stream.package_root_identity,
+        provider_environment=False,
+        repair_verified=repair_verified,
+        repair_aborted_at=repair_aborted_at,
+        abort_pointer_current=False,
+        target_token_sha256=owner.target.target_token.digest_sha256,
+    )
+    monkeypatch.setattr(
+        execution_native,
+        "prepare_native_windows_repair_rollback",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("PRIVATE")),
+    )
+    monkeypatch.setattr(
+        HeldWindowsTransactionContext,
+        "refresh_recovery_scan",
+        lambda _self: PackageRecoveryJournalScan(
+            1,
+            rollback.stream.package_root_identity,
+            partial,
+        ),
+    )
+    monkeypatch.setattr(
+        HeldWindowsTransactionContext,
+        "abort_pending_prearm_recovery",
+        lambda _self: PackageRecoveryJournalScan(
+            1,
+            rollback.stream.package_root_identity,
+        ),
+    )
+    monkeypatch.setattr(
+        HeldWindowsTransactionContext,
+        "resume_pending_recovery",
+        lambda _self: pytest.fail("pre-arm recovery must not enter rollback"),
+    )
+
+    with pytest.raises(NativeRepairExecutionError) as captured:
+        execute_native_windows_repair(
+            owner,
+            context,  # type: ignore[arg-type]
+            _hooks(),
+        )
+
+    assert captured.value.code is NativeRepairExecutionErrorCode.EXECUTION_FAILED
+    assert owner.closed
+    context.close()  # type: ignore[attr-defined]
+
+
+def test_partial_rollback_preparation_preserves_recovery_pending_on_abort_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    values = _completed(monkeypatch)
+    context = values[0]
+    rollback = values[1]
+    owner = _fresh_owner()
+    partial = _recovery_chain(
+        journal_id="8" * 32,
+        package_root_identity=rollback.stream.package_root_identity,
+        provider_environment=False,
+        target_token_sha256=owner.target.target_token.digest_sha256,
+    )
+    monkeypatch.setattr(
+        execution_native,
+        "prepare_native_windows_repair_rollback",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("PRIVATE")),
+    )
+    monkeypatch.setattr(
+        HeldWindowsTransactionContext,
+        "refresh_recovery_scan",
+        lambda _self: PackageRecoveryJournalScan(
+            1,
+            rollback.stream.package_root_identity,
+            partial,
+        ),
+    )
+    monkeypatch.setattr(
+        HeldWindowsTransactionContext,
+        "abort_pending_prearm_recovery",
+        lambda _self: (_ for _ in ()).throw(RuntimeError("PRIVATE")),
+    )
+
+    with pytest.raises(NativeRepairExecutionError) as captured:
+        execute_native_windows_repair(
+            owner,
+            context,  # type: ignore[arg-type]
+            _hooks(),
+        )
+
+    assert captured.value.code is NativeRepairExecutionErrorCode.RECOVERY_PENDING
     assert owner.closed
     context.close()  # type: ignore[attr-defined]

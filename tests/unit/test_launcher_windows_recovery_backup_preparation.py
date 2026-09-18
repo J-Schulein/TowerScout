@@ -271,6 +271,19 @@ def test_persist_backup_preparing_authenticates_summarizes_and_rereads() -> None
     assert record.environment_candidate_sha256 == plan.candidate_sha256
     assert record.environment_candidate_size == len(plan.candidate_contents)
     assert (
+        record.environment_ciphertext_sha256
+        == environment.protected_blob.ciphertext_sha256
+    )
+    assert record.environment_ciphertext_size == len(
+        environment.protected_blob.ciphertext
+    )
+    assert record.certificate_ciphertext_sha256 == (
+        certificates.protected_blob.ciphertext_sha256
+    )
+    assert record.certificate_ciphertext_size == len(
+        certificates.protected_blob.ciphertext
+    )
+    assert (
         record.environment_sha256
         == hashlib.sha256(b"GOOGLE_API_KEY=private-value\r\n").hexdigest()
     )

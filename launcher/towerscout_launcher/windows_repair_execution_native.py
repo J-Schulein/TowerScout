@@ -32,7 +32,10 @@ from .windows_repair_terminal_verification_native import (
     CommittedRepair,
     verify_and_commit_native_windows_repair,
 )
-from .windows_transaction_context import HeldWindowsTransactionContext
+from .windows_transaction_context import (
+    HeldWindowsTransactionContext,
+    is_prearm_recovery_pending,
+)
 
 
 class NativeRepairExecutionOutcome(str, Enum):
@@ -145,14 +148,12 @@ def execute_native_windows_repair(
         or type(hooks) is not NativeRepairExecutionHooks
     ):
         _fail(NativeRepairExecutionErrorCode.INPUT_INVALID)
-    armed = False
     committed = False
     started: StartedRepairRuntime | None = None
     cleaned: CleanedRepair | None = None
     try:
         hooks.before_mutation()
         rollback = prepare_native_windows_repair_rollback(owner, context)
-        armed = True
         forward = prepare_native_windows_repair_forward(owner, context, rollback)
         certificates = apply_native_windows_repair_certificates(
             owner,
@@ -186,15 +187,41 @@ def execute_native_windows_repair(
             owner,
             None if started is None else started.owner,
         )
-        if not armed:
-            _fail(NativeRepairExecutionErrorCode.EXECUTION_FAILED)
         try:
-            recovered = context.refresh_and_resume_pending_recovery()
+            refreshed = context.refresh_recovery_scan()
         except BaseException as recovery_error:
             if not isinstance(recovery_error, Exception):
                 raise
             _fail(NativeRepairExecutionErrorCode.RECOVERY_PENDING)
-        if cleanup_failed or recovered.mutation_blocked:
+        if cleanup_failed:
+            _fail(NativeRepairExecutionErrorCode.RECOVERY_PENDING)
+        if not refreshed.mutation_blocked:
+            if committed:
+                return NativeRepairExecutionResult(
+                    NativeRepairExecutionOutcome.REPAIR_SUCCEEDED,
+                    cleanup_recovered=True,
+                )
+            _fail(NativeRepairExecutionErrorCode.EXECUTION_FAILED)
+        repair = refreshed.repair
+        if repair is None:
+            _fail(NativeRepairExecutionErrorCode.RECOVERY_PENDING)
+        if is_prearm_recovery_pending(refreshed):
+            try:
+                aborted = context.abort_pending_prearm_recovery()
+            except BaseException as recovery_error:
+                if not isinstance(recovery_error, Exception):
+                    raise
+                _fail(NativeRepairExecutionErrorCode.RECOVERY_PENDING)
+            if aborted.mutation_blocked:
+                _fail(NativeRepairExecutionErrorCode.RECOVERY_PENDING)
+            _fail(NativeRepairExecutionErrorCode.EXECUTION_FAILED)
+        try:
+            recovered = context.resume_pending_recovery()
+        except BaseException as recovery_error:
+            if not isinstance(recovery_error, Exception):
+                raise
+            _fail(NativeRepairExecutionErrorCode.RECOVERY_PENDING)
+        if recovered.mutation_blocked:
             _fail(NativeRepairExecutionErrorCode.RECOVERY_PENDING)
         if committed:
             return NativeRepairExecutionResult(

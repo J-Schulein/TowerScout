@@ -24,6 +24,7 @@ from test_launcher_windows_recovery_backup_storage import (  # noqa: E402
     _certificate_plan,
 )
 from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
+    BoundResolvedRepairTarget,
     capture_bound_resolved_repair_target,
 )
 from towerscout_launcher.windows_environment_replacement import (  # noqa: E402
@@ -40,9 +41,14 @@ from towerscout_launcher.windows_recovery_backup import (  # noqa: E402
     WindowsFileSecurityMetadata,
 )
 from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
+    EnvironmentJournalState,
+    JournalPointerDisposition,
     JournalStreamIdentity,
     RollbackProviderOutcome,
     RollbackReadinessCondition,
+)
+from towerscout_launcher.windows_recovery_journal_storage import (  # noqa: E402
+    discover_persisted_environment_journal_chains,
 )
 from towerscout_launcher.windows_recovery_readiness_authority import (  # noqa: E402
     derive_rollback_readiness_authority,
@@ -52,6 +58,7 @@ from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E4
 )
 from towerscout_launcher.windows_recovery_scan import (  # noqa: E402
     PackageRecoveryJournalScan,
+    classify_package_recovery_journals,
 )
 from towerscout_launcher.windows_repair_rollback_preparation_native import (  # noqa: E402
     NativeRepairRollbackPreparationError,
@@ -282,5 +289,116 @@ def test_sanitizes_exact_input_capture_failure(
     )
     assert "private" not in repr(caught.value)
     assert caught.value.__cause__ is None
+    context.close()
+    owner.close()
+
+
+@pytest.mark.parametrize(
+    ("boundary", "expected_state", "expected_pointer"),
+    (
+        (
+            "persist_backup_preparing_generation",
+            EnvironmentJournalState.BACKUP_PREPARING,
+            JournalPointerDisposition.MISSING_REPAIR,
+        ),
+        (
+            "persist_prepared_recovery_backup_blobs",
+            EnvironmentJournalState.BACKUP_PREPARING,
+            JournalPointerDisposition.MISSING_REPAIR,
+        ),
+        (
+            "persist_backup_verified_generation",
+            EnvironmentJournalState.BACKUP_VERIFIED,
+            JournalPointerDisposition.MISSING_REPAIR,
+        ),
+        (
+            "persist_rollback_armed_generation",
+            EnvironmentJournalState.ROLLBACK_ARMED,
+            JournalPointerDisposition.MISSING_REPAIR,
+        ),
+        (
+            "activate_persisted_rollback_armed_generation",
+            EnvironmentJournalState.ROLLBACK_ARMED,
+            JournalPointerDisposition.CURRENT,
+        ),
+        (
+            "final_target_revalidation",
+            EnvironmentJournalState.ROLLBACK_ARMED,
+            JournalPointerDisposition.CURRENT,
+        ),
+    ),
+)
+def test_failure_after_each_durable_boundary_preserves_authenticated_state(
+    monkeypatch: pytest.MonkeyPatch,
+    boundary: str,
+    expected_state: EnvironmentJournalState,
+    expected_pointer: JournalPointerDisposition,
+) -> None:
+    plan, _authority, _executor, backend = _backend()
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+    protected = _ProtectedRoot()
+    context = _context(owner, protected)
+    generations = _GenerationStorage(protected)
+    blobs = _BlobStorage(protected)
+    _patch_exact_inputs(monkeypatch, owner)
+
+    if boundary == "final_target_revalidation":
+        original_assert = BoundResolvedRepairTarget.assert_unchanged
+        assertions = 0
+
+        def fail_final_assert(
+            selected: BoundResolvedRepairTarget,
+        ) -> object:
+            nonlocal assertions
+            result = original_assert(selected)
+            assertions += 1
+            if assertions == 2:
+                raise OSError("private target detail")
+            return result
+
+        monkeypatch.setattr(
+            BoundResolvedRepairTarget,
+            "assert_unchanged",
+            fail_final_assert,
+        )
+    else:
+        original_boundary = getattr(native, boundary)
+
+        def fail_after_boundary(*args: object, **kwargs: object) -> object:
+            original_boundary(*args, **kwargs)
+            raise OSError("private durable boundary detail")
+
+        monkeypatch.setattr(native, boundary, fail_after_boundary)
+
+    with pytest.raises(NativeRepairRollbackPreparationError) as caught:
+        prepare_native_windows_repair_rollback(
+            owner,
+            context,
+            journal_id_source=_JournalIds(),
+            backup_name_source=_NameSource(),
+            journal_storage=generations,  # type: ignore[arg-type]
+            pointer_storage=generations,  # type: ignore[arg-type]
+            backup_storage=blobs,  # type: ignore[arg-type]
+        )
+
+    chains = discover_persisted_environment_journal_chains(
+        root=protected,  # type: ignore[arg-type]
+        generation_storage=generations,  # type: ignore[arg-type]
+        pointer_storage=generations,  # type: ignore[arg-type]
+        protection=protected,  # type: ignore[arg-type]
+    )
+    scan = classify_package_recovery_journals(
+        chains,
+        context.recovery_scan.package_root_identity,
+    )
+
+    assert (
+        caught.value.code is NativeRepairRollbackPreparationErrorCode.PREPARATION_FAILED
+    )
+    assert "private" not in repr(caught.value)
+    assert scan.repair is not None
+    assert scan.repair.selection.tip.state is expected_state
+    assert scan.repair.selection.pointer_disposition is expected_pointer
+    assert scan.mutation_blocked
     context.close()
     owner.close()

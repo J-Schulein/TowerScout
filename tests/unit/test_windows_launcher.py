@@ -23,7 +23,6 @@ from towerscout_launcher.coordination import (  # noqa: E402
     OperationGuard,
     acquire_single_instance,
 )
-from towerscout_launcher.app import build_confirmation_summary  # noqa: E402
 from towerscout_launcher.discovery import (  # noqa: E402
     _ENGINE_COMMANDS,
     _RejectRedirects,
@@ -660,7 +659,6 @@ def test_repair_coordinator_reports_sanitized_transitions(
         SuccessfulAdapter(), mutation_enabled=True
     )
     transaction = coordinator.prepare(snapshot, provider="google", engine="docker")
-    summary = build_confirmation_summary(transaction.target)
     coordinator.confirm(transaction, "repair_tls_and_restart")
     transitions: list[tuple[RepairState, str]] = []
 
@@ -676,11 +674,6 @@ def test_repair_coordinator_reports_sanitized_transitions(
         RepairState.RESTARTING,
         RepairState.SUCCEEDED,
     ]
-    assert "Google Maps" in summary
-    assert "towerscout-test" in summary
-    assert "Named volumes are not requested for deletion" in summary
-    assert str(launcher_tmp_path) not in summary
-    assert "private pem" not in summary
 
 
 def test_operation_guard_blocks_duplicate_operations() -> None:

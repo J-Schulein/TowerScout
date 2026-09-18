@@ -33,7 +33,7 @@ _SCHEMA_VERSION = 1
 _MAX_GENERATION_BYTES = 262_144
 _MAX_POINTER_BYTES = 1_024
 _MAX_JSON_DEPTH = 8
-_MAX_JSON_ITEMS = 32
+_MAX_JSON_ITEMS = 40
 _MAX_JSON_NODES = 256
 _MAX_JSON_STRING_CHARACTERS = 1_024
 _MAX_CHAIN_CANDIDATES = 64
@@ -128,6 +128,7 @@ class JournalStreamIdentity:
 class EnvironmentJournalState(str, Enum):
     BACKUP_PREPARING = "backup_preparing"
     BACKUP_VERIFIED = "backup_verified"
+    ABORTED_WITHOUT_MUTATION = "aborted_without_mutation"
     ROLLBACK_ARMED = "rollback_armed"
     ROLLBACK_STARTED = "rollback_started"
     ENVIRONMENT_RESTORE_TEMP_PLANNED = "environment_restore_temp_planned"
@@ -180,6 +181,10 @@ class BackupPreparingRecord:
     prior_readiness_condition: RollbackReadinessCondition
     prior_readiness_evidence_sha256: str = field(repr=False)
     prior_provider_outcome: RollbackProviderOutcome
+    environment_ciphertext_sha256: str = field(repr=False)
+    environment_ciphertext_size: int
+    certificate_ciphertext_sha256: str = field(repr=False)
+    certificate_ciphertext_size: int
     environment_original_identity: StableFileIdentity | None = field(
         default=None,
         repr=False,
@@ -233,6 +238,12 @@ class BackupPreparingRecord:
             or not _valid_hash(self.prior_readiness_evidence_sha256)
             or self.prior_provider_outcome
             is not RollbackProviderOutcome.REPAIRABLE_TLS_FAILURE
+            or not _valid_hash(self.environment_ciphertext_sha256)
+            or type(self.environment_ciphertext_size) is not int
+            or not 1 <= self.environment_ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
+            or not _valid_hash(self.certificate_ciphertext_sha256)
+            or type(self.certificate_ciphertext_size) is not int
+            or not 1 <= self.certificate_ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
             or type(self.local_ca_present) is not bool
             or type(self.ca_bundle_present) is not bool
             or not _valid_hash(self.local_ca_candidate_sha256)
@@ -349,6 +360,35 @@ class BackupVerifiedRecord:
             f"certificate_ciphertext_size={self.certificate_ciphertext_size}, "
             "<redacted>)"
         )
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class AbortedWithoutMutationRecord:
+    schema_version: int
+    pre_arm_generation_sha256: str = field(repr=False)
+    package_root_identity: StableFileIdentity = field(repr=False)
+    environment_ciphertext_sha256: str = field(repr=False)
+    environment_ciphertext_size: int
+    certificate_ciphertext_sha256: str = field(repr=False)
+    certificate_ciphertext_size: int
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.schema_version) is not int
+            or self.schema_version != _SCHEMA_VERSION
+            or not _valid_hash(self.pre_arm_generation_sha256)
+            or type(self.package_root_identity) is not StableFileIdentity
+            or not _valid_hash(self.environment_ciphertext_sha256)
+            or type(self.environment_ciphertext_size) is not int
+            or not 1 <= self.environment_ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
+            or not _valid_hash(self.certificate_ciphertext_sha256)
+            or type(self.certificate_ciphertext_size) is not int
+            or not 1 <= self.certificate_ciphertext_size <= _MAX_PROTECTED_BACKUP_BYTES
+        ):
+            raise ValueError("Aborted pre-arm recovery record is invalid.")
+
+    def __repr__(self) -> str:
+        return "AbortedWithoutMutationRecord(<redacted>)"
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -1081,6 +1121,7 @@ EnvironmentTempJournalRecord = (
 EnvironmentJournalRecord = (
     BackupPreparingRecord
     | BackupVerifiedRecord
+    | AbortedWithoutMutationRecord
     | RollbackArmedRecord
     | RollbackStartedRecord
     | EnvironmentRestoreTempPlanRecord
@@ -1104,6 +1145,7 @@ EnvironmentJournalRecord = (
 _RECORD_TYPE_BY_STATE: dict[EnvironmentJournalState, type[object]] = {
     EnvironmentJournalState.BACKUP_PREPARING: BackupPreparingRecord,
     EnvironmentJournalState.BACKUP_VERIFIED: BackupVerifiedRecord,
+    EnvironmentJournalState.ABORTED_WITHOUT_MUTATION: AbortedWithoutMutationRecord,
     EnvironmentJournalState.ROLLBACK_ARMED: RollbackArmedRecord,
     EnvironmentJournalState.ROLLBACK_STARTED: RollbackStartedRecord,
     EnvironmentJournalState.ENVIRONMENT_RESTORE_TEMP_PLANNED: (
@@ -1426,8 +1468,12 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             "ca_bundle_present": record.ca_bundle_present,
             "ca_bundle_sha256": record.ca_bundle_sha256,
             "certificate_backup_name": record.certificate_backup_name,
+            "certificate_ciphertext_sha256": record.certificate_ciphertext_sha256,
+            "certificate_ciphertext_size": record.certificate_ciphertext_size,
             "certificate_provider": record.certificate_provider.value,
             "environment_backup_name": record.environment_backup_name,
+            "environment_ciphertext_sha256": record.environment_ciphertext_sha256,
+            "environment_ciphertext_size": record.environment_ciphertext_size,
             "environment_candidate_sha256": record.environment_candidate_sha256,
             "environment_candidate_size": record.environment_candidate_size,
             "environment_file_attributes": record.environment_file_attributes,
@@ -1475,6 +1521,16 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             "environment_ciphertext_size": record.environment_ciphertext_size,
             "package_root_identity": _identity_to_json(record.package_root_identity),
             "preparing_generation_sha256": record.preparing_generation_sha256,
+            "schema_version": record.schema_version,
+        }
+    if type(record) is AbortedWithoutMutationRecord:
+        return {
+            "certificate_ciphertext_sha256": record.certificate_ciphertext_sha256,
+            "certificate_ciphertext_size": record.certificate_ciphertext_size,
+            "environment_ciphertext_sha256": record.environment_ciphertext_sha256,
+            "environment_ciphertext_size": record.environment_ciphertext_size,
+            "package_root_identity": _identity_to_json(record.package_root_identity),
+            "pre_arm_generation_sha256": record.pre_arm_generation_sha256,
             "schema_version": record.schema_version,
         }
     if type(record) is RollbackArmedRecord:
@@ -1805,8 +1861,12 @@ def _record_from_json(
                     "ca_bundle_present",
                     "ca_bundle_sha256",
                     "certificate_backup_name",
+                    "certificate_ciphertext_sha256",
+                    "certificate_ciphertext_size",
                     "certificate_provider",
                     "environment_backup_name",
+                    "environment_ciphertext_sha256",
+                    "environment_ciphertext_size",
                     "environment_candidate_sha256",
                     "environment_candidate_size",
                     "environment_file_attributes",
@@ -1852,6 +1912,10 @@ def _record_from_json(
             RollbackReadinessCondition(item["prior_readiness_condition"]),
             item["prior_readiness_evidence_sha256"],
             RollbackProviderOutcome(item["prior_provider_outcome"]),
+            item["environment_ciphertext_sha256"],
+            item["environment_ciphertext_size"],
+            item["certificate_ciphertext_sha256"],
+            item["certificate_ciphertext_size"],
             (
                 _identity_from_json(environment_original_identity)
                 if environment_original_identity is not None
@@ -1898,6 +1962,30 @@ def _record_from_json(
             item["environment_ciphertext_sha256"],
             item["environment_ciphertext_size"],
             _identity_from_json(item["certificate_backup_identity"]),
+            item["certificate_ciphertext_sha256"],
+            item["certificate_ciphertext_size"],
+        )
+    if state is EnvironmentJournalState.ABORTED_WITHOUT_MUTATION:
+        item = _exact_keys(
+            value,
+            frozenset(
+                {
+                    "certificate_ciphertext_sha256",
+                    "certificate_ciphertext_size",
+                    "environment_ciphertext_sha256",
+                    "environment_ciphertext_size",
+                    "package_root_identity",
+                    "pre_arm_generation_sha256",
+                    "schema_version",
+                }
+            ),
+        )
+        return AbortedWithoutMutationRecord(
+            item["schema_version"],
+            item["pre_arm_generation_sha256"],
+            _identity_from_json(item["package_root_identity"]),
+            item["environment_ciphertext_sha256"],
+            item["environment_ciphertext_size"],
             item["certificate_ciphertext_sha256"],
             item["certificate_ciphertext_size"],
         )
@@ -2694,18 +2782,62 @@ def _validate_record_continuity(
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         verified_generation = generations[1]
         verified = verified_generation.generation.record
+        if type(verified) is AbortedWithoutMutationRecord:
+            if (
+                len(generations) != 2
+                or verified_generation.generation.previous_generation_sha256
+                != generations[0].generation_sha256
+                or verified.pre_arm_generation_sha256
+                != generations[0].generation_sha256
+                or verified.package_root_identity != plan.package_root_identity
+                or verified.environment_ciphertext_sha256
+                != plan.environment_ciphertext_sha256
+                or verified.environment_ciphertext_size
+                != plan.environment_ciphertext_size
+                or verified.certificate_ciphertext_sha256
+                != plan.certificate_ciphertext_sha256
+                or verified.certificate_ciphertext_size
+                != plan.certificate_ciphertext_size
+            ):
+                _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+            return
         if (
             type(verified) is not BackupVerifiedRecord
             or verified_generation.generation.previous_generation_sha256
             != generations[0].generation_sha256
             or verified.preparing_generation_sha256 != generations[0].generation_sha256
             or verified.package_root_identity != plan.package_root_identity
+            or verified.environment_ciphertext_sha256
+            != plan.environment_ciphertext_sha256
+            or verified.environment_ciphertext_size != plan.environment_ciphertext_size
+            or verified.certificate_ciphertext_sha256
+            != plan.certificate_ciphertext_sha256
+            or verified.certificate_ciphertext_size != plan.certificate_ciphertext_size
         ):
             _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
         if len(generations) == 2:
             return
         armed_generation = generations[2]
         armed = armed_generation.generation.record
+        if type(armed) is AbortedWithoutMutationRecord:
+            if (
+                len(generations) != 3
+                or armed_generation.generation.previous_generation_sha256
+                != verified_generation.generation_sha256
+                or armed.pre_arm_generation_sha256
+                != verified_generation.generation_sha256
+                or armed.package_root_identity != verified.package_root_identity
+                or armed.environment_ciphertext_sha256
+                != verified.environment_ciphertext_sha256
+                or armed.environment_ciphertext_size
+                != verified.environment_ciphertext_size
+                or armed.certificate_ciphertext_sha256
+                != verified.certificate_ciphertext_sha256
+                or armed.certificate_ciphertext_size
+                != verified.certificate_ciphertext_size
+            ):
+                _fail(RecoveryJournalErrorCode.CHAIN_INVALID)
+            return
         if (
             type(armed) is not RollbackArmedRecord
             or armed_generation.generation.previous_generation_sha256
@@ -3184,6 +3316,17 @@ def select_environment_journal_chain(
         observed_states == cleanup_success_states[: len(ordered)]
         or observed_states == cleanup_pending_states[: len(ordered)]
         or observed_states == environment_temp_states[: len(ordered)]
+        or observed_states
+        == (
+            EnvironmentJournalState.BACKUP_PREPARING,
+            EnvironmentJournalState.ABORTED_WITHOUT_MUTATION,
+        )
+        or observed_states
+        == (
+            EnvironmentJournalState.BACKUP_PREPARING,
+            EnvironmentJournalState.BACKUP_VERIFIED,
+            EnvironmentJournalState.ABORTED_WITHOUT_MUTATION,
+        )
     )
     if (
         tuple(item.generation.sequence for item in ordered)
@@ -3229,6 +3372,7 @@ def select_environment_journal_chain(
 
 
 __all__ = [
+    "AbortedWithoutMutationRecord",
     "BackupPreparingRecord",
     "BackupVerifiedRecord",
     "CertificateRestoreTempCreatedRecord",

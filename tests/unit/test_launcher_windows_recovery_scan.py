@@ -34,10 +34,12 @@ from towerscout_launcher.windows_path_trust import (  # noqa: E402
     PathTrustPurpose,
 )
 from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
+    AbortedWithoutMutationRecord,
     BackupPreparingRecord,
     BackupVerifiedRecord,
     EnvironmentJournalGeneration,
     EnvironmentJournalChainSelection,
+    EnvironmentJournalPointer,
     EnvironmentJournalState,
     GENESIS_GENERATION_SHA256,
     JournalPointerDisposition,
@@ -137,6 +139,9 @@ def _chain(
     provider_environment: bool,
     provider_applied: bool = False,
     repair_armed: bool = False,
+    repair_verified: bool = False,
+    repair_aborted_at: int | None = None,
+    abort_pointer_current: bool = True,
     target_token_sha256: str = "b" * 64,
 ) -> PersistedEnvironmentJournalChain:
     protection = _Protection()
@@ -182,6 +187,10 @@ def _chain(
             RollbackReadinessCondition.DEGRADED,
             "3" * 64,
             RollbackProviderOutcome.REPAIRABLE_TLS_FAILURE,
+            "4" * 64,
+            101,
+            "5" * 64,
+            202,
             local_ca_candidate_sha256="1" * 64,
             local_ca_candidate_size=100,
             local_ca_candidate_mode=0o644,
@@ -190,7 +199,7 @@ def _chain(
             ca_bundle_candidate_mode=0o644,
         )
     generations: list[tuple[EnvironmentJournalState, object]] = [(state, record)]
-    if repair_armed:
+    if repair_armed or repair_verified or repair_aborted_at == 2:
         assert not provider_environment
         assert type(record) is BackupPreparingRecord
         verified = BackupVerifiedRecord(
@@ -215,12 +224,23 @@ def _chain(
             verified.certificate_ciphertext_sha256,
             verified.certificate_ciphertext_size,
         )
-        generations.extend(
-            (
-                (EnvironmentJournalState.BACKUP_VERIFIED, verified),
-                (EnvironmentJournalState.ROLLBACK_ARMED, armed),
-            )
+        generations.extend(((EnvironmentJournalState.BACKUP_VERIFIED, verified),))
+        if repair_armed:
+            generations.append((EnvironmentJournalState.ROLLBACK_ARMED, armed))
+    if repair_aborted_at is not None:
+        assert repair_aborted_at in {1, 2}
+        assert not provider_environment and not repair_armed
+        assert type(record) is BackupPreparingRecord
+        aborted = AbortedWithoutMutationRecord(
+            1,
+            "0" * 64,
+            package_root_identity,
+            record.environment_ciphertext_sha256,
+            record.environment_ciphertext_size,
+            record.certificate_ciphertext_sha256,
+            record.certificate_ciphertext_size,
         )
+        generations.append((EnvironmentJournalState.ABORTED_WITHOUT_MUTATION, aborted))
     if provider_applied:
         assert provider_environment
         assert type(record) is EnvironmentTempPlanRecord
@@ -306,6 +326,16 @@ def _chain(
                 selected_record.certificate_ciphertext_sha256,
                 selected_record.certificate_ciphertext_size,
             )
+        elif type(selected_record) is AbortedWithoutMutationRecord:
+            selected_record = AbortedWithoutMutationRecord(
+                1,
+                previous,
+                selected_record.package_root_identity,
+                selected_record.environment_ciphertext_sha256,
+                selected_record.environment_ciphertext_size,
+                selected_record.certificate_ciphertext_sha256,
+                selected_record.certificate_ciphertext_size,
+            )
         elif type(selected_record) is EnvironmentTempVerifiedRecord:
             selected_record = EnvironmentTempVerifiedRecord(
                 1,
@@ -343,9 +373,19 @@ def _chain(
         )
         sealed_items.append(sealed)
         previous = sealed.generation_sha256
+    pointer = (
+        EnvironmentJournalPointer(
+            1,
+            journal_id,
+            len(sealed_items),
+            sealed_items[-1].generation_sha256,
+        )
+        if repair_aborted_at is not None and abort_pointer_current
+        else None
+    )
     selection = select_environment_journal_chain(
         tuple(sealed_items),
-        None,
+        pointer,
         expected_stream=stream,
         protection=protection,
     )
@@ -502,6 +542,41 @@ def test_classification_ignores_foreign_package_journals() -> None:
     assert result.repair_pending is False
     assert result.provider_environment_pending is False
     assert result.mutation_blocked is False
+
+
+@pytest.mark.parametrize("aborted_at", (1, 2))
+def test_aborted_prearm_repair_is_terminal_and_nonblocking(aborted_at: int) -> None:
+    package_root = _identity(1)
+    aborted = _chain(
+        journal_id="9" * 32,
+        package_root_identity=package_root,
+        provider_environment=False,
+        repair_aborted_at=aborted_at,
+    )
+
+    result = scan.classify_package_recovery_journals((aborted,), package_root)
+
+    assert result.repair is None
+    assert result.mutation_blocked is False
+
+
+@pytest.mark.parametrize("aborted_at", (1, 2))
+def test_aborted_prearm_repair_with_missing_pointer_remains_pending(
+    aborted_at: int,
+) -> None:
+    package_root = _identity(1)
+    aborted = _chain(
+        journal_id="8" * 32,
+        package_root_identity=package_root,
+        provider_environment=False,
+        repair_aborted_at=aborted_at,
+        abort_pointer_current=False,
+    )
+
+    result = scan.classify_package_recovery_journals((aborted,), package_root)
+
+    assert result.repair is aborted
+    assert result.mutation_blocked is True
 
 
 def test_cleaned_forward_makes_its_armed_rollback_history_terminal() -> None:

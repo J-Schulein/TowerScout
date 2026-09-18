@@ -164,6 +164,18 @@ class _RejectingBackupProtection(_Protection):
         return super().unprotect(blob, purpose)
 
 
+class _AlternateCiphertextProtection(_Protection):
+    def unprotect(
+        self,
+        blob: CurrentUserProtectedBlob,
+        purpose: ProtectedDataPurpose,
+    ) -> bytes:
+        alternate_prefix = purpose.value.encode("ascii") + b":alternate:"
+        if blob.purpose is purpose and blob.ciphertext.startswith(alternate_prefix):
+            return blob.ciphertext[len(alternate_prefix) :]
+        return super().unprotect(blob, purpose)
+
+
 class _NameSource:
     def __init__(self) -> None:
         self.calls = 0
@@ -713,6 +725,8 @@ class _BlobStorage:
         self.fail_at: int | None = None
         self.fail_verify_at: int | None = None
         self.fail_read_at: int | None = None
+        self.deleted: list[blob_storage.PlannedRecoveryBackupBlob] = []
+        self.absence_checks: list[blob_storage.PlannedRecoveryBackupBlob] = []
 
     def create_backup_blob(
         self,
@@ -759,6 +773,36 @@ class _BlobStorage:
         if self.fail_read_at == len(self.read):
             raise OSError("private backup read path")
         return self.files[expected.name]
+
+    def delete_backup_blob_if_exact_or_absent(
+        self,
+        root_path: str,
+        expected: blob_storage.PlannedRecoveryBackupBlob,
+    ) -> None:
+        assert self.root.active
+        assert root_path.endswith(r"TowerScout\Recovery\v1")
+        self.deleted.append(expected)
+        existing = self.files.get(expected.name)
+        if existing is None:
+            return
+        if (
+            existing.purpose is not expected.purpose
+            or existing.ciphertext_sha256 != expected.ciphertext_sha256
+            or len(existing.ciphertext) != expected.ciphertext_size
+        ):
+            raise OSError("private ambiguous backup")
+        del self.files[expected.name]
+
+    def verify_backup_blob_absent(
+        self,
+        root_path: str,
+        expected: blob_storage.PlannedRecoveryBackupBlob,
+    ) -> None:
+        assert self.root.active
+        assert root_path.endswith(r"TowerScout\Recovery\v1")
+        self.absence_checks.append(expected)
+        if expected.name in self.files:
+            raise OSError("private retained backup")
 
 
 def _sealed_backups(
@@ -1239,6 +1283,44 @@ def test_persist_prepared_blobs_writes_only_planned_ciphertexts_under_root() -> 
     assert persisted.environment.ciphertext_sha256 == environment.backup_sha256
     assert persisted.certificate.ciphertext_sha256 == certificates.backup_sha256
     assert not root.active
+
+
+def test_persist_prepared_blobs_rejects_alternate_authenticated_ciphertext() -> None:
+    protection = _AlternateCiphertextProtection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    _prepared(protection, root, generations, environment, certificates, stream)
+    plaintext = protection.unprotect(
+        environment.protected_blob,
+        ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+    )
+    alternate_blob = CurrentUserProtectedBlob(
+        ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+        b"environment_backup:alternate:" + plaintext,
+    )
+    alternate = backup.SealedEnvironmentExactStateBackup(
+        alternate_blob,
+        alternate_blob.ciphertext_sha256,
+    )
+    blobs = _BlobStorage(root)
+
+    with pytest.raises(blob_storage.RecoveryBackupStorageError) as failure:
+        blob_storage.persist_prepared_recovery_backup_blobs(
+            alternate,
+            certificates,
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            storage=blobs,
+            backup_protection=protection,
+            journal_protection=protection,
+        )
+
+    assert failure.value.code is (
+        blob_storage.RecoveryBackupStorageErrorCode.AUTHORITY_INVALID
+    )
+    assert blobs.created == []
 
 
 def test_persist_backup_verified_reauthenticates_exact_blobs_under_root() -> None:
@@ -1793,6 +1875,162 @@ def test_activate_rollback_armed_repairs_pointer_after_write_failure() -> None:
     assert (
         activated.selection.pointer_disposition
         is journal.JournalPointerDisposition.CURRENT
+    )
+
+
+def test_abort_generation_one_deletes_only_matching_planned_blob() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    prepared = _prepared(
+        protection, root, generations, environment, certificates, stream
+    )
+    record = prepared.selection.tip.record
+    assert type(record) is journal.BackupPreparingRecord
+    blobs.files[record.environment_backup_name] = environment.protected_blob
+
+    aborted = blob_storage.persist_aborted_without_mutation_generation(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        deletion=blobs,
+        journal_protection=protection,
+    )
+
+    assert aborted.selection.tip.state is (
+        journal.EnvironmentJournalState.ABORTED_WITHOUT_MUTATION
+    )
+    assert aborted.selection.tip.sequence == 2
+    assert aborted.selection.pointer_disposition is (
+        journal.JournalPointerDisposition.CURRENT
+    )
+    assert blobs.files == {}
+    assert len(blobs.deleted) == len(blobs.absence_checks) == 2
+    assert all(item.identity is None for item in blobs.deleted)
+
+
+def test_abort_generation_two_uses_verified_blob_identities() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    _prepared(protection, root, generations, environment, certificates, stream)
+    persisted = blob_storage.persist_prepared_recovery_backup_blobs(
+        environment,
+        certificates,
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        storage=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+    blob_storage.persist_backup_verified_generation(
+        environment,
+        certificates,
+        persisted,
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        verification=blobs,
+        backup_protection=protection,
+        journal_protection=protection,
+    )
+
+    aborted = blob_storage.persist_aborted_without_mutation_generation(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        deletion=blobs,
+        journal_protection=protection,
+    )
+
+    assert aborted.selection.tip.sequence == 3
+    assert {item.identity for item in blobs.deleted} == {
+        persisted.environment.identity,
+        persisted.certificate.identity,
+    }
+    assert blobs.files == {}
+
+
+def test_abort_preserves_mismatched_planned_blob_and_does_not_append() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    prepared = _prepared(
+        protection, root, generations, environment, certificates, stream
+    )
+    record = prepared.selection.tip.record
+    assert type(record) is journal.BackupPreparingRecord
+    ambiguous = CurrentUserProtectedBlob(
+        ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+        b"ambiguous-ciphertext",
+    )
+    blobs.files[record.environment_backup_name] = ambiguous
+
+    with pytest.raises(blob_storage.RecoveryBackupStorageError) as failure:
+        blob_storage.persist_aborted_without_mutation_generation(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            deletion=blobs,
+            journal_protection=protection,
+        )
+
+    assert (
+        failure.value.code is blob_storage.RecoveryBackupStorageErrorCode.DELETE_FAILED
+    )
+    assert blobs.files[record.environment_backup_name] is ambiguous
+    assert len(generations.files) == 1
+
+
+def test_abort_retry_repairs_pointer_without_appending_again() -> None:
+    protection = _Protection()
+    stream, environment, certificates = _sealed_backups(protection)
+    root = _Root()
+    generations = _GenerationStorage(root)
+    blobs = _BlobStorage(root)
+    _prepared(protection, root, generations, environment, certificates, stream)
+    generations.fail_pointer_replace = OSError("private pointer failure")
+
+    with pytest.raises(blob_storage.RecoveryBackupStorageError) as failure:
+        blob_storage.persist_aborted_without_mutation_generation(
+            stream=stream,
+            root=root,
+            journal_storage=generations,
+            pointer_storage=generations,
+            deletion=blobs,
+            journal_protection=protection,
+        )
+    assert (
+        failure.value.code is blob_storage.RecoveryBackupStorageErrorCode.WRITE_FAILED
+    )
+    assert len(generations.files) == 2
+
+    generations.fail_pointer_replace = None
+    repaired = blob_storage.persist_aborted_without_mutation_generation(
+        stream=stream,
+        root=root,
+        journal_storage=generations,
+        pointer_storage=generations,
+        deletion=blobs,
+        journal_protection=protection,
+    )
+
+    assert len(generations.files) == 2
+    assert repaired.selection.tip.state is (
+        journal.EnvironmentJournalState.ABORTED_WITHOUT_MUTATION
+    )
+    assert repaired.selection.pointer_disposition is (
+        journal.JournalPointerDisposition.CURRENT
     )
 
 

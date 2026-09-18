@@ -81,6 +81,7 @@ class _Api:
         self.write_limit: int | None = None
         self.zero_write = False
         self.created = False
+        self.delete_error: BaseException | None = None
         self.events: list[str] = []
 
     @property
@@ -111,6 +112,16 @@ class _Api:
         if self.reopen_error is not None:
             raise self.reopen_error
         return _Handle(self.reopened_identity, True)
+
+    def open_file_for_delete_if_exists(self, path: str) -> object | None:
+        assert path == _PATH
+        self.events.append("delete-open")
+        return _Handle(self.reopened_identity, True) if self.created else None
+
+    def reopen_file_if_exists(self, path: str) -> object | None:
+        assert path == _PATH
+        self.events.append("optional-open")
+        return _Handle(self.reopened_identity, True) if self.created else None
 
     def query_file(self, handle: object) -> NativeFileFacts:
         assert isinstance(handle, _Handle)
@@ -170,6 +181,14 @@ class _Api:
         handle.cursor += len(chunk)
         return chunk
 
+    def mark_file_for_deletion(self, handle: object) -> None:
+        assert isinstance(handle, _Handle)
+        self.events.append("delete")
+        if self.delete_error is not None:
+            raise self.delete_error
+        self.created = False
+        self.contents = b""
+
     def close_handle(self, handle: object) -> None:
         assert isinstance(handle, _Handle)
         self.events.append("close")
@@ -184,6 +203,19 @@ def _blob(
     purpose: ProtectedDataPurpose = ProtectedDataPurpose.ENVIRONMENT_BACKUP,
 ) -> CurrentUserProtectedBlob:
     return CurrentUserProtectedBlob(purpose, _CIPHERTEXT)
+
+
+def _planned(
+    *,
+    identity: StableFileIdentity | None = None,
+) -> storage.PlannedRecoveryBackupBlob:
+    return storage.PlannedRecoveryBackupBlob(
+        _NAME,
+        ProtectedDataPurpose.ENVIRONMENT_BACKUP,
+        hashlib.sha256(_CIPHERTEXT).hexdigest(),
+        len(_CIPHERTEXT),
+        identity,
+    )
 
 
 def test_native_blob_create_flushes_and_verifies_both_handles() -> None:
@@ -419,6 +451,61 @@ def test_native_blob_dependency_failure_is_sanitized_and_control_propagates() ->
     with pytest.raises(KeyboardInterrupt) as raised:
         adapter.create_backup_blob(_ROOT, _NAME, _blob())
     assert raised.value is interruption
+
+
+def test_native_blob_deletes_exact_planned_artifact_and_verifies_absence() -> None:
+    api = _Api()
+    api.created = True
+    api.contents = _CIPHERTEXT
+    adapter = native.NativeWindowsRecoveryBackupBlobStorage(api=api)
+
+    adapter.delete_backup_blob_if_exact_or_absent(_ROOT, _planned())
+    adapter.verify_backup_blob_absent(_ROOT, _planned())
+
+    assert api.created is False
+    assert api.events.count("query") == 2
+    assert api.events.count("security") == 2
+    assert api.events.count("delete") == 1
+    assert api.events.count("optional-open") == 2
+
+
+def test_native_blob_deletion_accepts_already_absent_artifact() -> None:
+    api = _Api()
+    adapter = native.NativeWindowsRecoveryBackupBlobStorage(api=api)
+
+    adapter.delete_backup_blob_if_exact_or_absent(_ROOT, _planned())
+
+    assert api.events == ["sid", "delete-open", "optional-open"]
+
+
+@pytest.mark.parametrize(
+    ("change", "value"),
+    (
+        ("contents", b"x" * len(_CIPHERTEXT)),
+        ("reopened_identity", _identity("22")),
+        ("reopened_path", rf"{_ROOT}\other.blob"),
+    ),
+)
+def test_native_blob_deletion_preserves_ambiguous_artifact(
+    change: str,
+    value: object,
+) -> None:
+    api = _Api()
+    api.created = True
+    api.contents = _CIPHERTEXT
+    setattr(api, change, value)
+    adapter = native.NativeWindowsRecoveryBackupBlobStorage(api=api)
+    expected_identity = api.identity if change == "reopened_identity" else None
+
+    with pytest.raises(storage.RecoveryBackupStorageError) as failure:
+        adapter.delete_backup_blob_if_exact_or_absent(
+            _ROOT,
+            _planned(identity=expected_identity),
+        )
+
+    assert failure.value.code is storage.RecoveryBackupStorageErrorCode.VERIFY_FAILED
+    assert api.created is True
+    assert "delete" not in api.events
 
 
 def test_native_blob_adapter_has_no_broad_file_capabilities() -> None:

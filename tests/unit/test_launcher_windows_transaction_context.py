@@ -133,7 +133,15 @@ def _capture(
     environment_abandoned: bool = False,
     target_abandoned: bool = False,
     repair_pending: bool = False,
+    repair_armed: bool = True,
     resume_recovery: (
+        Callable[
+            [PathHierarchyTrust, object, PackageRecoveryJournalScan],
+            PackageRecoveryJournalScan,
+        ]
+        | None
+    ) = None,
+    abort_recovery: (
         Callable[
             [PathHierarchyTrust, object, PackageRecoveryJournalScan],
             PackageRecoveryJournalScan,
@@ -166,6 +174,7 @@ def _capture(
                 journal_id="a" * 32,
                 package_root_identity=identity,
                 provider_environment=False,
+                repair_armed=repair_armed,
                 target_token_sha256=target.target_token.digest_sha256,
             )
             if repair_pending
@@ -204,6 +213,8 @@ def _capture(
     capture_arguments: dict[str, object] = {}
     if resume_recovery is not None:
         capture_arguments["resume_recovery"] = resume_recovery
+    if abort_recovery is not None:
+        capture_arguments["abort_recovery"] = abort_recovery
     context = observed.run_while_held(
         lambda: _capture_context(
             target,
@@ -419,6 +430,80 @@ def test_native_recovery_cleans_committed_forward_without_rollback(
     assert calls == [(package_root, protected_root, repair, forward)]
 
 
+@pytest.mark.parametrize(
+    ("repair_verified", "repair_aborted_at"),
+    ((False, None), (True, None), (False, 1), (False, 2)),
+)
+def test_native_prearm_abort_uses_exact_storage_and_rescans(
+    monkeypatch: Any,
+    repair_verified: bool,
+    repair_aborted_at: int | None,
+) -> None:
+    target, _python, _identity_key = _target(RuntimeProduct.DOCKER)
+    identity = _identity(target)
+    repair = _recovery_chain(
+        journal_id="9" * 32,
+        package_root_identity=identity,
+        provider_environment=False,
+        repair_verified=repair_verified,
+        repair_aborted_at=repair_aborted_at,
+        abort_pointer_current=False,
+        target_token_sha256=target.target_token.digest_sha256,
+    )
+    recovery_scan = PackageRecoveryJournalScan(1, identity, repair)
+    rescanned = PackageRecoveryJournalScan(1, identity)
+    calls: dict[str, object] = {}
+    generation_storage = object()
+    pointer_storage = object()
+    deletion = object()
+    events: list[str] = []
+    package_root = _PathOwner(identity, events, "retained")
+    protected_root = object()
+
+    monkeypatch.setattr(
+        transaction_context,
+        "persist_aborted_without_mutation_generation",
+        lambda **arguments: calls.setdefault("abort", arguments),
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "scan_package_recovery_journals_from_held_root",
+        lambda *_args, **_kwargs: rescanned,
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "NativeWindowsJournalGenerationStorage",
+        lambda: generation_storage,
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "NativeWindowsJournalPointerStorage",
+        lambda: pointer_storage,
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "NativeWindowsRecoveryBackupBlobStorage",
+        lambda: deletion,
+    )
+
+    result = package_root.run_while_held(
+        lambda: transaction_context.abort_native_windows_prearm_recovery(
+            package_root,  # type: ignore[arg-type]
+            protected_root,  # type: ignore[arg-type]
+            recovery_scan,
+        )
+    )
+
+    assert result is rescanned
+    abort_arguments = calls["abort"]
+    assert isinstance(abort_arguments, dict)
+    assert abort_arguments["stream"] == repair.selection.tip.stream
+    assert abort_arguments["journal_storage"] is generation_storage
+    assert abort_arguments["pointer_storage"] is pointer_storage
+    assert abort_arguments["deletion"] is deletion
+    assert abort_arguments["journal_protection"] is protected_root
+
+
 def test_changed_duplicate_package_root_is_closed_without_lock_acquisition() -> None:
     target, _python, _identity_key = _target(RuntimeProduct.DOCKER)
     identity = _identity(target)
@@ -552,6 +637,36 @@ def test_context_resumes_pending_recovery_under_retained_owners() -> None:
     context.close()
 
 
+def test_context_aborts_prearm_recovery_under_retained_owners() -> None:
+    reconciled: list[PackageRecoveryJournalScan] = []
+
+    def abort(
+        package_root: PathHierarchyTrust,
+        protected_root: object,
+        scan: PackageRecoveryJournalScan,
+    ) -> PackageRecoveryJournalScan:
+        assert package_root.closed is False
+        assert getattr(protected_root, "closed") is False
+        assert scan.repair is not None
+        assert scan.repair.selection.tip.sequence == 1
+        result = PackageRecoveryJournalScan(1, scan.package_root_identity)
+        reconciled.append(result)
+        return result
+
+    context, _events, _retained, _protected, _locks = _capture(
+        repair_pending=True,
+        repair_armed=False,
+        abort_recovery=abort,
+    )
+
+    result = context.abort_pending_prearm_recovery()
+
+    assert result is reconciled[0]
+    assert result.mutation_blocked is False
+    assert context.recovery_scan is result
+    context.close()
+
+
 def test_context_rescans_same_session_writes_before_recovery() -> None:
     recovered: list[PackageRecoveryJournalScan] = []
 
@@ -576,6 +691,18 @@ def test_context_rescans_same_session_writes_before_recovery() -> None:
     assert result is recovered[0]
     assert events.count("scan") == scans_before + 1
     assert not result.mutation_blocked
+    context.close()
+
+
+def test_context_refreshes_clear_same_session_state_without_recovery() -> None:
+    context, events, _retained, _protected, _locks = _capture()
+    scans_before = events.count("scan")
+
+    result = context.refresh_recovery_scan()
+
+    assert events.count("scan") == scans_before + 1
+    assert result.mutation_blocked is False
+    assert context.recovery_scan is result
     context.close()
 
 

@@ -91,6 +91,12 @@ class _Context(_Resource):
         assert isinstance(scan, PackageRecoveryJournalScan)
         return PackageRecoveryJournalScan(1, scan.package_root_identity)
 
+    def abort_pending_prearm_recovery(self) -> PackageRecoveryJournalScan:
+        self.events.append("context:abort")
+        scan = self.recovery_scan
+        assert isinstance(scan, PackageRecoveryJournalScan)
+        return PackageRecoveryJournalScan(1, scan.package_root_identity)
+
     def close(self) -> None:
         if self.closed:
             return
@@ -156,6 +162,7 @@ def test_front_door_transfers_both_locks_and_resumes_pending_repair(
         journal_id="a" * 32,
         package_root_identity=_identity(),
         provider_environment=False,
+        repair_armed=True,
         target_token_sha256=token,
     )
     scan = PackageRecoveryJournalScan(1, _identity(), repair)
@@ -197,6 +204,65 @@ def test_front_door_transfers_both_locks_and_resumes_pending_repair(
     assert outcome is front.WindowsRecoveryFrontDoorOutcome.RECOVERED
     assert events.index("target:close") < events.index("context:resume")
     assert events.index("locks:acquired") < events.index("context:resume")
+    assert locks.closed
+    assert environment.closed
+    assert protected.closed
+    assert package.closed
+
+
+@pytest.mark.parametrize(
+    ("repair_verified", "repair_aborted_at"),
+    ((False, None), (True, None), (False, 1), (False, 2)),
+)
+def test_front_door_aborts_fresh_process_prearm_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+    repair_verified: bool,
+    repair_aborted_at: int | None,
+) -> None:
+    token = "b" * 64
+    repair = _chain(
+        journal_id="9" * 32,
+        package_root_identity=_identity(),
+        provider_environment=False,
+        repair_verified=repair_verified,
+        repair_aborted_at=repair_aborted_at,
+        abort_pointer_current=False,
+        target_token_sha256=token,
+    )
+    scan = PackageRecoveryJournalScan(1, _identity(), repair)
+    events, package, protected, environment = _install_common(monkeypatch, scan)
+    target = _Target(events)
+    binding = RuntimeTransactionLockBinding(
+        "Global\\TowerScoutEnv-v1-" + "a" * 64,
+        "Global\\TowerScoutRepair-v1-" + "c" * 64,
+        token,
+        "d" * 64,
+    )
+    locks = _Locks(events, environment)
+    contexts: list[_Context] = []
+    monkeypatch.setattr(front, "_capture_target", lambda _scan: target)
+    monkeypatch.setattr(front, "_target_binding", lambda _target, _scan: binding)
+    monkeypatch.setattr(
+        front,
+        "acquire_runtime_target_lock_after_environment",
+        lambda _binding, _revalidate, _environment, timeout_ms: locks,
+    )
+
+    def context_factory(**arguments: object) -> _Context:
+        context = _Context(events, **arguments)
+        contexts.append(context)
+        return context
+
+    monkeypatch.setattr(front, "HeldWindowsTransactionContext", context_factory)
+
+    outcome = front.recover_native_windows_pending_repair()
+
+    assert outcome is front.WindowsRecoveryFrontDoorOutcome.RECOVERED
+    assert events.count("context:abort") == 1
+    assert "context:resume" not in events
+    assert contexts[0].arguments["abort_recovery"] is (
+        front.abort_native_windows_prearm_recovery
+    )
     assert locks.closed
     assert environment.closed
     assert protected.closed

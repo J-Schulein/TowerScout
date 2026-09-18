@@ -3,8 +3,8 @@
 The adapter writes one already-protected blob under its exact planned leaf,
 then verifies identity, bytes, locality, file type, and the protected current-
 user/SYSTEM DACL on the creation handle and a no-follow reopen. It can later
-reverify or read only an exact receipt and has no list, delete, move, replace,
-restore, or mutation-adjacent operation.
+reverify or read only an exact receipt, or delete only an authenticated planned
+blob that exactly matches its recorded metadata.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from .windows_environment_replacement_native import (
 from .windows_path_trust import AccessAllowedAce, NativeSecurityFacts
 from .windows_protected_state import CurrentUserProtectedBlob, ProtectedDataPurpose
 from .windows_recovery_backup_storage import (
+    PlannedRecoveryBackupBlob,
     RecoveryBackupStorageError,
     RecoveryBackupStorageErrorCode,
     StoredRecoveryBackupBlob,
@@ -48,6 +49,10 @@ class _WindowsRecoveryBackupBlobApi(Protocol):
 
     def reopen_file_for_verification(self, path: str) -> object: ...
 
+    def open_file_for_delete_if_exists(self, path: str) -> object | None: ...
+
+    def reopen_file_if_exists(self, path: str) -> object | None: ...
+
     def query_file(self, handle: object) -> NativeFileFacts: ...
 
     def query_security(self, handle: object) -> NativeSecurityFacts: ...
@@ -60,11 +65,13 @@ class _WindowsRecoveryBackupBlobApi(Protocol):
 
     def read_file(self, handle: object, maximum: int) -> bytes: ...
 
+    def mark_file_for_deletion(self, handle: object) -> None: ...
+
     def close_handle(self, handle: object) -> None: ...
 
 
 class NativeWindowsRecoveryBackupBlobApi:
-    """Restricted-file primitives without enumeration or mutation methods."""
+    """Restricted-file primitives without enumeration or replacement methods."""
 
     __slots__ = ("_files",)
 
@@ -84,6 +91,12 @@ class NativeWindowsRecoveryBackupBlobApi:
     def reopen_file_for_verification(self, path: str) -> object:
         return self._files.reopen_file_for_verification(path)
 
+    def open_file_for_delete_if_exists(self, path: str) -> object | None:
+        return self._files.open_file_for_delete_if_exists(path)
+
+    def reopen_file_if_exists(self, path: str) -> object | None:
+        return self._files.reopen_file_if_exists(path)
+
     def query_file(self, handle: object) -> NativeFileFacts:
         return self._files.query_file(handle)
 
@@ -101,6 +114,9 @@ class NativeWindowsRecoveryBackupBlobApi:
 
     def read_file(self, handle: object, maximum: int) -> bytes:
         return self._files.read_file(handle, maximum)
+
+    def mark_file_for_deletion(self, handle: object) -> None:
+        self._files.mark_file_for_deletion(handle)
 
     def close_handle(self, handle: object) -> None:
         self._files.close_handle(handle)
@@ -270,7 +286,7 @@ def _read_verified(
     expected_sha256: str,
     expected_contents: bytes | None = None,
 ) -> bytes:
-    _validate_file(
+    observed_identity = _validate_file(
         _call(
             lambda: api.query_file(handle),
             RecoveryBackupStorageErrorCode.VERIFY_FAILED,
@@ -300,7 +316,7 @@ def _read_verified(
         ),
         expected_path=path,
         expected_size=expected_size,
-        expected_identity=expected_identity,
+        expected_identity=observed_identity,
     )
     _validate_security(
         _call(
@@ -313,7 +329,7 @@ def _read_verified(
 
 
 class NativeWindowsRecoveryBackupBlobStorage:
-    """Create, reverify, or read one exact encrypted backup blob."""
+    """Create, reverify, read, or narrowly delete one exact backup blob."""
 
     __slots__ = ("_api",)
 
@@ -502,6 +518,92 @@ class NativeWindowsRecoveryBackupBlobStorage:
         ):
             _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
         return blob
+
+    def delete_backup_blob_if_exact_or_absent(
+        self,
+        root_path: str,
+        expected: PlannedRecoveryBackupBlob,
+    ) -> None:
+        supported = _call(
+            lambda: self._api.supported,
+            RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE)
+        if type(expected) is not PlannedRecoveryBackupBlob:
+            _fail(RecoveryBackupStorageErrorCode.INPUT_INVALID)
+        path = _backup_path(root_path, expected.name)
+        current_user_sid = _current_user_sid(self._api)
+        handle = _call(
+            lambda: self._api.open_file_for_delete_if_exists(path),
+            RecoveryBackupStorageErrorCode.VERIFY_FAILED,
+        )
+        if handle is None:
+            self.verify_backup_blob_absent(root_path, expected)
+            return
+        held: object | None = handle
+        operation_failed = False
+        try:
+            _read_verified(
+                self._api,
+                handle,
+                path=path,
+                current_user_sid=current_user_sid,
+                expected_identity=expected.identity,
+                expected_size=expected.ciphertext_size,
+                expected_sha256=expected.ciphertext_sha256,
+            )
+            try:
+                self._api.mark_file_for_deletion(handle)
+            except RecoveryBackupStorageError:
+                raise
+            except Exception:
+                operation_failed = True
+            try:
+                self._api.close_handle(handle)
+            except RecoveryBackupStorageError:
+                raise
+            except Exception:
+                operation_failed = True
+            else:
+                held = None
+        finally:
+            if held is not None:
+                _safe_close(self._api, held)
+        remaining = _call(
+            lambda: self._api.reopen_file_if_exists(path),
+            RecoveryBackupStorageErrorCode.DELETE_FAILED,
+        )
+        if remaining is not None:
+            _safe_close(self._api, remaining)
+            _fail(
+                RecoveryBackupStorageErrorCode.DELETE_FAILED
+                if operation_failed
+                else RecoveryBackupStorageErrorCode.VERIFY_FAILED
+            )
+
+    def verify_backup_blob_absent(
+        self,
+        root_path: str,
+        expected: PlannedRecoveryBackupBlob,
+    ) -> None:
+        supported = _call(
+            lambda: self._api.supported,
+            RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE,
+        )
+        if supported is not True:
+            _fail(RecoveryBackupStorageErrorCode.STORAGE_UNAVAILABLE)
+        if type(expected) is not PlannedRecoveryBackupBlob:
+            _fail(RecoveryBackupStorageErrorCode.INPUT_INVALID)
+        path = _backup_path(root_path, expected.name)
+        handle = _call(
+            lambda: self._api.reopen_file_if_exists(path),
+            RecoveryBackupStorageErrorCode.VERIFY_FAILED,
+        )
+        if handle is None:
+            return
+        _safe_close(self._api, handle)
+        _fail(RecoveryBackupStorageErrorCode.VERIFY_FAILED)
 
 
 __all__ = [

@@ -14,11 +14,6 @@ from .exact_target_confirmation import (
     ExactTargetConfirmationTransaction,
 )
 from .models import LauncherSnapshot, PublicState
-from .repair import (
-    RepairState,
-    RepairTarget,
-    RepairTransaction,
-)
 from .target_contracts import MapProvider
 
 _STATE_COLORS = {
@@ -83,25 +78,6 @@ def _ask_typed_confirmation(parent: tk.Misc, prompt: str) -> str | None:
         timeout_seconds=DEFAULT_CONFIRMATION_TIMEOUT_SECONDS,
     )
     return dialog.value
-
-
-def build_confirmation_summary(target: RepairTarget) -> str:
-    provider = "Google Maps" if target.provider == "google" else "Azure Maps"
-    runtime = "Docker" if target.engine == "docker" else "Podman"
-    return (
-        f"Provider: {provider}\n"
-        f"Runtime: {runtime}\n"
-        f"GPU mode: {target.gpu_mode}\n"
-        f"Port: {target.port}\n"
-        f"Compose project: {target.compose_project}\n"
-        f"Image: {target.image}\n"
-        f"Image digest: {target.image_digest}\n\n"
-        "TowerScout will stage one Windows-trusted CA inside this project's "
-        "persistent config volume, verify the selected provider, update only "
-        "the two CA settings in .env, and recreate this same Compose project. "
-        "Named volumes are not requested for deletion. A failed transaction "
-        "attempts to restore the prior files and environment."
-    )
 
 
 class TowerScoutLauncherApp:
@@ -259,18 +235,6 @@ class TowerScoutLauncherApp:
         self.preview_text.delete("1.0", tk.END)
         self.preview_text.insert(tk.END, f"{title}\n\n{body}")
         self.preview_text.configure(state=tk.DISABLED)
-
-    def _show_transaction_progress(self, transaction: RepairTransaction) -> None:
-        labels = {
-            RepairState.APPLYING: "Applying verified TLS repair",
-            RepairState.RESTARTING: "Restarting TowerScout",
-            RepairState.SUCCEEDED: "TLS repair succeeded",
-            RepairState.RECOVERY_REQUIRED: "TLS repair needs recovery",
-        }
-        title = labels.get(transaction.state, "TLS repair")
-        self.footer_var.set(transaction.public_message)
-        self._replace_preview_text(title, transaction.public_message)
-        self.root.update_idletasks()
 
     def refresh(self) -> None:
         with self.operations.begin() as started:
