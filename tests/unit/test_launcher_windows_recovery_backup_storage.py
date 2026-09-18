@@ -73,6 +73,9 @@ from towerscout_launcher.windows_recovery_environment_restore_native import (  #
 from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E402
     RollbackRuntimeRecoveryAuthority,
 )
+from towerscout_launcher.windows_recovery_readiness_authority import (  # noqa: E402
+    derive_rollback_readiness_authority,
+)
 from towerscout_launcher.windows_security import (  # noqa: E402
     NativeFileFacts,
     StableFileIdentity,
@@ -107,6 +110,15 @@ def _runtime_authority() -> RollbackRuntimeRecoveryAuthority:
         "1" * 64,
         tuple(f"{value:x}" * 64 for value in range(3, 11)),
         True,
+    )
+
+
+def _readiness_authority():
+    return derive_rollback_readiness_authority(
+        target_token_sha256="b" * 64,
+        package_root_identity=_identity(7),
+        condition=journal.RollbackReadinessCondition.DEGRADED,
+        provider_outcome=journal.RollbackProviderOutcome.REPAIRABLE_TLS_FAILURE,
     )
 
 
@@ -498,6 +510,8 @@ class _RollbackVerification:
     ) -> None:
         self.calls = 0
         self.error: BaseException | None = None
+        self.authorities: list[recovery.RollbackVerificationAuthority] = []
+        readiness = _readiness_authority()
         self.evidence = recovery.RollbackVerificationEvidence(
             1,
             stream.target_token_sha256,
@@ -507,7 +521,8 @@ class _RollbackVerification:
             restart.evidence.runtime_evidence_sha256,
             restart.evidence.container_evidence_sha256,
             restart.evidence.volume_evidence_sha256s,
-            "b" * 64,
+            readiness.evidence_sha256,
+            readiness.condition,
             journal.RollbackProviderOutcome.REPAIRABLE_TLS_FAILURE,
             True,
             True,
@@ -519,14 +534,21 @@ class _RollbackVerification:
         self,
         package_root: PathHierarchyTrust,
         stream: journal.JournalStreamIdentity,
-        restarted: journal.RollbackRuntimeRestartedRecord,
+        authority: recovery.RollbackVerificationAuthority,
     ) -> recovery.RollbackVerificationEvidence:
         package_root.assert_unchanged_while_held()
-        assert restarted.package_root_identity == stream.package_root_identity
+        assert authority.package_root_identity == stream.package_root_identity
         self.calls += 1
+        self.authorities.append(authority)
         if self.error is not None:
             raise self.error
-        return self.evidence
+        return replace(
+            self.evidence,
+            environment_evidence_sha256=authority.environment_evidence_sha256,
+            certificate_evidence_sha256=authority.certificate_evidence_sha256,
+            readiness_evidence_sha256=authority.prior_readiness_evidence_sha256,
+            readiness_condition=authority.prior_readiness_condition,
+        )
 
 
 class _RecoveryCleanup:
@@ -815,6 +837,7 @@ def _prepared(
         environment_plan=environment_plan,
         certificate_plan=_certificate_plan(),
         runtime_authority=_runtime_authority(),
+        readiness_authority=_readiness_authority(),
         stream=stream,
         name_source=_NameSource(),
         root=root,
@@ -2841,7 +2864,7 @@ def test_summary_drift_fails_before_root_or_blob_write() -> None:
     stream, environment, certificates = _sealed_backups(protection)
     root = _Root()
     generations = _GenerationStorage(root)
-    prepared = _prepared(
+    _prepared(
         protection,
         root,
         generations,
@@ -4068,6 +4091,20 @@ def test_terminal_rollback_verification_requires_every_exact_local_condition() -
 
     assert failure.value.code is recovery.WindowsRecoveryErrorCode.VERIFY_FAILED
     assert len(generations.files) == generation_count + 1
+    assert len(verification.authorities) == 2
+    authority = verification.authorities[-1]
+    assert authority.provider is MapProvider.GOOGLE
+    assert authority.environment.present
+    assert authority.local_ca.present
+    assert not authority.ca_bundle.present
+    assert (
+        authority.prior_readiness_condition
+        is journal.RollbackReadinessCondition.DEGRADED
+    )
+    assert (
+        authority.prior_provider_outcome
+        is journal.RollbackProviderOutcome.REPAIRABLE_TLS_FAILURE
+    )
     assert (
         terminal.selection.tip.state
         is journal.EnvironmentJournalState.ROLLBACK_VERIFIED

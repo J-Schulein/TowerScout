@@ -151,6 +151,18 @@ class EnvironmentJournalState(str, Enum):
     ENVIRONMENT_APPLIED = "environment_applied"
 
 
+class RollbackReadinessCondition(str, Enum):
+    SETUP_REQUIRED = "setup_required"
+    DEGRADED = "degraded"
+    READY = "ready"
+
+
+class RollbackProviderOutcome(str, Enum):
+    SUCCESS = "success"
+    REPAIRABLE_TLS_FAILURE = "repairable_tls_failure"
+    PROVIDER_RECHECK_INDETERMINATE = "provider_recheck_indeterminate"
+
+
 @dataclass(frozen=True, slots=True, repr=False)
 class BackupPreparingRecord:
     schema_version: int
@@ -165,6 +177,9 @@ class BackupPreparingRecord:
     rollback_runtime_evidence_sha256: str = field(repr=False)
     rollback_volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
     runtime_was_running: bool
+    prior_readiness_condition: RollbackReadinessCondition
+    prior_readiness_evidence_sha256: str = field(repr=False)
+    prior_provider_outcome: RollbackProviderOutcome
     environment_original_identity: StableFileIdentity | None = field(
         default=None,
         repr=False,
@@ -214,6 +229,10 @@ class BackupPreparingRecord:
             or len(set(self.rollback_volume_evidence_sha256s)) != 8
             or type(self.runtime_was_running) is not bool
             or self.runtime_was_running is not True
+            or type(self.prior_readiness_condition) is not RollbackReadinessCondition
+            or not _valid_hash(self.prior_readiness_evidence_sha256)
+            or self.prior_provider_outcome
+            is not RollbackProviderOutcome.REPAIRABLE_TLS_FAILURE
             or type(self.local_ca_present) is not bool
             or type(self.ca_bundle_present) is not bool
             or not _valid_hash(self.local_ca_candidate_sha256)
@@ -978,12 +997,6 @@ class RollbackVerifyingRecord:
         return "RollbackVerifyingRecord(<redacted>)"
 
 
-class RollbackProviderOutcome(str, Enum):
-    SUCCESS = "success"
-    REPAIRABLE_TLS_FAILURE = "repairable_tls_failure"
-    PROVIDER_RECHECK_INDETERMINATE = "provider_recheck_indeterminate"
-
-
 @dataclass(frozen=True, slots=True, repr=False)
 class RollbackVerifiedRecord:
     schema_version: int
@@ -1435,6 +1448,9 @@ def _record_to_json(record: EnvironmentJournalRecord) -> dict[str, Any]:
             "local_ca_candidate_sha256": record.local_ca_candidate_sha256,
             "local_ca_candidate_size": record.local_ca_candidate_size,
             "package_root_identity": _identity_to_json(record.package_root_identity),
+            "prior_provider_outcome": record.prior_provider_outcome.value,
+            "prior_readiness_condition": record.prior_readiness_condition.value,
+            "prior_readiness_evidence_sha256": (record.prior_readiness_evidence_sha256),
             "rollback_runtime_evidence_sha256": (
                 record.rollback_runtime_evidence_sha256
             ),
@@ -1805,6 +1821,9 @@ def _record_from_json(
                     "local_ca_candidate_sha256",
                     "local_ca_candidate_size",
                     "package_root_identity",
+                    "prior_provider_outcome",
+                    "prior_readiness_condition",
+                    "prior_readiness_evidence_sha256",
                     "rollback_runtime_evidence_sha256",
                     "rollback_volume_evidence_sha256s",
                     "runtime_was_running",
@@ -1830,6 +1849,9 @@ def _record_from_json(
             item["rollback_runtime_evidence_sha256"],
             tuple(rollback_volume_evidence),
             item["runtime_was_running"],
+            RollbackReadinessCondition(item["prior_readiness_condition"]),
+            item["prior_readiness_evidence_sha256"],
+            RollbackProviderOutcome(item["prior_provider_outcome"]),
             (
                 _identity_from_json(environment_original_identity)
                 if environment_original_identity is not None
@@ -3232,6 +3254,7 @@ __all__ = [
     "RecoveryCleanupPendingRecord",
     "RollbackArmedRecord",
     "RollbackProviderOutcome",
+    "RollbackReadinessCondition",
     "RollbackRuntimeAvailableRecord",
     "RollbackRuntimeRestartedRecord",
     "RollbackRuntimeRestartingRecord",

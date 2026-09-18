@@ -36,6 +36,7 @@ from .windows_recovery_journal_storage import (
     append_persisted_environment_journal_generation,
 )
 from .windows_recovery_runtime_authority import RollbackRuntimeRecoveryAuthority
+from .windows_recovery_readiness_authority import RollbackReadinessAuthority
 
 
 class RecoveryBackupPreparationErrorCode(str, Enum):
@@ -106,6 +107,7 @@ def persist_backup_preparing_generation(
     environment_plan: EnvironmentReplacementPlan,
     certificate_plan: CertificateReplacementPlan,
     runtime_authority: RollbackRuntimeRecoveryAuthority,
+    readiness_authority: RollbackReadinessAuthority,
     stream: JournalStreamIdentity,
     name_source: RecoveryBackupNameSource,
     root: JournalStorageRootPort,
@@ -121,6 +123,7 @@ def persist_backup_preparing_generation(
         or type(environment_plan) is not EnvironmentReplacementPlan
         or type(certificate_plan) is not CertificateReplacementPlan
         or type(runtime_authority) is not RollbackRuntimeRecoveryAuthority
+        or type(readiness_authority) is not RollbackReadinessAuthority
         or type(stream) is not JournalStreamIdentity
     ):
         _fail(RecoveryBackupPreparationErrorCode.INPUT_INVALID)
@@ -140,6 +143,8 @@ def persist_backup_preparing_generation(
         or runtime_authority.target_token_sha256 != stream.target_token_sha256
         or runtime_authority.package_root_identity != stream.package_root_identity
         or runtime_authority.runtime_was_running is not True
+        or readiness_authority.target_token_sha256 != stream.target_token_sha256
+        or readiness_authority.package_root_identity != stream.package_root_identity
     ):
         _fail(RecoveryBackupPreparationErrorCode.PLAN_INVALID)
     try:
@@ -162,6 +167,9 @@ def persist_backup_preparing_generation(
                 runtime_authority.volume_evidence_sha256s
             ),
             runtime_was_running=runtime_authority.runtime_was_running,
+            prior_readiness_condition=readiness_authority.condition,
+            prior_readiness_evidence_sha256=readiness_authority.evidence_sha256,
+            prior_provider_outcome=readiness_authority.provider_outcome,
             environment_original_identity=environment.identity,
             environment_sha256=(
                 environment.contents_sha256 if environment.existed else None

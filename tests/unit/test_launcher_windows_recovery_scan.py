@@ -38,6 +38,8 @@ from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
     EnvironmentJournalState,
     GENESIS_GENERATION_SHA256,
     JournalStreamIdentity,
+    RollbackProviderOutcome,
+    RollbackReadinessCondition,
     protect_environment_journal_generation,
     select_environment_journal_chain,
 )
@@ -166,6 +168,9 @@ def _chain(
                 for index in range(8)
             ),
             True,
+            RollbackReadinessCondition.DEGRADED,
+            "3" * 64,
+            RollbackProviderOutcome.REPAIRABLE_TLS_FAILURE,
             local_ca_candidate_sha256="1" * 64,
             local_ca_candidate_size=100,
             local_ca_candidate_mode=0o644,

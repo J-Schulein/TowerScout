@@ -153,6 +153,9 @@ def _backup_preparing_record(
             f"{value:x}" * 64 for value in range(3, 11)
         ),
         runtime_was_running=True,
+        prior_readiness_condition=journal.RollbackReadinessCondition.DEGRADED,
+        prior_readiness_evidence_sha256="2" * 64,
+        prior_provider_outcome=(journal.RollbackProviderOutcome.REPAIRABLE_TLS_FAILURE),
         environment_original_identity=_identity(8) if environment_present else None,
         environment_sha256="c" * 64 if environment_present else None,
         environment_file_attributes=0x20 if environment_present else None,

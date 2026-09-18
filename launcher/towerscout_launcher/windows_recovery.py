@@ -84,6 +84,7 @@ from .windows_recovery_journal import (
     RecoveryJournalError,
     RollbackArmedRecord,
     RollbackProviderOutcome,
+    RollbackReadinessCondition,
     RollbackRuntimeAvailableRecord,
     RollbackRuntimeRestartedRecord,
     RollbackRuntimeRestartingRecord,
@@ -104,6 +105,14 @@ from .windows_recovery_journal_storage import (
     load_persisted_environment_journal_chain_from_held_root,
 )
 from .windows_recovery_runtime_authority import RollbackRuntimeRecoveryAuthority
+from .windows_recovery_readiness_authority import (
+    rollback_readiness_evidence_sha256,
+)
+from .windows_recovery_verification_authority import (
+    RollbackVerificationAuthority,
+    derive_rollback_verification_authority,
+    rollback_readiness_condition_restored,
+)
 from .windows_path_trust import PathHierarchyTrust, PathTrustPurpose
 from .windows_security import StableFileIdentity, WindowsSecurityError
 
@@ -833,6 +842,7 @@ class RollbackVerificationEvidence:
     container_evidence_sha256: str = field(repr=False)
     volume_evidence_sha256s: tuple[str, ...] = field(repr=False)
     readiness_evidence_sha256: str = field(repr=False)
+    readiness_condition: RollbackReadinessCondition
     provider_outcome: RollbackProviderOutcome
     environment_exact: bool
     certificates_exact: bool
@@ -848,6 +858,12 @@ class RollbackVerificationEvidence:
             or _SHA256.fullmatch(self.environment_evidence_sha256) is None
             or _SHA256.fullmatch(self.certificate_evidence_sha256) is None
             or _SHA256.fullmatch(self.readiness_evidence_sha256) is None
+            or type(self.readiness_condition) is not RollbackReadinessCondition
+            or self.readiness_evidence_sha256
+            != rollback_readiness_evidence_sha256(
+                self.target_token_sha256,
+                self.readiness_condition,
+            )
             or not _valid_runtime_evidence_values(
                 self.runtime_evidence_sha256,
                 self.container_evidence_sha256,
@@ -873,7 +889,7 @@ class RollbackVerificationPort(Protocol):
         self,
         package_root: PathHierarchyTrust,
         stream: JournalStreamIdentity,
-        restarted: RollbackRuntimeRestartedRecord,
+        authority: RollbackVerificationAuthority,
     ) -> RollbackVerificationEvidence: ...
 
 
@@ -3160,7 +3176,13 @@ def persist_rollback_verified_generation_from_held_package_root(
             )
         ):
             _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
-        restarted = generations[14].record
+        try:
+            authority = derive_rollback_verification_authority(
+                stream,
+                chain.selection,
+            )
+        except (TypeError, ValueError):
+            _fail(WindowsRecoveryErrorCode.AUTHORITY_INVALID)
         if len(generations) == 16:
             current = _ensure_pointer(
                 root_path,
@@ -3175,7 +3197,7 @@ def persist_rollback_verified_generation_from_held_package_root(
             evidence = verification.verify_rollback_while_package_root_held(
                 package_root,
                 stream,
-                restarted,
+                authority,
             )
         except WindowsRecoveryError:
             raise
@@ -3185,9 +3207,18 @@ def persist_rollback_verified_generation_from_held_package_root(
             type(evidence) is not RollbackVerificationEvidence
             or evidence.target_token_sha256 != stream.target_token_sha256
             or evidence.package_root_identity != stream.package_root_identity
-            or evidence.runtime_evidence_sha256 != restarted.runtime_evidence_sha256
-            or evidence.container_evidence_sha256 != restarted.container_evidence_sha256
-            or evidence.volume_evidence_sha256s != restarted.volume_evidence_sha256s
+            or evidence.environment_evidence_sha256
+            != authority.environment_evidence_sha256
+            or evidence.certificate_evidence_sha256
+            != authority.certificate_evidence_sha256
+            or evidence.runtime_evidence_sha256 != authority.runtime_evidence_sha256
+            or evidence.container_evidence_sha256 != authority.container_evidence_sha256
+            or evidence.volume_evidence_sha256s != authority.volume_evidence_sha256s
+            or not rollback_readiness_condition_restored(
+                authority,
+                evidence.readiness_condition,
+                evidence.provider_outcome,
+            )
             or not evidence.environment_exact
             or not evidence.certificates_exact
             or not evidence.runtime_condition_restored
@@ -3455,6 +3486,7 @@ __all__ = [
     "RollbackRuntimeAvailabilityPort",
     "RollbackRuntimeRestartEvidence",
     "RollbackRuntimeRestartPort",
+    "RollbackVerificationAuthority",
     "RollbackVerificationEvidence",
     "RollbackVerificationPort",
     "RecoveryCleanupEvidence",
