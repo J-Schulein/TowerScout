@@ -75,6 +75,7 @@ def test_selected_torch_pair_is_pinned_consistently():
 
 
 def test_cross_device_harness_is_commit_pinned_and_isolated():
+    dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
     harness = (REPO_ROOT / "scripts" / "task098-qualify-ml.ps1").read_text(
         encoding="utf-8"
     )
@@ -88,6 +89,13 @@ def test_cross_device_harness_is_commit_pinned_and_isolated():
     assert "--rm" in harness
     assert "--read-only" in harness
     assert "--gpus" in harness
+    assert "BuildCaBundlePath" in harness
+    assert "id=towerscout_build_ca,src=$resolvedBuildCa" in harness
+    assert (
+        "--mount=type=secret,id=towerscout_build_ca,required=false" in dockerfile
+    )
+    assert "PIP_CERT=/run/secrets/towerscout_build_ca" in dockerfile
+    assert "--trusted-host" not in dockerfile
     assert "source_commit" in probe
     assert "output_matches_declared_tolerance" in probe
     assert "selected_devices_match_request" in probe

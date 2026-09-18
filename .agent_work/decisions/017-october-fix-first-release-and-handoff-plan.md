@@ -1,8 +1,23 @@
 # ADR-017: October Fix-First Release And Handoff Plan
 
-**Status**: Accepted
+**Status**: Accepted - release naming/signing sequence superseded in part by
+ADR-019
 **Date**: July 23, 2026
 **Decision Owners**: Project lead and cdcai owner
+
+**Supersession Note (August 19, 2026)**: ADR-019 preserves this ADR's immutable
+`v0.1.2`, fix-first fork, cdcai hold, runtime matrix, and owner-approval
+boundaries. It replaces the single candidate line with unsigned
+`v0.1.3-preview.N` prereleases followed by Task-100 production signing and
+signed `v0.1.3-rc.N` candidates in October.
+
+**Execution-Order Note (September 16, 2026)**: The canonical October roadmap
+now controls the current task sequence: finish Task-087 Gate A and make the PR
+#67 merge decision; complete Task-096 native Start/Open/Stop/Restart; complete
+Task-102 native first-run setup; resume Task-087 Gate B normal-package
+integration; then complete Task-097 Docker/Podman CPU/GPU qualification. This
+note preserves the original July decision while superseding its Stop-only
+Task-096 shorthand and any implication that Gate B immediately follows Gate A.
 
 ## Decision
 

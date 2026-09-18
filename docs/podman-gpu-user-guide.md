@@ -52,6 +52,11 @@ Podman must be installed, the Podman machine must be running, the Compose
 provider must be available, and NVIDIA CDI must be validated before entering
 the `.\setup-towerscout.cmd` GPU command.
 
+On Windows, TowerScout also requires the selected Podman machine to report
+`"Rootful": false` from `podman machine inspect`. The launcher does not switch
+Podman modes automatically. Rootful and rootless stores are separate, and this
+rootless forwarding prerequisite does not by itself qualify the GPU profile.
+
 Useful checks from PowerShell:
 
 ```powershell
@@ -60,6 +65,7 @@ wsl --list --verbose
 nvidia-smi
 podman --version
 podman machine list
+podman machine inspect
 podman compose version
 ```
 

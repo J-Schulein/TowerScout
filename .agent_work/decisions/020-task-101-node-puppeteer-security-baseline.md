@@ -63,12 +63,18 @@ downloads and makes the Task-087 jobs' executable source explicit.
 - The Docker frontend stage now resolves a maintained Node 22 image.
 - CommonJS Puppeteer consumers remain supported and are covered by an explicit
   CI smoke assertion.
-- Task-087 remains paused. PR #72 and default-branch dependency reconciliation
-  later passed; this decision still does not resume Task-087. Resumption
-  requires semantic integration into PR #67 and green checks at that branch's
-  new exact head, in that order.
+- PR #72 and default-branch dependency reconciliation passed, PR #73 recorded
+  the checkpoint, and current `main` through `9276084` was semantically
+  integrated into PR #67. Reconciliation commit `946deaf` then passed
+  exact-head CI/CD run `32383065903` and Task-087 run `32383065959`, satisfying
+  Task-101's remaining acceptance gate. This governance transition marks
+  Task-101 complete and explicitly resumes Task-087 from its preserved
+  checkpoint. Because it creates a new PR #67 head, no further implementation
+  proceeds until CI/CD and Task-087 workflows pass at that governance head.
 - ADR-016 Decision 2 is superseded only for its Node minimum. Its tracked
   `package-lock.json` and `npm ci` reproducibility policy remains authoritative.
+- This transition does not alter ADR-019's unsigned-preview sequence or
+  Task-100's production-signing and representative managed-endpoint scope.
 
 ## Validation And Review
 
@@ -80,8 +86,16 @@ PR #72 CI/CD run `32300398378` and Task-087 compatibility run `32300398377`
 passed at implementation head `a87ab53`. Final-head runs `32308971393` and
 `32308971392` then passed at `820b649`, and PR #72 squash-merged as `0cc189c`.
 Exact-main runs `32310281115` and `32310281051` passed; alert `#76` closed as
-fixed with no dismissal metadata. PR #67 integration/validation remains the
-separate acceptance gate recorded in Task-101.
+fixed with no dismissal metadata. PR #73 then recorded that checkpoint and
+squash-merged as `9276084`; exact-main runs `32377736719` and `32377736797`
+passed. The current-main integration is present in PR #67. Reconciliation
+commit `946deaf` then passed exact-head CI/CD run `32383065903` and Task-087 run
+`32383065959`, satisfying Task-101's final acceptance gate. This governance
+update records Task-101 complete and Task-087 explicitly resumed. Lifecycle
+head `6e0f744` subsequently passed CI/CD run `32385304086` and Task-087 run
+`32385304052`, closing the temporary downstream revalidation hold. The later
+Task-087 technical/security review-remediation gate does not reopen Task-101 or
+change ADR-019 and Task-100 boundaries.
 
 Review this decision when Puppeteer raises its Node minimum, TowerScout changes
 browser acquisition tooling, Node 22 leaves maintenance, or a new critical/high

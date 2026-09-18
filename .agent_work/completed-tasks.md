@@ -1,6 +1,6 @@
 # Completed Tasks
 
-**Last Updated**: August 11, 2026
+**Last Updated**: August 20, 2026
 **Current Retention Window**: Sprint 06 through current Sprint 09 completions
 **Historical Snapshot**:
 [`2026-07-23-pre-rebaseline-completed-tasks.md`](./context/archive/2026-07/2026-07-23-pre-rebaseline-completed-tasks.md)
@@ -12,6 +12,32 @@ files remain under `tasks/completed/`, and older summaries are preserved under
 ---
 
 ## Sprint 09 Completed Tasks (August 8-August 21, 2026)
+
+### TASK-101: extract-zip Advisory Assessment And Release-Gate Disposition
+
+**Status**: COMPLETED
+**Completed**: August 20, 2026
+**Task File**:
+[`TASK-101-extract-zip-advisory-release-gate.md`](./tasks/active/TASK-101-extract-zip-advisory-release-gate.md)
+
+Key outcomes:
+
+- Established the maintained Node `>=22.12.0` / exact Puppeteer `25.8.0`
+  baseline and removed vulnerable development-transitive `extract-zip` from
+  the lock and installed graphs without an override, forced downgrade, audit
+  weakening, or alert dismissal.
+- Squash-merged PR #72 as `0cc189c`; exact-main validation passed and alert
+  `#76` closed as fixed with every dismissal field null.
+- Preserved PR #73's governance checkpoint at `9276084`, then integrated that
+  current `main` into Draft PR #67 while retaining ADR-019 and all recorded
+  Task-087 evidence.
+- Passed CI/CD run `32383065903` and Task-087 run `32383065959` at exact
+  reconciliation head `946deaf`, with all required jobs successful.
+- Explicitly resumed Task-087 through a separate lifecycle update without
+  claiming PR merge, package, preview, candidate, runtime, or managed-endpoint
+  acceptance. Lifecycle head `6e0f744` passed CI/CD run `32385304086` and
+  Task-087 run `32385304052`; later Task-087 review remediation is tracked
+  separately and does not reopen Task-101.
 
 ### TASK-099: August Dependency Advisory Follow-Up
 
@@ -120,8 +146,9 @@ Key outcomes:
 
 ### Sprint 07 Carry-Forward
 
-- `TASK-087` completed its merged non-mutating proof and is reselected for the
-  fix-first candidate after `TASK-090`.
+- `TASK-087` completed its merged dormant-helper Gate 3 non-mutating proof and
+  was reselected for the fix-first candidate after `TASK-090`. That historical
+  proof is distinct from the later ADR-018 launcher feasibility work.
 - `TASK-089` remains owner-gated; preparation may continue, but cdcai must not
   be changed before final owner qualification and adoption approval.
 - `TASK-095` begins in Sprint 08 with the Phase A roadmap/workspace rebaseline.

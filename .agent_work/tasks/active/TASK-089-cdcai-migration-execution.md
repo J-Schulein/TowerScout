@@ -8,18 +8,18 @@ but do not change cdcai until explicit owner adoption approval
 **Target Sprint**: Standing handoff lane through October 30, 2026
 **Created**: 2026-07-08
 **Owner**: TowerScout release owner / active agent support with cdcai maintainer participation
-**Depends On**: completed `TASK-088`; Tasks 090, 098, 087, 096, and 097; final
-candidate qualification; pilot feedback review; official cdcai tag/title
-selection; explicit cdcai-owner adoption approval; execution-time repository
-and package permissions; approved durable backlog destination
+**Depends On**: completed `TASK-088`; Tasks 090, 098, 087, 096, 097, and 100;
+signed final-candidate qualification; pilot feedback review; official cdcai
+tag/title selection; explicit cdcai-owner adoption approval; execution-time
+repository and package permissions; approved durable backlog destination
 
 ## Objective
 
 Prepare a safe, reviewable adoption package without changing
 `cdcai/TowerScout` during pilot and candidate qualification. After the project
-lead and cdcai owner qualify the final candidate, select the official cdcai tag
-and display title, build the official image/package consistently, and execute
-the transfer only after explicit adoption approval.
+lead and cdcai owner qualify the signed final candidate, select the official
+cdcai tag and display title, build the official image/package consistently,
+and execute the transfer only after explicit adoption approval.
 
 ## July 23, 2026 Rebaseline Override
 
@@ -27,8 +27,9 @@ This override controls wherever older historical entries below conflict:
 
 - `v0.1.2` remains the immutable Pilot Package, not the automatic migration
   baseline.
-- Fork candidates use `v0.1.3-rc.N`; those names do not reserve the final
-  cdcai tag.
+- Fork unsigned previews use `v0.1.3-preview.N`, and signed candidates use
+  `v0.1.3-rc.N` within Task-100; the RC is published only after qualification,
+  and neither name reserves the final cdcai tag.
 - The final cdcai tag and display title are selected before the official build.
 - Candidate ZIPs are not simply renamed; official images, packages, manifests,
   checksums, filenames, source refs, and documentation must agree.
@@ -36,6 +37,17 @@ This override controls wherever older historical entries below conflict:
   explicit owner adoption approval.
 - The Markdown backlog is the current transfer format. GitHub Issues may be
   added later by owner decision.
+
+## August 19, 2026 Signing Sequence Override
+
+- Unsigned fork previews use `v0.1.3-preview.N`; they are feedback artifacts,
+  not cdcai adoption candidates.
+- Task-100 builds/signs the fork candidate under `v0.1.3-rc.N` and publishes
+  those exact bytes only after representative managed-endpoint qualification.
+- Task-089 may prepare reversible handoff material before Task-100, but cdcai
+  release execution requires Task-100 completion, signed-candidate owner
+  qualification, final cdcai identity selection, and explicit adoption
+  approval.
 
 ## Canonical Planning Sources
 
@@ -89,6 +101,9 @@ tracks preparation now and owner-approved execution later.
   durable destination.
 - WHEN cdcai release recreation completes, THE SYSTEM SHALL verify the rebuilt
   artifacts, public pulls, source traceability, and a clean package smoke path.
+- WHEN Task-089 release execution begins, THE PROJECT SHALL require Task-100's
+  signed-candidate and representative managed-endpoint acceptance record and
+  SHALL NOT adopt an unsigned preview as the official cdcai release.
 
 ## Acceptance Criteria
 
@@ -100,6 +115,8 @@ tracks preparation now and owner-approved execution later.
       selected tags, image/package choices, evidence, backlog, and verification
       sequence without executing them against cdcai.
 - [ ] The cdcai owner explicitly approves the adoption baseline after feedback.
+- [ ] Task-100 production signing and representative managed-endpoint
+      qualification are complete for the owner-qualified candidate.
 - [ ] cdcai collaborator write and package-publish ownership are confirmed for
       the approved execution window.
 - [ ] The selected stable history and tags are pushed without force or bulk-tag
@@ -123,6 +140,7 @@ tracks preparation now and owner-approved execution later.
 - `TASK-088` completed pilot distribution readiness and durable handoff
   custody on 2026-07-22.
 - Pilot feedback must be collected and reviewed.
+- Task-100 must complete after the unsigned package is declared satisfactory.
 - The cdcai owner must explicitly approve the version to adopt; technical
   access alone does not authorize migration.
 - cdcai maintainer decisions are required for collaborator write, GHCR package
@@ -134,9 +152,10 @@ tracks preparation now and owner-approved execution later.
 
 1. Prepare the migration-ready handoff and record the exact candidate inputs;
    do not change cdcai.
-2. Wait for pilot feedback review and explicit owner adoption approval.
-3. Confirm execution-time repository, Actions, package, and feedback/backlog
-   ownership.
+2. Wait for Task-100 signed qualification, pilot feedback review, and explicit
+   owner adoption approval.
+3. Confirm execution-time repository, Actions, package, signing, and
+   feedback/backlog ownership.
 4. Push only the approved history/tag set using the reviewed non-destructive
    sequence.
 5. Copy or rebuild images under cdcai ownership and rebuild packages as needed.
@@ -311,6 +330,33 @@ or test files changed; and the Flask docs/route contract suite passed
 (`57 passed`).
 **Next**: Wait for the project lead's actionable feedback summary and the
 cdcai owner's adoption decision.
+
+### 2026-08-19 - Signed-Candidate Dependency Added
+
+**Objective**: Align cdcai adoption with the preview-first, October-signing
+sequence without beginning migration.
+
+**Context**: The project lead chose to refine unsigned normal-user packages
+before production signing. Unsigned previews can support fork-side feedback,
+but they do not establish publisher identity or representative managed-endpoint
+acceptance for an official cdcai release.
+
+**Decision**: Require Task-100's signed `v0.1.3-rc.N` and managed-endpoint
+qualification record before Task-089 execution. Allow reversible handoff
+preparation to continue while keeping cdcai unchanged.
+
+**Execution**: Added Task-100 to Task-089's dependencies, requirements,
+acceptance criteria, and implementation order. Distinguished unsigned preview
+identities from signed candidates and the separately rebuilt official cdcai
+identity.
+
+**Output**: Task-089 remains owner-gated and cannot adopt an unsigned preview.
+
+**Validation**: Included in the August 19 agent-work documentation validation.
+
+**Next**: Prepare migration inputs as the package stabilizes, then wait for
+Task-100 completion, signed-candidate qualification, and explicit owner
+adoption approval.
 
 ---
 

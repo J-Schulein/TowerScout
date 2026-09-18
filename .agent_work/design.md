@@ -1,8 +1,8 @@
 # TowerScout Current Technical Design
 
-**Last Updated**: August 20, 2026
-**Scope**: Fix-first candidate development, four-profile runtime qualification,
-and cdcai handoff through October 2026
+**Last Updated**: September 17, 2026
+**Scope**: Unsigned fix-first preview iteration, four-profile runtime
+qualification, October production signing, and cdcai handoff
 **Archived Pre-Rebaseline Design**:
 [`2026-07-23-pre-rebaseline-design.md`](./context/archive/2026-07/2026-07-23-pre-rebaseline-design.md)
 
@@ -26,15 +26,70 @@ The application includes:
 
 ## Release And Repository Topology
 
-### During Candidate Development
+### During Preview And Candidate Development
 
 - `J-Schulein/TowerScout` hosts the immutable `v0.1.2` pilot.
-- The same fork is the development and validation surface for
-  `v0.1.3-rc.N` candidates.
+- The same fork publishes immutable unsigned `v0.1.3-preview.N` GitHub
+  prereleases for normal-user package refinement.
+- `v0.1.3-rc.N` is reserved for signed production-shaped candidates produced
+  through Task-100 after the package is satisfactory.
 - `cdcai/TowerScout` remains unchanged.
+
+### During Task-087 Validation
+
+- `feature/task-087-windows-launcher-prototype` remains a short-lived branch
+  reviewed through Draft PR #67. Historical rebased checkpoint `1908670` was
+  reconciled with then-current `main` commit `3932abf`; the evidence-bearing
+  branch then advanced to pre-merge head `c095389`. Normal merge head `946deaf`
+  integrates current `main` through PR #73 / `9276084` while preserving the
+  accepted launcher/runtime tree, ADR-019, and Sprint 09 evidence; CI/CD run
+  `32383065903` and Task-087 run `32383065959` passed at that exact head.
+- Validation artifacts are built only from an exact commit and use
+  `Task-087-validation-<short-SHA>` rather than either the
+  `v0.1.3-preview.N` or `v0.1.3-rc.N` release line.
+- The historical source-bound functional package was assembled from clean commit
+  `4327fb6288f4f8c83202f548a2ba7cb2dcf9bab6`, after launcher/runtime fixes in
+  `18082cf` and provenance hardening in `4327fb6`. It is evidence for that
+  historical source only; a new full-runnable package must use the accepted
+  post-reconciliation PR head.
+- No validation artifact receives a tag or GitHub Release. Executable transfer
+  uses only the organization-approved internal signing/endpoint-validation
+  channel; repository evidence contains hashes, source identity, sanitized
+  results, and no secrets or local certificate detail.
+- Validation artifacts do not mutate `main`. The frozen `v0.1.2` release and
+  `cdcai/TowerScout` remain unchanged, and Draft PR #67 does not merge to
+  `main` until its remaining technical/security and release gates pass.
+- The August 19 Proceed decision makes the Draft PR eligible for normal
+  technical/security review, merge, and separate preview-package integration.
+  Existing validation artifacts remain nonpublishable and do not themselves
+  authorize merge or release.
+
+### During Unsigned Preview Iteration
+
+The release-package integration path is separate from the Task-087 validation
+assembler:
+
+1. Build from an exact accepted commit and fresh digest-pinned image.
+2. Include the launcher and intended normal-user entry points in the real
+   control-package layout.
+3. Generate current manifests, checksums, source/SBOM/notices, release notes,
+   and unsigned/unmanaged-test-machine guidance.
+4. Publish immutable `v0.1.3-preview.N` only as a fork-side GitHub prerelease;
+   never mark it `Latest` or treat it as a signed RC.
+5. Test the actual download/extract/setup/use path on an approved clean
+   unmanaged Windows machine without security-disablement instructions.
+6. Repeat under a new preview identity until the ADR-019 satisfactory-package
+   gate is recorded.
+
+Task-100 then builds and signs the stable production-shaped package under a
+`v0.1.3-rc.N` identity in October, regenerates package metadata/checksums after
+signing, verifies the extracted signatures, and runs representative managed-
+endpoint qualification. Those exact bytes are published/frozen only after the
+Task-100 gates pass.
 
 ### At Final Adoption
 
+- Task-100's signed-candidate and managed-endpoint gate has passed.
 - The cdcai owner and project lead select the official tag and display title.
 - The official image, package, manifests, checksums, and documentation are
   built consistently for that identity.
@@ -59,39 +114,481 @@ wording of the frozen `v0.1.2` pilot.
 
 ## Provider TLS Design Boundary
 
-Task-087 owns guided repair for application-provider TLS:
+ADR-018 provisionally replaces the earlier browser-to-loopback-helper
+implementation direction with a time-boxed, reversible Windows launcher proof.
+The older helper design and evidence remain preserved in the Task-087 record,
+but they do not authorize helper activation during this checkpoint.
+
+The candidate flow is:
 
 1. Setup/Settings classifies a repairable Google or Azure certificate trust
    failure.
-2. The browser may request only an allowlisted repair operation.
-3. A package-local Windows helper binds to loopback and validates origin,
-   short-lived credentials, provider, engine, GPU mode, and confirmation.
-4. The helper calls TowerScout-owned scripts with fixed argument arrays.
-5. The selected engine's persistent config volume receives the combined CA
-   bundle.
-6. TowerScout restarts with the captured runtime profile.
-7. The command-based Task-086 repair remains available.
+2. The browser directs the user to a visible TowerScout launcher; it does not
+   issue a host operation.
+3. The package-local launcher identifies the exact package, engine, runtime
+   profile, and target, then presents a fixed operation and confirmation.
+4. The first proof is non-mutating status and TLS repair preview. It uses no
+   listener, dormant helper import, hidden worker, execution-policy bypass,
+   arbitrary command input, administrator-only setup, or Windows trust-store
+   mutation.
+5. After the non-mutating proof passed, the project lead authorized one
+   isolated native Google/Docker TLS transaction. It passed candidate staging,
+   verification, backup/recovery controls, same-profile restart, and named-
+   volume preservation; the combined packaged UI flow remains unvalidated.
+6. Unsigned preview iteration proceeds through the normal release-package path
+   after applicable technical/security review. Production signing and
+   representative managed-endpoint validation occur under Task-100 in October
+   after the package is satisfactory and before signed-candidate acceptance.
+7. The command-based Task-086 repair remains available throughout the proof
+   and becomes the supported disposition if the launcher fails.
+
+All existing browser/helper activation gates remain off, and PR #64 stays on
+hold. The August 19 Proceed decision applies to the separate launcher and
+preview-package path; it does not reactivate the dormant helper.
+
+The first authorized unsigned full-package run confirmed that the launcher and
+application do not need the dormant helper, but also exposed an unconditional
+helper import in ordinary PowerShell launch and stop. The validation design now
+requires normal launch/stop and Compose configuration to contain no helper
+activation dependency, and requires the end-user package to omit the helper
+scripts, state library, worker, and support page. Dormant source remains only as
+historical review material while the branch is unmerged.
+
+The rebuilt validation path has two deliberately separate package kinds:
+
+- `launcher-policy` is the small, non-runnable artifact for static launcher and
+  endpoint-policy review.
+- `full-runnable` overlays the same inspected launcher on the normal
+  digest-pinned control package for explicitly authorized functional testing.
+
+Both assemblers stage the package directory, ZIP, and adjacent checksum before
+publishing them as one transactional artifact set, and roll back any partially
+moved uncommitted set if publication fails. The August 20 technical/security review identified that
+the current assembler validates source inputs before copying them and can then
+checksum changed copied bytes. Before another artifact is relied on, the copied
+staged base and launcher become the sole provenance authority; the staged tree,
+internal checksums, ZIP inventory/content, sidecar, and source/build identity
+must be independently cross-verified before one final atomic commit marker makes
+the set consumable. A policy
+artifact must never be represented as runnable, and neither package kind is a
+release candidate.
+
+Runtime discovery is also a fixed, non-mutating contract. The launcher resolves
+only its allowlisted Docker or Podman executable and arguments, invokes the
+child with `shell=False`, disconnected standard input, captured output, and a
+five-second timeout. On Windows it sets `CREATE_NO_WINDOW` so a windowed
+PyInstaller parent does not stall while attaching a console for the runtime CLI
+child. Timeout and failure messages are sanitized; no caller-supplied command,
+shell text, environment dump, or raw runtime response is displayed.
+
+The source-bound `full-runnable` package passed a fresh isolated Docker CPU
+setup on August 5. Its control/asset sidecars and all 1,012 internal checksum
+records matched; verify-only preflight passed; asset staging/import completed
+with hash verification; and the unique port-5008 project created fresh volumes
+and reached healthy `setup_required` readiness with assets `ok`, one inference
+engine, CPU selected, and the exact pinned image digest.
+
+The August 6 manual preview checkpoint also passed. After a Windows reboot,
+the isolated Docker project automatically resumed with its persisted state, and
+the exact packaged launcher reported Docker running and reachable through three
+consecutive refreshes. Its preview displayed the expected fixed identity:
+`TowerScout Task-087-validation-4327fb6288f4 (cpu)`, Docker, GPU off, port 5008,
+and Google Maps. The preview explicitly performed no certificate inspection,
+trust change, container stop/restart, or dormant-helper execution. A provider
+key entered only in the Setup Wizard produced the sanitized expected
+`tls_ca_untrusted` category and Task-086 guidance for
+`.\scripts\repair-provider-tls.cmd -Provider google -Engine docker -Gpu off`.
+No key, raw provider response, or certificate detail was captured. A later,
+separately authorized source-adapter run performed one isolated Google/Docker
+repair and retained all eight named volumes; that result does not substitute
+for exact-source packaged UI, Azure, recovery-injection, or Podman validation.
+
+At this host's display scaling, the normal-size launcher window clipped its
+bottom controls; maximizing the window exposed them. This was a non-blocking UI
+follow-up for the later source. All results described in this historical
+checkpoint remain authorized unsigned development-workstation evidence only:
+the artifact is not a preview, release candidate, or release, and no cdcai
+mutation is authorized by that evidence. Later exact-source package results are
+recorded in Task-087. Technical/security review at current head `6e0f744`
+requested source remediation before merge; the later gates remain a newly
+integrated normal-user preview package, clean unmanaged-machine feedback, and
+later Task-100 signing/representative managed-endpoint qualification. The
+current historical evidence is
+[`FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md`](./tasks/active/TASK-087/FULL-PACKAGE-VALIDATION-EVIDENCE-2026-08-05.md);
+the earlier review packet is retained as historical static-review evidence.
+
+Prototype technology selection, August 5: use Python 3.12 with Tkinter and a
+conservative PyInstaller one-directory package (`windowed`, `UPX` disabled).
+This reuses TowerScout's maintained Python/pytest toolchain and the available
+Windows Tk runtime. The validation host has .NET desktop runtimes but no .NET
+SDK, so .NET would add an unproven build and maintenance lane during the
+time-boxed checkpoint. Revisit the selection if endpoint/deployment policy
+requires .NET or rejects Python/PyInstaller applications.
 
 Podman-machine image-pull/build TLS is outside this application-provider flow
 and belongs to Task-097.
 
-## Exit/Stop Design Boundary
+### PR #67 Technical/Security Remediation Boundary - August 20
 
-Task-096 will reuse the secured host-control pattern without exposing Docker or
-Podman sockets to the application container.
+The independent review at exact head `6e0f744` confirmed that fixed argument
+arrays, `shell=False`, sanitized output, typed confirmation, helper removal, and
+the no-volume-delete path are useful controls, but not sufficient. The current
+implementation resolves mutable runtime/provider identity, discovers material
+container/mount state after confirmation, performs best-effort rollback, stores
+recovery only in process memory, and validates package inputs before copying.
 
-Expected sequence:
+The controlling detailed design is
+[`TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md`](./tasks/active/TASK-087/TECHNICAL-SECURITY-REMEDIATION-DESIGN-2026-08-20.md).
+Its architecture is:
 
-1. User selects Exit/Stop TowerScout.
-2. UI explains that TowerScout will stop while saved data remains.
-3. User confirms.
-4. The host helper validates the request and captured runtime profile.
-5. The package-local stop path runs for Docker or Podman.
-6. The container is removed without deleting named volumes.
-7. The browser shows a final status or manual fallback when the helper cannot
-   complete.
+1. Resolve one immutable internal target before confirmation. Bind the package
+   handle identity, authenticated runtime/Compose executables, captured local
+   Docker named-pipe endpoint or rootless local Podman URI/identity key,
+   normalized pre/post Compose model, actual container/image, config mount, all
+   eight engine-specific named-volume identities, requested/effective GPU
+   profile, provider, and private CA candidate. Context/connection names are
+   metadata, not execution authority.
+2. Invoke only captured absolute executable identities with fixed arguments and
+   an adapter-specific minimal environment. Ambient PATH/current-directory,
+   Docker, Podman, Compose, proxy, and CA variables cannot redirect execution.
+3. Select exact Compose files by engine/profile, validate the one-service
+   security model, reject bind/control-socket mounts or unexpected privilege,
+   and revalidate the stage-appropriate target before writes and restart.
+4. Permit server/Windows-`CA` intermediates but terminate TLS verification only
+   at a server-auth/all-purpose-eligible Windows `ROOT`; export only that root
+   and never mutate the store.
+5. Serialize mutation across Windows sessions by verified
+   endpoint/project/config-volume identity. Use a protected per-user Local
+   AppData write-ahead journal and current-user DPAPI-encrypted exact backups.
+   Repair and provider-installer paths share the `.env` lock and scan each
+   other's pending state before mutation. Startup blocks new repair until
+   authenticated incomplete recovery commits, rolls back idempotently, or
+   remains explicitly recovery-pending with its protected data retained.
+   If rollback preparation fails before authenticated `rollback_armed`, rescan
+   durable state and reconcile only `backup_preparing`, `backup_verified`, or a
+   stale-pointer `aborted_without_mutation` chain through exact encrypted-blob
+   deletion and terminal pointer repair. Never route those states into rollback.
+6. Check and verify every rollback action. Never clear backup state after an
+   unverified restore, and never report generic failure as safe rollback.
+7. Use handle/file-ID/reparse/DACL checks and ACL-preserving atomic `.env`
+   replacement. Stable supported OneDrive/cloud locations remain usable; unsafe
+   leaf redirects, mutable-file hard links, identity changes, or broad writable
+   ACLs fail before mutation. A legitimate vendor-executable hard link is
+   eligible only while a held handle denies write/delete sharing and its exact
+   file identity, content hash, and accepted Authenticode result remain stable.
+8. Remove the provider installer's persistent plaintext root `.env` backup.
+   Validate copied staged package bytes, exact archive/sidecar agreement, and a
+   explicitly approved exact-patch/hash-locked Python 3.12 provenance-v2 build
+   before another validation artifact or unsigned preview.
 
-Exact endpoint and lifecycle details remain Task-096 design work.
+The source-remediation gate is distinct from the preview-integrity gate and the
+Task-100 signing gate. Source correction must not add a helper/listener,
+launcher-issued PowerShell, administrator requirement, Windows-store mutation,
+runtime-default change, or volume deletion. Task-100 still owns the
+organization-controlled rebuild, signing/timestamping, post-sign metadata, and
+representative managed-endpoint qualification after package satisfaction.
+The existing non-external volumes retain normal first-run behavior; an actor
+with independent daemon mutation authority is outside the launcher boundary,
+and any resulting identity replacement must remain recovery-pending rather than
+being reported as successful repair or rollback.
+
+As of September 15, the canonical Gate A burn-down records slices 1-3 as
+complete, slices 4-6 and 8 as partial, slice 7 as not started, and slice 9 as
+continuing validation. Independently reviewed implementation checkpoint
+`2edcb8e` adds the protected Local AppData/current-user DPAPI foundation.
+Slice 5 now has independently reviewed, handle-bound secure absence ownership
+for the exact package-root `.env`, checkpointed at `14b77e4`. Its next pure,
+unwired prerequisite is committed, independently reviewed, and exact-head
+validated at `0efeff7`:
+strict bounded UTF-8/BOM/NUL validation, exact two-setting byte transformation,
+newline/trailing-form preservation, immutable original/candidate hashes, and
+exact original/candidate/absent/third-state classification. Documentation head
+`2996df1` passed its exact-head checks. Independently reviewed and pushed
+implementation checkpoint `1c45445` was the validated exact branch head for
+this staging increment: CI/CD run `35005869321`, Task-087 run `35005869200`,
+and Trivy passed;
+the main-only build skipped as designed. It adds an unwired journal port and
+private native temp-staging boundary. It holds package-root trust while a
+durable planned receipt precedes restrictive same-directory `CREATE_NEW`;
+verifies zero-byte identity and exact current-user/SYSTEM DACL before requiring
+the created receipt; completes bounded writes and `FlushFileBuffers`; then
+verifies same-handle bytes and a no-follow reopened identity, DACL, and hash
+before accepting the verified receipt. No production durable journal provider,
+promotion, replacement, deletion, cleanup, recovery, or repair integration
+exists yet. Mutation remains disabled, PR #67 remains Draft, and the detailed
+current state and remaining outcome sequence are maintained in the
+[`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md).
+
+Documentation checkpoint `42180b1` passed exact-head CI/CD run `35006846090`,
+Task-087 run `35006846025`, and Trivy; the main-only build skipped as designed.
+Independently reviewed and exact-head validated Slice 6 checkpoint `8bb6b33`
+defines strict canonical JSON for the
+planned/created/verified environment-temp generation records, protects and
+authenticates each generation through the existing current-user DPAPI boundary,
+and links transitions by the actual predecessor ciphertext digest. The selector
+accepts only sealed generations, authenticates every candidate internally, and
+returns only decoded generations plus verified ciphertext digests after choosing
+one complete chain. Missing or ancestor pointers are classified for later
+repair; foreign, future, branched, gapped, cross-stream, drifted, noncanonical,
+or unauthenticated records fail closed. This pure layer does not enumerate or
+persist journal files, mutate a pointer, implement encrypted backups or
+recovery, clean an orphan, stage a package file, promote `.env`, or integrate
+with repair/runtime code.
+
+A reviewed, unwired checkpoint at `53bed46` defines the next pure storage
+boundary. The
+protected-state owner exposes its internal root path only through a synchronous
+callback while every retained hierarchy handle remains revalidated and held.
+The storage orchestrator accepts an injected create/read/list port, derives
+opaque stream-scoped immutable generation names, authenticates the complete
+existing chain before create, requires create-only write evidence with a new
+file identity and exact ciphertext, and authenticates the complete reread after
+create. Restart-style enumeration sorts bounded names, rejects malformed same-
+stream names and duplicate file identities, reconstructs only purpose-bound
+sealed blobs, and authenticates the selected chain. This candidate does not
+implement native file I/O or DACL checks, pointer files or repair, cleanup,
+recovery, staging integration, promotion/replacement, or runtime mutation.
+
+Independently reviewed and exact-head validated checkpoint `4a96dd2` composes
+the reviewed restrictive Windows file API with bounded root enumeration.
+Generation create uses `CREATE_NEW`, exact
+current-user/SYSTEM protected-DACL checks, complete bounded writes,
+`FlushFileBuffers`, same-handle verification, close, no-follow reopen, stable
+identity/path/local-volume/regular-file/single-link checks, and exact byte
+reread. Generation reads apply the same no-follow identity, DACL, size, and byte
+checks while the protected root callback remains active. Independent
+source/security reviews returned `CLEAN/PASS` with no actionable Low-or-higher
+findings. This checkpoint still does not write or repair the metadata pointer,
+recover, clean artifacts, wire staging/promotion, replace `.env`, or enable
+runtime mutation.
+
+Independently reviewed and exact-head validated checkpoint `221612c` adds a
+separate pointer storage port and keeps metadata pointer bytes subordinate to
+the authenticated generation chain.
+Present-invalid, foreign, unknown, and pointer-without-generation states fail
+closed; current pointers are no-ops; only missing or stale pointers may be
+repaired. The synthesized tip pointer is proved `CURRENT` before the injected
+write, then pointer and generations are reread under the same retained-root
+callback and must reproduce the exact chain, file identity, bytes, and
+`CURRENT` disposition.
+
+Independently reviewed and exact-head validated checkpoint `95ca37d` implements
+bounded no-follow pointer reads and
+same-directory `.journal-pointer-<32hex>.tmp` `CREATE_NEW` staging with the
+current-user/SYSTEM protected DACL. It completes bounded writes, flushes,
+verifies the temp on the creation handle and a no-follow reopen, closes both
+handles before calling `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`, proves
+the source name absent after reported success, and verifies the destination has
+the moved temp identity plus exact path, local-volume, regular-file,
+single-link, DACL, size, and bytes. A move API error remains an indeterminate
+`WRITE_FAILED`; the adapter neither deletes a surviving temp nor assumes
+whether the move occurred.
+
+Independently reviewed and exact-head validated checkpoint `ebb9d69` performs
+bounded same-call reconciliation after an ordinary move API error. It accepts
+success only when the source name is absent and the destination reopens with the
+exact pre-move temp identity, protected DACL, path, local regular single-link
+facts, size, and bytes. Source presence, destination absence or drift, and
+reconciliation I/O failure remain sanitized `WRITE_FAILED`; process-control
+exceptions propagate. The adapter does not delete either path. Restart
+classification, durable authenticated temp-identity binding, cleanup, backup/
+recovery action, staging/promotion integration, `.env` replacement, and runtime
+mutation remained unimplemented at that checkpoint.
+
+Exact-head validated checkpoint `31f63f2` adds the pure authenticated recovery-
+pointer transition and restart-classification model. Checkpoint `5252c7a`
+persists and fresh-process reloads its create-only transition generations under
+the held protected root. Independently reviewed implementation checkpoint
+`7341997` then consumes the authenticated plan to create, flush, close, reopen,
+and fully verify the exact named pointer temp before persisting
+`POINTER_TEMP_CREATED` with its stable identity. Docstring-only exact head
+`dd0d42d` accurately records that creation boundary. Independently reviewed and
+exact-head validated checkpoint `299ae96` adds a separate promotion-only port.
+Under the still-held protected root it authenticates the complete created chain,
+reconstructs canonical pointer bytes, verifies the exact recorded source and
+prior destination or prior absence, closes both verification handles, and moves
+only that source with `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`. Reported
+success and ordinary API-error reconciliation both require source absence plus
+the moved source identity, path, local regular single-link facts, protected
+DACL, size, and bytes at the destination; the existing two-state chain then
+classifies `MOVE_COMPLETED`. It does not delete files, create backups, perform
+recovery, replace `.env`, authorize repair, or mutate runtime state.
+
+Independently reviewed and exact-head validated checkpoint `53b618b` adds a
+separate cleanup-only port for the plan-only crash window. Only an authenticated
+`POINTER_TEMP_PLANNED` chain can request removal of its exact recorded name. The
+native adapter opens that leaf without following reparse points and with delete
+access, twice verifies zero size, exact path, local regular single-link facts,
+stable identity, and the protected current-user/SYSTEM DACL, marks that held
+handle for deletion, closes it, and proves name absence before exact creation is
+retried. A written or drifted object is preserved; `POINTER_TEMP_CREATED` is
+never routed through cleanup. Backup/recovery action, `.env` replacement,
+repair authorization, and runtime mutation remain outside this boundary.
+
+Independently reviewed and exact-head validated checkpoint `d6ce415` adds pure,
+purpose-separated encrypted backup envelopes. Environment backup state records
+exact prior bytes or absence plus Windows file attributes and a security-
+descriptor snapshot. Certificate backup state records exact prior bytes or
+absence plus mode for the fixed local-CA and CA-bundle destinations. Both are
+bound to the complete journal stream and use distinct current-user DPAPI
+purposes. The checkpoint adds no backup-file persistence, journal state,
+restore authority, `.env` write, repair action, or runtime mutation.
+
+Independently reviewed and exact-head validated checkpoint `1ecfd5e` adds the
+first write-ahead recovery state without creating a backup blob. A strict
+singleton `backup_preparing` generation authenticates both sealed backup
+envelopes against the complete journal stream, derives only nonsecret exact-
+state summaries, records two distinct unpredictable fixed-format future blob
+names, persists immutably, and returns only after full authenticated reread.
+Legacy environment-temp-only chains remain accepted as separate incremental
+scaffolding; mixed or repeated backup-preparing chains fail closed. Actual blob
+persistence, `backup_verified`, `rollback_armed`, restore, and mutation remain
+outside this checkpoint.
+
+Independently reviewed and exact-head validated checkpoint `21aba57` consumes
+that write-ahead intent through a create-only backup-blob boundary. The current
+durable singleton is freshly enumerated, read, and authenticated while the
+protected root remains held across both creates. Only the two recorded names
+may receive the purpose-separated DPAPI ciphertexts; each file uses
+`CREATE_NEW`, the protected current-user/SYSTEM DACL, complete write plus flush,
+and same-handle and no-follow reopen verification of identity, path, local
+regular single-link facts, security, size, and exact bytes. Partial or
+ambiguous artifacts are preserved for later classification. No list, delete,
+move, replace, restore, journal advance, or mutation authority is exposed;
+`backup_verified`, `rollback_armed`, recovery, and mutation remain open.
+
+Independently reviewed and exact-head validated checkpoint `92acf29` adds the
+next authenticated write-ahead state. It reauthenticates the original sealed
+environment and certificate backups, reloads the singleton preparation while
+the protected root is held, and rereads both exact planned blob leaves without
+following reparse points. Stable identity, path, local regular single-link
+facts, protected current-user/SYSTEM DACL, ciphertext size, and ciphertext hash
+must match before immutable generation 2 records `backup_verified`; the whole
+chain is then reread and authenticated under the same root hold. The preparation
+generation remains hash-linked authority for the blob names. No pointer update,
+`rollback_armed`, restore, cleanup, repair, or runtime mutation is added.
+
+Independently reviewed and exact-head validated checkpoint `deee6ab` adds the
+next authenticated write-ahead state. It reloads exactly the authenticated
+`backup_preparing` and `backup_verified` generations under one held protected-
+root interval, reconstructs both expected blob receipts only from those durable
+records, freshly reverifies both exact files, and appends and reauthenticates
+generation 3 `rollback_armed`. The record is hash-linked to generation 2 and
+duplicates its stable identities, ciphertext hashes, and sizes as arm-time
+proof. No caller-supplied receipt authority, pointer update, restore, cleanup,
+`.env` replacement, certificate write, repair, or runtime mutation is added.
+
+Independently reviewed and exact-head validated checkpoint `7b96a6b` activates
+only that authenticated armed generation. It reloads exactly the three-
+generation chain and reconstructs both expected receipts only from its durable
+records while retaining one protected-root hold, freshly reverifies both exact
+encrypted blobs, and then ensures that the metadata pointer names the exact
+generation-3 `rollback_armed` hash. Missing and generation-2 pointers use the
+existing verified write-through replacement contract; an already-current
+pointer is verified without replacement, and a failed replacement is safely
+retryable. No recovery action, cleanup, `.env` replacement, certificate write,
+repair, or runtime mutation is added.
+
+Independently reviewed and exact-head validated checkpoint `b12280d` adds the
+fresh-process admission boundary for rollback without performing rollback. It
+accepts only the exact authenticated three- or four-generation chain, validates
+the intermediate `backup_verified` and `rollback_armed` records, derives both
+expected blob receipts from durable authority, and freshly reverifies both
+encrypted backups under one protected-root hold. A three-generation retry first
+selects the exact armed tip, then appends and selects generation 4
+`rollback_started`; a four-generation retry performs no append and only
+verifies or repairs the exact started pointer. No decryption, restore, cleanup,
+`.env` replacement, certificate write, repair, or runtime mutation is added.
+
+Independently reviewed and exact-head validated checkpoint `56ba458` adds the
+first rollback-action write-ahead state without applying it. A fresh process
+reads both exact encrypted blobs through held-handle path/identity/hash/DACL
+verification, authenticates both backups against the durable stream, and
+matches their complete summaries to generation 1 before appending and selecting
+generation 5 `environment_restore_temp_planned`. An originally present `.env`
+is bound to one unpredictable same-directory temp name and its exact original
+hash/size/security summary; secure absence records no temp name. Retry repairs
+only the exact generation-5 pointer without a duplicate generation or name. No
+temp file is created and no restore, cleanup, package-file, certificate, repair,
+or runtime mutation is added.
+
+Independently reviewed and exact-head validated checkpoint `a37cf8a` advances the
+read-only recovery boundary without applying that plan. The chain through
+`ec2e2d5` and `5b337a7` defines generation 6
+`environment_restore_temp_created` and a native storage primitive that creates
+or reconciles only the planned zero-byte restore temp under held package-root
+trust. The chain through `30e7529`, `cc5183a`, and `51f0673` discovers and
+authenticates all journal streams, classifies repair and provider-environment
+protocols by package identity, and scans after the package/`.env` mutex but
+before target-lock acquisition. Checkpoint `a37cf8a` makes that typed scan
+evidence mandatory for every retained transaction lock, blocks provider-
+environment pending state, and retains repair pending state only as immutable
+owner evidence. At that checkpoint, generation-6 orchestration remained
+unwired; no restore content, cleanup, replacement, certificate write, repair,
+or runtime mutation was added.
+
+Independently reviewed and exact-head validated checkpoint `57e280e` wires the
+generation-6 orchestration boundary without activating recovery. While the
+caller retains matching package-root trust, it accepts only the authenticated
+five- or six-generation chain. For an originally present `.env`, it creates
+only the exact planned zero-byte temp through the narrow native storage port
+and records its stable identity; secure absence performs no storage call. A
+retry from generation 6 reverifies that exact identity before repairing only
+the exact pointer, with no duplicate append or create. Restore content, `.env`
+replacement/removal, completed-transaction cleanup, certificate writes, repair
+activation, and runtime mutation remain outside this boundary.
+
+Independently reviewed checkpoints `1eb3363` and `d9f6563` extend that boundary
+through generation 7 `environment_restore_temp_verified`. A fresh process reads
+and authenticates the exact environment backup, matches its complete original
+state to durable authority, opens only the recorded generation-6 temp without
+truncation or reparse following, writes the exact bytes, flushes, rereads, then
+closes/reopens and verifies path, volume, stable identity, DACL, size, and hash.
+Exact complete crash residue is reverified without another write; partial or
+mismatched residue remains preserved and blocking. Secure absence makes no
+storage call. Generation 7 appends at most once and retry repairs only its exact
+pointer. This does not replace/remove `.env`, write certificates, clean
+artifacts, activate repair, or mutate runtime state.
+
+## Launcher Front-Door Design Boundary
+
+Task-087 Gate A establishes the accepted exact-target, native execution,
+locking, recovery, and sanitization foundation. After Gate A source acceptance
+and the PR #67 merge decision, Task-096 consumes that foundation before Task-087
+Gate B package integration. Task-096 does not wait for a preview package and
+does not expand PR #67.
+
+Task-096 owns state-driven lifecycle controls:
+
+1. `Start` is available for an initialized stopped package and starts the exact
+   captured Docker/rootless-Podman CPU/GPU profile.
+2. `Open` is available only after bounded readiness and opens the verified
+   loopback application URL.
+3. `Stop` requires confirmation and applies `compose down --remove-orphans`
+   semantics without volume deletion.
+4. `Restart` requires confirmation, stops and starts the same captured profile,
+   and verifies readiness.
+5. Every operation uses immutable fixed-argument plans, exact executable and
+   endpoint identities, the native contained child-process runner, sanitized
+   output, and the accepted coordination/recovery contracts.
+
+Task-102 then owns first-run setup:
+
+1. Validate package identity, manifests/checksums, required assets, selected
+   engine/profile, pinned image, and persistent-volume prerequisites.
+2. Import assets through the existing verified asset contract.
+3. Start the captured profile and wait for readiness.
+4. Open the browser Setup Wizard for provider-key entry and validation.
+
+Neither task invokes PowerShell, CMD/BAT wrappers, shell text, the dormant
+helper, or browser-supplied host commands. Provider keys remain outside the
+native launcher. Existing scripts remain support/emergency fallbacks until the
+integrated package passes Task-097 qualification.
+
+After Tasks 096 and 102 stabilize these surfaces, Task-087 Gate B integrates
+the launcher into the normal release-package path with staged-byte/archive and
+hash-locked provenance controls. Task-097 qualifies that integrated package
+across Docker CPU/GPU and Podman CPU/GPU.
 
 ## Podman Qualification Boundary
 
@@ -151,14 +648,23 @@ The current security boundary is:
    `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`.
    It is not present in the shipped Python runtime image or normal-user Windows
    package, but the maintained browser-install path can execute it.
-10. Active Task-101 established Node `>=22.12.0`, exact
+10. Task-101 established Node `>=22.12.0`, exact
     `puppeteer@25.8.0`, and `@puppeteer/browsers@3.2.1`. The resulting lock
     and installed graphs contain no `extract-zip`, and the blocking audit is
     clean. Final PR #72 CI/CD run `32308971393` and Task-087 run `32308971392`
     passed at `820b649`; PR #72 squash-merged as `0cc189c`. Exact-main CI/CD
     run `32310281115` and Task-087 run `32310281051` passed, and alert `#76`
-    closed as fixed without dismissal. PR #67 integration/exact-head validation
-    remains open; Task-087 stays preserved and paused until that gate passes.
+    closed as fixed without dismissal.
+11. PR #73 recorded the post-merge checkpoint and squash-merged as `9276084`;
+    exact-main CI/CD run `32377736719` and Task-087 run `32377736797` passed.
+    Draft PR #67 reconciliation head `946deaf` then passed CI/CD run
+    `32383065903` and Task-087 run `32383065959` while preserving ADR-019 and
+    the branch's evidence. Task-101 is complete. Lifecycle head `6e0f744` then
+    passed CI/CD run `32385304086` and Task-087 run `32385304052`, closing the
+    governance revalidation hold. Technical/security review requested source
+    remediation at that head. The project lead approved Gate A IMPLEMENT under
+    the August 20 design on August 21, so source work is active while PR #67
+    stays Draft.
 
 ## Task Dependency Flow
 
@@ -175,28 +681,40 @@ TASK-098 dependency-security remediation/disposition gate [COMPLETE]
 TASK-099 August advisory follow-up [COMPLETE]
         |
         v
-TASK-101 extract-zip advisory gate [IN PROGRESS: PR #67 RECONCILIATION]
+TASK-101 extract-zip advisory gate [COMPLETE]
         |
         v
-TASK-087 universal provider TLS repair [PAUSED / RECONCILIATION-GATED]
+TASK-087 Gate A secure native repair foundation [IN PROGRESS]
         |
         v
-TASK-096 user Exit/Stop
+TASK-096 launcher Start/Open/Stop/Restart
         |
         v
-TASK-097 Podman CPU/GPU qualification
+TASK-102 native launcher first-run setup
+   |
+   v
+TASK-087 Gate B normal-package integration
+   |
+   v
+TASK-097 Docker/Podman CPU/GPU package qualification
         |
         +--> TASK-058 only if schedule and risk gates pass
         |          |
         |          +--> TASK-059 only if remaining margin is safe
         |
         v
-TASK-091/092/093 qualification, docs, and recovery
+TASK-091 pre-sign harness + TASK-092/093 docs and recovery
         |
         +--> TASK-094 only if pilot/support evidence justifies it
         |
         v
-Final candidate freeze -> owner qualification -> TASK-089 adoption/handoff
+Satisfactory unsigned preview package
+        |
+        v
+TASK-100 production signing + representative managed-endpoint qualification
+        |
+        v
+Signed candidate freeze -> owner qualification -> TASK-089 adoption/handoff
 ```
 
 Task-095 Phase B spans the remaining work to keep governance, backlog, and
@@ -205,9 +723,14 @@ investigation cannot hide dependency upgrades, CPU/CUDA compatibility work, or
 four-profile regression effort. Task-099 preserved the same governance
 principle for post-closeout disclosures and cleared its scoped dependency-
 security gate on August 11. Task-101 closed alert `#76` through the accepted
-default-branch graph and now owns only downstream PR #67 reconciliation;
-Task-087 remains reviewable but paused until that branch's exact-head gate
-passes.
+default-branch graph and passed the downstream PR #67 exact-head gate at
+`946deaf`. Task-101 is complete, and Task-087 is resumed under ADR-019, with
+the lifecycle update's own checks green at `6e0f744`. Task-087 Gate A owns the
+PR #67 technical/security remediation and exact-head re-review gates before the
+merge decision. Tasks 096 and 102 then complete the launcher front door before
+Task-087 Gate B normal-package integration and Task-097 four-profile package
+qualification. Task-100 remains backlog work until October and the ADR-019
+satisfactory-package entry decision.
 
 ## Validation Strategy
 
@@ -234,4 +757,8 @@ runtime is needed and has confirmed Docker Desktop and/or Podman is running.
 - Do not delete named volumes during normal stop, upgrade, or container
   replacement.
 - Do not mutate `v0.1.2` or publish `v0.1.3` final prematurely.
+- Do not relabel Task-087 validation artifacts as previews, mark an unsigned
+  preview `Latest`, or give unsigned bytes a `v0.1.3-rc.N` identity.
+- Do not test unsigned previews on managed endpoints or instruct testers to
+  disable Windows security controls.
 - Do not change cdcai before explicit owner authorization.

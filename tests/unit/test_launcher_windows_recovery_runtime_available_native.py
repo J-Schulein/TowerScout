@@ -1,0 +1,852 @@
+from __future__ import annotations
+
+from dataclasses import replace
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[2]
+LAUNCHER_ROOT = ROOT / "launcher"
+if str(LAUNCHER_ROOT) not in sys.path:
+    sys.path.insert(0, str(LAUNCHER_ROOT))
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from test_launcher_runtime_execution import _digest, _target  # noqa: E402
+from test_launcher_runtime_target_resolution import (  # noqa: E402
+    _absent_snapshot,
+    _plan,
+    _plan_inputs,
+    _snapshot,
+)
+from towerscout_launcher.runtime_target_observation_backend import (  # noqa: E402
+    RecreatedTargetResolutionSnapshots,
+)
+from towerscout_launcher.runtime_target_plan import (  # noqa: E402
+    TargetResolutionPlanInputs,
+)
+from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
+    AbsentResolvedRuntimeTarget,
+    AbsentTargetResolutionSnapshot,
+    BoundResolvedRepairTarget,
+    TargetResolutionPlan,
+    TargetResolutionSnapshot,
+    resolve_absent_runtime_target,
+    resolve_present_runtime_target,
+)
+from towerscout_launcher.target_contracts import (  # noqa: E402
+    MapProvider,
+    RuntimeProduct,
+)
+from towerscout_launcher.windows_path_trust import (  # noqa: E402
+    NativeDirectoryFacts,
+    NativeSecurityFacts,
+    PathTrustPurpose,
+    capture_path_hierarchy,
+)
+from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
+    JournalStreamIdentity,
+)
+from towerscout_launcher.windows_recovery_runtime_available_native import (  # noqa: E402, E501
+    BoundAbsentRollbackRuntimeTarget,
+    ExistingRollbackRuntimeObservation,
+    NativeRollbackRuntimeAvailabilityError,
+    NativeRollbackRuntimeAvailabilityErrorCode,
+    NativeWindowsExistingRollbackRuntimeAvailability,
+    NativeWindowsRollbackRuntimeAvailability,
+    capture_native_absent_rollback_runtime_target,
+    capture_native_existing_rollback_runtime,
+    capture_native_present_rollback_runtime_target,
+    observe_rollback_runtime_target,
+)
+from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E402
+    RollbackRuntimeRecoveryAuthority,
+    derive_absent_rollback_runtime_recovery_authority,
+    derive_recreated_rollback_runtime_recovery_authority,
+    derive_rollback_runtime_recovery_authority,
+)
+from towerscout_launcher.windows_security import (  # noqa: E402
+    StableFileIdentity,
+)
+
+
+def _identity(value: int) -> StableFileIdentity:
+    return StableFileIdentity(7, value.to_bytes(16, "big"))
+
+
+class _PackagePathApi:
+    supported = True
+
+    def __init__(
+        self,
+        root_path: str = r"C:\Users\reviewed-user\TowerScout",
+        root_identity: StableFileIdentity | None = None,
+    ) -> None:
+        self.root_path = root_path
+        self.root_identity = root_identity or _identity(7)
+
+    def current_user_sid(self) -> str:
+        return "S-1-5-21-1000"
+
+    def open_directory(self, path: str, *, follow_reparse: bool) -> object:
+        del follow_reparse
+        return path
+
+    def query_directory(self, handle: object) -> NativeDirectoryFacts:
+        assert isinstance(handle, str)
+        file_id = (
+            self.root_identity.file_id
+            if handle.casefold() == self.root_path.casefold()
+            else hashlib.sha256(handle.casefold().encode("utf-16-le")).digest()[:16]
+        )
+        return NativeDirectoryFacts(
+            handle,
+            self.root_identity.volume_serial,
+            file_id,
+            0x10,
+            3,
+            1,
+            0,
+        )
+
+    def query_security(self, handle: object) -> NativeSecurityFacts:
+        assert isinstance(handle, str)
+        return NativeSecurityFacts(self.current_user_sid(), True, ())
+
+    def close_handle(self, handle: object) -> None:
+        assert isinstance(handle, str)
+
+
+def _package_root():
+    return capture_path_hierarchy(
+        r"C:\Users\reviewed-user\TowerScout",
+        purpose=PathTrustPurpose.PACKAGE_ROOT,
+        api=_PackagePathApi(),
+    )
+
+
+def _package_root_for_target(target):
+    identity = StableFileIdentity(
+        target.package_root.volume_serial,
+        target.package_root.file_id,
+    )
+    path = str(target.package_root.final_path)
+    return capture_path_hierarchy(
+        path,
+        purpose=PathTrustPurpose.PACKAGE_ROOT,
+        api=_PackagePathApi(path, identity),
+    )
+
+
+def _observation(
+    *,
+    target_token_sha256: str = "b" * 64,
+    package_root_identity: StableFileIdentity | None = None,
+) -> ExistingRollbackRuntimeObservation:
+    return ExistingRollbackRuntimeObservation(
+        1,
+        target_token_sha256,
+        package_root_identity or _identity(7),
+        "c" * 64,
+        "d" * 64,
+        tuple(_digest(str(index)) for index in range(8)),
+    )
+
+
+def _stream() -> JournalStreamIdentity:
+    return JournalStreamIdentity(1, "a" * 32, "b" * 64, _identity(7))
+
+
+def _authority() -> RollbackRuntimeRecoveryAuthority:
+    return RollbackRuntimeRecoveryAuthority(
+        1,
+        "b" * 64,
+        _identity(7),
+        "c" * 64,
+        tuple(_digest(str(index)) for index in range(8)),
+        True,
+    )
+
+
+class _Owner:
+    def __init__(
+        self,
+        target,
+        *,
+        changed: bool = False,
+        close_error: bool = False,
+    ):
+        self.target = target
+        self.closed = False
+        self.changed = changed
+        self.close_error = close_error
+        self.assertions = 0
+
+    def assert_unchanged(self) -> object:
+        self.assertions += 1
+        if self.changed:
+            raise OSError("private changed target detail")
+        return object()
+
+    def close(self) -> None:
+        if self.close_error:
+            raise OSError("private close detail")
+        self.closed = True
+
+
+class _RecreatedAbsentOwner:
+    def __init__(self, present: _Owner) -> None:
+        self.closed = False
+        self.present = present
+        self.assertions = 0
+        self.recreations = 0
+
+    def assert_unchanged(self) -> object:
+        assert not self.closed
+        self.assertions += 1
+        return object()
+
+    def recreate_prior_profile(self) -> _Owner:
+        assert not self.closed
+        self.recreations += 1
+        self.closed = True
+        return self.present
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class _AbsentInputOwner:
+    def __init__(self, *captures: TargetResolutionPlanInputs) -> None:
+        self.supported = True
+        self.closed = False
+        self.captures = list(captures)
+        self.capture_calls = 0
+
+    def capture(self) -> TargetResolutionPlanInputs:
+        assert not self.closed
+        self.capture_calls += 1
+        return self.captures.pop(0)
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class _AbsentBackend:
+    def __init__(
+        self,
+        *snapshots: AbsentTargetResolutionSnapshot,
+        recreated: RecreatedTargetResolutionSnapshots | None = None,
+        present: tuple[TargetResolutionSnapshot, ...] = (),
+    ) -> None:
+        self.supported = True
+        self.closed = False
+        self.snapshots = list(snapshots)
+        self.capture_calls = 0
+        self.recreated = recreated
+        self.recreation_calls = 0
+        self.present = list(present)
+
+    def capture_absent(
+        self,
+        plan: TargetResolutionPlan,
+    ) -> AbsentTargetResolutionSnapshot:
+        assert not self.closed
+        self.capture_calls += 1
+        snapshot = self.snapshots.pop(0)
+        return replace(snapshot, authority_sha256=plan.authority_sha256)
+
+    def capture(self, plan: TargetResolutionPlan) -> TargetResolutionSnapshot:
+        assert not self.closed
+        snapshot = self.present.pop(0)
+        return replace(snapshot, authority_sha256=plan.authority_sha256)
+
+    def recreate_absent(
+        self,
+        plan: TargetResolutionPlan,
+        expected: AbsentResolvedRuntimeTarget,
+    ) -> RecreatedTargetResolutionSnapshots:
+        assert not self.closed
+        assert expected.plan is plan
+        assert self.recreated is not None
+        self.recreation_calls += 1
+        return RecreatedTargetResolutionSnapshots(
+            self.recreated.command_exit_code,
+            replace(self.recreated.first, authority_sha256=plan.authority_sha256),
+            replace(self.recreated.second, authority_sha256=plan.authority_sha256),
+        )
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_native_capture_binds_exact_target_and_closes_owner():
+    target, _python, _key = _target(RuntimeProduct.DOCKER)
+    owner = _Owner(target)
+
+    observed = capture_native_existing_rollback_runtime(
+        MapProvider.GOOGLE,
+        capture=lambda provider: owner,
+    )
+
+    assert observed.target_token_sha256 == target.target_token.digest_sha256
+    assert observed.package_root_identity == StableFileIdentity(
+        target.package_root.volume_serial,
+        target.package_root.file_id,
+    )
+    assert len(observed.volume_evidence_sha256s) == 8
+    assert len(set(observed.volume_evidence_sha256s)) == 8
+    assert owner.assertions == 2
+    assert owner.closed
+    assert "container_id" not in repr(observed)
+
+
+def test_recreated_observation_keeps_original_target_authority() -> None:
+    target, _python, _key = _target(RuntimeProduct.DOCKER)
+    original = observe_rollback_runtime_target(target)
+    recreated_target = replace(
+        target,
+        container=replace(
+            target.container,
+            container_id="f" * 64,
+            private_inspect_sha256="e" * 64,
+        ),
+    )
+
+    recreated = observe_rollback_runtime_target(
+        recreated_target,
+        original.target_token_sha256,
+    )
+
+    assert recreated.target_token_sha256 == original.target_token_sha256
+    assert recreated.package_root_identity == original.package_root_identity
+    assert recreated.runtime_evidence_sha256 == original.runtime_evidence_sha256
+    assert recreated.volume_evidence_sha256s == original.volume_evidence_sha256s
+    assert recreated.container_evidence_sha256 != original.container_evidence_sha256
+
+
+@pytest.mark.parametrize("changed,close_error", [(True, False), (False, True)])
+def test_native_capture_fails_sanitized_and_closes_when_possible(
+    changed: bool,
+    close_error: bool,
+):
+    target, _python, _key = _target(RuntimeProduct.DOCKER)
+    owner = _Owner(target, changed=changed, close_error=close_error)
+
+    with pytest.raises(NativeRollbackRuntimeAvailabilityError) as captured:
+        capture_native_existing_rollback_runtime(
+            MapProvider.GOOGLE,
+            capture=lambda provider: owner,
+        )
+
+    assert "private" not in str(captured.value)
+    assert captured.value.code in {
+        NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE,
+        NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED,
+    }
+    if not close_error:
+        assert owner.closed
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_native_absent_capture_rebuilds_plan_without_new_trust_selection(product):
+    plan = _plan(product)
+    snapshot = _absent_snapshot(plan)
+    absent = resolve_absent_runtime_target(plan, snapshot)
+    authority = derive_absent_rollback_runtime_recovery_authority(
+        "d" * 64,
+        absent,
+    )
+    inputs = _AbsentInputOwner(_plan_inputs(plan), _plan_inputs(plan))
+    backend = _AbsentBackend(snapshot, snapshot, snapshot)
+    requested_providers: list[MapProvider] = []
+    requested_plans: list[TargetResolutionPlan] = []
+
+    def capture_inputs(provider: MapProvider) -> _AbsentInputOwner:
+        requested_providers.append(provider)
+        return inputs
+
+    def capture_backend(candidate: TargetResolutionPlan) -> _AbsentBackend:
+        requested_plans.append(candidate)
+        return backend
+
+    owner = capture_native_absent_rollback_runtime_target(
+        plan.certificate,
+        authority,
+        input_capture=capture_inputs,
+        backend_capture=capture_backend,
+    )
+
+    assert type(owner) is BoundAbsentRollbackRuntimeTarget
+    assert requested_providers == [plan.provider]
+    assert len(requested_plans) == 1
+    assert requested_plans[0].certificate == plan.certificate
+    assert inputs.capture_calls == 2
+    assert inputs.closed
+    assert backend.capture_calls == 2
+    assert owner.assert_unchanged().observation_binding_sha256 == (
+        owner.observation.observation_binding_sha256
+    )
+    assert backend.capture_calls == 3
+    assert "PRIVATE" not in repr(owner)
+    owner.close()
+    assert owner.closed
+    assert backend.closed
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_native_present_recovery_capture_uses_persisted_certificate(product):
+    plan = _plan(product)
+    snapshot = _snapshot(plan)
+    target = resolve_present_runtime_target(plan, snapshot)
+    authority = derive_rollback_runtime_recovery_authority(target)
+    inputs = _AbsentInputOwner(_plan_inputs(plan), _plan_inputs(plan))
+    backend = _AbsentBackend(
+        present=(snapshot, snapshot, snapshot, snapshot),
+    )
+
+    owner = capture_native_present_rollback_runtime_target(
+        plan.certificate,
+        authority,
+        input_capture=lambda _provider: inputs,
+        backend_capture=lambda _plan: backend,
+    )
+
+    assert type(owner) is BoundResolvedRepairTarget
+    assert owner.target.target_token.digest_sha256 == authority.target_token_sha256
+    assert owner.target.certificate == plan.certificate
+    assert inputs.capture_calls == 2
+    assert inputs.closed
+    owner.assert_unchanged()
+    owner.close()
+    assert backend.closed
+
+
+def test_bound_absent_capture_detects_stage_stable_image_drift_and_closes():
+    plan = _plan()
+    snapshot = _absent_snapshot(plan)
+    absent = resolve_absent_runtime_target(plan, snapshot)
+    authority = derive_absent_rollback_runtime_recovery_authority(
+        "d" * 64,
+        absent,
+    )
+    image = json.loads(snapshot.image_inspect)
+    image["id"] = "sha256:" + "f" * 64
+    drifted = replace(
+        snapshot,
+        image_inspect=json.dumps(image, separators=(",", ":")).encode("utf-8"),
+    )
+    backend = _AbsentBackend(snapshot, snapshot, drifted)
+    owner = capture_native_absent_rollback_runtime_target(
+        plan.certificate,
+        authority,
+        input_capture=lambda provider: _AbsentInputOwner(
+            _plan_inputs(plan),
+            _plan_inputs(plan),
+        ),
+        backend_capture=lambda candidate: backend,
+    )
+
+    with pytest.raises(NativeRollbackRuntimeAvailabilityError) as caught:
+        owner.assert_unchanged()
+
+    assert (
+        caught.value.code is NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH
+    )
+    assert owner.closed
+    assert backend.closed
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_bound_absent_owner_recreates_and_transfers_present_target(product):
+    plan = _plan(product)
+    absent_snapshot = _absent_snapshot(plan)
+    present_snapshot = _snapshot(plan)
+    absent = resolve_absent_runtime_target(plan, absent_snapshot)
+    authority = derive_absent_rollback_runtime_recovery_authority(
+        "d" * 64,
+        absent,
+    )
+    backend = _AbsentBackend(
+        absent_snapshot,
+        absent_snapshot,
+        recreated=RecreatedTargetResolutionSnapshots(
+            17,
+            present_snapshot,
+            present_snapshot,
+        ),
+        present=(present_snapshot, present_snapshot),
+    )
+    owner = capture_native_absent_rollback_runtime_target(
+        plan.certificate,
+        authority,
+        input_capture=lambda provider: _AbsentInputOwner(
+            _plan_inputs(plan),
+            _plan_inputs(plan),
+        ),
+        backend_capture=lambda candidate: backend,
+    )
+
+    present = owner.recreate_prior_profile()
+
+    assert type(present) is BoundResolvedRepairTarget
+    assert owner.closed
+    assert backend.recreation_calls == 1
+    assert backend.closed is False
+    assert (
+        derive_recreated_rollback_runtime_recovery_authority(
+            authority.target_token_sha256,
+            present.target,
+        )
+        == authority
+    )
+    present.close()
+    assert backend.closed
+
+
+def test_bound_absent_owner_rejects_post_recreation_volume_drift_and_closes():
+    plan = _plan()
+    absent_snapshot = _absent_snapshot(plan)
+    present_snapshot = _snapshot(plan)
+    logical_name, volume = present_snapshot.volume_inspects[0]
+    drifted_volume = json.loads(volume)
+    drifted_volume["engine_metadata_sha256"] = "f" * 64
+    drifted_snapshot = replace(
+        present_snapshot,
+        volume_inspects=(
+            (
+                logical_name,
+                json.dumps(drifted_volume, separators=(",", ":")).encode("utf-8"),
+            ),
+            *present_snapshot.volume_inspects[1:],
+        ),
+    )
+    authority = derive_absent_rollback_runtime_recovery_authority(
+        "d" * 64,
+        resolve_absent_runtime_target(plan, absent_snapshot),
+    )
+    backend = _AbsentBackend(
+        absent_snapshot,
+        absent_snapshot,
+        recreated=RecreatedTargetResolutionSnapshots(
+            0,
+            present_snapshot,
+            drifted_snapshot,
+        ),
+    )
+    owner = capture_native_absent_rollback_runtime_target(
+        plan.certificate,
+        authority,
+        input_capture=lambda provider: _AbsentInputOwner(
+            _plan_inputs(plan),
+            _plan_inputs(plan),
+        ),
+        backend_capture=lambda candidate: backend,
+    )
+
+    with pytest.raises(NativeRollbackRuntimeAvailabilityError) as caught:
+        owner.recreate_prior_profile()
+
+    assert caught.value.code in {
+        NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE,
+        NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH,
+    }
+    assert owner.closed
+    assert backend.closed
+
+
+def test_native_absent_capture_rejects_plan_input_drift_before_backend_capture():
+    plan = _plan()
+    snapshot = _absent_snapshot(plan)
+    authority = derive_absent_rollback_runtime_recovery_authority(
+        "d" * 64,
+        resolve_absent_runtime_target(plan, snapshot),
+    )
+    inputs = _AbsentInputOwner(
+        _plan_inputs(plan),
+        replace(_plan_inputs(plan), port=plan.port + 1),
+    )
+    backend_calls = 0
+
+    def capture_backend(candidate: TargetResolutionPlan) -> _AbsentBackend:
+        nonlocal backend_calls
+        backend_calls += 1
+        raise AssertionError(candidate)
+
+    with pytest.raises(NativeRollbackRuntimeAvailabilityError) as caught:
+        capture_native_absent_rollback_runtime_target(
+            plan.certificate,
+            authority,
+            input_capture=lambda provider: inputs,
+            backend_capture=capture_backend,
+        )
+
+    assert (
+        caught.value.code is NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH
+    )
+    assert inputs.closed
+    assert backend_calls == 0
+    assert "private" not in str(caught.value).casefold()
+
+
+def test_adapter_attests_retained_runtime_under_matching_package_root():
+    calls: list[MapProvider] = []
+
+    def capture(provider: MapProvider) -> ExistingRollbackRuntimeObservation:
+        calls.append(provider)
+        return _observation()
+
+    adapter = NativeWindowsExistingRollbackRuntimeAvailability(
+        MapProvider.GOOGLE,
+        capture=capture,
+    )
+    package_root = _package_root()
+    try:
+        evidence = package_root.run_while_held(
+            lambda: adapter.establish_rollback_runtime_while_package_root_held(
+                package_root,
+                _stream(),
+                _authority(),
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert calls == [MapProvider.GOOGLE]
+    assert evidence.existing_container_retained
+    assert evidence.target_token_sha256 == "b" * 64
+    assert evidence.package_root_identity == _identity(7)
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_complete_adapter_retains_an_existing_exact_runtime(product):
+    target, _python, _identity_key = _target(product)
+    authority = derive_rollback_runtime_recovery_authority(target)
+    stream = JournalStreamIdentity(
+        1,
+        "a" * 32,
+        authority.target_token_sha256,
+        authority.package_root_identity,
+    )
+    owner = _Owner(target)
+    absent_calls = 0
+
+    def absent_capture(certificate, candidate_authority):
+        nonlocal absent_calls
+        absent_calls += 1
+        raise AssertionError((certificate, candidate_authority))
+
+    adapter = NativeWindowsRollbackRuntimeAvailability(
+        target.certificate,
+        existing_capture=lambda provider: owner,
+        absent_capture=absent_capture,
+    )
+    package_root = _package_root_for_target(target)
+    try:
+        evidence = package_root.run_while_held(
+            lambda: adapter.establish_rollback_runtime_while_package_root_held(
+                package_root,
+                stream,
+                authority,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert evidence.existing_container_retained
+    assert evidence.runtime_evidence_sha256 == authority.runtime_evidence_sha256
+    assert owner.assertions == 2
+    assert owner.closed
+    assert absent_calls == 0
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_complete_adapter_recreates_only_an_exact_absent_runtime(product):
+    target, _python, _identity_key = _target(product)
+    authority = derive_rollback_runtime_recovery_authority(target)
+    stream = JournalStreamIdentity(
+        1,
+        "a" * 32,
+        authority.target_token_sha256,
+        authority.package_root_identity,
+    )
+    present = _Owner(target)
+    absent = _RecreatedAbsentOwner(present)
+    existing_calls = 0
+    absent_calls = 0
+
+    def existing_capture(provider):
+        nonlocal existing_calls
+        existing_calls += 1
+        raise OSError("exact container is absent")
+
+    def absent_capture(certificate, candidate_authority):
+        nonlocal absent_calls
+        absent_calls += 1
+        assert certificate == target.certificate
+        assert candidate_authority == authority
+        return absent
+
+    adapter = NativeWindowsRollbackRuntimeAvailability(
+        target.certificate,
+        existing_capture=existing_capture,
+        absent_capture=absent_capture,
+    )
+    package_root = _package_root_for_target(target)
+    try:
+        evidence = package_root.run_while_held(
+            lambda: adapter.establish_rollback_runtime_while_package_root_held(
+                package_root,
+                stream,
+                authority,
+            )
+        )
+    finally:
+        package_root.close()
+
+    assert evidence.existing_container_retained is False
+    assert evidence.runtime_evidence_sha256 == authority.runtime_evidence_sha256
+    assert existing_calls == 1
+    assert absent_calls == 1
+    assert absent.assertions == 1
+    assert absent.recreations == 1
+    assert absent.closed
+    assert present.assertions == 2
+    assert present.closed
+
+
+def test_complete_adapter_sanitizes_existing_and_absent_capture_failures():
+    target, _python, _identity_key = _target(RuntimeProduct.DOCKER)
+    authority = derive_rollback_runtime_recovery_authority(target)
+    stream = JournalStreamIdentity(
+        1,
+        "a" * 32,
+        authority.target_token_sha256,
+        authority.package_root_identity,
+    )
+
+    def fail_existing(provider):
+        raise OSError("private existing capture detail")
+
+    def fail_absent(certificate, candidate_authority):
+        raise OSError("private absent capture detail")
+
+    adapter = NativeWindowsRollbackRuntimeAvailability(
+        target.certificate,
+        existing_capture=fail_existing,
+        absent_capture=fail_absent,
+    )
+    package_root = _package_root_for_target(target)
+    try:
+        with pytest.raises(NativeRollbackRuntimeAvailabilityError) as caught:
+            package_root.run_while_held(
+                lambda: adapter.establish_rollback_runtime_while_package_root_held(
+                    package_root,
+                    stream,
+                    authority,
+                )
+            )
+    finally:
+        package_root.close()
+
+    assert (
+        caught.value.code
+        is NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE
+    )
+    assert "private" not in str(caught.value).casefold()
+
+
+@pytest.mark.parametrize(
+    "observed",
+    [
+        _observation(target_token_sha256="e" * 64),
+        _observation(package_root_identity=_identity(8)),
+    ],
+)
+def test_adapter_rejects_wrong_target_without_exposing_details(observed):
+    adapter = NativeWindowsExistingRollbackRuntimeAvailability(
+        MapProvider.GOOGLE,
+        capture=lambda provider: observed,
+    )
+    package_root = _package_root()
+    try:
+        with pytest.raises(NativeRollbackRuntimeAvailabilityError) as captured:
+            package_root.run_while_held(
+                lambda: adapter.establish_rollback_runtime_while_package_root_held(
+                    package_root,
+                    _stream(),
+                    _authority(),
+                )
+            )
+    finally:
+        package_root.close()
+
+    assert (
+        captured.value.code
+        is NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH
+    )
+    assert "C:\\" not in str(captured.value)
+
+
+def test_adapter_rejects_wrong_package_root_before_capture():
+    calls = 0
+
+    def capture(provider: MapProvider) -> ExistingRollbackRuntimeObservation:
+        nonlocal calls
+        calls += 1
+        return _observation()
+
+    adapter = NativeWindowsExistingRollbackRuntimeAvailability(
+        MapProvider.GOOGLE,
+        capture=capture,
+    )
+    wrong_stream = replace(_stream(), package_root_identity=_identity(9))
+    package_root = _package_root()
+    try:
+        with pytest.raises(NativeRollbackRuntimeAvailabilityError) as captured:
+            package_root.run_while_held(
+                lambda: adapter.establish_rollback_runtime_while_package_root_held(
+                    package_root,
+                    wrong_stream,
+                    _authority(),
+                )
+            )
+    finally:
+        package_root.close()
+
+    assert calls == 0
+    assert (
+        captured.value.code
+        is NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH
+    )
+
+
+def test_adapter_sanitizes_capture_failure():
+    def fail(provider: MapProvider) -> ExistingRollbackRuntimeObservation:
+        raise OSError("private endpoint and container detail")
+
+    adapter = NativeWindowsExistingRollbackRuntimeAvailability(
+        MapProvider.GOOGLE,
+        capture=fail,
+    )
+    package_root = _package_root()
+    try:
+        with pytest.raises(NativeRollbackRuntimeAvailabilityError) as captured:
+            package_root.run_while_held(
+                lambda: adapter.establish_rollback_runtime_while_package_root_held(
+                    package_root,
+                    _stream(),
+                    _authority(),
+                )
+            )
+    finally:
+        package_root.close()
+
+    assert (
+        captured.value.code
+        is NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE
+    )
+    assert "private" not in str(captured.value)

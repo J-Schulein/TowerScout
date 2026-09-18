@@ -47,6 +47,13 @@ Podman must be installed, the Podman machine must be running, and the Compose
 provider must be available before entering the `.\setup-towerscout.cmd`
 command.
 
+On Windows, the selected Podman machine must be rootless so published ports
+reach the TowerScout `localhost` browser URL. Confirm `podman machine inspect`
+reports `"Rootful": false`. TowerScout fails closed when it detects rootful
+mode and never changes the machine automatically. Rootful and rootless Podman
+use separate containers and volumes; switching modes does not migrate setup or
+imported assets.
+
 Useful checks from PowerShell:
 
 ```powershell
@@ -54,6 +61,7 @@ wsl --status
 wsl --list --verbose
 podman --version
 podman machine list
+podman machine inspect
 podman compose version
 ```
 

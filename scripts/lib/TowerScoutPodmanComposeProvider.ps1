@@ -1,4 +1,5 @@
 Set-StrictMode -Version Latest
+. "$PSScriptRoot\TowerScoutProviderEnvironment.ps1"
 
 function Get-TowerScoutProviderRepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
@@ -90,8 +91,10 @@ function Invoke-TowerScoutProviderCommand {
     )
 
     $previousErrorActionPreference = $ErrorActionPreference
+    $previousNoBytecode = [Environment]::GetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "Process")
     $ErrorActionPreference = "Continue"
     try {
+        $env:PYTHONDONTWRITEBYTECODE = "1"
         $output = & $ProviderPath @Arguments 2>&1
         return [pscustomobject]@{
             ExitCode = $LASTEXITCODE
@@ -105,6 +108,12 @@ function Invoke-TowerScoutProviderCommand {
         }
     }
     finally {
+        if ($null -eq $previousNoBytecode) {
+            Remove-Item Env:PYTHONDONTWRITEBYTECODE -ErrorAction SilentlyContinue
+        }
+        else {
+            $env:PYTHONDONTWRITEBYTECODE = $previousNoBytecode
+        }
         $ErrorActionPreference = $previousErrorActionPreference
     }
 }
@@ -258,40 +267,175 @@ function Find-TowerScoutApprovedPodmanComposeProviders {
     }
 }
 
-function Set-TowerScoutEnvSetting {
+function Get-TowerScoutProviderEnvironmentSha256 {
     param(
         [Parameter(Mandatory = $true)]
-        [string] $EnvPath,
-
-        [Parameter(Mandatory = $true)]
-        [string] $Name,
-
-        [Parameter(Mandatory = $true)]
-        [string] $Value
+        [byte[]] $Contents
     )
 
-    $lines = @()
-    if (Test-Path -LiteralPath $EnvPath -PathType Leaf) {
-        $lines = @(Get-Content -LiteralPath $EnvPath)
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ([System.BitConverter]::ToString($sha256.ComputeHash($Contents))).Replace("-", "").ToLowerInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
+function ConvertTo-TowerScoutProviderEnvironmentPlan {
+    param(
+        [Parameter(Mandatory = $true)]
+        [byte[]] $SourceContents,
+
+        [Parameter(Mandatory = $true)]
+        [string] $ProviderPath,
+
+        [Parameter(Mandatory = $true)]
+        [bool] $OriginalPresent
+    )
+
+    $maximumBytes = 262144
+    if ($SourceContents.Length -gt $maximumBytes -or [string]::IsNullOrWhiteSpace($ProviderPath)) {
+        throw "The package environment file cannot be updated safely."
+    }
+    foreach ($character in $ProviderPath.ToCharArray()) {
+        if (
+            [int] $character -lt 0x20 -or
+            [int] $character -eq 0x7F -or
+            $character -in @([char]0x85, [char]0x2028, [char]0x2029)
+        ) {
+            throw "The package environment file cannot be updated safely."
+        }
     }
 
-    $pattern = "^\s*" + [regex]::Escape($Name) + "\s*="
-    $updated = $false
-    $output = foreach ($line in $lines) {
-        if (-not $updated -and ([string] $line) -match $pattern) {
-            $updated = $true
-            "$Name=$Value"
+    $hasBom = (
+        $SourceContents.Length -ge 3 -and
+        $SourceContents[0] -eq 0xEF -and
+        $SourceContents[1] -eq 0xBB -and
+        $SourceContents[2] -eq 0xBF
+    )
+    $offset = if ($hasBom) { 3 } else { 0 }
+    $encoding = New-Object System.Text.UTF8Encoding($false, $true)
+    try {
+        $text = $encoding.GetString($SourceContents, $offset, $SourceContents.Length - $offset)
+    }
+    catch [System.Text.DecoderFallbackException] {
+        throw "The package environment file cannot be updated safely."
+    }
+    if (
+        $text.Contains([char]0) -or
+        $text.Contains([char]0xFEFF) -or
+        $text.Contains([char]0x85) -or
+        $text.Contains([char]0x2028) -or
+        $text.Contains([char]0x2029) -or
+        $text.Replace("`r`n", "").Contains("`r")
+    ) {
+        throw "The package environment file cannot be updated safely."
+    }
+    foreach ($character in $text.ToCharArray()) {
+        if ([int] $character -lt 0x20 -and $character -notin @("`t", "`r", "`n")) {
+            throw "The package environment file cannot be updated safely."
+        }
+    }
+
+    $settingName = "PODMAN_COMPOSE_PROVIDER"
+    $selectedNewline = if ($text.Contains("`r`n") -or $text.Length -eq 0) { "`r`n" } else { "`n" }
+    $hadTrailingNewline = $text.EndsWith("`n")
+    $seen = $false
+    $builder = New-Object System.Text.StringBuilder
+    $position = 0
+    while ($position -lt $text.Length) {
+        $lineFeed = $text.IndexOf("`n", $position, [System.StringComparison]::Ordinal)
+        if ($lineFeed -lt 0) {
+            $next = $text.Length
         }
         else {
-            $line
+            $next = $lineFeed + 1
         }
+        $line = $text.Substring($position, $next - $position)
+        $ending = ""
+        $content = $line
+        if ($line.EndsWith("`r`n")) {
+            $ending = "`r`n"
+            $content = $line.Substring(0, $line.Length - 2)
+        }
+        elseif ($line.EndsWith("`n")) {
+            $ending = "`n"
+            $content = $line.Substring(0, $line.Length - 1)
+        }
+
+        if (-not $content.TrimStart().StartsWith("#", [System.StringComparison]::Ordinal)) {
+            $equals = $content.IndexOf("=", [System.StringComparison]::Ordinal)
+            $name = if ($equals -ge 0) { $content.Substring(0, $equals) } else { $content }
+            $key = $name.Trim()
+            if ($key.Equals($settingName, [System.StringComparison]::OrdinalIgnoreCase)) {
+                if (
+                    $seen -or
+                    $equals -lt 0 -or
+                    -not $key.Equals($settingName, [System.StringComparison]::Ordinal)
+                ) {
+                    throw "The package environment file cannot be updated safely."
+                }
+                [void] $builder.Append($name)
+                [void] $builder.Append("=")
+                [void] $builder.Append($ProviderPath)
+                [void] $builder.Append($ending)
+                $seen = $true
+            }
+            else {
+                $tokens = [regex]::Matches($name, "[A-Za-z_][A-Za-z0-9_]*")
+                foreach ($token in $tokens) {
+                    if ($token.Value.Equals($settingName, [System.StringComparison]::OrdinalIgnoreCase)) {
+                        throw "The package environment file cannot be updated safely."
+                    }
+                }
+                [void] $builder.Append($line)
+            }
+        }
+        else {
+            [void] $builder.Append($line)
+        }
+        $position = $next
     }
 
-    if (-not $updated) {
-        $output += "$Name=$Value"
+    if (-not $seen) {
+        if ($builder.Length -gt 0 -and -not $hadTrailingNewline) {
+            [void] $builder.Append($selectedNewline)
+        }
+        [void] $builder.Append($settingName)
+        [void] $builder.Append("=")
+        [void] $builder.Append($ProviderPath)
+        [void] $builder.Append($selectedNewline)
     }
 
-    $output | Set-Content -LiteralPath $EnvPath -Encoding ASCII
+    $encoded = $encoding.GetBytes($builder.ToString())
+    if ($hasBom) {
+        $candidate = New-Object byte[] ($encoded.Length + 3)
+        $candidate[0] = 0xEF
+        $candidate[1] = 0xBB
+        $candidate[2] = 0xBF
+        [System.Array]::Copy($encoded, 0, $candidate, 3, $encoded.Length)
+    }
+    else {
+        $candidate = $encoded
+    }
+    if ($candidate.Length -lt 1 -or $candidate.Length -gt $maximumBytes) {
+        throw "The package environment file cannot be updated safely."
+    }
+
+    return [pscustomobject]@{
+        SourceContents = $SourceContents
+        SourceSha256 = Get-TowerScoutProviderEnvironmentSha256 -Contents $SourceContents
+        OriginalContents = if ($OriginalPresent) { $SourceContents } else { $null }
+        CandidateContents = $candidate
+        OriginalSha256 = if ($OriginalPresent) {
+            Get-TowerScoutProviderEnvironmentSha256 -Contents $SourceContents
+        }
+        else {
+            "absent"
+        }
+        CandidateSha256 = Get-TowerScoutProviderEnvironmentSha256 -Contents $candidate
+    }
 }
 
 function Set-TowerScoutPodmanComposeProviderEnv {
@@ -306,40 +450,37 @@ function Set-TowerScoutPodmanComposeProviderEnv {
 
     $resolvedPath = Resolve-TowerScoutProviderCandidatePath -Value $ProviderPath
     if ([string]::IsNullOrWhiteSpace($resolvedPath)) {
-        throw "Provider path was not found: $ProviderPath"
+        throw "The provider path was not found."
     }
 
     $envPath = Join-Path $RootPath ".env"
+    $originalPresent = Test-Path -LiteralPath $envPath -PathType Leaf
+    if ($originalPresent) {
+        $sourceContents = [System.IO.File]::ReadAllBytes($envPath)
+    }
+    else {
+        $templatePath = Join-Path $RootPath ".env.example"
+        if (-not (Test-Path -LiteralPath $templatePath -PathType Leaf)) {
+            throw "The authenticated package environment template is unavailable."
+        }
+        $sourceContents = [System.IO.File]::ReadAllBytes($templatePath)
+    }
+    $plan = ConvertTo-TowerScoutProviderEnvironmentPlan `
+        -SourceContents $sourceContents `
+        -ProviderPath $resolvedPath `
+        -OriginalPresent $originalPresent
+
     if (-not $Apply) {
-        Write-Host "Set this value in .env after review:"
-        Write-Host "PODMAN_COMPOSE_PROVIDER=$resolvedPath"
+        Write-Host "The PODMAN_COMPOSE_PROVIDER update is ready for review."
         return [pscustomobject]@{
             Applied = $false
-            EnvPath = $envPath
-            ProviderPath = $resolvedPath
         }
     }
 
-    if (-not (Test-Path -LiteralPath $envPath -PathType Leaf)) {
-        $templatePath = Join-Path $RootPath ".env.example"
-        if (Test-Path -LiteralPath $templatePath -PathType Leaf) {
-            Copy-Item -LiteralPath $templatePath -Destination $envPath
-        }
-        else {
-            New-Item -ItemType File -Path $envPath | Out-Null
-        }
+    $result = Invoke-TowerScoutProviderEnvironmentReplacement -RootPath $RootPath -Plan $plan
+    if ($result.Applied -ne $true) {
+        throw "The provider environment update could not be verified."
     }
-
-    $backupPath = "$envPath.backup.$((Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss'))"
-    Copy-Item -LiteralPath $envPath -Destination $backupPath
-    Set-TowerScoutEnvSetting -EnvPath $envPath -Name "PODMAN_COMPOSE_PROVIDER" -Value $resolvedPath
     Write-Host "Updated PODMAN_COMPOSE_PROVIDER in .env."
-    Write-Host "Backup: $backupPath"
-
-    return [pscustomobject]@{
-        Applied = $true
-        EnvPath = $envPath
-        BackupPath = $backupPath
-        ProviderPath = $resolvedPath
-    }
+    return [pscustomobject]@{ Applied = $true }
 }

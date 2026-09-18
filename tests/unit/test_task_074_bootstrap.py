@@ -69,6 +69,9 @@ def test_bootstrap_entrypoint_is_packaged_and_reuses_validated_scripts():
     assert "SessionMaxHours = $SessionMaxHours" in setup
     assert "-SessionMaxHours $SessionMaxHours" in bootstrap
     assert "Invoke-TowerScoutStaleContainerGuard" in launch
+    assert "-RequireWindowsRootless" in launch
+    assert "-PodmanMachineName $PodmanMachineName" in launch
+    assert launch.index("-RequireWindowsRootless") < launch.index("Invoke-TowerScoutStaleContainerGuard")
     assert "Invoke-TowerScoutStaleContainerGuard" in import_assets
     assert "Write-TowerScoutImagePullReadiness" in bootstrap
     assert "launch.ps1" in bootstrap
@@ -79,6 +82,51 @@ def test_bootstrap_entrypoint_is_packaged_and_reuses_validated_scripts():
     assert '"scripts\\setup-towerscout.ps1"' in package_script
     assert '"scripts\\bootstrap.ps1"' in package_script
     assert '"scripts\\lib\\TowerScoutBootstrap.ps1"' in package_script
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell bootstrap helpers are Windows-only")
+def test_bootstrap_podman_compose_probe_disables_python_bytecode_for_child():
+    helper = BOOTSTRAP_LIB.read_text(encoding="utf-8")
+    assert (
+        '-FileName "podman" -Arguments @("compose", "version") '
+        "-TimeoutSeconds 15 -DisablePythonBytecode"
+    ) in helper
+
+    temp_root = (
+        REPO_ROOT
+        / ".agent_work"
+        / "pytest-temp"
+        / f"task087-bootstrap-bytecode-{uuid.uuid4().hex}"
+    )
+    temp_root.mkdir(parents=True)
+    child = temp_root / "observe-bytecode.ps1"
+    child.write_text(
+        'Write-Output $env:PYTHONDONTWRITEBYTECODE\n',
+        encoding="utf-8",
+    )
+    try:
+        command = f"""
+        $ErrorActionPreference = "Stop"
+        . "{BOOTSTRAP_LIB}"
+        $env:PYTHONDONTWRITEBYTECODE = "preserve"
+        $result = Invoke-TowerScoutBootstrapCommand `
+            -FileName "{_powershell_executable()}" `
+            -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "{child}") `
+            -DisablePythonBytecode
+        if ($result.ExitCode -ne 0 -or $result.StdOut.Trim() -ne "1") {{
+            throw "Bootstrap child did not observe bytecode suppression."
+        }}
+        if ($env:PYTHONDONTWRITEBYTECODE -ne "preserve") {{
+            throw "Bootstrap probe changed the caller's environment."
+        }}
+        "ok"
+        """
+        result = _run_powershell(command)
+
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "ok" in result.stdout
+    finally:
+        shutil.rmtree(temp_root, ignore_errors=True)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell bootstrap helpers are Windows-only")
