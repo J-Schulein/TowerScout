@@ -33,6 +33,7 @@ class ExactTargetConfirmationErrorCode(str, Enum):
     TARGET_CHANGED = "target_changed"
     CONFIRMATION_REQUIRED = "confirmation_required"
     CONFIRMATION_EXPIRED = "confirmation_expired"
+    RECOVERY_REQUIRED = "recovery_required"
     MUTATION_DISABLED = "mutation_disabled"
 
 
@@ -50,6 +51,10 @@ _PUBLIC_MESSAGES = {
     ExactTargetConfirmationErrorCode.CONFIRMATION_EXPIRED: (
         "The repair confirmation expired. No changes were made; start again to "
         "verify a fresh target."
+    ),
+    ExactTargetConfirmationErrorCode.RECOVERY_REQUIRED: (
+        "A prior repair must finish recovery before a new repair can start. "
+        "No new changes were made."
     ),
     ExactTargetConfirmationErrorCode.MUTATION_DISABLED: (
         "The exact repair target was verified, but repair remains disabled until "
@@ -372,6 +377,7 @@ class ExactTargetConfirmationCoordinator:
         owner: BoundResolvedRepairTarget | None = None
         context: HeldWindowsTransactionContext | None = None
         capture_failed = False
+        recovery_required = False
         interruption: BaseException | None = None
         try:
             owner = self._capture(provider)
@@ -383,6 +389,7 @@ class ExactTargetConfirmationCoordinator:
                 or context.closed
             ):
                 raise ValueError("Exact transaction capture is invalid.")
+            recovery_required = context.recovery_scan.repair_pending
         except BaseException as error:
             if isinstance(error, Exception):
                 capture_failed = True
@@ -394,6 +401,9 @@ class ExactTargetConfirmationCoordinator:
             raise interruption
         if capture_failed or owner is None or context is None:
             _fail(ExactTargetConfirmationErrorCode.TARGET_UNAVAILABLE)
+        if recovery_required:
+            _discard_resources(owner, context)
+            _fail(ExactTargetConfirmationErrorCode.RECOVERY_REQUIRED)
         return ExactTargetConfirmationTransaction(
             owner,
             context,

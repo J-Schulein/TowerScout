@@ -35,6 +35,7 @@ from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
     TargetResolutionPlan,
     TargetResolutionSnapshot,
     resolve_absent_runtime_target,
+    resolve_present_runtime_target,
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
     MapProvider,
@@ -58,6 +59,7 @@ from towerscout_launcher.windows_recovery_runtime_available_native import (  # n
     NativeWindowsRollbackRuntimeAvailability,
     capture_native_absent_rollback_runtime_target,
     capture_native_existing_rollback_runtime,
+    capture_native_present_rollback_runtime_target,
     observe_rollback_runtime_target,
 )
 from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E402
@@ -392,6 +394,34 @@ def test_native_absent_capture_rebuilds_plan_without_new_trust_selection(product
     assert "PRIVATE" not in repr(owner)
     owner.close()
     assert owner.closed
+    assert backend.closed
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_native_present_recovery_capture_uses_persisted_certificate(product):
+    plan = _plan(product)
+    snapshot = _snapshot(plan)
+    target = resolve_present_runtime_target(plan, snapshot)
+    authority = derive_rollback_runtime_recovery_authority(target)
+    inputs = _AbsentInputOwner(_plan_inputs(plan), _plan_inputs(plan))
+    backend = _AbsentBackend(
+        present=(snapshot, snapshot, snapshot, snapshot),
+    )
+
+    owner = capture_native_present_rollback_runtime_target(
+        plan.certificate,
+        authority,
+        input_capture=lambda _provider: inputs,
+        backend_capture=lambda _plan: backend,
+    )
+
+    assert type(owner) is BoundResolvedRepairTarget
+    assert owner.target.target_token.digest_sha256 == authority.target_token_sha256
+    assert owner.target.certificate == plan.certificate
+    assert inputs.capture_calls == 2
+    assert inputs.closed
+    owner.assert_unchanged()
+    owner.close()
     assert backend.closed
 
 

@@ -4389,6 +4389,44 @@ def test_native_manager_reconstructs_certificate_identity_from_authenticated_cha
     )
 
 
+def test_native_manager_reconstructs_runtime_authority_from_authenticated_chain() -> (
+    None
+):
+    protection = _Protection()
+    (
+        stream,
+        _provider_stream,
+        root,
+        generations,
+        _blobs,
+        package_root,
+        _environment_storage,
+    ) = _persist_verified_environment_restore_state(protection)
+    try:
+        initial = storage.load_persisted_environment_journal_chain_with_pointer(
+            stream,
+            root=root,
+            generation_storage=generations,
+            pointer_storage=generations,
+            protection=protection,
+        )
+    finally:
+        package_root.close()
+
+    assert initial is not None
+    preparing = initial.selection.generations[0].record
+    assert type(preparing) is journal.BackupPreparingRecord
+    authority = manager_native.rollback_runtime_authority_from_recovery_chain(initial)
+    assert authority == RollbackRuntimeRecoveryAuthority(
+        1,
+        stream.target_token_sha256,
+        stream.package_root_identity,
+        preparing.rollback_runtime_evidence_sha256,
+        preparing.rollback_volume_evidence_sha256s,
+        preparing.runtime_was_running,
+    )
+
+
 def test_native_manager_composes_all_ports_under_one_protected_root() -> None:
     class Root(_Root, _Protection):
         def __init__(self) -> None:

@@ -61,6 +61,13 @@ from .target_contracts import (
     RuntimeProduct,
     WindowsProcessEnvironment,
 )
+from .windows_path_trust import (
+    PathHierarchyTrust,
+    PathTrustPurpose,
+    WindowsPathTrustApi,
+    capture_path_hierarchy,
+)
+from .windows_security import WindowsSecurityError
 
 
 class TargetInputErrorCode(str, Enum):
@@ -395,10 +402,11 @@ def _close_owners(owners: tuple[_CloseableOwner, ...]) -> BaseException | None:
                 if not isinstance(error, Exception) and interruption is None:
                     interruption = error
         try:
-            if all(owner.closed for owner in owners):
-                break
+            all_closed = all(owner.closed for owner in owners)
         except Exception:
-            pass
+            all_closed = False
+        if all_closed:
+            break
     try:
         incomplete = any(not owner.closed for owner in owners)
     except Exception:
@@ -433,6 +441,26 @@ def _fixed_package_root() -> PureWindowsPath:
     if not root.is_absolute() or not root.name or "\x00" in str(root):
         _fail(TargetInputErrorCode.VERIFICATION_UNAVAILABLE)
     return root
+
+
+def capture_native_windows_fixed_package_root_trust(
+    *,
+    path_api: WindowsPathTrustApi | None = None,
+) -> PathHierarchyTrust:
+    """Retain the fixed executable-relative package root for recovery scan."""
+
+    try:
+        return capture_path_hierarchy(
+            str(_fixed_package_root()),
+            purpose=PathTrustPurpose.PACKAGE_ROOT,
+            api=path_api,
+        )
+    except TargetInputError:
+        raise
+    except WindowsSecurityError:
+        _fail(TargetInputErrorCode.VERIFICATION_UNAVAILABLE)
+    except (OSError, RuntimeError, TypeError, ValueError):
+        _fail(TargetInputErrorCode.VERIFICATION_UNAVAILABLE)
 
 
 def capture_native_windows_target_resolution_plan_inputs(
@@ -526,5 +554,6 @@ __all__ = [
     "BoundNativeTargetResolutionPlanInputs",
     "TargetInputError",
     "TargetInputErrorCode",
+    "capture_native_windows_fixed_package_root_trust",
     "capture_native_windows_target_resolution_plan_inputs",
 ]

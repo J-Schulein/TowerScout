@@ -16,7 +16,18 @@ LAUNCHER_ROOT = ROOT / "launcher"
 if str(LAUNCHER_ROOT) not in sys.path:
     sys.path.insert(0, str(LAUNCHER_ROOT))
 
-from towerscout_launcher.windows_mutex import (
+from test_launcher_runtime_target_resolution import (  # noqa: E402
+    _absent_snapshot,
+    _plan,
+    _snapshot,
+)
+from towerscout_launcher.runtime_target_resolution import (  # noqa: E402
+    resolve_absent_runtime_target,
+    resolve_present_runtime_target,
+)
+from towerscout_launcher.windows_security import StableFileIdentity  # noqa: E402
+
+from towerscout_launcher.windows_mutex import (  # noqa: E402
     MUTEX_ACCESS_MASK,
     SYSTEM_SID,
     CreatedMutex,
@@ -29,8 +40,11 @@ from towerscout_launcher.windows_mutex import (
     RuntimeTransactionLockError,
     RuntimeTransactionLockErrorCode,
     WindowsMutexError,
+    absent_runtime_transaction_lock_binding,
     acquire_ordered_runtime_transaction_locks,
+    acquire_runtime_target_lock_after_environment,
     acquire_secured_cross_session_mutex,
+    runtime_transaction_lock_binding,
 )
 
 _USER_SID = "S-1-5-21-1000-1001-1002-1003"
@@ -424,6 +438,71 @@ def test_ordered_transaction_locks_acquire_environment_then_target() -> None:
     assert held.closed is True
     assert _event_names(api, "release") == [_TARGET_NAME, _NAME]
     assert _event_names(api, "close") == [_TARGET_NAME, _NAME]
+
+
+def test_target_lock_can_complete_a_preowned_environment_lock_pair() -> None:
+    api = _OrderedMutexApi()
+    expected = _binding()
+    environment = acquire_secured_cross_session_mutex(
+        _NAME,
+        api=api,
+        timeout_ms=2750,
+    )
+
+    held = acquire_runtime_target_lock_after_environment(
+        expected,
+        lambda: expected,
+        environment,
+        api=api,
+        timeout_ms=2750,
+    )
+
+    assert _event_names(api, "create") == [_NAME, _TARGET_NAME]
+    held.close()
+    assert _event_names(api, "release") == [_TARGET_NAME, _NAME]
+
+
+def test_absent_target_derives_the_same_stable_lock_pair() -> None:
+    plan = _plan()
+    present = resolve_present_runtime_target(plan, _snapshot(plan))
+    absent = resolve_absent_runtime_target(plan, _absent_snapshot(plan))
+    package_identity = StableFileIdentity(
+        plan.package_root.volume_serial,
+        plan.package_root.file_id,
+    )
+
+    present_binding = runtime_transaction_lock_binding(present, package_identity)
+    absent_binding = absent_runtime_transaction_lock_binding(
+        present.target_token.digest_sha256,
+        absent,
+        package_identity,
+    )
+
+    assert absent_binding == present_binding
+
+
+def test_preowned_environment_lock_is_released_when_target_binding_drifts() -> None:
+    api = _OrderedMutexApi()
+    expected = _binding()
+    environment = acquire_secured_cross_session_mutex(
+        _NAME,
+        api=api,
+        timeout_ms=2750,
+    )
+
+    with pytest.raises(RuntimeTransactionLockError) as failure:
+        acquire_runtime_target_lock_after_environment(
+            expected,
+            lambda: _binding(target_digest="e" * 64),
+            environment,
+            api=api,
+            timeout_ms=2750,
+        )
+
+    assert failure.value.code is RuntimeTransactionLockErrorCode.BINDING_CHANGED
+    assert environment.closed is True
+    assert _event_names(api, "create") == [_NAME]
+    assert _event_names(api, "release") == [_NAME]
 
 
 def test_pre_target_check_runs_after_environment_revalidation() -> None:

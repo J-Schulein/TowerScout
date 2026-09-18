@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, NoReturn, Protocol
 
+from .runtime_target_resolution import AbsentResolvedRuntimeTarget
 from .target_contracts import ResolvedRepairTarget
 from .windows_security import (
     StableFileIdentity,
@@ -206,6 +207,68 @@ def runtime_transaction_lock_binding(
                 config_volume=volume,
             ),
             target_token_sha256=target.target_token.digest_sha256,
+            environment_sha256=target.compose.environment_sha256,
+        )
+    except Exception:
+        _fail_runtime_locks(RuntimeTransactionLockErrorCode.INVALID_BINDING)
+
+
+def absent_runtime_transaction_lock_binding(
+    target_token_sha256: str,
+    target: AbsentResolvedRuntimeTarget,
+    package_parent: StableFileIdentity,
+) -> RuntimeTransactionLockBinding:
+    """Derive the same lock pair from an authenticated absent target."""
+
+    if (
+        not _is_sha256(target_token_sha256)
+        or type(target) is not AbsentResolvedRuntimeTarget
+        or type(package_parent) is not StableFileIdentity
+        or target.plan.package_root.volume_serial != package_parent.volume_serial
+        or target.plan.package_root.file_id != package_parent.file_id
+        or target.compose.environment_source.final_path.parent
+        != target.plan.package_root.final_path
+        or target.volumes[0].logical_name != "towerscout_config"
+    ):
+        _fail_runtime_locks(RuntimeTransactionLockErrorCode.INVALID_BINDING)
+    try:
+        endpoint_identity = target.plan.endpoint
+        endpoint = canonical_identity_digest(
+            "Endpoint",
+            (
+                b"runtime-product",
+                endpoint_identity.product.value.encode("ascii"),
+                b"endpoint-kind",
+                endpoint_identity.kind.value.encode("ascii"),
+                b"canonical-endpoint",
+                endpoint_identity.canonical_endpoint.encode(
+                    "utf-8",
+                    errors="strict",
+                ),
+                b"rootless",
+                b"1" if endpoint_identity.rootless else b"0",
+            ),
+        )
+        config_volume = target.volumes[0]
+        volume = canonical_identity_digest(
+            "ConfigVolume",
+            (
+                b"logical-name",
+                config_volume.logical_name.encode("utf-8", errors="strict"),
+                b"runtime-name",
+                config_volume.runtime_name.encode("utf-8", errors="strict"),
+                b"destination",
+                config_volume.destination.encode("utf-8", errors="strict"),
+            ),
+        )
+        return RuntimeTransactionLockBinding(
+            environment_mutex_name=derive_environment_mutex_name(package_parent),
+            target_mutex_name=derive_repair_mutex_name(
+                endpoint=endpoint,
+                compose_project=target.plan.compose_project,
+                config_volume=volume,
+            ),
+            target_token_sha256=target_token_sha256,
             environment_sha256=target.compose.environment_sha256,
         )
     except Exception:
@@ -719,6 +782,66 @@ def acquire_ordered_runtime_transaction_locks(
         raise
 
 
+def acquire_runtime_target_lock_after_environment(
+    binding: RuntimeTransactionLockBinding,
+    revalidate: Callable[[], RuntimeTransactionLockBinding],
+    environment_mutex: HeldCrossSessionMutex,
+    *,
+    api: WindowsMutexApi | None = None,
+    timeout_ms: int = 0,
+) -> HeldRuntimeTransactionLocks:
+    """Transfer an already-held environment mutex into the ordered lock pair."""
+
+    if (
+        type(binding) is not RuntimeTransactionLockBinding
+        or not callable(revalidate)
+        or type(environment_mutex) is not HeldCrossSessionMutex
+        or environment_mutex.closed
+        or environment_mutex._name != binding.environment_mutex_name
+    ):
+        _fail_runtime_locks(RuntimeTransactionLockErrorCode.INVALID_BINDING)
+    target_mutex: HeldCrossSessionMutex | None = None
+    try:
+        before_target = revalidate()
+        if (
+            type(before_target) is not RuntimeTransactionLockBinding
+            or before_target != binding
+        ):
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.BINDING_CHANGED)
+        target_mutex = acquire_secured_cross_session_mutex(
+            binding.target_mutex_name,
+            api=api,
+            timeout_ms=timeout_ms,
+        )
+        after_target = revalidate()
+        if (
+            type(after_target) is not RuntimeTransactionLockBinding
+            or after_target != binding
+        ):
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.BINDING_CHANGED)
+        return HeldRuntimeTransactionLocks(
+            binding=binding,
+            environment_mutex=environment_mutex,
+            target_mutex=target_mutex,
+        )
+    except RuntimeTransactionLockError:
+        if _close_runtime_mutexes((target_mutex, environment_mutex)):
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.RELEASE_FAILED)
+        raise
+    except WindowsMutexError as error:
+        code = _mapped_runtime_lock_error(error)
+        if _close_runtime_mutexes((target_mutex, environment_mutex)):
+            code = RuntimeTransactionLockErrorCode.RELEASE_FAILED
+        _fail_runtime_locks(code)
+    except Exception:
+        if _close_runtime_mutexes((target_mutex, environment_mutex)):
+            _fail_runtime_locks(RuntimeTransactionLockErrorCode.RELEASE_FAILED)
+        _fail_runtime_locks(RuntimeTransactionLockErrorCode.BINDING_CHANGED)
+    except BaseException:
+        _close_runtime_mutexes((target_mutex, environment_mutex))
+        raise
+
+
 class _SecurityAttributes(ctypes.Structure):
     _fields_ = (
         ("length", ctypes.c_uint32),
@@ -966,7 +1089,9 @@ __all__ = [
     "RuntimeTransactionLockErrorCode",
     "WindowsMutexApi",
     "WindowsMutexError",
+    "absent_runtime_transaction_lock_binding",
     "acquire_ordered_runtime_transaction_locks",
+    "acquire_runtime_target_lock_after_environment",
     "acquire_secured_cross_session_mutex",
     "runtime_transaction_lock_binding",
 ]

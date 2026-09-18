@@ -49,6 +49,7 @@ from towerscout_launcher.runtime_target_inputs import (  # noqa: E402
     TargetInputError,
     TargetInputErrorCode,
     _compose_plan_inputs,
+    capture_native_windows_fixed_package_root_trust,
     capture_native_windows_target_resolution_plan_inputs,
 )
 from towerscout_launcher.target_contracts import (  # noqa: E402
@@ -680,6 +681,34 @@ def test_fixed_frozen_root_is_exactly_executable_relative(
     )
 
     assert target_inputs._fixed_package_root() == PureWindowsPath(r"C:\TowerScout")
+
+
+def test_fixed_package_root_trust_uses_only_executable_relative_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = object()
+    captured: list[tuple[str, object, object]] = []
+    api = object()
+    monkeypatch.setattr(
+        target_inputs,
+        "_fixed_package_root",
+        lambda: PureWindowsPath(r"C:\TowerScout"),
+    )
+
+    def capture(path: str, *, purpose: object, api: object) -> object:
+        captured.append((path, purpose, api))
+        return expected
+
+    monkeypatch.setattr(target_inputs, "capture_path_hierarchy", capture)
+
+    result = capture_native_windows_fixed_package_root_trust(  # type: ignore[arg-type]
+        path_api=api,
+    )
+
+    assert result is expected
+    assert captured == [
+        (r"C:\TowerScout", target_inputs.PathTrustPurpose.PACKAGE_ROOT, api)
+    ]
 
 
 def test_public_source_has_no_caller_trust_or_ambient_environment_seam() -> None:

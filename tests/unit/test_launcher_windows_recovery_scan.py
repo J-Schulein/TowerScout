@@ -127,12 +127,13 @@ def _chain(
     package_root_identity: StableFileIdentity,
     provider_environment: bool,
     provider_applied: bool = False,
+    target_token_sha256: str = "b" * 64,
 ) -> PersistedEnvironmentJournalChain:
     protection = _Protection()
     stream = JournalStreamIdentity(
         1,
         journal_id,
-        "b" * 64,
+        target_token_sha256,
         package_root_identity,
     )
     if provider_environment:

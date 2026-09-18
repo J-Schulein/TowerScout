@@ -16,6 +16,7 @@ for candidate in (LAUNCHER_ROOT, TEST_ROOT):
         sys.path.insert(0, str(candidate))
 
 from test_launcher_runtime_execution import _target  # noqa: E402
+from test_launcher_windows_recovery_scan import _chain as _recovery_chain  # noqa: E402
 from towerscout_launcher.target_contracts import RuntimeProduct  # noqa: E402
 from towerscout_launcher.windows_mutex import (  # noqa: E402
     RuntimeTransactionLockBinding,
@@ -120,6 +121,14 @@ def _capture(
     provider_pending: bool = False,
     environment_abandoned: bool = False,
     target_abandoned: bool = False,
+    repair_pending: bool = False,
+    resume_recovery: (
+        Callable[
+            [PathHierarchyTrust, object, PackageRecoveryJournalScan],
+            PackageRecoveryJournalScan,
+        ]
+        | None
+    ) = None,
 ) -> tuple[
     HeldWindowsTransactionContext,
     list[str],
@@ -138,6 +147,20 @@ def _capture(
         environment_abandoned=environment_abandoned,
         target_abandoned=target_abandoned,
     )
+    recovery_scan = PackageRecoveryJournalScan(
+        1,
+        identity,
+        (
+            _recovery_chain(
+                journal_id="a" * 32,
+                package_root_identity=identity,
+                provider_environment=False,
+                target_token_sha256=target.target_token.digest_sha256,
+            )
+            if repair_pending
+            else None
+        ),
+    )
 
     def scan(
         package_root: PathHierarchyTrust,
@@ -147,11 +170,13 @@ def _capture(
         assert retained.active is True
         assert protected_root is protected
         events.append("scan")
-        return PackageRecoveryJournalScan(
-            1,
-            identity,
-            external_provider_environment_pending=provider_pending,
-        )
+        if provider_pending:
+            return PackageRecoveryJournalScan(
+                1,
+                identity,
+                external_provider_environment_pending=True,
+            )
+        return recovery_scan
 
     def acquire(
         binding: RuntimeTransactionLockBinding,
@@ -165,6 +190,9 @@ def _capture(
         assert revalidate() == binding
         return locks
 
+    capture_arguments: dict[str, object] = {}
+    if resume_recovery is not None:
+        capture_arguments["resume_recovery"] = resume_recovery
     context = observed.run_while_held(
         lambda: _capture_context(
             target,
@@ -173,6 +201,7 @@ def _capture(
             capture_protected_root=lambda: protected,
             scan_recovery=scan,
             acquire_locks=acquire,
+            **capture_arguments,  # type: ignore[arg-type]
         )
     )
     return context, events, retained, protected, locks
@@ -316,4 +345,55 @@ def test_context_preserves_callback_failure_after_revalidating_every_owner() -> 
 
     assert events[-1] == "protected:validate"
     assert context.closed is False
+    context.close()
+
+
+def test_context_resumes_pending_recovery_under_retained_owners() -> None:
+    recovered: list[PackageRecoveryJournalScan] = []
+
+    def resume(
+        package_root: PathHierarchyTrust,
+        protected_root: object,
+        scan: PackageRecoveryJournalScan,
+    ) -> PackageRecoveryJournalScan:
+        assert package_root.closed is False
+        assert getattr(protected_root, "closed") is False
+        assert scan.repair_pending is True
+        result = PackageRecoveryJournalScan(1, scan.package_root_identity)
+        recovered.append(result)
+        return result
+
+    context, _events, _retained, _protected, _locks = _capture(
+        repair_pending=True,
+        resume_recovery=resume,
+    )
+
+    result = context.resume_pending_recovery()
+
+    assert result is recovered[0]
+    assert result.mutation_blocked is False
+    assert context.recovery_scan is result
+    context.close()
+
+
+def test_context_sanitizes_failed_pending_recovery() -> None:
+    def fail(
+        _package_root: PathHierarchyTrust,
+        _protected_root: object,
+        _scan: PackageRecoveryJournalScan,
+    ) -> PackageRecoveryJournalScan:
+        raise RuntimeError("PRIVATE RECOVERY DETAIL")
+
+    context, _events, _retained, _protected, _locks = _capture(
+        repair_pending=True,
+        resume_recovery=fail,
+    )
+
+    with pytest.raises(WindowsTransactionContextError) as captured:
+        context.resume_pending_recovery()
+
+    assert captured.value.code is WindowsTransactionContextErrorCode.RECOVERY_FAILED
+    assert captured.value.__cause__ is None
+    assert captured.value.__context__ is None
+    assert "PRIVATE" not in str(captured.value)
     context.close()

@@ -70,12 +70,12 @@ class _Owner:
 
 
 class _Context:
-    def __init__(self) -> None:
+    def __init__(self, *, repair_pending: bool = False) -> None:
         self.closed = False
         self.assert_calls = 0
         self.close_calls = 0
         self.fail_assert = False
-        self.recovery_scan = SimpleNamespace(repair_pending=False)
+        self.recovery_scan = SimpleNamespace(repair_pending=repair_pending)
 
     def assert_unchanged(self) -> object:
         self.assert_calls += 1
@@ -277,6 +277,24 @@ def test_capture_failure_is_sanitized() -> None:
 
     assert raised.value.code is ExactTargetConfirmationErrorCode.TARGET_UNAVAILABLE
     assert "PRIVATE" not in str(raised.value)
+    assert raised.value.__cause__ is None
+    assert raised.value.__context__ is None
+
+
+def test_pending_repair_closes_capture_before_confirmation() -> None:
+    owner = _Owner()
+    context = _Context(repair_pending=True)
+    coordinator = ExactTargetConfirmationCoordinator(
+        capture=lambda _provider: owner,
+        capture_context=lambda _owner: context,
+    )
+
+    with pytest.raises(ExactTargetConfirmationError) as raised:
+        coordinator.prepare(MapProvider.GOOGLE)
+
+    assert raised.value.code is ExactTargetConfirmationErrorCode.RECOVERY_REQUIRED
+    assert owner.closed is True
+    assert context.closed is True
     assert raised.value.__cause__ is None
     assert raised.value.__context__ is None
 

@@ -304,6 +304,102 @@ def capture_native_existing_rollback_runtime(
     return result
 
 
+def capture_native_present_rollback_runtime_target(
+    certificate: CertificateIdentity,
+    authority: RollbackRuntimeRecoveryAuthority,
+    *,
+    input_capture: AbsentPlanInputCapture = (
+        capture_native_windows_target_resolution_plan_inputs
+    ),
+    backend_capture: AbsentObservationBackendCapture = (
+        capture_native_windows_target_observation_backend
+    ),
+) -> BoundResolvedRepairTarget:
+    """Capture a present recovery target without rerunning trust selection."""
+
+    if (
+        type(certificate) is not CertificateIdentity
+        or type(authority) is not RollbackRuntimeRecoveryAuthority
+        or not callable(input_capture)
+        or not callable(backend_capture)
+    ):
+        _fail(NativeRollbackRuntimeAvailabilityErrorCode.INPUT_INVALID)
+    inputs: _PlanInputOwner | None = None
+    backend: _AbsentObservationBackend | None = None
+    result: BoundResolvedRepairTarget | None = None
+    primary: BaseException | None = None
+    transferred = False
+    try:
+        inputs = input_capture(certificate.provider)
+        if inputs.supported is not True or inputs.closed is not False:
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+        first_inputs = inputs.capture()
+        second_inputs = inputs.capture()
+        first_plan = assemble_target_resolution_plan(
+            first_inputs,
+            certificate=certificate,
+        )
+        second_plan = assemble_target_resolution_plan(
+            second_inputs,
+            certificate=certificate,
+        )
+        if (
+            first_plan.authority_sha256 != second_plan.authority_sha256
+            or first_plan.provider is not certificate.provider
+            or StableFileIdentity(
+                first_plan.package_root.volume_serial,
+                first_plan.package_root.file_id,
+            )
+            != authority.package_root_identity
+        ):
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
+        backend = backend_capture(second_plan)
+        if _close_absent_resource(inputs):
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+        inputs = None
+        result = capture_bound_resolved_repair_target(
+            second_plan,
+            backend=backend,
+        )
+        backend = None
+        transferred = True
+        if (
+            result.closed
+            or derive_rollback_runtime_recovery_authority(result.target) != authority
+        ):
+            _fail(NativeRollbackRuntimeAvailabilityErrorCode.TARGET_MISMATCH)
+    except BaseException as error:
+        primary = error
+    cleanup_failed = False
+    if primary is not None and result is not None:
+        try:
+            result.close()
+        except BaseException as error:
+            if not isinstance(error, Exception) and primary is None:
+                primary = error
+            cleanup_failed = True
+        result = None
+    if not transferred:
+        for resource in (backend, inputs):
+            if resource is None:
+                continue
+            try:
+                cleanup_failed = _close_absent_resource(resource) or cleanup_failed
+            except BaseException as error:
+                if not isinstance(error, Exception) and primary is None:
+                    primary = error
+                cleanup_failed = True
+    if primary is not None and not isinstance(primary, Exception):
+        raise primary
+    if cleanup_failed:
+        _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
+    if isinstance(primary, NativeRollbackRuntimeAvailabilityError):
+        raise primary from None
+    if primary is not None or result is None:
+        _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
+    return result
+
+
 def _close_absent_resource(
     resource: _PlanInputOwner | _AbsentObservationBackend,
 ) -> bool:
@@ -891,6 +987,7 @@ __all__ = [
     "NativeWindowsRollbackRuntimeAvailability",
     "ResolvedTargetCapture",
     "capture_native_existing_rollback_runtime",
+    "capture_native_present_rollback_runtime_target",
     "capture_native_absent_rollback_runtime_target",
     "observe_rollback_runtime_target",
 ]

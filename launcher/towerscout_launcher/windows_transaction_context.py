@@ -3,7 +3,8 @@
 The context duplicates the already-held package-root trust while the complete
 resolved-target authority is active, acquires the environment mutex before the
 target mutex, scans the protected recovery root between those acquisitions,
-and retains every owner until explicit close.  It performs no repair mutation.
+and retains every owner until explicit close.  Forward repair remains outside
+this boundary; an authenticated pending rollback may be resumed explicitly.
 """
 
 from __future__ import annotations
@@ -37,6 +38,11 @@ from .windows_recovery_journal_storage_native import (
     NativeWindowsJournalGenerationStorage,
     NativeWindowsJournalPointerStorage,
 )
+from .windows_recovery_manager import resume_persisted_rollback_from_held_package_root
+from .windows_recovery_manager_native import (
+    build_native_windows_recovery_manager_ports,
+    certificate_identity_from_recovery_chain,
+)
 from .windows_recovery_scan import (
     PackageRecoveryJournalScan,
     RecoveryJournalScanError,
@@ -54,6 +60,7 @@ class WindowsTransactionContextErrorCode(str, Enum):
     TARGET_CHANGED = "target_changed"
     PROVIDER_RECOVERY_PENDING = "provider_recovery_pending"
     RECOVERY_STATE_AMBIGUOUS = "recovery_state_ambiguous"
+    RECOVERY_FAILED = "repair_recovery_pending"
     WRONG_THREAD = "repair_lock_wrong_thread"
     RELEASE_FAILED = "repair_lock_release_failed"
 
@@ -79,6 +86,9 @@ class WindowsTransactionContextError(RuntimeError):
         ),
         WindowsTransactionContextErrorCode.RECOVERY_STATE_AMBIGUOUS: (
             "Protected recovery state is ambiguous."
+        ),
+        WindowsTransactionContextErrorCode.RECOVERY_FAILED: (
+            "The prior repair still requires recovery."
         ),
         WindowsTransactionContextErrorCode.WRONG_THREAD: (
             "The Windows repair transaction must remain on its owning thread."
@@ -141,6 +151,20 @@ class _LockOwner(Protocol):
     def close(self) -> None: ...
 
 
+_RecoveryRunner = Callable[
+    [PathHierarchyTrust, _ProtectedRootOwner, PackageRecoveryJournalScan],
+    PackageRecoveryJournalScan,
+]
+
+
+def _recovery_unavailable(
+    _package_root: PathHierarchyTrust,
+    _protected_root: _ProtectedRootOwner,
+    _scan: PackageRecoveryJournalScan,
+) -> PackageRecoveryJournalScan:
+    _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
+
+
 class HeldWindowsTransactionContext:
     """Own a duplicated package-root lease, protected root, and lock pair."""
 
@@ -152,32 +176,42 @@ class HeldWindowsTransactionContext:
         "_package_root",
         "_protected_root",
         "_recovery_scan",
+        "_resume_recovery",
         "_target_token",
     )
 
     def __init__(
         self,
         *,
-        target: ResolvedRepairTarget,
+        target_token_sha256: str,
         package_root: _PackageRootOwner,
         protected_root: _ProtectedRootOwner,
         locks: _LockOwner,
         recovery_scan: PackageRecoveryJournalScan,
+        resume_recovery: _RecoveryRunner = _recovery_unavailable,
     ) -> None:
         valid = False
         try:
             identity = package_root.root_snapshot.identity
             valid = (
-                type(target) is ResolvedRepairTarget
+                type(target_token_sha256) is str
+                and len(target_token_sha256) == 64
+                and all(
+                    character in "0123456789abcdef" for character in target_token_sha256
+                )
                 and package_root.closed is False
                 and package_root.evidence.purpose is PathTrustPurpose.PACKAGE_ROOT
                 and type(identity) is StableFileIdentity
-                and identity.volume_serial == target.package_root.volume_serial
-                and identity.file_id == target.package_root.file_id
                 and protected_root.closed is False
                 and locks.closed is False
                 and type(recovery_scan) is PackageRecoveryJournalScan
                 and recovery_scan.package_root_identity == identity
+                and callable(resume_recovery)
+                and (
+                    recovery_scan.repair is None
+                    or recovery_scan.repair.selection.tip.stream.target_token_sha256
+                    == target_token_sha256
+                )
             )
         except Exception:
             valid = False
@@ -187,11 +221,12 @@ class HeldWindowsTransactionContext:
         self._mutex = threading.RLock()
         self._active = False
         self._owner_thread = threading.get_ident()
-        self._target_token = target.target_token.digest_sha256
+        self._target_token = target_token_sha256
         self._package_root: _PackageRootOwner | None = package_root
         self._protected_root: _ProtectedRootOwner | None = protected_root
         self._locks: _LockOwner | None = locks
         self._recovery_scan = recovery_scan
+        self._resume_recovery = resume_recovery
 
     @property
     def closed(self) -> bool:
@@ -227,6 +262,51 @@ class HeldWindowsTransactionContext:
         return self.run_with_package_root_held(
             lambda _package_root: self._recovery_scan
         )
+
+    def resume_pending_recovery(self) -> PackageRecoveryJournalScan:
+        """Resume one retained authenticated rollback under the held locks."""
+
+        with self._mutex:
+            protected_root = self._protected_root
+            scan = self._recovery_scan
+            if (
+                protected_root is None
+                or scan.repair is None
+                or threading.get_ident() != self._owner_thread
+            ):
+                _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
+
+        failed = False
+        interruption: BaseException | None = None
+        recovered: PackageRecoveryJournalScan | None = None
+        try:
+            recovered = self.run_with_package_root_held(
+                lambda package_root: self._resume_recovery(
+                    package_root,
+                    protected_root,
+                    scan,
+                )
+            )
+            if (
+                type(recovered) is not PackageRecoveryJournalScan
+                or recovered.package_root_identity != scan.package_root_identity
+                or recovered.mutation_blocked
+            ):
+                failed = True
+        except BaseException as error:
+            if isinstance(error, Exception):
+                failed = True
+            else:
+                interruption = error
+        if interruption is not None:
+            raise interruption
+        if failed or recovered is None:
+            _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
+        with self._mutex:
+            if self._package_root is None:
+                _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
+            self._recovery_scan = recovered
+        return recovered
 
     def run_with_package_root_held(
         self,
@@ -374,6 +454,7 @@ def _capture_context(
         ],
         _LockOwner,
     ],
+    resume_recovery: _RecoveryRunner = _recovery_unavailable,
 ) -> HeldWindowsTransactionContext:
     if (
         type(target) is not ResolvedRepairTarget
@@ -381,6 +462,7 @@ def _capture_context(
         or not callable(capture_protected_root)
         or not callable(scan_recovery)
         or not callable(acquire_locks)
+        or not callable(resume_recovery)
     ):
         _fail(WindowsTransactionContextErrorCode.INPUT_INVALID)
     package_root: _PackageRootOwner | None = None
@@ -440,6 +522,12 @@ def _capture_context(
                     != held_package_root.root_snapshot.identity
                 ):
                     _fail(WindowsTransactionContextErrorCode.TARGET_CHANGED)
+                if (
+                    candidate.repair is not None
+                    and candidate.repair.selection.tip.stream.target_token_sha256
+                    != target.target_token.digest_sha256
+                ):
+                    _fail(WindowsTransactionContextErrorCode.RECOVERY_STATE_AMBIGUOUS)
                 if candidate.provider_environment_pending:
                     raise RuntimeTransactionLockError(
                         RuntimeTransactionLockErrorCode.PROVIDER_RECOVERY_PENDING
@@ -453,11 +541,12 @@ def _capture_context(
             _fail(WindowsTransactionContextErrorCode.TARGET_CHANGED)
         observed_package_root.assert_unchanged_while_held()
         result = HeldWindowsTransactionContext(
-            target=target,
+            target_token_sha256=target.target_token.digest_sha256,
             package_root=held_package_root,
             protected_root=held_protected_root,
             locks=locks,
             recovery_scan=recovery_scan,
+            resume_recovery=resume_recovery,
         )
         package_root = None
         protected_root = None
@@ -482,6 +571,43 @@ def _capture_context(
     if result is None:
         _fail(WindowsTransactionContextErrorCode.TARGET_CHANGED)
     return result
+
+
+def resume_native_windows_pending_recovery(
+    package_root: PathHierarchyTrust,
+    protected_root: _ProtectedRootOwner,
+    scan: PackageRecoveryJournalScan,
+) -> PackageRecoveryJournalScan:
+    """Run the native manager and reclassify protected state before return."""
+
+    repair = scan.repair
+    if repair is None:
+        _fail(WindowsTransactionContextErrorCode.RECOVERY_FAILED)
+    concrete_root = cast(ProtectedStateRoot, protected_root)
+    certificate = certificate_identity_from_recovery_chain(repair)
+    ports = build_native_windows_recovery_manager_ports(
+        certificate,
+        concrete_root,
+    )
+    provider_stream = (
+        None
+        if scan.provider_environment is None
+        else scan.provider_environment.selection.tip.stream
+    )
+    resume_persisted_rollback_from_held_package_root(
+        stream=repair.selection.tip.stream,
+        provider_stream=provider_stream,
+        package_root=package_root,
+        initial_chain=repair,
+        ports=ports,
+    )
+    return scan_package_recovery_journals_from_held_root(
+        package_root,
+        protected_root=concrete_root,
+        generation_storage=NativeWindowsJournalGenerationStorage(),
+        pointer_storage=NativeWindowsJournalPointerStorage(),
+        protection=concrete_root,
+    )
 
 
 def capture_native_windows_transaction_context(
@@ -541,6 +667,7 @@ def capture_native_windows_transaction_context(
             capture_protected_root=capture_native_windows_protected_state_root,
             scan_recovery=scan,
             acquire_locks=acquire,
+            resume_recovery=resume_native_windows_pending_recovery,
         )
 
     try:
@@ -559,4 +686,5 @@ __all__ = [
     "WindowsTransactionContextError",
     "WindowsTransactionContextErrorCode",
     "capture_native_windows_transaction_context",
+    "resume_native_windows_pending_recovery",
 ]

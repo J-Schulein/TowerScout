@@ -45,6 +45,7 @@ from .windows_recovery_journal_storage_native import (
     NativeWindowsJournalGenerationStorage,
     NativeWindowsJournalPointerStorage,
 )
+from .windows_recovery_runtime_authority import RollbackRuntimeRecoveryAuthority
 from .windows_recovery_manager import (
     WindowsRecoveryManagerPorts,
     resume_persisted_rollback_from_held_package_root,
@@ -111,6 +112,33 @@ def certificate_identity_from_recovery_chain(
             preparing.certificate_provider,
             preparing.windows_root_fingerprint_sha256,
             preparing.local_ca_candidate_sha256,
+        )
+    except (TypeError, ValueError):
+        _fail(NativeWindowsRecoveryManagerErrorCode.INPUT_INVALID)
+
+
+def rollback_runtime_authority_from_recovery_chain(
+    chain: PersistedEnvironmentJournalChain,
+) -> RollbackRuntimeRecoveryAuthority:
+    """Reconstruct stage-stable runtime authority from authenticated state."""
+
+    if (
+        type(chain) is not PersistedEnvironmentJournalChain
+        or not chain.selection.generations
+        or type(chain.selection.generations[0].record) is not BackupPreparingRecord
+        or chain.selection.tip.stream != chain.selection.generations[0].stream
+    ):
+        _fail(NativeWindowsRecoveryManagerErrorCode.INPUT_INVALID)
+    preparing = chain.selection.generations[0].record
+    stream = chain.selection.tip.stream
+    try:
+        return RollbackRuntimeRecoveryAuthority(
+            1,
+            stream.target_token_sha256,
+            stream.package_root_identity,
+            preparing.rollback_runtime_evidence_sha256,
+            preparing.rollback_volume_evidence_sha256s,
+            preparing.runtime_was_running,
         )
     except (TypeError, ValueError):
         _fail(NativeWindowsRecoveryManagerErrorCode.INPUT_INVALID)
@@ -304,4 +332,5 @@ __all__ = [
     "build_native_windows_recovery_manager_ports",
     "capture_native_windows_recovery_manager",
     "certificate_identity_from_recovery_chain",
+    "rollback_runtime_authority_from_recovery_chain",
 ]
