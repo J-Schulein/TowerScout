@@ -1,18 +1,17 @@
 # TASK-087 Recovery And Forward-Journal WIP Handoff
 
-**As Of**: September 18, 2026 exact-certificate-plan checkpoint
+**As Of**: September 18, 2026 mutation-composition checkpoint
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Local Head**: `fa9d3eb`
-**Remote/PR Head**: `d593259`
+**Local Head**: `4b9a44d`
+**Remote/PR Head**: `8fd5806`
 **State**: Recovery front door and startup admission are exact-head validated;
-durable forward linkage, candidate staging/apply/cleanup, and exact native
-certificate-plan preparation are committed locally; transaction integration
-remains disabled
+durable rollback/forward preparation plus certificate/provider mutation
+composition are committed locally; transaction integration remains disabled
 
 ## Remote Status
 
-PR #67 remains Draft at pushed head `d593259`. CI/CD run `35366777685`,
-Task-087 run `35366777693`, and Trivy are fully green; the main-only build is
+PR #67 remains Draft at pushed head `8fd5806`. CI/CD run `35372618247`,
+Task-087 run `35372618295`, and Trivy are fully green; the main-only build is
 skipped as designed.
 
 ## Current Checkpoint
@@ -108,13 +107,17 @@ carried.
    exact provider mini-journal linkage were committed as `1c59252`. The
    affected rollback/forward/provider ring passes `181/181`; mutation remains
    unreachable from the launcher.
+10. Certificate apply/exact temp cleanup and provider environment stage/
+    promotion were composed as `4b9a44d`. The forward journal reaches current
+    `environment_applied`; focused tests pass `16/16`, strict typing and
+    focused static/security checks pass, and no launcher call site was added.
 
 ## Resume Point
 
-Compose certificate apply, provider promotion, runtime stop/start, terminal
-verification, commit, and exact cleanup above the armed rollback and forward
-journal. Then refactor `repair.py` around the immutable resolved target and
-durable rollback manager. Preserve the `BEFORE_MUTATION`, `BEFORE_RESTART`, and
+Compose runtime stop/start, terminal verification, commit, exact cleanup, and
+recovery-on-failure above the now-current `environment_applied` forward state.
+Then refactor `repair.py` around the immutable resolved target and durable
+rollback manager. Preserve the `BEFORE_MUTATION`, `BEFORE_RESTART`, and
 `TERMINAL` revalidation order and keep live mutation disabled until the
 integrated path is complete and reviewed.
 
