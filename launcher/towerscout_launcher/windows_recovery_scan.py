@@ -16,6 +16,15 @@ from .windows_recovery_journal_storage import (
     PersistedEnvironmentJournalChain,
     discover_persisted_environment_journal_chains,
 )
+from .windows_repair_transaction_journal import (
+    RepairTransactionJournalError,
+    RepairTransactionState,
+    authenticate_provider_link,
+)
+from .windows_repair_transaction_journal_storage import (
+    PersistedRepairTransactionChain,
+    discover_persisted_repair_transaction_chains,
+)
 from .windows_security import (
     StableFileIdentity,
     WindowsSecurityError,
@@ -58,6 +67,49 @@ def _chain_matches(
         chain.selection.tip.stream.package_root_identity == package_root_identity
         and chain.selection.generations[0].state in states
     )
+
+
+def _valid_forward_binding(
+    repair: PersistedEnvironmentJournalChain | None,
+    forward: PersistedRepairTransactionChain | None,
+    provider: PersistedEnvironmentJournalChain | None,
+) -> bool:
+    if forward is None:
+        return provider is None
+    if repair is None:
+        return False
+    repair_selection = repair.selection
+    forward_stream = forward.selection.tip.stream
+    if (
+        len(repair_selection.generations) < 3
+        or forward_stream.rollback_journal_id != repair_selection.tip.stream.journal_id
+        or forward_stream.rollback_armed_generation_sha256
+        != repair_selection.generation_sha256s[2]
+        or forward_stream.target_token_sha256
+        != repair_selection.tip.stream.target_token_sha256
+        or forward_stream.package_root_identity
+        != repair_selection.tip.stream.package_root_identity
+    ):
+        return False
+    has_environment_link = any(
+        generation.state
+        in {
+            RepairTransactionState.ENVIRONMENT_TEMP_PLANNED,
+            RepairTransactionState.ENVIRONMENT_TEMP_CREATED,
+            RepairTransactionState.ENVIRONMENT_TEMP_VERIFIED,
+            RepairTransactionState.ENVIRONMENT_APPLIED,
+        }
+        for generation in forward.selection.generations
+    )
+    if provider is None:
+        return not has_environment_link
+    if not has_environment_link:
+        return False
+    try:
+        authenticate_provider_link(forward.selection, provider)
+    except RepairTransactionJournalError:
+        return False
+    return True
 
 
 class RecoveryJournalScanErrorCode(str, Enum):
@@ -108,6 +160,14 @@ class PackageRecoveryJournalScan:
         repr=False,
     )
     external_provider_environment_pending: bool = False
+    forward: PersistedRepairTransactionChain | None = field(
+        default=None,
+        repr=False,
+    )
+    repair_provider_environment: PersistedEnvironmentJournalChain | None = field(
+        default=None,
+        repr=False,
+    )
 
     def __post_init__(self) -> None:
         if (
@@ -139,6 +199,29 @@ class PackageRecoveryJournalScan:
                 )
             )
             or type(self.external_provider_environment_pending) is not bool
+            or (
+                self.forward is not None
+                and (
+                    type(self.forward) is not PersistedRepairTransactionChain
+                    or self.forward.selection.tip.stream.package_root_identity
+                    != self.package_root_identity
+                    or self.forward.selection.tip.state
+                    is RepairTransactionState.CLEANED
+                )
+            )
+            or (
+                self.repair_provider_environment is not None
+                and (
+                    type(self.repair_provider_environment)
+                    is not PersistedEnvironmentJournalChain
+                    or self.forward is None
+                )
+            )
+            or not _valid_forward_binding(
+                self.repair,
+                self.forward,
+                self.repair_provider_environment,
+            )
         ):
             raise ValueError("Package recovery journal scan is invalid.")
 
@@ -154,13 +237,22 @@ class PackageRecoveryJournalScan:
         )
 
     @property
+    def forward_pending(self) -> bool:
+        return self.forward is not None
+
+    @property
     def mutation_blocked(self) -> bool:
-        return self.repair_pending or self.provider_environment_pending
+        return (
+            self.repair_pending
+            or self.forward_pending
+            or self.provider_environment_pending
+        )
 
     def __repr__(self) -> str:
         return (
             "PackageRecoveryJournalScan("
             f"repair_pending={self.repair_pending!r}, "
+            f"forward_pending={self.forward_pending!r}, "
             "provider_environment_pending="
             f"{self.provider_environment_pending!r}, <redacted>)"
         )
@@ -168,14 +260,20 @@ class PackageRecoveryJournalScan:
 
 def _valid_classification_inputs(
     chains: tuple[PersistedEnvironmentJournalChain, ...],
+    forward_chains: tuple[PersistedRepairTransactionChain, ...],
     package_root_identity: StableFileIdentity,
     external_provider_environment_pending: bool,
 ) -> bool:
     return not (
         type(chains) is not tuple
         or type(package_root_identity) is not StableFileIdentity
+        or type(forward_chains) is not tuple
         or type(external_provider_environment_pending) is not bool
         or any(type(chain) is not PersistedEnvironmentJournalChain for chain in chains)
+        or any(
+            type(chain) is not PersistedRepairTransactionChain
+            for chain in forward_chains
+        )
     )
 
 
@@ -203,16 +301,20 @@ def classify_package_recovery_journals(
     package_root_identity: StableFileIdentity,
     *,
     external_provider_environment_pending: bool = False,
+    forward_chains: tuple[PersistedRepairTransactionChain, ...] = (),
 ) -> PackageRecoveryJournalScan:
     """Classify authenticated pending protocols bound to one package root."""
 
     if not _valid_classification_inputs(
         chains,
+        forward_chains,
         package_root_identity,
         external_provider_environment_pending,
     ):
         _fail(RecoveryJournalScanErrorCode.INPUT_INVALID)
-    journal_ids = tuple(chain.selection.tip.stream.journal_id for chain in chains)
+    journal_ids = tuple(
+        chain.selection.tip.stream.journal_id for chain in chains
+    ) + tuple(chain.selection.tip.stream.journal_id for chain in forward_chains)
     if len(set(journal_ids)) != len(journal_ids):
         _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
 
@@ -224,15 +326,80 @@ def classify_package_recovery_journals(
             repair.append(chain)
         elif protocol == "provider":
             provider_environment.append(chain)
-    if len(repair) > 1 or len(provider_environment) > 1:
+    forward = [
+        chain
+        for chain in forward_chains
+        if chain.selection.tip.stream.package_root_identity == package_root_identity
+        and chain.selection.tip.state is not RepairTransactionState.CLEANED
+    ]
+    repair_provider_environment: PersistedEnvironmentJournalChain | None = None
+    if len(forward) > 1 or len(repair) > 1:
+        _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
+    if forward:
+        selected_forward = forward[0]
+        if not repair:
+            _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
+        selected_repair = repair[0]
+        forward_stream = selected_forward.selection.tip.stream
+        repair_selection = selected_repair.selection
+        if (
+            len(repair_selection.generations) < 3
+            or forward_stream.rollback_journal_id
+            != repair_selection.tip.stream.journal_id
+            or forward_stream.rollback_armed_generation_sha256
+            != repair_selection.generation_sha256s[2]
+            or forward_stream.target_token_sha256
+            != repair_selection.tip.stream.target_token_sha256
+            or forward_stream.package_root_identity
+            != repair_selection.tip.stream.package_root_identity
+        ):
+            _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
+        linked_generation = next(
+            (
+                generation
+                for generation in reversed(selected_forward.selection.generations)
+                if generation.state
+                in {
+                    RepairTransactionState.ENVIRONMENT_TEMP_PLANNED,
+                    RepairTransactionState.ENVIRONMENT_TEMP_CREATED,
+                    RepairTransactionState.ENVIRONMENT_TEMP_VERIFIED,
+                    RepairTransactionState.ENVIRONMENT_APPLIED,
+                }
+            ),
+            None,
+        )
+        if linked_generation is not None:
+            linked_id = linked_generation.record.provider_journal_id
+            matches = [
+                chain
+                for chain in chains
+                if chain.selection.tip.stream.journal_id == linked_id
+            ]
+            if len(matches) != 1:
+                _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
+            try:
+                authenticate_provider_link(selected_forward.selection, matches[0])
+            except RepairTransactionJournalError:
+                _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
+            repair_provider_environment = matches[0]
+            provider_environment = [
+                chain for chain in provider_environment if chain is not matches[0]
+            ]
+    if len(provider_environment) > 1:
         _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
     try:
         return PackageRecoveryJournalScan(
-            _SCHEMA_VERSION,
-            package_root_identity,
-            None if not repair else repair[0],
-            None if not provider_environment else provider_environment[0],
-            external_provider_environment_pending,
+            schema_version=_SCHEMA_VERSION,
+            package_root_identity=package_root_identity,
+            repair=None if not repair else repair[0],
+            provider_environment=(
+                None if not provider_environment else provider_environment[0]
+            ),
+            external_provider_environment_pending=(
+                external_provider_environment_pending
+            ),
+            forward=None if not forward else forward[0],
+            repair_provider_environment=repair_provider_environment,
         )
     except ValueError:
         _fail(RecoveryJournalScanErrorCode.STATE_AMBIGUOUS)
@@ -319,6 +486,12 @@ def scan_package_recovery_journals_from_held_root(
             pointer_storage=pointer_storage,
             protection=protection,
         )
+        forward_chains = discover_persisted_repair_transaction_chains(
+            root=protected_root,
+            generation_storage=generation_storage,
+            pointer_storage=pointer_storage,
+            protection=protection,
+        )
         external_provider_pending = _scan_external_provider_environment(
             protected_root=protected_root,
             generation_storage=generation_storage,
@@ -331,6 +504,7 @@ def scan_package_recovery_journals_from_held_root(
         chains,
         package_root_identity,
         external_provider_environment_pending=external_provider_pending,
+        forward_chains=forward_chains,
     )
 
 

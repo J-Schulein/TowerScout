@@ -34,8 +34,13 @@ _TRANSITION_NAME = (
     "pointer-transition-0123456789abcdef0123456789abcdef-"
     "00000000000000000001.generation"
 )
+_REPAIR_NAME = (
+    "repair-0123456789abcdef0123456789abcdef-" "00000000000000000001.generation"
+)
 _POINTER_NAME = "journal-0123456789abcdef0123456789abcdef.pointer"
 _POINTER_PATH = rf"{_ROOT}\{_POINTER_NAME}"
+_REPAIR_POINTER_NAME = "repair-0123456789abcdef0123456789abcdef.pointer"
+_REPAIR_POINTER_PATH = rf"{_ROOT}\{_REPAIR_POINTER_NAME}"
 _POINTER_TEMP_NAME = ".journal-pointer-fedcba9876543210fedcba9876543210.tmp"
 _POINTER_TEMP_PATH = rf"{_ROOT}\{_POINTER_TEMP_NAME}"
 _USER_SID = "S-1-5-21-1000"
@@ -211,6 +216,7 @@ class _PointerApi:
     supported = True
 
     def __init__(self) -> None:
+        self.pointer_path = _POINTER_PATH
         self.files: dict[str, tuple[StableFileIdentity, bytes]] = {
             _POINTER_PATH: (_identity("33"), b"old-pointer")
         }
@@ -285,7 +291,7 @@ class _PointerApi:
                 handle.path,
                 (
                     self.destination_path
-                    if handle.path == _POINTER_PATH
+                    if handle.path == self.pointer_path
                     and self.destination_path is not None
                     else handle.path
                 ),
@@ -311,7 +317,7 @@ class _PointerApi:
             return self.post_read_security
         if handle.path in self.security_overrides:
             return self.security_overrides[handle.path]
-        if handle.path == _POINTER_PATH and self.destination_security is not None:
+        if handle.path == self.pointer_path and self.destination_security is not None:
             return self.destination_security
         return _protected_security()
 
@@ -364,7 +370,7 @@ class _PointerApi:
         destination_path: str,
     ) -> None:
         assert source_path == _POINTER_TEMP_PATH
-        assert destination_path == _POINTER_PATH
+        assert destination_path == self.pointer_path
         self.events.append("move")
         if self.move_error is not None:
             raise self.move_error
@@ -509,6 +515,17 @@ def test_generation_adapter_accepts_only_supported_generation_names() -> None:
         assert invalid.value.code is invalid_code
 
 
+def test_generation_adapter_accepts_forward_repair_namespace() -> None:
+    api = _Api()
+    api.expected_path = rf"{_ROOT}\{_REPAIR_NAME}"
+    api.final_path = api.expected_path
+    storage = native.NativeWindowsJournalGenerationStorage(api=api)
+
+    stored = storage.create_generation(_ROOT, _REPAIR_NAME, _CONTENTS)
+
+    assert stored.contents == _CONTENTS
+
+
 @pytest.mark.parametrize("failure", ("identity", "contents", "security"))
 def test_create_generation_rejects_reopened_drift(failure: str) -> None:
     api = _Api()
@@ -612,6 +629,27 @@ def test_pointer_replace_closes_temp_before_move_and_verifies_destination() -> N
     assert api.events[:move_index].count(f"close:{_POINTER_TEMP_PATH}") == 2
     assert api.events[move_index + 1] == f"optional:{_POINTER_TEMP_PATH}"
     assert f"reopen:{_POINTER_PATH}" in api.events[move_index + 2 :]
+
+
+def test_pointer_adapter_accepts_forward_repair_namespace() -> None:
+    api = _PointerApi()
+    api.pointer_path = _REPAIR_POINTER_PATH
+    storage = native.NativeWindowsJournalPointerStorage(
+        api=api,
+        name_source=_PointerNameSource(),
+    )
+
+    stored = storage.replace_pointer(
+        _ROOT,
+        _REPAIR_POINTER_NAME,
+        _POINTER_CONTENTS,
+    )
+
+    assert stored.contents == _POINTER_CONTENTS
+    assert api.files[_REPAIR_POINTER_PATH] == (
+        api.temp_identity,
+        _POINTER_CONTENTS,
+    )
 
 
 def test_pointer_temp_storage_creates_exact_verified_temp_without_move() -> None:

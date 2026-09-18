@@ -589,10 +589,11 @@ def resume_native_windows_pending_recovery(
         certificate,
         concrete_root,
     )
+    provider_chain = scan.repair_provider_environment
+    if provider_chain is None:
+        provider_chain = scan.provider_environment
     provider_stream = (
-        None
-        if scan.provider_environment is None
-        else scan.provider_environment.selection.tip.stream
+        None if provider_chain is None else provider_chain.selection.tip.stream
     )
     resume_persisted_rollback_from_held_package_root(
         stream=repair.selection.tip.stream,

@@ -16,7 +16,10 @@ for candidate in (LAUNCHER_ROOT, TEST_ROOT):
         sys.path.insert(0, str(candidate))
 
 from test_launcher_runtime_execution import _target  # noqa: E402
-from test_launcher_windows_recovery_scan import _chain as _recovery_chain  # noqa: E402
+from test_launcher_windows_recovery_scan import (  # noqa: E402
+    _chain as _recovery_chain,
+    _forward_chain,
+)
 from towerscout_launcher.target_contracts import RuntimeProduct  # noqa: E402
 from towerscout_launcher.windows_mutex import (  # noqa: E402
     RuntimeTransactionLockBinding,
@@ -37,6 +40,7 @@ from towerscout_launcher.windows_transaction_context import (  # noqa: E402
     WindowsTransactionContextErrorCode,
     _capture_context,
 )
+import towerscout_launcher.windows_transaction_context as transaction_context  # noqa: E402
 
 
 class _PathOwner:
@@ -241,6 +245,85 @@ def test_provider_recovery_pending_blocks_before_target_lock() -> None:
     )
     assert captured.value.__cause__ is None
     assert captured.value.__context__ is None
+
+
+def test_native_recovery_uses_forward_owned_provider_stream(monkeypatch: Any) -> None:
+    target, _python, _identity_key = _target(RuntimeProduct.DOCKER)
+    identity = _identity(target)
+    repair = _recovery_chain(
+        journal_id="a" * 32,
+        package_root_identity=identity,
+        provider_environment=False,
+        repair_armed=True,
+        target_token_sha256=target.target_token.digest_sha256,
+    )
+    provider = _recovery_chain(
+        journal_id="e" * 32,
+        package_root_identity=identity,
+        provider_environment=True,
+        provider_applied=True,
+        target_token_sha256=target.target_token.digest_sha256,
+    )
+    forward = _forward_chain(repair, count=8, provider=provider)
+    recovery_scan = PackageRecoveryJournalScan(
+        1,
+        identity,
+        repair,
+        forward=forward,
+        repair_provider_environment=provider,
+    )
+    calls: dict[str, object] = {}
+    rescanned = PackageRecoveryJournalScan(1, identity)
+
+    monkeypatch.setattr(
+        transaction_context,
+        "certificate_identity_from_recovery_chain",
+        lambda selected: calls.setdefault("certificate_chain", selected),
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "build_native_windows_recovery_manager_ports",
+        lambda certificate, root: calls.setdefault("ports", (certificate, root)),
+    )
+
+    def resume(**arguments: object) -> None:
+        calls["resume"] = arguments
+
+    monkeypatch.setattr(
+        transaction_context,
+        "resume_persisted_rollback_from_held_package_root",
+        resume,
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "scan_package_recovery_journals_from_held_root",
+        lambda *_args, **_kwargs: rescanned,
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "NativeWindowsJournalGenerationStorage",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        transaction_context,
+        "NativeWindowsJournalPointerStorage",
+        lambda: object(),
+    )
+
+    package_root = object()
+    protected_root = object()
+    result = transaction_context.resume_native_windows_pending_recovery(
+        package_root,  # type: ignore[arg-type]
+        protected_root,  # type: ignore[arg-type]
+        recovery_scan,
+    )
+
+    assert result is rescanned
+    assert calls["certificate_chain"] is repair
+    resume_arguments = calls["resume"]
+    assert isinstance(resume_arguments, dict)
+    assert resume_arguments["provider_stream"] == provider.selection.tip.stream
+    assert resume_arguments["initial_chain"] is repair
 
 
 def test_changed_duplicate_package_root_is_closed_without_lock_acquisition() -> None:

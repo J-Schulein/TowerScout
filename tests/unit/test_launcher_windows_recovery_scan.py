@@ -13,6 +13,7 @@ if str(LAUNCHER_ROOT) not in sys.path:
     sys.path.insert(0, str(LAUNCHER_ROOT))
 
 import towerscout_launcher.windows_recovery_scan as scan  # noqa: E402
+import towerscout_launcher.windows_repair_transaction_journal as forward_journal  # noqa: E402
 from towerscout_launcher.target_contracts import MapProvider  # noqa: E402
 from towerscout_launcher.windows_environment_replacement_native import (  # noqa: E402
     EnvironmentAppliedRecord,
@@ -34,17 +35,22 @@ from towerscout_launcher.windows_path_trust import (  # noqa: E402
 )
 from towerscout_launcher.windows_recovery_journal import (  # noqa: E402
     BackupPreparingRecord,
+    BackupVerifiedRecord,
     EnvironmentJournalGeneration,
     EnvironmentJournalState,
     GENESIS_GENERATION_SHA256,
     JournalStreamIdentity,
     RollbackProviderOutcome,
+    RollbackArmedRecord,
     RollbackReadinessCondition,
     protect_environment_journal_generation,
     select_environment_journal_chain,
 )
 from towerscout_launcher.windows_recovery_journal_storage import (  # noqa: E402
     PersistedEnvironmentJournalChain,
+)
+from towerscout_launcher.windows_repair_transaction_journal_storage import (  # noqa: E402
+    PersistedRepairTransactionChain,
 )
 from towerscout_launcher.windows_security import (  # noqa: E402
     StableFileIdentity,
@@ -127,6 +133,7 @@ def _chain(
     package_root_identity: StableFileIdentity,
     provider_environment: bool,
     provider_applied: bool = False,
+    repair_armed: bool = False,
     target_token_sha256: str = "b" * 64,
 ) -> PersistedEnvironmentJournalChain:
     protection = _Protection()
@@ -180,6 +187,37 @@ def _chain(
             ca_bundle_candidate_mode=0o644,
         )
     generations: list[tuple[EnvironmentJournalState, object]] = [(state, record)]
+    if repair_armed:
+        assert not provider_environment
+        assert type(record) is BackupPreparingRecord
+        verified = BackupVerifiedRecord(
+            1,
+            "0" * 64,
+            package_root_identity,
+            _identity(31),
+            "4" * 64,
+            101,
+            _identity(32),
+            "5" * 64,
+            202,
+        )
+        armed = RollbackArmedRecord(
+            1,
+            "0" * 64,
+            package_root_identity,
+            verified.environment_backup_identity,
+            verified.environment_ciphertext_sha256,
+            verified.environment_ciphertext_size,
+            verified.certificate_backup_identity,
+            verified.certificate_ciphertext_sha256,
+            verified.certificate_ciphertext_size,
+        )
+        generations.extend(
+            (
+                (EnvironmentJournalState.BACKUP_VERIFIED, verified),
+                (EnvironmentJournalState.ROLLBACK_ARMED, armed),
+            )
+        )
     if provider_applied:
         assert provider_environment
         assert type(record) is EnvironmentTempPlanRecord
@@ -241,6 +279,30 @@ def _chain(
                 selected_record.candidate_security_descriptor_sha256,
                 selected_record.temp_name,
             )
+        elif type(selected_record) is BackupVerifiedRecord:
+            selected_record = BackupVerifiedRecord(
+                1,
+                previous,
+                selected_record.package_root_identity,
+                selected_record.environment_backup_identity,
+                selected_record.environment_ciphertext_sha256,
+                selected_record.environment_ciphertext_size,
+                selected_record.certificate_backup_identity,
+                selected_record.certificate_ciphertext_sha256,
+                selected_record.certificate_ciphertext_size,
+            )
+        elif type(selected_record) is RollbackArmedRecord:
+            selected_record = RollbackArmedRecord(
+                1,
+                previous,
+                selected_record.package_root_identity,
+                selected_record.environment_backup_identity,
+                selected_record.environment_ciphertext_sha256,
+                selected_record.environment_ciphertext_size,
+                selected_record.certificate_backup_identity,
+                selected_record.certificate_ciphertext_sha256,
+                selected_record.certificate_ciphertext_size,
+            )
         elif type(selected_record) is EnvironmentTempVerifiedRecord:
             selected_record = EnvironmentTempVerifiedRecord(
                 1,
@@ -291,6 +353,79 @@ def _chain(
     )
 
 
+def _forward_chain(
+    repair: PersistedEnvironmentJournalChain,
+    *,
+    count: int,
+    provider: PersistedEnvironmentJournalChain | None = None,
+) -> PersistedRepairTransactionChain:
+    protection = _Protection()
+    repair_stream = repair.selection.tip.stream
+    stream = forward_journal.RepairTransactionStreamIdentity(
+        1,
+        "f" * 32,
+        repair_stream.journal_id,
+        repair.selection.generation_sha256s[2],
+        repair_stream.target_token_sha256,
+        repair_stream.package_root_identity,
+    )
+    states = (
+        forward_journal.RepairTransactionState.CERTIFICATE_TEMP_PLANNED,
+        forward_journal.RepairTransactionState.CERTIFICATE_TEMP_CREATED,
+        forward_journal.RepairTransactionState.CERTIFICATE_TEMP_VERIFIED,
+        forward_journal.RepairTransactionState.CERTIFICATES_APPLIED,
+        forward_journal.RepairTransactionState.ENVIRONMENT_TEMP_PLANNED,
+        forward_journal.RepairTransactionState.ENVIRONMENT_TEMP_CREATED,
+        forward_journal.RepairTransactionState.ENVIRONMENT_TEMP_VERIFIED,
+        forward_journal.RepairTransactionState.ENVIRONMENT_APPLIED,
+    )
+    previous = stream.rollback_armed_generation_sha256
+    sealed_items = []
+    for sequence, state in enumerate(states[:count], start=1):
+        provider_sequence = sequence - 4 if sequence >= 5 else None
+        provider_digest = None
+        provider_id = None
+        if provider_sequence is not None:
+            assert provider is not None
+            provider_id = provider.selection.tip.stream.journal_id
+            provider_digest = provider.selection.generation_sha256s[
+                provider_sequence - 1
+            ]
+        generation = forward_journal.RepairTransactionGeneration(
+            1,
+            stream,
+            sequence,
+            previous,
+            state,
+            forward_journal.RepairTransitionRecord(
+                1,
+                previous,
+                stream.package_root_identity,
+                f"{sequence:064x}",
+                provider_id,
+                provider_sequence,
+                provider_digest,
+            ),
+        )
+        sealed = forward_journal.protect_repair_transaction_generation(
+            generation,
+            protection=protection,
+        )
+        sealed_items.append(sealed)
+        previous = sealed.generation_sha256
+    selection = forward_journal.select_repair_transaction_chain(
+        tuple(sealed_items),
+        None,
+        expected_stream=stream,
+        protection=protection,
+    )
+    return PersistedRepairTransactionChain(
+        tuple(sealed_items),
+        tuple(_identity(120 + index) for index in range(len(sealed_items))),
+        selection,
+    )
+
+
 def test_classification_ignores_foreign_package_journals() -> None:
     package_root = _identity(1)
     foreign = _chain(
@@ -330,6 +465,109 @@ def test_classification_reports_both_pending_protocols() -> None:
     assert result.provider_environment_pending is True
     assert result.mutation_blocked is True
     assert "a" * 32 not in repr(result)
+
+
+def test_classification_retains_forward_chain_anchored_to_armed_rollback() -> None:
+    package_root = _identity(1)
+    repair = _chain(
+        journal_id="a" * 32,
+        package_root_identity=package_root,
+        provider_environment=False,
+        repair_armed=True,
+    )
+    forward = _forward_chain(repair, count=4)
+
+    result = scan.classify_package_recovery_journals(
+        (repair,),
+        package_root,
+        forward_chains=(forward,),
+    )
+
+    assert result.repair is repair
+    assert result.forward is forward
+    assert result.forward_pending is True
+    assert result.provider_environment_pending is False
+    assert result.mutation_blocked is True
+
+
+def test_classification_owns_exact_terminal_provider_link_for_rollback() -> None:
+    package_root = _identity(1)
+    repair = _chain(
+        journal_id="a" * 32,
+        package_root_identity=package_root,
+        provider_environment=False,
+        repair_armed=True,
+    )
+    provider = _chain(
+        journal_id="e" * 32,
+        package_root_identity=package_root,
+        provider_environment=True,
+        provider_applied=True,
+    )
+    forward = _forward_chain(repair, count=8, provider=provider)
+
+    result = scan.classify_package_recovery_journals(
+        (repair, provider),
+        package_root,
+        forward_chains=(forward,),
+    )
+
+    assert result.repair_provider_environment is provider
+    assert result.provider_environment is None
+    assert result.provider_environment_pending is False
+    assert result.forward_pending is True
+
+
+def test_classification_rejects_forward_chain_without_matching_rollback() -> None:
+    package_root = _identity(1)
+    repair = _chain(
+        journal_id="a" * 32,
+        package_root_identity=package_root,
+        provider_environment=False,
+        repair_armed=True,
+    )
+    forward = _forward_chain(repair, count=4)
+
+    with pytest.raises(scan.RecoveryJournalScanError) as captured:
+        scan.classify_package_recovery_journals(
+            (),
+            package_root,
+            forward_chains=(forward,),
+        )
+
+    assert captured.value.code is scan.RecoveryJournalScanErrorCode.STATE_AMBIGUOUS
+
+
+def test_classification_rejects_substituted_terminal_provider_chain() -> None:
+    package_root = _identity(1)
+    repair = _chain(
+        journal_id="a" * 32,
+        package_root_identity=package_root,
+        provider_environment=False,
+        repair_armed=True,
+    )
+    linked = _chain(
+        journal_id="e" * 32,
+        package_root_identity=package_root,
+        provider_environment=True,
+        provider_applied=True,
+    )
+    substituted = _chain(
+        journal_id="9" * 32,
+        package_root_identity=package_root,
+        provider_environment=True,
+        provider_applied=True,
+    )
+    forward = _forward_chain(repair, count=8, provider=linked)
+
+    with pytest.raises(scan.RecoveryJournalScanError) as captured:
+        scan.classify_package_recovery_journals(
+            (repair, substituted),
+            package_root,
+            forward_chains=(forward,),
+        )
+
+    assert captured.value.code is scan.RecoveryJournalScanErrorCode.STATE_AMBIGUOUS
 
 
 def test_external_provider_environment_state_blocks_matching_package() -> None:
