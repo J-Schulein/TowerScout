@@ -463,6 +463,8 @@ class _Executor:
             ObservationOperation.COMPOSE_START_REPAIR_PROFILE,
             ObservationOperation.RUNTIME_REMOVE_EXACT_CONTAINER,
         }:
+            if process.operation is ObservationOperation.COMPOSE_START_REPAIR_PROFILE:
+                self.overrides.pop((ObservationOperation.CONTAINER_LIST, None), None)
             return b""
         if process.operation is ObservationOperation.CERTIFICATE_OBSERVE:
             return b'{"present":false}'
@@ -986,6 +988,27 @@ def test_owned_backend_recreates_only_after_exact_absence_and_recaptures_twice(
     assert authority.calls == 2
     assert backend.closed is False
     assert executor.closed is False
+    backend.close()
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_owned_backend_starts_only_exact_absent_repaired_profile(
+    product: RuntimeProduct,
+) -> None:
+    plan, authority, executor, backend = _backend(product)
+    executor.overrides[(ObservationOperation.CONTAINER_LIST, None)] = b""
+    expected = resolve_absent_runtime_target(plan, backend.capture_absent(plan))
+
+    started = backend.start_absent_repair(plan, expected)
+
+    assert type(started) is RecreatedTargetResolutionSnapshots
+    assert started.command_exit_code == 0
+    assert (
+        executor.calls.count((ObservationOperation.COMPOSE_START_REPAIR_PROFILE, None))
+        == 1
+    )
+    assert authority.calls == 2
+    assert backend.closed is False
     backend.close()
 
 

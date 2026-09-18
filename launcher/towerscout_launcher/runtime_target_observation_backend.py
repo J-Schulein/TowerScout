@@ -1554,6 +1554,21 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
         second = self._capture_while_held()
         return RecreatedTargetResolutionSnapshots(result.exit_code, first, second)
 
+    def _start_absent_repair_while_held(
+        self,
+        expected: AbsentResolvedRuntimeTarget,
+    ) -> RecreatedTargetResolutionSnapshots:
+        before = resolve_absent_runtime_target(
+            self._plan,
+            self._capture_absent_while_held(),
+        )
+        if before.observation_binding_sha256 != expected.observation_binding_sha256:
+            raise TargetResolutionError(TargetResolutionErrorCode.TARGET_CHANGED)
+        result = self._execute_result(self._binding.start_repair_profile())
+        first = self._capture_while_held()
+        second = self._capture_while_held()
+        return RecreatedTargetResolutionSnapshots(result.exit_code, first, second)
+
     def _poison(self) -> None:
         authority = self._authority
         executor = self._executor
@@ -1714,6 +1729,62 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
             try:
                 snapshots = self._authority.run_while_held(
                     lambda: self._recreate_absent_while_held(expected)
+                )
+                if type(snapshots) is not RecreatedTargetResolutionSnapshots:
+                    adapter_failure = (
+                        TargetObservationAdapterErrorCode.AUTHORITY_CHANGED
+                    )
+            except BaseException as error:
+                self._poison()
+                if not isinstance(error, Exception):
+                    raise
+                if isinstance(error, TargetObservationAdapterError):
+                    adapter_failure = error.code
+                elif isinstance(error, TargetResolutionError):
+                    resolution_failure = error.code
+                else:
+                    adapter_failure = (
+                        TargetObservationAdapterErrorCode.AUTHORITY_CHANGED
+                    )
+            finally:
+                self._active = False
+            if (adapter_failure is not None or resolution_failure is not None) and (
+                not self._closed
+            ):
+                self._poison()
+            if adapter_failure is not None:
+                raise TargetObservationAdapterError(adapter_failure)
+            if resolution_failure is not None:
+                raise TargetResolutionError(resolution_failure)
+            if snapshots is None:
+                _fail(TargetObservationAdapterErrorCode.AUTHORITY_CHANGED)
+            return snapshots
+
+    def start_absent_repair(
+        self,
+        plan: TargetResolutionPlan,
+        expected: AbsentResolvedRuntimeTarget,
+    ) -> RecreatedTargetResolutionSnapshots:
+        """Start only an exactly revalidated absent repaired profile."""
+
+        with self._lock:
+            if (
+                self._active
+                or self._closed
+                or plan is not self._plan
+                or type(expected) is not AbsentResolvedRuntimeTarget
+                or expected.plan is not plan
+                or self.supported is not True
+                or self._authority is None
+            ):
+                _fail(TargetObservationAdapterErrorCode.AUTHORITY_CHANGED)
+            self._active = True
+            snapshots: RecreatedTargetResolutionSnapshots | None = None
+            adapter_failure: TargetObservationAdapterErrorCode | None = None
+            resolution_failure: TargetResolutionErrorCode | None = None
+            try:
+                snapshots = self._authority.run_while_held(
+                    lambda: self._start_absent_repair_while_held(expected)
                 )
                 if type(snapshots) is not RecreatedTargetResolutionSnapshots:
                     adapter_failure = (
