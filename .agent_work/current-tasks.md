@@ -182,10 +182,10 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `1a390b9` adds native fail-closed runtime restart
-  through an exact volume-preserving Docker/Podman service force-recreation.
-  `3a62d7b` is the validated exact head: CI/CD run `35287869405`, Task-087 run
-  `35287869406`, and Trivy passed. The remaining rollback-verification port,
+- Task-087 implementation head `515c1f5` adds authenticated exact-state authority
+  for terminal rollback verification after the native volume-preserving restart.
+  `50f6524` is the validated exact head: CI/CD run `35290085769`, Task-087 run
+  `35290085763`, and Trivy passed. The native rollback-verification adapter,
   transaction integration, and live trust/runtime proof remain; PR #67 remains
   Draft.
   Gate A remains open and mutation remains disabled. Detailed
@@ -304,7 +304,7 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. The current implementation head is `1a390b9`; `3a62d7b` is the validated
+open. The current implementation head is `515c1f5`; `50f6524` is the validated
 exact head. Provider `.env` mutation/reconciliation, fresh-process rollback
 resumption, all durable rollback states, native terminal cleanup, and retained-
 container native runtime availability are implemented. Exact certificate
@@ -482,7 +482,7 @@ Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `1a390b9` against the fixed acceptance
+**Remaining Estimate**: Rebaseline after `515c1f5` against the fixed acceptance
 criteria rather than commit count. The rollback-verification native adapter,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
 final exact-head review, and the PR #67 decision still precede Task-096.

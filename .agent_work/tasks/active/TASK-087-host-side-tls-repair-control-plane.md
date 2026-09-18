@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `1a390b9`; `3a62d7b` is the validated exact head.
+implementation head is `515c1f5`; `50f6524` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -72,6 +72,19 @@ Windows trust and isolated Docker/rootless-Podman evidence remains pending a
 supported context and the
 required runtime-readiness confirmation. Repair/runtime integration remains
 disabled.
+
+Checkpoint `515c1f5` binds the sanitized pre-mutation readiness condition and
+repairable provider outcome into authenticated generation 1, then derives exact
+environment, certificate, runtime, container, all-volume, readiness, provider,
+and package authority for terminal rollback verification. The orchestration port
+now rejects mismatched evidence hashes and accepts readiness only when exact or
+when a successful provider recheck yields `ready`; an indeterminate provider
+recheck cannot claim that improvement. Focused tests pass `237/237`, the broader
+non-native recovery ring passes `351/351`, and Black, strict/normal mypy,
+blocking/unused-code Flake8, Bandit, and diff checks pass. All observed fixture,
+test-layout, lint-invocation, unused-local, and over-broad patch failures were
+corrected and superseded by clean replacement runs. No live runtime command was
+issued.
 
 **Chronological implementation ledger**: The September 14
 checkpoint closes slices 2-3 exact-target confirmation ownership and ordered
@@ -299,7 +312,7 @@ and normal typing failures were corrected and superseded by clean runs. No live
 runtime command was issued.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `1a390b9` against the fixed acceptance
+**Estimated Effort**: Rebaseline after `515c1f5` against the fixed acceptance
 criteria rather than commit count. Remaining rollback-verification adapter,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
 final exact-head review, and the PR #67 decision remain
