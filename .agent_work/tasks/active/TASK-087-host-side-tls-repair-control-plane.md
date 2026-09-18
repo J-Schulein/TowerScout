@@ -1896,6 +1896,42 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-18 - Durable Forward Journal And Provider Linkage Added
+
+**Objective**: Make every future forward repair transition recoverable without
+changing the already-proven rollback journal sequence or inferring provider
+state from ambient protected files.
+
+**Decision**: Use a purpose-separated immutable forward stream anchored to the
+exact authenticated `rollback_armed` generation. Bind the four provider
+environment write-ahead transitions to the exact provider journal ID, sequence,
+and generation digest. Keep forward mutation disabled until certificate,
+runtime, commit, and cleanup execution consume this contract.
+
+**Execution**: Checkpoint `9d7f533` adds the strict forward generation/pointer
+codec, protected create-only storage and pointer repair, a separate native
+`repair-*` namespace, cross-protocol discovery, exact rollback/provider binding,
+and recovery-manager routing of the forward-owned provider stream. The modeled
+sequence covers certificate plan/create/verify/apply, provider environment
+plan/create/verify/apply, runtime stop/start, terminal verification, commit,
+cleanup-pending, and cleaned. No certificate, environment, container, volume,
+or runtime mutation is enabled by this checkpoint.
+
+**Validation**: The journal/storage/scanner/context focused set passes `63/63`.
+The exact broader selected recovery, provider, target, and native-storage ring
+passes `700/700` in a fresh external temp root; native storage separately passes
+`76/76` and the non-native subset passes `93/93`. Black, strict mypy, blocking/
+unused-code Flake8, Bandit, compilation, and diff checks pass. Earlier failures
+were either corrected test fixtures/test doubles or ACL-denied shared pytest
+temp setup; clean external-root replacement runs supersede them. The system
+Python 3.14 pytest invocation and a cached Black invocation were tool-
+environment failures; the pinned Python 3.12 tests and no-cache single-worker
+Black replacement runs pass.
+
+**Next**: Add authenticated certificate forward staging/apply and cleanup
+ownership, then replace the legacy in-memory `repair.py` transaction with the
+immutable resolved target, forward journal, and durable rollback manager.
+
 ### 2026-09-17 - Native Recovery Composition And Pre-Apply Recovery Added
 
 **Objective**: Bind the completed rollback chain to its production native ports

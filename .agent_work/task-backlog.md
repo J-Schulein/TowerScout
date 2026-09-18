@@ -85,7 +85,11 @@ readiness/provider state and derives exact environment, certificate, runtime,
 container, all-volume, and readiness authority for terminal verification.
 Checkpoint `f298a3e` adds the native verifier with fresh exact local/runtime
 observations, bounded readiness/provider probes, and fail-closed retained-target
-ownership. Recovery/transaction integration is still open.
+ownership. Checkpoint `9d7f533` adds the separate authenticated forward repair
+journal, binds it to the exact armed rollback generation, and retains its exact
+provider mini-journal through restart. Certificate forward staging/apply,
+execution/cleanup integration, and the legacy transaction refactor are still
+open.
 After Gate A source
 acceptance and the PR #67 merge decision, complete Task-096 lifecycle controls
 and Task-102 native first-run setup before resuming Task-087 Gate B normal-
@@ -262,7 +266,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at implementation head `d1494f6`; `076d566` is the validated exact head. Native rollback is composed, and the exact target plus ordered lock/recovery context are retained through confirmation. Fresh-process/repair-executor integration, the `repair.py` refactor, live trust/runtime proof, and final validation remain. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at implementation head `9d7f533`; `b2369bb` is the validated exact head. Native rollback and startup admission are composed, and the exact target plus ordered lock/recovery context are retained through confirmation. The durable forward-journal/provider-linkage envelope is checkpointed; certificate execution/cleanup integration, the `repair.py` refactor, live trust/runtime proof, and final validation remain. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
 | `TASK-096` Launcher Lifecycle Controls | Backlog / NOT_STARTED. Begins only after Task-087 Gate A acceptance and the PR #67 merge decision; owns native state-driven Start/Open/Stop/Restart. |
 | `TASK-102` Native Launcher First-Run Setup | Backlog / NOT_STARTED. Begins after Task-096; owns package/asset/runtime/readiness setup and opens the browser Setup Wizard for provider keys before Task-087 Gate B. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |
