@@ -4,11 +4,13 @@
 **Planning State**: Fix first while the immutable `v0.1.2` pilot remains in
 use. Task-087 is active under its fixed nine-slice
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md). Exact-head
-validated checkpoint `01d2a96` is green. Implementation head `080fef8`
+validated checkpoint `250ea5b` is green. Implementation head `500a18a`
 composes the complete durable repair path through target/provider mutation,
 runtime transitions, terminal verification/commit, exact backup cleanup, and
-recovery-on-failure. The legacy `repair.py`/confirmation integration, final
-review, and live proof remain open.
+recovery-on-failure. It also connects the production typed-confirmation call
+site to that path with ordered revalidation and rebound-owner terminal proof.
+Final review, exact-head CI, legacy-module disposition, and live proof remain
+open.
 Exact-head
 validated implementation checkpoint `299ae96` promotes only the exact
 authenticated pointer temp after source and prior-destination verification and
@@ -100,8 +102,12 @@ missing native plan-preparation boundary without enabling mutation. Checkpoints
 `080fef8` compose durable rollback arming, forward staging,
 certificate/provider mutation, exact runtime replacement, terminal
 verification/commit, exact backup cleanup, and recovery-on-failure. The
-selected Gate A runtime/recovery/repair ring passes `1818/1818`. The legacy
-transaction/call-site replacement is still open.
+selected Gate A runtime/recovery/repair ring passes `1818/1818`. Checkpoint
+`500a18a` supplies those stages to the production typed-confirmation call site,
+requires each authorization boundary exactly once, adopts the rebound owner for
+terminal proof, and maps native failures to fixed public errors. Its integrated
+ring passes `1881/1881`. The legacy module remains only as a compatibility/test
+reference pending final disposition.
 After Gate A source
 acceptance and the PR #67 merge decision, complete Task-096 lifecycle controls
 and Task-102 native first-run setup before resuming Task-087 Gate B normal-
@@ -278,7 +284,7 @@ Parking lot:
 | `TASK-098` Dependency Security Remediation And Release Gate | Completed July 27; PR #51 merged, main CI passed, and Dependabot reconciled at closeout to eight documented non-blocking torch advisories |
 | `TASK-099` August Dependency Advisory Follow-Up | Completed in Sprint 09 on August 11; PRs #68/#69 merged as `f460445`/`0133b50`, main CI and root graph refresh passed, alert `#74` closed without dismissal, and its closeout inventory contained the eight documented torch residuals |
 | `TASK-101` extract-zip Advisory Assessment And Release-Gate Disposition | Completed August 20; PR #72/default-branch remediation and PR #73 checkpoint passed, then PR #67 head `946deaf` passed CI/CD run `32383065903` and Task-087 run `32383065959` |
-| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at implementation head `080fef8`; `01d2a96` is the validated exact head. The complete durable transaction now reaches verified commit, exact cleanup, and recovery-on-failure; the selected Gate A ring passes `1818/1818`. The `repair.py`/confirmation integration, exact-head CI/review, live trust/runtime proof, and final validation remain. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
+| `TASK-087` Host-Side TLS Repair Control Plane | In progress / IMPLEMENT at implementation head `500a18a`; `250ea5b` is the validated exact head. The complete durable transaction now reaches verified commit, exact cleanup, and recovery-on-failure through the production typed-confirmation call site; the integrated Gate A ring passes `1881/1881`. Exact-head CI/review, legacy-module disposition, live trust/runtime proof, and final validation remain. PR #67 remains Draft. After Gate A acceptance and the merge decision, complete Tasks 096 and 102 before Task-087 Gate B normal-package integration. |
 | `TASK-096` Launcher Lifecycle Controls | Backlog / NOT_STARTED. Begins only after Task-087 Gate A acceptance and the PR #67 merge decision; owns native state-driven Start/Open/Stop/Restart. |
 | `TASK-102` Native Launcher First-Run Setup | Backlog / NOT_STARTED. Begins after Task-096; owns package/asset/runtime/readiness setup and opens the browser Setup Wizard for provider keys before Task-087 Gate B. |
 | `TASK-089` cdcai Adoption And Ownership Transfer | Owner-gated; preparation only until Task-100 signed qualification, final owner qualification, and approval |

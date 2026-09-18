@@ -5,8 +5,8 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `080fef8`; `01d2a96` is the latest remotely validated
-exact head. Its CI/CD run `35373767689`, Task-087 run `35373767723`, and Trivy
+implementation head is `500a18a`; `250ea5b` is the latest remotely validated
+exact head. Its CI/CD run `35379191029`, Task-087 run `35379191026`, and Trivy
 passed; the main-only build was neutral as designed.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
@@ -102,13 +102,20 @@ encrypted rollback blobs and durably records cleaned or cleanup-pending.
 Checkpoint `080fef8` composes every stage and rescans same-session durable state
 so post-arm failures roll back while committed cleanup failures resume cleanup,
 never rollback. Paired terminal rollback/forward histories are suppressed in
-both directions. The complete selected runtime/recovery/repair ring passes
-`1818/1818`; strict typing, formatting, blocking lint, focused Bandit,
-compilation, and diff checks pass. The remaining Gate A source implementation
-is durable `repair.py`/confirmation integration.
+both directions. Checkpoint `500a18a` supplies that coordinator to the
+production typed-confirmation path, requires `BEFORE_MUTATION`,
+`BEFORE_RESTART`, and `TERMINAL` exactly once, adopts the rebound exact owner
+for terminal proof, closes transaction authority on every exit, and maps native
+failures to fixed public messages. The integrated selected ring passes
+`1881/1881`; strict typing, formatting, blocking lint, focused Bandit,
+compilation, and diff checks pass. The legacy `repair.py` module is no longer
+the production execution path but remains as a compatibility/test reference
+pending final-review disposition.
 The successful Windows trust and isolated Docker/rootless-Podman
 evidence remains pending a supported context and the required runtime-readiness
-confirmation. Repair/runtime integration remains disabled.
+confirmation. No live repair/runtime mutation was run; the local source path is
+now mutation-capable only after exact typed confirmation, while validation-only
+package manifests remain mutation-disabled.
 
 Checkpoint `515c1f5` binds the sanitized pre-mutation readiness condition and
 repairable provider outcome into authenticated generation 1, then derives exact
@@ -185,6 +192,33 @@ unavailable, and a raw Flake8 run included non-gate line-length findings; both
 were superseded by the isolated native proof and the repository's actual lint
 gates. No failed product check is carried, and no live runtime command was
 issued.
+
+### 2026-09-18 - Production Confirmation Handoff Integrated
+
+**Objective**: Connect the exact typed-confirmation lifetime to the complete
+native repair coordinator without weakening any authorization boundary.
+
+**Execution**: Checkpoint `500a18a` makes the native coordinator require three
+explicit hooks, invokes them exactly before the first durable write, before
+runtime restart, and after rebound owner capture, and connects those hooks to
+the confirmation transaction. Terminal authorization adopts and revalidates
+the new exact owner. The launcher now reports fixed success or sanitized native
+failure messages and always closes retained authority.
+
+**Validation**: Focused integration tests pass `18/18`; the launcher-facing
+integration set passes `99/99`; and the broad selected Windows launcher,
+runtime, recovery, repair, transaction, environment, and certificate ring
+passes `1881/1881` in a fresh elevated external temp root. Black, strict mypy,
+blocking Flake8, Bandit, compilation, and diff checks pass.
+
+**Decision**: The production call site is now mutation-capable only after exact
+typed confirmation and all three ordered revalidations. No live mutation was
+run. The legacy `repair.py` implementation remains non-production and needs an
+explicit delete-or-retain decision during final review.
+
+**Next**: Require exact-head workflows and final independent review, resolve
+the legacy-module disposition and any adversarial findings, then complete the
+supported-context Windows trust and approved live runtime evidence.
 
 ### 2026-09-18 - Terminal Commit, Cleanup, And Recovery Coordination Composed
 

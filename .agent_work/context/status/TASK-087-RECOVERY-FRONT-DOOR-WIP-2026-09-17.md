@@ -1,19 +1,20 @@
 # TASK-087 Recovery And Forward-Journal WIP Handoff
 
-**As Of**: September 18, 2026 repair-coordinator checkpoint
+**As Of**: September 18, 2026 production-integration checkpoint
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Local Head**: `080fef8`
-**Remote/PR Head**: `1fd2b12`
+**Local Head**: `500a18a`
+**Remote/PR Head**: `250ea5b` before the current local publish
 **State**: Recovery front door and startup admission are exact-head validated;
 durable rollback/forward preparation, certificate/provider/runtime mutation,
-terminal verification/commit, exact cleanup, and recovery-on-failure are
-committed locally; launcher transaction integration remains disabled
+terminal verification/commit, exact cleanup, recovery-on-failure, and the
+production typed-confirmation handoff are committed locally; no live mutation
+has been run
 
 ## Remote Status
 
-PR #67 remains Draft at pushed head `1fd2b12`. The latest fully validated exact
-head remains `01d2a96`: CI/CD run `35373767689`,
-Task-087 run `35373767723`, and Trivy are fully green; the main-only build is
+PR #67 remains Draft. The latest fully validated exact
+head is `250ea5b`: CI/CD run `35379191029`,
+Task-087 run `35379191026`, and Trivy are fully green; the main-only build is
 skipped as designed.
 
 ## Current Checkpoint
@@ -55,9 +56,13 @@ proven rollback chain:
   no-follow Docker/Podman command, and fails closed before producing a
   mismatched or oversized replacement plan.
 
-The checkpoint intentionally provides no integrated live runtime mutation. The
-legacy `repair.py`
-transaction is still not authoritative and forward mutation remains disabled.
+Checkpoint `500a18a` integrates the complete coordinator with the production
+typed-confirmation call site. It requires all three ordered authorization hooks,
+adopts and terminally revalidates the rebound exact owner, closes authority on
+every exit, and emits only fixed public success/failure messages. The legacy
+`repair.py` transaction is no longer authoritative, but remains in-tree as a
+compatibility/test reference pending final disposition. No live runtime
+mutation was run.
 
 Do not stage or remove the ACL-inaccessible `.agent_work/pytest-basetemp-*`
 directories. They are local test residue and unrelated to the candidate.
@@ -75,6 +80,10 @@ directories. They are local test residue and unrelated to the candidate.
 - Black, strict mypy, blocking/unused-code Flake8, Bandit, compilation, and
   `git diff --check` pass for the affected source. The added context regression
   also passes no-cache single-worker Black and blocking Flake8.
+- Production handoff evidence passes `18/18` focused, `99/99` launcher-facing,
+  and `1881/1881` broad selected integration tests in a fresh elevated external
+  temp root; Black, strict mypy, blocking Flake8, Bandit, compilation, and diff
+  checks pass for the five changed files.
 
 Earlier test failures were corrected before checkpointing: one synthetic digest
 fixture was not 64 characters, one pointer test double hardcoded the rollback
@@ -135,13 +144,19 @@ carried.
     paired journal history is suppressed in both directions. The selected Gate
     A runtime/recovery/repair ring passes `1818/1818`; focused static/security
     checks pass.
+16. Production typed-confirmation integration was composed as `500a18a`.
+    Required hooks enforce the pre-mutation, pre-restart, and rebound-owner
+    terminal boundaries exactly once; fixed public outcomes replace private
+    native failures. The integrated selected ring passes `1881/1881` plus all
+    focused static/security checks.
 
 ## Resume Point
 
-Refactor `repair.py` and the confirmation call site around the complete native
-coordinator, immutable resolved target, and durable rollback manager. Preserve
-the `BEFORE_MUTATION`, `BEFORE_RESTART`, and `TERMINAL` revalidation order and
-keep live mutation disabled until the integrated path is complete and reviewed.
+Run exact-head workflows and independent source/security review against
+`500a18a`, including adversarial failure injection at rollback preparation.
+Resolve whether the now-non-production `repair.py` module should be deleted or
+retained as an explicit compatibility/test fixture. Keep live mutation on hold
+until review is clean and runtime readiness is explicitly confirmed.
 
 The successful revocation-aware Windows trust proof and isolated Docker/rootless
 Podman mutation/recovery evidence still require a supported context and explicit

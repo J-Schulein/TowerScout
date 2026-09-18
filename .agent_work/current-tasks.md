@@ -7,13 +7,17 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, partial, not-started, and
-validation states. Implementation head `080fef8` now composes the complete
+validation states. Implementation head `500a18a` now composes the complete
 durable repair path from rollback arming through terminal verification,
 commit, exact backup cleanup, and recovery-on-failure. Fresh-process recovery
 distinguishes an incomplete repair from committed cleanup and suppresses paired
-terminal journal history in either direction. The remaining source integration
-is the `repair.py`/confirmation call-site replacement; launcher mutation remains
-disabled. The
+terminal journal history in either direction. The production typed-confirmation
+call site now supplies the required pre-mutation, pre-restart, and terminal
+revalidation hooks, adopts the rebound exact owner for terminal proof, and
+reports only fixed success/failure messages. The legacy `repair.py` module is no
+longer the production execution path, but its removal or retention as a test
+reference remains an explicit final-review decision. No live mutation has been
+run. The
 September 14 checkpoint closes slices
 2-3: confirmation
 now consumes and retains the native exact target, shows only its public summary,
@@ -190,18 +194,21 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `080fef8` now composes exact certificate and
+- Task-087 implementation head `500a18a` now composes exact certificate and
   provider mutation, runtime stop/start, terminal verification and commit,
-  exact backup cleanup, and recovery-on-failure. The complete selected Gate A
-  runtime/recovery/repair ring passes `1818/1818`, and focused formatting,
+  exact backup cleanup, recovery-on-failure, and the production typed-
+  confirmation handoff. The complete selected Gate A runtime/recovery/repair
+  ring passes `1881/1881`, and focused formatting,
   strict typing, lint, security, compilation, and diff checks pass. Validated
-  exact head `01d2a96` is fully
-  green in CI/CD run `35373767689`, Task-087 run `35373767723`, and Trivy.
+  exact head `250ea5b` is fully
+  green in CI/CD run `35379191029`, Task-087 run `35379191026`, and Trivy.
   See the
   [`September 17 WIP handoff`](./context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
-  The `repair.py`/confirmation integration, final review, and live trust/runtime
-  proof remain; PR #67 remains Draft.
-  Gate A remains open and mutation remains disabled. Detailed
+  Final review, exact-head CI, the legacy-module disposition, and live trust/
+  runtime proof remain; PR #67 remains Draft. Gate A remains open. The local
+  source path is mutation-capable after exact typed confirmation, but no live
+  repair was run and validation-only package manifests remain mutation-disabled.
+  Detailed
   status and evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
   in this release-state summary.
@@ -317,54 +324,18 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. The current implementation head is `244eeb7`; `9873c42` is the validated
-exact head. Provider `.env` mutation/reconciliation, fresh-process rollback
-resumption, all durable rollback states, native terminal cleanup, and retained-
-container native runtime availability are implemented. Exact certificate
-replacement bytes and their durable candidate summaries are now bound before
-backup persistence. Stage-stable runtime/image/Compose and all-volume recovery
-authority is also bound before mutation and enforced at runtime availability.
-The absent-target owner now reconstructs and twice revalidates the same
-Compose/image/all-volume authority without another trust-selection call, then
-revalidates absence before one fixed volume-preserving recreation and requires
-four exact present captures to recover the original authority. The manager-
-facing port now selects the retained or exact recreated path and closes all
-owners. Native certificate restoration now derives exact authority from the
-authenticated stream, retains and revalidates original bytes across contained
-Docker/Podman copy operations, atomically restores originals or removes exact
-candidates, and reconciles engine failures only from exact post-state. Its
-replacement broad evidence passes `734/734` non-native plus `177/177` native
-tests; focused static/security checks pass. The initial
-`231/233` test-placement failures, two newly introduced Bandit findings, and a
-non-executing grammar-command quoting error were all corrected and superseded
-by clean runs; its later mypy redeclaration and unsupported Black option were
-also corrected before checkpointing. Certificate-restoration command-plan,
-typing, grammar, patch-layout, and combined pytest-teardown failures were also
-corrected or superseded by clean replacement runs. Native runtime restart now
-uses only fixed volume-preserving service force-recreation, retires the old
-target authority, and proves the exact new container against the original
-runtime and all-volume authority. Its focused/adversarial evidence passes
-`146/146`, and its split broad evidence passes `536/536` non-native plus
-`189/189` Windows-native tests. All observed assertion, transition-code, and
-typing failures were corrected and superseded by clean runs. Native rollback
-verification now freshly proves the exact authenticated local, runtime,
-container, all-volume, readiness, and provider state through retained Docker/
-Podman authority. Its focused evidence passes `144/144`, and the complete
-selected recovery/runtime-target ring passes `764/764`; all encountered typing,
-pytest-temp ACL, and Black pipe failures were corrected or superseded by clean
-runs. Native rollback ports are now composed under one protected-state root,
-and the retained package-root trust, protected recovery root, authenticated
-scan, and ordered environment/target locks are held through confirmation.
-The fresh-process recovery front door and startup admission are complete. A
-purpose-separated durable forward journal now authenticates each planned/
-created/verified/applied provider prefix against the exact provider mini-
-journal and rollback anchor without changing the proven rollback sequence.
-Certificate forward staging, retained-target atomic apply through durable
-`certificates_applied` proof, and exact retry-safe forward-temp cleanup are now
-implemented. Remaining implementation is provider/runtime execution
-integration and the `repair.py` transaction refactor. Live
-Windows trust and Docker/rootless-Podman proof remains pending a supported
-context and runtime-readiness confirmation. The chronological ledger follows.
+open. Implementation head `500a18a` connects the production typed-confirmation
+call site to the complete durable native repair coordinator. The exact target,
+protected recovery context, certificate/provider mutation, volume-preserving
+runtime replacement, rebound-owner terminal verification, durable commit,
+exact cleanup, and recovery-on-failure are now composed. The integrated selected
+ring passes `1881/1881`, and the focused static/security gates pass. The legacy
+`repair.py` module is no longer the production execution path, but final review
+must decide whether to remove it or explicitly retain it as a constrained test/
+compatibility reference. Exact-head CI, independent review, successful
+revocation-aware Windows trust proof, OneDrive/two-session evidence, and
+approved Docker/rootless-Podman mutation/recovery proof remain. No live repair
+was run. The chronological ledger follows.
 Slices 1-3
 are complete. The September 14 checkpoint connects the
 retained exact-target facade to bounded typed confirmation and adds ordered
