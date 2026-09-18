@@ -1099,29 +1099,33 @@ class NativeWindowsPathTrustApi:
         return ctypes.string_at(dacl, amount)
 
     @staticmethod
-    def _security_fingerprint(
+    def _security_evidence(
         owner_sid: str,
         dacl_present: bool,
         dacl_protected: bool,
         dacl_bytes: bytes,
-    ) -> str:
+    ) -> bytes:
         # Bind the security policy itself, not the allocation/layout details of
         # the self-relative descriptor returned by Windows. ReplaceFileW may
         # normalize those representation details while preserving the owner
         # and exact DACL bytes that authorize access.
-        digest = hashlib.sha256()
-        digest.update(b"TowerScout.WindowsSecurityDescriptorFingerprint.v1")
+        evidence = bytearray(b"TowerScout.WindowsSecurityDescriptorFingerprint.v1")
         for value in (
             owner_sid.upper().encode("ascii", errors="strict"),
             b"\x01" if dacl_present else b"\x00",
             b"\x01" if dacl_protected else b"\x00",
             dacl_bytes,
         ):
-            digest.update(len(value).to_bytes(8, "big"))
-            digest.update(value)
-        return digest.hexdigest()
+            evidence.extend(len(value).to_bytes(8, "big"))
+            evidence.extend(value)
+        return bytes(evidence)
 
-    def query_security(self, handle: object) -> NativeSecurityFacts:
+    def query_security_evidence(
+        self,
+        handle: object,
+    ) -> tuple[NativeSecurityFacts, bytes]:
+        """Return normalized facts and their exact bounded hash preimage."""
+
         kernel32, advapi32 = self._require()
         owner = ctypes.c_void_p()
         dacl = ctypes.c_void_p()
@@ -1159,18 +1163,25 @@ class NativeWindowsPathTrustApi:
             if not 1 <= descriptor_size <= _MAX_SECURITY_DESCRIPTOR_BYTES:
                 raise OSError("Native Windows security descriptor is invalid.")
             dacl_protected = bool(control.value & _SE_DACL_PROTECTED)
-            descriptor_sha256 = self._security_fingerprint(
+            security_evidence = self._security_evidence(
                 owner_sid,
                 bool(dacl),
                 dacl_protected,
                 dacl_bytes,
             )
-            return NativeSecurityFacts(
-                owner_sid,
-                bool(dacl),
-                allowed,
-                dacl_protected=dacl_protected,
-                security_descriptor_sha256=descriptor_sha256,
+            if len(security_evidence) > _MAX_SECURITY_DESCRIPTOR_BYTES:
+                raise OSError("Native Windows security evidence is too large.")
+            return (
+                NativeSecurityFacts(
+                    owner_sid,
+                    bool(dacl),
+                    allowed,
+                    dacl_protected=dacl_protected,
+                    security_descriptor_sha256=(
+                        hashlib.sha256(security_evidence).hexdigest()
+                    ),
+                ),
+                security_evidence,
             )
         finally:
             if descriptor:
@@ -1178,6 +1189,10 @@ class NativeWindowsPathTrustApi:
                     kernel32.LocalFree(descriptor)
                 except BaseException:
                     pass
+
+    def query_security(self, handle: object) -> NativeSecurityFacts:
+        facts, _evidence = self.query_security_evidence(handle)
+        return facts
 
     def current_user_sid(self) -> str:
         kernel32, advapi32 = self._require()

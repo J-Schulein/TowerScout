@@ -576,6 +576,12 @@ class NativeWindowsEnvironmentRestoreApi:
     def query_security(self, handle: object) -> NativeSecurityFacts:
         return self._paths.query_security(handle)
 
+    def query_security_evidence(
+        self,
+        handle: object,
+    ) -> tuple[NativeSecurityFacts, bytes]:
+        return self._paths.query_security_evidence(handle)
+
     def seek_file(self, handle: object, offset: int) -> None:
         self._files.seek_file(handle, offset)
 

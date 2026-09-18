@@ -592,6 +592,17 @@ def test_certificate_bundle_read_is_a_fixed_bounded_engine_command(
         item.casefold() for item in request.arguments
     }
 
+    destination = TargetObservationExecutionBinding(plan).certificate_read_destination(
+        container_id="d" * 64,
+        destination=CertificateTargetDestination.LOCAL_CA,
+    )
+    assert destination.operation is ObservationOperation.CERTIFICATE_READ_DESTINATION
+    assert destination.stdout_limit_bytes == CERTIFICATE_BUNDLE_STDOUT_LIMIT_BYTES
+    assert destination.arguments[-1] == CONTAINER_CERT_DESTINATION
+    destination_script = destination.arguments[destination.arguments.index("-c") + 1]
+    ast.parse(destination_script, feature_version=(3, 11))
+    assert "O_NOFOLLOW" in destination_script
+
 
 def test_certificate_stage_rejects_source_outside_exact_recovery_root() -> None:
     binding = TargetObservationExecutionBinding(_plan())

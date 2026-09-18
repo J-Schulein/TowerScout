@@ -86,6 +86,7 @@ class ObservationOperation(str, Enum):
     CERTIFICATE_APPLY_CANDIDATE = "certificate_apply_candidate"
     CERTIFICATE_REMOVE_STAGED_CANDIDATE = "certificate_remove_staged_candidate"
     CERTIFICATE_READ_SYSTEM_BUNDLE = "certificate_read_system_bundle"
+    CERTIFICATE_READ_DESTINATION = "certificate_read_destination"
     ROLLBACK_READINESS_PROBE = "rollback_readiness_probe"
     ROLLBACK_PROVIDER_PROBE = "rollback_provider_probe"
 
@@ -485,6 +486,23 @@ _CERTIFICATE_READ_SYSTEM_BUNDLE_SCRIPT = (
     "os.close(f); sys.stdout.buffer.write(data)\n"
 )
 
+_CERTIFICATE_READ_DESTINATION_SCRIPT = (
+    "import os,stat,sys\n"
+    "p=sys.argv[1]\n"
+    "f=os.open(p,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)); s=os.fstat(f)\n"
+    f"if not stat.S_ISREG(s.st_mode) or not 0<=s.st_size<={1024 * 1024}: "
+    "raise SystemExit(47)\n"
+    "data=b''\n"
+    "while len(data)<s.st_size:\n"
+    " b=os.read(f,min(1048576,s.st_size-len(data)))\n"
+    " if not b: raise SystemExit(47)\n"
+    " data+=b\n"
+    "s2=os.fstat(f)\n"
+    "if (s.st_dev,s.st_ino,s.st_size,s.st_mode)!="
+    "(s2.st_dev,s2.st_ino,s2.st_size,s2.st_mode): raise SystemExit(47)\n"
+    "os.close(f); sys.stdout.buffer.write(data)\n"
+)
+
 _ROLLBACK_READINESS_PROBE_SCRIPT = (
     "import json,sys,urllib.request\n"
     "req=urllib.request.Request('http://127.0.0.1:5000/api/readiness',"
@@ -523,6 +541,7 @@ _CERTIFICATE_APPLY_CANDIDATE_SCRIPT = f"exec({_CERTIFICATE_APPLY_CANDIDATE_SCRIP
 _CERTIFICATE_READ_SYSTEM_BUNDLE_SCRIPT = (
     f"exec({_CERTIFICATE_READ_SYSTEM_BUNDLE_SCRIPT!r})"
 )
+_CERTIFICATE_READ_DESTINATION_SCRIPT = f"exec({_CERTIFICATE_READ_DESTINATION_SCRIPT!r})"
 _ROLLBACK_READINESS_PROBE_SCRIPT = f"exec({_ROLLBACK_READINESS_PROBE_SCRIPT!r})"
 _ROLLBACK_PROVIDER_PROBE_SCRIPT = f"exec({_ROLLBACK_PROVIDER_PROBE_SCRIPT!r})"
 
@@ -541,7 +560,12 @@ def _certificate_selector_valid(
         selector.candidate_size,
         selector.candidate_mode,
     )
-    if operation is ObservationOperation.CERTIFICATE_OBSERVE:
+    if operation in {
+        ObservationOperation.CERTIFICATE_OBSERVE,
+        ObservationOperation.CERTIFICATE_READ_DESTINATION,
+    }:
+        if operation is ObservationOperation.CERTIFICATE_READ_DESTINATION:
+            return all(value is None for value in optional)
         return selector.source_path is None and all(
             value is None for value in optional[2:]
         )
@@ -774,6 +798,7 @@ def _valid_selector(
         ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
         ObservationOperation.CERTIFICATE_APPLY_CANDIDATE,
         ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE,
+        ObservationOperation.CERTIFICATE_READ_DESTINATION,
     }:
         return type(selector) is CertificateRuntimeSelector and (
             _certificate_selector_valid(operation, selector)
@@ -848,6 +873,19 @@ def _engine_expected(
             path,
         )
         stdout_limit = CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES
+    elif operation is ObservationOperation.CERTIFICATE_READ_DESTINATION:
+        if type(selector) is not CertificateRuntimeSelector:
+            _reject(TargetObservationBindingErrorCode.SELECTOR_REJECTED)
+        suffix = (
+            "container",
+            "exec",
+            selector.container_id,
+            "python",
+            "-c",
+            _CERTIFICATE_READ_DESTINATION_SCRIPT,
+            selector.destination_path,
+        )
+        stdout_limit = CERTIFICATE_BUNDLE_STDOUT_LIMIT_BYTES
     elif operation in {
         ObservationOperation.CERTIFICATE_STAGE_ORIGINAL,
         ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
@@ -1027,6 +1065,7 @@ def _engine_expected(
                 ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
                 ObservationOperation.CERTIFICATE_APPLY_CANDIDATE,
                 ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE,
+                ObservationOperation.CERTIFICATE_READ_DESTINATION,
                 ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE,
                 ObservationOperation.ROLLBACK_READINESS_PROBE,
                 ObservationOperation.ROLLBACK_PROVIDER_PROBE,
@@ -1046,6 +1085,7 @@ def _engine_expected(
                 ObservationOperation.CERTIFICATE_STAGE_CANDIDATE,
                 ObservationOperation.CERTIFICATE_APPLY_CANDIDATE,
                 ObservationOperation.CERTIFICATE_REMOVE_STAGED_CANDIDATE,
+                ObservationOperation.CERTIFICATE_READ_DESTINATION,
                 ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE,
                 ObservationOperation.ROLLBACK_READINESS_PROBE,
                 ObservationOperation.ROLLBACK_PROVIDER_PROBE,
@@ -1513,6 +1553,17 @@ class TargetObservationExecutionBinding:
         return self._build(
             ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE,
             container_id,
+        )
+
+    def certificate_read_destination(
+        self,
+        *,
+        container_id: str,
+        destination: CertificateTargetDestination,
+    ) -> TargetObservationProcessPlan:
+        return self._build(
+            ObservationOperation.CERTIFICATE_READ_DESTINATION,
+            CertificateRuntimeSelector(container_id, destination),
         )
 
     def rollback_readiness_probe(

@@ -1773,6 +1773,17 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
                 return self._binding.certificate_read_system_bundle(
                     container_id=container_id,
                 )
+            if operation == "certificate_read_destination" and len(arguments) == 2:
+                container_id, destination = arguments
+                if (
+                    type(container_id) is not str
+                    or type(destination) is not CertificateTargetDestination
+                ):
+                    raise ValueError
+                return self._binding.certificate_read_destination(
+                    container_id=container_id,
+                    destination=destination,
+                )
             if operation == "certificate_observe" and len(arguments) == 3:
                 container_id, destination, restore_temp_name = arguments
                 if (

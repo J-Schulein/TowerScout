@@ -27,6 +27,7 @@ from towerscout_launcher import (  # noqa: E402
     runtime_target_observation_native as native_module,
 )
 from towerscout_launcher.runtime_target_observation import (  # noqa: E402
+    CertificateRuntimeSelector,
     CertificateTargetDestination,
     ObservationOperation,
     TargetObservationExecutionBinding,
@@ -472,6 +473,8 @@ class _Executor:
             return b""
         if process.operation is ObservationOperation.CERTIFICATE_READ_SYSTEM_BUNDLE:
             return b"private-system-bundle\n"
+        if process.operation is ObservationOperation.CERTIFICATE_READ_DESTINATION:
+            return b"private-certificate"
         if process.operation is ObservationOperation.CONTAINER_LIST:
             return (_CONTAINER_ID + "\r\n").encode("ascii")
         if process.operation is ObservationOperation.CONTAINER_INSPECT:
@@ -760,6 +763,34 @@ def test_bound_target_reads_only_the_fixed_system_certificate_bundle(
         )
         == 1
     )
+    assert authority.closed is False
+    assert executor.closed is False
+    owner.close()
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_bound_target_reads_only_a_fixed_certificate_destination(
+    product: RuntimeProduct,
+) -> None:
+    plan, authority, executor, backend = _backend(product)
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+
+    result = owner.execute_scoped_process(
+        "certificate_read_destination",
+        (_CONTAINER_ID, CertificateTargetDestination.LOCAL_CA),
+    )
+
+    assert isinstance(result, TargetObservationProcessResult)
+    assert result.operation is ObservationOperation.CERTIFICATE_READ_DESTINATION
+    assert result.stdout == b"private-certificate"
+    reads = tuple(
+        selector
+        for operation, selector in executor.calls
+        if operation is ObservationOperation.CERTIFICATE_READ_DESTINATION
+    )
+    assert len(reads) == 1
+    assert isinstance(reads[0], CertificateRuntimeSelector)
+    assert reads[0].destination is CertificateTargetDestination.LOCAL_CA
     assert authority.closed is False
     assert executor.closed is False
     owner.close()
