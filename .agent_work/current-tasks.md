@@ -188,15 +188,17 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `b2f6458` adds the authenticated fresh-process
-  recovery front door on top of the retained exact target and ordered lock/
-  recovery context. Local evidence passes `226/226` focused, `849/849` broad
-  non-native, and `245/245` isolated Windows-native tests plus all focused
-  static/security gates. The pre-push PR head `bd354eb` remains fully green.
+- Task-087 implementation head `ee76805` admits the authenticated fresh-process
+  recovery front door after the single-instance lock and before normal launcher
+  startup. Pending recovery is resumed first; unresolved recovery blocks startup
+  with a fixed sanitized message. The admission tests pass `60/60`, and focused
+  formatting, typing, lint, security, compilation, Python 3.11 grammar, and diff
+  gates pass. The preceding exact head `88d29f2` is fully green in CI/CD run
+  `35358255080`, Task-087 run `35358255088`, and Trivy.
   See the
   [`September 17 WIP handoff`](./context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
-  Launcher admission, durable forward-transaction integration, and live trust/
-  runtime proof remain; PR #67 remains Draft.
+  Durable forward-transaction integration and live trust/runtime proof remain;
+  PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed
   status and evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated

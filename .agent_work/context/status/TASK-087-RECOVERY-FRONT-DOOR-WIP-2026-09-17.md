@@ -2,17 +2,19 @@
 
 **As Of**: September 18, 2026 checkpoint closeout
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Local/Remote/PR Head**: `bd354eb`
+**Local Head**: `ee76805`
+**Remote/PR Head**: `88d29f2`
 **Implementation Baseline**: `d1494f6`
 **Implementation Checkpoint**: `b2f6458`
-**State**: Source and tests committed locally; documentation/push pending
+**State**: Recovery front door and startup admission committed locally;
+documentation/push pending
 
 ## Remote Status
 
-PR #67 remains Draft at exact head `bd354eb`. The refreshed PR check set is
-green: Python 3.11, Python 3.12, security, frontend, Docker frontend, production
-controller contracts/e2e, Windows host-helper contracts, and Trivy pass. The
-main-only build is skipped as designed.
+PR #67 remains Draft at exact head `88d29f2`. CI/CD run `35358255080`, Task-087
+run `35358255088`, and Trivy are green: Python 3.11, Python 3.12, security,
+frontend, Docker frontend, production controller contracts/e2e, and Windows
+host-helper contracts pass. The main-only build is skipped as designed.
 
 ## Local Candidate
 
@@ -34,9 +36,11 @@ The working tree adds the fresh-process native recovery front door needed after
 - make confirmation reject a new repair when authenticated repair recovery is
   pending while allowing a retained context to resume that recovery explicitly.
 
-The launcher app does not call this front door yet. Forward repair mutation
-remains disabled, and no live Docker, Podman, certificate, `.env`, or runtime
-mutation was run in this session.
+Checkpoint `ee76805` now calls this front door after the single-instance lock
+and before ordinary startup. A failed recovery blocks the app with fixed
+sanitized text and exit code 3; a successful recovery is reported before the
+app opens. Forward repair mutation remains disabled, and no live Docker,
+Podman, certificate, `.env`, or runtime mutation was run in this session.
 
 ### Uncommitted source files
 
@@ -99,8 +103,11 @@ No failed product check is being carried.
 4. Black, strict mypy, blocking/unused-code Flake8, Bandit, compilation, Python
    3.11 grammar, and diff checks passed. The multiprocessing Flake8 environment
    denial was superseded by clean single-worker runs.
-5. Source and tests were committed as `b2f6458`. Next, push the documentation
-   ledger and require exact-head workflows before launcher admission.
+5. Source and tests were committed as `b2f6458`; documentation was committed as
+   `88d29f2`, whose complete exact-head checks passed.
+6. Startup admission was committed as `ee76805`; its focused tests pass `60/60`
+   and its focused static/security gates pass. Next, commit this documentation
+   ledger, push, and require exact-head workflows.
 
 Before enabling forward mutation, resolve two design boundaries explicitly:
 

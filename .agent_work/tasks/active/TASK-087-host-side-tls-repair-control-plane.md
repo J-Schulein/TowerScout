@@ -5,8 +5,9 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `b2f6458`; `076d566` remains the last remotely validated
-exact head until the new checkpoint is pushed and its workflows finish.
+implementation head is `ee76805`; `88d29f2` is the latest remotely validated
+exact head until the startup-admission checkpoint is pushed and its workflows
+finish.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -77,8 +78,16 @@ ordered lock/recovery context is now retained through confirmation. Checkpoint
 present or exact-absent targets under the same ordered lock pair, resumes the
 durable native manager, and requires a clean rescan. Its evidence passes
 `226/226` focused, `849/849` broad non-native, and `245/245` isolated native
-tests plus focused static/security gates. The remaining Gate A implementation
-is launcher admission and durable forward-transaction/`repair.py` integration.
+tests plus focused static/security gates. Exact head `88d29f2` passed CI/CD run
+`35358255080`, Task-087 run `35358255088`, and Trivy; the main-only build was
+neutral as designed. Checkpoint `ee76805` then wires that recovery boundary
+after the single-instance lock and before normal launcher startup. It reports a
+fixed recovery-complete message on success, blocks startup with a fixed pending-
+recovery message and exit code 3 on failure, and never converts an interruption.
+Its focused launcher/startup/recovery tests pass `60/60`; focused formatting,
+isolated strict typing, single-worker lint, Bandit, compilation, Python 3.11
+grammar, and diff checks pass. The remaining Gate A implementation is durable
+forward-transaction/`repair.py` integration.
 The successful Windows trust and isolated Docker/rootless-Podman
 evidence remains pending a supported context and the required runtime-readiness
 confirmation. Repair/runtime integration remains disabled.
@@ -187,6 +196,32 @@ single-worker runs. No failed product check is carried.
 workflows, then wire startup recovery admission and replace the legacy
 `repair.py` transaction only after the durable forward-journal and terminal-
 provider linkage boundaries are explicit.
+
+### 2026-09-18 - Launcher Startup Recovery Admission Checkpointed
+
+**Objective**: Admit authenticated pending recovery before ordinary launcher
+startup without making the legacy repair transaction reachable.
+
+**Execution**: Checkpoint `ee76805` invokes the native recovery front door only
+after the process owns the single-instance lock. Successful recovery is reported
+with fixed text before the ordinary app opens. An unresolved recovery result is
+reported with fixed text, prevents the app from opening, and exits with status
+3. Duplicate-instance handling remains earlier than recovery, and
+`KeyboardInterrupt`/`SystemExit` are not converted. No repair, certificate,
+provider-environment, or runtime mutation path was enabled.
+
+**Validation**: The focused launcher-main, recovery-front-door, mutation-gate,
+and Windows-launcher set passes `60/60`. Black, isolated strict mypy, blocking
+and unused-code Flake8, Bandit, compilation, Python 3.11 grammar, and diff checks
+pass. The non-isolated strict-mypy probe followed unchanged imported modules and
+reported their existing annotations; the isolated touched-module command
+superseded it cleanly. Exact head `88d29f2` passed CI/CD run `35358255080`,
+Task-087 run `35358255088`, and Trivy before this local checkpoint.
+
+**Next**: Push this documented checkpoint and require exact-head workflows.
+Then implement and adversarially verify the approved durable forward states and
+explicit authenticated terminal-provider linkage before replacing `repair.py`
+or enabling repair mutation.
 
 ### 2026-09-17 - Recovery Front Door Left As Validated WIP
 
