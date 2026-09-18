@@ -1896,6 +1896,40 @@ Exit criteria:
 
 ## Implementation Log
 
+### 2026-09-18 - Forward Certificate Candidates Staged Durably
+
+**Objective**: Close the forward journal's certificate-temp metadata gap and
+stage both exact candidates without permitting certificate destination or
+runtime mutation.
+
+**Decision**: Require the authenticated rollback chain to be exactly three
+generations with a current `rollback_armed` pointer before creating a temp.
+Persist both unpredictable names before creation, both stable identities before
+write, and the same identities after exact flushed/reopened byte verification.
+
+**Execution**: Checkpoint `8a6dd47` adds bytes-free certificate-plan evidence,
+state-specific forward certificate temp metadata, protected native forward temp
+storage, and idempotent staging orchestration through
+`certificate_temp_verified`. Restart accepts a bytes-written/generation-missing
+window only when both identities and complete candidate bytes remain exact; a
+generation-written/pointer-missing window repairs only that pointer. Substituted
+plans, non-current rollback pointers, identity drift, content drift, or unsafe
+name collisions fail closed.
+
+**Validation**: The selected certificate, backup, journal, scanner, and
+transaction-context ring passes `197/197` in a fresh external temp root. Focused
+Black, strict mypy, blocking/unused-code Flake8, Bandit, compilation, and diff
+checks pass. Four initial staging tests used a rollback helper whose pointer was
+intentionally missing; the fixture was corrected to construct an exact current
+pointer and the complete replacement run passed. Eight earlier certificate-
+storage failures came from placing two existing test-double methods below a new
+module-level helper; those methods were restored to the test double and the
+complete affected ring passed. No failed product check is carried.
+
+**Next**: Apply the verified candidates through retained target authority,
+persist `certificates_applied`, add exact forward-temp cleanup, then integrate
+the remaining provider/runtime/verification states behind ordered revalidation.
+
 ### 2026-09-18 - Durable Forward Journal And Provider Linkage Added
 
 **Objective**: Make every future forward repair transition recoverable without

@@ -188,17 +188,16 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `9d7f533` adds a durable authenticated forward
-  repair journal anchored to the exact `rollback_armed` generation. It binds
-  each provider `.env` write-ahead prefix to its exact provider mini-journal,
-  keeps the rollback chain unchanged, and makes the fresh-process scanner retain
-  the owned provider stream for rollback. Focused tests pass `63/63`; the broader
-  selected ring passes `700/700` in a fresh external temp root. The preceding
-  pushed head `b2369bb` is fully green in CI/CD run `35358921493`, Task-087 run
-  `35358921527`, and Trivy.
+- Task-087 implementation head `8a6dd47` durably stages the two exact certificate
+  candidates through planned, created, and verified forward generations only
+  after the exact rollback chain is armed and current. Retry repairs pointer
+  failures and accepts flushed pre-append bytes only when identities and bytes
+  remain exact. The affected recovery/storage ring passes `197/197`. The
+  preceding pushed head `4ced15d` is fully green in CI/CD run `35362357713`,
+  Task-087 run `35362357721`, and Trivy.
   See the
   [`September 17 WIP handoff`](./context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
-  Certificate staging/apply, forward execution/cleanup integration, the
+  Certificate apply, forward execution/cleanup integration, the
   `repair.py` refactor, and live trust/runtime proof remain;
   PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed
@@ -317,7 +316,7 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. The current implementation head is `9d7f533`; `b2369bb` is the validated
+open. The current implementation head is `8a6dd47`; `4ced15d` is the validated
 exact head. Provider `.env` mutation/reconciliation, fresh-process rollback
 resumption, all durable rollback states, native terminal cleanup, and retained-
 container native runtime availability are implemented. Exact certificate
@@ -359,7 +358,8 @@ The fresh-process recovery front door and startup admission are complete. A
 purpose-separated durable forward journal now authenticates each planned/
 created/verified/applied provider prefix against the exact provider mini-
 journal and rollback anchor without changing the proven rollback sequence.
-Remaining implementation is certificate forward staging/apply, execution and
+Certificate forward staging through exact flushed/reopened verification is now
+implemented. Remaining implementation is certificate apply, execution and
 cleanup integration, and the `repair.py` transaction refactor. Live
 Windows trust and Docker/rootless-Podman proof remains pending a supported
 context and runtime-readiness confirmation. The chronological ledger follows.
