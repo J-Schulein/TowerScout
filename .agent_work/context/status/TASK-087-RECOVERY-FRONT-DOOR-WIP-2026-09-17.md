@@ -1,17 +1,18 @@
 # TASK-087 Recovery And Forward-Journal WIP Handoff
 
-**As Of**: September 18, 2026 runtime-start checkpoint
+**As Of**: September 18, 2026 repair-coordinator checkpoint
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Local Head**: `ab5aefa`
-**Remote/PR Head**: `01d2a96`
+**Local Head**: `080fef8`
+**Remote/PR Head**: `1fd2b12`
 **State**: Recovery front door and startup admission are exact-head validated;
-durable rollback/forward preparation plus certificate/provider/runtime mutation
-composition through `runtime_started` are committed locally; transaction
-integration remains disabled
+durable rollback/forward preparation, certificate/provider/runtime mutation,
+terminal verification/commit, exact cleanup, and recovery-on-failure are
+committed locally; launcher transaction integration remains disabled
 
 ## Remote Status
 
-PR #67 remains Draft at pushed head `01d2a96`. CI/CD run `35373767689`,
+PR #67 remains Draft at pushed head `1fd2b12`. The latest fully validated exact
+head remains `01d2a96`: CI/CD run `35373767689`,
 Task-087 run `35373767723`, and Trivy are fully green; the main-only build is
 skipped as designed.
 
@@ -121,14 +122,26 @@ carried.
     and a new owner is returned after unchanged image/all-volume proof and a
     changed container. The expanded runtime/repair ring passes `371/371` and
     focused static/security checks pass.
+13. Terminal verification and commit were composed as `78a77f1`. The stage
+    persists `success_verifying`, revalidates exact target/environment/
+    certificate authority, runs bounded readiness and provider probes, closes
+    target ownership, and only then records `committed`.
+14. Exact encrypted rollback-backup cleanup was composed as `464a4fd`. It
+    accepts exact absence or deletes only both authenticated blobs, records
+    `cleaned` on success, and records `recovery_cleanup_pending` on failure.
+15. Full stage coordination and recovery-on-failure were composed as
+    `080fef8`. Same-session durable state is rescanned; incomplete repairs
+    resume rollback, committed cleanup failures resume cleanup, and terminal
+    paired journal history is suppressed in both directions. The selected Gate
+    A runtime/recovery/repair ring passes `1818/1818`; focused static/security
+    checks pass.
 
 ## Resume Point
 
-Compose terminal verification, commit, exact cleanup, and recovery-on-failure
-above the now-current `runtime_started` forward state. Then refactor `repair.py`
-around the immutable resolved target and durable rollback manager. Preserve the
-`BEFORE_MUTATION`, `BEFORE_RESTART`, and `TERMINAL` revalidation order and keep
-live mutation disabled until the integrated path is complete and reviewed.
+Refactor `repair.py` and the confirmation call site around the complete native
+coordinator, immutable resolved target, and durable rollback manager. Preserve
+the `BEFORE_MUTATION`, `BEFORE_RESTART`, and `TERMINAL` revalidation order and
+keep live mutation disabled until the integrated path is complete and reviewed.
 
 The successful revocation-aware Windows trust proof and isolated Docker/rootless
 Podman mutation/recovery evidence still require a supported context and explicit

@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `ab5aefa`; `01d2a96` is the latest remotely validated
+implementation head is `080fef8`; `01d2a96` is the latest remotely validated
 exact head. Its CI/CD run `35373767689`, Task-087 run `35373767723`, and Trivy
 passed; the main-only build was neutral as designed.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
@@ -94,10 +94,18 @@ authenticated old container by exact ID. Checkpoint `ab5aefa` reconstructs the
 post-promotion plan without trust reselection, twice verifies exact absence,
 starts only the repaired service profile, and returns a newly captured exact
 owner after proving unchanged image and all-volume authority plus a changed
-container. The expanded runtime/repair ring passes `371/371`; strict typing,
-blocking lint, focused Bandit, compilation, and diff checks pass. The remaining
-Gate A implementation is terminal verification/commit/cleanup and recovery-on-
-failure composition plus durable `repair.py` integration.
+container. Checkpoint `78a77f1` persists `success_verifying`, revalidates the
+exact rebound target, verifies the candidate environment and both certificate
+destinations, runs bounded readiness/provider probes, and durably commits only
+after terminal proof. Checkpoint `464a4fd` deletes only the two authenticated
+encrypted rollback blobs and durably records cleaned or cleanup-pending.
+Checkpoint `080fef8` composes every stage and rescans same-session durable state
+so post-arm failures roll back while committed cleanup failures resume cleanup,
+never rollback. Paired terminal rollback/forward histories are suppressed in
+both directions. The complete selected runtime/recovery/repair ring passes
+`1818/1818`; strict typing, formatting, blocking lint, focused Bandit,
+compilation, and diff checks pass. The remaining Gate A source implementation
+is durable `repair.py`/confirmation integration.
 The successful Windows trust and isolated Docker/rootless-Podman
 evidence remains pending a supported context and the required runtime-readiness
 confirmation. Repair/runtime integration remains disabled.
@@ -177,6 +185,30 @@ unavailable, and a raw Flake8 run included non-gate line-length findings; both
 were superseded by the isolated native proof and the repository's actual lint
 gates. No failed product check is carried, and no live runtime command was
 issued.
+
+### 2026-09-18 - Terminal Commit, Cleanup, And Recovery Coordination Composed
+
+**Objective**: Complete the durable post-start repair stages and guarantee that
+every post-arm failure enters the correct exact recovery path.
+
+**Execution**: Checkpoint `78a77f1` adds exact terminal verification and durable
+commit. Checkpoint `464a4fd` adds exact authenticated rollback-backup cleanup
+through cleaned or cleanup-pending. Checkpoint `080fef8` coordinates all repair
+stages, rescans durable state written in the same session, resumes rollback for
+pre-commit failure, resumes cleanup for committed failure, and classifies paired
+terminal journals as historical. Focused recovery/coordinator tests pass
+`36/36`; the full selected runtime/recovery/repair ring passes `1818/1818` in
+an isolated elevated temp root. Formatting, strict typing, blocking lint,
+Bandit, compilation, and diff checks pass.
+
+**Decision**: A durable `committed` forward state is never eligible for rollback.
+It can only complete exact cleanup. Conversely, a cleaned rollback makes its
+abandoned incomplete forward stream historical. This preserves a single
+unambiguous next-launch action across both crash windows.
+
+**Next**: Replace the legacy `repair.py`/confirmation call site with the complete
+native coordinator, preserving all existing revalidation stages and keeping
+launcher mutation disabled until review.
 
 ### 2026-09-18 - Certificate And Provider Mutation Ports Composed
 

@@ -7,12 +7,13 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, partial, not-started, and
-validation states. Checkpoint `1c59252` composes the exact original state and
-fresh readiness evidence through current `rollback_armed`, stages verified
-forward certificate candidates, and can mirror exact provider mini-journal
-progress into the forward chain. Certificate/provider mutation, runtime and
-terminal transitions, cleanup, and the `repair.py` refactor are next; launcher
-mutation remains disabled. The
+validation states. Implementation head `080fef8` now composes the complete
+durable repair path from rollback arming through terminal verification,
+commit, exact backup cleanup, and recovery-on-failure. Fresh-process recovery
+distinguishes an incomplete repair from committed cleanup and suppresses paired
+terminal journal history in either direction. The remaining source integration
+is the `repair.py`/confirmation call-site replacement; launcher mutation remains
+disabled. The
 September 14 checkpoint closes slices
 2-3: confirmation
 now consumes and retains the native exact target, shows only its public summary,
@@ -189,17 +190,17 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `ab5aefa` now composes exact certificate and
-  provider mutation through runtime stop/start, including fresh twice-captured
-  repaired-profile absence, fixed service-only start, and a newly bound exact
-  container owner. The expanded runtime/repair ring passes `371/371`, and the
-  focused static/security checks pass. Validated exact head `01d2a96` is fully
+- Task-087 implementation head `080fef8` now composes exact certificate and
+  provider mutation, runtime stop/start, terminal verification and commit,
+  exact backup cleanup, and recovery-on-failure. The complete selected Gate A
+  runtime/recovery/repair ring passes `1818/1818`, and focused formatting,
+  strict typing, lint, security, compilation, and diff checks pass. Validated
+  exact head `01d2a96` is fully
   green in CI/CD run `35373767689`, Task-087 run `35373767723`, and Trivy.
   See the
   [`September 17 WIP handoff`](./context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
-  Remaining terminal verification/commit/cleanup and recovery-on-failure
-  integration, the `repair.py` refactor, and live trust/runtime proof remain;
-  PR #67 remains Draft.
+  The `repair.py`/confirmation integration, final review, and live trust/runtime
+  proof remain; PR #67 remains Draft.
   Gate A remains open and mutation remains disabled. Detailed
   status and evidence are maintained in the
   [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md), not duplicated
