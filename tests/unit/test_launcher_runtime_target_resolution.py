@@ -6,7 +6,7 @@ import sys
 import threading
 from dataclasses import replace
 from pathlib import Path, PureWindowsPath
-from typing import Any
+from typing import Any, Callable
 
 import pytest
 
@@ -571,6 +571,8 @@ class _Backend(TargetResolutionBackend):
         self._closed = False
         self.calls = 0
         self.close_calls = 0
+        self.package_root = object()
+        self.package_root_calls = 0
 
     @property
     def supported(self) -> bool:
@@ -594,6 +596,16 @@ class _Backend(TargetResolutionBackend):
     def close(self) -> None:
         self.close_calls += 1
         self._closed = True
+
+    def run_with_package_root_held(
+        self,
+        plan: TargetResolutionPlan,
+        operation: Callable[[object], object],
+    ) -> object:
+        assert type(plan) is TargetResolutionPlan
+        assert self._closed is False
+        self.package_root_calls += 1
+        return operation(self.package_root)
 
 
 @pytest.mark.parametrize("product", [RuntimeProduct.DOCKER, RuntimeProduct.PODMAN])
@@ -1246,6 +1258,27 @@ def test_run_while_held_revalidates_before_and_after_operation() -> None:
     owner.close()
     assert backend.closed is True
     assert backend.close_calls == 1
+
+
+def test_package_root_lease_is_scoped_between_complete_revalidations() -> None:
+    plan = _plan()
+    stable = _snapshot(plan)
+    backend = _Backend(stable, stable, stable, stable)
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+    observed: list[tuple[object, ResolvedRepairTarget]] = []
+
+    result = owner.run_with_package_root_held(
+        lambda package_root, target: (
+            observed.append((package_root, target)),
+            "prepared",
+        )[1]
+    )
+
+    assert result == "prepared"
+    assert observed == [(backend.package_root, owner.target)]
+    assert backend.package_root_calls == 1
+    assert backend.calls == 4
+    owner.close()
 
 
 def test_run_while_held_revalidates_after_operation_failure() -> None:

@@ -46,6 +46,7 @@ from .target_contracts import (
     EffectiveProfile,
     RuntimeProduct,
 )
+from .windows_path_trust import PathHierarchyTrust
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _CONTAINER_ID = re.compile(r"^[0-9a-f]{64}$")
@@ -1230,6 +1231,11 @@ class TargetObservationAuthority(Protocol):
 
     def run_while_held(self, operation: Callable[[], _Result]) -> _Result: ...
 
+    def run_with_package_root_held(
+        self,
+        operation: Callable[[PathHierarchyTrust], _Result],
+    ) -> _Result: ...
+
     def close(self) -> None: ...
 
 
@@ -1285,6 +1291,7 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
                 and executor.supported is True
                 and executor.closed is False
                 and callable(authority.run_while_held)
+                and callable(authority.run_with_package_root_held)
                 and callable(authority.close)
                 and callable(executor.execute)
                 and callable(executor.close)
@@ -1605,6 +1612,29 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
                 raise TargetResolutionError(resolution_failure)
             assert snapshot is not None
             return snapshot
+
+    def run_with_package_root_held(
+        self,
+        plan: TargetResolutionPlan,
+        operation: Callable[[PathHierarchyTrust], _Result],
+    ) -> _Result:
+        """Run one non-mutating callback under the retained package-root lease."""
+
+        with self._lock:
+            if (
+                self._active
+                or self._closed
+                or plan is not self._plan
+                or not callable(operation)
+                or self.supported is not True
+                or self._authority is None
+            ):
+                _fail(TargetObservationAdapterErrorCode.AUTHORITY_CHANGED)
+            self._active = True
+            try:
+                return self._authority.run_with_package_root_held(operation)
+            finally:
+                self._active = False
 
     def capture_absent(
         self,

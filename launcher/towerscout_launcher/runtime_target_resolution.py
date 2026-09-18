@@ -18,7 +18,7 @@ import threading
 from dataclasses import dataclass, field, fields, is_dataclass
 from enum import Enum
 from pathlib import PureWindowsPath
-from typing import Any, Callable, NoReturn, Protocol, Sequence, TypeVar
+from typing import Any, Callable, NoReturn, Protocol, Sequence, TypeVar, cast
 
 from .target_contracts import (
     ABSENT_FILE_SHA256,
@@ -43,6 +43,7 @@ from .target_contracts import (
     VolumeIdentity,
     WindowsProcessEnvironment,
 )
+from .windows_path_trust import PathHierarchyTrust
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _OCI_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -1626,6 +1627,43 @@ class BoundResolvedRepairTarget:
                 raise operation_error
             self._revalidate()
             return result
+        finally:
+            self._end_use()
+
+    def run_with_package_root_held(
+        self,
+        operation: Callable[[PathHierarchyTrust, ResolvedRepairTarget], _Result],
+    ) -> _Result:
+        """Run non-mutating preparation under the exact package-root lease.
+
+        The backend retains ownership of the path authority. The callback may
+        use it only for this call, between complete exact-target captures.
+        Intentional target mutation must use a scoped transition instead.
+        """
+
+        if not callable(operation):
+            _fail(TargetResolutionErrorCode.TARGET_CHANGED)
+        self._begin_use()
+        try:
+            self._revalidate()
+            backend = self._backend
+            execute = getattr(backend, "run_with_package_root_held", None)
+            if backend is None or not callable(execute):
+                _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
+            operation_error: BaseException | None = None
+            result: _Result | None = None
+            try:
+                result = execute(
+                    self._plan,
+                    lambda package_root: operation(package_root, self._target),
+                )
+            except BaseException as error:
+                operation_error = error
+            if operation_error is not None:
+                self._revalidate()
+                raise operation_error
+            self._revalidate()
+            return cast(_Result, result)
         finally:
             self._end_use()
 

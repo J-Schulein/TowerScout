@@ -75,6 +75,7 @@ from towerscout_launcher.target_contracts import (  # noqa: E402
     WindowsProcessEnvironment,
 )
 from towerscout_launcher.windows_path_trust import (  # noqa: E402
+    PathHierarchyTrust,
     PathTrustPurpose,
 )
 from towerscout_launcher.windows_security import (  # noqa: E402
@@ -586,6 +587,32 @@ def test_authority_holds_every_owner_for_the_complete_callback(
     )
     if provider is not None:
         assert provider.closed is True
+
+
+@pytest.mark.parametrize("product", [RuntimeProduct.DOCKER, RuntimeProduct.PODMAN])
+def test_package_root_is_exposed_only_inside_the_complete_authority_lease(
+    product: RuntimeProduct,
+) -> None:
+    plan = _plan(product)
+    authority, files, paths, inventories, provider = _resources(plan)
+
+    def inspect(package_root: PathHierarchyTrust) -> object:
+        assert authority.active is True
+        assert package_root is paths[0]
+        assert package_root.active is True  # type: ignore[attr-defined]
+        assert all(item.active for item in files)
+        assert all(item.active for item in paths)
+        assert all(item.active for item in inventories)
+        if provider is not None:
+            assert provider.active is True
+        return package_root
+
+    package_root = authority.run_with_package_root_held(inspect)
+
+    assert package_root is paths[0]
+    assert authority.active is False
+    assert all(item.active is False for item in paths)
+    authority.close()
 
 
 def test_authority_preserves_a_process_failure_after_revalidation() -> None:

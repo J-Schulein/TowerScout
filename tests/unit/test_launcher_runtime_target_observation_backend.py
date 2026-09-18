@@ -419,6 +419,9 @@ class _Authority:
         finally:
             self.active = False
 
+    def run_with_package_root_held(self, operation: Callable[[object], Any]) -> Any:
+        return self.run_while_held(lambda: operation(self))
+
     def close(self) -> None:
         self.close_calls += 1
         self.closed = True
@@ -1459,6 +1462,9 @@ def test_constructor_rejects_aliased_resources_and_closes_once() -> None:
         def run_while_held(self, operation: Callable[[], Any]) -> Any:
             return operation()
 
+        def run_with_package_root_held(self, operation: Callable[[object], Any]) -> Any:
+            return operation(self)
+
         def execute(
             self, process: TargetObservationProcessPlan
         ) -> TargetObservationProcessResult:
@@ -1498,6 +1504,9 @@ def test_constructor_closes_every_resource_before_preserving_interruption(
 
         def run_while_held(self, operation: Callable[[], Any]) -> Any:
             return operation()
+
+        def run_with_package_root_held(self, operation: Callable[[object], Any]) -> Any:
+            return operation(self)
 
         def close(self) -> None:
             self.close_calls += 1

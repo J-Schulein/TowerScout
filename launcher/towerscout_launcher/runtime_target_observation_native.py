@@ -26,7 +26,6 @@ from .runtime_command_version import (
     open_package_bound_command_runtime_evidence,
 )
 from .runtime_dependency_capture import (
-    HeldCpythonDependencyInventory,
     capture_package_bound_cpython_dependency_inventory,
 )
 from .runtime_identity import (
@@ -41,7 +40,6 @@ from .runtime_dynamic_load import (
 from .runtime_load_trust import (
     LoadableAuthenticator,
     RuntimeLoadInventoryApi,
-    RuntimeLoadPrerequisites,
     capture_runtime_load_prerequisites,
 )
 from .runtime_policy import RuntimeProductId
@@ -467,6 +465,35 @@ class HeldTargetObservationAuthority:
         finally:
             self._active_owner = None
             self._lock.release()
+
+    def _active_package_root(self) -> PathHierarchyTrust:
+        paths = self._directory_paths
+        if self._active_owner != threading.get_ident() or paths is None:
+            _fail(TargetObservationNativeErrorCode.AUTHORITY_CHANGED)
+        for identity, path in zip(
+            self._directory_identities,
+            paths,
+            strict=True,
+        ):
+            if identity is self._plan.package_root:
+                if not _path_matches(
+                    path,
+                    identity,
+                    PathTrustPurpose.PACKAGE_ROOT,
+                ):
+                    _fail(TargetObservationNativeErrorCode.AUTHORITY_CHANGED)
+                return cast(PathHierarchyTrust, path)
+        _fail(TargetObservationNativeErrorCode.AUTHORITY_CHANGED)
+
+    def run_with_package_root_held(
+        self,
+        operation: Callable[[PathHierarchyTrust], _Result],
+    ) -> _Result:
+        """Expose the exact package-root lease only inside the full authority."""
+
+        if not callable(operation):
+            _fail(TargetObservationNativeErrorCode.BINDING_INVALID)
+        return self.run_while_held(lambda: operation(self._active_package_root()))
 
     def active_provider_policies(
         self, plan: TargetObservationProcessPlan
