@@ -1659,6 +1659,48 @@ class BoundResolvedRepairTarget:
         finally:
             self._end_use()
 
+    def execute_scoped_transition(
+        self,
+        operation: str,
+        arguments: tuple[object, ...],
+    ) -> object:
+        """Execute one finite mutation that intentionally replaces this target."""
+
+        if type(operation) is not str or type(arguments) is not tuple:
+            _fail(TargetResolutionErrorCode.TARGET_CHANGED)
+        self._begin_use()
+        result: object | None = None
+        primary: BaseException | None = None
+        close_failed = False
+        try:
+            self._revalidate()
+            backend = self._backend
+            execute = getattr(backend, "execute_scoped_process", None)
+            if backend is None or not callable(execute):
+                _fail(TargetResolutionErrorCode.VERIFICATION_UNAVAILABLE)
+            try:
+                result = execute(self._plan, operation, arguments)
+            except BaseException as error:
+                primary = error
+            retiring = self._backend
+            self._backend = None
+            self._closed = True
+            if retiring is not None:
+                try:
+                    close_failed = _close_backend(retiring)
+                except BaseException as error:
+                    if primary is None:
+                        primary = error
+                    else:
+                        close_failed = True
+            if primary is not None:
+                raise primary
+            if close_failed or result is None:
+                _fail(TargetResolutionErrorCode.TARGET_CHANGED)
+            return result
+        finally:
+            self._end_use()
+
     def close(self) -> None:
         backend: TargetResolutionBackend | None = None
         with self._lifetime_lock:

@@ -1365,6 +1365,7 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
                 ObservationOperation.COMPOSE_MODEL_CURRENT,
                 ObservationOperation.COMPOSE_MODEL_PLANNED,
                 ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
+                ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE,
             }
         )
         if (
@@ -1719,6 +1720,8 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
         arguments: tuple[object, ...],
     ) -> TargetObservationProcessPlan:
         try:
+            if operation == "restart_prior_profile" and not arguments:
+                return self._binding.restart_prior_profile()
             if operation == "certificate_observe" and len(arguments) == 3:
                 container_id, destination, restore_temp_name = arguments
                 if (
@@ -1847,7 +1850,7 @@ class OwnedTargetObservationBackend(TargetResolutionBackend):
         operation: str,
         arguments: tuple[object, ...],
     ) -> TargetObservationProcessResult:
-        """Execute one finite certificate operation under retained authority."""
+        """Execute one finite recovery operation under retained authority."""
 
         with self._lock:
             if (

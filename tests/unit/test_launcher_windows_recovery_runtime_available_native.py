@@ -58,6 +58,7 @@ from towerscout_launcher.windows_recovery_runtime_available_native import (  # n
     NativeWindowsRollbackRuntimeAvailability,
     capture_native_absent_rollback_runtime_target,
     capture_native_existing_rollback_runtime,
+    observe_rollback_runtime_target,
 )
 from towerscout_launcher.windows_recovery_runtime_authority import (  # noqa: E402
     RollbackRuntimeRecoveryAuthority,
@@ -299,6 +300,30 @@ def test_native_capture_binds_exact_target_and_closes_owner():
     assert owner.assertions == 2
     assert owner.closed
     assert "container_id" not in repr(observed)
+
+
+def test_recreated_observation_keeps_original_target_authority() -> None:
+    target, _python, _key = _target(RuntimeProduct.DOCKER)
+    original = observe_rollback_runtime_target(target)
+    recreated_target = replace(
+        target,
+        container=replace(
+            target.container,
+            container_id="f" * 64,
+            private_inspect_sha256="e" * 64,
+        ),
+    )
+
+    recreated = observe_rollback_runtime_target(
+        recreated_target,
+        original.target_token_sha256,
+    )
+
+    assert recreated.target_token_sha256 == original.target_token_sha256
+    assert recreated.package_root_identity == original.package_root_identity
+    assert recreated.runtime_evidence_sha256 == original.runtime_evidence_sha256
+    assert recreated.volume_evidence_sha256s == original.volume_evidence_sha256s
+    assert recreated.container_evidence_sha256 != original.container_evidence_sha256
 
 
 @pytest.mark.parametrize("changed,close_error", [(True, False), (False, True)])

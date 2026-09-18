@@ -214,12 +214,15 @@ def _evidence_sha256(domain: bytes, values: tuple[str, ...]) -> str:
     return digest.hexdigest()
 
 
-def _container_evidence(target: ResolvedRepairTarget) -> str:
+def _container_evidence(
+    target: ResolvedRepairTarget,
+    target_token_sha256: str,
+) -> str:
     container = target.container
     return _evidence_sha256(
         _CONTAINER_EVIDENCE_DOMAIN,
         (
-            target.target_token.digest_sha256,
+            target_token_sha256,
             container.container_id,
             container.daemon_image_id,
             container.private_inspect_sha256,
@@ -229,17 +232,25 @@ def _container_evidence(target: ResolvedRepairTarget) -> str:
 
 def observe_rollback_runtime_target(
     target: ResolvedRepairTarget,
+    target_token_sha256: str | None = None,
 ) -> ExistingRollbackRuntimeObservation:
     if type(target) is not ResolvedRepairTarget:
         _fail(NativeRollbackRuntimeAvailabilityErrorCode.VERIFY_FAILED)
     try:
-        authority = derive_rollback_runtime_recovery_authority(target)
+        authority = (
+            derive_rollback_runtime_recovery_authority(target)
+            if target_token_sha256 is None
+            else derive_recreated_rollback_runtime_recovery_authority(
+                target_token_sha256,
+                target,
+            )
+        )
         return ExistingRollbackRuntimeObservation(
             1,
             authority.target_token_sha256,
             authority.package_root_identity,
             authority.runtime_evidence_sha256,
-            _container_evidence(target),
+            _container_evidence(target, authority.target_token_sha256),
             authority.volume_evidence_sha256s,
         )
     except NativeRollbackRuntimeAvailabilityError:
@@ -730,7 +741,10 @@ def _consume_resolved_target(
         if owner.closed:
             _fail(NativeRollbackRuntimeAvailabilityErrorCode.CAPTURE_UNAVAILABLE)
         owner.assert_unchanged()
-        observed = observe_rollback_runtime_target(owner.target)
+        observed = observe_rollback_runtime_target(
+            owner.target,
+            authority.target_token_sha256,
+        )
         if (
             observed.target_token_sha256 != stream.target_token_sha256
             or observed.package_root_identity != stream.package_root_identity

@@ -20,6 +20,7 @@ from towerscout_launcher.runtime_target_observation import (  # noqa: E402
     OBSERVATION_ENGINE_STDOUT_LIMIT_BYTES,
     OBSERVATION_LIST_STDOUT_LIMIT_BYTES,
     RECREATION_TIMEOUT_MS,
+    RUNTIME_RESTART_TIMEOUT_MS,
     CertificateTargetDestination,
     ObservationOperation,
     TargetObservationBindingError,
@@ -384,6 +385,30 @@ def test_prior_profile_recreation_is_exact_scoped_and_preserves_volumes(
     assert "--volumes" not in recreation.arguments
     assert "-v" not in recreation.arguments
     assert recreation.target is plan
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_prior_profile_restart_is_exact_scoped_and_preserves_volumes(
+    product: RuntimeProduct,
+) -> None:
+    plan = _plan(product)
+
+    restart = TargetObservationExecutionBinding(plan).restart_prior_profile()
+
+    assert restart.operation is ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE
+    assert restart.arguments[-5:] == (
+        "up",
+        "-d",
+        "--no-deps",
+        "--force-recreate",
+        "towerscout",
+    )
+    assert restart.timeout_ms == RUNTIME_RESTART_TIMEOUT_MS
+    assert "down" not in restart.arguments
+    assert restart.arguments.count("--force-recreate") == 1
+    assert "--volumes" not in restart.arguments
+    assert "-v" not in restart.arguments
+    assert restart.target is plan
 
 
 @pytest.mark.parametrize("product", tuple(RuntimeProduct))

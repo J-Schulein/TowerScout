@@ -45,6 +45,8 @@ OBSERVATION_LIST_STDOUT_LIMIT_BYTES = 8 * 1024
 OBSERVATION_STDERR_LIMIT_BYTES = 16 * 1024
 RECREATION_TIMEOUT_MS = 120_000
 RECREATION_STDERR_LIMIT_BYTES = 64 * 1024
+RUNTIME_RESTART_TIMEOUT_MS = 120_000
+RUNTIME_RESTART_STDERR_LIMIT_BYTES = 64 * 1024
 CERTIFICATE_OPERATION_TIMEOUT_MS = 30_000
 CERTIFICATE_OPERATION_STDOUT_LIMIT_BYTES = 8 * 1024
 CERTIFICATE_OPERATION_STDERR_LIMIT_BYTES = 16 * 1024
@@ -69,6 +71,7 @@ class ObservationOperation(str, Enum):
     IMAGE_INSPECT = "image_inspect"
     VOLUME_INSPECT = "volume_inspect"
     COMPOSE_RECREATE_PRIOR_PROFILE = "compose_recreate_prior_profile"
+    COMPOSE_RESTART_PRIOR_PROFILE = "compose_restart_prior_profile"
     CERTIFICATE_OBSERVE = "certificate_observe"
     CERTIFICATE_STAGE_ORIGINAL = "certificate_stage_original"
     CERTIFICATE_APPLY_ORIGINAL = "certificate_apply_original"
@@ -493,10 +496,12 @@ def _compose_expected(
         ObservationOperation.COMPOSE_MODEL_CURRENT,
         ObservationOperation.COMPOSE_MODEL_PLANNED,
         ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
+        ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE,
     }:
         _reject(TargetObservationBindingErrorCode.OPERATION_REJECTED)
     planned = operation is ObservationOperation.COMPOSE_MODEL_PLANNED
     recreate = operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE
+    restart = operation is ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE
     environment = _windows_environment(target)
     if target.runtime.product is RuntimeProduct.DOCKER:
         provider = target.compose_provider
@@ -524,14 +529,16 @@ def _compose_expected(
             "--env-file",
             str(target.environment_source.final_path),
         )
-        arguments = (
-            *prefix,
-            *(
-                ("up", "-d", "--no-deps", "towerscout")
-                if recreate
+        docker_action = (
+            ("up", "-d", "--no-deps", "towerscout")
+            if recreate
+            else (
+                ("up", "-d", "--no-deps", "--force-recreate", "towerscout")
+                if restart
                 else ("config", "--format", "json")
-            ),
+            )
         )
+        arguments = (*prefix, *docker_action)
     else:
         provider = target.compose_provider
         key = target.endpoint.identity_key
@@ -563,10 +570,16 @@ def _compose_expected(
             "--env-file",
             str(target.environment_source.final_path),
         )
-        arguments = (
-            *prefix,
-            *(("up", "-d", "--no-deps", "towerscout") if recreate else ("config",)),
+        podman_action = (
+            ("up", "-d", "--no-deps", "towerscout")
+            if recreate
+            else (
+                ("up", "-d", "--no-deps", "--force-recreate", "towerscout")
+                if restart
+                else ("config",)
+            )
         )
+        arguments = (*prefix, *podman_action)
         environment = (
             *environment,
             ("COMPOSE_PROJECT_DIR", str(target.package_root.final_path)),
@@ -584,11 +597,19 @@ def _compose_expected(
         arguments=arguments,
         environment_items=environment,
         authenticated_files=_all_authenticated_identities(target),
-        timeout_ms=(RECREATION_TIMEOUT_MS if recreate else OBSERVATION_TIMEOUT_MS),
+        timeout_ms=(
+            RECREATION_TIMEOUT_MS
+            if recreate
+            else RUNTIME_RESTART_TIMEOUT_MS if restart else OBSERVATION_TIMEOUT_MS
+        ),
         stdout_limit_bytes=OBSERVATION_COMPOSE_STDOUT_LIMIT_BYTES,
         stderr_limit_bytes=(
-            RECREATION_STDERR_LIMIT_BYTES
-            if recreate
+            (
+                RECREATION_STDERR_LIMIT_BYTES
+                if recreate
+                else RUNTIME_RESTART_STDERR_LIMIT_BYTES
+            )
+            if (recreate or restart)
             else OBSERVATION_STDERR_LIMIT_BYTES
         ),
     )
@@ -603,6 +624,7 @@ def _valid_selector(
         ObservationOperation.COMPOSE_MODEL_CURRENT,
         ObservationOperation.COMPOSE_MODEL_PLANNED,
         ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
+        ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE,
         ObservationOperation.CONTAINER_LIST,
     }:
         return selector is None
@@ -817,6 +839,8 @@ def _expected_process(
     if operation is ObservationOperation.COMPOSE_MODEL_PLANNED:
         return _compose_expected(target, operation=operation)
     if operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE:
+        return _compose_expected(target, operation=operation)
+    if operation is ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE:
         return _compose_expected(target, operation=operation)
     return _engine_expected(target, operation, selector)
 
@@ -1043,6 +1067,11 @@ class TargetObservationExecutionBinding:
         """Build the one scoped recovery mutation without a volume-delete flag."""
 
         return self._build(ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE)
+
+    def restart_prior_profile(self) -> TargetObservationProcessPlan:
+        """Recreate only the exact service without requesting volume deletion."""
+
+        return self._build(ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE)
 
     def container_list(self) -> TargetObservationProcessPlan:
         return self._build(ObservationOperation.CONTAINER_LIST)

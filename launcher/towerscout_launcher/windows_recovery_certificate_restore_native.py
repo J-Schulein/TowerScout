@@ -464,7 +464,10 @@ class NativeWindowsCertificateRestoration:
             if owner.closed:
                 _fail(NativeCertificateRestorationErrorCode.CAPTURE_UNAVAILABLE)
             active_owner = owner
-            observed = observe_rollback_runtime_target(active_owner.target)
+            observed = observe_rollback_runtime_target(
+                active_owner.target,
+                authority.target_token_sha256,
+            )
             if (
                 observed.target_token_sha256 != authority.target_token_sha256
                 or observed.package_root_identity != authority.package_root_identity

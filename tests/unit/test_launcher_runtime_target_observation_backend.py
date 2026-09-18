@@ -440,6 +440,7 @@ class _Executor:
         self.force_provider_child: bool | None = None
         self.result_authority: str | None = None
         self.failure: Exception | None = None
+        self.operation_failures: dict[ObservationOperation, Exception] = {}
         self.close_failure: BaseException | None = None
 
     def _raw(self, process: TargetObservationProcessPlan) -> bytes:
@@ -451,6 +452,8 @@ class _Executor:
         if process.operation is ObservationOperation.COMPOSE_MODEL_PLANNED:
             return _encode_compose(self._plan, _compose(self._plan, planned=True))
         if process.operation is ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE:
+            return b""
+        if process.operation is ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE:
             return b""
         if process.operation is ObservationOperation.CERTIFICATE_OBSERVE:
             return b'{"present":false}'
@@ -480,6 +483,8 @@ class _Executor:
         assert self.closed is False
         assert self._authority.active is True
         assert process.target is self._plan
+        if process.operation in self.operation_failures:
+            raise self.operation_failures[process.operation]
         if self.failure is not None:
             raise self.failure
         self.calls.append((process.operation, process.selector))
@@ -490,6 +495,7 @@ class _Executor:
                 ObservationOperation.COMPOSE_MODEL_CURRENT,
                 ObservationOperation.COMPOSE_MODEL_PLANNED,
                 ObservationOperation.COMPOSE_RECREATE_PRIOR_PROFILE,
+                ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE,
             }
         )
         result = TargetObservationProcessResult.from_plan(
@@ -659,6 +665,57 @@ def test_bound_target_executes_only_fixed_certificate_processes_between_captures
     assert executor.closed is False
     assert owner.closed is False
     owner.close()
+
+
+@pytest.mark.parametrize("product", tuple(RuntimeProduct))
+def test_bound_target_restarts_only_the_exact_prior_profile_between_captures(
+    product: RuntimeProduct,
+) -> None:
+    plan, authority, executor, backend = _backend(product)
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+
+    restarted = owner.execute_scoped_transition("restart_prior_profile", ())
+
+    assert isinstance(restarted, TargetObservationProcessResult)
+    assert restarted.operation is ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE
+    assert restarted.exit_code == 0
+    assert authority.closed is True
+    assert executor.closed is True
+    assert owner.closed is True
+
+
+def test_bound_transition_failure_retires_authority_without_private_chain() -> None:
+    plan, authority, executor, backend = _backend()
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+    executor.operation_failures[ObservationOperation.COMPOSE_RESTART_PRIOR_PROFILE] = (
+        RuntimeError("PRIVATE TRANSITION DETAIL")
+    )
+
+    with pytest.raises(TargetObservationAdapterError) as caught:
+        owner.execute_scoped_transition("restart_prior_profile", ())
+
+    assert caught.value.code is TargetObservationAdapterErrorCode.PROCESS_FAILED
+    assert "PRIVATE" not in str(caught.value)
+    _assert_no_exception_chain(caught.value)
+    assert authority.closed is True
+    assert executor.closed is True
+    assert owner.closed is True
+
+
+def test_bound_transition_close_failure_is_sanitized_and_owner_is_retired() -> None:
+    plan, authority, executor, backend = _backend()
+    owner = capture_bound_resolved_repair_target(plan, backend=backend)
+    executor.close_failure = OSError("PRIVATE CLOSE DETAIL")
+
+    with pytest.raises(TargetResolutionError) as caught:
+        owner.execute_scoped_transition("restart_prior_profile", ())
+
+    assert caught.value.code is TargetResolutionErrorCode.TARGET_CHANGED
+    assert "PRIVATE" not in str(caught.value)
+    _assert_no_exception_chain(caught.value)
+    assert authority.closed is True
+    assert executor.closed is True
+    assert owner.closed is True
 
 
 @pytest.mark.parametrize("product", [RuntimeProduct.DOCKER, RuntimeProduct.PODMAN])
