@@ -2,18 +2,18 @@
 
 **As Of**: September 17, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `852a72c`
-**Validated Exact Head**: `9cb53c4`
-**Remote Exact-Head Status**: CI/CD run `35285161056`, Task-087 run
-`35285160779`, and Trivy passed at `9cb53c4`; the main-only build was neutral as
+**Implementation Head**: `1a390b9`
+**Validated Exact Head**: `3a62d7b`
+**Remote Exact-Head Status**: CI/CD run `35287869405`, Task-087 run
+`35287869406`, and Trivy passed at `3a62d7b`; the main-only build was neutral as
 designed.
-**Local Candidate**: Committed checkpoint `852a72c` adds native, fail-closed
-rollback certificate restoration for an exact retained Docker or Podman target.
-It derives restoration authority only from the authenticated recovery stream,
-holds and revalidates any original host bytes across the engine copy window,
-atomically restores an exact original or removes an exact repair candidate, and
-reconciles nonzero engine results only from the exact observed post-state.
-Integrated repair mutation remains disabled.
+**Local Candidate**: Committed checkpoint `1a390b9` adds native, fail-closed
+rollback runtime restart for an exact Docker or Podman target. It re-creates only
+the `towerscout` service with the authenticated prior Compose profile so the
+restored `.env` is reread, never requests volume deletion, retires the old exact-
+target authority at the mutation boundary, and accepts ambiguous command results
+only after a complete recapture proves the original runtime and all eight volumes
+with a different exact container. Integrated repair mutation remains disabled.
 **Current Gate A Checkpoint**: Provider `.env` update/reconciliation is
 implemented at `d8818bd`; fresh-process rollback resumption is implemented at
 `032db8b`; and native terminal cleanup is implemented at `4ff6967`. Local
@@ -69,7 +69,15 @@ an invalid PowerShell grammar invocation, patch-context/layout errors, and the
 ACL-blocked combined pytest teardown were corrected or superseded by those
 clean replacement runs. The full touched-source Bandit run reports only the
 unchanged existing backend baseline; the new restoration modules are clean.
-Runtime restart, rollback-verification, and transaction integration remain.
+Checkpoint `1a390b9` adds the production runtime-restart port. Focused and
+adversarial tests pass `146/146`; the split broad replacement evidence passes
+`536/536` non-native plus `189/189` Windows-native tests. Black, normal mypy for
+all six touched lower-level modules, strict isolated mypy for the new boundary,
+blocking Flake8, medium/high Bandit outside the unchanged backend safe-loader
+baseline, compilation, Python 3.11 grammar, and diff checks pass. The initial
+`2/140`, transition-code expectation, and mypy seam failures were corrected and
+superseded by those clean runs; no failed check is carried. Rollback verification
+and transaction integration remain.
 Live Windows
 trust, Docker, and rootless-Podman evidence is pending a supported context and
 the required runtime-readiness confirmation.
@@ -310,6 +318,13 @@ Status in this file answers four separate questions:
 | 7 | Transaction refactor | **NOT STARTED** | The older prototype transaction and historical live evidence remain available as behavior references only. | Refactor `repair.py` to consume the immutable resolved target and recovery manager, remove process-memory-only backup and unchecked rollback, and enforce pre-write/pre-restart/terminal revalidation. |
 | 8 | Provider installer hardening | **IMPLEMENTED / REVIEW PENDING** | Historical checkpoint `3990bc0` closed provider dependency/wheel reproducibility and version verification. Independently reviewed checkpoint `7a0c35a` makes the installed `site-packages` inventory deterministic and provider-only. Checkpoint `d8818bd` adds a protected, exact atomic `.env` protocol that changes only `PODMAN_COMPOSE_PROVIDER`, avoids persistent plaintext backup/output, authenticates the provider mini-journal, and reconciles planned/created/verified/applied residue across restart. Focused provider tests pass `21/21`, the affected ring passes `568/568`, and exact-head workflows passed. | Complete final source review and exercise the provider path as part of the integrated transaction/evidence set. |
 | 9 | Gate A source validation and review | **VALIDATION CONTINUES** | Every completed increment has focused tests and independent review. Secure-absence checkpoint `14b77e4` passed its exact-head gates. Pure-planner checkpoint `0efeff7` passes `47/47` focused and `1536/1536` launcher tests plus static checks and independent source review. Staging checkpoint `1c45445` passes `24/24` focused tests, including real Windows ctypes and retained-native-handle smokes, and `169/169` adjacent tests plus focused static/security checks and independent review. Checkpoint `8bb6b33` passes `26/26` focused journal, `152/152` adjacent, and `155/155` isolated late-launcher tests plus focused static/security checks and CLEAN/PASS corrected-diff independent review. Its exact-head CI/CD run `35010304611`, Task-087 run `35010304675`, and Trivy passed. Documentation checkpoint `e86c41c` passed exact-head CI/CD run `35011029262`, Task-087 run `35011029309`, and Trivy; both main-only builds skipped as designed. Independently reviewed checkpoint `53bed46` passes `20/20` focused, `164/164` adjacent, and `167/167` isolated late-launcher tests plus focused static/security checks and CLEAN/PASS review with no actionable Low-or-higher findings. Its exact-head CI/CD run `35013069183`, Task-087 run `35013069124`, and Trivy passed; the main-only build was neutral as designed. Documentation checkpoint `2e0f90e` passed exact-head CI/CD run `35014300773`, Task-087 run `35014300816`, and Trivy. Independently reviewed checkpoint `4a96dd2` passes `18/18` focused, `182/182` adjacent, and `185/185` isolated late-launcher tests plus focused static/security checks, a real Windows round trip, and two CLEAN/PASS reviews with no actionable Low-or-higher findings. Its exact-head CI/CD run `35016174147`, Task-087 run `35016174145`, and Trivy passed; the main-only build was neutral as designed. Independently reviewed checkpoint `221612c` passes `19/19` focused, `192/192` adjacent, and `195/195` isolated late-launcher tests plus focused static/security checks and final CLEAN/PASS review. Its exact-head CI/CD run `35019327044`, Task-087 run `35019327058`, and Trivy passed; the main-only build was neutral as designed. Independently reviewed checkpoint `95ca37d` passes `32/32` focused, `206/206` adjacent, and `209/209` isolated late-launcher tests plus a real Windows replacement round trip, focused static/security checks, and final CLEAN/PASS review. Its exact-head CI/CD run `35021545053`, Task-087 run `35021545062`, and Trivy passed; the main-only build was neutral as designed. | After slices 2-8 are integrated, run the final broad/adversarial set, fresh-process recovery, isolated Docker CPU then approved rootless-Podman CPU mutation/recovery, OneDrive and two-session Windows proofs, all-volume verification, exact-head workflows, and final independent review. |
+
+**Current-head correction for slice 6**: Checkpoint `1a390b9` supplies the
+runtime-restart native port previously listed as open in row 6. It permits only
+one fixed, volume-preserving service force-recreation, retires the old target
+authority, and requires complete new-container recapture against the original
+runtime and all-volume authority. The remaining native port is rollback
+verification, followed by recovery/transaction integration.
 
 **Current-head correction for slices 5-6**: The generation-6 zero-byte restore-
 temp storage primitive and package-bound cross-protocol scan are now
@@ -776,15 +791,26 @@ count, determine completion.
   native tests, and focused static/security checks pass. All observed command,
   typing, grammar, patch-layout, and pytest-teardown failures were corrected or
   superseded by clean replacement evidence; no failed check is being carried.
+- Checkpoint `1a390b9` completes the production runtime-restart port. A retained
+  old target permits only fixed Docker/Podman Compose
+  `up -d --no-deps --force-recreate towerscout`; the transition retires old
+  observation authority and a new complete capture must preserve the
+  authenticated runtime and all eight volumes while changing exact container
+  evidence. Retry accepts only that exact recreated state or exact absence
+  recoverable through the reviewed prior-profile path. Focused/adversarial
+  evidence passes `146/146`; split broad evidence passes `536/536` non-native
+  plus `189/189` Windows-native tests. Static/security checks pass outside the
+  unchanged safe-loader baseline. All observed assertion, typing, and command-
+  design failures were corrected and superseded; no failed check is carried.
 - No live Docker, Podman, certificate-store, or runtime mutation was run for
   these source checkpoints. The runtime-readiness confirmation required before
   live evidence remains outstanding.
 
 ## Remaining Outcome Sequence
 
-1. **Finish production recovery adapters (slice 6).** Implement native runtime
-   restart and rollback verification with the same exact-target/fail-closed
-   boundaries. Exercise fresh-process recovery with the complete adapters.
+1. **Finish production recovery adapters (slice 6).** Implement native rollback
+   verification with the same exact-target/fail-closed boundaries. Exercise
+   fresh-process recovery with the complete adapters.
 2. **Refactor the transaction (slices 5 and 7).** Make `repair.py` consume the
    immutable resolved target and durable recovery manager, remove process-
    memory-only backup/unchecked rollback, and retain the required pre-write,
@@ -803,9 +829,8 @@ state definitions above.
 
 ## Next-Session Resume Point
 
-Continue from native certificate-restoration checkpoint `852a72c`. Implement
-the runtime restart and rollback-verification adapters with their adversarial
-tests. Then refactor
+Continue from native runtime-restart checkpoint `1a390b9`. Implement the
+rollback-verification adapter with adversarial tests. Then refactor
 `repair.py` around the immutable target and fresh-process manager, preserving
 mutation-off until that integrated path is complete and reviewed. Retry slice
 4's revocation-aware fixed-host and Docker/rootless-Podman containment proof

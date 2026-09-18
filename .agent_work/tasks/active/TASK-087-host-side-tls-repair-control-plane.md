@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `852a72c`; `9cb53c4` is the validated exact head.
+implementation head is `1a390b9`; `3a62d7b` is the validated exact head.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
 and crash reconciliation, `032db8b` adds fresh-process recovery resumption, and
 `4ff6967` adds exact authenticated native cleanup through cleanup-pending and
@@ -57,9 +57,17 @@ state. Replacement evidence passes `734/734` non-native plus `177/177` native
 tests; Black, strict mypy, blocking Flake8, compilation, Python 3.11 grammar,
 diff, and focused Bandit checks pass. Its command-plan, typing, grammar, patch-
 layout, and combined pytest-teardown failures were corrected or superseded by
-clean replacement runs. Remaining Gate A implementation is native runtime-
-restart and rollback-verification adapters plus the `repair.py` transaction
-refactor/integration. The successful
+clean replacement runs. Checkpoint `1a390b9` now completes native runtime
+restart: one fixed Docker/Podman Compose service force-recreation rereads the
+restored environment without volume deletion, old exact-target authority is
+retired at the mutation boundary, and a complete new capture must preserve the
+original runtime and all-volume authority while changing container evidence.
+Focused and adversarial tests pass `146/146`; split broad replacement evidence
+passes `536/536` non-native plus `189/189` Windows-native tests. Static/security
+checks pass outside the unchanged backend safe-loader baseline. The initial
+assertion, transition-code, and mypy seam failures were corrected and
+superseded by clean runs. Remaining Gate A implementation is native rollback
+verification plus the `repair.py` transaction refactor/integration. The successful
 Windows trust and isolated Docker/rootless-Podman evidence remains pending a
 supported context and the
 required runtime-readiness confirmation. Repair/runtime integration remains
@@ -274,11 +282,25 @@ invocation, patch-context/layout errors, and ACL-blocked combined pytest teardow
 were corrected or superseded by that clean evidence. The full touched-source
 Bandit run contains only the unchanged existing backend baseline, while the new
 restoration modules are clean. No live runtime command was issued.
+Committed checkpoint `1a390b9` adds the production rollback runtime-restart
+port. It uses the authenticated original target token across container
+replacement, permits only fixed
+`up -d --no-deps --force-recreate towerscout`, never requests volume deletion,
+retires the old observation owner, and accepts a nonzero or interrupted command
+only after a complete exact new-target recapture preserves the original runtime
+and all eight volume identities. Retry accepts an exact already-recreated target
+or exact absence recoverable through the reviewed prior-profile recreation
+path. Focused/adversarial tests pass `146/146`; split broad evidence passes
+`536/536` non-native plus `189/189` Windows-native tests. Black, normal and
+strict isolated mypy, blocking Flake8, medium/high Bandit outside the unchanged
+backend baseline, compilation, Python 3.11 grammar, and diff checks pass. The
+initial `2/140` stale assertions, transition-code expectation, strict typing,
+and normal typing failures were corrected and superseded by clean runs. No live
+runtime command was issued.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Estimated Effort**: Rebaseline after `852a72c` against the fixed acceptance
-criteria rather than commit count. Remaining runtime-restart and rollback-
-verification adapters,
+**Estimated Effort**: Rebaseline after `1a390b9` against the fixed acceptance
+criteria rather than commit count. Remaining rollback-verification adapter,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
 final exact-head review, and the PR #67 decision remain
 **Target Sprint**: Sprint 09 continuation under the August 19 ADR-019 decision

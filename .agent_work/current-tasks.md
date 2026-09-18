@@ -182,11 +182,10 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `852a72c` adds native fail-closed certificate
-  restoration through exact retained Docker/Podman targets and authenticated
-  journal authority. `9cb53c4` is the validated exact head: CI/CD run
-  `35285161056`, Task-087 run `35285160779`, and Trivy passed. The remaining
-  runtime-restart and rollback-verification native recovery ports,
+- Task-087 implementation head `1a390b9` adds native fail-closed runtime restart
+  through an exact volume-preserving Docker/Podman service force-recreation.
+  `3a62d7b` is the validated exact head: CI/CD run `35287869405`, Task-087 run
+  `35287869406`, and Trivy passed. The remaining rollback-verification port,
   transaction integration, and live trust/runtime proof remain; PR #67 remains
   Draft.
   Gate A remains open and mutation remains disabled. Detailed
@@ -305,7 +304,7 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / IMPLEMENT - Gate A is materially advanced and remains
-open. The current implementation head is `852a72c`; `9cb53c4` is the validated
+open. The current implementation head is `1a390b9`; `3a62d7b` is the validated
 exact head. Provider `.env` mutation/reconciliation, fresh-process rollback
 resumption, all durable rollback states, native terminal cleanup, and retained-
 container native runtime availability are implemented. Exact certificate
@@ -328,8 +327,14 @@ non-executing grammar-command quoting error were all corrected and superseded
 by clean runs; its later mypy redeclaration and unsupported Black option were
 also corrected before checkpointing. Certificate-restoration command-plan,
 typing, grammar, patch-layout, and combined pytest-teardown failures were also
-corrected or superseded by clean replacement runs. Remaining implementation is
-native runtime restart, rollback verification, and the `repair.py` transaction
+corrected or superseded by clean replacement runs. Native runtime restart now
+uses only fixed volume-preserving service force-recreation, retires the old
+target authority, and proves the exact new container against the original
+runtime and all-volume authority. Its focused/adversarial evidence passes
+`146/146`, and its split broad evidence passes `536/536` non-native plus
+`189/189` Windows-native tests. All observed assertion, transition-code, and
+typing failures were corrected and superseded by clean runs. Remaining
+implementation is native rollback verification and the `repair.py` transaction
 refactor. Live
 Windows trust and Docker/rootless-Podman proof remains pending a supported
 context and runtime-readiness confirmation. The chronological ledger follows.
@@ -477,9 +482,8 @@ Slice 7 is not started; slice 9 continues incrementally. Mutation is disabled
 and PR #67 remains Draft.
 **Type**: B/C (Runtime Support / Setup UX / TLS Trust)
 **Priority**: HIGH
-**Remaining Estimate**: Rebaseline after `6d2ade4` against the fixed acceptance
-criteria rather than commit count. Remaining missing-container recreation and
-native recovery adapters,
+**Remaining Estimate**: Rebaseline after `1a390b9` against the fixed acceptance
+criteria rather than commit count. The rollback-verification native adapter,
 recovery/transaction integration, successful Windows trust/live-runtime proof,
 final exact-head review, and the PR #67 decision still precede Task-096.
 **Task File**:
