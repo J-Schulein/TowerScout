@@ -168,6 +168,31 @@ were superseded by the isolated native proof and the repository's actual lint
 gates. No failed product check is carried, and no live runtime command was
 issued.
 
+### 2026-09-18 - Rollback Armed And Forward Preparation Composed
+
+**Objective**: Turn the exact captured inputs into durable recovery authority
+before any repair mutation can occur.
+
+**Execution**: Checkpoint `1c59252` derives the exact environment plan from the
+captured `.env` or twice-read fixed `.env.example`, exposes package and protected
+roots only inside one serialized transaction callback, encrypts both exact
+backups, persists and reverifies their blobs, and advances the rollback journal
+through current `rollback_armed`. It creates and verifies both forward
+certificate candidates through `certificate_temp_verified` and adds an
+idempotent bridge that mirrors each authenticated provider mini-journal
+generation into its exact forward transition. No launcher call site reaches
+these boundaries and no repair mutation is enabled.
+
+**Validation**: The affected backup, journal, storage, transaction-context,
+certificate-staging, and provider-linkage ring passes `181/181`. Black,
+isolated strict mypy, blocking/unused Flake8, focused Bandit, compilation, and
+diff checks pass. Exact head `6cc2a83` passed CI/CD run `35371256044`, Task-087
+run `35371256056`, and Trivy; the main-only build was neutral as designed.
+
+**Next**: Compose the already-reviewed certificate apply and provider promotion
+ports, then add durable runtime, terminal verification, commit, and cleanup
+transitions before replacing the legacy transaction or enabling mutation.
+
 ### 2026-09-18 - Exact Rollback Inputs Captured
 
 **Objective**: Close the last exact-state capture prerequisites before durable

@@ -2,22 +2,21 @@
 
 **As Of**: September 18, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `e4261e0`
-**Validated Exact Head**: `174a261`
-**Remote Exact-Head Status**: CI/CD run `35369249829`, Task-087 run
-`35369249917`, and Trivy passed at `174a261`; the main-only build was neutral as
+**Implementation Head**: `1c59252`
+**Validated Exact Head**: `6cc2a83`
+**Remote Exact-Head Status**: CI/CD run `35371256044`, Task-087 run
+`35371256056`, and Trivy passed at `6cc2a83`; the main-only build was neutral as
 designed.
-**Local Checkpoint**: Committed checkpoint `e4261e0` captures the exact original
-fixed certificate destinations, the package `.env` bytes and normalized Windows
-security evidence, and a fresh repairable-TLS readiness authority while all
-corresponding target/root owners remain held. Docker and Podman use only fixed,
-bounded, no-follow reads. Focused evidence passes `146/146`; strict typing,
-Black, blocking lint, focused Bandit, compilation, and diff checks pass. A
-pre-existing native `ReplaceFileW` test is locally denied by host policy with
-Windows error 5; the same test passed at the preceding exact CI head, and
-diagnostic directory share-mode changes did not alter the result. No failed
-product assertion is carried. Rollback-arming and provider/runtime/terminal
-execution integration remain absent, so launcher mutation remains disabled.
+**Local Checkpoint**: Committed checkpoint `1c59252` composes the exact captured
+inputs through purpose-separated encryption, durable `backup_preparing`, exact
+blob creation/reverification, `backup_verified`, and current `rollback_armed`.
+It then stages the first three forward certificate generations and adds exact
+provider mini-journal linkage for the later four environment generations. The
+affected rollback/forward/provider ring passes `181/181`; isolated strict typing,
+Black, blocking/unused lint, focused Bandit, compilation, and diff checks pass.
+The launcher still cannot reach any repair mutation. Certificate apply,
+provider mutation, runtime transitions, terminal verification, cleanup, and the
+legacy transaction replacement remain open.
 The preserved WIP state and corrected failures are recorded in the
 [`September 17 recovery-front-door handoff`](../../../context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
 **Current Gate A Checkpoint**: Provider `.env` update/reconciliation is

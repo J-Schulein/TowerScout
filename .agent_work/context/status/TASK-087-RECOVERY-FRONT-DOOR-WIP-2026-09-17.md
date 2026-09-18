@@ -104,13 +104,17 @@ carried.
    readiness authority was committed as `e4261e0`. Focused tests pass
    `146/146`; strict typing, formatting, blocking lint, focused Bandit,
    compilation, and diff checks pass.
+9. Durable rollback preparation, verified forward certificate staging, and
+   exact provider mini-journal linkage were committed as `1c59252`. The
+   affected rollback/forward/provider ring passes `181/181`; mutation remains
+   unreachable from the launcher.
 
 ## Resume Point
 
-Compose the captured exact backups, replacement plans, runtime authority, and
-readiness authority through durable `rollback_armed` activation. Then refactor
-`repair.py` around the immutable resolved target, forward journal, and durable
-rollback manager. Preserve the `BEFORE_MUTATION`, `BEFORE_RESTART`, and
+Compose certificate apply, provider promotion, runtime stop/start, terminal
+verification, commit, and exact cleanup above the armed rollback and forward
+journal. Then refactor `repair.py` around the immutable resolved target and
+durable rollback manager. Preserve the `BEFORE_MUTATION`, `BEFORE_RESTART`, and
 `TERMINAL` revalidation order and keep live mutation disabled until the
 integrated path is complete and reviewed.
 
