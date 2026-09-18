@@ -1,8 +1,9 @@
 """Fail-closed confirmation ownership for one exact native repair target.
 
-This module is intentionally mutation-free.  It connects the production
-exact-target facade to the launcher confirmation lifetime and exposes the
-ordered revalidation checkpoints that the later repair transaction must use.
+This module remains repair-mutation-free. It connects the production exact-
+target facade and retained Windows lock/recovery context to the launcher
+confirmation lifetime, then exposes the ordered revalidation checkpoints that
+the later repair transaction must use.
 """
 
 from __future__ import annotations
@@ -17,6 +18,11 @@ from .runtime_target_resolution import (
     BoundResolvedRepairTarget,
 )
 from .target_contracts import MapProvider, PublicRepairSummary, ResolvedRepairTarget
+from .windows_recovery_scan import PackageRecoveryJournalScan
+from .windows_transaction_context import (
+    HeldWindowsTransactionContext,
+    capture_native_windows_transaction_context,
+)
 
 CONFIRMATION_TEXT = "REPAIR TLS AND RESTART"
 DEFAULT_CONFIRMATION_TIMEOUT_SECONDS = 120.0
@@ -85,8 +91,34 @@ class _ExactTargetOwner(Protocol):
     def close(self) -> None: ...
 
 
+class _TransactionContext(Protocol):
+    @property
+    def closed(self) -> bool: ...
+
+    @property
+    def recovery_scan(self) -> PackageRecoveryJournalScan: ...
+
+    def assert_unchanged(self) -> PackageRecoveryJournalScan: ...
+
+    def close(self) -> None: ...
+
+
 def _fail(code: ExactTargetConfirmationErrorCode) -> NoReturn:
-    raise ExactTargetConfirmationError(code)
+    raise ExactTargetConfirmationError(code) from None
+
+
+def _discard_resources(*resources: object | None) -> None:
+    seen: set[int] = set()
+    for resource in resources:
+        if resource is None or id(resource) in seen:
+            continue
+        seen.add(id(resource))
+        try:
+            close = getattr(resource, "close", None)
+            if callable(close):
+                close()
+        except BaseException:
+            pass
 
 
 class ExactTargetConfirmationTransaction:
@@ -94,6 +126,7 @@ class ExactTargetConfirmationTransaction:
 
     __slots__ = (
         "_clock",
+        "_context",
         "_deadline",
         "_lock",
         "_owner",
@@ -105,35 +138,42 @@ class ExactTargetConfirmationTransaction:
     def __init__(
         self,
         owner: _ExactTargetOwner,
+        context: _TransactionContext,
         *,
         timeout_seconds: float,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         if (
             not isinstance(owner, BoundResolvedRepairTarget)
+            or not isinstance(context, HeldWindowsTransactionContext)
             or owner.closed
+            or context.closed
             or not 1.0 <= timeout_seconds <= 600.0
             or not callable(clock)
         ):
-            try:
-                owner.close()
-            except BaseException:
-                pass
+            _discard_resources(owner, context)
             _fail(ExactTargetConfirmationErrorCode.TARGET_UNAVAILABLE)
+        validation_failed = False
+        interruption: BaseException | None = None
         try:
             now = clock()
             summary = owner.target.to_public_summary()
             owner.assert_unchanged()
+            context.assert_unchanged()
         except BaseException as error:
-            try:
-                owner.close()
-            except BaseException:
-                pass
-            if not isinstance(error, Exception):
-                raise
+            if isinstance(error, Exception):
+                validation_failed = True
+            else:
+                interruption = error
+        if validation_failed or interruption is not None:
+            _discard_resources(owner, context)
+        if interruption is not None:
+            raise interruption
+        if validation_failed:
             _fail(ExactTargetConfirmationErrorCode.TARGET_UNAVAILABLE)
         self._lock = threading.RLock()
         self._owner: _ExactTargetOwner | None = owner
+        self._context: _TransactionContext | None = context
         self._clock = clock
         self._deadline = now + timeout_seconds
         self._summary = summary
@@ -161,19 +201,32 @@ class ExactTargetConfirmationTransaction:
 
     def _close_while_locked(self) -> None:
         owner = self._owner
+        context = self._context
         self._owner = None
+        self._context = None
         self._state = ExactTargetConfirmationState.CLOSED
-        if owner is None:
+        if owner is None and context is None:
             return
-        try:
-            owner.close()
-        except BaseException as error:
-            if not isinstance(error, Exception):
-                raise
+        failed = False
+        interruption: BaseException | None = None
+        for resource in (owner, context):
+            if resource is None:
+                continue
+            try:
+                resource.close()
+            except BaseException as error:
+                if isinstance(error, Exception):
+                    failed = True
+                elif interruption is None:
+                    interruption = error
+        if interruption is not None:
+            raise interruption
+        if failed:
             _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
 
     def _assert_live_while_locked(self) -> _ExactTargetOwner:
         owner = self._owner
+        context = self._context
         if owner is None or self._state in {
             ExactTargetConfirmationState.CANCELLED,
             ExactTargetConfirmationState.CLOSED,
@@ -186,9 +239,8 @@ class ExactTargetConfirmationTransaction:
         if expired:
             self._close_while_locked()
             _fail(ExactTargetConfirmationErrorCode.CONFIRMATION_EXPIRED)
-        if owner.closed:
-            self._owner = None
-            self._state = ExactTargetConfirmationState.CLOSED
+        if context is None or owner.closed or context.closed:
+            self._close_while_locked()
             _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
         return owner
 
@@ -201,12 +253,24 @@ class ExactTargetConfirmationTransaction:
                 self._state = ExactTargetConfirmationState.CANCELLED
                 self._close_while_locked()
                 _fail(ExactTargetConfirmationErrorCode.CONFIRMATION_REQUIRED)
+            validation_failed = False
+            interruption: BaseException | None = None
             try:
                 owner.assert_unchanged()
+                context = self._context
+                if context is None:
+                    _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
+                context.assert_unchanged()
             except BaseException as error:
+                if isinstance(error, Exception):
+                    validation_failed = True
+                else:
+                    interruption = error
+            if validation_failed or interruption is not None:
                 self._close_while_locked()
-                if not isinstance(error, Exception):
-                    raise
+            if interruption is not None:
+                raise interruption
+            if validation_failed:
                 _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
             self._state = ExactTargetConfirmationState.CONFIRMED
 
@@ -230,12 +294,24 @@ class ExactTargetConfirmationTransaction:
                 self._close_while_locked()
                 _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
             owner = self._assert_live_while_locked()
+            validation_failed = False
+            interruption: BaseException | None = None
             try:
                 owner.assert_unchanged()
+                context = self._context
+                if context is None:
+                    _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
+                context.assert_unchanged()
             except BaseException as error:
+                if isinstance(error, Exception):
+                    validation_failed = True
+                else:
+                    interruption = error
+            if validation_failed or interruption is not None:
                 self._close_while_locked()
-                if not isinstance(error, Exception):
-                    raise
+            if interruption is not None:
+                raise interruption
+            if validation_failed:
                 _fail(ExactTargetConfirmationErrorCode.TARGET_CHANGED)
             self._stage = stage
 
@@ -256,7 +332,7 @@ class ExactTargetConfirmationTransaction:
 class ExactTargetConfirmationCoordinator:
     """Production composition used by the launcher while mutation stays off."""
 
-    __slots__ = ("_capture", "_clock", "_timeout_seconds")
+    __slots__ = ("_capture", "_capture_context", "_clock", "_timeout_seconds")
 
     def __init__(
         self,
@@ -264,16 +340,25 @@ class ExactTargetConfirmationCoordinator:
         capture: Callable[[MapProvider], BoundResolvedRepairTarget] = (
             capture_native_windows_resolved_target
         ),
+        capture_context: (
+            Callable[[BoundResolvedRepairTarget], HeldWindowsTransactionContext] | None
+        ) = None,
         timeout_seconds: float = DEFAULT_CONFIRMATION_TIMEOUT_SECONDS,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         if (
             not callable(capture)
+            or (capture_context is not None and not callable(capture_context))
             or not callable(clock)
             or not 1.0 <= timeout_seconds <= 600.0
         ):
             raise ValueError("Exact-target confirmation configuration is invalid.")
         self._capture = capture
+        self._capture_context = (
+            capture_native_windows_transaction_context
+            if capture_context is None
+            else capture_context
+        )
         self._timeout_seconds = timeout_seconds
         self._clock = clock
 
@@ -284,14 +369,34 @@ class ExactTargetConfirmationCoordinator:
     def prepare(self, provider: MapProvider) -> ExactTargetConfirmationTransaction:
         if type(provider) is not MapProvider:
             _fail(ExactTargetConfirmationErrorCode.TARGET_UNAVAILABLE)
+        owner: BoundResolvedRepairTarget | None = None
+        context: HeldWindowsTransactionContext | None = None
+        capture_failed = False
+        interruption: BaseException | None = None
         try:
             owner = self._capture(provider)
+            context = self._capture_context(owner)
+            if (
+                not isinstance(owner, BoundResolvedRepairTarget)
+                or not isinstance(context, HeldWindowsTransactionContext)
+                or owner.closed
+                or context.closed
+            ):
+                raise ValueError("Exact transaction capture is invalid.")
         except BaseException as error:
-            if not isinstance(error, Exception):
-                raise
+            if isinstance(error, Exception):
+                capture_failed = True
+            else:
+                interruption = error
+        if capture_failed or interruption is not None:
+            _discard_resources(owner, context)
+        if interruption is not None:
+            raise interruption
+        if capture_failed or owner is None or context is None:
             _fail(ExactTargetConfirmationErrorCode.TARGET_UNAVAILABLE)
         return ExactTargetConfirmationTransaction(
             owner,
+            context,
             timeout_seconds=self._timeout_seconds,
             clock=self._clock,
         )

@@ -56,6 +56,7 @@ class _Owner:
         self.close_calls = 0
         self.target = SimpleNamespace(to_public_summary=_summary)
         self.fail_assert = False
+        self.context: _Context | None = None
 
     def assert_unchanged(self) -> object:
         self.assert_calls += 1
@@ -68,9 +69,40 @@ class _Owner:
         self.closed = True
 
 
+class _Context:
+    def __init__(self) -> None:
+        self.closed = False
+        self.assert_calls = 0
+        self.close_calls = 0
+        self.fail_assert = False
+        self.recovery_scan = SimpleNamespace(repair_pending=False)
+
+    def assert_unchanged(self) -> object:
+        self.assert_calls += 1
+        if self.fail_assert:
+            raise RuntimeError("PRIVATE CONTEXT DETAIL")
+        return self.recovery_scan
+
+    def close(self) -> None:
+        self.close_calls += 1
+        self.closed = True
+
+
 @pytest.fixture(autouse=True)
 def _accept_fake_owner(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(confirmation, "BoundResolvedRepairTarget", _Owner)
+    monkeypatch.setattr(confirmation, "HeldWindowsTransactionContext", _Context)
+
+    def capture_context(owner: _Owner) -> _Context:
+        context = _Context()
+        owner.context = context
+        return context
+
+    monkeypatch.setattr(
+        confirmation,
+        "capture_native_windows_transaction_context",
+        capture_context,
+    )
 
 
 def test_confirmation_owns_exact_target_until_explicit_cancel() -> None:
@@ -83,6 +115,8 @@ def test_confirmation_owns_exact_target_until_explicit_cancel() -> None:
     assert transaction.state is ExactTargetConfirmationState.AWAITING_CONFIRMATION
     assert transaction.stage is TargetRevalidationStage.BEFORE_CONFIRMATION
     assert owner.assert_calls == 1
+    assert owner.context is not None
+    assert owner.context.assert_calls == 1
     assert not owner.closed
 
     coordinator.cancel(transaction)
@@ -90,6 +124,7 @@ def test_confirmation_owns_exact_target_until_explicit_cancel() -> None:
     assert transaction.closed
     assert owner.closed
     assert owner.close_calls == 1
+    assert owner.context.closed is True
 
 
 def test_wrong_confirmation_closes_target_and_exposes_no_private_detail() -> None:
@@ -104,6 +139,8 @@ def test_wrong_confirmation_closes_target_and_exposes_no_private_detail() -> Non
     assert raised.value.code is ExactTargetConfirmationErrorCode.CONFIRMATION_REQUIRED
     assert transaction.closed
     assert owner.closed
+    assert owner.context is not None
+    assert owner.context.closed is True
     assert "PRIVATE" not in str(raised.value)
 
 
@@ -123,6 +160,8 @@ def test_confirmation_timeout_closes_held_target() -> None:
     assert raised.value.code is ExactTargetConfirmationErrorCode.CONFIRMATION_EXPIRED
     assert transaction.closed
     assert owner.closed
+    assert owner.context is not None
+    assert owner.context.closed is True
 
 
 def test_confirm_and_ordered_stage_hooks_revalidate_same_owner() -> None:
@@ -138,6 +177,8 @@ def test_confirm_and_ordered_stage_hooks_revalidate_same_owner() -> None:
     assert raised.value.code is ExactTargetConfirmationErrorCode.TARGET_CHANGED
     assert transaction.closed
     assert owner.closed
+    assert owner.context is not None
+    assert owner.context.closed is True
 
     with pytest.raises(ExactTargetConfirmationError):
         transaction.revalidate(TargetRevalidationStage.BEFORE_MUTATION)
@@ -164,6 +205,8 @@ def test_ordered_stage_hooks_revalidate_same_owner() -> None:
     assert raised.value.code is ExactTargetConfirmationErrorCode.TARGET_CHANGED
     assert transaction.closed
     assert owner.closed
+    assert owner.context is not None
+    assert owner.context.closed is True
 
 
 def test_stage_drift_poisons_confirmation_owner() -> None:
@@ -180,6 +223,8 @@ def test_stage_drift_poisons_confirmation_owner() -> None:
     assert raised.value.code is ExactTargetConfirmationErrorCode.TARGET_CHANGED
     assert transaction.closed
     assert owner.closed
+    assert owner.context is not None
+    assert owner.context.closed is True
     assert "PRIVATE" not in str(raised.value)
 
 
@@ -196,7 +241,29 @@ def test_execute_revalidates_pre_mutation_then_remains_disabled() -> None:
     assert coordinator.mutation_enabled is False
     assert transaction.closed
     assert owner.closed
+    assert owner.context is not None
+    assert owner.context.closed is True
     assert owner.assert_calls == 3
+
+
+def test_context_drift_poisons_both_retained_owners() -> None:
+    owner = _Owner()
+    transaction = ExactTargetConfirmationCoordinator(
+        capture=lambda _provider: owner
+    ).prepare(MapProvider.AZURE)
+    assert owner.context is not None
+    owner.context.fail_assert = True
+
+    with pytest.raises(ExactTargetConfirmationError) as raised:
+        transaction.confirm(CONFIRMATION_TEXT)
+
+    assert raised.value.code is ExactTargetConfirmationErrorCode.TARGET_CHANGED
+    assert transaction.closed
+    assert owner.closed
+    assert owner.context.closed
+    assert "PRIVATE" not in str(raised.value)
+    assert raised.value.__cause__ is None
+    assert raised.value.__context__ is None
 
 
 def test_capture_failure_is_sanitized() -> None:
@@ -210,6 +277,8 @@ def test_capture_failure_is_sanitized() -> None:
 
     assert raised.value.code is ExactTargetConfirmationErrorCode.TARGET_UNAVAILABLE
     assert "PRIVATE" not in str(raised.value)
+    assert raised.value.__cause__ is None
+    assert raised.value.__context__ is None
 
 
 def test_non_enum_provider_is_rejected_before_capture() -> None:
