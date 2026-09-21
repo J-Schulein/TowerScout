@@ -5,9 +5,9 @@
 **Implementation Head**: `77e5ac4`
 **Native Runtime Admission Checkpoint**: `2492dbd`
 **Package Inspection Pin Correction**: `77e5ac4`
-**Validated Exact Head**: `21725f5`
-**Remote Exact-Head Status**: CI/CD run `35389528602`, Task-087 run
-`35389528502`, and Trivy passed at `21725f5`; the main-only build was neutral as
+**Validated Exact Head**: `b772ce5`
+**Remote Exact-Head Status**: CI/CD run `35636108931`, Task-087 run
+`35636108770`, and Trivy passed at `b772ce5`; the main-only build was neutral as
 designed.
 **Local Checkpoint**: Committed checkpoints through `500a18a` compose the full
 durable repair path: exact runtime stop/start, terminal target/environment/
@@ -247,7 +247,9 @@ Correction `77e5ac4` synchronizes only that build-inspection pin. Its direct
 contract passes `1/1`, the complete package-validation module passes `49/49`,
 focused Black, blocking Flake8, compilation, and diff checks pass, and an
 independent read-only review found no blocker or additional pin/generated
-artifact requiring change. Replacement exact-head workflows remain pending.
+artifact requiring change. Replacement exact-head validation then passed at
+documentation head `b772ce5`: CI/CD run `35636108931`, Task-087 run
+`35636108770`, and Trivy are green; the main-only build is neutral as designed.
 **Next**: Create a protected full staged-package authority from a reviewable
 source checkpoint, repeat same-root target/provider containment there, complete
 the successful Google revocation-aware trust proof and genuine two-session
@@ -1015,12 +1017,13 @@ state definitions above.
 
 ## Next-Session Resume Point
 
-Continue from validated documentation head `21725f5`, containing reviewed
-implementation checkpoint `2999da0`. Retry slice 4's revocation-aware fixed-
-host proof in a context where cache-only revocation succeeds. Then repeat the
-same-root Docker containment and use an approved standalone Compose provider on
-a rootless Podman machine. Finish with the complete slice 9 evidence set,
-documentation reconciliation, and PR #67 merge decision.
+Continue from validated documentation head `b772ce5`, containing native
+runtime-admission checkpoint `2492dbd` and package-inspection pin correction
+`77e5ac4`. Create a protected full staged-package authority, repeat same-root
+Docker and approved rootless-Podman containment there, complete the successful
+Google revocation-aware trust proof and genuine two-session Windows proof, then
+finish with the complete slice 9 evidence set, documentation reconciliation,
+and PR #67 merge decision.
 
 ## Scope Control
 
@@ -1051,8 +1054,9 @@ qualifies that integrated package across Docker CPU/GPU and Podman CPU/GPU.
 
 Planning after `d1494f6` remains based on fixed acceptance criteria rather than
 commit count. Transaction/recovery integration and pre-arm failure
-reconciliation are present through `2999da0`, and exact-head validation passes
-at `21725f5`. Remaining work is successful Windows trust and live runtime/
+reconciliation are present through `2999da0`, native runtime admission is
+present through `2492dbd`, and exact-head validation passes at `b772ce5`.
+Remaining work is successful Windows trust and live runtime/
 recovery proof, final
 Gate A evidence, and the PR #67 decision. Gate B, Task-096, Task-102, and
 Task-097 are outside that Gate A estimate.

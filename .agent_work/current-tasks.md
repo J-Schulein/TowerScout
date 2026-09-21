@@ -23,7 +23,8 @@ longer the production execution path and is retained only as an unreachable
 compatibility/test reference. Exact pre-arm failure now terminates through an
 authenticated abort in the same session or after restart without entering
 rollback. Independent re-review reports zero blockers, and exact-head workflows
-pass at `21725f5`. The September 21 checkpoint `2492dbd` now admits the
+pass at `b772ce5` in CI/CD run `35636108931`, Task-087 run `35636108770`, and
+Trivy. The September 21 checkpoint `2492dbd` now admits the
 exact Podman 6.0.2 runtime and stable rootless WSL endpoint owner under a
 disposable trusted package-root fixture. The checkout package root correctly
 remains fail-closed because its ACL grants mutation/retarget rights to
@@ -216,8 +217,8 @@ base CPython dependency closure.
   the same session or after restart without admitting that state to rollback.
   The final recovery ring passes `316/316`, the non-helper unit baseline exits
   `0` across `2840` collected tests, focused static/security checks pass, and
-  independent re-review reports zero blockers. Validated exact head `21725f5`
-  is fully green in CI/CD run `35389528602`, Task-087 run `35389528502`, and
+  independent re-review reports zero blockers. Validated exact head `b772ce5`
+  is fully green in CI/CD run `35636108931`, Task-087 run `35636108770`, and
   Trivy.
   See the
   [`September 17 WIP handoff`](./context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
@@ -359,10 +360,11 @@ protected recovery context, certificate/provider mutation, volume-preserving
 runtime replacement, rebound-owner terminal verification, durable commit,
 exact cleanup, recovery-on-failure, and terminal pre-arm abort are now composed.
 The final recovery ring passes `316/316`, focused static/security gates pass,
-and corrected independent re-review reports zero blockers. Legacy `repair.py`
-is explicitly retained only as an unreachable compatibility/test reference.
-Updated-source exact-head CI, successful Google revocation-aware Windows trust
-proof, protected full-package target admission, OneDrive/two-session evidence,
+and corrected independent re-review reports zero blockers. Exact-head CI/CD run
+`35636108931`, Task-087 run `35636108770`, and Trivy pass at `b772ce5`. Legacy
+`repair.py` is explicitly retained only as an unreachable compatibility/test
+reference. Successful Google revocation-aware Windows trust proof, protected
+full-package target admission, OneDrive/two-session evidence,
 and approved Docker/rootless-Podman mutation/recovery proof remain. Azure trust,
 the rootless standalone-provider topology, and bounded native Podman endpoint
 owner admission now pass. No live repair was run. The
