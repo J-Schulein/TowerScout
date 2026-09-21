@@ -507,6 +507,40 @@ def test_fixed_numeric_versions_are_bound_but_not_inferred_from_three_part_polic
     assert first.evidence_sha256 != second.evidence_sha256
 
 
+def test_docker_accepts_unspecified_fixed_product_version() -> None:
+    evidence, _api, _backend = _verify_pe(
+        _docker_pe(fixed_product_version=(0, 0, 0, 0))
+    )
+
+    assert evidence.product_id is RuntimeProductId.DOCKER_CLI
+    assert evidence.fixed_file_version == (29, 7, 2, 17)
+    assert evidence.fixed_product_version == (0, 0, 0, 0)
+
+
+@pytest.mark.parametrize(
+    "product_id",
+    tuple(
+        product_id
+        for product_id in RuntimeProductId
+        if product_id is not RuntimeProductId.DOCKER_CLI
+    ),
+)
+def test_unspecified_fixed_product_version_is_docker_only(
+    product_id: RuntimeProductId,
+) -> None:
+    docker = next(
+        product
+        for product in _POLICY.products
+        if product.product_id is RuntimeProductId.DOCKER_CLI
+    )
+
+    assert not runtime_identity_module._product_matches(
+        replace(docker, product_id=product_id),
+        leaf="docker.exe",
+        facts=_docker_pe(fixed_product_version=(0, 0, 0, 0)),
+    )
+
+
 @pytest.mark.parametrize(
     "change",
     (

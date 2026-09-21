@@ -356,6 +356,12 @@ def _product_matches(
         return False
     if len(fixed_prefix) != 3 or any(not 0 <= part <= 0xFFFF for part in fixed_prefix):
         return False
+    fixed_product_matches = facts.fixed_product_version[:3] == fixed_prefix or (
+        (
+            product.product_id is RuntimeProductId.DOCKER_CLI
+            and facts.fixed_product_version == (0, 0, 0, 0)
+        )
+    )
     return not (
         evidence.kind is not VersionEvidenceKind.PE_VERSION_RESOURCE
         or product.architecture != facts.machine
@@ -368,7 +374,7 @@ def _product_matches(
         or product.exact_version != facts.file_version
         or product.exact_version != facts.product_version
         or facts.fixed_file_version[:3] != fixed_prefix
-        or facts.fixed_product_version[:3] != fixed_prefix
+        or not fixed_product_matches
     )
 
 
