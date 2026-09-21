@@ -267,6 +267,7 @@ $releaseFiles = @(
     "scripts\lib\TowerScoutCompose.ps1",
     "scripts\lib\TowerScoutPodmanComposeProvider.ps1",
     "scripts\lib\TowerScoutPodmanGpu.ps1",
+    "scripts\lib\TowerScoutProviderEnvironment.ps1",
     "scripts\setup-towerscout.ps1",
     "scripts\bootstrap.ps1",
     "scripts\enable-podman-gpu.ps1",

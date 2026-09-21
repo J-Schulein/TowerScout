@@ -52,6 +52,7 @@ FULL_PACKAGE_REQUIRED_FILES = {
     "scripts/lib/TowerScoutBootstrap.ps1",
     "scripts/lib/TowerScoutCertificateStore.ps1",
     "scripts/lib/TowerScoutCompose.ps1",
+    "scripts/lib/TowerScoutProviderEnvironment.ps1",
     "scripts/logs.cmd",
     "scripts/logs.ps1",
     "scripts/repair-provider-tls.cmd",
