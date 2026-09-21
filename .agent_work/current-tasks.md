@@ -2,13 +2,14 @@
 
 **Sprint Period**: August 8-August 21, 2026; active-task continuation retained
 through the current Task-087 Gate A work
-**Last Updated**: September 18, 2026
+**Last Updated**: September 21, 2026
 **Focus**: Task-101 is complete. Task-087 is the active validation task.
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, partial, not-started, and
-validation states. Implementation head `867a110` adds the validated native
-registry fix above checkpoint `2999da0`'s complete durable repair path from
+validation states. Implementation checkpoint `2492dbd` extends the validated
+native registry fix at `867a110` above checkpoint `2999da0`'s complete durable
+repair path from
 rollback arming through terminal verification,
 commit, exact backup cleanup, and recovery-on-failure. Fresh-process recovery
 distinguishes an incomplete repair from committed cleanup and suppresses paired
@@ -20,9 +21,13 @@ longer the production execution path and is retained only as an unreachable
 compatibility/test reference. Exact pre-arm failure now terminates through an
 authenticated abort in the same session or after restart without entering
 rollback. Independent re-review reports zero blockers, and exact-head workflows
-pass at `21725f5`. The required live trust/runtime proof remains: both providers
-failed closed as `chain_unverified`, and Podman is rootful with unapproved Docker
-Desktop Compose delegation. No live mutation has been run. The
+pass at `21725f5`. The September 21 checkpoint `2492dbd` now admits the
+exact Podman 6.0.2 runtime and stable rootless WSL endpoint owner under a
+disposable trusted package-root fixture. The checkout package root correctly
+remains fail-closed because its ACL grants mutation/retarget rights to
+unapproved accounts; a protected full staged package is therefore required for
+same-root target and mutation/recovery proof. Azure trust reaches `selected`;
+Google remains `chain_unverified`. No live mutation has been run. The
 September 14 checkpoint closes slices
 2-3: confirmation
 now consumes and retains the native exact target, shows only its public summary,
@@ -199,8 +204,8 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `867a110` adds the native registry fix above
-  checkpoint `2999da0`, which composes exact certificate and
+- Task-087 implementation head `2492dbd` extends the native registry fix at
+  `867a110` above checkpoint `2999da0`, which composes exact certificate and
   provider mutation, runtime stop/start, terminal verification and commit,
   exact backup cleanup, recovery-on-failure, and the production typed-
   confirmation handoff. It also terminally reconciles exact pre-arm failure in
@@ -215,10 +220,13 @@ base CPython dependency closure.
   Live trust/runtime proof remains; PR #67 remains Draft. A bounded host retry
   now has a separate rootless Podman 6.0.2 machine and the approved package-
   local Compose provider ready, and Azure trust reaches `selected`. Google
-  remains `chain_unverified`, while strict native Authenticode admission blocks
-  both engines before endpoint-bound mutation/recovery proof. The resulting
-  registry-reader checkpoint `867a110` passes `255/255` focused and adjacent
-  tests plus focused static/security checks. Gate A remains open. Legacy
+  remains `chain_unverified`. The September 21 checkpoint `2492dbd` admits
+  the exact Podman runtime and stable rootless WSL endpoint owner under a
+  disposable trusted package-root fixture. The checkout itself correctly fails
+  package-root ACL admission, so protected full-package staging and same-root
+  mutation/recovery proof remain. The runtime-admission checkpoint passes all
+  `2,364` launcher unit cases in bounded groups plus focused static/security
+  checks and independent review. Gate A remains open. Legacy
   `repair.py` is retained only as an unreachable
   compatibility/test reference. The local
   source path is mutation-capable after exact typed confirmation, but no live
@@ -339,8 +347,8 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / VALIDATE - Gate A is materially advanced and remains
-open. Implementation head `867a110` adds the validated native registry fix
-above checkpoint `2999da0`, which connects the production typed-confirmation
+open. Implementation head `2492dbd` extends the validated native registry fix
+at `867a110` above checkpoint `2999da0`, which connects the production typed-confirmation
 call site to the complete durable native repair coordinator. The exact target,
 protected recovery context, certificate/provider mutation, volume-preserving
 runtime replacement, rebound-owner terminal verification, durable commit,
@@ -349,9 +357,10 @@ The final recovery ring passes `316/316`, focused static/security gates pass,
 and corrected independent re-review reports zero blockers. Legacy `repair.py`
 is explicitly retained only as an unreachable compatibility/test reference.
 Updated-source exact-head CI, successful Google revocation-aware Windows trust
-proof, native runtime admission, OneDrive/two-session evidence, and approved
-Docker/rootless-Podman mutation/recovery proof remain. Azure trust and the
-rootless standalone-provider topology now pass. No live repair was run. The
+proof, protected full-package target admission, OneDrive/two-session evidence,
+and approved Docker/rootless-Podman mutation/recovery proof remain. Azure trust,
+the rootless standalone-provider topology, and bounded native Podman endpoint
+owner admission now pass. No live repair was run. The
 chronological ledger follows.
 Slices 1-3
 are complete. The September 14 checkpoint connects the

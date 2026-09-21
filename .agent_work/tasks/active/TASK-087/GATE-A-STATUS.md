@@ -1,8 +1,9 @@
 # TASK-087 Gate A Status
 
-**As Of**: September 18, 2026
+**As Of**: September 21, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `867a110`
+**Implementation Head**: `2492dbd`
+**Native Runtime Admission Checkpoint**: `2492dbd`
 **Validated Exact Head**: `21725f5`
 **Remote Exact-Head Status**: CI/CD run `35389528602`, Task-087 run
 `35389528502`, and Trivy passed at `21725f5`; the main-only build was neutral as
@@ -197,6 +198,53 @@ Google still fails closed, and native runtime Authenticode admission blocks
 both engines before endpoint-bound mutation proof. The rootful machine and all
 existing objects remain preserved. A genuine second Windows session is still
 required for the cross-session/OneDrive proof.
+
+### VALIDATE - Native Runtime And Rootless Endpoint Admission - 2026-09-21T13:20:28-04:00
+**Objective**: Remove the local native-runtime admission blocker and prove the
+exact rootless Podman endpoint owner without beginning repair or runtime
+mutation.
+**Context**: Implementation checkpoint `2492dbd` contains a bounded correction
+across eleven source/test files for Authenticode, exact command
+identity, minimal Windows child environments, Podman policy, and rootless
+endpoint observation. Azure trust reaches `selected`; Google still fails closed
+as `chain_unverified`.
+**Decision**: Preserve the approved package-root ACL policy. The checkout grants
+mutation/retarget rights to unapproved accounts and therefore remains correctly
+ineligible as package authority. Use a disposable sibling root inheriting its
+trusted parent ACL for endpoint-only proof, then remove it. Do not weaken ACL,
+signature, endpoint, or JSON validation and do not run repair/runtime mutation.
+**Execution**: Corrected native Authenticode chain handling, Windows path-case
+comparison, API-derived command environments, exact client-only Podman version
+identity, correlated WSL machine/connection/info proof, and finite JSON
+telemetry handling. Broad validation exposed and then superseded one adjacent
+regression: the shared contained-command request now accepts only its historical
+`SystemRoot`/`WINDIR` shape or the exact profile-aware shape required for
+version discovery, while the Podman endpoint request retains its separate exact
+seven-variable contract. Production endpoint capture then retained the exact
+package selector, Podman executable, rootless WSL endpoint, SSH identity key,
+and path hierarchy through repeated observation.
+**Output**: Native Podman endpoint capture reports an exact `6.0.2` runtime,
+`rootless=True`, and stable repeated owner capture. The disposable package root
+was removed. No machine default, container, volume, package checkout, provider
+configuration, certificate store, or runtime state was changed.
+**Validation**: The final affected/adjacent ring passes `564/564`. All `2,364`
+launcher unit cases pass in seven non-overlapping bounded groups, avoiding the
+known combined-process native-state interference. Black, blocking Flake8,
+strict mypy, medium/high Bandit, editor diagnostics, agent-work validation, and
+`git diff --check` pass. The final independent sub-agent review of the exact
+precommit diff reports no blocker. Earlier read-only security reviews also
+judged the diff suitable for a bounded Gate A checkpoint. The first
+review's provider-child advisory was checked against the implemented exact
+constructed environment, authenticated held artifacts, and denied-rediscovery
+policy; its focused ring passes. The second review confirmed that the repaired
+shared command contract accepts only its two exact environment shapes and that
+Podman endpoint validation remains exact.
+**Next**: Create a protected full staged-package authority from a reviewable
+source checkpoint, repeat same-root target/provider containment there, complete
+the successful Google revocation-aware trust proof and genuine two-session
+Windows proof, then run broad exact-head validation and final independent
+review. Gate A remains open and PR #67 remains Draft.
+
 **Historical Checkpoint Ledger**: Slices 2-3 exact-target confirmation wiring
 complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved
