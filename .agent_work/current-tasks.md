@@ -7,9 +7,11 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, partial, not-started, and
-validation states. Implementation checkpoint `2492dbd` extends the validated
-native registry fix at `867a110` above checkpoint `2999da0`'s complete durable
-repair path from
+validation states. Implementation head `77e5ac4` contains native runtime-
+admission checkpoint `2492dbd` and synchronizes its changed package policy with
+the independent build-inspection integrity pin. It extends the validated native
+registry fix at `867a110` above checkpoint `2999da0`'s complete durable repair
+path from
 rollback arming through terminal verification,
 commit, exact backup cleanup, and recovery-on-failure. Fresh-process recovery
 distinguishes an incomplete repair from committed cleanup and suppresses paired
@@ -204,8 +206,10 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `2492dbd` extends the native registry fix at
-  `867a110` above checkpoint `2999da0`, which composes exact certificate and
+- Task-087 implementation head `77e5ac4` contains native runtime-admission
+  checkpoint `2492dbd` plus its package-inspection pin correction. It extends
+  the native registry fix at `867a110` above checkpoint `2999da0`, which
+  composes exact certificate and
   provider mutation, runtime stop/start, terminal verification and commit,
   exact backup cleanup, recovery-on-failure, and the production typed-
   confirmation handoff. It also terminally reconciles exact pre-arm failure in
@@ -347,8 +351,9 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / VALIDATE - Gate A is materially advanced and remains
-open. Implementation head `2492dbd` extends the validated native registry fix
-at `867a110` above checkpoint `2999da0`, which connects the production typed-confirmation
+open. Implementation head `77e5ac4` contains native runtime-admission checkpoint
+`2492dbd` and its package-inspection pin correction. It extends the validated
+native registry fix at `867a110` above checkpoint `2999da0`, which connects the production typed-confirmation
 call site to the complete durable native repair coordinator. The exact target,
 protected recovery context, certificate/provider mutation, volume-preserving
 runtime replacement, rebound-owner terminal verification, durable commit,

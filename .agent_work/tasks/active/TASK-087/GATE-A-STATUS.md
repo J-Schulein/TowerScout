@@ -2,8 +2,9 @@
 
 **As Of**: September 21, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `2492dbd`
+**Implementation Head**: `77e5ac4`
 **Native Runtime Admission Checkpoint**: `2492dbd`
+**Package Inspection Pin Correction**: `77e5ac4`
 **Validated Exact Head**: `21725f5`
 **Remote Exact-Head Status**: CI/CD run `35389528602`, Task-087 run
 `35389528502`, and Trivy passed at `21725f5`; the main-only build was neutral as
@@ -238,7 +239,15 @@ review's provider-child advisory was checked against the implemented exact
 constructed environment, authenticated held artifacts, and denied-rediscovery
 policy; its focused ring passes. The second review confirmed that the repaired
 shared command contract accepts only its two exact environment shapes and that
-Podman endpoint validation remains exact.
+Podman endpoint validation remains exact. The first push at documentation head
+`096a67d` exposed a stale independent runtime-policy digest in
+`launcher/inspect_build.py`: Python 3.12 package-validation tests failed in
+CI/CD run `35634786316`, while the Task-087 workflow run `35634786324` passed.
+Correction `77e5ac4` synchronizes only that build-inspection pin. Its direct
+contract passes `1/1`, the complete package-validation module passes `49/49`,
+focused Black, blocking Flake8, compilation, and diff checks pass, and an
+independent read-only review found no blocker or additional pin/generated
+artifact requiring change. Replacement exact-head workflows remain pending.
 **Next**: Create a protected full staged-package authority from a reviewable
 source checkpoint, repeat same-root target/provider containment there, complete
 the successful Google revocation-aware trust proof and genuine two-session
