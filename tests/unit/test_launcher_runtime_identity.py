@@ -1017,6 +1017,27 @@ def test_native_registry_reads_exact_64_bit_reg_sz_and_closes_every_key() -> Non
     assert len(advapi32.open_calls) == 4
 
 
+def test_native_registry_accepts_returned_size_within_queried_capacity() -> None:
+    value = r"C:\Program Files\Podman\podman.exe"
+    wchar_bytes = ctypes.sizeof(ctypes.c_wchar)
+    advapi32 = _FakeAdvapi32(
+        values=(value,),
+        required_override=(len(value) + 2) * wchar_bytes,
+        data_size_override=(len(value) + 1) * wchar_bytes,
+    )
+    backend = _native_install_backend(advapi32=advapi32)
+
+    result = backend.read_string_values(
+        hive="HKEY_LOCAL_MACHINE",
+        view="registry64",
+        key=r"SOFTWARE\Reviewed",
+        selectors=(RegistryValueSelector("", "DisplayName"),),
+    )
+
+    assert result == RegistryStringValues((value,))
+    assert len(advapi32.closed) == len(advapi32.open_calls) == 2
+
+
 def test_native_registry_distinguishes_absent_record_from_access_failure() -> None:
     selectors = (RegistryValueSelector("", "DisplayName"),)
     absent_api = _FakeAdvapi32(open_status=2)

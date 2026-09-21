@@ -652,9 +652,16 @@ class NativeWindowsInstallationBackend:
                 ctypes.byref(supplied),
             )
         )
-        if status != 0 or value_type.value != 1 or supplied.value != required.value:
+        if (
+            status != 0
+            or value_type.value != 1
+            or supplied.value < 2
+            or supplied.value > required.value
+            or supplied.value % ctypes.sizeof(ctypes.c_wchar) != 0
+        ):
             raise ValueError("Registry value is not an approved string.")
-        raw_value = "".join(buffer[:characters])
+        supplied_characters = supplied.value // ctypes.sizeof(ctypes.c_wchar)
+        raw_value = "".join(buffer[:supplied_characters])
         if (
             not raw_value.endswith("\x00")
             or "\x00" in raw_value[:-1]
