@@ -26,6 +26,7 @@ from .runtime_docker_endpoint import DockerEndpointCommandRequest
 from .runtime_podman_endpoint import PodmanEndpointCommandRequest
 from .runtime_provider_child import ProviderChildProcessRequest
 from .runtime_provider_child import TargetObservationProviderChildProcessRequest
+from .runtime_process_environment import NativeWindowsProcessEnvironmentApi
 from .runtime_target_observation import (
     ObservationOperation,
     TargetObservationProcessRequest,
@@ -64,7 +65,17 @@ _READ_CHUNK_BYTES = 4096
 _POLL_MILLISECONDS = 25
 _TERMINATION_TIMEOUT_SECONDS = 5.0
 _MAX_DIRECTORY_CHARACTERS = 32_767
-_REQUIRED_ENVIRONMENT_NAMES = ("SystemRoot", "WINDIR")
+_COMMAND_ENVIRONMENT_NAMES = ("SystemRoot", "USERPROFILE", "WINDIR")
+_ENDPOINT_ENVIRONMENT_NAMES = ("SystemRoot", "WINDIR")
+_PODMAN_ENDPOINT_ENVIRONMENT_NAMES = (
+    "APPDATA",
+    "Path",
+    "SystemRoot",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "WINDIR",
+)
 
 _STDOUT_READ_SLOT = 0
 _STDOUT_WRITE_SLOT = 1
@@ -594,10 +605,12 @@ class _NativeWindowsProcessApi:
 
     @staticmethod
     def _environment_block(environment: tuple[tuple[str, str], ...]) -> str:
-        if (
-            type(environment) is not tuple
-            or tuple(item[0] for item in environment) != _REQUIRED_ENVIRONMENT_NAMES
-        ):
+        names = tuple(item[0] for item in environment)
+        if type(environment) is not tuple or names not in {
+            _COMMAND_ENVIRONMENT_NAMES,
+            _ENDPOINT_ENVIRONMENT_NAMES,
+            _PODMAN_ENDPOINT_ENVIRONMENT_NAMES,
+        }:
             raise ValueError("The contained environment is invalid.")
         rendered: list[str] = []
         previous = ""
@@ -1162,7 +1175,7 @@ class _BoundedReader:
 class NativeWindowsCommandVersionBackend:
     """Run a fixed version command inside a verified Windows process tree."""
 
-    __slots__ = ("_api", "_clock")
+    __slots__ = ("_api", "_clock", "_environment_api")
 
     def __init__(
         self,
@@ -1172,6 +1185,7 @@ class NativeWindowsCommandVersionBackend:
     ) -> None:
         self._api = api if api is not None else _NativeWindowsProcessApi()
         self._clock = clock if clock is not None else _SystemClock()
+        self._environment_api = NativeWindowsProcessEnvironmentApi()
 
     @property
     def supported(self) -> bool:
@@ -1195,6 +1209,18 @@ class NativeWindowsCommandVersionBackend:
     def user_profile_directory(self) -> str:
         try:
             return self._api.user_profile_directory()
+        except Exception:
+            raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE) from None
+
+    def roaming_app_data_directory(self) -> str:
+        try:
+            return self._environment_api.known_folder_path("roaming_app_data")
+        except Exception:
+            raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE) from None
+
+    def temporary_directory(self) -> str:
+        try:
+            return self._environment_api.temporary_directory()
         except Exception:
             raise CommandExecutionError(CommandExecutionErrorCode.UNAVAILABLE) from None
 
@@ -1368,6 +1394,15 @@ class NativeWindowsPodmanEndpointCommandBackend:
 
     def system_directory(self) -> str:
         return self._contained.system_directory()
+
+    def user_profile_directory(self) -> str:
+        return self._contained.user_profile_directory()
+
+    def roaming_app_data_directory(self) -> str:
+        return self._contained.roaming_app_data_directory()
+
+    def temporary_directory(self) -> str:
+        return self._contained.temporary_directory()
 
     def execute(
         self,

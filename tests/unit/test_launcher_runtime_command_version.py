@@ -57,6 +57,7 @@ _PODMAN_PATH = _PODMAN_BASE + r"\Programs\Podman\podman.exe"
 _PODMAN_FINAL = r"\\?\C:\Users\reviewed-user\AppData\Local\Programs\Podman\podman.exe"
 _WINDOWS_DIRECTORY = r"C:\Windows"
 _SYSTEM_DIRECTORY = r"C:\Windows\System32"
+_USER_PROFILE_DIRECTORY = r"C:\Users\operator"
 
 
 def _product(product_id: RuntimeProductId):  # noqa: ANN202
@@ -195,6 +196,9 @@ class _CommandBackend:
     def system_directory(self) -> str:
         return _SYSTEM_DIRECTORY
 
+    def user_profile_directory(self) -> str:
+        return _USER_PROFILE_DIRECTORY
+
     def execute(self, request: object) -> object:
         self.requests.append(request)
         if self.on_execute is not None:
@@ -202,6 +206,14 @@ class _CommandBackend:
         if isinstance(self.result, BaseException):
             raise self.result
         return self.result
+
+
+class _CaseVariantCommandBackend(_CommandBackend):
+    def windows_directory(self) -> str:
+        return r"C:\WINDOWS"
+
+    def system_directory(self) -> str:
+        return r"C:\WINDOWS\system32"
 
 
 def _signer(product_id: RuntimeProductId) -> SignerCertificateFacts:
@@ -318,6 +330,7 @@ def test_compose_command_evidence_is_bound_to_one_retained_runtime() -> None:
     assert request.arguments == ("version", "--short")
     assert request.environment == (
         ("SystemRoot", _WINDOWS_DIRECTORY),
+        ("USERPROFILE", _USER_PROFILE_DIRECTORY),
         ("WINDIR", _WINDOWS_DIRECTORY),
     )
     assert request.working_directory == PureWindowsPath(_SYSTEM_DIRECTORY)
@@ -349,10 +362,41 @@ def test_compose_command_evidence_is_bound_to_one_retained_runtime() -> None:
     assert api.close_count == 1
 
 
+def test_command_evidence_accepts_windows_directory_display_casing() -> None:
+    installation = _InstallBackend(RuntimeProductId.DOCKER_COMPOSE)
+    api = _FileApi(final_path=_COMPOSE_FINAL)
+    authenticode = _AuthenticodeBackend(
+        _authenticode_facts(RuntimeProductId.DOCKER_COMPOSE)
+    )
+    command = _CaseVariantCommandBackend(_result(b"5.3.1\n"))
+
+    owner = open_package_bound_command_runtime_evidence(
+        RuntimeProductId.DOCKER_COMPOSE,
+        installation_backend=installation,  # type: ignore[arg-type]
+        file_api=api,
+        authenticode_backend=authenticode,  # type: ignore[arg-type]
+        command_backend=command,
+        clock=_Clock(),
+    )
+
+    try:
+        assert owner.evidence.exact_version == "5.3.1"
+        assert command.requests[0].environment == (
+            ("SystemRoot", r"C:\WINDOWS"),
+            ("USERPROFILE", _USER_PROFILE_DIRECTORY),
+            ("WINDIR", r"C:\WINDOWS"),
+        )
+        assert command.requests[0].working_directory == PureWindowsPath(
+            r"C:\WINDOWS\system32"
+        )
+    finally:
+        owner.close()
+
+
 def test_internal_transfer_revalidates_and_moves_single_handle_ownership() -> None:
     owner, installation, api, _authenticode, _command = _open(
         RuntimeProductId.PODMAN_CLI,
-        b'{"Client":{"Version":"6.0.2"}}\n',
+        b"podman version 6.0.2\n",
     )
     calls_before_transfer = installation.calls
     slot = identity_module._BoundFileTransferSlot()  # noqa: SLF001
@@ -382,7 +426,7 @@ def test_internal_transfer_interruption_after_release_keeps_armed_ownership(
 ) -> None:
     owner, _installation, api, _authenticode, _command = _open(
         RuntimeProductId.PODMAN_CLI,
-        b'{"Client":{"Version":"6.0.2"}}\n',
+        b"podman version 6.0.2\n",
     )
     release = identity_module.BoundInstallationCandidate._release_bound_file
     slot = identity_module._BoundFileTransferSlot()  # noqa: SLF001
@@ -412,7 +456,7 @@ def test_internal_transfer_interruption_during_finalization_keeps_armed_ownershi
 ):
     owner, _installation, api, _authenticode, _command = _open(
         RuntimeProductId.PODMAN_CLI,
-        b'{"Client":{"Version":"6.0.2"}}\n',
+        b"podman version 6.0.2\n",
     )
     slot = identity_module._BoundFileTransferSlot()  # noqa: SLF001
 
@@ -441,22 +485,19 @@ def test_internal_transfer_interruption_during_finalization_keeps_armed_ownershi
     assert api.close_count == 1
 
 
-def test_podman_json_pointer_version_uses_timestamped_signer() -> None:
+def test_podman_client_only_version_uses_timestamped_signer() -> None:
     owner, _installation, api, _authenticode, command = _open(
         RuntimeProductId.PODMAN_CLI,
-        b'{"Client":{"APIVersion":"5.6.0","Version":"6.0.2"}}\n',
+        b"podman version 6.0.2\n",
     )
     with owner:
         assert owner.evidence.product_id is RuntimeProductId.PODMAN_CLI
         assert owner.evidence.exact_version == "6.0.2"
-        assert owner.evidence.command.arguments == (
-            "version",
-            "--format",
-            "json",
-        )
+        assert owner.evidence.command.arguments == ("--version",)
         assert owner.evidence.authenticode.timestamp_time_utc == (
             "2025-04-09T12:00:00Z"
         )
+        assert command.requests[0].arguments == ("--version",)
         assert command.requests[0].executable_path == PureWindowsPath(_PODMAN_FINAL)
         assert api.opened == [_PODMAN_PATH]
     assert api.close_count == 1
@@ -519,19 +560,19 @@ def test_compose_text_parser_rejects_non_exact_output(bad_output: bytes) -> None
 @pytest.mark.parametrize(
     "bad_output",
     (
-        b'{"Client":{"Version":"6.0.1"}}\n',
-        b'{"Client":{"version":"6.0.2"}}\n',
-        b'{"client":{"Version":"6.0.2"}}\n',
-        b'{"Client":{"Version":"6.0.2","Version":"6.0.2"}}\n',
-        b'{"Client":{"Version":6.002}}\n',
-        b'{"Client":{"Version":"6.0.2"}} trailing\n',
-        b' {"Client":{"Version":"6.0.2"}}\n',
-        b'{"Client":{"Version":"6.0.2"}}\n\n',
-        b"\xef\xbb\xbf{}",
+        b"podman version 6.0.1\n",
+        b"6.0.2\n",
+        b"Podman version 6.0.2\n",
+        b"podman  version 6.0.2\n",
+        b" podman version 6.0.2\n",
+        b"podman version 6.0.2 \n",
+        b"podman version 6.0.2\n\n",
+        b"\xef\xbb\xbfpodman version 6.0.2\n",
+        b"podman version 6.0.2\x00\n",
         b"\xff",
     ),
 )
-def test_podman_json_parser_fails_closed(bad_output: bytes) -> None:
+def test_podman_client_only_text_parser_fails_closed(bad_output: bytes) -> None:
     with pytest.raises(RuntimeCommandVerificationError) as captured:
         _open(RuntimeProductId.PODMAN_CLI, bad_output)
     assert (
@@ -1152,6 +1193,7 @@ def _native_request() -> object:
         arguments=("version", "--short"),
         environment=(
             ("SystemRoot", _WINDOWS_DIRECTORY),
+            ("USERPROFILE", _USER_PROFILE_DIRECTORY),
             ("WINDIR", _WINDOWS_DIRECTORY),
         ),
         working_directory=PureWindowsPath(_SYSTEM_DIRECTORY),
@@ -1208,7 +1250,9 @@ def test_native_process_api_uses_exact_containment_contract(
         (_COMPOSE_FINAL, "version", "--short")
     )
     assert shim.environment_block == (
-        "SystemRoot=C:\\Windows\x00WINDIR=C:\\Windows\x00\x00"
+        "SystemRoot=C:\\Windows\x00"
+        "USERPROFILE=C:\\Users\\operator\x00"
+        "WINDIR=C:\\Windows\x00\x00"
     )
     assert shim.current_directory == _SYSTEM_DIRECTORY
     assert shim.inherit_handles is True

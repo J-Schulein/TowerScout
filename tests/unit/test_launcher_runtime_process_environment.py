@@ -473,10 +473,12 @@ def test_source_owner_remains_unwired() -> None:
         if "runtime_process_environment" in text:
             imports.append(path.name)
 
-    # Only the retained probe and final source composer may consume this
-    # owner.  Confirmation, repair, and the live launcher remain unwired.
+    # The command adapter uses only the native directory API. Only the retained
+    # probe and final source composer may consume the owner. Confirmation,
+    # repair, and the live launcher remain unwired.
     assert imports == [
         "runtime_acceleration_probe.py",
+        "runtime_command_native.py",
         "runtime_target_inputs.py",
     ]
 

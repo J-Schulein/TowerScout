@@ -333,10 +333,10 @@ def test_checked_in_product_metadata_and_install_records_are_closed() -> None:
     podman = products[RuntimeProductId.PODMAN_CLI]
     assert podman.executable_name == "podman.exe"
     assert podman.version_evidence.kind is (
-        VersionEvidenceKind.AUTHENTICATED_COMMAND_JSON
+        VersionEvidenceKind.AUTHENTICATED_COMMAND_TEXT
     )
-    assert podman.version_evidence.arguments == ("version", "--format", "json")
-    assert podman.version_evidence.json_pointer == "/Client/Version"
+    assert podman.version_evidence.arguments == ("--version",)
+    assert podman.version_evidence.exact_output == "podman version 6.0.2"
     assert len(podman.install_records) == 1
     assert podman.install_records[0].location.known_folder == "local_app_data"
     assert podman.install_records[0].location.relative_path == (
@@ -788,7 +788,7 @@ def test_version_evidence_is_product_specific_and_not_version_output_only() -> N
 
     payload = _payload()
     podman = _product(payload, "podman-cli")
-    podman["version_evidence"]["arguments"] = ["--version"]
+    podman["version_evidence"]["arguments"] = ["version", "--format", "json"]
     _schema_error(payload)
 
 

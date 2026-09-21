@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 _POLICY_RESOURCE = Path(__file__).with_name("runtime-policy.v1.json")
 _PACKAGE_POLICY_SHA256 = (
-    "c4dbf79f6732290ccb9c525f6493662de59cb5960fc2f4228fae518eb89702c4"
+    "c06c4b54ca12bf66271c11c6a170f82d3d28c8f6167f76322c12976eeb69b150"
 )
 _MAX_POLICY_BYTES = 128 * 1024
 _MAX_JSON_DEPTH = 16
@@ -29,6 +29,7 @@ _MAX_JSON_STRING = 4096
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _SERIAL = re.compile(r"^(?:[0-9a-f]{2}){1,32}$")
 _VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
+_COMMAND_OUTPUT = re.compile(r"^(?:[A-Za-z][A-Za-z0-9.-]* )*[0-9]+\.[0-9]+\.[0-9]+$")
 _POLICY_ID = re.compile(r"^[a-z0-9][a-z0-9.-]{0,127}$")
 _UTC_TIME = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
 _REGISTRY_COMPONENT = re.compile(r"^[A-Za-z0-9 ._{}()-]+$")
@@ -861,7 +862,7 @@ def _parse_version_evidence(value: Any) -> VersionEvidencePolicy:
         return VersionEvidencePolicy(
             kind=kind,
             arguments=arguments,
-            exact_output=_text(item["exact_output"], pattern=_VERSION),
+            exact_output=_text(item["exact_output"], pattern=_COMMAND_OUTPUT),
         )
     item = _object(value, frozenset({"kind", "arguments", "json_pointer"}))
     arguments = tuple(
@@ -1235,15 +1236,15 @@ _PRODUCT_APPROVALS: dict[RuntimeProductId, tuple[Any, ...]] = {
         "podman.exe",
         "6.0.2",
         (
-            "authenticated_command_json",
-            ("version", "--format", "json"),
+            "authenticated_command_text",
+            ("--version",),
             "",
             "",
             "",
             "",
             "",
+            "podman version 6.0.2",
             "",
-            "/Client/Version",
         ),
         (_PODMAN_SIGNER,),
         (_PODMAN_RECORD,),

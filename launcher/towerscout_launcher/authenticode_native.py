@@ -1411,7 +1411,7 @@ class _CtypesWindowsAuthenticodeApi:
             raise ValueError("Native signer certificate is invalid.")
         context = certificate.contents
         if (
-            context.encoding_type != _ENCODING_TYPES
+            context.encoding_type != _X509_ASN_ENCODING
             or not context.cert_info
             or not 0 < context.encoded_size <= _MAX_CERTIFICATE_BYTES
         ):
@@ -1592,10 +1592,11 @@ class _CtypesWindowsAuthenticodeApi:
         flags = (
             _CERT_CHAIN_CACHE_ONLY_URL_RETRIEVAL
             | _CERT_CHAIN_DISABLE_AUTH_ROOT_AUTO_UPDATE
-            | _CERT_CHAIN_TIMESTAMP_TIME
             | _CERT_CHAIN_REVOCATION_CHECK_CHAIN
             | _CERT_CHAIN_REVOCATION_CHECK_CACHE_ONLY
         )
+        if policy == _CERT_CHAIN_POLICY_AUTHENTICODE_TS:
+            flags |= _CERT_CHAIN_TIMESTAMP_TIME
         primary_error: BaseException | None = None
         result: tuple[bytes, ...] | None = None
         cleanup_failed = False
@@ -1703,7 +1704,9 @@ class _CtypesWindowsAuthenticodeApi:
             required_eku=_CODE_SIGNING_EKU_OID,
             policy=_CERT_CHAIN_POLICY_AUTHENTICODE,
         )
-        if independent_certificates != provider_certificates:
+        if not hmac.compare_digest(
+            independent_certificates[0], provider_certificates[0]
+        ):
             raise ValueError("Native trust certificate chain is inconsistent.")
 
         provider_timestamp_chain_sha256: str | None = None

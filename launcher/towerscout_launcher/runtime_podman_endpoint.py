@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
+import math
 import ntpath
 import re
 import struct
@@ -88,10 +89,12 @@ _MAX_KEY_BYTES = 1024 * 1024
 _BINDING_DOMAIN = b"TowerScout.PodmanEndpointBinding.v1"
 _EVIDENCE_DOMAIN = b"TowerScout.PodmanEndpointEvidence.v1"
 _KEY_PARENT_DOMAIN = b"TowerScout.PodmanIdentityKeyParent.v1"
+_MACHINE_OBSERVATION_DOMAIN = b"TowerScout.PodmanMachineObservation.v1"
 
 
 class PodmanEndpointCommandKind(str, Enum):
     MACHINE_INSPECT = "machine_inspect"
+    MACHINE_LIST = "machine_list"
     CONNECTION_LIST = "connection_list"
     ENDPOINT_INFO = "endpoint_info"
 
@@ -157,7 +160,7 @@ class PodmanEndpointCommandRequest:
             and type(self.executable_path) is PureWindowsPath
             and type(self.arguments) is tuple
             and type(self.environment) is tuple
-            and len(self.environment) == 2
+            and len(self.environment) == 7
             and all(
                 type(item) is tuple
                 and len(item) == 2
@@ -169,18 +172,37 @@ class PodmanEndpointCommandRequest:
             try:
                 executable = _windows_path(str(self.executable_path), file=True)
                 working = _windows_path(str(self.working_directory), file=False)
-                system_root = _windows_path(self.environment[0][1], file=False)
+                app_data = _windows_path(self.environment[0][1], file=False)
+                path_directory = _windows_path(self.environment[1][1], file=False)
+                system_root = _windows_path(self.environment[2][1], file=False)
+                temp_directory = _windows_path(self.environment[3][1], file=False)
+                user_profile = _windows_path(self.environment[5][1], file=False)
+                temp_base = user_profile / "AppData" / "Local" / "Temp"
                 valid_shape = (
                     executable == self.executable_path
                     and working == self.working_directory
                     and self.environment
                     == (
+                        ("APPDATA", str(app_data)),
+                        ("Path", str(path_directory)),
                         ("SystemRoot", str(system_root)),
+                        ("TEMP", str(temp_directory)),
+                        ("TMP", str(temp_directory)),
+                        ("USERPROFILE", str(user_profile)),
                         ("WINDIR", str(system_root)),
                     )
                     and working.parent == system_root
+                    and path_directory == working
                     and working.name.casefold() == "system32"
                     and system_root.name.casefold() == "windows"
+                    and user_profile.name.casefold() not in _RESERVED_LEAVES
+                    and app_data.parent.parent == user_profile
+                    and app_data.parent.name.casefold() == "appdata"
+                    and app_data.name.casefold() == "roaming"
+                    and (
+                        temp_directory == temp_base
+                        or temp_base in temp_directory.parents
+                    )
                     and _valid_arguments(self.kind, self.arguments)
                 )
             except (IndexError, PodmanEndpointError, TypeError, ValueError):
@@ -212,6 +234,12 @@ class PodmanEndpointCommandBackend(Protocol):
     def windows_directory(self) -> str: ...
 
     def system_directory(self) -> str: ...
+
+    def user_profile_directory(self) -> str: ...
+
+    def roaming_app_data_directory(self) -> str: ...
+
+    def temporary_directory(self) -> str: ...
 
     def execute(
         self, request: PodmanEndpointCommandRequest
@@ -439,11 +467,12 @@ def _valid_arguments(
         return False
     if kind is PodmanEndpointCommandKind.MACHINE_INSPECT:
         return (
-            len(arguments) == 5
+            len(arguments) == 3
             and arguments[:2] == ("machine", "inspect")
             and bool(_MACHINE_NAME.fullmatch(arguments[2]))
-            and arguments[3:] == ("--format", "json")
         )
+    if kind is PodmanEndpointCommandKind.MACHINE_LIST:
+        return arguments == ("machine", "list", "--format", "json")
     if kind is PodmanEndpointCommandKind.CONNECTION_LIST:
         return arguments == ("system", "connection", "list", "--format", "json")
     if kind is PodmanEndpointCommandKind.ENDPOINT_INFO:
@@ -467,6 +496,13 @@ def _reject_constant(_value: str) -> NoReturn:
     raise ValueError("Non-finite JSON value.")
 
 
+def _finite_float(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("JSON number is not finite.")
+    return number
+
+
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     output: dict[str, Any] = {}
     for key, value in pairs:
@@ -480,6 +516,10 @@ def _validate_json_tree(value: Any, *, depth: int = 0) -> int:
     if depth > _MAX_JSON_DEPTH:
         raise ValueError("JSON nesting exceeded.")
     if value is None or type(value) in {bool, int}:
+        return 1
+    if type(value) is float:
+        if not math.isfinite(value):
+            raise ValueError("JSON number is not finite.")
         return 1
     if type(value) is str:
         if len(value) > _MAX_JSON_STRING_CHARACTERS:
@@ -516,6 +556,7 @@ def _load_json(output: bytes) -> Any:
             text,
             object_pairs_hook=_unique_object,
             parse_constant=_reject_constant,
+            parse_float=_finite_float,
         )
         if _validate_json_tree(value) > _MAX_JSON_NODES:
             raise ValueError("JSON node limit exceeded.")
@@ -543,8 +584,7 @@ def _machine_from_output(output: bytes, configured_machine: str) -> _Machine:
     if (
         type(name) is not str
         or name != configured_machine
-        or type(vm_type) is not str
-        or vm_type != "wsl"
+        or (vm_type is not None and vm_type != "wsl")
         or machine.get("State") != "running"
         or machine.get("Rootful") is not False
         or type(username) is not str
@@ -557,10 +597,43 @@ def _machine_from_output(output: bytes, configured_machine: str) -> _Machine:
         _fail(PodmanEndpointErrorCode.ENDPOINT_INVALID)
     return _Machine(
         name=name,
-        vm_type=vm_type,
+        vm_type="wsl" if vm_type == "wsl" else "",
         username=username,
         port=port,
         identity_path=_windows_path(ssh.get("IdentityPath"), file=True),
+    )
+
+
+def _machine_from_listing(output: bytes, inspected: _Machine) -> _Machine:
+    value = _load_json(output)
+    if type(value) is not list or not 1 <= len(value) <= _MAX_JSON_ITEMS:
+        _fail(PodmanEndpointErrorCode.ENDPOINT_INVALID)
+    matches = [
+        _object(raw)
+        for raw in value
+        if type(raw) is dict and raw.get("Name") == inspected.name
+    ]
+    if len(matches) != 1:
+        _fail(PodmanEndpointErrorCode.ENDPOINT_INVALID)
+    machine = matches[0]
+    try:
+        identity_path = _windows_path(machine.get("IdentityPath"), file=True)
+    except PodmanEndpointError:
+        raise
+    if (
+        machine.get("VMType") != "wsl"
+        or machine.get("Running") is not True
+        or machine.get("RemoteUsername") != inspected.username
+        or machine.get("Port") != inspected.port
+        or _path_key(identity_path) != _path_key(inspected.identity_path)
+    ):
+        _fail(PodmanEndpointErrorCode.ENDPOINT_INVALID)
+    return _Machine(
+        name=inspected.name,
+        vm_type="wsl",
+        username=inspected.username,
+        port=inspected.port,
+        identity_path=inspected.identity_path,
     )
 
 
@@ -614,7 +687,8 @@ def _endpoint_info_version(
     server_version = version.get("Version")
     if (
         security.get("rootless") is not True
-        or remote_socket.get("path") != endpoint.socket_path
+        or remote_socket.get("exists") is not True
+        or remote_socket.get("path") != f"unix://{endpoint.socket_path}"
         or store.get("graphRoot")
         != f"/home/{endpoint.username}/.local/share/containers/storage"
         or store.get("runRoot") != f"/run/user/{endpoint.uid}/containers"
@@ -633,13 +707,41 @@ def _environment(
             _fail(PodmanEndpointErrorCode.VERIFICATION_UNAVAILABLE)
         windows = _windows_path(backend.windows_directory(), file=False)
         system = _windows_path(backend.system_directory(), file=False)
+        user_profile = _windows_path(backend.user_profile_directory(), file=False)
+        app_data = _windows_path(backend.roaming_app_data_directory(), file=False)
+        temp_value = backend.temporary_directory()
+        if type(temp_value) is not str:
+            _fail(PodmanEndpointErrorCode.VERIFICATION_UNAVAILABLE)
+        if len(temp_value) > 3 and temp_value.endswith("\\"):
+            temp_value = temp_value[:-1]
+        temp_directory = _windows_path(temp_value, file=False)
+        temp_base = user_profile / "AppData" / "Local" / "Temp"
     except PodmanEndpointError:
         raise
     except Exception:
         _fail(PodmanEndpointErrorCode.VERIFICATION_UNAVAILABLE)
-    if system.parent != windows or system.name.casefold() != "system32":
+    if (
+        system.parent != windows
+        or system.name.casefold() != "system32"
+        or user_profile.name.casefold() in _RESERVED_LEAVES
+        or app_data.parent.parent != user_profile
+        or app_data.parent.name.casefold() != "appdata"
+        or app_data.name.casefold() != "roaming"
+        or (temp_directory != temp_base and temp_base not in temp_directory.parents)
+    ):
         _fail(PodmanEndpointErrorCode.VERIFICATION_UNAVAILABLE)
-    return (("SystemRoot", str(windows)), ("WINDIR", str(windows))), system
+    return (
+        (
+            ("APPDATA", str(app_data)),
+            ("Path", str(system)),
+            ("SystemRoot", str(windows)),
+            ("TEMP", str(temp_directory)),
+            ("TMP", str(temp_directory)),
+            ("USERPROFILE", str(user_profile)),
+            ("WINDIR", str(windows)),
+        ),
+        system,
+    )
 
 
 def _execute(
@@ -686,14 +788,28 @@ def _observe_under_runtime(
                     "machine",
                     "inspect",
                     configured_machine,
-                    "--format",
-                    "json",
                 ),
                 environment=environment,
                 working_directory=working_directory,
             ),
         )
         machine = _machine_from_output(machine_output, configured_machine)
+        if not machine.vm_type:
+            listing_output, listing_hash = _execute(
+                backend,
+                PodmanEndpointCommandRequest(
+                    kind=PodmanEndpointCommandKind.MACHINE_LIST,
+                    executable_path=executable_path,
+                    arguments=("machine", "list", "--format", "json"),
+                    environment=environment,
+                    working_directory=working_directory,
+                ),
+            )
+            machine = _machine_from_listing(listing_output, machine)
+            machine_hash = _digest(
+                _MACHINE_OBSERVATION_DOMAIN,
+                (bytes.fromhex(machine_hash), bytes.fromhex(listing_hash)),
+            )
         connection_output, connection_hash = _execute(
             backend,
             PodmanEndpointCommandRequest(

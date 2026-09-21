@@ -1107,6 +1107,42 @@ def test_provider_signer_rejects_independent_publisher_chain_mismatch(
         )
 
 
+def test_provider_signer_accepts_independently_trusted_alternate_issuer_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    primary, keepalive = _provider_signer_structure(b"cms-primary-signature")
+    assert keepalive
+    api = object.__new__(native_module._CtypesWindowsAuthenticodeApi)
+    api._kernel32 = object()
+    api._crypt32 = object()
+    api._wintrust = _ProviderSignerWinTrust(primary)
+    monkeypatch.setattr(
+        native_module._CtypesWindowsAuthenticodeApi,
+        "_provider_chain_certificates",
+        staticmethod(lambda _signer: (b"publisher", b"issuer-a", b"root-a")),
+    )
+    monkeypatch.setattr(
+        native_module._CtypesWindowsAuthenticodeApi,
+        "_build_independent_chain",
+        lambda _self, *_args, **_kwargs: (b"publisher", b"issuer-b"),
+    )
+    monkeypatch.setattr(
+        native_module._CtypesWindowsAuthenticodeApi,
+        "_signer_certificate_facts",
+        lambda _self, _certificate: _signer(),
+    )
+
+    result = api._provider_signer(
+        ctypes.c_void_p(123),
+        None,
+        b"cms-primary-signature",
+    )
+
+    assert result.chain_sha256 == native_module._chain_digest(
+        (b"publisher", b"issuer-a", b"root-a")
+    )
+
+
 class _InterruptingQueryCrypt:
     def __init__(self, stage: str, primary: BaseException) -> None:
         self.stage = stage
@@ -1577,7 +1613,7 @@ class _RecordingCertificateCrypt:
             (epoch_ticks + day_ticks) >> 32,
         )
         self.context = native_module._CertContext(
-            native_module._ENCODING_TYPES,
+            native_module._X509_ASN_ENCODING,
             ctypes.cast(self.encoded, ctypes.c_void_p),
             len(self.encoded_bytes),
             ctypes.pointer(self.cert_info),
@@ -1668,7 +1704,7 @@ def test_signer_certificate_facts_extract_exact_identity_key_and_explicit_eku() 
     assert facts.public_key_algorithm == "rsa"
     assert facts.public_key_bits == 3072
     assert facts.code_signing_eku is True
-    assert crypt32.public_key_calls == [native_module._ENCODING_TYPES]
+    assert crypt32.public_key_calls == [native_module._X509_ASN_ENCODING]
     assert crypt32.name_calls == [
         (0, native_module._SUBJECT_CN_OID, False),
         (0, native_module._SUBJECT_CN_OID, True),
@@ -1698,6 +1734,19 @@ def test_signer_certificate_facts_reject_wrong_public_key_before_identity_copy()
     api = _api_with_recording_crypt(crypt32)
 
     with pytest.raises(ValueError, match="public key"):
+        api._signer_certificate_facts(ctypes.pointer(crypt32.context))
+
+    assert crypt32.public_key_calls == []
+    assert crypt32.name_calls == []
+    assert crypt32.eku_calls == []
+
+
+def test_signer_certificate_facts_rejects_non_x509_context_encoding() -> None:
+    crypt32 = _RecordingCertificateCrypt()
+    crypt32.context.encoding_type = native_module._ENCODING_TYPES
+    api = _api_with_recording_crypt(crypt32)
+
+    with pytest.raises(ValueError, match="signer certificate"):
         api._signer_certificate_facts(ctypes.pointer(crypt32.context))
 
     assert crypt32.public_key_calls == []
@@ -1900,7 +1949,11 @@ def test_independent_chain_uses_both_cache_flags_exact_time_eku_and_policy(
     assert call["certificate"] == ctypes.addressof(crypt32.cert_context)
     assert call["verify_time"] == (0x12345678, 0x01020304)
     assert call["store"] == 222
-    assert call["flags"] == 0xA0000304
+    assert call["flags"] == (
+        0xA0000304
+        if policy == native_module._CERT_CHAIN_POLICY_AUTHENTICODE_TS
+        else 0xA0000104
+    )
     assert call["reserved"] is None
     assert call["para_size"] == 96
     assert call["usage_match"] == 0

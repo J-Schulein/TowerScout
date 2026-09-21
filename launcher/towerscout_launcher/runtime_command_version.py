@@ -69,7 +69,11 @@ _PATH_EVIDENCE_DOMAIN = b"TowerScout.CommandExecutablePath.v1"
 _VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 _NORMAL_DRIVE = re.compile(r"^[A-Za-z]:$")
 _EXTENDED_DRIVE = re.compile(r"^\\\\\?\\[A-Za-z]:$")
-_ENVIRONMENT_NAMES = ("SystemRoot", "WINDIR")
+_MINIMAL_ENVIRONMENT_NAMES = ("SystemRoot", "WINDIR")
+_PROFILE_ENVIRONMENT_NAMES = ("SystemRoot", "USERPROFILE", "WINDIR")
+_ENVIRONMENT_NAME_SETS = frozenset(
+    {_MINIMAL_ENVIRONMENT_NAMES, _PROFILE_ENVIRONMENT_NAMES}
+)
 _MAX_ARGUMENTS = 8
 _MAX_ARGUMENT_CHARACTERS = 256
 _MAX_PATH_CHARACTERS = 32_767
@@ -280,11 +284,11 @@ class CommandProcessRequest:
 
     def __post_init__(self) -> None:
         paths_valid = False
+        environment_names: tuple[str, ...] = ()
         if (
             type(self.executable_path) is PureWindowsPath
             and type(self.working_directory) is PureWindowsPath
             and type(self.environment) is tuple
-            and len(self.environment) == len(_ENVIRONMENT_NAMES)
             and all(
                 type(item) is tuple
                 and len(item) == 2
@@ -295,6 +299,7 @@ class CommandProcessRequest:
                 for item in self.environment
             )
         ):
+            environment_names = tuple(item[0] for item in self.environment)
             try:
                 executable = _canonical_windows_path(
                     str(self.executable_path), allow_extended=True
@@ -305,15 +310,30 @@ class CommandProcessRequest:
                 windows = _canonical_windows_path(
                     self.environment[0][1], allow_extended=False
                 )
-                paths_valid = (
-                    str(executable) == str(self.executable_path)
-                    and str(working) == str(self.working_directory)
-                    and self.environment[0][1] == self.environment[1][1]
-                    and working.parent == windows
-                    and working.name == "System32"
-                    and windows.name == "Windows"
+                windir_index = (
+                    2 if environment_names == _PROFILE_ENVIRONMENT_NAMES else 1
                 )
-            except RuntimeCommandVerificationError:
+                profile = (
+                    _canonical_windows_path(
+                        self.environment[1][1], allow_extended=False
+                    )
+                    if environment_names == _PROFILE_ENVIRONMENT_NAMES
+                    else None
+                )
+                paths_valid = (
+                    environment_names in _ENVIRONMENT_NAME_SETS
+                    and str(executable) == str(self.executable_path)
+                    and str(working) == str(self.working_directory)
+                    and self.environment[0][1] == self.environment[windir_index][1]
+                    and working.parent == windows
+                    and working.name.casefold() == "system32"
+                    and windows.name.casefold() == "windows"
+                    and (
+                        profile is None
+                        or profile.name.casefold() not in _RESERVED_LEAVES
+                    )
+                )
+            except (IndexError, RuntimeCommandVerificationError):
                 paths_valid = False
         if (
             not paths_valid
@@ -321,8 +341,7 @@ class CommandProcessRequest:
             or not 1 <= len(self.arguments) <= _MAX_ARGUMENTS
             or any(not _valid_argument(value) for value in self.arguments)
             or type(self.environment) is not tuple
-            or len(self.environment) != len(_ENVIRONMENT_NAMES)
-            or tuple(item[0] for item in self.environment) != _ENVIRONMENT_NAMES
+            or environment_names not in _ENVIRONMENT_NAME_SETS
             or self.timeout_ms != COMMAND_TIMEOUT_MS
             or self.stdout_limit_bytes != COMMAND_STDOUT_LIMIT_BYTES
             or self.stderr_limit_bytes != COMMAND_STDERR_LIMIT_BYTES
@@ -391,6 +410,8 @@ class CommandVersionBackend(Protocol):
     def windows_directory(self) -> str: ...
 
     def system_directory(self) -> str: ...
+
+    def user_profile_directory(self) -> str: ...
 
     def execute(self, request: CommandProcessRequest) -> CommandProcessResult: ...
 
@@ -628,11 +649,15 @@ def _decode_output(data: bytes) -> str:
         _fail(RuntimeCommandVerificationErrorCode.RUNTIME_IDENTITY_INVALID)
 
 
-def _parse_text_version(data: bytes, expected: str) -> str:
+def _parse_text_version(data: bytes, expected: str, version: str) -> str:
     value = _decode_output(_single_terminal_eol(data))
-    if value != expected or not _VERSION.fullmatch(value):
+    if (
+        value != expected
+        or not _VERSION.fullmatch(version)
+        or (value != version and not value.endswith(f" {version}"))
+    ):
         _fail(RuntimeCommandVerificationErrorCode.RUNTIME_IDENTITY_INVALID)
-    return value
+    return version
 
 
 def _parse_json_version(data: bytes, pointer: str, expected: str) -> str:
@@ -722,20 +747,27 @@ def _minimal_process_context(
     try:
         windows_text = backend.windows_directory()
         system_text = backend.system_directory()
+        profile_text = backend.user_profile_directory()
         windows_path = _canonical_windows_path(windows_text, allow_extended=False)
         system_path = _canonical_windows_path(system_text, allow_extended=False)
+        profile_path = _canonical_windows_path(profile_text, allow_extended=False)
     except RuntimeCommandVerificationError:
         raise
     except Exception:
         _fail(RuntimeCommandVerificationErrorCode.VERIFICATION_UNAVAILABLE)
     if (
         system_path.parent != windows_path
-        or system_path.name != "System32"
-        or windows_path.name != "Windows"
+        or system_path.name.casefold() != "system32"
+        or windows_path.name.casefold() != "windows"
+        or profile_path.name.casefold() in _RESERVED_LEAVES
     ):
         _fail(RuntimeCommandVerificationErrorCode.VERIFICATION_UNAVAILABLE)
     return (
-        tuple((name, str(windows_path)) for name in _ENVIRONMENT_NAMES),
+        (
+            ("SystemRoot", str(windows_path)),
+            ("USERPROFILE", str(profile_path)),
+            ("WINDIR", str(windows_path)),
+        ),
         system_path,
     )
 
@@ -992,7 +1024,14 @@ def _execute_version_command(
     ):
         _fail(RuntimeCommandVerificationErrorCode.RUNTIME_IDENTITY_INVALID)
     if version_policy.kind is VersionEvidenceKind.AUTHENTICATED_COMMAND_TEXT:
-        return _parse_text_version(result.stdout, version_policy.exact_output), result
+        return (
+            _parse_text_version(
+                result.stdout,
+                version_policy.exact_output,
+                product.exact_version,
+            ),
+            result,
+        )
     if version_policy.kind is VersionEvidenceKind.AUTHENTICATED_COMMAND_JSON:
         return (
             _parse_json_version(

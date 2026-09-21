@@ -75,6 +75,9 @@ _ENDPOINT = (
 )
 _WINDOWS = r"C:\Windows"
 _SYSTEM = r"C:\Windows\System32"
+_PROFILE = r"C:\Users\reviewed-user"
+_ROAMING_APP_DATA = rf"{_PROFILE}\AppData\Roaming"
+_TEMP = rf"{_PROFILE}\AppData\Local\Temp"
 _VERSION = "6.0.2"
 _PACKAGE_ROOT = PureWindowsPath(r"C:\Users\reviewed-user\TowerScout")
 _ENV_FINAL = r"\\?\C:\Users\reviewed-user\TowerScout\.env"
@@ -157,18 +160,40 @@ def _connections(
     return output
 
 
+def _machine_listing(
+    *,
+    name: str = _MACHINE,
+    vm_type: str = "wsl",
+    running: bool = True,
+    username: str = _USERNAME,
+    port: int = _PORT,
+    identity: str = _KEY_PATH,
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "Name": name,
+            "VMType": vm_type,
+            "Running": running,
+            "RemoteUsername": username,
+            "Port": port,
+            "IdentityPath": identity,
+        }
+    ]
+
+
 def _info(
     *,
     rootless: bool = True,
-    socket: str = f"/run/user/{_UID}/podman/podman.sock",
+    socket: str = f"unix:///run/user/{_UID}/podman/podman.sock",
     graph_root: str = f"/home/{_USERNAME}/.local/share/containers/storage",
     run_root: str = f"/run/user/{_UID}/containers",
     version: str = _VERSION,
 ) -> dict[str, Any]:
     return {
         "host": {
+            "cpuUtilization": {"idlePercent": 99.5},
             "hostname": "podman-machine-default",
-            "remoteSocket": {"path": socket},
+            "remoteSocket": {"exists": True, "path": socket},
             "security": {"rootless": rootless},
             "serviceIsRemote": False,
         },
@@ -419,6 +444,15 @@ class _Backend:
     def system_directory(self) -> str:
         return _SYSTEM
 
+    def user_profile_directory(self) -> str:
+        return _PROFILE
+
+    def roaming_app_data_directory(self) -> str:
+        return _ROAMING_APP_DATA
+
+    def temporary_directory(self) -> str:
+        return _TEMP + "\\"
+
     def execute(self, request: PodmanEndpointCommandRequest) -> CommandProcessResult:
         self.requests.append(request)
         if self.on_execute is not None:
@@ -512,7 +546,15 @@ def test_capture_binds_fixed_explicit_rootless_endpoint_and_retains_key() -> Non
     )
     for request in backend.requests:
         assert request.executable_path == PureWindowsPath(_PODMAN_FINAL)
-        assert request.environment == (("SystemRoot", _WINDOWS), ("WINDIR", _WINDOWS))
+        assert request.environment == (
+            ("APPDATA", _ROAMING_APP_DATA),
+            ("Path", _SYSTEM),
+            ("SystemRoot", _WINDOWS),
+            ("TEMP", _TEMP),
+            ("TMP", _TEMP),
+            ("USERPROFILE", _PROFILE),
+            ("WINDIR", _WINDOWS),
+        )
         assert request.working_directory == PureWindowsPath(_SYSTEM)
         assert request.stdin_closed is True
         assert request.shell is False
@@ -527,6 +569,29 @@ def test_capture_binds_fixed_explicit_rootless_endpoint_and_retains_key() -> Non
     assert owner.closed
     assert api.close_count == 1
     assert runtime.closed is False
+
+
+def test_capture_correlates_machine_listing_when_inspect_omits_vm_type() -> None:
+    responses = [
+        _result(_machine(vm_type=None)),
+        _result(_machine_listing()),
+        _result(_connections()),
+        _result(_info()),
+    ] * 2
+
+    owner, runtime, _candidate, _api, backend = _capture(responses=responses)
+
+    assert owner.evidence.machine_running is True
+    assert owner.evidence.machine_rootful is False
+    assert [request.kind for request in backend.requests] == [
+        PodmanEndpointCommandKind.MACHINE_INSPECT,
+        PodmanEndpointCommandKind.MACHINE_LIST,
+        PodmanEndpointCommandKind.CONNECTION_LIST,
+        PodmanEndpointCommandKind.ENDPOINT_INFO,
+    ] * 2
+
+    owner.close()
+    runtime.close()
 
 
 def test_capture_binds_verified_configuration_and_transfers_owner() -> None:
@@ -692,7 +757,7 @@ def test_connection_name_and_default_are_metadata_only() -> None:
     (
         (_cycle(machine=_machine(rootful=True)), 1),
         (_cycle(machine=_machine(state="stopped")), 1),
-        (_cycle(machine=_machine(vm_type=None)), 1),
+        (_cycle(machine=_machine(vm_type=None)), 2),
         (_cycle(machine=_machine(vm_type="hyperv")), 1),
         (
             _cycle(
@@ -1075,7 +1140,15 @@ def test_command_request_is_frozen_fixed_and_redacted() -> None:
             "--format",
             "json",
         ),
-        environment=(("SystemRoot", _WINDOWS), ("WINDIR", _WINDOWS)),
+        environment=(
+            ("APPDATA", _ROAMING_APP_DATA),
+            ("Path", _SYSTEM),
+            ("SystemRoot", _WINDOWS),
+            ("TEMP", _TEMP),
+            ("TMP", _TEMP),
+            ("USERPROFILE", _PROFILE),
+            ("WINDIR", _WINDOWS),
+        ),
         working_directory=PureWindowsPath(_SYSTEM),
     )
 
@@ -1090,7 +1163,12 @@ def test_command_request_is_frozen_fixed_and_redacted() -> None:
         replace(
             request,
             environment=(
+                ("APPDATA", _ROAMING_APP_DATA, "unexpected"),
+                ("Path", _SYSTEM, "unexpected"),
                 ("SystemRoot", _WINDOWS, "unexpected"),
+                ("TEMP", _TEMP, "unexpected"),
+                ("TMP", _TEMP, "unexpected"),
+                ("USERPROFILE", _PROFILE, "unexpected"),
                 ("WINDIR", _WINDOWS, "unexpected"),
             ),  # type: ignore[arg-type]
         )
@@ -1103,7 +1181,15 @@ def test_native_endpoint_backend_accepts_only_endpoint_request_type() -> None:
         kind=PodmanEndpointCommandKind.CONNECTION_LIST,
         executable_path=PureWindowsPath(_PODMAN_FINAL),
         arguments=("system", "connection", "list", "--format", "json"),
-        environment=(("SystemRoot", _WINDOWS), ("WINDIR", _WINDOWS)),
+        environment=(
+            ("APPDATA", _ROAMING_APP_DATA),
+            ("Path", _SYSTEM),
+            ("SystemRoot", _WINDOWS),
+            ("TEMP", _TEMP),
+            ("TMP", _TEMP),
+            ("USERPROFILE", _PROFILE),
+            ("WINDIR", _WINDOWS),
+        ),
         working_directory=PureWindowsPath(_SYSTEM),
     )
     expected = _result(_connections())
@@ -1119,6 +1205,15 @@ def test_native_endpoint_backend_accepts_only_endpoint_request_type() -> None:
 
         def system_directory(self) -> str:
             return _SYSTEM
+
+        def user_profile_directory(self) -> str:
+            return _PROFILE
+
+        def roaming_app_data_directory(self) -> str:
+            return _ROAMING_APP_DATA
+
+        def temporary_directory(self) -> str:
+            return _TEMP + "\\"
 
         def _execute_contained(
             self, selected: PodmanEndpointCommandRequest
@@ -1166,6 +1261,20 @@ def test_duplicate_json_members_fail_closed_without_raw_output() -> None:
 
     assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
     assert "other" not in str(captured.value)
+
+
+def test_json_parser_accepts_finite_telemetry_numbers() -> None:
+    assert endpoint_module._load_json(b'{"idlePercent":99.5}') == {  # noqa: SLF001
+        "idlePercent": 99.5
+    }
+
+
+@pytest.mark.parametrize("value", (b"NaN", b"Infinity", b"-Infinity", b"1e400"))
+def test_json_parser_rejects_non_finite_numbers(value: bytes) -> None:
+    with pytest.raises(PodmanEndpointError) as captured:
+        endpoint_module._load_json(value)  # noqa: SLF001
+
+    assert captured.value.code is PodmanEndpointErrorCode.ENDPOINT_INVALID
 
 
 def test_podman_endpoint_resolver_remains_unwired_from_live_launcher_paths() -> None:
