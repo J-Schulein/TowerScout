@@ -5,7 +5,7 @@ approved August 20 remediation design. The canonical detailed status is the
 [`TASK-087 Gate A burn-down`](./TASK-087/GATE-A-STATUS.md).
 
 **Current checkpoint (supersedes the chronological ledger below)**: The
-implementation head is `2999da0`; `21725f5` is the latest remotely validated
+implementation head is `867a110`; `21725f5` is the latest remotely validated
 exact head. Its CI/CD run `35389528602`, Task-087 run `35389528502`, and Trivy
 passed; the main-only build was neutral as designed.
 Checkpoint `d8818bd` implements protected atomic provider `.env` update
@@ -207,6 +207,60 @@ unavailable, and a raw Flake8 run included non-gate line-length findings; both
 were superseded by the isolated native proof and the repository's actual lint
 gates. No failed product check is carried, and no live runtime command was
 issued.
+
+### 2026-09-18 - Rootless Host Prepared; Live Admission Still Fails Closed
+
+**Objective**: Prepare the approved standalone rootless-Podman boundary and
+repeat the remaining Gate A trust/runtime admission checks without weakening
+TLS, Authenticode, package identity, or recovery controls.
+
+**Context**: The first exact-head retry found only a rootful Podman machine,
+Docker Desktop Compose delegation, and `chain_unverified` for both providers.
+The project lead authorized a separate rootless machine, the repository-pinned
+package-local Compose provider, ordinary read-only Windows certificate/network
+diagnostics, and only the two local uncommitted Podman selector settings.
+
+**Decision**: Preserve the existing rootful machine and its objects, create a
+separately named rootless machine, install only the hash-verified package-local
+provider, and keep the repository-root `.env` limited to the two authorized
+selectors. Treat any remaining native trust disagreement as a blocker rather
+than relaxing cache-only revocation or signer policy. Do not use the incomplete
+repository-root `.env` as a release-package identity.
+
+**Execution**: Stopped but did not delete or modify the existing rootful
+machine, created an independent Podman 6.0.2 rootless machine, verified its
+empty user-local store, and installed the pinned `podman-compose 1.5.0`
+provider through the repository installer using the approved Python 3.12
+environment. Repeated fixed-host Windows trust diagnostics and native Docker/
+Podman installation, Authenticode, command-version, and endpoint admission.
+Native registry isolation exposed valid `RegGetValueW` behavior that returned a
+smaller actual byte count than the initial capacity query. The reader now
+validates that returned count and decodes only those bytes; a focused regression
+covers the valid capacity/returned-size difference at checkpoint `867a110`.
+
+**Output**: Azure reached `selected` after ordinary revocation retrieval;
+Google remains `chain_unverified`. Docker CLI, Docker Compose, and Podman
+installation records now verify, but strict runtime Authenticode admission
+still fails closed. Podman's signature is valid, timestamped, and matches the
+pinned signer; the embedded timestamp and WinTrust provider chain validate,
+while the independent code-signing chain reports only the sanitized
+`CERT_TRUST_IS_NOT_TIME_VALID` status under the production policy. Ordinary
+online Windows chain validation succeeds, but does not reconcile that native
+policy disagreement. Rootless endpoint proof therefore cannot proceed to
+contained runtime mutation. No repair, container, volume, package, trust-store,
+certificate, or provider-key mutation was performed.
+
+**Validation**: The registry implementation and its command/endpoint consumers
+pass `255/255`. Black, blocking Flake8, production mypy, high-severity Bandit,
+compilation, editor diagnostics, and `git diff --check` pass. Full-module mypy
+still reports the existing test-double typing baseline outside the new test;
+default Bandit reports only test `assert` findings and no medium/high issue.
+
+**Next**: Keep Gate A and PR #67 Draft. Resolve the fail-closed native runtime
+admission and Google trust blockers in a supported Windows context, then create
+an isolated complete package-identity target for Docker and approved rootless-
+Podman mutation/crash/recovery. A genuine second Windows session remains
+required for the cross-session/OneDrive proof.
 
 ### 2026-09-18 - Exact-Head Checks Passed; Live Host Proof Remains Blocked
 

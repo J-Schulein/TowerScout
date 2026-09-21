@@ -171,14 +171,28 @@ carried.
 ## Resume Point
 
 Exact-head source validation is complete at `21725f5`. Runtime readiness was
-explicitly confirmed, but the current-source Windows trust selector failed
-closed as `chain_unverified` for both providers, so no selected root was
-available for Docker containment or mutation. Podman 6.0.2 exposed only a
-rootful machine and delegated Compose to Docker Desktop 5.3.1 because no
-standalone provider or override was available. No runtime, package, `.env`,
-certificate, trust, volume, or machine configuration was changed.
+explicitly confirmed. The bounded follow-up preserved and stopped the existing
+rootful Podman machine, created a separate rootless Podman 6.0.2 machine with an
+empty independent store, and installed the repository-pinned package-local
+`podman-compose 1.5.0` provider. The ignored local `.env` contains only the two
+authorized Podman selectors and is not a complete release-package identity.
 
-Resume in a supported Windows context where cache-only revocation succeeds,
-then use those exact selected bytes for Docker containment and an approved
-standalone Compose provider on a rootless Podman machine. Complete the remaining
-slice 9 evidence before the Gate A/PR #67 decision.
+Azure's production Windows trust selector now reaches `selected`; Google still
+fails closed as `chain_unverified`. A real-host `RegGetValueW` capacity/returned-
+size mismatch exposed a source defect in the native registry reader. Checkpoint
+`867a110` consumes only the bounded returned bytes and passes `255/255` focused and
+adjacent tests plus focused static/security checks. Docker CLI, Docker Compose,
+and Podman installation records then verify. Strict Authenticode admission
+still fails closed before endpoint proof: Podman's valid pinned timestamped
+signature reaches a clean WinTrust provider chain, but its independent code-
+signing chain reports only `CERT_TRUST_IS_NOT_TIME_VALID`. Ordinary online
+Windows chain validation succeeds and no production policy was changed.
+
+Resume in a supported Windows context that reconciles native runtime admission
+and Google cache-only trust. Then create an isolated complete package-identity
+target outside the two-setting repository `.env`, use the exact selected trust
+bytes for Docker containment, and run Docker/rootless-Podman mutation, injected-
+failure, and fresh-process recovery while preserving all eight volume
+identities. Obtain a genuine second Windows session for cross-session/OneDrive
+proof. No repair, container, volume, package, trust-store, certificate, or
+provider-key mutation was run in this follow-up.

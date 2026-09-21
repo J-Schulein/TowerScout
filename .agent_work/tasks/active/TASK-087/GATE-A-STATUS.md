@@ -2,7 +2,7 @@
 
 **As Of**: September 18, 2026
 **Branch**: `feature/task-087-windows-launcher-prototype`
-**Implementation Head**: `2999da0`
+**Implementation Head**: `867a110`
 **Validated Exact Head**: `21725f5`
 **Remote Exact-Head Status**: CI/CD run `35389528602`, Task-087 run
 `35389528502`, and Trivy passed at `21725f5`; the main-only build was neutral as
@@ -49,7 +49,22 @@ machine, no standalone `podman-compose`, and an unset provider override that
 delegated to Docker Desktop Compose 5.3.1. No Podman machine setting, container,
 volume, package, `.env`, certificate, or trust state was changed. Gate A remains
 open on the successful revocation-aware trust proof and approved rootless-
-Podman runtime proof.
+Podman runtime proof. A bounded follow-up preserved and stopped that rootful
+machine, created a separate rootless Podman 6.0.2 machine with an empty
+independent store, and installed the hash-verified package-local
+`podman-compose 1.5.0` provider. Azure now reaches `selected`; Google remains
+`chain_unverified`. Real runtime-installation probing also exposed a valid
+Windows `RegGetValueW` query-capacity/read-size difference. Checkpoint `867a110`
+decodes only the returned bounded byte count and passes `255/255` focused
+and adjacent tests plus formatting, blocking lint, production typing,
+high-severity Bandit, compilation, diagnostics, and diff checks. Docker CLI,
+Docker Compose, and Podman installation records then verify, but strict
+Authenticode admission still fails closed: Podman's valid pinned timestamped
+signature reaches a clean WinTrust provider chain, while the independent
+code-signing chain reports `CERT_TRUST_IS_NOT_TIME_VALID`. No policy was
+weakened and no live repair/runtime mutation was run. Rootless topology is
+prepared, but Docker/Podman mutation/recovery remains blocked on runtime
+admission; Google trust and the genuine two-session proof also remain open.
 **Current Gate A Checkpoint**: Provider `.env` update/reconciliation is
 implemented at `d8818bd`; fresh-process rollback resumption is implemented at
 `032db8b`; and native terminal cleanup is implemented at `4ff6967`. Local
@@ -175,10 +190,13 @@ before raising the sanitized confirmation error. The shared-temp ACL cleanup
 failure and an over-broad line-length lint invocation were superseded by the
 isolated native pass and repository gate commands; no failed product check is
 carried.
-Live Windows trust, Docker, and rootless-Podman evidence remains pending a
-supported context. Runtime readiness was explicitly confirmed, but the current
-host failed closed on both provider chains and exposed only a rootful Podman
-machine with an unapproved Docker Desktop Compose delegation.
+Live Windows trust, Docker, and rootless-Podman mutation/recovery evidence
+remains pending a supported context. The rootless machine and approved
+standalone provider are now prepared, and Azure trust selects successfully.
+Google still fails closed, and native runtime Authenticode admission blocks
+both engines before endpoint-bound mutation proof. The rootful machine and all
+existing objects remain preserved. A genuine second Windows session is still
+required for the cross-session/OneDrive proof.
 **Historical Checkpoint Ledger**: Slices 2-3 exact-target confirmation wiring
 complete.
 The latest fixed-host retry returned only `chain_unverified` for both approved

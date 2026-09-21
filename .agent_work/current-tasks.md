@@ -7,8 +7,9 @@ through the current Task-087 Gate A work
 Its canonical detailed
 [`Gate A burn-down`](./tasks/active/TASK-087/GATE-A-STATUS.md) fixes the approved
 nine-slice scope and distinguishes complete, partial, not-started, and
-validation states. Implementation head `2999da0` now composes the complete
-durable repair path from rollback arming through terminal verification,
+validation states. Implementation head `867a110` adds the validated native
+registry fix above checkpoint `2999da0`'s complete durable repair path from
+rollback arming through terminal verification,
 commit, exact backup cleanup, and recovery-on-failure. Fresh-process recovery
 distinguishes an incomplete repair from committed cleanup and suppresses paired
 terminal journal history in either direction. The production typed-confirmation
@@ -198,7 +199,8 @@ base CPython dependency closure.
   under Task-100.
 - Task-101 is complete; alert `#76` closed as fixed without dismissal. Its
   reconciliation and lifecycle evidence remains in the completed-task record.
-- Task-087 implementation head `2999da0` now composes exact certificate and
+- Task-087 implementation head `867a110` adds the native registry fix above
+  checkpoint `2999da0`, which composes exact certificate and
   provider mutation, runtime stop/start, terminal verification and commit,
   exact backup cleanup, recovery-on-failure, and the production typed-
   confirmation handoff. It also terminally reconciles exact pre-arm failure in
@@ -210,9 +212,13 @@ base CPython dependency closure.
   Trivy.
   See the
   [`September 17 WIP handoff`](./context/status/TASK-087-RECOVERY-FRONT-DOOR-WIP-2026-09-17.md).
-  Live trust/runtime proof remains; PR #67 remains Draft. The latest retry
-  failed closed for both provider chains, and Podman did not satisfy the
-  rootless standalone-provider boundary. Gate A remains open. Legacy
+  Live trust/runtime proof remains; PR #67 remains Draft. A bounded host retry
+  now has a separate rootless Podman 6.0.2 machine and the approved package-
+  local Compose provider ready, and Azure trust reaches `selected`. Google
+  remains `chain_unverified`, while strict native Authenticode admission blocks
+  both engines before endpoint-bound mutation/recovery proof. The resulting
+  registry-reader checkpoint `867a110` passes `255/255` focused and adjacent
+  tests plus focused static/security checks. Gate A remains open. Legacy
   `repair.py` is retained only as an unreachable
   compatibility/test reference. The local
   source path is mutation-capable after exact typed confirmation, but no live
@@ -333,7 +339,8 @@ Task-101 completion plus Task-087's explicit resume
 ### **TASK-087: Host-Side TLS Repair Control Plane**
 
 **Status**: IN_PROGRESS / VALIDATE - Gate A is materially advanced and remains
-open. Implementation head `2999da0` connects the production typed-confirmation
+open. Implementation head `867a110` adds the validated native registry fix
+above checkpoint `2999da0`, which connects the production typed-confirmation
 call site to the complete durable native repair coordinator. The exact target,
 protected recovery context, certificate/provider mutation, volume-preserving
 runtime replacement, rebound-owner terminal verification, durable commit,
@@ -341,10 +348,11 @@ exact cleanup, recovery-on-failure, and terminal pre-arm abort are now composed.
 The final recovery ring passes `316/316`, focused static/security gates pass,
 and corrected independent re-review reports zero blockers. Legacy `repair.py`
 is explicitly retained only as an unreachable compatibility/test reference.
-Exact-head CI, successful
-revocation-aware Windows trust proof, OneDrive/two-session evidence, and
-approved Docker/rootless-Podman mutation/recovery proof remain. No live repair
-was run. The chronological ledger follows.
+Updated-source exact-head CI, successful Google revocation-aware Windows trust
+proof, native runtime admission, OneDrive/two-session evidence, and approved
+Docker/rootless-Podman mutation/recovery proof remain. Azure trust and the
+rootless standalone-provider topology now pass. No live repair was run. The
+chronological ledger follows.
 Slices 1-3
 are complete. The September 14 checkpoint connects the
 retained exact-target facade to bounded typed confirmation and adds ordered
