@@ -385,8 +385,12 @@ $hostHelperReviewEnabled = (
     @("1", "true", "yes", "on")
 )
 . "$PSScriptRoot\lib\TowerScoutCompose.ps1"
+. "$PSScriptRoot\lib\TowerScoutHostHelperState.ps1"
 if ($hostHelperReviewEnabled) {
     . "$PSScriptRoot\lib\TowerScoutHostHelper.ps1"
+}
+else {
+    Clear-TowerScoutHostHelperBridgeEnvironment
 }
 
 $repoRoot = Get-TowerScoutRepoRoot

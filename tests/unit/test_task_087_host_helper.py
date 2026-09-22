@@ -71,6 +71,7 @@ def _build_helperless_package(tmp_path: Path) -> tuple[Path, Path]:
     for source, destination in (
         (LAUNCH_SCRIPT, scripts_dir / "launch.ps1"),
         (STOP_SCRIPT, scripts_dir / "stop.ps1"),
+        (HELPER_STATE_LIB, library_dir / "TowerScoutHostHelperState.ps1"),
         (
             REPO_ROOT / "scripts" / "lib" / "TowerScoutCompose.ps1",
             library_dir / "TowerScoutCompose.ps1",
@@ -105,6 +106,57 @@ def _build_helperless_package(tmp_path: Path) -> tuple[Path, Path]:
         encoding="ascii",
     )
     return package_root, fake_bin
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher is Windows-only")
+def test_helper_disabled_launch_and_stop_clear_prior_bridge_state(tmp_path):
+    package_root, fake_bin = _build_helperless_package(tmp_path)
+    state_directory = package_root / ".towerscout-runtime" / "host-helper"
+    state_directory.mkdir(parents=True)
+    for name in (
+        "session-prior.json",
+        "token-prior.secret",
+        "operation-prior.json",
+    ):
+        (state_directory / name).write_text("stale", encoding="ascii")
+
+    script = textwrap.dedent(
+        f"""\
+        $env:PATH = '{fake_bin};' + $env:PATH
+        $env:TOWERSCOUT_HOST_HELPER_REVIEW_ENABLED = '0'
+        $env:TOWERSCOUT_HOST_HELPER_ENABLED = '1'
+        $env:TOWERSCOUT_HOST_HELPER_PORT = '49152'
+        $env:TOWERSCOUT_HOST_HELPER_SESSION_ID = 'prior'
+        $env:TOWERSCOUT_HOST_HELPER_SESSION_KEY = 'prior-secret'
+        & '{package_root / "scripts" / "launch.ps1"}' `
+            -Engine docker -Gpu off -TimeoutSeconds 5 -NoBrowser
+        if ($env:TOWERSCOUT_HOST_HELPER_ENABLED -ne '0') {{
+            throw 'Disabled launch retained the helper-enabled flag.'
+        }}
+        foreach ($name in @(
+            'TOWERSCOUT_HOST_HELPER_PORT',
+            'TOWERSCOUT_HOST_HELPER_SESSION_ID',
+            'TOWERSCOUT_HOST_HELPER_SESSION_KEY'
+        )) {{
+            if (Test-Path -LiteralPath "Env:$name") {{
+                throw "Disabled launch retained $name."
+            }}
+        }}
+
+        $env:TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION = '0'
+        & '{package_root / "scripts" / "stop.ps1"}' -Engine docker
+        if (Get-ChildItem -LiteralPath '{state_directory}' -File) {{
+            throw 'Ordinary stop retained prior helper session state.'
+        }}
+        exit 0
+        """
+    )
+    result = _run_powershell_script(script)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not (
+        package_root / "scripts" / "lib" / "TowerScoutHostHelper.ps1"
+    ).exists()
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell launcher is Windows-only")
