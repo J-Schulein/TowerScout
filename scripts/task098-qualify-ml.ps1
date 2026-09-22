@@ -13,6 +13,39 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+
+function Test-TowerScoutPathWithinRoot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path,
+
+        [Parameter(Mandatory = $true)]
+        [string] $RootPath
+    )
+
+    $directorySeparators = @(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar
+    )
+    $normalizedPath = [System.IO.Path]::GetFullPath($Path).TrimEnd($directorySeparators)
+    $normalizedRoot = [System.IO.Path]::GetFullPath($RootPath).TrimEnd($directorySeparators)
+    if (
+        [string]::Equals(
+            $normalizedPath,
+            $normalizedRoot,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        return $true
+    }
+
+    $rootPrefix = $normalizedRoot + [System.IO.Path]::DirectorySeparatorChar
+    return $normalizedPath.StartsWith(
+        $rootPrefix,
+        [System.StringComparison]::OrdinalIgnoreCase
+    )
+}
+
 $trackedChanges = & git -C $repoRoot status --porcelain --untracked-files=no
 if ($LASTEXITCODE -ne 0) {
     throw "Could not read the TowerScout git worktree state."
@@ -54,6 +87,9 @@ if (-not [string]::IsNullOrWhiteSpace($BuildCaBundlePath)) {
         throw "Build CA bundle was not found: $BuildCaBundlePath"
     }
     $resolvedBuildCa = (Resolve-Path -LiteralPath $BuildCaBundlePath).Path
+    if (Test-TowerScoutPathWithinRoot -Path $resolvedBuildCa -RootPath $repoRoot) {
+        throw "Build CA bundle must be outside the Docker build context: $repoRoot"
+    }
     $dockerBuildArgs += @(
         "--secret",
         "id=towerscout_build_ca,src=$resolvedBuildCa"
