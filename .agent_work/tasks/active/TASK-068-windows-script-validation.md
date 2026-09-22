@@ -89,12 +89,14 @@ module or write helper state. Explicit review mode still imports and uses it.
 - Independent read-only implementation review: no blockers.
 - PR #75 checks at `08674db`: all required CI/CD, Windows host-helper,
   Task-087 controller, security, Docker frontend, and Trivy jobs passed.
-- Exact-head checks at `fa5ce83`: rerun pending.
+- Exact-head PR #75 checks at `fa5ce83`: all required CI/CD, Windows
+  host-helper, Task-087 controller, security, Docker frontend, and Trivy jobs
+  passed.
 - Full legacy helper test file: blocked by endpoint antivirus parsing the
   explicitly enabled helper module; this is retained as a review/CI gap.
 
-**Next**: Require PR #75 exact-head checks at `fa5ce83`, then repeat from a
-clean source package in W09.
+**Next**: Obtain review/merge disposition for PR #75, then repeat from a clean
+source package in W09.
 
 ---
 

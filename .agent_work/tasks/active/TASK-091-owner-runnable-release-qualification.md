@@ -234,3 +234,30 @@ is `Restricted`; that result is diagnostic, not managed-endpoint policy proof.
 **Next**: Await or schedule the external inputs above while continuing safe W05
 report-contract work and review/CI reconciliation. Do not begin a dependency
 migration to make this Blackwell host pass.
+
+### 2026-09-22 - Review And W05 Contract Checkpoint
+
+PR #74 at governance head `f2cd068`, PR #75 at dormant-helper head `fa5ce83`,
+and PR #76 at managed-build-CA head `355ca4c` all pass required CI/CD,
+Windows host-helper, Task-087 controller, security, Docker frontend, and Trivy
+checks. PR #76's first Windows helper run had one unchanged long-lived helper
+readiness timeout; rerunning only the failed jobs passed without a code change.
+No PR was merged.
+
+The W05 combined-flow contract is checkpointed locally, not pushed, at
+`be50246` on `feature/task-091-combined-fixture-probe`. It adds optional
+manifest-driven production execution through `YOLOv5_Detector.detect` with a
+real `EN_Classifier`, `ExitEvents`, and `PerformanceMetrics`, while retaining
+legacy no-argument Task-098 behavior and skipping the extra startup subprocess
+in combined mode. The fail-closed contract binds manifest-relative fixture
+bytes by SHA-256 before and after inference, supports declared zero-detection
+tiles, compares normalized outputs within declared tolerances, and requires
+positive secondary candidates/batches, matching devices, and production phase
+timings. Independent review findings were resolved. Contract and adjacent tests
+pass `30/30`; final expanded validation passes `30/30` plus compilation,
+blocking Flake8, diff checks, and editor diagnostics.
+
+This checkpoint does not establish W05 runtime acceptance. Real execution is
+blocked until the release/model owner provides a permitted, hashable fixture
+set with positive detections in the EfficientNet confidence band and declares
+expected outputs/tolerances before candidate results.
