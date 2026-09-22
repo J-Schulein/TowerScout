@@ -67,7 +67,7 @@ docker build -t towerscout:test .
 ## Validation commands
 
 ```bash
-docker compose -f compose.yaml -f compose.build.yaml up -d --build
+docker compose -f compose.yaml -f compose.build.yaml -p <test-owned-project> up -d --build
 curl -f http://localhost:5000/api/health
 curl -f http://localhost:5000/api/readiness
 docker compose -f compose.yaml -f compose.build.yaml -p <test-owned-project> down
