@@ -142,6 +142,9 @@ def test_helper_disabled_launch_and_stop_clear_prior_bridge_state(tmp_path):
                 throw "Disabled launch retained $name."
             }}
         }}
+        if (Get-ChildItem -LiteralPath '{state_directory}' -File) {{
+            throw 'Disabled launch retained prior helper session state.'
+        }}
 
         $env:TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION = '0'
         & '{package_root / "scripts" / "stop.ps1"}' -Engine docker

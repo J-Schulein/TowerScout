@@ -386,14 +386,19 @@ $hostHelperReviewEnabled = (
 )
 . "$PSScriptRoot\lib\TowerScoutCompose.ps1"
 . "$PSScriptRoot\lib\TowerScoutHostHelperState.ps1"
+$repoRoot = Get-TowerScoutRepoRoot
 if ($hostHelperReviewEnabled) {
     . "$PSScriptRoot\lib\TowerScoutHostHelper.ps1"
 }
 else {
-    Clear-TowerScoutHostHelperBridgeEnvironment
+    try {
+        Clear-TowerScoutHostHelperSession -RootPath $repoRoot | Out-Null
+    }
+    finally {
+        Clear-TowerScoutHostHelperBridgeEnvironment
+    }
 }
 
-$repoRoot = Get-TowerScoutRepoRoot
 $appUrl = "http://localhost:$Port"
 $readinessUrl = "$appUrl/api/readiness"
 
