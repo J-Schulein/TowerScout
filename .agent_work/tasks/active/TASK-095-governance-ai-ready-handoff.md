@@ -2,7 +2,7 @@
 
 **Status**: IN_PROGRESS - W00 main-based direction aligned; prior Phase A
 remains complete and Phase B continues through handoff
-**Priority**: HIGH
+**Priority**: CRITICAL
 **Type**: C (Governance / Documentation / Handoff)
 **Estimated Effort**: Phase A 1-2 days; Phase B 2-4 distributed days
 **Target**: Phase A July 23, 2026; Phase B complete by October 30, 2026

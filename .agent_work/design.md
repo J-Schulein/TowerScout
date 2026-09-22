@@ -167,10 +167,6 @@ ADR-021 / W00 main-based direction
         v
 TASK-091 + TASK-097 early package and Podman qualification
         |
-        +--> TASK-058 only if schedule and risk gates pass
-        |          |
-        |          +--> TASK-059 only if remaining margin is safe
-        |
         v
 TASK-091/092/093 qualification, docs, and recovery
         |
@@ -188,7 +184,8 @@ principle for post-closeout disclosures and cleared its scoped dependency-
 security gate on August 11. Task-101 closed alert `#76` through the accepted
 default-branch graph and is complete. ADR-021 supersedes its former downstream
 PR #67 gate. Task-087 and PR #67 remain preserved historical work outside this
-delivery window.
+delivery window. Task-058 and Task-059 are also deferred beyond W00-W10 and may
+enter a future dependency flow only under separately authorized owner planning.
 
 ## Validation Strategy
 
