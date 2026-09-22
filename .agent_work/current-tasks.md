@@ -48,10 +48,10 @@ Current scope:
 
 ### **TASK-091: Owner-Runnable Release Qualification**
 
-**Status**: AT_RISK - accepted-main Docker CPU control-ZIP setup, verified
-asset import, and standalone real-model proof pass; Task-068 review plus
-combined-model fixture, provider, CUDA, Podman, and independent-host evidence
-remain
+**Status**: AT_RISK - first-host Docker CPU package and standalone real-model
+proof pass; secure CUDA image/package assembly passes but this Blackwell host is
+incompatible with the selected CUDA wheel; combined-flow fixture, provider,
+rootless Podman, managed-endpoint, and independent-host evidence remain
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-091-owner-runnable-release-qualification.md`
 
@@ -69,8 +69,8 @@ Current scope:
 ### **TASK-068: Windows Test Portability And Script Validation**
 
 **Status**: IN_PROGRESS - W01 reproduced the dormant-helper antivirus blocker;
-bounded W02 fix committed at `08674db`, packaged Docker CPU proof passed, and
-review/CI remain
+bounded W02 fix is at `fa5ce83`, packaged Docker CPU proof and independent
+review pass, and exact-head CI rerun remains
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-068-windows-script-validation.md`
 
@@ -85,8 +85,9 @@ Current scope:
 
 ### **TASK-097: Podman CPU/GPU Final Path Qualification**
 
-**Status**: SELECTED - baseline provider/machine inventory begins in W01;
-runtime fixes and final qualification follow W03/W09/W10
+**Status**: AT_RISK - approved package-local provider passes with Python 3.12;
+Python 3.14 dependency resolution fails, the running default connection is
+rootful, and the existing rootless validation machine is stopped
 **Priority**: HIGH
 **Task File**: `.agent_work/tasks/active/TASK-097-podman-final-path-qualification.md`
 
@@ -167,9 +168,9 @@ and explicit authorization.
 
 1. [x] Complete W00 entrypoint, decision, task, and release-critical skill
    alignment; pass the strict `.agent_work` validator and contradiction review.
-2. [ ] Complete W01 inventory and attempt a real downloaded/extracted package
+2. [x] Complete W01 inventory and attempt a real downloaded/extracted package
    install as soon as verified control and asset ZIPs are available.
-3. [ ] Record the Day-1 forecast as `go`, `at_risk`, or `blocked`, with each
+3. [x] Record the Day-1 forecast as `go`, `at_risk`, or `blocked`, with each
    blocker, owner, and next check named.
 4. [ ] Select only evidence-required W02-W08 fixes and focused regressions.
 5. [ ] By Day 3, require a corrected Docker/Podman rehearsal plus real combined

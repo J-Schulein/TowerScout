@@ -168,3 +168,69 @@ the first host. W01 still lacks a permitted fixed fixture with positive
 combined-flow EfficientNet candidates/batches, approved provider-account live
 workflows, CUDA and standalone-Podman artifacts, managed-endpoint signing
 evidence, and independent hosts. Task-068 review/CI is also pending.
+
+### 2026-09-22 - CUDA Assembly And Host Compatibility Boundary
+
+The first clean accepted-main CUDA 12.6 build failed TLS verification when the
+PyTorch dependency graph redirected to `pypi.nvidia.com`. TLS verification was
+not disabled. The existing reviewed BuildKit-secret CA pattern was ported as
+the bounded Task-091 commit `355ca4c`; it supplies `PIP_CERT` only for the pip
+layer and copies no certificate into the image. Focused dependency/container
+tests passed `14/14`, plus blocking Flake8, PowerShell parsing, Dockerfile
+`--check`, and diff validation. PR #76 owns review and CI.
+
+A private Windows trust bundle was built from public trusted root/intermediate
+stores and retained under private Local AppData custody. Only its sanitized
+identity is recorded: 104 deduplicated certificates, 195,990 bytes, SHA-256
+`851e28ba743d1dd39fb3bacea5d3a64ccebc7cae844228c75daf19a6c692053d`.
+Inside the Python base image it verified both PyTorch and NVIDIA package hosts
+with HTTP 200. No certificate identity or content was committed.
+
+The managed build produced image
+`towerscout:task091-355ca4c-cuda126`, ID
+`sha256:52bcbd32f58cfbdee29884cfd63c166c29203280176ed41ce8060419d24ff112`,
+source `355ca4c...`, flavor `cuda126`, and no persisted CA path/secret marker.
+Its local-validation control ZIP SHA-256 is
+`293544c5235ed18a1a83b5b605a48c4317b7adae432edbc4842ee9c06a5e998b`;
+the sidecar and all 71 internal checksums passed.
+
+The explicit CUDA tensor probe failed closed on this workstation. The selected
+torch `2.6.0+cu126` wheel reports kernels through `sm_90`; the RTX PRO 500
+Blackwell GPU is `sm_120`, so CUDA raised `no kernel image is available`.
+There was no CPU fallback. The image/package are ready for transfer to a
+compatible NVIDIA host, but this host does not qualify the selected GPU profile.
+
+### 2026-09-22 - Podman Provider And Target Inventory
+
+Podman client/server `6.0.2` is present. The running default connection is the
+rootful socket for `podman-machine-default`; the existing
+`towerscout-task087-rootless` machine and rootless connection are stopped.
+No container or volume was created for the Day-1 Podman project.
+
+The package-local approved provider installer exposed an interpreter boundary:
+system Python `3.14.7` passed the current `>=3.9` preflight but could not resolve
+pinned `PyYAML==6.0.2`. Retrying with the approved repository Python `3.12.10`
+verified the provider wheel SHA-256, installed pinned dependencies, wrote only
+the package-local provider setting, and passed the catalog allowlist. The
+wrapper reports `podman-compose 1.5.0` and Podman `6.0.2`. The allowlist check
+used the shipped process-scoped PowerShell boundary because workstation policy
+is `Restricted`; that result is diagnostic, not managed-endpoint policy proof.
+
+### Day-1 Forecast
+
+**Status**: `AT_RISK`.
+
+| Blocker | Owner | Next check |
+| --- | --- | --- |
+| Positive combined-flow fixture and custody | Release/model owner | Provide a permitted fixed fixture that yields real candidates in the EN confidence band; hash it before W05 execution. |
+| Approved Google/Azure accounts | Provider-account owner | Confirm accounts and enter keys directly through the package Setup Wizard; never send keys through task evidence or chat. |
+| Compatible selected-profile NVIDIA host | Test owner | Run the exact CUDA image/ZIP on a supported pre-Blackwell or otherwise wheel-compatible NVIDIA host with no CPU fallback. |
+| Rootless standalone Podman runtime | Workstation/test owner | Start the existing rootless validation machine and select its rootless connection; do not use the current rootful default as acceptance. |
+| Podman Python support wording | Task-097 implementer | Reproduce and bound the supported interpreter range; current evidence passes 3.12 and fails 3.14. |
+| Managed endpoint/signing decision | Endpoint/release owner | State whether unsigned CMD-mediated scripts are allowed; bypass-based diagnostics do not qualify the endpoint. |
+| Independent CPU/GPU hosts | Test owner | Reserve and inventory the required host allocation before W09 distribution. |
+| PR #75/#76 acceptance | Reviewer | Complete exact-head CI/review before using either correction in a clean candidate. |
+
+**Next**: Await or schedule the external inputs above while continuing safe W05
+report-contract work and review/CI reconciliation. Do not begin a dependency
+migration to make this Blackwell host pass.

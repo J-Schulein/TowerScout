@@ -1,6 +1,6 @@
 # TASK-068: Windows Test Portability And Script Validation
 
-**Status**: IN_PROGRESS - evidence-triggered W02 fix committed; review/CI remain
+**Status**: IN_PROGRESS - W02 fix and no-blocker review complete; exact-head CI rerun remains
 **Priority**: CRITICAL
 **Type**: B (Windows Runtime Reliability)
 **Owner**: Active delivery implementer; independent reviewer validates
@@ -70,7 +70,10 @@ enabled behavior, PR history, and review-only surface intact.
 **Execution**: Updated `scripts/launch.ps1` and `scripts/stop.ps1`. Added a
 Windows sandbox regression with no helper module, no-engine preflight, fake
 Compose exit `7`, and both launch/stop entrypoints. Committed the bounded code
-slice as `08674db` on `fix/task-068-dormant-helper-dependency`.
+  slice as `08674db` on `fix/task-068-dormant-helper-dependency`. Independent
+  review found no blockers; follow-up `fa5ce83` suppresses a misleading
+  deferment message when review is disabled but a stale controlled-operation
+  flag is present.
 
 **Output**: Helper-disabled package launch and stop no longer parse the blocked
 module or write helper state. Explicit review mode still imports and uses it.
@@ -83,11 +86,15 @@ module or write helper state. Explicit review mode still imports and uses it.
 - Blocking Flake8, PowerShell parser, editor diagnostics, and diff checks: pass.
 - Real patched package setup/start/stop/relaunch: pass with eight volumes
   preserved.
+- Independent read-only implementation review: no blockers.
+- PR #75 checks at `08674db`: all required CI/CD, Windows host-helper,
+  Task-087 controller, security, Docker frontend, and Trivy jobs passed.
+- Exact-head checks at `fa5ce83`: rerun pending.
 - Full legacy helper test file: blocked by endpoint antivirus parsing the
   explicitly enabled helper module; this is retained as a review/CI gap.
 
-**Next**: Push the fix branch, open focused review, require exact-head checks,
-then repeat from a clean source package in W09.
+**Next**: Require PR #75 exact-head checks at `fa5ce83`, then repeat from a
+clean source package in W09.
 
 ---
 
