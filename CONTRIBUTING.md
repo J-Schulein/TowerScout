@@ -2,9 +2,16 @@
 
 This repository uses a `main`-only integration workflow with short-lived task branches.
 
+The current delivery effort is defined by the September 21 v2 Windows
+deployment [prioritization](.agent_work/context/status/Reprioritization%20Effort/2026-09-21-windows-deployment-prioritization-v2.md)
+and [work plan](.agent_work/context/status/Reprioritization%20Effort/2026-09-21-windows-deployment-hardening-v2.md).
+PR #67 and the launcher redesign are preserved but deferred and are not release
+prerequisites.
+
 ## Quick Start
 
-1. Start from the latest `main`.
+1. Start from the accepted `main` revision selected for the task; freeze that
+   revision during release-candidate qualification.
 2. Create a focused task branch.
 3. Make bounded changes for one task or one task phase.
 4. Commit intentional checkpoints as stable slices land.
