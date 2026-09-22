@@ -172,6 +172,7 @@ def test_helper_disabled_launch_and_stop_do_not_require_helper_module(tmp_path):
         text=True,
         check=False,
     )
+    env["TOWERSCOUT_HOST_HELPER_CONTROLLED_OPERATION"] = "1"
     stop = subprocess.run(
         [
             powershell,
@@ -197,6 +198,7 @@ def test_helper_disabled_launch_and_stop_do_not_require_helper_module(tmp_path):
     assert "TowerScoutHostHelper" not in preflight.stdout + preflight.stderr
     assert launch.returncode == 7, launch.stdout + launch.stderr
     assert stop.returncode == 7, stop.stdout + stop.stderr
+    assert "Deferred TowerScout host helper" not in stop.stdout + stop.stderr
     assert not helper_library.exists()
 
 

@@ -30,7 +30,7 @@ if ($hostHelperReviewEnabled -and -not $helperControlledOperation) {
         Write-Host "Could not invalidate TowerScout host helper session metadata: $($_.Exception.Message)"
     }
 }
-elseif ($helperControlledOperation) {
+elseif ($hostHelperReviewEnabled -and $helperControlledOperation) {
     Write-Host "Deferred TowerScout host helper session invalidation for controlled operation."
 }
 
