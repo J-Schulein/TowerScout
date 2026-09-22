@@ -70,7 +70,7 @@ Current scope:
 
 **Status**: IN_PROGRESS - W01 reproduced the dormant-helper antivirus blocker;
 bounded W02 fix is at `fa5ce83`, packaged Docker CPU proof and independent
-review pass, and exact-head CI rerun remains
+review and exact-head CI pass; merge disposition and final W09 repetition remain
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-068-windows-script-validation.md`
 

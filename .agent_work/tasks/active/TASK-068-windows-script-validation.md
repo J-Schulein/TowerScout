@@ -1,6 +1,7 @@
 # TASK-068: Windows Test Portability And Script Validation
 
-**Status**: IN_PROGRESS - W02 fix and no-blocker review complete; exact-head CI rerun remains
+**Status**: IN_PROGRESS - W02 fix, no-blocker review, and exact-head CI complete;
+merge disposition and final W09 clean-package repetition remain
 **Priority**: CRITICAL
 **Type**: B (Windows Runtime Reliability)
 **Owner**: Active delivery implementer; independent reviewer validates
@@ -33,7 +34,7 @@ paths exposed by W01-W04 and W09.
 - [x] Real packaged Docker CPU setup/start/stop/relaunch passes under Windows
   PowerShell 5.1 with helper review disabled.
 - [x] All eight named volumes survive packaged stop and relaunch.
-- [ ] Independent review and required CI pass at the exact fix head.
+- [x] Independent review and required CI pass at the exact fix head.
 - [ ] Final clean-source candidate package repeats the same behavior in W09.
 
 ## Dependencies
@@ -102,5 +103,5 @@ source package in W09.
 
 ## Validation Results
 
-**Status**: PARTIAL PASS - implementation and first-host package behavior pass;
-independent review, CI, and final clean-source packaging remain.
+**Status**: PARTIAL PASS - implementation, first-host package behavior,
+independent review, and exact-head CI pass; final clean-source packaging remains.

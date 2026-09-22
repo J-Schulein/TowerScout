@@ -1,6 +1,8 @@
 # TASK-091: Owner-Runnable Release Qualification
 
-**Status**: IN_PROGRESS - W01 CPU image built; package and inference pending
+**Status**: AT_RISK - first-host Docker CPU package and standalone real-model
+proof pass; combined-flow fixture, provider, compatible CUDA host, rootless
+Podman, managed-endpoint, and independent-host evidence remain
 **Priority**: CRITICAL
 **Type**: C (Release Qualification / Handoff)
 **Owner**: Release owner; active agent executes bounded preparation and checks
