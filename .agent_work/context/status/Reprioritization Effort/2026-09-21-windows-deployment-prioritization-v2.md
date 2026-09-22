@@ -22,7 +22,7 @@ Seven days is a delivery target, not a verified duration. Machine access, approv
 | --- | --- |
 | Docker CPU | CPU image; actual YOLO and EfficientNet work on CPU; complete application workflow. |
 | Docker NVIDIA | CUDA 12.6 image; both models actually work on CUDA; no CPU fallback. |
-| Podman CPU | Approved Compose provider and intended machine/connection; CPU model execution. |
+| Podman CPU | Approved Compose provider and intended machine/connection; actual YOLO and EfficientNet work on CPU. |
 | Podman NVIDIA | Intended WSL2 machine, approved provider, NVIDIA CDI, both models on CUDA. |
 
 For each row, repeat the downloaded workflow on an independent suitable Windows computer. A practical allocation is one CPU-only machine plus two different NVIDIA machines: repeat CPU profiles on the CPU-only host and one GPU host in explicit CPU mode; repeat GPU profiles on both GPU hosts. Include a Podman environment without Docker Desktop. These machines and organizational access have not been confirmed by this document.

@@ -182,12 +182,12 @@ and explicit authorization.
 
 ## Runtime Coordination
 
-State the engine/profile before runtime work and verify it is available. The
-current user request authorizes routine W00-W10 implementation and validation,
-so do not ask again for every command. If Docker Desktop, Podman, a restart, or
-another external prerequisite is unavailable, record the blocker and continue
-safe non-runtime work. Never delete named volumes or mutate an unverified
-Compose/Podman target.
+State the engine/profile before runtime work and verify it is available. When
+the current session grants W00-W10 implementation scope, routine validation may
+continue without repeated approval for every command. If Docker Desktop,
+Podman, a restart, or another external prerequisite is unavailable, record the
+blocker and continue safe non-runtime work. Never delete named volumes or mutate
+an unverified Compose/Podman target.
 
 ## Related Sources
 
