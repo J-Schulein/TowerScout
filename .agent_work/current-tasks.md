@@ -48,8 +48,10 @@ Current scope:
 
 ### **TASK-091: Owner-Runnable Release Qualification**
 
-**Status**: AT_RISK - accepted-main CPU image built and import smoke passed;
-control-ZIP install, asset import, and real inference remain pending
+**Status**: AT_RISK - accepted-main Docker CPU control-ZIP setup, verified
+asset import, and standalone real-model proof pass; Task-068 review plus
+combined-model fixture, provider, CUDA, Podman, and independent-host evidence
+remain
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-091-owner-runnable-release-qualification.md`
 
@@ -63,6 +65,23 @@ Current scope:
   W09/W10 evidence to exact ZIP hashes and image digests.
 - Report `pass`, `fail`, `blocked`, `not_run`, or justified `not_applicable`;
   never infer readiness from an absent prerequisite.
+
+### **TASK-068: Windows Test Portability And Script Validation**
+
+**Status**: IN_PROGRESS - W01 reproduced the dormant-helper antivirus blocker;
+bounded W02 fix committed at `08674db`, packaged Docker CPU proof passed, and
+review/CI remain
+**Priority**: CRITICAL
+**Task File**: `.agent_work/tasks/active/TASK-068-windows-script-validation.md`
+
+Current scope:
+
+- Keep normal helper-disabled launch and stop independent of the dormant
+  helper module, profile writes, and ACL operations.
+- Preserve the explicitly enabled review path without reactivating it for the
+  release.
+- Prove Windows PowerShell 5.1 preflight failure, scalar Compose failure,
+  packaged setup/start/stop/relaunch, and named-volume preservation.
 
 ### **TASK-097: Podman CPU/GPU Final Path Qualification**
 

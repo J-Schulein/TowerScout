@@ -15,6 +15,7 @@ date.
 | --- | --- |
 | `TASK-095` | W00 direction, task-control, evidence, and eventual handoff alignment |
 | `TASK-091` | W01/W05/W09/W10 owner-runnable package and model qualification |
+| `TASK-068` | Evidence-triggered W02 dormant-helper dependency fix and Windows package regression proof |
 | `TASK-097` | Podman CPU/GPU target, provider, CDI, and independent-host qualification |
 | `TASK-092` | Active entrypoint alignment now; tested user/package/in-app docs at W09 |
 | `TASK-093` | Persistence, cancellation/error recovery, reboot, rollback, and repeated-run evidence |
@@ -27,13 +28,12 @@ completed current-sprint record until sprint closeout.
 
 | Priority | Task | Status | Entry criterion / required outcome |
 | ---: | --- | --- | --- |
-| 1 | `TASK-068` Windows Test Portability And Script Validation | EVIDENCE_SELECTED | Select focused Windows PowerShell 5.1 regressions needed by W02-W04/W09; no broad portability rewrite |
-| 2 | `TASK-077` Public Release Manifest And Asset Import Hardening | EVIDENCE_SELECTED | Select only for a demonstrated manifest/import/integrity gap in W01/W09 |
-| 3 | `TASK-076` Provider API Key Exposure And Restriction Policy | REQUIRED_GUIDANCE | Align ownership/restriction/error guidance; code fixes only for observed ambiguity |
-| 4 | `TASK-027` Enhanced Error Handling | CONDITIONAL | Select only a reproduced user-facing release blocker not owned by W02-W08 |
-| 5 | `TASK-070` Restricted-Network Package Enhancements | CONDITIONAL | Select only if the claimed deployment environment requires offline/restricted distribution |
-| 6 | `TASK-094` Evidence-Gated Support Snapshot | EVIDENCE_GATED | Add only if current sanitized status/log procedures cannot resolve real support cases |
-| 7 | `TASK-026` CPU Optimization | CONDITIONAL | Select only for a measured supported-host bottleneck; preserve outputs and memory limits |
+| 1 | `TASK-077` Public Release Manifest And Asset Import Hardening | EVIDENCE_SELECTED | Select only for a demonstrated manifest/import/integrity gap in W01/W09 |
+| 2 | `TASK-076` Provider API Key Exposure And Restriction Policy | REQUIRED_GUIDANCE | Align ownership/restriction/error guidance; code fixes only for observed ambiguity |
+| 3 | `TASK-027` Enhanced Error Handling | CONDITIONAL | Select only a reproduced user-facing release blocker not owned by W02-W08 |
+| 4 | `TASK-070` Restricted-Network Package Enhancements | CONDITIONAL | Select only if the claimed deployment environment requires offline/restricted distribution |
+| 5 | `TASK-094` Evidence-Gated Support Snapshot | EVIDENCE_GATED | Add only if current sanitized status/log procedures cannot resolve real support cases |
+| 6 | `TASK-026` CPU Optimization | CONDITIONAL | Select only for a measured supported-host bottleneck; preserve outputs and memory limits |
 
 ## Explicitly Deferred Beyond The Delivery Window
 

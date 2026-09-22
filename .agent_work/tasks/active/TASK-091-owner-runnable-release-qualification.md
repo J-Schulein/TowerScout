@@ -117,3 +117,54 @@ from a path containing spaces with the verified asset ZIP, followed by real CPU
 inference. A bounded image-size/build-time experiment may remove or isolate
 `libgdal-dev` only if geospatial runtime tests prove the wheel-based stack is
 sufficient.
+
+### 2026-09-22 - W01 Real Package And W02 Blocker Proof
+
+Built a real local-validation CPU control ZIP from clean accepted source
+`9276084d...` and image `towerscout:main-9276084-cpu`. The control ZIP SHA-256
+was `ffa270727a090ad749128050605d819349ee1d3ffd885f60e6b9114ee3a7fe63`;
+its adjacent sidecar matched, all 71 internal package checksums passed, and the
+Windows package/manifest regression ring passed `7/7`. The manifest correctly
+recorded a mutable local image, CPU flavor, the accepted source ref, and the
+published v0.1.2 asset bundle SHA-256
+`00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+
+Extracted the exact ZIP under an ordinary user-writable Local AppData path
+containing spaces. Setup verified both ZIP sidecars, staged the asset ZIP,
+imported every manifest asset with hash verification, and reached
+`post_import_health=ok`, but normal launch then failed because endpoint
+antivirus blocked parsing the disabled `TowerScoutHostHelper.ps1` module. No
+volume was deleted; the exact test project retained all eight named volumes.
+This evidence selected Task-068 and W02 rather than weakening endpoint policy.
+
+The bounded Task-068 fix at `08674db` gates helper import, profile persistence,
+review-session initialization, and stop cleanup on explicit review enablement.
+The changed-boundary Windows tests pass `2/2`, adjacent launcher/package tests
+pass `9/9`, the blocking Flake8 profile passes, and editor/parser/diff checks
+are clean. The broader legacy helper suite remains unexecutable on this host
+because antivirus blocks the helper module itself; the explicitly enabled
+review path therefore still requires independent CI/review evidence.
+
+Built a separate dirty-source/mutable-image W02 probe ZIP, clearly unsuitable
+for release, with SHA-256
+`e5979d79482ea9a546b0bfe4d0b5ac6f5874f7e713dc21ac5751838cb864208a`.
+Its packaged launch/stop scripts matched the tested sources byte-for-byte and
+all 71 internal checksums passed. Normal Docker CPU setup then passed from a
+new spaced path: verified asset import, eight named volumes, healthy container,
+`setup_required`, `asset_status=ok`, torch `2.6.0+cpu`, CPU selection, packaged
+stop, volume-preserving relaunch, and exact local image identity all passed.
+
+The existing external Task-098 probe ran against that exact package image and
+imported volumes. Its sanitized private report at
+`%LOCALAPPDATA%\TowerScout Day1\evidence\w02-cpu-probe\qualification.json`
+records `passed=true`, trusted YOLO and EfficientNet model hashes, both models
+on CPU, torch/torchvision `2.6.0/0.21.0`, three YOLO runs, and three
+EfficientNet runs with matching declared output tolerance. This is real
+standalone model execution, not the required combined detector-secondary flow.
+
+**Forecast remains**: `at_risk`. Docker CPU package mechanics, asset import,
+standalone model execution, stop/relaunch, and persistence are now proven on
+the first host. W01 still lacks a permitted fixed fixture with positive
+combined-flow EfficientNet candidates/batches, approved provider-account live
+workflows, CUDA and standalone-Podman artifacts, managed-endpoint signing
+evidence, and independent hosts. Task-068 review/CI is also pending.
