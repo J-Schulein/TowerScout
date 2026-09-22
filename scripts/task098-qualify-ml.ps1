@@ -6,7 +6,9 @@ param(
 
     [string] $TorchvisionVersion = "0.21.0",
 
-    [string] $OutputDirectory = ".agent_work/tmp/task098-qualification"
+    [string] $OutputDirectory = ".agent_work/tmp/task098-qualification",
+
+    [string] $BuildCaBundlePath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -42,17 +44,33 @@ $image = "towerscout:task098-$shortCommit-$flavor-torch$safeTorch"
 
 Write-Host "Building isolated Task-098 image $image"
 Write-Host "Existing containers and images will not be stopped, removed, or reused."
-& docker build `
-    --pull `
-    --no-cache `
-    --build-arg "PYTORCH_INDEX_URL=$indexUrl" `
-    --build-arg "TOWERSCOUT_PYTORCH_FLAVOR=$flavor" `
-    --build-arg "TOWERSCOUT_TORCH_VERSION=$TorchVersion" `
-    --build-arg "TOWERSCOUT_TORCHVISION_VERSION=$TorchvisionVersion" `
-    --build-arg "TOWERSCOUT_RELEASE_VERSION=task098-qualification" `
-    --build-arg "TOWERSCOUT_SOURCE_REF=$sourceCommit" `
-    --tag $image `
+$dockerBuildArgs = @(
+    "build",
+    "--pull",
+    "--no-cache"
+)
+if (-not [string]::IsNullOrWhiteSpace($BuildCaBundlePath)) {
+    if (-not (Test-Path -LiteralPath $BuildCaBundlePath -PathType Leaf)) {
+        throw "Build CA bundle was not found: $BuildCaBundlePath"
+    }
+    $resolvedBuildCa = (Resolve-Path -LiteralPath $BuildCaBundlePath).Path
+    $dockerBuildArgs += @(
+        "--secret",
+        "id=towerscout_build_ca,src=$resolvedBuildCa"
+    )
+    Write-Host "Using a BuildKit secret for the build-time CA bundle."
+}
+$dockerBuildArgs += @(
+    "--build-arg", "PYTORCH_INDEX_URL=$indexUrl",
+    "--build-arg", "TOWERSCOUT_PYTORCH_FLAVOR=$flavor",
+    "--build-arg", "TOWERSCOUT_TORCH_VERSION=$TorchVersion",
+    "--build-arg", "TOWERSCOUT_TORCHVISION_VERSION=$TorchvisionVersion",
+    "--build-arg", "TOWERSCOUT_RELEASE_VERSION=task098-qualification",
+    "--build-arg", "TOWERSCOUT_SOURCE_REF=$sourceCommit",
+    "--tag", $image,
     $repoRoot
+)
+& docker @dockerBuildArgs
 if ($LASTEXITCODE -ne 0) {
     throw "Task-098 image build failed."
 }
