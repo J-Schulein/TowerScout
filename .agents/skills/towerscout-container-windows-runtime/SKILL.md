@@ -80,7 +80,7 @@ Clean up only a test-owned, verified Compose project. Never run unconditional
 Windows validation host commands:
 
 ```powershell
-powershell -NoProfile -File scripts/launch.ps1 -Engine podman -Port 5000 -NoBrowser -TimeoutSeconds 180
+start.bat -Engine podman -Port 5000 -NoBrowser -TimeoutSeconds 180
 scripts\status.cmd -Engine podman -Port 5000
 scripts\logs.cmd -Engine podman -Tail 200
 scripts\stop.cmd -Engine podman
