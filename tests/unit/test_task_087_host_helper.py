@@ -256,6 +256,7 @@ def test_helper_disabled_launch_and_stop_do_not_require_helper_module(tmp_path):
 
 def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     script = HELPER_LIB.read_text(encoding="utf-8")
+    state_script = HELPER_STATE_LIB.read_text(encoding="utf-8")
     stop_script = STOP_SCRIPT.read_text(encoding="utf-8")
 
     assert (
@@ -279,8 +280,8 @@ def test_host_helper_provider_tls_repair_plan_is_docker_only_and_allowlisted():
     assert '"-NoBrowser"' in script
     assert "function New-TowerScoutHostHelperOperationLock" in script
     assert "nonce_fingerprint" in script
-    assert '"operation-*.json"' in script
-    assert "operation_files_cleared" in script
+    assert '"operation-*.json"' in state_script
+    assert "operation_files_cleared" in state_script
     assert "provider_tls_repair = $providerTlsRepairEnabled" in script
     assert 'State "capability_disabled"' in script
     assert "$script:TowerScoutHostHelperExecutionEnabledByDefault = $false" in script
