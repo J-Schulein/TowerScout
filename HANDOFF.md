@@ -123,9 +123,9 @@ Future candidates require new evidence.
 ## Runtime Startup Coordination
 
 Before runtime-dependent work, state the engine/profile and verify its observed
-availability. The current implementation request already authorizes routine
-W00-W10 validation, so do not request confirmation again for each command. An
-unavailable runtime or required restart is recorded as a blocker while safe
+availability. When the current session grants W00-W10 implementation scope,
+routine validation may continue without repeated confirmation for each command.
+An unavailable runtime or required restart is recorded as a blocker while safe
 static/planning work continues.
 
 ## Safety And Custody

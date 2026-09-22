@@ -204,9 +204,10 @@ security checks where practical. Manual evidence remains required for:
 - owner-operated release and recovery rehearsal
 
 State the selected engine/profile before runtime-dependent validation and
-verify actual availability. The current user authorization covers routine
-W00-W10 checks; unavailable engines or restart requirements are recorded as
-blockers while safe non-runtime work continues.
+verify actual availability. When the current session grants W00-W10
+implementation scope, routine checks may continue without repeated approval;
+unavailable engines or restart requirements are recorded as blockers while safe
+non-runtime work continues.
 
 ## Safety Boundaries
 

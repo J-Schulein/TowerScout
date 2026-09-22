@@ -187,7 +187,7 @@ Current result:
 - Dependabot alert `#76` opened after that closeout for high-severity
   development-transitive `extract-zip==2.0.1` through
   `puppeteer@24.19.0 -> @puppeteer/browsers@2.10.8 -> extract-zip`.
-- Task-101 is the active unique follow-up. Its validated remediation uses Node
+- Task-101 is the completed unique follow-up. Its validated remediation uses Node
   `>=22.12.0` and exact `puppeteer@25.8.0` /
   `@puppeteer/browsers@3.2.1`, removes `extract-zip` from the lock and installed
   graphs, and restores a clean blocking frontend audit. The vulnerable path was

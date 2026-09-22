@@ -123,7 +123,7 @@ rg -n 'PR.?67|Task.?087|TASK-087|launcher|IMPLEMENT' HANDOFF.md CONTRIBUTING.md 
 
 ### W01 - Attempt the baseline package and establish feasibility immediately
 
-**Files to read:** `scripts/{setup-towerscout.ps1,package-release.ps1,import-assets.ps1}`, `scripts/lib/TowerScoutPodmanComposeProvider.ps1`, `compose.yaml`, `compose.gpu.yaml`, `compose.gpu.podman.yaml`, `.env.example`, `docs/release/`, the July evidence/fixtures identified in W05. **Evidence:** use a new authorized private working directory and a sanitized index under `.agent_work/evidence/`; do not assume existing evidence is disposable.
+**Files to read:** `scripts/{setup-towerscout.ps1,package-release.ps1,import-assets.ps1}`, `scripts/lib/TowerScoutPodmanComposeProvider.ps1`, `compose.yaml`, `compose.gpu.yaml`, `compose.gpu.podman.yaml`, `.env.example`, `docs/release/`, the July evidence/fixtures identified in W05. **Evidence:** use a new authorized private working directory for raw evidence and keep any durable sanitized index with Task-091 under `.agent_work/tasks/active/TASK-091/`; do not assume existing evidence is disposable.
 
 **Produces:** baseline artifact inventory, host allocation, fixture contract, failure list, and Day-1 forecast. No new product behavior.
 
@@ -486,7 +486,7 @@ Cleanup is not a prerequisite for writing fixes. Perform only the direction/visi
 | --- | --- |
 | PR #67 branch/worktrees, review documents, unique commits | Record branch names/SHAs and unique work; preserve before optional archival. An upstream marked gone or a failed ancestry check after squash is not proof the branch is disposable. Recommend PR closure separately. |
 | Active/completed/deferred task files | Use the canonical board and truthful lifecycle state. Completed artifacts go under completed; deferred launcher work belongs in backlog/archive with a pointer, not completed. Update links with any move. |
-| Existing `.agent_work/evidence/`, `.agent_work/tmp/task098-qualification` | Inventory/hash and preserve unique results. They may contain the only model/device evidence; do not delete because untracked or under tmp. Keep raw sensitive contents private. |
+| Misplaced legacy evidence, `.agent_work/tmp/task098-qualification` | Inventory/hash and preserve unique results. Relocate durable sanitized indexes under `.agent_work/tasks/active/TASK-091/` and raw sensitive contents to the authorized private evidence directory; do not delete unique results merely because they are untracked or under tmp. |
 | `dist/` and historical RC ZIP/checksum sets | Record artifact identity and evidence dependency; archive exact sets together only after verifying the destination copy. Do not run blanket build-output deletion. |
 | `.env`, certificates, models, datasets, uploads, sessions and container volumes | Preserve. No raw-content inventory, overwrite, volume prune or removal as housekeeping. Use synthetic or isolated state for tests. |
 | Parent `TowerScout` documents, validation folders, user downloads | Outside the Git root; preserve originals and authorized provenance. Do not recursively move the parent as though it were repository build output. |

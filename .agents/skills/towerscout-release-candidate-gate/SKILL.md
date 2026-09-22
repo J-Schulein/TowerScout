@@ -97,7 +97,7 @@ volume deletion against an ambiguous installation.
 On Windows or a Windows validation host:
 
 ```powershell
-start.bat -Engine podman -Port 5000 -NoBrowser -TimeoutSeconds 180
+.\start.bat -Engine podman -Port 5000 -NoBrowser -TimeoutSeconds 180
 scripts\status.cmd -Engine podman -Port 5000
 scripts\logs.cmd -Engine podman -Tail 200
 scripts\stop.cmd -Engine podman
