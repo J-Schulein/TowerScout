@@ -18,6 +18,7 @@ prioritization document. Static checks, health endpoints, and mocked model tests
 do not establish deployment readiness; record actual package, model, device,
 provider, persistence, recovery, and independent-host results.
 
-Honor the user's authorized implementation scope without asking again for each
-routine step. External publication, account changes, signing, and destructive
-cleanup retain their normal authorization boundaries.
+Within the current session, honor the user's authorized implementation scope
+without asking again for each routine step. External publication, account
+changes, signing, and destructive cleanup retain their normal authorization
+boundaries.

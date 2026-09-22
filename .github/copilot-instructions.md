@@ -695,8 +695,9 @@ Current preferred project artifacts:
 - do not treat config persistence as only a documentation concern; it is an active runtime requirement
 - before runtime-dependent work, state the selected engine/profile and verify
   its observed availability
-- honor an already-authorized execution plan without asking again for every
-  routine validation command; record unavailable runtimes/restarts as blockers
+- honor an execution plan authorized in the current session without asking
+  again for every routine validation command; record unavailable
+  runtimes/restarts as blockers
 - planning, documentation, and static source review do not require runtime
   startup
 

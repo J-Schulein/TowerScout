@@ -28,7 +28,8 @@ optional AI-assisted development.
 - BEFORE runtime-dependent validation, THE ACTIVE AGENT SHALL state the needed
   engine/profile and verify observed availability. An unavailable runtime or
   required restart is recorded as a blocker while safe work continues; an
-  already-authorized running runtime does not require repeated confirmation.
+  execution plan authorized in the current session does not require repeated
+  confirmation for routine validation.
 
 ## Phase A - Roadmap And Workspace Rebaseline
 

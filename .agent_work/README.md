@@ -78,10 +78,10 @@ repository intake workflow.
 ## Runtime Coordination
 
 Before Docker- or Podman-dependent work, state which runtime/profile will be
-used and verify its observed availability. Honor an already-authorized
-execution request without asking again for each routine validation step. If a
-runtime is unavailable or requires a workstation restart, record that blocker
-and continue with safe non-runtime work.
+used and verify its observed availability. Honor an execution request
+authorized in the current session without asking again for each routine
+validation step. If a runtime is unavailable or requires a workstation restart,
+record that blocker and continue with safe non-runtime work.
 
 ## Maintenance
 
