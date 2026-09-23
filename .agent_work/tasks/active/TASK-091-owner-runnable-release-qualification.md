@@ -263,3 +263,42 @@ This checkpoint does not establish W05 runtime acceptance. Real execution is
 blocked until the release/model owner provides a permitted, hashable fixture
 set with positive detections in the EfficientNet confidence band and declares
 expected outputs/tolerances before candidate results.
+
+### 2026-09-23 - Day-2 Focused Corrections And Review Gates
+
+**Objective**: Implement only the W03-W08 defects required by observed Day-1
+evidence and prepare the Day-3 rehearsal without weakening acceptance.
+
+**Execution**:
+
+- PR #77 binds bounded runtime commands to the verified rootless Podman
+  connection and approved package-local Compose provider.
+- PR #78 propagates required secondary-classifier failures and prevents partial
+  result publication; its local adjacent ring has zero failures.
+- PR #79 creates the viewport boundary before reading first-use Google bounds,
+  preserves Azure/explicit polygon behavior, and rebuilds the frontend bundle.
+- PR #80 isolates operation-specific rate limits, serializes detection jobs,
+  and closes the progress-before-cancel-event race.
+- PR #81 preserves the scalar TLS importer exit status and visible diagnostics.
+  Full candidate-bundle transaction work is deferred until PR #77 lands.
+- PR #82 rejects excessive candidate grids and decoded-image dimensions before
+  expensive allocation or model work.
+- Draft PR #83 contains the rebased W05 combined-model fixture/report contract.
+
+**Validation**: Local focused and adjacent results are PR #77 `63/63`, PR #78
+`60` collected with `22` passed and `38` documented legacy skips, PR #79 all
+five maintained frontend/bundle checks passed, PR #80 `96/96`, PR #81 `18/18`,
+PR #82 `140` collected with `102` passed and `38` documented legacy skips, and
+PR #83 focused `18/18`. PR #77's initial CI helper-sandbox failure was repaired
+at `a4bf6e1`; exact-head CI is pending. PR #78's sole Docker-stage failure was a
+Docker Hub OAuth connection reset and its failed job was rerun without a source
+change. Other observed checks were green or still running when recorded.
+
+**Blockers**: The authorized positive combined-flow fixture is not present;
+CUDA qualification has no compatible host; managed-endpoint policy and
+independent hosts remain unconfirmed. Google and Azure accounts are available,
+but no keys or live-provider evidence were placed in repository records.
+
+**Next**: Accept and merge the focused PRs after exact-head CI/review, rebase the
+W05 draft on PR #77, add the exact-package runner, obtain and predeclare the
+private fixture baseline, then run the Day-3 Docker/rootless-Podman rehearsal.
