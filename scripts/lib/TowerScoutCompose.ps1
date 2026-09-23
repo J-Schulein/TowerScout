@@ -4,7 +4,13 @@ $script:TowerScoutCpuPytorchIndexUrl = "https://download.pytorch.org/whl/cpu"
 $script:TowerScoutCudaPytorchIndexUrl = "https://download.pytorch.org/whl/cu126"
 $script:TowerScoutDefaultPodmanMachineName = "podman-machine-default"
 . "$PSScriptRoot\TowerScoutPodmanComposeProvider.ps1"
-. "$PSScriptRoot\TowerScoutBootstrap.ps1"
+$bootstrapLibrary = Join-Path $PSScriptRoot "TowerScoutBootstrap.ps1"
+if (
+    $null -eq (Get-Command "Invoke-TowerScoutBootstrapCommand" -ErrorAction SilentlyContinue) -and
+    (Test-Path -LiteralPath $bootstrapLibrary -PathType Leaf)
+) {
+    . $bootstrapLibrary
+}
 
 function Get-TowerScoutRepoRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
