@@ -1,8 +1,9 @@
 # TASK-097: Podman CPU/GPU Final Path Qualification
 
 **Status**: AT_RISK - approved provider passes with Python 3.12; the running
-machine's explicit normal-user connection is verified rootless and W03 PR #77
-is open; exact-package CPU/GPU and independent-host proof remain
+machine's explicit normal-user connection is verified rootless and the W03
+target-binding fix is merged; exact-package CPU/GPU and independent-host proof
+remain
 **Priority**: HIGH
 **Type**: C (Runtime Qualification)
 
@@ -82,8 +83,10 @@ Podman `6.0.2` without the Docker Desktop provider.
 CI sandbox failures from the first PR head pass after adding the shared
 bootstrap dependency to the helperless fixture; the full enabled-helper module
 remains locally blocked by endpoint antivirus and is delegated to CI. Read-only
-real target/provider probes passed. No container, image, volume, network,
-machine, or connection state was changed.
+real target/provider probes passed. PR #77's corrected head has green Windows
+host-helper, controller, frontend, Docker, security, and Trivy checks; its
+Python matrix was still running when recorded. No container, image, volume,
+network, machine, or connection state was changed.
 
-**Next**: Require PR #77 exact-head CI and review, then perform package
-`VerifyOnly` and CPU rehearsal against the same explicit rootless connection.
+**Next**: Use merged commit `99858c2` to perform package `VerifyOnly` and the
+CPU rehearsal against the same explicit rootless connection.

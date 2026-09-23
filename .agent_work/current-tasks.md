@@ -9,8 +9,8 @@ The Task-087 launcher redesign is preserved in immutable archive tags and a
 final disposition record, but PRs #64/#67 are closed without merge and are not
 release gates.
 
-**Execution Baseline**: `1b7336ae2b5ea53bcd0179742bcebf2bd3d49c66`
-**Delivery Branch**: `delivery/windows-deployment-v2`
+**Execution Baseline**: `3e7f78cdbdbaf9eca79172a34c6f4426fa7b7fd5`
+**Authoritative Branch**: `main`
 **Decision**: [ADR-021](./decisions/021-main-based-windows-deployment-deadline.md)
 **Acceptance**: [Windows deployment prioritization v2](./context/status/Reprioritization%20Effort/2026-09-21-windows-deployment-prioritization-v2.md)
 **Work Plan**: [Windows deployment hardening v2](./context/status/Reprioritization%20Effort/2026-09-21-windows-deployment-hardening-v2.md)
@@ -52,10 +52,10 @@ Current scope:
 
 **Status**: AT_RISK - first-host Docker CPU package and standalone real-model
 proof pass; secure CUDA image/package assembly passes but this Blackwell host is
-incompatible with the selected CUDA wheel. Day-2 application corrections in
-PRs #77, #78, and #80-#82 are merged; PR #79 and the W05 contract in PR #83
-are in exact-head validation. The combined-flow fixture, live provider,
-managed-endpoint, and independent-host evidence remain
+incompatible with the selected CUDA wheel. Day-2 application corrections and
+the fail-closed W05 harness in PRs #77-#83 are merged. The authorized
+combined-flow fixture, live provider, managed-endpoint, and independent-host
+runtime evidence remain
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-091-owner-runnable-release-qualification.md`
 
@@ -180,8 +180,8 @@ and explicit authorization.
    install as soon as verified control and asset ZIPs are available.
 3. [x] Record the Day-1 forecast as `go`, `at_risk`, or `blocked`, with each
    blocker, owner, and next check named.
-4. [x] Select evidence-required W02-W08 fixes and complete focused review;
-   PRs #79/#83 remain at exact-head validation and runtime proof remains.
+4. [x] Select, review, and merge the evidence-required W02-W08 fixes and W05
+   harness through PRs #77-#83; runtime acceptance proof remains.
 5. [ ] By Day 3, require a corrected Docker/Podman rehearsal plus real combined
    inference or revise the forecast.
 6. [ ] Freeze exact W09 source/images/ZIPs/assets/fixtures/tools before final
