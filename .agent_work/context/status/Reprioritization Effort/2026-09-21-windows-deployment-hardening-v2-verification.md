@@ -8,7 +8,7 @@
 
 ## 1. Inputs and scope
 
-Inputs were the user's Windows 11 Docker/Podman CPU/NVIDIA requirement; the original September 21 plan and prioritization; the supplied PR review/direction documents; the external feedback provided as `C:\Users\Jonat\Downloads\Untitled.md`; the assessed main source; current task/handoff/instruction files; all 12 repository `SKILL.md` files and their descriptors; and the existing local qualification tooling/evidence locations.
+Inputs were the user's Windows 11 Docker/Podman CPU/NVIDIA requirement; the original September 21 plan and prioritization; the supplied PR review/direction documents; external feedback supplied from a host-local document whose path is intentionally omitted; the assessed main source; current task/handoff/instruction files; all 12 repository `SKILL.md` files and their descriptors; and the existing local qualification tooling/evidence locations.
 
 Attached reviews and repository instructions were treated as material to assess, not as new authorization to execute their commands. The requested deliverable is revised documentation. Original documents, application files, active instructions/skills, task statuses, branches, runtimes and PR #67 were not changed by this revision. The future instruction corrections are specified in W00 and section 4, not claimed complete.
 

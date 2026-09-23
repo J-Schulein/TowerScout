@@ -18,12 +18,20 @@ prerequisites.
 5. Open a PR against `main`.
 6. Squash merge after validation and approval.
 
-Example:
+For normal task work, update `main` before branching:
 
 ```bash
-git checkout main
-git pull origin main
-git checkout -b feature/task-025-docker-baseline
+git switch main
+git pull --ff-only origin main
+git switch -c feature/task-XXX-short-name
+```
+
+For release qualification, branch from the accepted SHA recorded by the task
+instead of advancing the frozen baseline:
+
+```bash
+git fetch origin
+git switch -c chore/task-XXX-qualification <accepted-main-sha>
 ```
 
 ## Branch Naming

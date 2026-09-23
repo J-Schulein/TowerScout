@@ -38,7 +38,7 @@
 
 ## 1. Execution protocol and working context
 
-The Git root at assessment is `C:\Users\Jonat\Documents\TowerScout\TowerScout`. Its parent contains user documents and validation assets; it is not disposable scratch space. Discover the executing checkout:
+The assessment used a host-local nested checkout whose path is not authoritative. Treat the executing checkout and any surrounding user directories as non-disposable, then discover the current Git root:
 
 ```powershell
 git rev-parse --show-toplevel
@@ -116,7 +116,7 @@ Task status comes from the active board; acceptance comes from the v2 spec.
 
 ```powershell
 python .agent_work/scripts/validate_agent_work.py
-rg -n 'PR.?67|Task.?087|TASK-087|launcher|IMPLEMENT' HANDOFF.md CONTRIBUTING.md .github .agent_work/current-tasks.md .agent_work/task-backlog.md .agents/skills
+git grep -n -E 'PR.?67|Task.?087|TASK-087|launcher|IMPLEMENT' -- HANDOFF.md CONTRIBUTING.md .github .agent_work/current-tasks.md .agent_work/task-backlog.md .agents/skills
 ```
 
 **Done:** A new agent can find the selected direction without reading historical reviews. Validator errors are resolved truthfully; no bulk deletion or global skill-cache modification. Finish the minimal direction patch early on Day 1; public manual alignment can finish with W09.
@@ -216,7 +216,7 @@ return [int]$importExitCode
 
 **Modify:** `scripts/task098_ml_qualification.py`. **Proposed new operator tools:** `scripts/qualify-candidate.ps1`, `scripts/qualification/ts-detect-harness.ps1`. **Proposed tests:** `tests/unit/test_candidate_qualification_contract.py`. **Read:** `scripts/task098-qualify-ml.ps1`, `webapp/{ts_yolov5.py,ts_en.py,ts_events.py,ts_performance.py}`, `tests/conftest.py`.
 
-**Reusable local sources:** `..\v012-validation\harness\ts-detect-harness.ps1`, `..\v012-validation\fixtures`, and `..\Validation Evidence\rc7.1-docker-qa-2026-07-07\fixtures-20260707` relative to this checkout. Confirm existence, permissions, fixture provenance and hashes. Preserve originals; copy only sanitized authorized tooling into the proposed repository path. Private/large fixtures remain an operator input, not an image layer or public commit.
+**Reusable operator inputs:** Obtain the authorized July harness and fixture packet from the release/model owner's evidence custody rather than assuming sibling directories beside the checkout. Record their absolute host paths only in private execution notes and bind committed evidence to sanitized identifiers and hashes. Confirm existence, permissions, fixture provenance and hashes. Preserve originals; copy only sanitized authorized tooling into the proposed repository path. Private/large fixtures remain an operator input, not an image layer or public commit.
 
 **Known traps:** The July harness performs geocoding before `SkipLive`, catches live-provider failures, and records counts without enforcing the complete acceptance contract. Its 53-detection parity uses `/getobjectscustom`, whose current YOLO call omits `secondary`; this is not combined-model proof. Its `Invoke-RestMethod -Form` use needs PowerShell 7 for the operator or a deliberate compatibility adaptation, while shipped user scripts still require 5.1. Its 65-second sleep masks shared rate-limit coupling, and its 8-second fixture spacing can exceed a real 10/minute custom-upload limit.
 
