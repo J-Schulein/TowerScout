@@ -120,9 +120,8 @@ larger blocker, and its documentation findings are merged through PR #94.
 PR #95 then reconciled the accepted project state, and PR #96 merged the
 application urllib3 correction. ADR-024/TASK-104 security correction and the
 same-source RC8 CPU/CUDA exact-digest registry gates now pass. The
-digest-pinned control packages are assembled and locally verified; publish the
-approved candidate assets, then complete final browser-download plus
-independent-host evidence
+digest-pinned control packages are published in the non-Latest RC8 validation
+prerelease. Complete final browser-download plus independent-host evidence
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-103-cuda128-blackwell-ml-runtime.md`
 
