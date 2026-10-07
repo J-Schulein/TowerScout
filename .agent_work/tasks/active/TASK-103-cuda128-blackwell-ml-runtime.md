@@ -102,10 +102,12 @@ weakening model correctness, device, security, persistence, or recovery gates.
   support boundary; signature-enforcing managed endpoints remain out of scope.
 - [x] Run the preserved `rc4` package as a preliminary browser-download
   diagnostic and disposition its findings for Task-092.
-- [ ] Rebuild the updated manuals into new CPU/CUDA image and
-  control-ZIP identities because `docs/` is present in both surfaces. Complete
-  final browser-download and independent-host W10 acceptance cells before
-  claiming release readiness.
+- [x] Rebuild the updated manuals into same-source RC8 CPU/CUDA image and
+  digest-pinned control-ZIP identities because `docs/` is present in both
+  surfaces.
+- [ ] Publish the owner-approved candidate assets, then complete final
+  browser-download and independent-host W10 acceptance cells before claiming
+  release readiness.
 
 ### W10 Local First-Host Rehearsal - Started 2026-09-28
 
@@ -225,3 +227,26 @@ the packaged ZCTA data through its bundled library, the application imports
 changed package/version, CRITICAL escalation, unused exception, or expiry is a
 release blocker. Final browser-download and independent-host gates are not
 reduced by this amendment.
+
+## 2026-10-07 Same-Source RC8 Package Assembly
+
+A clean detached checkout of frozen image source
+`7827c2af8ecb7d8b21d246b69e135807fa497fd2` produced the two local control
+packages without mutable-image, missing-source, dirty-source, no-ZIP, or force
+overrides:
+
+- CPU: `towerscout-v0.1.0-rc8-cpu.zip`, 199842 bytes, SHA-256
+  `8fd46711b57a25dd71cd879a06fe519674596ee9a71fa66b2347204fe8bc74f0`.
+- CUDA 12.8: `towerscout-v0.1.0-rc8-cuda128.zip`, 199850 bytes, SHA-256
+  `463d3f2348e369ed647bb8ed66c15588fc4051197e49ac90441552b8318bdada`.
+
+The manifests bind the exact RC8 source, CPU/CUDA flavor, corresponding
+registry manifest digest, RC8 asset filename, and authoritative asset SHA-256
+`00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+Both outer sidecars and all 73 internal checksums across 74 ZIP entries passed.
+The focused package/manifest regression suite passed `7/7`. The retained
+browser-downloaded RC4 asset ZIP is 800655295 bytes and reverified at the same
+authoritative content hash; it was not copied under the RC8 filename merely to
+duplicate 800 MB before publication. Local packages are retained under the
+ignored `dist/rc8-candidate/` directory. No release asset or `latest` tag was
+published.

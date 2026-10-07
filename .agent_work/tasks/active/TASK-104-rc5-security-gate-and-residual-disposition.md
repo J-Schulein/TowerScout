@@ -377,6 +377,25 @@ Exact implementation revision:
   matched across flavors. Both `latest` promotion steps were skipped. No
   control package or release asset was published.
 
+### Same-source RC8 local control packages
+
+- A clean detached checkout of frozen source
+  `7827c2af8ecb7d8b21d246b69e135807fa497fd2` assembled the CPU and CUDA 12.8
+  control ZIPs using only the exact RC8 registry manifest digests above.
+- CPU ZIP SHA-256:
+  `8fd46711b57a25dd71cd879a06fe519674596ee9a71fa66b2347204fe8bc74f0`.
+- CUDA 12.8 ZIP SHA-256:
+  `463d3f2348e369ed647bb8ed66c15588fc4051197e49ac90441552b8318bdada`.
+- Both manifest checks, outer sidecars, all 73 internal checksums, and the
+  focused `7/7` package/manifest regression suite passed.
+- The retained 800655295-byte browser-downloaded asset ZIP was reverified at
+  authoritative SHA-256
+  `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+  It was not duplicated solely to stage the RC8 filename.
+- No package/release asset or `latest` tag was published. Final
+  browser-download and independent-host acceptance remain owner-gated release
+  work.
+
 ## Stop Conditions
 
 - Any new unaccepted HIGH/CRITICAL key or severity escalation.
