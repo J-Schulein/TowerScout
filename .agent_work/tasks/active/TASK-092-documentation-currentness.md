@@ -479,10 +479,10 @@ publication. Final Task-092 evidence must therefore bind the later approved
 published digests, authoritative package hashes, browser-downloaded bytes, and
 running-image Help. Frozen user-facing content remains unchanged.
 
-**Next at that point**: Resolve the Task-103 pre-publication security delta through normal
-review and explicit disposition, then rebuild final digest-pinned packages and
-complete the remaining artifact-bound, browser-download, live-Wiki, and
-independent-host checks.
+**Disposition of that next step**: The Task-103 pre-publication security delta
+was reviewed and resolved, and the final digest-pinned RC8 packages were built
+and locally verified. Publication plus the remaining artifact-bound,
+browser-download, live-Wiki, and independent-host checks still follow.
 
 ### 2026-10-07 - Same-source RC8 image identity freeze
 

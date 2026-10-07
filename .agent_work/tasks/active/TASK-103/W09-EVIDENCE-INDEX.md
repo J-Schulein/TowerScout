@@ -5,13 +5,14 @@
 W05 PASS; first-host four-profile package startup and volume-preserving
 relaunch PASS. The local W10 provider/recovery matrix also passes, but overall
 release readiness remains AT_RISK. ADR-023 resolves policy/signing through an
-unsigned, narrower support boundary. Run `rc4` as a preliminary browser-
-download diagnostic, then rebuild documentation-aligned CPU/CUDA image and
-control-ZIP identities because `docs/` is present in both surfaces. Final
-browser-download and independent-host repetition remain required. Exact-`rc4`
-first-host reboot persistence remains valid evidence.
-**Publication state**: Control ZIPs and the asset ZIP are assembled locally but
-not published. No `latest` tag was promoted.
+unsigned, narrower support boundary. The `rc4` preliminary browser-download
+diagnostic and the same-source documentation-aligned RC8 image/control-ZIP
+rebuild are complete. Final exact-RC8 browser-download and independent-host
+repetition remain required. Exact-`rc4` first-host reboot persistence remains
+valid regression evidence.
+**Publication state**: The RC8 control ZIPs are assembled locally but are not
+published. The retained asset bytes are verified but were not duplicated under
+the RC8 filename. No `latest` tag was promoted.
 
 PR #92 (`cbb574f`) and PR #93 (`fba9dcb`) merged after the retained `rc3`
 artifacts were assembled. The final local candidate is therefore `rc4`, built

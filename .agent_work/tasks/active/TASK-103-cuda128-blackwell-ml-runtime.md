@@ -10,7 +10,8 @@ local documentation-aligned `rc5` rehearsal from `a24d369` passed build,
 health, device, package-integrity, and documentation-parity checks. ADR-024
 then resolved the bounded security delta, and the same-source RC8 CPU/CUDA
 registry images pass local and exact-published-digest security qualification.
-Digest-pinned control ZIPs, final browser-download validation, and
+Their digest-pinned control ZIPs are locally assembled and verified. Owner-
+authorized package publication, final browser-download validation, and
 independent-host evidence remain
 **Priority**: CRITICAL
 **Type**: C (ML Runtime Migration / Release Qualification)
@@ -159,8 +160,10 @@ weakening model correctness, device, security, persistence, or recovery gates.
 - [x] Resolve policy/signing scope through ADR-023.
 - [x] Complete the preliminary `rc4` browser-download Docker CPU shakedown and
   disposition its findings for Task-092.
-- [ ] Complete the documentation-aligned image/package rebuild and final exact-candidate
-  browser-download and independent-host cells.
+- [x] Complete the documentation-aligned RC8 image/package rebuild and local
+  integrity validation.
+- [ ] Publish the owner-approved exact RC8 assets, then complete final
+  exact-candidate browser-download and independent-host cells.
 
 ## Acceptance Boundary
 

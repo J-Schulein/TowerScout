@@ -45,7 +45,7 @@ publication remains owner-gated.
 - `J-Schulein` approved the documentation content freeze at `524ba37`. The
   bounded post-freeze reproducibility corrections landed at `f8e191d`, PR #94
   merged as `fc97b32`, and post-merge CI passed. No documentation review
-  blocker remains before the clean-source rebuild.
+  blocker remained for the now-completed clean-source RC8 rebuild.
 - PR #95 merged the bounded project-state reconciliation as `a24d369`. PR #96
   then merged the application `urllib3==2.8.0` correction as `b0725e7`; all
   applicable post-merge checks passed. Retained Trivy evidence shows that ten
@@ -139,8 +139,8 @@ Current scope:
 - Keep the confirmed `rc4` CPU/CUDA runtime evidence. The `rc4` images and
   control ZIPs remain the regression baseline but are not the final
   documentation-aligned distribution: repository `docs/` is copied into both
-  surfaces. Rebuild under new identities after Task-092 content freeze and do
-  not publish packages or promote `latest` without owner authorization.
+  surfaces. The same-source RC8 image and package rebuild is complete. Do not
+  publish packages or promote `latest` without owner authorization.
 
 ### **TASK-104: RC5 Security Gate And Residual Disposition**
 
@@ -308,12 +308,14 @@ and explicit authorization.
    diagnostic evidence, then incorporate applicable findings into Task-092.
 8. [x] Freeze Task-092 content, merge the accepted documentation through PR
    #94, and confirm post-merge CI.
-9. [ ] Complete ADR-024/TASK-104, merge the bounded security correction, then
-   freeze the reconciled accepted-main source and rebuild
-   documentation-aligned CPU/CUDA images and control ZIPs under new identities;
-   publish authoritative hashes before final extraction testing or tester
-   distribution.
-10. [ ] Complete W10 four-profile and independent-host reproduction; otherwise
+9. [x] Complete ADR-024/TASK-104, merge the bounded security correction,
+   freeze the reconciled accepted-main source, and rebuild and locally verify
+   documentation-aligned CPU/CUDA images and control ZIPs under the RC8
+   identities.
+10. [ ] After owner authorization, publish the exact RC8 assets and
+   authoritative hashes before final browser-download extraction testing or
+   tester distribution.
+11. [ ] Complete W10 four-profile and independent-host reproduction; otherwise
    report only the exact qualified subset.
 
 ## Runtime Coordination

@@ -12,7 +12,8 @@ PR #99 corrected that assertion, and PR #100 added read-only exact-digest
 recovery plus immutable-tag overwrite/race protection. PR #101 recorded the
 RC5 evidence, then the same-source RC8 CPU and CUDA registry digests passed G10
 with `push_latest=false`. Security/publication correction is complete;
-digest-pinned package and final acceptance remain
+digest-pinned packages are locally assembled and verified. Owner-authorized
+package publication and final acceptance remain
 **Priority**: CRITICAL
 **Type**: C (Release Security / Container Publication)
 **Owner**: `J-Schulein` until handoff; `cdcai` thereafter
@@ -55,8 +56,10 @@ security gate passes. Preserve the accepted 396-key baseline unchanged.
 - [x] Obtain reviewed merge and green exact-head/post-merge CI.
 - [x] After separate owner dispatch authorization, publish immutable versioned
   images with `push_latest=false` and confirm exact-digest G10 evidence.
-- [ ] Assemble digest-pinned packages and complete the final browser-download
-  and independent-host four-profile matrix under Tasks 091/092/093/097/103.
+- [x] Assemble and locally verify digest-pinned CPU and CUDA 12.8 packages.
+- [ ] After separate owner authorization, publish the exact package assets and
+  complete the final browser-download and independent-host four-profile matrix
+  under Tasks 091/092/093/097/103.
 
 ## Local Validation Record - October 7, 2026
 
