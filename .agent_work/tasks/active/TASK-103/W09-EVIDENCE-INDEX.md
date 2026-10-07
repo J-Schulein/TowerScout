@@ -14,10 +14,12 @@ valid regression evidence.
 published. The retained asset bytes are verified but were not duplicated under
 the RC8 filename. No `latest` tag was promoted.
 
-PR #92 (`cbb574f`) and PR #93 (`fba9dcb`) merged after the retained `rc3`
-artifacts were assembled. The final local candidate is therefore `rc4`, built
-from accepted `main` at `541622556fb7999ee4e88fb1e44f7797b9da34f5`.
-The `rc3` identities remain historical qualification evidence only.
+**Superseded RC4/RC3 context**: PR #92 (`cbb574f`) and PR #93 (`fba9dcb`)
+merged after the retained `rc3` artifacts were assembled. That produced the
+now-superseded `rc4` candidate from accepted `main` at
+`541622556fb7999ee4e88fb1e44f7797b9da34f5`. The `rc4` and `rc3` identities
+remain historical regression/qualification evidence only; they are not
+publication inputs. The RC8 inventory below is the sole current candidate.
 
 ## Same-Source RC8 Local Package Inventory
 
