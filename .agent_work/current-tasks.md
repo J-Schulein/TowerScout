@@ -239,12 +239,13 @@ Current scope:
 
 ### **TASK-091: Owner-Runnable Release Qualification**
 
-**Status**: AT_RISK - local `rc4` W05/W09 and four-profile first-host
-provider, cancellation/error recovery, review/export, and stop/relaunch cells
-pass, including exact-`rc4` reboot persistence. ADR-023 resolves policy/signing
-by narrowing the supported environment. The preliminary `rc4` browser-download
-Docker CPU diagnostic passed and now informs Task-092; it does not replace the
-final exact-candidate browser-download and independent-host evidence
+**Status**: AT_RISK - historical `rc4` qualification and the preliminary
+browser-download diagnostic pass. RC8 browser acceptance then exposed the
+Podman cancellation race, so RC8 is superseded for final acceptance. The
+reviewed correction and exact security amendment are included in the locally
+verified RC9 image/package pair. RC9 prerelease publication, exact browser-
+download testing, affected-profile repetition, and independent-host evidence
+remain
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-091-owner-runnable-release-qualification.md`
 
@@ -254,9 +255,9 @@ Current scope:
   ADR-023 policy inputs, fixtures, and provider-account prerequisites.
 - Attempt an extracted real control-package setup immediately when verified
   package and asset ZIPs are available; do not substitute a source build.
-- Use `rc4` first for a clearly labeled, non-qualifying browser-download
-  diagnostic; preserve findings, then repeat final acceptance against the
-  documentation-aligned image/package identities.
+- Preserve `rc4` as the clearly labeled, non-qualifying browser-download
+  diagnostic and RC8 as defect-reproduction evidence. Run final acceptance
+  only against the exact browser-downloaded RC9 image/package identities.
 - Extend truthful external combined-model qualification under W05, then bind
   W09/W10 evidence to exact ZIP hashes and image digests.
 - Report `pass`, `fail`, `blocked`, `not_run`, or justified `not_applicable`;
@@ -283,14 +284,13 @@ Current scope:
 ### **TASK-092: Documentation Currentness And Information Architecture**
 
 **Status**: IN_PROGRESS - `rc4` and five review rounds are dispositioned;
-`J-Schulein` approved the content freeze at `524ba37`, bounded follow-up fixes
-landed at `f8e191d`, PR #94 merged as `fc97b32`, and PR #95 merged the bounded
-state reconciliation as `a24d369`. Local `rc5` image/package documentation
-parity passes, the same-source RC8 image identities are frozen, and their
-digest-pinned control ZIPs are published in the RC8 validation prerelease.
-Complete live permission verification, exact-browser-downloaded-package/
-running-image Help validation, publication checks, screenshots/video, and the
-final W09/W10 gates
+the frozen documentation is merged through PR #94. RC8 documentation-bearing
+packages were published, but RC8 is superseded for final acceptance by the
+Podman cancellation defect. The corrected same-source RC9 images pass exact-
+digest qualification and their locally assembled control ZIPs preserve the
+frozen documentation. After separately authorized RC9 publication, complete
+live permission verification, exact-browser-downloaded-package/running-image
+Help validation, screenshots/video, and the final W09/W10 gates
 **Priority**: HIGH
 **Task File**: `.agent_work/tasks/active/TASK-092-documentation-currentness.md`
 
