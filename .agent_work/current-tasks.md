@@ -249,9 +249,9 @@ Current scope:
 browser-download diagnostic pass. RC8 browser acceptance then exposed the
 Podman cancellation race, so RC8 is superseded for final acceptance. The
 reviewed correction and exact security amendment are included in the locally
-verified RC9 image/package pair. RC9 prerelease publication, exact browser-
-download testing, affected-profile repetition, and independent-host evidence
-remain
+verified RC9 image/package pair, and the non-Latest RC9 prerelease is
+published. Exact browser-download testing, affected-profile repetition, and
+independent-host evidence remain
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-091-owner-runnable-release-qualification.md`
 
