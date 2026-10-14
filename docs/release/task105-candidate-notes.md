@@ -1,28 +1,43 @@
 # Task-105 Candidate Notes — Qualification In Progress
 
-These notes describe the intended Windows 11 CPU and CUDA 12.8 candidate.
-The final `v0.1.3-rc.N` identity, downloads, SHA-256 values, image digests,
-and support matrix will be filled in only after accepted-source builds and
-exact browser-download testing. RC9 remains a validation prerelease and is
-not a final release.
+The corrected Windows 11 CPU and CUDA 12.8 validation candidate is the
+immutable, non-Latest `v0.1.3-rc5` prerelease from accepted `main`
+`835cbb910573a931350c5b704d14496952d7ef87`. Its exact browser-downloaded
+control and asset ZIPs passed first-host integrity checks. Docker CPU/CUDA and
+Podman CPU/CUDA passed real model and provider workflows, lifecycle checks,
+and reboot persistence on that host. The separate NVIDIA host must repeat all
+four profiles before final-candidate qualification. RC9 remains historical
+validation evidence; no stable release is implied.
+
+| Published input | SHA-256 |
+| --- | --- |
+| CPU control ZIP | `dfcc653eef4d0c9666604d6455797c123b757d92d4507ad1d451032f5cdd7a8f` |
+| CUDA 12.8 control ZIP | `c418e1948ed2719cd8c3678b612addccf468a139aafc97f99d3f4bd7676974d0` |
+| Shared asset ZIP | `00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb` |
+
+The CPU image digest is
+`sha256:833dbe0d0097ffcc9e52dcf39d64f25cf503c3c9ffc806f55c42b60e452845d5`;
+the CUDA image digest is
+`sha256:df0f30ac1bed4514d50c5b11eeac4ea64e38e6575bb209448fea4c53e5347890`.
+The three `.sha256` sidecars and internal package checksums also passed.
 
 ## Tested GPU evidence
 
-- NVIDIA RTX PRO 500 Blackwell Generation Laptop GPU (`sm_120`): the RC9
+- NVIDIA RTX PRO 500 Blackwell Generation Laptop GPU (`sm_120`): the RC5
   first host passed Docker and rootless Podman CUDA 12.8 workflows with both
   YOLO and EfficientNet on CUDA and no CPU fallback.
 - NVIDIA T1000 (`sm_75`): one independent Windows host passed the RC9 Docker
   and rootless Podman CUDA 12.8 profiles with both models on CUDA, subject to
   the Task-105 fresh-install and UI findings.
 
-These are GPU models observed in the retained RC9 evidence, not a blanket
-claim for every driver, Windows build, WSL version, or engine version. The
-corrected final candidate must repeat Docker CPU/CUDA and Podman CPU/CUDA on
-both available Windows NVIDIA hosts using the exact public bytes. CPU-only
-hardware and Podman without Docker Desktop installed are outside the tested
+These are GPU models observed in the RC5 first-host and retained RC9 evidence,
+not a blanket claim for every driver, Windows build, WSL version, or engine
+version. The independent NVIDIA host must still repeat Docker CPU/CUDA and
+Podman CPU/CUDA using the exact RC5 public bytes. CPU-only hardware and Podman
+without Docker Desktop installed are outside the tested
 claim. The CUDA package expects Volta or newer; an architecture present in a
-wheel alone does not
-qualify an untested GPU. Maxwell and Pascal use the CPU package.
+wheel alone does not qualify an untested GPU. Maxwell and Pascal use the CPU
+package.
 
 ## Tested support boundary
 

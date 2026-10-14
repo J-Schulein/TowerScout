@@ -40,6 +40,8 @@ volumes, configured providers, assets, correct devices and digests, and normal
 TLS. The owner restored datasets, used review controls, and downloaded new
 files in each; the new dataset ZIPs parsed cleanly. The Podman Windows client
 socket required one volume-preserving machine stop/start to recover. The
+owner subsequently confirmed CPU browser cancel/retry and public ZIP lookup
+on both engines, closing the remaining first-host browser cells. The
 independent four-profile rerun remains open.
 TASK-105 also owns the cdcai handoff packet.
 The Task-087 launcher
@@ -299,6 +301,12 @@ downloaded new files in each; two dataset ZIPs parsed with clean CRCs. The two
 retained RC9 containers needed explicit start and returned healthy. This host's
 four-profile reboot-persistence gate now passes. Independent-host
 qualification remains open.
+The owner subsequently confirmed Podman CPU and Docker CPU browser
+cancel/retry excluded cancelled results, succeeded on retry, and navigated from
+a public ZIP lookup. Docker CPU/CUDA were restored through the shipped scripts
+after that check and are ready, healthy, with both providers configured,
+correct devices and digests, and eight named volumes each. The Podman machine
+is stopped for Docker coexistence.
 This host's default Python 3.14 caused the pinned provider install to fail;
 selecting installed Python 3.12 through the shipped
 helper succeeded on ordinary retry. This tested-prerequisite deviation is

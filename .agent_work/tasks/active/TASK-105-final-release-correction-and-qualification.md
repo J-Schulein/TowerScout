@@ -197,6 +197,13 @@ started and returned healthy. This host's four-profile reboot-persistence gate
 passes. The Python 3.12 selection deviation remains recorded; no CPU-only or
 Podman-without-Docker claim follows from these results. The exact RC5
 independent-host four-profile run remains required.
+The owner then repeated browser cancel/retry and public ZIP lookup on the
+Podman CPU and Docker CPU apps. Both reported cancelled results excluded from
+the map/list, successful next search, and ZIP map navigation. The previously
+recorded CUDA checks cover the same changed behavior on both engines. Docker
+CPU/CUDA were restored via shipped scripts and finished ready and healthy,
+with the correct device/digest, both configured providers, and eight named
+volumes each. The Podman machine is stopped while Docker Desktop runs.
 
 ## Objective
 
@@ -414,7 +421,7 @@ Every row must end as `fixed`, `verified_no_change`, or
   candidate image, provider installation from both shell parents, ordinary
   retry after an injected safe failure, selected-provider reporting, mixed-
   runtime recovery, exports, and late cancellation.
-- [ ] Complete the full Docker CPU, Docker CUDA, Podman CPU, and Podman CUDA
+- [x] Complete the full Docker CPU, Docker CUDA, Podman CPU, and Podman CUDA
   workflow against the exact downloaded packages: providers, managed TLS,
   ZIP lookup, real models/device, cancel/retry, controlled recovery, review,
   exports, stop/relaunch, and reboot.
