@@ -2,9 +2,12 @@
 
 **Status**: IN_PROGRESS - Task-105 corrections merged through PRs #109 and
 #110. The same-source CPU/CUDA `v0.1.3-rc5` images and immutable, non-Latest
-prerelease passed publication and integrity gates. Exact browser-downloaded
-four-profile qualification on both ADR-025 hosts remains open. The first-host
-setup preflight currently stops at the required 15 GB free-space check.
+prerelease passed publication and integrity gates. Browser-downloaded integrity,
+File Explorer extraction, exact-package Docker CPU/CUDA installation, and
+combined-model device probes pass on the first host. Podman CPU/CUDA setup,
+combined-model probes, provider and browser workflows, exports, and shipped
+lifecycle checks pass. The bidirectional engine switch and dataset restore
+pass. Reboot and independent-host qualification remain open.
 **Priority**: CRITICAL
 **Type**: C (Runtime Correction / Release Qualification / Handoff)
 **Estimated Effort**: 3-5 working days for implementation, review, builds, and
@@ -46,6 +49,130 @@ Podman CPU `-VerifyOnly` rehearsal passed release manifest and both ZIP
 checksums, then stopped because C: had 11.65 GB free against the shipped
 15 GB minimum. After deduplicating task-owned staging, C: had 12.39 GB free.
 No runtime profile is credited as a pass from that rehearsal.
+
+**RC5 first-host checkpoint (2026-10-14)**: The owner freed space, then used a
+browser to download all six immutable release files. Every file's size and
+SHA-256 matched the current GitHub release record and the three sidecars;
+the downloaded ZIPs retained `ZoneId=3`. File Explorer extraction into a path
+with spaces retained `ZoneId=3` on the CPU/CUDA entry scripts and manifest.
+Both control folders passed release-manifest and 74 internal checksum checks.
+The exact CPU and CUDA packages passed `-VerifyOnly`, fresh Docker image pull,
+asset import and hash verification, and launch on ports 5315/5316 with their
+pinned digests and CPU/CUDA device policies. Docker CPU had a Google TLS error;
+the guided repair selected the previously approved host CA, applied normal TLS
+verification, and passed the shipped volume-preserving stop/start. The same CA
+and repair path passed for Docker CUDA. Invalid test keys reached Google and
+Azure over normally verified TLS in both profiles. The owner reports that
+Google and Azure are configured in Docker CPU. The fixed 12-tile combined
+YOLO/EfficientNet fixture passed in each image: 54 detections and expected
+outputs, with both models on CPU for CPU and CUDA for CUDA. The published CPU
+image also passed an explicit CUDA-required/unavailable negative probe.
+Private raw logs and probe JSON stay under ignored `dist/task105-rc5-evidence`.
+The owner then reported live Google and Azure model runs in both Docker CPU and
+CUDA browser sessions and successful download controls. The host's Downloads
+folder held two new parseable CSV files (38 and 44 rows), two valid KML files
+(24 placemarks each), and two dataset ZIPs (26 entries each, both CRC-clean).
+No exported coordinates or contents enter repository evidence. Both apps
+reported both provider-configured booleans, and a public-place forward geocode
+used the requested provider in each of the four app/provider combinations.
+A public ZIP lookup returned HTTP 200 and an invalid ZIP then valid retry gave
+HTTP 400 then 200 on both ports. The served app's four local Help pages were
+byte-identical to each profile's extracted package pages. Docker CUDA's full
+combined probe passed one warm-up and three measured runs at a 2.633402-second
+median, 4.71% faster than the earlier same-host RC4 baseline with identical
+fixture tile hashes and final normalized results. Its identity/kernel and
+injected-secondary-failure/clean-follow-up probes passed. Docker CPU's same
+one-warm-up/three-measured combined probe passed at a 49.606243-second median,
+1.21% faster than the earlier same-host RC4 baseline with identical fixture
+tile hashes and final normalized results. The owner reports CUDA browser
+cancel/retry and ZIP navigation succeeded. Both profiles then passed their
+shipped volume-preserving stop/start; readiness, exact digest, intended device,
+eight original named volumes, both provider configured booleans, asset checks,
+and Google/Azure normal TLS status persisted. The owner refreshed both browser
+sessions, found the review state usable, downloaded fresh dataset archives, and
+restored results through each app's `Restore Dataset` control. Three new ZIPs
+observed after relaunch opened and passed CRC checks (14 entries each); raw
+archive contents remain private. Reboot, Podman, and independent-host cells
+remain open; these Docker profiles are not yet full acceptance passes.
+
+The owner then extracted separate Podman CPU/CUDA copies using File Explorer
+from the same verified browser downloads, preserving `ZoneId=3` and a path
+with spaces. Both passed all 74 internal checksums and release manifests.
+Docker Desktop was closed before the rootless Podman runs. The fresh Podman
+CPU and CUDA images pulled successfully; the first CUDA pull completed without
+a false CDI timeout. Each package selected its verified package-local Compose
+provider, imported the asset bundle, and reached the intended CPU or CUDA
+device at the pinned digest. A guided CA repair used the same previously
+approved host CA as Docker, verified normal Google TLS, and survived shipped
+stop/start. The fixed 12-tile YOLO/EfficientNet probe passed on both Podman
+profiles with 54 detections, expected normalized results, and the intended
+device for both models. Podman CUDA also passed its Task-103 identity/kernel,
+one-warm-up/three-measured combined, and injected classifier failure followed
+by a clean run. Its four served Help pages were byte-identical to the exact
+extracted package pages. Normal Google/Azure TLS transport from both restarted
+containers passed without keys or disabled verification (Google HTTP 200,
+Azure HTTP 401 without credentials). The Podman CPU one-warm-up/three-measured
+combined probe passed at a 44.923575-second median; Podman CUDA's median was
+2.508349 seconds. All four Docker/Podman combined probes used the identical
+frozen tile hashes and passed their expected outputs. Browser workflows remain
+open, so neither Podman profile is yet a full
+acceptance pass.
+
+The host's default `python` resolves to Python 3.14.7. The shipped Podman
+Compose installer initially failed because the pinned PyYAML 6.0.2 wheel is
+not available for that interpreter. Installed Python 3.12.10 was then selected
+through the shipped helper's `-Python` option; an ordinary retry installed the
+approved package-local provider, with no force or manual deletion. The user
+guide calls for Python 3.12 but its example invokes the default `python` and
+does not show interpreter selection. This host-specific prerequisite deviation
+and documentation gap remain open for disposition; it is not a clean beginner
+default-path pass. Private provider logs and wheel evidence remain ignored.
+
+The owner configured both approved providers through each Podman app without
+sharing keys. Both `/api/config/status` responses show Google and Azure
+configured; a public-place forward geocode selected the requested provider in
+all four Podman app/provider combinations. Both public ZIP lookup endpoints
+returned HTTP 200 on retry after a 25-second first-request timeout while the
+apps were under initial-use workload. Direct browser model and export behavior
+then passed owner observation on both Podman profiles with
+Google and Azure: maps loaded, bounded model searches and result views worked,
+and the separate CSV/KML/dataset controls downloaded files. Three new CSVs
+(42, 43, and 43 data rows), three XML-valid KMLs (22, 31, and 27 placemarks),
+and three dataset ZIPs (26 entries each, CRC-clean) were independently found
+in Downloads. The exact association between these three export sets and the
+four app/provider searches was not collected; per-provider export coverage is
+not inferred. The owner confirmed Podman CUDA browser cancel/retry, with
+cancelled results excluded and a successful next request, and public ZIP
+navigation. Both Podman profiles then passed their shipped volume-preserving
+stop/start: the original eight named volumes in each, both provider configured
+booleans, assets, intended CPU/CUDA device, pinned digest, and normal
+Google/Azure TLS persisted. After refresh, the owner observed that the prior
+in-memory result view was no longer visible, as expected; restoring previously
+downloaded datasets worked without error. A new post-restart download from
+each app was then verified. Reboot remains open.
+The owner confirmed fresh post-restart downloads on both Podman apps; two new
+CSVs (29 data rows each), two XML-valid KMLs (13 and 10 placemarks), and two
+dataset ZIPs (14 entries each, CRC-clean) were independently found. Both RC5
+Podman containers stopped via their shipped scripts without volume removal.
+The rootless Podman machine stopped, Docker Desktop started cleanly, and both
+previously tested RC5 Docker packages restarted through their shipped scripts.
+Each Docker profile retained all eight named volumes created before the switch,
+both provider configured booleans, assets, intended device, exact digest, and
+normal Google/Azure TLS. The old RC9 Podman containers were still running
+before the machine stop and have `always` restart policy. The owner confirmed
+Docker CPU/CUDA browser dataset restore, review controls, and fresh downloads;
+two dataset ZIPs (27 entries each, CRC-clean), one XML-valid KML, and one CSV
+were independently found after the switch. Docker browser recovery passed.
+The shipped Docker stops and Docker Desktop quit then succeeded. The rootless
+Podman machine restarted; its RC9 containers did not auto-start despite the
+`always` policy, so the two existing containers were explicitly started and
+returned healthy without changing their volumes. The shipped RC5 Podman starts
+then passed. Each RC5 profile retained its exact original eight named volumes,
+both configured providers, assets, intended device, exact pinned digest,
+selected package-local Compose provider, and normal Google/Azure TLS. The
+owner refreshed both RC5 Podman apps and confirmed dataset restore and review
+controls work after the full engine round trip. Reboot and independent-host
+qualification remain open.
 
 ## Objective
 
@@ -363,6 +490,7 @@ Every row must end as `fixed`, `verified_no_change`, or
 ## Evidence
 
 - [RC9 independent-host sanitized evidence intake](./TASK-105/RC9-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-14.md)
+- [RC5 independent-host run sheet](./TASK-105/RC5-INDEPENDENT-HOST-RUN-2026-10-14.md)
 - RC9 source report and sanitized ZIP remain outside the repository under the
   release owner's evidence custody.
 
