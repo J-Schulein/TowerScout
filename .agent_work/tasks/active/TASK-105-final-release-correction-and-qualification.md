@@ -1,21 +1,51 @@
 # TASK-105: Final Release Correction And Qualification
 
-**Status**: IN_PROGRESS - RC9 independent-host evidence is accepted as a
-strong four-profile pass on one NVIDIA host, but its fresh-install findings and
-the corrected-candidate two-host rerun prevent a final release claim. Planning and
-evidence intake are complete; bounded corrections are under local regression
-review and have not been merged or qualified as a final candidate.
+**Status**: IN_PROGRESS - Task-105 corrections merged through PRs #109 and
+#110. The same-source CPU/CUDA `v0.1.3-rc5` images and immutable, non-Latest
+prerelease passed publication and integrity gates. Exact browser-downloaded
+four-profile qualification on both ADR-025 hosts remains open. The first-host
+setup preflight currently stops at the required 15 GB free-space check.
 **Priority**: CRITICAL
 **Type**: C (Runtime Correction / Release Qualification / Handoff)
 **Estimated Effort**: 3-5 working days for implementation, review, builds, and
 first-host qualification, plus the availability of the remaining independent
 Windows hosts
 **Owner**: `J-Schulein` until handoff; `cdcai` thereafter
-**Working Candidate Identity**: The next unused `v0.1.3-rc.N`, selected only
-after checking GitHub releases/drafts, Git tags, and GHCR tags; publish only as
-an immutable, non-Latest fork prerelease
+**Working Candidate Identity**: `v0.1.3-rc5`, immutable and non-Latest, from
+accepted `main` `835cbb910573a931350c5b704d14496952d7ef87`
 **Official Release Identity**: Selected with the `cdcai` owner at adoption;
 the candidate name does not reserve or authorize `v0.1.3` final
+
+**RC5 publication checkpoint (2026-10-14)**: PR #109 merged as `08ac8ef` and
+PR #110 as `835cbb9`; accepted source is
+`835cbb910573a931350c5b704d14496952d7ef87`. Authorized CPU and CUDA
+publish runs `38609314677` and `38609372836` passed local and exact-published-
+digest security checks with baseline 396, candidate 79, five accepted residuals,
+zero blockers, and zero severity escalations. The pinned image digests are CPU
+`sha256:833dbe0d0097ffcc9e52dcf39d64f25cf503c3c9ffc806f55c42b60e452845d5`
+and CUDA
+`sha256:df0f30ac1bed4514d50c5b11eeac4ea64e38e6575bb209448fea4c53e5347890`.
+The clean-source control ZIP hashes are CPU
+`dfcc653eef4d0c9666604d6455797c123b757d92d4507ad1d451032f5cdd7a8f`
+and CUDA
+`c418e1948ed2719cd8c3678b612addccf468a139aafc97f99d3f4bd7676974d0`;
+the shared asset ZIP is
+`00599cc4fe9f2bdb4708c669d7c3d9a8a570a0c3b547bc5c317026196c7bacbb`.
+All three sidecars and internal control-package checksums passed. The first
+publication reported `isImmutable=false`; with separate owner approval, that
+release and tag were removed, repository release immutability was enabled,
+and the identical six bytes were republished. GitHub now reports
+`isImmutable=true`, `isPrerelease=true`, and the accepted source tag; `v0.1.2`
+remains Latest. All six assets downloaded through GitHub CLI from the first
+publication matched its published sizes and SHA-256 values; the immutable
+replacement reports the same six hashes and sizes, and `gh release verify`
+validated GitHub's signed release attestation for the accepted source and all
+six assets. This is a public-byte
+integrity check, not the required browser-download/Mark-of-the-Web proof. The first-host
+Podman CPU `-VerifyOnly` rehearsal passed release manifest and both ZIP
+checksums, then stopped because C: had 11.65 GB free against the shipped
+15 GB minimum. After deduplicating task-owned staging, C: had 12.39 GB free.
+No runtime profile is credited as a pass from that rehearsal.
 
 ## Objective
 
@@ -210,18 +240,18 @@ Every row must end as `fixed`, `verified_no_change`, or
 
 ### Phase 5 - Freeze and publish the corrected final candidate
 
-- [ ] Freeze one accepted `main` source commit after both correction PRs merge.
-- [ ] Recheck ADR-024 residual versions, severities, fix availability, and
+- [x] Freeze one accepted `main` source commit after both correction PRs merge.
+- [x] Recheck ADR-024 residual versions, severities, fix availability, and
   expiry before dispatch. Any changed/new/expired finding blocks.
-- [ ] With separate owner authorization, dispatch CPU and CUDA 12.8 images with
+- [x] With separate owner authorization, dispatch CPU and CUDA 12.8 images with
   `push_latest=false`. Require local scan-before-login and exact-published-
   digest confirmation for both flavors.
-- [ ] Assemble clean-source, digest-pinned CPU and CUDA control ZIPs using the
+- [x] Assemble clean-source, digest-pinned CPU and CUDA control ZIPs using the
   selected `v0.1.3-rc.N` identity and reuse only the exact verified asset ZIP.
-- [ ] Verify authoritative sidecars, all internal checksums, manifests,
+- [x] Verify authoritative sidecars, all internal checksums, manifests,
   licenses/notices, forbidden-file inventory, Help parity, and package secret
   hygiene.
-- [ ] With separate owner authorization, publish the selected `v0.1.3-rc.N` as an
+- [x] With separate owner authorization, publish the selected `v0.1.3-rc.N` as an
   immutable, non-Latest GitHub prerelease. Do not upload mutable replacement
   assets.
 

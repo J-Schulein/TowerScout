@@ -17,8 +17,14 @@ reboot persistence now pass. One independent NVIDIA host also passed all four
 profiles, but exposed beginner-path runtime/documentation/export findings and
 did not satisfy the original CPU-only/Podman-without-Docker allocation.
 ADR-025 now selects a corrected-candidate four-profile run on this machine
-and that independent NVIDIA host. TASK-105 owns the bounded corrections, the next immutable
-`v0.1.3-rc.N` final-candidate qualification, and the cdcai handoff packet.
+and that independent NVIDIA host. TASK-105 corrections merged through PRs
+#109/#110 at accepted `main` `835cbb9`. The same-source `v0.1.3-rc5` CPU/CUDA
+images passed strict local and exact-digest gates, and the six-file GitHub
+prerelease is immutable and non-Latest. GitHub-downloaded bytes matched all six
+published hashes. Browser download, first-host four-profile testing, and the
+independent four-profile rerun remain open; first-host setup currently stops at
+the documented 15 GB free-space gate. TASK-105 also owns the cdcai handoff
+packet.
 The Task-087 launcher
 redesign remains preserved and deferred, not a release gate.
 
