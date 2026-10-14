@@ -35,7 +35,12 @@ Both Podman profiles passed exact-package setup, intended devices, real
 combined-model probes, provider setup, browser workflows, exports, and shipped
 stop/relaunch. The bidirectional engine switch preserved both RC5 Docker and
 Podman installations; dataset restore and review controls worked after each
-switch. Reboot and the independent four-profile rerun remain open.
+switch. After the Windows reboot, all four profiles retained their original
+volumes, configured providers, assets, correct devices and digests, and normal
+TLS. The owner restored datasets, used review controls, and downloaded new
+files in each; the new dataset ZIPs parsed cleanly. The Podman Windows client
+socket required one volume-preserving machine stop/start to recover. The
+independent four-profile rerun remains open.
 TASK-105 also owns the cdcai handoff packet.
 The Task-087 launcher
 redesign remains preserved and deferred, not a release gate.
@@ -281,11 +286,23 @@ The return switch to Podman passed runtime checks for both RC5 profiles and
 their original volumes. Older RC9 containers needed an explicit start after
 the Podman machine restart and are healthy again. The owner confirmed dataset
 restore and review controls work on both Podman profiles after the return
-switch. Reboot and independent-host qualification remain open.
+switch. After a Windows reboot, both Docker profiles passed shipped startup,
+readiness, original eight volumes each, both providers, assets, device, exact
+digest, and normal TLS. The owner restored a dataset, used review controls, and
+downloaded new files in each; two dataset ZIPs parsed with clean CRCs. Docker
+Desktop then quit. The Podman machine reported running but its Windows client
+socket was unavailable; a normal machine stop/start restored the connection
+without changing containers or volumes. Both RC5 Podman profiles passed shipped
+startup, original eight volumes each, both providers, assets, device, exact
+digest, and normal TLS. The owner restored a dataset, used review controls, and
+downloaded new files in each; two dataset ZIPs parsed with clean CRCs. The two
+retained RC9 containers needed explicit start and returned healthy. This host's
+four-profile reboot-persistence gate now passes. Independent-host
+qualification remains open.
 This host's default Python 3.14 caused the pinned provider install to fail;
 selecting installed Python 3.12 through the shipped
-helper succeeded on ordinary retry. Record that prerequisite deviation before
-any first-host pass claim.
+helper succeeded on ordinary retry. This tested-prerequisite deviation is
+recorded in the task; the guide's default-`python` example remains a docs gap.
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-105-final-release-correction-and-qualification.md`
 

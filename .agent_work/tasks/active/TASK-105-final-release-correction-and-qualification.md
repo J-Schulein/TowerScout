@@ -7,7 +7,9 @@ File Explorer extraction, exact-package Docker CPU/CUDA installation, and
 combined-model device probes pass on the first host. Podman CPU/CUDA setup,
 combined-model probes, provider and browser workflows, exports, and shipped
 lifecycle checks pass. The bidirectional engine switch and dataset restore
-pass. Reboot and independent-host qualification remain open.
+pass. All four first-host profiles now also pass reboot persistence, including
+dataset restore and new exports. The independent-host qualification remains
+open.
 **Priority**: CRITICAL
 **Type**: C (Runtime Correction / Release Qualification / Handoff)
 **Estimated Effort**: 3-5 working days for implementation, review, builds, and
@@ -171,8 +173,30 @@ then passed. Each RC5 profile retained its exact original eight named volumes,
 both configured providers, assets, intended device, exact pinned digest,
 selected package-local Compose provider, and normal Google/Azure TLS. The
 owner refreshed both RC5 Podman apps and confirmed dataset restore and review
-controls work after the full engine round trip. Reboot and independent-host
-qualification remain open.
+controls work after the full engine round trip. At this checkpoint, reboot and
+independent-host qualification remained open.
+
+**RC5 first-host reboot checkpoint (2026-10-14)**: Windows rebooted after the
+bidirectional engine switch. Docker Desktop started cleanly, and both exact
+RC5 Docker packages started through their shipped scripts. CPU and CUDA each
+retained the original eight named volumes, both provider-configured booleans,
+assets, intended device, pinned digest, and normal Google/Azure TLS. The owner
+refreshed both apps, restored previously downloaded datasets, used the review
+controls, and downloaded new files without error. Two new dataset ZIPs (27
+entries each) opened and passed CRC checks. The shipped Docker stops and Docker
+Desktop quit succeeded. The rootless Podman machine appeared running, but its
+Windows client socket refused connections; a normal machine stop/start restored
+the connection without deleting containers or volumes. Both exact RC5 Podman
+packages then started through their shipped scripts, selected the intended
+CPU/CUDA devices and pinned digests, and retained their original eight named
+volumes, both configured providers, assets, and normal Google/Azure TLS. The
+owner refreshed both Podman apps, restored datasets, used review controls, and
+downloaded new files without error. Two new dataset ZIPs (27 entries each)
+opened and passed CRC checks. The two retained RC9 containers were explicitly
+started and returned healthy. This host's four-profile reboot-persistence gate
+passes. The Python 3.12 selection deviation remains recorded; no CPU-only or
+Podman-without-Docker claim follows from these results. The exact RC5
+independent-host four-profile run remains required.
 
 ## Objective
 
@@ -384,7 +408,7 @@ Every row must end as `fixed`, `verified_no_change`, or
 
 ### Phase 6 - Qualify the exact public bytes
 
-- [ ] On the first host, browser-download the six public assets and verify the
+- [x] On the first host, browser-download the six public assets and verify the
   release-page SHA-256 values before extraction.
 - [ ] Run the affected fresh-install tests first: Podman GPU with no local
   candidate image, provider installation from both shell parents, ordinary
