@@ -8,8 +8,10 @@ combined-model device probes pass on the first host. Podman CPU/CUDA setup,
 combined-model probes, provider and browser workflows, exports, and shipped
 lifecycle checks pass. The bidirectional engine switch and dataset restore
 pass. All four first-host profiles now also pass reboot persistence, including
-dataset restore and new exports. The independent-host qualification remains
-open.
+dataset restore and new exports. Independent-host four-profile operational
+evidence has been reviewed; the owner confirms dataset restore and comparable
+same-area live-model testing. Final finding dispositions and qualification
+reconciliation remain open; see the RC5 intake linked below.
 **Priority**: CRITICAL
 **Type**: C (Runtime Correction / Release Qualification / Handoff)
 **Estimated Effort**: 3-5 working days for implementation, review, builds, and
@@ -204,6 +206,15 @@ recorded CUDA checks cover the same changed behavior on both engines. Docker
 CPU/CUDA were restored via shipped scripts and finished ready and healthy,
 with the correct device/digest, both configured providers, and eight named
 volumes each. The Podman machine is stopped while Docker Desktop runs.
+
+**Independent-host clarification (2026-10-16)**: The owner confirms thorough
+dataset download/restore testing passed on the independent host, supplementing
+the supplied report's "not covered" entry. The repeated same-area NYC searches
+are credited as comparative live-model evidence. See the
+[RC5 evidence intake](./TASK-105/RC5-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-16.md)
+for verified artifact identities, extract integrity, provenance, test methods,
+and remaining finding dispositions. The real-model and restore results are
+credited without claiming a frozen-fixture benchmark absent from the packet.
 
 ## Objective
 
@@ -522,6 +533,7 @@ Every row must end as `fixed`, `verified_no_change`, or
 
 - [RC9 independent-host sanitized evidence intake](./TASK-105/RC9-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-14.md)
 - [RC5 independent-host run sheet](./TASK-105/RC5-INDEPENDENT-HOST-RUN-2026-10-14.md)
+- [RC5 independent-host evidence intake and owner clarification](./TASK-105/RC5-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-16.md)
 - RC9 source report and sanitized ZIP remain outside the repository under the
   release owner's evidence custody.
 

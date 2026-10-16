@@ -4,7 +4,11 @@
 
 **Host**: `INDEP-HOST-01`, the separate Windows 11 NVIDIA machine used for the RC9 review
 
-**Status**: Prepared; no corrected-candidate result is credited until this host runs it
+**Status**: Report and extracts reviewed; owner clarification received October 16.
+See the [evidence intake](./RC5-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-16.md)
+for credited results, methods, and unresolved dispositions. The checklist below
+preserves the requested procedure; it is not a claim that every listed method
+has an accompanying report.
 **Candidate**: immutable, non-Latest `v0.1.3-rc5` from accepted `main` `835cbb910573a931350c5b704d14496952d7ef87`
 
 This sheet is for the independent validator. Follow the shipped Quick Start and

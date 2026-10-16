@@ -1,7 +1,7 @@
 # Current Tasks - Final Candidate Build And Acceptance
 
 **Sprint Period**: October 5-October 16, 2026
-**Last Updated**: October 14, 2026
+**Last Updated**: October 16, 2026
 **Focus**: Qualify a dependable, downloadable Windows 11 application from
 accepted `main` across Docker/Podman and CPU/NVIDIA profiles. Documentation
 content is frozen and merged through PR #94, and the project-state
@@ -42,7 +42,13 @@ files in each; the new dataset ZIPs parsed cleanly. The Podman Windows client
 socket required one volume-preserving machine stop/start to recover. The
 owner subsequently confirmed CPU browser cancel/retry and public ZIP lookup
 on both engines, closing the remaining first-host browser cells. The
-independent four-profile rerun remains open.
+independent four-profile RC5 operational report and extracts have now been
+reviewed: all 108 extract hashes/sizes and 61 JSON files verified. The owner
+confirms independent-host dataset download/restore passed and that model
+comparisons used the same public NYC area. Credit these functional results;
+qualification closeout still needs finding dispositions and evidence-method
+reconciliation, as recorded in the
+[RC5 intake](./tasks/active/TASK-105/RC5-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-16.md).
 TASK-105 also owns the cdcai handoff packet.
 The Task-087 launcher
 redesign remains preserved and deferred, not a release gate.
