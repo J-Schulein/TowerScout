@@ -1,13 +1,23 @@
-# Task-105 Candidate Notes — Qualification In Progress
+# Task-105 Candidate Notes — Closeout Review
 
 The corrected Windows 11 CPU and CUDA 12.8 validation candidate is the
 immutable, non-Latest `v0.1.3-rc5` prerelease from accepted `main`
 `835cbb910573a931350c5b704d14496952d7ef87`. Its exact browser-downloaded
 control and asset ZIPs passed first-host integrity checks. Docker CPU/CUDA and
 Podman CPU/CUDA passed real model and provider workflows, lifecycle checks,
-and reboot persistence on that host. The separate NVIDIA host must repeat all
-four profiles before final-candidate qualification. RC9 remains historical
-validation evidence; no stable release is implied.
+and reboot persistence on that host. The separate NVIDIA host also completed
+all four functional profiles, with short-path/Python deviations recorded and
+dataset restore confirmed by the owner. Bounded acceptance of those deviations
+and the comparative model-test method is proposed in
+[ADR-026](../../.agent_work/decisions/026-rc5-bounded-candidate-acceptance.md)
+and remains pending owner review. RC9 is historical evidence. Official cdcai
+adoption, build, publication, and any Latest promotion remain separate gates.
+
+The [operations addendum](rc5-operations-addendum.md) and
+[handoff packet](task105-cdcai-handoff.md) are prepared supplements. They are
+not inside the immutable RC5 downloads or served Help. An approved handoff of
+RC5 must include the accepted supplement; an official package must incorporate
+equivalent guidance and receive its own verified identity.
 
 | Published input | SHA-256 |
 | --- | --- |
@@ -26,16 +36,16 @@ The three `.sha256` sidecars and internal package checksums also passed.
 - NVIDIA RTX PRO 500 Blackwell Generation Laptop GPU (`sm_120`): the RC5
   first host passed Docker and rootless Podman CUDA 12.8 workflows with both
   YOLO and EfficientNet on CUDA and no CPU fallback.
-- NVIDIA T1000 (`sm_75`): one independent Windows host passed the RC9 Docker
-  and rootless Podman CUDA 12.8 profiles with both models on CUDA, subject to
-  the Task-105 fresh-install and UI findings.
+- NVIDIA T1000 8GB (`sm_75`): the independent RC5 host ran Docker and rootless
+  Podman CUDA 12.8 with both models on CUDA and no fallback. It used Windows
+  11 Pro 23H2 build 22631.6199, driver 616.92, WSL 3.0.3, Docker Desktop 4.95.0
+  (Engine 29.8.2), and Podman CLI 6.1.4/server 6.0.2. Podman used explicit
+  Python 3.12.10 and the short-folder workaround.
 
-These are GPU models observed in the RC5 first-host and retained RC9 evidence,
+These are GPU models observed in the RC5 two-host evidence,
 not a blanket claim for every driver, Windows build, WSL version, or engine
-version. The independent NVIDIA host must still repeat Docker CPU/CUDA and
-Podman CPU/CUDA using the exact RC5 public bytes. CPU-only hardware and Podman
-without Docker Desktop installed are outside the tested
-claim. The CUDA package expects Volta or newer; an architecture present in a
+version. CPU-only hardware and Podman without Docker Desktop installed are
+outside the tested claim. The CUDA package expects Volta or newer; an architecture present in a
 wheel alone does not qualify an untested GPU. Maxwell and Pascal use the CPU
 package.
 
@@ -43,6 +53,8 @@ package.
 
 The tested Podman path uses a rootless WSL 2 machine, 64-bit Python 3.12,
 TowerScout's package-local Compose provider, and NVIDIA CDI for GPU work.
+The proposed RC5 restriction uses a short local package-root path (80
+characters or fewer) and explicit interpreter selection; see the addendum.
 A reviewer observed Python 3.13.6 and rootful Podman during onboarding, but
 those alternatives are not claimed as tested support. The standard Windows
 control package is unsigned and uses its supplied process-scoped wrappers;
@@ -55,3 +67,19 @@ an explicit packaging limitation for this candidate.
 The accepted ADR-024 security residuals expire October 31, 2026. A corrected
 build or publication after that date needs a new written disposition. No
 `latest` promotion or stable/general release follows from these notes.
+
+## Qualification evidence and limits
+
+The [closeout matrix](../../.agent_work/tasks/active/TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md)
+binds exact identities and evidence. On October 19 the six original browser
+downloads again matched GitHub's asset digests/sizes, the accepted commit tag,
+and signed release attestation. The release remained immutable and non-Latest.
+
+The first host ran the frozen combined-model fixture, expected-output checks,
+warm measurements, CUDA-unavailable negative and classifier fault/recovery.
+The independent host ran both models/providers against a repeated public area,
+with stable HTTP detection counts/fingerprints across profiles and lifecycle
+checkpoints. Those live comparisons are not an independent frozen-fixture
+benchmark. ADR-026 proposes that precise evidence substitution for this
+candidate; no extra benchmark result is claimed. Security scan results are
+dated October 14, and official publication requires fresh security checks.

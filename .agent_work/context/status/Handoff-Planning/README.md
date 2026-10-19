@@ -2,6 +2,14 @@
 
 ## Read First
 
+**Current RC5 closeout review (October 19):**
+[handoff packet](../../../../docs/release/task105-cdcai-handoff.md),
+[operations supplement](../../../../docs/release/rc5-operations-addendum.md),
+and [bounded acceptance proposal](../../../decisions/026-rc5-bounded-candidate-acceptance.md).
+Two-host functional results are credited; owner acceptance, publication of
+supplements, and official cdcai adoption remain pending. Published RC5 bytes
+remain unchanged.
+
 1. [`../Reprioritization Effort/2026-09-21-windows-deployment-prioritization-v2.md`](../Reprioritization%20Effort/2026-09-21-windows-deployment-prioritization-v2.md)
    - current delivery objectives and acceptance requirements
 2. [`../Reprioritization Effort/2026-09-21-windows-deployment-hardening-v2.md`](../Reprioritization%20Effort/2026-09-21-windows-deployment-hardening-v2.md)

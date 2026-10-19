@@ -11,7 +11,9 @@ pass. All four first-host profiles now also pass reboot persistence, including
 dataset restore and new exports. Independent-host four-profile operational
 evidence has been reviewed; the owner confirms dataset restore and comparable
 same-area live-model testing. Final finding dispositions and qualification
-reconciliation remain open; see the RC5 intake linked below.
+reconciliation are prepared in the October 19 closeout matrix and proposed
+ADR-026. Owner acceptance, remote review, official adoption/qualification,
+and handoff remain open. No task completion or publication is inferred.
 **Priority**: CRITICAL
 **Type**: C (Runtime Correction / Release Qualification / Handoff)
 **Estimated Effort**: 3-5 working days for implementation, review, builds, and
@@ -217,6 +219,18 @@ and remaining finding dispositions. The real-model and restore results are
 credited without claiming a frozen-fixture benchmark absent from the packet.
 
 ## Objective
+
+**October 19 closeout review**: The
+[qualification matrix](./TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md)
+reconciles the two-host results, owner restore confirmation, F1-F10/N1-N14
+dispositions, dated scans, and unchanged public identities.
+[ADR-026](../../decisions/026-rc5-bounded-candidate-acceptance.md) proposes the
+short-path/Python support restrictions and the explicit independent probe
+exception. The [operating addendum](../../../docs/release/rc5-operations-addendum.md)
+and [cdcai packet](../../../docs/release/task105-cdcai-handoff.md) are prepared
+for owner review. These are separate supplements, not changed RC5 bytes.
+Acceptance, publication of this review payload, cdcai adoption, and official
+build/publication remain separate pending actions.
 
 Resolve or explicitly disposition every RC9 independent-host finding, rebuild
 the CPU and CUDA 12.8 artifacts from one accepted `main` source, qualify the
@@ -439,9 +453,11 @@ Every row must end as `fixed`, `verified_no_change`, or
 - [ ] Run the fixed combined-model probe, explicit CUDA-unavailable negative,
   required shared-script faults, and warm performance checks where the v2 gate
   requires them.
-- [ ] Repeat all four corrected-candidate profiles on the separate RC9
+- [x] Repeat all four corrected-candidate functional profiles on the separate RC9
   independent NVIDIA Windows host, including explicit CPU mode for both CPU
   profiles and focused browser checks for the changed export/cancel flows.
+  See the closeout matrix for short-path deviations and proposed formal-probe
+  evidence reuse; those exceptions are not approved by this checkbox.
 - [ ] Require ordinary-account, path-with-spaces, Mark-of-the-Web-preserving
   extraction and shipped instructions. Record deviations as gaps, not passes.
 - [ ] Retain raw sensitive evidence privately; commit only sanitized summaries,
@@ -449,12 +465,14 @@ Every row must end as `fixed`, `verified_no_change`, or
 
 ### Phase 7 - Final-candidate closeout and handoff
 
-- [ ] Reconcile every matrix cell to the exact selected candidate source, image
+- [x] Prepare reconciliation of every matrix cell to the exact selected candidate source, image
   digests, package hashes, asset hash, documentation, and evidence references.
-- [ ] Confirm the GitHub prerelease assets and tags have not changed since
+  Acceptance exceptions remain pending ADR-026 owner approval.
+- [x] Confirm the GitHub prerelease assets and tags have not changed since
   browser download. Any byte change requires new hashes and affected reruns.
-- [ ] Complete release notes, support/rollback instructions, maintenance
+- [x] Prepare release notes, support/rollback instructions, maintenance
   obligations, residual-expiry handoff, and cdcai transfer packet.
+  Review/publication and named maintenance-custodian acceptance remain pending.
 - [ ] At adoption, have the `cdcai` owner and project lead select the official
   tag/title and authorize the official build and publication. Do not relabel
   or promote the fork candidate as the official release.
@@ -534,6 +552,8 @@ Every row must end as `fixed`, `verified_no_change`, or
 - [RC9 independent-host sanitized evidence intake](./TASK-105/RC9-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-14.md)
 - [RC5 independent-host run sheet](./TASK-105/RC5-INDEPENDENT-HOST-RUN-2026-10-14.md)
 - [RC5 independent-host evidence intake and owner clarification](./TASK-105/RC5-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-16.md)
+- [RC5 qualification closeout and finding dispositions](./TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md)
+- [Proposed bounded acceptance decision](../../decisions/026-rc5-bounded-candidate-acceptance.md)
 - RC9 source report and sanitized ZIP remain outside the repository under the
   release owner's evidence custody.
 

@@ -1,7 +1,8 @@
 # Current Tasks - Final Candidate Build And Acceptance
 
 **Sprint Period**: October 5-October 16, 2026
-**Last Updated**: October 16, 2026
+**Last Updated**: October 19, 2026
+**Closeout Target**: October 30, 2026
 **Focus**: Qualify a dependable, downloadable Windows 11 application from
 accepted `main` across Docker/Podman and CPU/NVIDIA profiles. Documentation
 content is frozen and merged through PR #94, and the project-state
@@ -49,7 +50,16 @@ comparisons used the same public NYC area. Credit these functional results;
 qualification closeout still needs finding dispositions and evidence-method
 reconciliation, as recorded in the
 [RC5 intake](./tasks/active/TASK-105/RC5-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-16.md).
-TASK-105 also owns the cdcai handoff packet.
+TASK-105 closeout is now prepared for owner review: the
+[bounded acceptance proposal](./decisions/026-rc5-bounded-candidate-acceptance.md),
+[qualification matrix](./tasks/active/TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md),
+[operations addendum](../docs/release/rc5-operations-addendum.md), and
+[cdcai handoff](../docs/release/task105-cdcai-handoff.md) credit the two-host
+functional results and document proposed short-path/Python/test-method
+exceptions. Owner acceptance, remote review, and official adoption remain
+pending. All six original browser assets, tag/source, immutable status, and
+release attestation were reverified unchanged on October 19. No new runtime
+test, image build, release edit, or publication follows from this closeout.
 The Task-087 launcher
 redesign remains preserved and deferred, not a release gate.
 
@@ -60,13 +70,17 @@ redesign remains preserved and deferred, not a release gate.
 **Preliminary Local RC5 Source**: `a24d369668d27240ed0baa184d071395455b9c95`
 **Accepted RC9 Replacement Source**:
 `b3431cf86d8a000462df487685104558ac7becd3`
-**Frozen Publishable Candidate Source**:
+**Historical RC9 Publishable Candidate Source**:
 `b3431cf86d8a000462df487685104558ac7becd3`. The same-source
 `v0.1.0-rc9` CPU and CUDA 12.8 images passed local and exact-published-digest
 security qualification with `push_latest=false`. The locally verified control
 packages bind only those exact pinned manifest digests. The owner-authorized
 non-Latest RC9 prerelease is published; every `latest` promotion and any
 stable/general release remain separately owner-gated.
+**Current RC5 Candidate Source**:
+`835cbb910573a931350c5b704d14496952d7ef87`, published as immutable non-Latest
+`v0.1.3-rc5`. The closeout review branch contains supplemental documentation
+and evidence, not an implicitly selected official release source.
 **Authoritative Branch**: `main`
 **Decision**: [ADR-021](./decisions/021-main-based-windows-deployment-deadline.md)
 **ML Runtime Amendment**: [ADR-022](./decisions/022-cuda128-blackwell-ml-runtime.md)
@@ -317,6 +331,10 @@ This host's default Python 3.14 caused the pinned provider install to fail;
 selecting installed Python 3.12 through the shipped
 helper succeeded on ordinary retry. This tested-prerequisite deviation is
 recorded in the task; the guide's default-`python` example remains a docs gap.
+**October 19 closeout**: Two-host functional evidence and proposed finding
+dispositions are consolidated in the RC5 closeout matrix. ADR-026 and the
+operations/handoff supplements are prepared for review; acceptance, remote
+publication, official cdcai adoption, and named maintenance custody are pending.
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-105-final-release-correction-and-qualification.md`
 
