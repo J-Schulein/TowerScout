@@ -1,11 +1,13 @@
 # RC5 Operations Addendum
 
 **Prepared for review**: October 19, 2026
+**Candidate restrictions accepted**: October 19, 2026, under ADR-026
 **Applies to**: `v0.1.3-rc5` Windows CPU and CUDA 12.8 packages
 
 Read this with the Quick Start included in your download. It adds the short
 Podman folder layout and Python selection steps established during testing.
-Owner acceptance and distribution of this supplement are pending. This file
+The owner accepted these restrictions; distribution through fork review is
+authorized and draft-PR review remains pending. This file
 is a separate supplement; it is not inside the published RC5 ZIPs or their
 in-app Help. See the [candidate notes](task105-candidate-notes.md) for exact
 package hashes, image digests, tested scope, and qualification status.
@@ -39,7 +41,7 @@ such as `PC` for Podman CPU or `PG` for Podman CUDA. The child folder must
 contain `setup-towerscout.cmd` directly. If keeping Docker copies too, use
 separate folders such as `DC` and `DG`.
 
-The proposed RC5 support restriction is a package-root path of **80 characters
+The accepted RC5 support restriction is a package-root path of **80 characters
 or fewer**. This is a conservative operating restriction, not a guarantee for
 every Windows configuration. Avoid extra layers from synchronized or redirected
 Documents folders. Use a permitted local folder and check its actual full path.

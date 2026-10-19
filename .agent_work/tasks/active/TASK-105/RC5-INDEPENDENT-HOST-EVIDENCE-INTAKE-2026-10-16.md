@@ -95,7 +95,8 @@ or expansion to CPU-only hardware or Podman without Docker Desktop installed.
 **October 19 closeout**: The
 [qualification record](RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md) consolidates
 dispositions and the unchanged public-byte recheck.
-[ADR-026](../../../decisions/026-rc5-bounded-candidate-acceptance.md) proposes
+[ADR-026](../../../decisions/026-rc5-bounded-candidate-acceptance.md) records
 the explicit test-method exception and short-path/Python support boundary.
-Approval remains pending; this intake's measurements and owner-confirmation
-provenance are preserved.
+The owner approved reviewed commit `33bd3a3` on October 19; this intake's
+measurements and owner-confirmation provenance are preserved. The approved
+exception does not invent an independent-host benchmark result.

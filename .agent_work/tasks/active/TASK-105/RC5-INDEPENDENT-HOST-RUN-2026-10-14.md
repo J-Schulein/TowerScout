@@ -10,8 +10,9 @@ for credited results, methods, and unresolved dispositions. The checklist below
 preserves the requested procedure; it is not a claim that every listed method
 has an accompanying report.
 The [October 19 closeout](RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md) records
-proposed evidence reuse and known-limitations acceptance; owner approval is
-pending. The original procedure below remains historical requested scope.
+evidence reuse and known-limitations acceptance approved by the owner on
+October 19 under ADR-026 in reviewed commit `33bd3a3`. The original procedure
+below remains historical requested scope.
 **Candidate**: immutable, non-Latest `v0.1.3-rc5` from accepted `main` `835cbb910573a931350c5b704d14496952d7ef87`
 
 This sheet is for the independent validator. Follow the shipped Quick Start and

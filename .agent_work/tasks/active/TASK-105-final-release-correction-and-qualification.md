@@ -11,9 +11,9 @@ pass. All four first-host profiles now also pass reboot persistence, including
 dataset restore and new exports. Independent-host four-profile operational
 evidence has been reviewed; the owner confirms dataset restore and comparable
 same-area live-model testing. Final finding dispositions and qualification
-reconciliation are prepared in the October 19 closeout matrix and proposed
-ADR-026. Owner acceptance, remote review, official adoption/qualification,
-and handoff remain open. No task completion or publication is inferred.
+reconciliation were accepted October 19 under ADR-026 in reviewed commit
+`33bd3a3`. Fork draft-PR publication is authorized; review/merge, official
+adoption/qualification, and handoff remain open. Task-105 remains active.
 **Priority**: CRITICAL
 **Type**: C (Runtime Correction / Release Qualification / Handoff)
 **Estimated Effort**: 3-5 working days for implementation, review, builds, and
@@ -224,13 +224,14 @@ credited without claiming a frozen-fixture benchmark absent from the packet.
 [qualification matrix](./TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md)
 reconciles the two-host results, owner restore confirmation, F1-F10/N1-N14
 dispositions, dated scans, and unchanged public identities.
-[ADR-026](../../decisions/026-rc5-bounded-candidate-acceptance.md) proposes the
+[ADR-026](../../decisions/026-rc5-bounded-candidate-acceptance.md) records the
 short-path/Python support restrictions and the explicit independent probe
 exception. The [operating addendum](../../../docs/release/rc5-operations-addendum.md)
 and [cdcai packet](../../../docs/release/task105-cdcai-handoff.md) are prepared
-for owner review. These are separate supplements, not changed RC5 bytes.
-Acceptance, publication of this review payload, cdcai adoption, and official
-build/publication remain separate pending actions.
+for review. The owner approved bounded acceptance of reviewed commit `33bd3a3`
+and separately authorized this fork branch and draft PR. These are separate
+supplements, not changed RC5 bytes. Review/merge, cdcai adoption, and official
+build/publication remain pending actions.
 
 Resolve or explicitly disposition every RC9 independent-host finding, rebuild
 the CPU and CUDA 12.8 artifacts from one accepted `main` source, qualify the
@@ -450,14 +451,15 @@ Every row must end as `fixed`, `verified_no_change`, or
   workflow against the exact downloaded packages: providers, managed TLS,
   ZIP lookup, real models/device, cancel/retry, controlled recovery, review,
   exports, stop/relaunch, and reboot.
-- [ ] Run the fixed combined-model probe, explicit CUDA-unavailable negative,
-  required shared-script faults, and warm performance checks where the v2 gate
-  requires them.
+- [x] Reconcile the fixed combined-model probe, CUDA-unavailable negative,
+  shared-script faults, and warm performance evidence: first-host exact-image
+  reports pass; independent evidence reuse is approved under ADR-026. No
+  independent frozen-fixture/warm report is claimed.
 - [x] Repeat all four corrected-candidate functional profiles on the separate RC9
   independent NVIDIA Windows host, including explicit CPU mode for both CPU
   profiles and focused browser checks for the changed export/cancel flows.
-  See the closeout matrix for short-path deviations and proposed formal-probe
-  evidence reuse; those exceptions are not approved by this checkbox.
+  See the closeout matrix for the short-path deviations and formal-probe
+  evidence reuse separately approved by the owner under ADR-026.
 - [ ] Require ordinary-account, path-with-spaces, Mark-of-the-Web-preserving
   extraction and shipped instructions. Record deviations as gaps, not passes.
 - [ ] Retain raw sensitive evidence privately; commit only sanitized summaries,
@@ -467,12 +469,13 @@ Every row must end as `fixed`, `verified_no_change`, or
 
 - [x] Prepare reconciliation of every matrix cell to the exact selected candidate source, image
   digests, package hashes, asset hash, documentation, and evidence references.
-  Acceptance exceptions remain pending ADR-026 owner approval.
+  The owner approved the acceptance exceptions under ADR-026 on October 19.
 - [x] Confirm the GitHub prerelease assets and tags have not changed since
   browser download. Any byte change requires new hashes and affected reruns.
 - [x] Prepare release notes, support/rollback instructions, maintenance
   obligations, residual-expiry handoff, and cdcai transfer packet.
-  Review/publication and named maintenance-custodian acceptance remain pending.
+  Draft-PR publication is authorized; review/merge and named maintenance-custodian
+  acceptance remain pending.
 - [ ] At adoption, have the `cdcai` owner and project lead select the official
   tag/title and authorize the official build and publication. Do not relabel
   or promote the fork candidate as the official release.
@@ -553,7 +556,7 @@ Every row must end as `fixed`, `verified_no_change`, or
 - [RC5 independent-host run sheet](./TASK-105/RC5-INDEPENDENT-HOST-RUN-2026-10-14.md)
 - [RC5 independent-host evidence intake and owner clarification](./TASK-105/RC5-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-16.md)
 - [RC5 qualification closeout and finding dispositions](./TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md)
-- [Proposed bounded acceptance decision](../../decisions/026-rc5-bounded-candidate-acceptance.md)
+- [Accepted bounded candidate decision](../../decisions/026-rc5-bounded-candidate-acceptance.md)
 - RC9 source report and sanitized ZIP remain outside the repository under the
   release owner's evidence custody.
 

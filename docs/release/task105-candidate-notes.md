@@ -8,9 +8,9 @@ Podman CPU/CUDA passed real model and provider workflows, lifecycle checks,
 and reboot persistence on that host. The separate NVIDIA host also completed
 all four functional profiles, with short-path/Python deviations recorded and
 dataset restore confirmed by the owner. Bounded acceptance of those deviations
-and the comparative model-test method is proposed in
+and the comparative model-test method was approved on October 19 under
 [ADR-026](../../.agent_work/decisions/026-rc5-bounded-candidate-acceptance.md)
-and remains pending owner review. RC9 is historical evidence. Official cdcai
+following review of commit `33bd3a3`. RC9 is historical evidence. Official cdcai
 adoption, build, publication, and any Latest promotion remain separate gates.
 
 The [operations addendum](rc5-operations-addendum.md) and
@@ -53,7 +53,7 @@ package.
 
 The tested Podman path uses a rootless WSL 2 machine, 64-bit Python 3.12,
 TowerScout's package-local Compose provider, and NVIDIA CDI for GPU work.
-The proposed RC5 restriction uses a short local package-root path (80
+The accepted RC5 restriction uses a short local package-root path (80
 characters or fewer) and explicit interpreter selection; see the addendum.
 A reviewer observed Python 3.13.6 and rootful Podman during onboarding, but
 those alternatives are not claimed as tested support. The standard Windows
@@ -80,6 +80,6 @@ warm measurements, CUDA-unavailable negative and classifier fault/recovery.
 The independent host ran both models/providers against a repeated public area,
 with stable HTTP detection counts/fingerprints across profiles and lifecycle
 checkpoints. Those live comparisons are not an independent frozen-fixture
-benchmark. ADR-026 proposes that precise evidence substitution for this
+benchmark. ADR-026 accepts that precise evidence substitution for this
 candidate; no extra benchmark result is claimed. Security scan results are
 dated October 14, and official publication requires fresh security checks.

@@ -47,19 +47,21 @@ independent four-profile RC5 operational report and extracts have now been
 reviewed: all 108 extract hashes/sizes and 61 JSON files verified. The owner
 confirms independent-host dataset download/restore passed and that model
 comparisons used the same public NYC area. Credit these functional results;
-qualification closeout still needs finding dispositions and evidence-method
-reconciliation, as recorded in the
+the accepted finding dispositions and evidence-method reconciliation are
+recorded in the
 [RC5 intake](./tasks/active/TASK-105/RC5-INDEPENDENT-HOST-EVIDENCE-INTAKE-2026-10-16.md).
-TASK-105 closeout is now prepared for owner review: the
-[bounded acceptance proposal](./decisions/026-rc5-bounded-candidate-acceptance.md),
+The owner approved bounded candidate acceptance on October 19 for reviewed
+commit `33bd3a3`: the
+[accepted decision](./decisions/026-rc5-bounded-candidate-acceptance.md),
 [qualification matrix](./tasks/active/TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md),
 [operations addendum](../docs/release/rc5-operations-addendum.md), and
 [cdcai handoff](../docs/release/task105-cdcai-handoff.md) credit the two-host
-functional results and document proposed short-path/Python/test-method
-exceptions. Owner acceptance, remote review, and official adoption remain
-pending. All six original browser assets, tag/source, immutable status, and
+functional results and document accepted short-path/Python/test-method
+exceptions. Fork branch publication and a draft PR are separately authorized;
+review/merge and official adoption remain pending. All six original browser
+assets, tag/source, immutable status, and
 release attestation were reverified unchanged on October 19. No new runtime
-test, image build, release edit, or publication follows from this closeout.
+test, image build, release-asset edit, or official publication follows from this closeout.
 The Task-087 launcher
 redesign remains preserved and deferred, not a release gate.
 
@@ -331,10 +333,10 @@ This host's default Python 3.14 caused the pinned provider install to fail;
 selecting installed Python 3.12 through the shipped
 helper succeeded on ordinary retry. This tested-prerequisite deviation is
 recorded in the task; the guide's default-`python` example remains a docs gap.
-**October 19 closeout**: Two-host functional evidence and proposed finding
+**October 19 closeout**: Two-host functional evidence and accepted finding
 dispositions are consolidated in the RC5 closeout matrix. ADR-026 and the
-operations/handoff supplements are prepared for review; acceptance, remote
-publication, official cdcai adoption, and named maintenance custody are pending.
+operations/handoff supplements are approved for fork draft-PR publication;
+review/merge, official cdcai adoption, and named maintenance custody are pending.
 **Priority**: CRITICAL
 **Task File**: `.agent_work/tasks/active/TASK-105-final-release-correction-and-qualification.md`
 

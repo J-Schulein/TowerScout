@@ -2,9 +2,10 @@
 
 **Prepared**: October 19, 2026
 **Task**: TASK-105
-**Outcome**: Two-host functional results credited; bounded acceptance proposed
+**Outcome**: Two-host functional results credited; bounded acceptance approved October 19
 in [ADR-026](../../../decisions/026-rc5-bounded-candidate-acceptance.md).
-Task closure and official adoption remain pending.
+The owner approved reviewed commit `33bd3a3`. Draft-PR review, task closure,
+and official adoption remain pending.
 
 ## Exact candidate and public-byte recheck
 
@@ -65,10 +66,10 @@ stable confidence fingerprints across profiles/relaunch/reboot. The live
 counts are not substituted into the frozen-fixture expected-output contract.
 
 Independent-host frozen-fixture/warm measurements and formal fault/negative
-probe reports are not in its packet. ADR-026 proposes accepting first-host
+probe reports are not in its packet. ADR-026 accepts first-host
 exact-image proof plus independent live-model/device comparisons for this
 candidate. It also explicitly lists reused first-host ZIP/TLS/recovery proof.
-Until approval these are proposed exceptions, not checked-off formal tests.
+The approved exceptions do not claim that the omitted formal tests were run.
 
 ## RC9 correction dispositions
 
@@ -85,7 +86,7 @@ Until approval these are proposed exceptions, not checked-off formal tests.
 | F9 | GPU/tested rootless/Python boundary present; addendum supplies missing explicit Python selection; no rootful/other-Python qualification |
 | F10 | Stable frontend source fingerprint verified across profiles; Windows ZIP separators documented; no whole-ZIP bit-reproducibility claim |
 
-## New-finding dispositions proposed for acceptance
+## Accepted new-finding dispositions
 
 | ID | Disposition |
 | --- | --- |
@@ -107,8 +108,8 @@ Until approval these are proposed exceptions, not checked-off formal tests.
 | Item | State / owner action |
 | --- | --- |
 | Two-host functional evidence and restore clarification | Credited with provenance above |
-| Test-method and known-limitations acceptance | Owner approval of ADR-026 pending |
-| Supplemental operations/release/handoff docs | Prepared locally; review and publication pending |
+| Test-method and known-limitations acceptance | Owner approved ADR-026 in reviewed commit `33bd3a3` on October 19 |
+| Supplemental operations/release/handoff docs | Draft-PR publication authorized; review and merge pending |
 | Exact candidate source/tag/public bytes | Reverified October 19; unchanged |
 | New code/image/package correction | None selected for this closeout |
 | Official identity, target source and cdcai adoption | Project lead + cdcai owner approval pending |
@@ -123,8 +124,8 @@ Review this record with ADR-026, the updated candidate notes, the
 [operations addendum](../../../../docs/release/rc5-operations-addendum.md), and
 [cdcai handoff](../../../../docs/release/task105-cdcai-handoff.md). These source
 documents are not retroactively present in RC5's immutable downloads.
-Approval of acceptance and approval to publish this review branch are separate
-from approval to build or publish an official release.
+The owner approved acceptance and publication of this review branch separately.
+Approval to build or publish an official release remains pending.
 
 ## Preparation verification
 

@@ -1,11 +1,12 @@
 # ADR-026: RC5 Bounded Candidate Acceptance
 
-**Status**: Proposed for owner review
+**Status**: Accepted
 **Prepared**: October 19, 2026
+**Accepted**: October 19, 2026, owner approval of reviewed commit `33bd3a3`
 **Decision owner**: `J-Schulein`; official adoption remains with the project lead and cdcai owner
 **Scope**: Exact fork candidate `v0.1.3-rc5` and its supplemental operating instructions
 
-## Proposed decision
+## Decision
 
 Accept the completed first-host and independent-host functional testing for
 the exact RC5 identities in the [closeout record](../tasks/active/TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md),
@@ -13,11 +14,12 @@ subject to the explicit restrictions and evidence substitutions below. Preserve
 RC5's published images, ZIPs, sidecars, and tag. Supplement its shipped manuals
 with the [RC5 operations addendum](../../docs/release/rc5-operations-addendum.md).
 
-The owner asked to proceed with acceptance and known-limitations documentation
-after confirming independent-host dataset restore and same-area NYC model
-comparisons. Preparing this proposal does not record approval of a test-method
-exception or an installation restriction. Acceptance takes effect when the
-owner approves this decision; until then Task-105 remains in closeout review.
+After confirming independent-host dataset restore and same-area NYC model
+comparisons, the owner explicitly approved this decision in reviewed commit
+`33bd3a3`: "Approve bounded RC5 acceptance." The stated method exceptions,
+installation restrictions, and known-issue dispositions are therefore accepted
+for this fork candidate. Task-105 continues through review, official adoption,
+official-byte qualification, and handoff.
 
 ## Test-method reconciliation
 
@@ -92,6 +94,8 @@ promotion. Those actions retain their existing authorization boundaries.
 
 ## Approval record
 
-Owner acceptance: **pending**. Upon approval, record the date and approved
-document/commit, update this status, and reconcile the task checklists without
-inventing missing measurements. Official adoption is a separate decision.
+Owner acceptance: **approved October 19, 2026**, for ADR-026 in reviewed commit
+`33bd3a3`, followed by status-only updates recording that decision. The owner
+also separately approved publishing the eleven-file documentation/evidence
+branch to `J-Schulein/TowerScout` and opening a draft PR. Official adoption,
+build/publication, and Latest remain separately authorized actions.

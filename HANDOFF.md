@@ -20,16 +20,16 @@ The cdcai owner selected a fix-first path:
 - Select the official cdcai tag and display title before the official build.
 - Treat `v0.1.3-rc5` at accepted source `835cbb9` as the current immutable,
   non-Latest candidate. Two-host functional evidence and owner restore
-  confirmation have been reviewed; bounded acceptance and official adoption
-  remain pending.
+  confirmation have been reviewed; bounded acceptance was approved October 19
+  in reviewed commit `33bd3a3`. Official adoption remains pending.
 
 The current review packet is the
 [RC5 cdcai handoff](docs/release/task105-cdcai-handoff.md),
 [operations addendum](docs/release/rc5-operations-addendum.md), and
 [qualification closeout](.agent_work/tasks/active/TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md).
-[ADR-026](.agent_work/decisions/026-rc5-bounded-candidate-acceptance.md) proposes
+[ADR-026](.agent_work/decisions/026-rc5-bounded-candidate-acceptance.md) records
 the explicit short-path/Python restrictions and independent test-method
-reconciliation; it is not approved yet. Supplemental docs are not already
+reconciliation approved by the owner on October 19. Supplemental docs are not already
 inside RC5's immutable ZIPs or served Help. The receiving owner must accept
 maintenance duties, including the October 31 security-residual expiry.
 

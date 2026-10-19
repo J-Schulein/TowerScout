@@ -1,7 +1,7 @@
 # RC5 Candidate And cdcai Handoff Packet
 
 **Prepared**: October 19, 2026
-**Status**: Local review packet; bounded candidate acceptance and official adoption pending
+**Status**: Bounded candidate accepted October 19; fork draft-PR review and official adoption pending
 **Operational closeout target**: October 30, 2026
 
 ## What is ready for review
@@ -13,11 +13,11 @@ identities and tested scope are in the [candidate notes](task105-candidate-notes
 The [operations addendum](rc5-operations-addendum.md) supplies the short Podman
 layout, explicit Python selection, lifecycle/recovery, and known issues.
 
-The acceptance proposal is [ADR-026](../../.agent_work/decisions/026-rc5-bounded-candidate-acceptance.md).
+The accepted decision is [ADR-026](../../.agent_work/decisions/026-rc5-bounded-candidate-acceptance.md).
 The [closeout matrix](../../.agent_work/tasks/active/TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md)
-distinguishes measured tests, owner confirmations, proposed evidence reuse,
-and deferred findings. Its approval is required before describing the bounded
-candidate qualification as complete. These supplemental files are absent from
+distinguishes measured tests, owner confirmations, accepted evidence reuse,
+and deferred findings. The owner approved bounded candidate qualification in
+reviewed commit `33bd3a3`; official adoption remains separate. These supplemental files are absent from
 the immutable RC5 ZIPs and in-app Help; any approved RC5 handoff must include them.
 
 ## Artifact inventory
@@ -48,7 +48,7 @@ owner must decide and document their durable publication/custody location.
 
 | Responsibility | Current custody / handoff action |
 | --- | --- |
-| Candidate decisions and acceptance | `J-Schulein`; record approval of ADR-026 and the reviewed commit |
+| Candidate decisions and acceptance | `J-Schulein` approved ADR-026 in reviewed commit `33bd3a3` on October 19 |
 | Official repository, tag/title, namespace, publication | Project lead and cdcai owner select and explicitly approve |
 | User support and backup contact | Confirm named people and access privately; prior pilot contacts are not assumed to accept new obligations |
 | Provider subscriptions, key restrictions and billing | Site/account owner confirms approved accounts; transfer through approved private channels |
@@ -71,8 +71,9 @@ Record the person accepting these obligations before operational closeout.
 
 ## Official adoption sequence
 
-1. Review and approve bounded candidate acceptance, supplemental instructions,
-   sanitized evidence, and source-document changes. Publish/merge only within
+1. Bounded candidate acceptance and fork draft-PR publication are authorized.
+   Review the supplemental instructions, sanitized evidence, and source-document
+   changes. Publish/merge only within
    the authorized fork review scope. Task-087/PR #67 remains deferred.
 2. The project lead and cdcai owner choose the official tag, display title,
    image namespace, release visibility, target source, and support custodian.
@@ -110,7 +111,7 @@ Record the person accepting these obligations before operational closeout.
 
 A small documented delta can reuse unaffected evidence. Identity-only reuse
 still requires exact official-byte integrity and security checks. The owner
-acceptance proposal does not waive failed or changed-image checks.
+accepted decision does not waive failed or changed-image checks.
 
 ## Recovery and rollback handoff
 
