@@ -1,73 +1,80 @@
 # Handoff Planning - Current Navigation
 
-## Read First
+## Current delivery: October 20-30
 
-**Current RC5 closeout review (October 19):**
-[handoff packet](../../../../docs/release/task105-cdcai-handoff.md),
-[operations supplement](../../../../docs/release/rc5-operations-addendum.md),
-and [accepted bounded decision](../../../decisions/026-rc5-bounded-candidate-acceptance.md).
-Two-host functional results and limitations were accepted October 19 in
-reviewed commit `33bd3a3`. Fork draft-PR publication is authorized; review,
-merge, and official cdcai adoption remain pending. Published RC5 bytes
-remain unchanged.
+Chris accepted ownership after October 30, Administrative collaborator access,
+the delivery plan, and `TowerScout v0.1.3 - First Official cdcai Release` on
+October 20, as reported by the outgoing lead. Administrative access was then
+verified. Delivery targets October 27; October 28-30 is reserved for support.
+The destination is cdcai/TowerScout for the adoption PR, builds and wiki.
+Tag availability, package permissions, actual adoption, official qualification,
+publication and final receipt still require their respective checks.
 
-1. [`../Reprioritization Effort/2026-09-21-windows-deployment-prioritization-v2.md`](../Reprioritization%20Effort/2026-09-21-windows-deployment-prioritization-v2.md)
-   - current delivery objectives and acceptance requirements
-2. [`../Reprioritization Effort/2026-09-21-windows-deployment-hardening-v2.md`](../Reprioritization%20Effort/2026-09-21-windows-deployment-hardening-v2.md)
-   - current implementation sequence
-3. [`../Reprioritization Effort/2026-09-21-windows-deployment-hardening-v2-verification.md`](../Reprioritization%20Effort/2026-09-21-windows-deployment-hardening-v2-verification.md)
-   - static review scope and limits; not runtime evidence
-4. [`../Reprioritization Effort/2026-09-21-post-day-7-backlog-and-handoff-guide.md`](../Reprioritization%20Effort/2026-09-21-post-day-7-backlog-and-handoff-guide.md)
-   - suggested follow-on work after actual Day-7 results are reconciled
-5. [`2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md`](./2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md)
-   - dated historical roadmap; its PR #67 sequencing is superseded
-6. [`PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md`](./PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md)
-   - current rules for the unchanged `v0.1.2` pilot and cdcai feedback hold
-7. [`PILOT-OPERATIONS-PACKET.md`](./PILOT-OPERATIONS-PACKET.md)
-   - completed July 13 pilot distribution, support, and custody record
-8. [`GITHUB-CODE-SCANNING-READINESS-ASSESSMENT-2026-07-23.md`](../../analysis/GITHUB-CODE-SCANNING-READINESS-ASSESSMENT-2026-07-23.md)
-   - 62-alert dependency inventory, applicability, and Tasks 090/098 gate
-9. [`.agent_work/current-tasks.md`](../../../current-tasks.md)
-10. [`HANDOFF.md`](../../../../HANDOFF.md)
+Start with:
 
-## Current Decision
+1. [Active board](../../../current-tasks.md) and [owner backlog](../../../task-backlog.md).
+2. [Accepted RC5 decision](../../../decisions/026-rc5-bounded-candidate-acceptance.md)
+   and [qualification closeout](../../../tasks/active/TASK-105/RC5-QUALIFICATION-CLOSEOUT-2026-10-19.md).
+3. [Official handoff packet](../../../../docs/release/task105-cdcai-handoff.md)
+   and [operating supplement](../../../../docs/release/rc5-operations-addendum.md).
+   These documents retain their October 19 preparation context; current owner
+   agreements above do not imply any remote execution has happened.
+4. [Local evidence reconciliation](2026-10-20-LOCAL-WORK-RECONCILIATION.md).
+5. [Owner maintenance guide](../../../../docs/internal/owner-maintenance.md)
+   and [repository map](../../../../docs/internal/repository-map.md).
 
-- Keep the six `v0.1.2` pilot assets immutable.
-- Develop owner-requested fixes in the fork under `v0.1.3-rc.N`.
-- Do not publish `v0.1.3` final prematurely.
-- Keep `cdcai/TowerScout` unchanged until the owner-qualified final candidate
-  receives explicit adoption approval.
-- Qualify Docker CPU, Docker GPU, Podman CPU, and Podman GPU.
-- Task-090 alert classification and Task-098 mandatory remediation remain
-  complete as of their July 27 closeout.
-- Task-099 completed alerts `#72-#75` plus npm finding
-  `GHSA-5p4m-2wfm-xmqj` through PRs #68/#69. Alert `#74` closed without
-  dismissal, and its August 11 closeout contained the eight documented torch
-  residuals.
-- High-severity development-transitive `extract-zip` alert `#76` opened after
-  that closeout. Task-101's focused Node/Puppeteer remediation passed final PR
-  and exact-main validation, PR #72 squash-merged as `0cc189c`, and the alert
-  closed as fixed without dismissal.
-- PR #67 and Task-087 launcher work are preserved and deferred outside the
-  immediate delivery window. They are not release gates and receive no new
-  reconciliation, implementation, or review work as a deployment prerequisite.
-- Complete operational closeout by October 30, 2026.
+## Latest progress
 
-## Active Validation Record
+- [Adoption submission and checks](2026-10-21-ADOPTION-SUBMISSION-AND-CHECKS.md):
+  fork #114 validated; cdcai draft #4 open; merge/official qualification pending.
 
-The frozen Pilot Package remains active while feedback is collected. Its
-sanitized validation record remains under:
+- [Dependency and adoption update](2026-10-21-PR113-DEPENDENCY-AND-ADOPTION-REVIEW.md):
+  PR #113 approved, merged into the fork and integrated locally; final remote
+  checks and cdcai adoption review remain separate gates.
 
-- [`v0.1.2-Validation-Evidence/`](./v0.1.2-Validation-Evidence/)
+- [Final adoption source review](2026-10-21-FINAL-ADOPTION-SOURCE-REVIEW.md):
+  corrected findings, 63 passing focused checks, review limits and remote-CI sequence.
 
-This evidence proves the Pilot Package; it does not certify a future candidate.
+- [Tuesday re-review and audience correction](2026-10-21-TUESDAY-REVIEW-CORRECTIONS.md):
+  verified preparation scope, open substeps and separate manager report.
 
-## Archived Planning And Release History
+- [Wednesday readiness/adoption review](2026-10-21-READINESS-AND-ADOPTION-REVIEW.md).
+- [Official build and verification plan](2026-10-21-OFFICIAL-BUILD-AND-VERIFICATION-PLAN.md).
+- [Adoption PR text](2026-10-21-ADOPTION-PR-DRAFT.md); [cdcai draft #4](https://github.com/cdcai/TowerScout/pull/4) is submitted.
+- [Chris decisions and Friday agenda](2026-10-21-CHRIS-DECISIONS-AND-FRIDAY-AGENDA.md), not sent.
 
-Superseded strategies, July 22 roadmap iterations, external reviews, and
-v0.1.0-v0.1.2 publication checklists moved to:
+- [Chris security follow-up brief](2026-10-20-CHRIS-SECURITY-FOLLOWUP-BRIEF.md):
+  proposed actions and decisions before the October 31 exception expiry.
 
-- [`context/archive/2026-07/Handoff-Planning/`](../../archive/2026-07/Handoff-Planning/)
+- [Tuesday follow-up decisions](2026-10-20-TUESDAY-FOLLOWUP-DECISIONS.md):
+  model development, SharePoint staging, user-owned credentials and Friday meeting.
 
-They are historical evidence only. Their dates, commands, and adoption
-recommendations do not authorize current execution.
+- [Fork wiki rehearsal and transition-plan review](2026-10-20-WIKI-REHEARSAL-AND-PLAN-REVIEW.md):
+  verified fork publication, Tuesday follow-ups and remaining delivery schedule.
+
+## Acceptance sources retained
+
+- [September v2 prioritization](../Reprioritization%20Effort/2026-09-21-windows-deployment-prioritization-v2.md).
+- [September v2 work plan](../Reprioritization%20Effort/2026-09-21-windows-deployment-hardening-v2.md).
+- [Static verification boundary](../Reprioritization%20Effort/2026-09-21-windows-deployment-hardening-v2-verification.md).
+- [Post-Day-7 suggestions](../Reprioritization%20Effort/2026-09-21-post-day-7-backlog-and-handoff-guide.md), not automatically selected tasks.
+
+The v2 requirements are amended by ADR-022 through ADR-026. Preserve exact
+RC5 bytes and the immutable v0.1.2 pilot; acceptance does not transfer
+automatically to rebuilt images or packages. Task-087 remains deferred.
+
+## Historical pilot and planning records
+
+- [July roadmap](2026-07-23-OCTOBER-FIX-FIRST-IMPLEMENTATION-ROADMAP.md): superseded sequencing.
+- [Pilot feedback/adoption plan](PILOT-FEEDBACK-AND-CDC-AI-ADOPTION-PLAN.md): dated pilot hold and custody context.
+- [Pilot operations](PILOT-OPERATIONS-PACKET.md): July distribution and support record.
+- [Pilot validation](v0.1.2-Validation-Evidence/): proof for that pilot only.
+- [July security assessment](../../analysis/GITHUB-CODE-SCANNING-READINESS-ASSESSMENT-2026-07-23.md): dated inventory, not a current scan.
+- [Archived handoff planning](../../archive/2026-07/Handoff-Planning/).
+
+These historical records remain in place. Their commands, old security counts,
+and pending-work statements describe their dates and do not authorize current
+execution. Private material delivery and receiving-owner access must be
+confirmed separately; local planning drafts are not automatically public.
+
+Current setup-first sequence: [destination setup plan](2026-10-21-DESTINATION-SETUP-PLAN.md). Adoption draft #4 remains on hold for destination CI and protections.

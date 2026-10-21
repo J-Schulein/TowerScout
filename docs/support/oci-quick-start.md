@@ -52,8 +52,10 @@ provider. A Podman GPU path additionally requires the exact release-qualified
 WSL2 Podman, NVIDIA host driver, NVIDIA Container Toolkit/CDI setup, and a
 readiness result with `selected_device=cuda`.
 
-Package users do not need Git, Python, Conda, Node.js, VS Code, or a source-code
-checkout for the package path. If both Docker and Podman are installed, the
+Package users do not need Git, Conda, Node.js, VS Code, or a source-code
+checkout. Docker does not require host Python; Podman provider installation
+requires explicitly selected 64-bit Python 3.12 and a package-root path of
+80 characters or fewer. Follow the [Podman prerequisites](../quick-start.md#podman-folder-and-python-requirements). If both Docker and Podman are installed, the
 launcher can choose Docker first. Use `-Engine podman` consistently when you
 choose Podman.
 
@@ -122,8 +124,8 @@ the control ZIP by the pinned image digest in `IMAGE.txt`.
 Release maintainers can assemble the control package from a source checkout:
 
 ```powershell
-.\scripts\package-release.cmd -Version <release-version>-cpu -Image ghcr.io/j-schulein/towerscout:<release-version>-cpu -ImageDigest sha256:<cpu-digest> -PytorchFlavor cpu -AssetBundleVersion <release-version> -AssetBundleSha256 <asset-zip-sha256>
-.\scripts\package-release.cmd -Version <release-version>-cuda128 -Image ghcr.io/j-schulein/towerscout:<release-version>-cuda128 -ImageDigest sha256:<cuda128-digest> -PytorchFlavor cuda128 -AssetBundleVersion <release-version> -AssetBundleSha256 <asset-zip-sha256>
+.\scripts\package-release.cmd -Version <release-version>-cpu -Image ghcr.io/cdcai/towerscout:<release-version>-cpu -ImageDigest sha256:<cpu-digest> -PytorchFlavor cpu -AssetBundleVersion <release-version> -AssetBundleSha256 <asset-zip-sha256>
+.\scripts\package-release.cmd -Version <release-version>-cuda128 -Image ghcr.io/cdcai/towerscout:<release-version>-cuda128 -ImageDigest sha256:<cuda128-digest> -PytorchFlavor cuda128 -AssetBundleVersion <release-version> -AssetBundleSha256 <asset-zip-sha256>
 ```
 
 This creates separate CPU and CUDA control package folders, ZIPs, and checksum
@@ -138,13 +140,13 @@ Release package generation requires `-ImageDigest` with an immutable `sha256:<di
 The manual GitHub Actions workflow `.github/workflows/container-publish.yml` publishes the Linux/AMD64 image to:
 
 ```text
-ghcr.io/j-schulein/towerscout
+ghcr.io/cdcai/towerscout
 ```
 
 Run the workflow manually with a release tag such as `<release-version>`. The workflow summary reports the immutable digest reference:
 
 ```text
-ghcr.io/j-schulein/towerscout@sha256:<digest>
+ghcr.io/cdcai/towerscout@sha256:<digest>
 ```
 
 Use that digest reference when generating the release package.
@@ -297,7 +299,8 @@ Podman support prerequisites:
 - An approved non-Docker-Desktop Compose provider is installed and can talk to
   the Podman socket.
 - If no approved provider is present, run
-  `scripts\install-podman-compose-provider.cmd -Apply` from the package root.
+  the [explicit Python selection and provider commands](../quick-start.md#step-5-finish-podman-preparation-if-chosen)
+  from the package root; do not rely on the default `python` on PATH.
   Running the helper without `-Apply` prints the recommended `.env` setting
   without changing `.env`.
 - If Docker Desktop's bundled Compose provider might be selected, set

@@ -88,24 +88,39 @@ Examples:
 - Use `Squash and merge` as the default merge method.
 - Do not merge directly into `main`.
 - Use merge commits only when preserving branch topology is intentionally valuable.
-- Delete head branches after merge.
+- Delete a merged head branch only after checking that its commits and
+  required evidence are preserved and no other work depends on it. Deferred
+  or unmerged branches are not routine cleanup targets.
 
 ## Review And Validation Gate
 
 For code-changing PRs to `main`:
 
 - require PR review
-- require 1 approval
+- require approval before merge; for cdcai/TowerScout, the user authorized
+  Chris's verbal approval instead of a mandatory GitHub approving review
+  on October 21, 2026. Record the user's confirmation and approved scope in
+  the merge evidence; never imply that a GitHub review occurred. Other
+  repositories retain the one-approval policy.
 - require required CI checks to pass
 - require review conversations to be resolved
 
-Required checks should match the repo's real maintained baseline.
+Required checks should match the repo's real maintained baseline. These are
+review requirements, not proof that GitHub settings enforce them. Inspect the
+destination's actual protection/rulesets and checks. Do not change settings
+or treat missing enforcement as permission to skip review.
+
+For the one-time fork adoption, compare the whole source delta with cdcai
+and record provenance. A large historical adoption diff may be unavoidable;
+keep preparation corrections in focused commits and explain review groups.
+Do not rewrite or squash historical evidence solely to reduce the file count.
 
 Required:
 
 - lint checks the repo already treats as merge-blocking
 - current unit-test baseline
 - maintained smoke coverage relevant to the touched area
+- the full Docker image build, now blocking before merge as well as on main
 
 Advisory until explicitly promoted:
 
@@ -113,7 +128,12 @@ Advisory until explicitly promoted:
 - `mypy`
 - `bandit`
 - broader integration or browser suites that are still environment-sensitive or non-blocking
-- container image build checks and asset-backed release-package smoke until `TASK-066`/`TASK-067` promotes them
+
+Read the current workflows to identify actual blocking steps. Completed
+TASK-066/TASK-067 records are historical decisions, not pending promotion work.
+An advisory PR check does not waive the accepted security, package or real-
+runtime requirements for a release. Do not infer publication readiness from
+the CI summary alone.
 
 Validation commands should be bounded. If a pytest module stalls during collection or a runtime smoke can wait indefinitely, split the command, add a timeout or explicit cleanup path, and record the gap instead of repeatedly running broad commands without diagnostics.
 

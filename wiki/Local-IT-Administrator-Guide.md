@@ -1,12 +1,18 @@
 # Local IT Administrator Guide
 
 > **Audience:** Local IT, security, and workstation administrators. **Applies
-> to:** The next final Windows release. **Last reviewed:** 2026-10-02.
+> to:** The next final Windows release. **Last reviewed:** 2026-10-20.
 > **Publication state:** Local draft.
 
 The end user chooses Docker or Podman, CPU or a compatible NVIDIA GPU, and
 Google Maps or Azure Maps. Local IT confirms that the chosen prerequisites,
 network access, credential model, and unsigned-script boundary are permitted.
+
+For Docker, host Python is not required. The current tested Podman provider
+setup requires explicitly selected **64-bit Python 3.12** and a package-root
+path of **80 characters or fewer**. Follow [Podman Guidance](Podman-Guidance)
+for the short-folder check, Python selection, and selected-provider verification.
+These restrictions do not authorize moving an existing configured installation.
 
 ## Approval Checklist
 
@@ -82,9 +88,9 @@ readiness state, and a non-secret error category. They must not contain keys,
 certificate details, uploaded files, datasets, or volume contents.
 
 The current public route is the
-[TowerScout issue tracker](https://github.com/J-Schulein/TowerScout/issues).
+[TowerScout issue tracker](https://github.com/cdcai/TowerScout/issues).
 It is not a private or guaranteed-response service. Local IT retains
 responsibility for organization-managed controls and sensitive evidence.
 
 For exact commands and data boundaries, use the version-matched
-[packaged Local IT guide](https://github.com/J-Schulein/TowerScout/blob/main/docs/local-it-administrator-guide.md).
+[packaged Local IT guide](https://github.com/cdcai/TowerScout/blob/main/docs/local-it-administrator-guide.md).

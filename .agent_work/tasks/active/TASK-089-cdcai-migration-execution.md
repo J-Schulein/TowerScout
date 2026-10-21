@@ -1,4 +1,59 @@
-# TASK-089: cdcai Adoption Preparation And Deferred Ownership Transfer
+# TASK-089: cdcai Adoption Preparation And Ownership Transfer
+
+**Status**: IN_PROGRESS - ownership, Administrative access, delivery direction
+and proposed official release name confirmed October 20. Local preparation
+is underway; reviewed adoption and official qualification/publication remain.
+**Priority**: HIGH
+**Owner**: Outgoing lead through October 30; Chris accepts maintenance afterward.
+**Delivery target**: October 27; support October 28-30.
+
+## Current execution state
+
+- [x] Chris accepted ownership and the transition plan, per the outgoing lead's meeting report.
+- [x] Repository Administrative access verified October 20.
+- [x] Destination agreed: cdcai/TowerScout for adoption PR, builds and wiki.
+- [x] Proposed tag/title agreed: `v0.1.3`, `TowerScout v0.1.3 - First Official cdcai Release`; recheck availability before publication.
+- [x] Publish and verify fork wiki rehearsal; [evidence and plan review](../../context/status/Handoff-Planning/2026-10-20-WIKI-REHEARSAL-AND-PLAN-REVIEW.md).
+- [x] Prepare detailed owner backlog and maintenance discussion brief (October 21).
+- [x] Read-only cdcai ancestry/admin/Actions allowlist review; see [findings](../../context/status/Handoff-Planning/2026-10-21-READINESS-AND-ADOPTION-REVIEW.md).
+- [x] Complete bounded local source review and integrate approved PR #113; runtime/tests/configuration match the 144-test integration rehearsal.
+- [ ] Pass final adoption-head remote checks and obtain owner acceptance of backlog/documentation.
+- [x] Enable cdcai Issues following Chris's approval, conveyed October 21; setting independently verified. Final public support-link check remains part of publication verification.
+- [ ] Confirm registry creation/linkage/visibility and execution-time permissions.
+- [x] Push preparation to the fork and pass draft validation PR #114 at `25c2e86`.
+- [x] Open [cdcai adoption draft #4](https://github.com/cdcai/TowerScout/pull/4); source merge remains pending.
+- [ ] Review and approve the final adoption head/checks, then merge using the agreed history-preserving method.
+- [ ] Build official artifacts and pass fresh security, actual-download integrity and affected runtime checks.
+- [ ] Publish and verify wiki/video, then make the qualified release publicly recommended.
+- [ ] Deliver private evidence, owner guide and maintenance calendar; record Chris's receipt.
+- [ ] Deliver the separate leadership report to the outgoing lead's manager; it is not part of Chris's handoff packet.
+
+The agreed approach is rebuild under cdcai ownership, not a registry-copy
+decision still awaiting selection. Exact official source and artifact
+identities remain to be frozen. Preserve source provenance and immutable
+candidate tags; do not force-push or bulk-copy tags. Review the one-time
+adoption merge method explicitly for history preservation.
+
+Use the [current board](../../current-tasks.md),
+[ADR-026](../../decisions/026-rc5-bounded-candidate-acceptance.md),
+[handoff packet](../../../docs/release/task105-cdcai-handoff.md), and
+[handoff navigation](../../context/status/Handoff-Planning/README.md).
+Accepted fork candidate results do not qualify new official bytes.
+Plan agreement and access do not assert that any remote operation occurred.
+
+The Markdown backlog remains the current maintained format. Private delivery
+is staged locally for the outgoing lead's likely SharePoint upload; the final
+location and receipt remain pending, with no action requested from the lead now.
+Security exceptions expire October 31, 2026 at 23:59:59 UTC; handoff does not
+renew them. The ML bridge review is due January 31, 2027 or earlier ADR-022 trigger.
+
+## Historical planning and implementation record - preserved
+
+Everything below records earlier task states. The current execution state
+above supersedes old blocked-status, pilot-baseline, registry-copy and timing
+language. Historical checkbox results remain historical; they do not close
+the current delivery checklist.
+
 
 **Status**: BLOCKED / OWNER-GATED - prepare for the final qualified candidate,
 but do not change cdcai until explicit owner adoption approval

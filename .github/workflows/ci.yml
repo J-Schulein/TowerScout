@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch: {}
   schedule:
     - cron: '23 9 * * 1'
 
@@ -146,13 +147,8 @@ jobs:
         pytest tests/integration/ -v --cov=webapp --cov-append --cov-report=xml --cov-report=term-missing
       continue-on-error: true  # Don't fail build on integration test failures initially
     
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457 # v3
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-      continue-on-error: true
+    # Keep coverage in GitHub artifacts below. The receiving repository's
+    # selected-Actions policy does not allow the optional Codecov uploader.
 
     - name: Archive test results
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -166,10 +162,10 @@ jobs:
         if-no-files-found: ignore
 
   build:
-    needs: test
+    name: Full Docker build
+    needs: [test, frontend-test, frontend-container-build, security]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: github.ref == 'refs/heads/main'
     
     steps:
     - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -180,7 +176,6 @@ jobs:
     - name: Build Docker image (local deployment test)
       run: |
         docker build -t towerscout:test .
-      continue-on-error: true  # Advisory until Sprint 06 release gates decide whether image build should be merge-blocking
 
   security:
     runs-on: ubuntu-latest

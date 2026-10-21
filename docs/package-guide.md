@@ -157,7 +157,7 @@ procedure.
 Ask Local IT about installation permission, WSL, endpoint policy, proxies,
 TLS inspection, certificates, drivers, or firewall rules. Report a
 non-sensitive TowerScout product defect in the
-[TowerScout public issue tracker](https://github.com/J-Schulein/TowerScout/issues).
+[TowerScout public issue tracker](https://github.com/cdcai/TowerScout/issues).
 The issue tracker is public and is not a private or guaranteed-response help
 desk.
 
@@ -169,7 +169,7 @@ numerically newer tag is not supported unless the authoritative release record
 explicitly says otherwise.
 
 A normal final release has two artifact groups. Open
-[TowerScout Releases](https://github.com/J-Schulein/TowerScout/releases) and
+[TowerScout Releases](https://github.com/cdcai/TowerScout/releases) and
 choose the identified final release.
 
 On GitHub Releases, download these files from the release `Assets` section,
@@ -346,7 +346,7 @@ The package `.env.example` should pin `TOWERSCOUT_IMAGE` to an immutable GHCR
 digest reference such as:
 
 ```text
-ghcr.io/j-schulein/towerscout:<release-version>-cpu@sha256:<digest>
+ghcr.io/cdcai/towerscout:<release-version>-cpu@sha256:<digest>
 ```
 
 `IMAGE.txt`, `.env.example`, and `release-manifest.v1.json` record the selected
@@ -808,6 +808,8 @@ Common causes:
 
 ### Podman
 
+Follow the [short-folder and explicit Python requirements](quick-start.md#podman-folder-and-python-requirements): a package-root path of **80 characters or fewer** and **64-bit Python 3.12**. Run the commands one at a time; stop on errors or unless the version is 3.12 and bitness is 64 before running the installer. Do not move configured installations or change machine-wide policy as a workaround.
+
 For Podman, confirm:
 
 - Podman machine is created and running.
@@ -823,7 +825,10 @@ rejects Docker Desktop provider paths for the Podman path, and validates a
 If no approved provider is present, the package includes the connected helper:
 
 ```powershell
-.\scripts\install-podman-compose-provider.cmd -Apply
+py -3.12 --version
+$tsPython312 = (& py -3.12 -c "import sys; print(sys.executable)").Trim()
+& $tsPython312 -c "import sys, struct; print(sys.version); print(struct.calcsize('P') * 8)"
+.\scripts\install-podman-compose-provider.cmd -Apply -Python "$tsPython312"
 ```
 
 The helper installs the approved `podman-compose` provider into a package-local

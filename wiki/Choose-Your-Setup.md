@@ -1,9 +1,15 @@
 # Choose Your Setup
 
 > **Audience:** New users and Local IT. **Applies to:** The next final Windows
-> release. **Last reviewed:** 2026-10-05. **Publication state:** Local draft.
+> release. **Last reviewed:** 2026-10-20. **Publication state:** Local draft.
 
 Make three separate choices. Choosing one item does not choose the others.
+
+For Docker, host Python is not required. The current tested Podman provider
+setup requires explicitly selected **64-bit Python 3.12** and a package-root
+path of **80 characters or fewer**. Follow [Podman Guidance](Podman-Guidance)
+for the short-folder check, Python selection, and selected-provider verification.
+These restrictions do not authorize moving an existing configured installation.
 
 ## 1. Choose Docker Or Podman
 
@@ -33,10 +39,10 @@ automatically.
 The four valid combinations are Docker CPU, Docker GPU, Podman CPU, and Podman
 GPU. Follow the matching package guide:
 
-- [Docker CPU](https://github.com/J-Schulein/TowerScout/blob/main/docs/docker-cpu-user-guide.md)
-- [Docker GPU](https://github.com/J-Schulein/TowerScout/blob/main/docs/docker-gpu-user-guide.md)
-- [Podman CPU](https://github.com/J-Schulein/TowerScout/blob/main/docs/podman-cpu-user-guide.md)
-- [Podman GPU](https://github.com/J-Schulein/TowerScout/blob/main/docs/podman-gpu-user-guide.md)
+- [Docker CPU](https://github.com/cdcai/TowerScout/blob/main/docs/docker-cpu-user-guide.md)
+- [Docker GPU](https://github.com/cdcai/TowerScout/blob/main/docs/docker-gpu-user-guide.md)
+- [Podman CPU](https://github.com/cdcai/TowerScout/blob/main/docs/podman-cpu-user-guide.md)
+- [Podman GPU](https://github.com/cdcai/TowerScout/blob/main/docs/podman-gpu-user-guide.md)
 
 ## 3. Choose Google Maps Or Azure Maps
 

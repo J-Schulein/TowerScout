@@ -74,11 +74,12 @@ Confirm the exact release notes before approving the user's chosen path.
 Normal package use does not require a source checkout, Git, Conda, Node.js, or
 VS Code. Host Python 3.12 is required only to install the tested package-local
 Podman Compose provider.
+Use a package-root path of **80 characters or fewer** and select **64-bit Python 3.12** explicitly as described in the [Podman prerequisites](quick-start.md#podman-folder-and-python-requirements). Preserve configured installation paths and volumes; do not change machine-wide policy to bypass an installation failure.
 
 ## Required Download And Integrity Flow
 
 Use a normal browser and the public
-[TowerScout Releases page](https://github.com/J-Schulein/TowerScout/releases).
+[TowerScout Releases page](https://github.com/cdcai/TowerScout/releases).
 Select only the entry whose notes identify it as the current supported final
 Windows release.
 
@@ -199,7 +200,7 @@ provider URLs or response bodies, browser console/network traces, certificate
 thumbprints/issuer details, cached imagery, exported datasets, volume contents,
 or local user/host identifiers through public channels. Use an approved private
 handling path when deeper investigation is necessary. The current public route
-is the [TowerScout issue tracker](https://github.com/J-Schulein/TowerScout/issues),
+is the [TowerScout issue tracker](https://github.com/cdcai/TowerScout/issues),
 which is not a private or guaranteed-response help desk.
 
 ## Stop And Escalate
