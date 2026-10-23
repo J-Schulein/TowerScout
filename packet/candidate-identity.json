@@ -1,0 +1,29 @@
+{
+  "base": "87ca90089473e1855f98968f75a17b5f8d0dd1cd",
+  "head": "dad6f4c709d41c6fa696e1c09de3e6cf0c5a2717",
+  "tree": "01f286393936d58f563db0ff1195fecf17c2770c",
+  "previous_review": "52182f0ea12f2951e91413725058b764b70e828f",
+  "public_files": 406,
+  "new_commits": 1,
+  "sole_parent": "87ca90089473e1855f98968f75a17b5f8d0dd1cd",
+  "source_provenance": "724e619fcca6535d09f83dc1d897b41f2e230ae3",
+  "history_guard": "PASS",
+  "approved_author_and_committer_verified": true,
+  "remote_configured": false,
+  "source_manifest_sha256": "bebb302fbf8408360fb27601e8dfe125842dc5517af1396c0a02f88f10e504f6",
+  "source_zip_sha256": "4e512f3ed43d25e6fc7f6cd4329499b335db4d54a7b6eba4744dfa2e5bfb2607",
+  "manifest_serialization": "UTF-8, JSON indent=2, final LF, all line endings LF",
+  "deltas": {
+    "receiving-base": {
+      "A": 362,
+      "M": 33,
+      "D": 110
+    },
+    "reviewed-checkpoint": {
+      "A": 10,
+      "M": 46,
+      "D": 5
+    }
+  },
+  "state": "Local review proposal; independent acceptance, rights dispositions and qualification pending"
+}

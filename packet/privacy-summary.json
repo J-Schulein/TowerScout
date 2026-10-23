@@ -1,0 +1,23 @@
+{
+  "head": "dad6f4c709d41c6fa696e1c09de3e6cf0c5a2717",
+  "tree": "01f286393936d58f563db0ff1195fecf17c2770c",
+  "approved_author_and_committer_verified": true,
+  "archive_bytes_and_metadata_verified": true,
+  "source_match_counts": {
+    "ipv4": 104,
+    "user-path": 7,
+    "email": 1,
+    "credential-shape": 11,
+    "personal-link": 1
+  },
+  "new_source_matches": "Only documented IPv4 loopback address",
+  "retained_matches": "Unchanged previously dispositioned synthetic test/example paths and credentials, upstream notice email, historical project link and addresses; no new current-person matches",
+  "notebook_and_visual_payloads_unchanged": true,
+  "application_grant_and_accepted_security_policy_unchanged": true,
+  "removed_helper_preserved_in_prior_checkpoints": true,
+  "limits": [
+    "Inherited receiving history is preserved, not anonymized.",
+    "Public upload remains unauthorized; repeat privacy and both metadata checks immediately before any upload.",
+    "Final dependency payloads/release artifacts require their own review."
+  ]
+}

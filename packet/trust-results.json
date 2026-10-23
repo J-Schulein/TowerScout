@@ -1,0 +1,18 @@
+[
+  {
+    "engine": "docker",
+    "image_id": "sha256:f343ad71f2abf3f731eab71680a0d51fe76707a6c641ebb6f6e333a2ef6c8446",
+    "status": "PASS",
+    "real_intermediates_rejected": 4,
+    "private_material_rejected_without_persistent_copy": true,
+    "raw_receipt_sha256": "65e86f4a27fc03caf96f13101e7e366a0483a9b145228dcb4a2c09ee8e166e79"
+  },
+  {
+    "engine": "podman",
+    "image_id": "sha256:4169fa11249e25502a0e51a3555ffb287a1609e3280b28d632200b7e0960a471",
+    "status": "PASS",
+    "real_intermediates_rejected": 4,
+    "private_material_rejected_without_persistent_copy": true,
+    "raw_receipt_sha256": "6fd4458c2efc14ab6bc2207e8871c2d13296a76dbdfdd276881a59864bdb1098"
+  }
+]

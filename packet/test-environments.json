@@ -1,0 +1,18 @@
+{
+  "windows": {
+    "python": "3.12.10",
+    "node": "22.16.0",
+    "powershell": "5.1.26100.9711",
+    "dependency_setup": "New virtual environment; verified bootstrap and fresh requirements installation",
+    "freeze": "windows-python-freeze.txt"
+  },
+  "linux": {
+    "python": "3.11.17",
+    "node": "22.23.4",
+    "local_test_image_id": "sha256:e23be349feb8d4bcdf111227844c5dee7b0be14057d6dadb51ea821a81fd4e50",
+    "dependency_setup": "Preserved CPU runtime with selected updated requirements, Git, Node and development tools; not a clean final production build",
+    "network_during_tests": "none",
+    "freeze": "linux-python-freeze.txt"
+  },
+  "remaining_matrix": "Linux Python 3.12 and receiving proposed-merge CI not executed locally"
+}
