@@ -1,10 +1,14 @@
+# Historical CI bootstrap record
+
+Bootstrap validation preceded adoption. Current workflow files define the active PR/main checks and test the proposed merge. The instructions below describe the earlier setup only.
+
 # Temporary TowerScout CI setup
 
 This setup installs validation before the application adoption. It changes no
 application file, container publish workflow, image, release, tag or wiki.
 
 Both workflows run **manually only**. Each job checks out the same reviewed
-source in `J-Schulein/TowerScout`:
+source in the development fork (historical identity retained in private adoption evidence):
 
 `8682b8e6b31a4425ab626da557f58bff97076de7`
 
