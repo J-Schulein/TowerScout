@@ -1,0 +1,29 @@
+{
+  "base": "87ca90089473e1855f98968f75a17b5f8d0dd1cd",
+  "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+  "tree": "a58cbf71a870e252b287a2f018fdf1de99dca2c3",
+  "previous_review": "dad6f4c709d41c6fa696e1c09de3e6cf0c5a2717",
+  "public_files": 409,
+  "new_commits": 1,
+  "sole_parent": "87ca90089473e1855f98968f75a17b5f8d0dd1cd",
+  "source_provenance": "724e619fcca6535d09f83dc1d897b41f2e230ae3",
+  "history_guard": "PASS",
+  "approved_author_and_committer_verified": true,
+  "remote_configured": false,
+  "source_manifest_sha256": "f0aa2bc0b1eef1dfb78020d1b0301084aaaf367e48d27c5b9aa8a448ec21a317",
+  "source_zip_sha256": "d3e0305c56404b3582d78086d8d1af7d6c184e1a11d856cdf37f0fe82f184291",
+  "manifest_serialization": "UTF-8, JSON indent=2, final LF, all line endings LF",
+  "deltas": {
+    "receiving-base": {
+      "A": 365,
+      "M": 34,
+      "D": 110
+    },
+    "reviewed-checkpoint": {
+      "A": 3,
+      "M": 62,
+      "D": 0
+    }
+  },
+  "state": "Local review proposal; independent acceptance, receiving CI and qualification pending"
+}

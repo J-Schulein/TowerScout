@@ -1,0 +1,25 @@
+{
+  "head": "16ccc989ab188591d906ee7e8ede526b79d41950",
+  "checks": [
+    {
+      "check": "post-poll",
+      "exit": 0
+    },
+    {
+      "check": "unavailable",
+      "exit": 0
+    },
+    {
+      "check": "api-timeout",
+      "exit": 0
+    },
+    {
+      "check": "simulated-e2e",
+      "exit": 0
+    },
+    {
+      "check": "simulated-loopback",
+      "exit": 0
+    }
+  ]
+}

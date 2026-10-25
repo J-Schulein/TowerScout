@@ -1,0 +1,25 @@
+{
+  "windows": {
+    "python": "3.12.10",
+    "node": "22.16.0",
+    "powershell": "5.1.26100.9711",
+    "dependency_setup": "Preserved fresh Python 3.12.10 environment from October 23; current freeze and pip check verified",
+    "freeze": "windows-python-freeze.txt"
+  },
+  "linux": {
+    "python": "3.11.17",
+    "node": "22.23.4",
+    "local_test_image_id": "sha256:e23be349feb8d4bcdf111227844c5dee7b0be14057d6dadb51ea821a81fd4e50",
+    "dependency_setup": "Preserved isolated CPU-derived test image; network disabled, corrected source mounted; not a new final production image",
+    "network_during_tests": "none",
+    "freeze": "linux-python-freeze.txt"
+  },
+  "remaining_matrix": "Linux Python 3.12 and receiving proposed-merge CI not executed locally",
+  "browser": {
+    "platform": "Windows",
+    "engine": "headless Microsoft Edge 155.0.4283.62",
+    "puppeteer": "25.16.0",
+    "npm": "10.9.2",
+    "scope": "Five existing synthetic production controller contracts, localhost services, no live provider accounts"
+  }
+}
