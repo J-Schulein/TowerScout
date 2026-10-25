@@ -1,0 +1,21 @@
+{
+  "head": "77cb258a03f2abf74054346b2e3964b2d907615b",
+  "paths": [
+    ".github/security/task103-accepted-residuals.v1.json",
+    ".gitignore",
+    "Model/EN_classifier_eval.ipynb",
+    "Model/EN_classifier_train.ipynb",
+    "Model/bbox_viz.ipynb",
+    "Model/dl_images_nyc.ipynb",
+    "Model/pull_rand_tiles.ipynb",
+    "Model/w210_model_NB.ipynb",
+    "Model/w210_model_NB_v2.ipynb",
+    "SyntheticData/Identify background and object images.ipynb",
+    "SyntheticData/Separate_Output_Images.ipynb",
+    "SyntheticData/create_object_mask.ipynb",
+    "docs/legacy/LICENSE-CC-BY-NC-SA-4.0.txt",
+    "licenses/CC-BY-NC-SA-4.0.txt",
+    "tests/fixtures/task106-trust/distrusted-emsign-root.pem"
+  ],
+  "explanation": "Preserved working CRLF inputs normalize under attributes; ZIP and manifest contain exact committed bytes."
+}

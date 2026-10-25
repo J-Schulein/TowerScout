@@ -1,0 +1,621 @@
+diff --git a/docs/maintenance.md b/docs/maintenance.md
+index 5483c69..766d122 100644
+--- a/docs/maintenance.md
++++ b/docs/maintenance.md
+@@ -68,6 +68,11 @@ imagery quality or training suitability. Export selects annotations by tile ID
+ and detection index, including when labels on different detections are identical.
+ Legacy provider images may contain PNG/TIFF bytes under a `.jpg` filename;
+ restore validates the actual format and preserves those filenames and bytes.
++Restore ignores historical root/empty README copies after validating all archive
++paths and expansion budgets; export writes one canonical README. XML dimensions
++and coordinates come from the actual tile image, including rectangular tiles
++and old archives with flipped metadata flags. The legacy stored flag convention
++is decoded on restore instead of flipping again on each export.
+ Failed restores retain the current review and export inputs. CSV includes all rows with selection and threshold flags;
+ KML includes selected above-threshold results: stored ML run membership in Find mode, all ML in Label mode, and selected manual towers in either mode. Current drawings do not redefine the completed run.
+ Training datasets include selected above-threshold annotations across each full
+@@ -105,7 +110,7 @@ stop/recreate the container using the same preserved volumes and verify trust;
+ do not treat leftover staging as trusted or delete durable CA/config volumes.
+ 
+ Same-session concurrent mutations across tabs, shared legacy dataset ZIP output,
+-metadata-flag inversion, repeated restored-manual duplication and native Windows
++repeated restored-manual duplication and native Windows
+ TIFF cleanup remain scoped follow-ups. Use one active review/upload/export at a
+ time and retain the original dataset. Qualification must exercise actual image
+ modes and export/restore behavior; mocked tests are not that qualification.
+diff --git a/docs/package-guide.md b/docs/package-guide.md
+index cf60e5c..bc1c98a 100644
+--- a/docs/package-guide.md
++++ b/docs/package-guide.md
+@@ -1084,12 +1084,17 @@ checks (50 MiB, 8,192 pixels per edge, 16 million pixels). Duplicate image or
+ label/XML destinations and reserved metadata collisions are rejected before
+ replacement. This validates the input structure, not its training suitability.
+ Valid PNG/TIFF bytes stored under legacy `.jpg` names remain accepted unchanged.
++Older re-exports containing both root and `empty/README.txt` are accepted;
++restore discards those documentation copies and export writes one current README.
++All archive path and expansion checks still apply to ignored documentation.
++XML labels use the actual image width and height, so their scale remains stable
++through repeated restores even when an older archive's metadata flag was flipped.
+ Original search polygons are not in the archive. Existing membership flags are
+ retained, while a new manual tower after restore warns that membership is
+ unconfirmed (stored as false); selected manual towers remain visible/exportable.
+ 
+-Export/restore is not a complete or lossless backup: legacy metadata-flag
+-inversion and repeated manual-addition duplication remain known limitations.
++Export/restore is not a complete or lossless backup: repeated manual-addition
++duplication remains a known limitation.
+ Use one active upload/review/export at a time; retain original archives. Successful
+ restore discards its consumed ZIP, but reload, session reset and hard interruption
+ do not guarantee removal of all old uploads or temporary files. Follow the
+diff --git a/docs/release/release-notes.md b/docs/release/release-notes.md
+index 29d18ad..2fbf7f7 100644
+--- a/docs/release/release-notes.md
++++ b/docs/release/release-notes.md
+@@ -37,6 +37,11 @@ and [dependency security disposition](../security/dependency-security-dispositio
+ 
+ ## Review corrections in this source revision
+ 
++- Preserve repeated dataset export/restore and accept historical re-exports with
++  duplicate README copies, while retaining archive path, collision and size checks.
++- Generate XML annotations using actual image dimensions, independent of legacy
++  metadata flags; decode the stored flag correctly during restore.
++- Keep Azure's unconfirmed-boundary warning visible after adding manual towers.
+ - Update Puppeteer and its locked development graph; retain blocking audit.
+ - Remove the Windows host-helper listener/worker/entrypoints and their test suite
+   from proposed source. The historically named required Windows job continues
+diff --git a/tests/frontend/test_task106_followup.js b/tests/frontend/test_task106_followup.js
+index cbfb6bf..829980a 100644
+--- a/tests/frontend/test_task106_followup.js
++++ b/tests/frontend/test_task106_followup.js
+@@ -65,5 +65,58 @@ async function uploadChecks() {
+   await c.uploadImage(); assert.strictEqual(canvas.src,url); assert.strictEqual(changes.length,1);
+ }
+ 
+-async function main(){providerChecks();await uploadChecks();console.log('Both providers: run/changed/cleared/unknown boundaries, visibility and custom upload contracts pass');}
++function listAndEscapingChecks() {
++  const visibility=[], addresses=[];
++  const manual={id:0,idInTile:-1,inside:false,conf:1,selected:true,
++    show:v=>visibility.push(v),update(){},showAddr:v=>addresses.push(v)};
++  manual.firstDet=manual;
++  const c={console,PlaceRect:class{},confSlider:{value:50},reviewCheckBox:{checked:false},
++    Detection_minConfidence:.5,TowerScoutLogger:logger,
++    document:{getElementById:()=>null},
++    providerManager:{setMinConfidence(){},getDetections:()=>[manual]}};
++  c.window=c;vm.createContext(c);
++  vm.runInContext(source('detection/DetectionList.js'),c);
++  vm.runInContext(source('detection/Detection.js'),c);
++  c.adjustConfidence();
++  assert.deepStrictEqual(visibility,[true],'outside manual stays in the detection list');
++  assert.deepStrictEqual(addresses,[true],'outside manual keeps its address row');
++  assert.strictEqual(c.Detection.escapeHtml(`"quoted" 'single' <tag> &`),
++    '&quot;quoted&quot; &#39;single&#39; &lt;tag&gt; &amp;');
++}
++
++function finalWarningChecks() {
++  for(const provider of ['GoogleMap','AzureMap']) for(const unknown of [false,true]) {
++    const nodes={},notices=[],timers=[],detections=[];
++    const c={console,PlaceRect:class{update(){}},reviewCheckBox:{checked:false},Detection_minConfidence:.5,
++      Tile:{getTileIds:()=>[0]},Tile_tiles:[{}],
++      providerManager:{getTilesArrayDirect:()=>[{id:0,x1:10,x2:20,y1:50,y2:40}]},
++      document:{getElementById:id=>nodes[id],createElement:()=>({style:{}}),
++        body:{appendChild:n=>{nodes[n.id]=n;}}},
++      timerManager:{clearTimeout(){},setTimeout:(_,ms)=>{timers.push(ms);return timers.length;}},
++      TowerScoutLogger:{...logger,info:m=>notices.push(m)}};
++    c.window=c;vm.createContext(c);
++    for(const file of ['managers/ErrorHandler.js','utils/polygonValidation.js',
++      'providers/TSMap_base.js','providers/GoogleMap.js','providers/AzureMap.js']) vm.runInContext(source(file),c);
++    c.Detection=class{constructor(...args){detections.push({inside:args[8]});}static generateList(){}};
++    c.TSMap.setDetectionBoundaries(unknown ? null : JSON.stringify([[[10,40],[15,40],[15,45],[10,45]]]));
++    const obj=Object.create(c[provider].prototype),x=11,y=41;
++    const shape={bounds:{getSouthWest:()=>({lng:()=>x,lat:()=>y}),getNorthEast:()=>({lng:()=>x+1,lat:()=>y+1})},setMap(){}};
++    Object.assign(obj,{boundaries:[],newShapes:[shape],isDrawing:false,geocodeDetection(){},
++      getPendingBoundaryShapes(){return this.newShapes},validateDrawnShapes(){return {valid:true}},
++      extractBoundaryPointsFromShape(){return [[x,y],[x+1,y],[x+1,y+1],[x,y+1]]}});
++    obj.addShapes();
++    assert.strictEqual(detections[0].inside,!unknown);
++    const final=nodes['error-notification'];
++    if(unknown) {
++      assert(final.textContent.includes('unconfirmed'),`${provider}: final visible warning`);
++      assert.strictEqual(final.style.backgroundColor,'#f39c12');
++      assert.strictEqual(timers.at(-1),8000);
++    } else if(provider==='AzureMap') {
++      assert(final.textContent.includes('Successfully added 1 manual tower'));
++      assert.strictEqual(final.style.backgroundColor,'#27ae60');
++    }
++  }
++}
++
++async function main(){providerChecks();listAndEscapingChecks();finalWarningChecks();await uploadChecks();console.log('Both providers: boundary, final warning, list visibility, escaping and upload contracts pass');}
+ main().catch(e=>{console.error(e);process.exitCode=1;});
+diff --git a/tests/unit/test_dataset_restore_followup.py b/tests/unit/test_dataset_restore_followup.py
+index 90624e1..31b2dd4 100644
+--- a/tests/unit/test_dataset_restore_followup.py
++++ b/tests/unit/test_dataset_restore_followup.py
+@@ -6,6 +6,7 @@
+ import zipfile
+ 
+ import pytest
++from PIL import Image
+ import towerscout
+ from ts_dataset import DatasetFormatError, check_zip_directory, validate_contents
+ from test_dataset_restore_safety import archive, contents
+@@ -42,7 +43,9 @@ def test_labels_roundtrip_as_separate_yolo_and_xml_objects(tmp_path, label):
+     data[0][0]['detections'] = [label, label]
+     tile = validate_contents(data)[0][0]
+     tile.update(filename=str(tmp_path / 'tile.jpg'), labelfilename=str(tmp_path / 'tile.txt'))
+-    towerscout.write_labels(0, tile, {(0, 0), (0, 1)}, [], False)
++    with Image.new('RGB', (640, 640), 'white') as image:
++        image.save(tile['filename'])
++    towerscout.write_labels(0, tile, {(0, 0), (0, 1)}, [])
+     assert (tmp_path / 'tile.txt').read_text().splitlines() == ['0 0.5 0.5 0.1 0.1'] * 2
+     assert (tmp_path / 'tile.xml').read_text().count('<object>') == 2
+ 
+diff --git a/tests/unit/test_dataset_writer_roundtrip.py b/tests/unit/test_dataset_writer_roundtrip.py
+new file mode 100644
+index 0000000..e344099
+--- /dev/null
++++ b/tests/unit/test_dataset_writer_roundtrip.py
+@@ -0,0 +1,230 @@
++"""Exercise actual writer archives across restore generations and legacy flags."""
++import io
++import itertools
++import json
++from pathlib import Path
++import xml.etree.ElementTree as ET
++import zipfile
++
++from PIL import Image
++import pytest
++import towerscout
++
++
++@pytest.fixture
++def writer(tmp_path, monkeypatch):
++    fresh = tmp_path / 'fresh'
++    fresh.mkdir()
++    exports = tmp_path / 'exports'
++    exports.mkdir()
++    sequence = itertools.count()
++    def stage():
++        target = tmp_path / f'restored-{next(sequence)}'
++        target.mkdir()
++        return str(target)
++    monkeypatch.setattr(towerscout, '_make_session_tmpdir', stage)
++    monkeypatch.setattr(towerscout, 'get_temp_dir', lambda: exports)
++    monkeypatch.setattr(towerscout.rate_limiter, 'is_allowed', lambda *a, **k: True)
++    def offline(**kwargs):
++        raise RuntimeError('synthetic offline geocoder')
++    monkeypatch.setattr(towerscout, 'create_geocoding_service', offline)
++    client = towerscout.app.test_client()
++    tile_id = 0
++    def seed(size, meta, image_format='JPEG', index=0):
++        nonlocal tile_id
++        tile_id = index
++        filename = fresh / 'tile.jpg'
++        with Image.new('RGB', size, 'white') as image:
++            image.save(filename, format=image_format)
++        tiles = [dict(index=index, filename=str(filename), labelfilename=str(fresh/'tile.txt'),
++                      metadata='synthetic', detections=['0 0.15 0.25 0.1 0.1\n'])]
++        rows = [dict(id=index, class_name='tile', x1=0, x2=1, y1=1, y2=0, conf=1, **{'class':1}),
++                dict(tile=index,id_in_tile=0,class_name='ct',x1=.1,x2=.2,y1=.3,y2=.2,
++                     conf=.9,inside=False,selected=True, **{'class':0})]
++        with client.session_transaction() as state:
++            state.update(tmpdirname=str(fresh),metadata=meta,detections=tiles,results=json.dumps(rows))
++        return filename.read_bytes()
++    def export(include=None, additions=None):
++        if include is None:
++            include = [dict(tile=tile_id,detection=0)]
++        response = client.post('/getdataset',data={'include':json.dumps(include),
++                               'additions':json.dumps(additions or [])})
++        assert response.status_code == 200
++        payload = response.get_data()
++        response.close()
++        return payload
++    def restore(payload):
++        return client.post('/uploaddataset',data={'dataset':(io.BytesIO(payload),'dataset.zip')})
++    return client, seed, export, restore
++
++
++def inspect_archive(payload):
++    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
++        names = archive.namelist()
++        xml = ET.fromstring(archive.read(next(n for n in names if n.endswith('/tile.xml'))))
++        return dict(names=names, xml=xml,
++                    image=archive.read(next(n for n in names if n.endswith('/tile.jpg'))),
++                    labels=archive.read(next(n for n in names if n.endswith('/tile.txt'))),
++                    contents=json.loads(archive.read(next(n for n in names if n.endswith('/contents.txt')))))
++
++
++def rewrite_archive(payload, transform=None, extra=()):
++    output = io.BytesIO()
++    with zipfile.ZipFile(io.BytesIO(payload)) as source, zipfile.ZipFile(output,'w') as target:
++        for entry in source.infolist():
++            data = source.read(entry)
++            if transform:
++                data = transform(entry.filename,data)
++            target.writestr(entry,data)
++        for name, data in extra:
++            target.writestr(name,data)
++    return output.getvalue()
++
++
++def assert_xml_size_and_ml_box(xml, size):
++    width, height = size
++    assert (int(xml.findtext('size/width')),int(xml.findtext('size/height'))) == size
++    box = xml.find('object/bndbox')
++    assert int(box.findtext('xmin')) == int((.15-.05)*width)
++    assert int(box.findtext('xmax')) == int((.15+.05)*width)
++    assert int(box.findtext('ymin')) == int((.25-.05)*height)
++    assert int(box.findtext('ymax')) == int((.25+.05)*height)
++
++
++def test_actual_writer_readme_survives_repeated_restore(writer):
++    _,seed,export,restore=writer
++    seed((1280,1280),False)
++    for _ in range(3):
++        payload=export()
++        assert restore(payload).status_code==200
++
++
++@pytest.mark.parametrize('meta',[False,True])
++@pytest.mark.parametrize('legacy',[False,True])
++@pytest.mark.parametrize('size,image_format',[((1280,1280),'JPEG'),((640,640),'PNG'),((640,320),'TIFF')])
++def test_actual_writer_multigeneration_roundtrip(writer,meta,legacy,size,image_format):
++    client,seed,export,restore = writer
++    image = seed(size,meta,image_format,index=0 if legacy else 7)
++    for generation in range(3):
++        payload = export()
++        data = inspect_archive(payload)
++        assert [n for n in data['names'] if n.endswith('README.txt')] == ['README.txt']
++        assert data['image'] == image
++        assert data['labels'].decode().splitlines() == ['0 0.15 0.25 0.1 0.1']
++        assert data['contents'][2] is (not meta)
++        assert_xml_size_and_ml_box(data['xml'],size)
++        if legacy and generation == 0:
++            def legacy_contents(name,raw):
++                if name.endswith('/contents.txt'):
++                    contents=json.loads(raw)
++                    del contents[1][0]['id']
++                    return json.dumps(contents).encode()
++                return raw
++            payload=rewrite_archive(payload,legacy_contents)
++        response=restore(payload)
++        assert response.status_code == 200
++        with client.session_transaction() as state:
++            assert state['metadata'] is meta
++            assert not (Path(state['tmpdirname'])/'README.txt').exists()
++
++
++@pytest.mark.parametrize('size',[(1280,1280),(640,640),(640,320)])
++@pytest.mark.parametrize('meta',[False,True])
++def test_historical_reexport_duplicate_readme_and_flipped_flag(writer,size,meta):
++    client,seed,export,restore=writer
++    image=seed(size,meta)
++    first=export()
++    stem=next(n for n in inspect_archive(first)['names'] if n.endswith('/contents.txt')).split('/')[0]
++    def old_reexport_flag(name,raw):
++        if name.endswith('/contents.txt'):
++            data=json.loads(raw)
++            data[2]=not data[2]
++            return json.dumps(data).encode()
++        return raw
++    historical=rewrite_archive(first,old_reexport_flag,[(f'{stem}/empty/README.txt',b'Historical README')])
++    assert restore(historical).status_code == 200
++    for _ in range(2):
++        payload=export()
++        data=inspect_archive(payload)
++        assert data['image']==image
++        assert_xml_size_and_ml_box(data['xml'],size)
++        assert [n for n in data['names'] if n.endswith('README.txt')]==['README.txt']
++        assert restore(payload).status_code == 200
++
++
++@pytest.mark.parametrize('size',[(1280,1280),(640,320)])
++def test_manual_xml_uses_image_dimensions(writer,size):
++    _,seed,export,_=writer
++    seed(size,True)
++    data=inspect_archive(export(include=[],additions=[dict(tile=0,centerx=.5,centery=.5,w=.2,h=.2,inside=False)]))
++    xml=data['xml']
++    assert (int(xml.findtext('size/width')),int(xml.findtext('size/height')))==size
++    box=xml.find('object/bndbox')
++    assert [int(box.findtext(k)) for k in ('xmin','xmax','ymin','ymax')]==[
++        int(.4*size[0]),int(.6*size[0]),int(.4*size[1]),int(.6*size[1])]
++    assert data['contents'][1][-1]['inside'] is False
++
++
++@pytest.mark.parametrize('index',[False,0.0,True,1.0])
++def test_invalid_index_that_aliases_real_label_stays_unselected(writer,index):
++    client,seed,export,_=writer
++    seed((8,8),False)
++    with client.session_transaction() as state:
++        state['detections'][0]['detections'].append('0 0.5 0.5 0.2 0.2\n')
++        rows=json.loads(state['results'])
++        rows.append(dict(rows[1],id_in_tile=1))
++        state['results']=json.dumps(rows)
++    data=inspect_archive(export(include=[dict(tile=0,detection=index)]))
++    assert data['labels']==b'' and data['xml'].findall('object')==[]
++    assert all(not r['selected'] for r in data['contents'][1][1:])
++
++
++@pytest.mark.parametrize('member',['fresh/empty/tile.jpg','fresh/empty/contents.txt','../README.txt'])
++def test_readme_compatibility_does_not_allow_other_collisions(writer,member):
++    client,seed,export,restore=writer
++    image=seed((8,8),False)
++    original=export()
++    with client.session_transaction() as state:
++        previous=state['tmpdirname']
++    response=restore(rewrite_archive(original,extra=[(member,b'conflicting')]))
++    assert response.status_code==400
++    with client.session_transaction() as state:
++        assert state['tmpdirname']==previous
++        assert Path(state['detections'][0]['filename']).read_bytes()==image
++
++
++@pytest.mark.parametrize('limit',['MAX_DATASET_MEMBER_BYTES','MAX_DATASET_EXPANDED_BYTES','MAX_DATASET_MEMBERS'])
++def test_ignored_readme_remains_subject_to_archive_budgets(writer,monkeypatch,limit):
++    client,seed,export,restore=writer
++    seed((8,8),False)
++    payload=export()
++    # Other members fit; including the ignored README is what exceeds the budget.
++    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
++        others=[i for i in archive.infolist() if i.filename!='README.txt']
++        cap={'MAX_DATASET_MEMBER_BYTES':max(i.file_size for i in others)+1,
++             'MAX_DATASET_EXPANDED_BYTES':sum(i.file_size for i in others)+1,
++             'MAX_DATASET_MEMBERS':len(others)}[limit]
++        if limit=='MAX_DATASET_MEMBER_BYTES':
++            assert archive.getinfo('README.txt').file_size>cap
++    monkeypatch.setattr(towerscout,limit,cap)
++    with client.session_transaction() as state:
++        previous=state['tmpdirname']
++    assert restore(payload).status_code==400
++    with client.session_transaction() as state:
++        assert state['tmpdirname']==previous
++
++
++def test_metadata_budget_is_checked_before_member_reads(writer,monkeypatch):
++    _,seed,export,restore=writer
++    seed((8,8),False)
++    payload=export()
++    monkeypatch.setattr(towerscout,'MAX_DATASET_METADATA_BYTES',32)
++    reads=[]
++    original=towerscout.zipfile.ZipFile.open
++    def observe(self,*args,**kwargs):
++        reads.append(str(args[0]))
++        return original(self,*args,**kwargs)
++    monkeypatch.setattr(towerscout.zipfile.ZipFile,'open',observe)
++    response=restore(payload)
++    assert response.status_code==400 and 'metadata' in response.json['error'].lower()
++    assert reads==[], 'Oversized JSON must be rejected before reading any ZIP member'
+diff --git a/tests/unit/test_flask_routes.py b/tests/unit/test_flask_routes.py
+index fd8e6ac..59665cc 100644
+--- a/tests/unit/test_flask_routes.py
++++ b/tests/unit/test_flask_routes.py
+@@ -1158,7 +1158,7 @@ def test_uploaddataset_restores_contents_into_session(client, tmp_path):
+         assert state['tmpdirname'] == str(restored)
+         assert state['detections'][0]['filename'] == str(restored / 'tile.jpg')
+         assert json.loads(state['results']) == results
+-        assert state['metadata'] is False
++        assert state['metadata'] is True
+ 
+ 
+ def _dataset_image_bytes():
+@@ -1269,7 +1269,7 @@ def test_uploaddataset_restores_valid_export_zip_without_path_escape(client, tmp
+     with client.session_transaction() as sess:
+         assert sess["tmpdirname"] == str(restore_dir)
+         assert json.loads(sess["results"]) == restored_results
+-        assert sess["metadata"] == restored_metadata
++        assert sess["metadata"] is (not restored_metadata)
+ 
+ 
+ def test_dataset_expansion_limit_preserves_previous_session(client, tmp_path, monkeypatch):
+diff --git a/webapp/DATASET_README.txt b/webapp/DATASET_README.txt
+index 2b54d03..31be025 100644
+--- a/webapp/DATASET_README.txt
++++ b/webapp/DATASET_README.txt
+@@ -61,11 +61,16 @@ Legacy .jpg files containing valid PNG/TIFF bytes are preserved and accepted;
+ validation checks their actual content format instead of requiring a rename.
+ Export matches selections by tile ID and detection index, so equal label text
+ does not include an unchecked annotation. An empty ML selection remains empty.
++Historical root and empty/README.txt copies are ignored on restore after archive
++path and expansion checks; export includes one current README. XML coordinates
++and width/height use the actual image dimensions, including rectangular images
++and archives whose older metadata flags were flipped. The stored legacy flag
++is decoded on restore; it no longer alternates during new round trips.
+ 
+ The archive does not store original search polygons. Existing membership flags
+ remain available; a new manual tower after restore has unconfirmed membership
+ (stored as false with a warning), stays visible, and remains eligible for export
+ when selected and above threshold. Changing map drawings does not reclassify
+-existing detections. Legacy metadata-flag inversion and repeated manual-addition
+-duplication remain known limitations; repeated export/restore is not a lossless
++existing detections. Repeated manual-addition duplication remains a known
++limitation; repeated export/restore is not a lossless
+ backup mechanism.
+diff --git a/webapp/js/src/providers/AzureMap.js b/webapp/js/src/providers/AzureMap.js
+index 03410d8..2008e87 100644
+--- a/webapp/js/src/providers/AzureMap.js
++++ b/webapp/js/src/providers/AzureMap.js
+@@ -1526,10 +1526,12 @@
+ 
+       // TASK-033: User feedback
+       window.TowerScoutLogger.debug(`✅ Successfully added ${addedCount} manual tower(s)`);
++      const boundaryUnconfirmed = addedCount > 0 && !TSMap.detectionBoundaries;
+       TowerScoutErrorHandler.showUserNotification(
+-        `Successfully added ${addedCount} manual tower(s)`,
+-        'success',
+-        3000
++        `Successfully added ${addedCount} manual tower(s)` + (boundaryUnconfirmed
++          ? '. Boundary membership is unconfirmed (stored as false); added towers remain visible and selected.' : ''),
++        boundaryUnconfirmed ? 'warning' : 'success',
++        boundaryUnconfirmed ? 8000 : 3000
+       );
+     }
+ 
+diff --git a/webapp/js/towerscout.js b/webapp/js/towerscout.js
+index 0c81d3c..2892e0a 100644
+--- a/webapp/js/towerscout.js
++++ b/webapp/js/towerscout.js
+@@ -1,6 +1,6 @@
+ /**
+  * TowerScout Frontend Bundle - Auto-generated
+- * Source SHA-256: f856aa4be2c7c9778b6896012b901d29debfe3cb190aa41eb2387f1646c6d6eb
++ * Source SHA-256: be0640f6f8d29b5537fbad5598fc216cf5bab09dc81fe7cc71aa809f60b3c9ed
+  * Build Script: webapp/build.js
+  * 
+  * ⚠️  DO NOT EDIT THIS FILE DIRECTLY
+@@ -4888,10 +4888,12 @@ class TSMap {
+ 
+       // TASK-033: User feedback
+       window.TowerScoutLogger.debug(`✅ Successfully added ${addedCount} manual tower(s)`);
++      const boundaryUnconfirmed = addedCount > 0 && !TSMap.detectionBoundaries;
+       TowerScoutErrorHandler.showUserNotification(
+-        `Successfully added ${addedCount} manual tower(s)`,
+-        'success',
+-        3000
++        `Successfully added ${addedCount} manual tower(s)` + (boundaryUnconfirmed
++          ? '. Boundary membership is unconfirmed (stored as false); added towers remain visible and selected.' : ''),
++        boundaryUnconfirmed ? 'warning' : 'success',
++        boundaryUnconfirmed ? 8000 : 3000
+       );
+     }
+ 
+diff --git a/webapp/towerscout.py b/webapp/towerscout.py
+index a5738d9..7c105f4 100644
+--- a/webapp/towerscout.py
++++ b/webapp/towerscout.py
+@@ -23,6 +23,7 @@
+ from flask import Flask, render_template, send_from_directory, request, session, Response, jsonify, abort as flask_abort
+ from flask_session import Session
+ from werkzeug.datastructures import FileStorage
++from PIL import Image
+ from waitress import serve
+ import json
+ import html
+@@ -3142,8 +3143,7 @@ def send_dataset():
+             tile.get('index', 'MISSING'),
+             tile_id,
+         )
+-        filenames += write_labels(tile_id, tile,
+-                                  keep_detection_refs, additions, not meta)
++        filenames += write_labels(tile_id, tile, keep_detection_refs, additions)
+ 
+     # write a contents file so we can load this again some time
+     write_contents_file(
+@@ -3180,6 +3180,9 @@ def zipdir(path, filenames):
+     
+     for root, dirs, files in os.walk(path):
+         for file in files:
++            # Export one canonical README, never a restored documentation copy.
++            if file.casefold() == 'readme.txt':
++                continue
+             api_logger.debug("Compressing dataset export file %s", file)
+             # select the right folder
+             if file.endswith("contents.txt"):
+@@ -3238,7 +3241,11 @@ def make_persistable_tile_results(tiles):
+ 
+ # write out the detections as label files (to download the dataset)
+ # returns the names of img and label if detections were present, otherwise empty list
+-def write_labels(tile_id, tile, keep_refs, additions, double_res):
++def write_labels(tile_id, tile, keep_refs, additions):
++    # Historical re-exports can already contain an inverted metadata flag.
++    # XML coordinates must describe the actual image, including non-square tiles.
++    with Image.open(tile['filename']) as image:
++        width, height = image.size
+     empty = True
+     # print(" attempting to write file ", tile['labelfilename'], "...")
+ 
+@@ -3271,28 +3278,27 @@ def write_labels(tile_id, tile, keep_refs, additions, double_res):
+ 
+     # write xml labels for augmentation pipeline
+     name = tile['labelfilename'][:-3]+"xml"
+-    size = 1280 if double_res else 640
+ 
+     with open(name, "w", encoding="utf-8") as f:
+         api_logger.debug("Writing dataset XML label file %s", f.name)
+         xml = "<annotation>\n"
+         xml += "<size>\n"
+-        xml += "  <width>"+str(size)+"</width>\n"
+-        xml += "  <height>"+str(size)+"</height>\n"
++        xml += "  <width>"+str(width)+"</width>\n"
++        xml += "  <height>"+str(height)+"</height>\n"
+         xml += "  <depth>3</depth>\n"
+         xml += "</size>\n"
+         f.write(xml)
+         for index, detection in enumerate(tile['detections']):
+             if (tile_id, index) in keep_refs:
+                 # print("", detection)
+-                xml = xml_from_label(detection, size)
++                xml = xml_from_label(detection, width, height)
+                 f.write(xml)
+                 empty = False
+         for a in additions:
+             if a['tile'] == tile_id:
+                 label = " ".join(["0", str(a['centerx']), str(
+                     a['centery']), str(a['w']), str(a['h'])])
+-                xml = xml_from_label(label, size)
++                xml = xml_from_label(label, width, height)
+                 f.write(xml)
+                 empty = False
+         xml = "</annotation>\n"
+@@ -3302,12 +3308,14 @@ def write_labels(tile_id, tile, keep_refs, additions, double_res):
+ 
+ 
+ # convert YOLOv5-style object label to roboflow XML:
+-def xml_from_label(label, size):
++def xml_from_label(label, width, height=None):
++    if height is None:
++        height = width
+     x = [float(x) for x in label.split()]
+-    xmin = int((x[1]-0.5*x[3])*size)
+-    xmax = int((x[1]+0.5*x[3])*size)
+-    ymin = int((x[2]-0.5*x[4])*size)
+-    ymax = int((x[2]+0.5*x[4])*size)
++    xmin = int((x[1]-0.5*x[3])*width)
++    xmax = int((x[1]+0.5*x[3])*width)
++    ymin = int((x[2]-0.5*x[4])*height)
++    ymax = int((x[2]+0.5*x[4])*height)
+ 
+    
+     xml = "<object>\n"
+@@ -3677,20 +3685,27 @@ def upload_dataset():
+             
+             old_stem = subfolder_files[0][:subfolder_files[0].index("/")]
+             files = adapt_filenames(filenames, old_stem, new_stem)
++            # Old exports can contain both the canonical root README and a
++            # restored copy under empty/. Neither is session data. All names
++            # and expansion budgets were validated above, including these files.
++            ignored_readmes = {'README.txt', f'{old_stem}/empty/README.txt'}
++            members = [(info, name) for info, name in zip(zipf.infolist(), files)
++                       if info.filename not in ignored_readmes]
+             # Flattening must not overwrite metadata, another member, or the
+             # uploaded archive. Bound JSON before extraction/parsing as well.
+             targets = [os.path.normcase(os.path.abspath(
+                 _resolve_dataset_restore_target(tmpdirname, name)))
+-                for name, original in zip(files, filenames) if not original.endswith('/')]
++                for info, name in members if not info.is_dir()]
+             if len(targets) != len(set(targets)) or os.path.normcase(os.path.abspath(filename)) in targets:
+                 raise DatasetFormatError('Ambiguous dataset archive paths')
+-            for info, name in zip(zipf.infolist(), files):
++            for info, name in members:
+                 if name == 'contents.txt' and info.file_size > MAX_DATASET_METADATA_BYTES:
+                     raise DatasetFormatError('Dataset metadata exceeds the 8 MiB restore limit')
+             # print(files)
+             extracted_files = set()
+-            for f_zip, f_new in zip(filenames, files):
+-                if f_zip.endswith("/"):
++            for info, f_new in members:
++                f_zip = info.filename
++                if info.is_dir():
+                     continue
+                 api_logger.debug("Restoring dataset archive member %s to %s", f_zip, f_new)
+                 if not f_zip.endswith(".xml"):
+@@ -3740,7 +3755,8 @@ def upload_dataset():
+         session['tmpdirname'] = tmpdirname
+         session['detections'] = restored_tiles
+         session['results'] = restored_results
+-        session['metadata'] = results[2]
++        # Every supported writer stores the inverse of the session metadata flag.
++        session['metadata'] = not results[2]
+         restored = True
+         if previous_tmpdirname and previous_tmpdirname != tmpdirname:
+             rmtree(previous_tmpdirname, ignore_errors=True, onerror=None)

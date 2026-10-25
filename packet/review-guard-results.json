@@ -1,0 +1,41 @@
+{
+  "head": "77cb258a03f2abf74054346b2e3964b2d907615b",
+  "results": [
+    {
+      "check": "baseline",
+      "exit": 0,
+      "expected_failure": false
+    },
+    {
+      "check": "list-no-manual",
+      "exit": 1,
+      "expected_failure": true
+    },
+    {
+      "check": "quote-not-escaped",
+      "exit": 1,
+      "expected_failure": true
+    },
+    {
+      "check": "global-contract",
+      "exit": 0,
+      "expected_failure": false
+    },
+    {
+      "check": "debug-contract",
+      "exit": 0,
+      "expected_failure": false
+    },
+    {
+      "check": "bundle-consistency",
+      "exit": 0,
+      "expected_failure": false
+    },
+    {
+      "check": "docs",
+      "exit": 0,
+      "expected_failure": false
+    }
+  ],
+  "limits": "Two deliberate isolated mutations must fail; all source bytes restored. These failures show that the new assertions detect the former gaps, not application failures."
+}

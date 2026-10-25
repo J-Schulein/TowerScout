@@ -1,0 +1,11 @@
+M	docs/maintenance.md
+M	docs/package-guide.md
+M	docs/release/release-notes.md
+M	tests/frontend/test_task106_followup.js
+M	tests/unit/test_dataset_restore_followup.py
+A	tests/unit/test_dataset_writer_roundtrip.py
+M	tests/unit/test_flask_routes.py
+M	webapp/DATASET_README.txt
+M	webapp/js/src/providers/AzureMap.js
+M	webapp/js/towerscout.js
+M	webapp/towerscout.py

@@ -1,0 +1,28 @@
+{
+  "head": "77cb258a03f2abf74054346b2e3964b2d907615b",
+  "date": "2026-10-25",
+  "results": [
+    {
+      "check": "post-poll",
+      "exit": 0
+    },
+    {
+      "check": "unavailable",
+      "exit": 0
+    },
+    {
+      "check": "api-timeout",
+      "exit": 0
+    },
+    {
+      "check": "simulated-e2e",
+      "exit": 0
+    },
+    {
+      "check": "simulated-loopback",
+      "exit": 0
+    }
+  ],
+  "environment": "Headless Edge on Windows, Puppeteer 25.16.0; local-only synthetic page/controller services",
+  "limits": "Real source methods in synthetic fixtures; no live provider, production model, removed PowerShell suite or final deployment qualification."
+}

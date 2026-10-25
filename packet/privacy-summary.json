@@ -1,0 +1,29 @@
+{
+  "head": "77cb258a03f2abf74054346b2e3964b2d907615b",
+  "tree": "e5688fb8f9927dc2e8d52ebe3b109e270cc80cb3",
+  "source_files": 410,
+  "both_commit_identities_verified": true,
+  "original_head_index_preserved": true,
+  "reviewed_406_file_checkpoint_preserved": true,
+  "archive_bytes_metadata_verified": true,
+  "notebooks_artwork_security_policy_unchanged": true,
+  "source_counts": {
+    "ipv4": 104,
+    "project-person": 1,
+    "user-path": 7,
+    "email": 1,
+    "credential-shape": 11,
+    "personal-link": 1
+  },
+  "packet_counts": {
+    "project-person": 14,
+    "email": 10,
+    "ipv4": 82
+  },
+  "historical_attribution": "Complete original TowerScout Team paragraph preserved as plain text at user direction; current approvals remain role-based",
+  "limits": [
+    "Repeat exact-byte privacy and both author/committer checks immediately before any authorized public upload.",
+    "Inherited receiving history remains preserved, not anonymized; no old fork ancestry imported.",
+    "Final images and release artifacts require their own source/privacy review."
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+  "current_head": "77cb258a03f2abf74054346b2e3964b2d907615b",
+  "current_head_remote_ci": "PENDING; not dispatched",
+  "all_nine_required_checks_pass_on_historical_head": true,
+  "runs": [
+    {
+      "url": "https://github.com/J-Schulein/TowerScout/actions/runs/40232515449",
+      "jobs": [
+        {
+          "name": "frontend-test",
+          "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+          "conclusion": "success"
+        },
+        {
+          "name": "test (3.11)",
+          "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+          "conclusion": "success"
+        },
+        {
+          "name": "Docker frontend stage",
+          "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+          "conclusion": "success"
+        },
+        {
+          "name": "security",
+          "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+          "conclusion": "success"
+        },
+        {
+          "name": "test (3.12)",
+          "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+          "conclusion": "success"
+        },
+        {
+          "name": "Full Docker build",
+          "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/J-Schulein/TowerScout/actions/runs/40232528550",
+      "jobs": [
+        {
+          "name": "Production controller e2e (simulated helper)",
+          "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+          "conclusion": "success"
+        },
+        {
+          "name": "Production controller contracts",
+          "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+          "conclusion": "success"
+        },
+        {
+          "name": "Windows host-helper contracts",
+          "head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "required_python_each_version": {
+    "unit_passed": 795,
+    "integration_passed": 10,
+    "skipped": 155
+  },
+  "advisory": "Black, mypy and Bandit returned 1 under existing advisory configuration. Broader integration overlaps required cases and is not added to totals.",
+  "limits": "Prior CPU build/pip inventory passed; not final CPU/CUDA scan or deployment qualification."
+}

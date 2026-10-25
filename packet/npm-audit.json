@@ -1,0 +1,27 @@
+{
+  "head": "77cb258a03f2abf74054346b2e3964b2d907615b",
+  "date": "2026-10-25",
+  "command": "npm audit --include=dev --audit-level=high --json",
+  "result": {
+    "auditReportVersion": 2,
+    "vulnerabilities": {},
+    "metadata": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "dependencies": {
+        "prod": 1,
+        "dev": 27,
+        "optional": 0,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 27
+      }
+    }
+  }
+}

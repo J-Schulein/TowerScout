@@ -1,0 +1,29 @@
+{
+  "base": "87ca90089473e1855f98968f75a17b5f8d0dd1cd",
+  "head": "77cb258a03f2abf74054346b2e3964b2d907615b",
+  "tree": "e5688fb8f9927dc2e8d52ebe3b109e270cc80cb3",
+  "previous_review": "076183879ef7a249230ac79b55887bd0f11a11c8",
+  "public_files": 410,
+  "new_commits": 1,
+  "sole_parent": "87ca90089473e1855f98968f75a17b5f8d0dd1cd",
+  "source_provenance": "724e619fcca6535d09f83dc1d897b41f2e230ae3",
+  "history_guard": "PASS",
+  "approved_author_and_committer_verified": true,
+  "remote_configured": false,
+  "source_manifest_sha256": "24ae135da7c65b61b0ae71f94cc80002bd5aa76e48dc66a135a6b4227dbb5e8b",
+  "source_zip_sha256": "e6e88086c8d017ecb62590eeb2139d8cb57d14a51997a249b19947e056d490e6",
+  "manifest_serialization": "UTF-8, JSON indent=2, final LF, all line endings LF",
+  "deltas": {
+    "receiving-base": {
+      "A": 366,
+      "M": 34,
+      "D": 110
+    },
+    "reviewed-checkpoint": {
+      "A": 1,
+      "M": 10,
+      "D": 0
+    }
+  },
+  "state": "Local review proposal; independent acceptance, new-head remote CI and qualification pending"
+}

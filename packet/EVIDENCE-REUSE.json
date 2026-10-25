@@ -1,0 +1,36 @@
+{
+  "current_head": "77cb258a03f2abf74054346b2e3964b2d907615b",
+  "comparison_head": "076183879ef7a249230ac79b55887bd0f11a11c8",
+  "unchanged_source_sha256": {
+    ".github/security/task103-accepted-residuals.v1.json": "e5ec1e2dc4a7e31fc383f6b699246b20d7b8d1e48b75cabe715331143bcf2a33",
+    ".github/security/task103-trivy-baseline.v1.json": "f18a4f2037573bb6f3280778fb694a8c1beb5e8c1313c47f10ac9cf507d31928",
+    ".github/workflows/ci.yml": "d9e09f1cb0d56a100dbc69c0e146a67c0eef3e20e24de988bf85d86c242acb64",
+    ".github/workflows/task-087-frontend-puppeteer.yml": "d165c88b366f9933d1c71fca9aec39308da60c8024096453146b435775ae6526",
+    "Dockerfile": "0c38c8c40917fce9cb6228c66b649a7ba53e540c16117912ee1f67e3facb9c8c",
+    "package-lock.json": "2bc0fd6bb6af3404ae40fe6383de4cc2403abf0c88586bc64e3928a549a550a1",
+    "package.json": "ffb727a1c4e0ce7107024b1378cb5664b64544a533c90936682bbadf4d47410b",
+    "scripts/import-tls-ca.cmd": "aaf4ca29834cfe343b3e59e68a48c0db56b3d0a267d7e9fa40b134e4fc1fb41e",
+    "scripts/import-tls-ca.ps1": "d91770472302151e85fd05052068bbca005255675e31db9d32b754b51b4e915d",
+    "webapp/ts_provider_http.py": "99136301e4b16923d80b2203bc3f00f4ca124ee0062ee244090ce06d584db01b",
+    "webapp/ts_trust.py": "17e5be148356dfbbf030812ab8b40f7136ed555b205488f159b4c9c3d04fcbb6",
+    "webapp/ts_validation.py": "4d75bfaeed0cc2d48ef923a6d49e521cc224104692cc8eb990680f6791c27a4e"
+  },
+  "historical_records": [
+    "trust-results.json",
+    "TRUST-EVIDENCE.md",
+    "historical-dependencies/",
+    "SECOND-PASS-CLOSURE.md",
+    "HISTORICAL-CI.json"
+  ],
+  "fresh_records": [
+    "test-results.json",
+    "npm-audit.json",
+    "build-validation.json",
+    "browser-results.json"
+  ],
+  "limits": [
+    "Historical receipts retain their original dates, image/source identities and qualification limits.",
+    "Prior-head remote CI is not new-head acceptance; all nine new-head checks remain pending.",
+    "No final production CPU/CUDA image, full scan or two-host deployment qualification is established."
+  ]
+}
